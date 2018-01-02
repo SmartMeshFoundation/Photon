@@ -4,15 +4,18 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"runtime"
 	"time"
 	"unsafe"
 
 	"bytes"
 	"encoding/gob"
 
+	"crypto/ecdsa"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kataras/iris/utils"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // BytesToString accepts bytes and returns their string presentation
@@ -43,16 +46,16 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-var src = rand.NewSource(time.Now().UnixNano())
+var RandSrc = rand.NewSource(time.Now().UnixNano())
 
 // Random takes a parameter (int) and returns random slice of byte
 // ex: var randomstrbytes []byte; randomstrbytes = utils.Random(32)
 func Random(n int) []byte {
 	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+	// A RandSrc.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, RandSrc.Int63(), letterIdxMax; i >= 0; {
 		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
+			cache, remain = RandSrc.Int63(), letterIdxMax
 		}
 		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
 			b[i] = letterBytes[idx]
@@ -70,13 +73,18 @@ func RandomString(n int) string {
 	return string(Random(n))
 }
 func NewRandomAddress() common.Address {
-	hash := Sha3([]byte(utils.Random(10)))
+	hash := Sha3([]byte(Random(10)))
 	return common.BytesToAddress(hash[12:])
 }
-
+func MakePrivateKeyAddress() (*ecdsa.PrivateKey, common.Address) {
+	key, _ := crypto.GenerateKey()
+	addr := crypto.PubkeyToAddress(key.PublicKey)
+	return key, addr
+}
 func StringInterface(i interface{}, depth int) string {
 	c := spew.Config
 	spew.Config.DisableMethods = false
+	//spew.Config.ContinueOnMethod = false
 	spew.Config.MaxDepth = depth
 	s := spew.Sdump(i)
 	spew.Config = c
@@ -84,7 +92,7 @@ func StringInterface(i interface{}, depth int) string {
 }
 func StringInterface1(i interface{}) string {
 	c := spew.Config
-	spew.Config.DisableMethods = false
+	spew.Config.DisableMethods = true
 	spew.Config.MaxDepth = 1
 	s := spew.Sdump(i)
 	spew.Config = c
@@ -108,5 +116,13 @@ func Exists(dir string) bool {
 }
 
 func RandomGenerator() common.Hash {
-	return Sha3(utils.Random(32))
+	return Sha3(Random(32))
+}
+
+// GetHomePath returns the user's $HOME directory
+func GetHomePath() string {
+	if runtime.GOOS == "windows" {
+		return os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+	}
+	return os.Getenv("HOME")
 }

@@ -24,19 +24,16 @@ func SignData(privKey *ecdsa.PrivateKey, data []byte) (sig []byte, err error) {
 func Sha3(data ...[]byte) common.Hash {
 	return crypto.Keccak256Hash(data...)
 }
-func Pex(data ...[]byte) string {
-	hash := Sha3(data...)
-	return common.Bytes2Hex(hash[:8])
+func Pex(data []byte) string {
+	return common.Bytes2Hex(data[:8])
 }
 
 //pex for hash
 func HPex(data common.Hash) string {
-	hash := Sha3(data[:])
-	return common.Bytes2Hex(hash[:8])
+	return common.Bytes2Hex(data[:8])
 }
 func APex(data common.Address) string {
-	hash := Sha3(data[:])
-	return common.Bytes2Hex(hash[:8])
+	return common.Bytes2Hex(data[:8])
 }
 func PubkeyToAddress(pubkey []byte) common.Address {
 	return common.BytesToAddress(crypto.Keccak256(pubkey[1:])[12:])

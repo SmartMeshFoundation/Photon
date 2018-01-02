@@ -75,7 +75,9 @@ var SamePeerAddress = errors.New("SamePeerAddress")
 Raised when the user requested action cannot be done due to the current
     state of the channel.
 */
-var InvalidState = errors.New("InvalidState")
+func InvalidState(msg string) error {
+	return newrerr("InvalidState", msg)
+}
 
 //Raised when a user tries to request a transfer is a closed channel.
 func TransferWhenClosed(msg string) error {
@@ -114,7 +116,9 @@ Raised when the received messages has an invalid value for the nonce.
 
     The nonce field must change incrementally
 */
-var InvalidNonce = errors.New("InvalidNonce")
+func InvalidNonce(msg string) error {
+	return newrerr("InvalidNonce", msg)
+}
 
 /*
 Raised when the node is not receiving new transfers.
@@ -150,3 +154,5 @@ Raised when, after waiting for a transaction to be mined,
 func TransactionThrew(txName string, receipt *types.Receipt) error {
 	return fmt.Errorf("%s transaction threw. Receipt=%s", txName, receipt)
 }
+
+var TransferTimeout = errors.New("TransferTimeout")
