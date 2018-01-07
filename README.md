@@ -56,3 +56,7 @@ t
    --version, -v                                                               print the version                                                                      
                                                                                                                                                                       
 ```
+
+## Requirements
+
+geth >=1.7.3
