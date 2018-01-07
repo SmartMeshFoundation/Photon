@@ -61,7 +61,7 @@ Connect to the network.
             initial_channel_target (int): number of channels to open immediately
             joinable_funds_target (float): amount of funds not initially assigned
 */
-func (this *ConnectionManager) Connect(funds, initialChannelTarge int64, joinableFundsTarget float64) error {
+func (this *ConnectionManager) Connect(funds, initialChannelTarget int64, joinableFundsTarget float64) error {
 	if funds <= 0 {
 		return errors.New("connecting needs a positive value for `funds`")
 	}
@@ -69,7 +69,7 @@ func (this *ConnectionManager) Connect(funds, initialChannelTarge int64, joinabl
 	if ok {
 		delete(this.raiden.MessageHandler.blockedTokens, this.tokenAddress)
 	}
-	this.initChannelTarget = initialChannelTarge
+	this.initChannelTarget = initialChannelTarget
 	this.joinableFundsTarget = joinableFundsTarget
 	openChannels := this.openChannels()
 	if len(openChannels) > 0 {
@@ -86,9 +86,9 @@ func (this *ConnectionManager) Connect(funds, initialChannelTarge int64, joinabl
 	}
 	this.lock.Lock()
 	this.funds = funds
-	this.addNewPartners()
+	err := this.addNewPartners()
 	this.lock.Unlock()
-	return nil
+	return err
 }
 func (this *ConnectionManager) openChannels() []*channel.Channel {
 	chs := this.api.GetChannelList(this.tokenAddress, utils.EmptyAddress)
@@ -286,17 +286,19 @@ This opens channels with a number of new partners according to the
         connection strategy parameter `self.initial_channel_target`.
         Each new channel will receive `self.initial_funding_per_partner` funding.
 */
-func (this *ConnectionManager) addNewPartners() {
+func (this *ConnectionManager) addNewPartners() error {
 	newPartnerCount := int(this.initChannelTarget) - len(this.openChannels())
 	if newPartnerCount <= 0 {
-		return
+		return nil
 	}
 	for _, partner := range this.findNewPartners(newPartnerCount) {
 		err := this.openAndDeposit(partner, this.initialFundingPerPartner())
 		if err != nil {
 			log.Error(fmt.Sprintf("addNewPartners %s ,err:%s", utils.APex(partner), err))
+			return err
 		}
 	}
+	return nil
 }
 
 /*

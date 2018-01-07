@@ -19,10 +19,13 @@ import (
 
 	"net"
 
+	"os/signal"
+
 	"github.com/SmartMeshFoundation/raiden-network"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/raiden-network/restful"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/davecgh/go-spew/spew"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
@@ -31,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/kataras/go-fs"
 	"github.com/slonzok/getpass"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -117,7 +119,7 @@ func main() {
 	}
 	app.Action = Main
 	app.Name = "raiden"
-	app.Version = "0.2"
+	app.Version = "0.1"
 	app.Run(os.Args)
 }
 func setupLog(ctx *cli.Context) {
@@ -159,7 +161,7 @@ func Main(ctx *cli.Context) error {
 	       # not timeout.
 	*/
 	host, port := network.SplitHostPort(ctx.String("listen-address"))
-	pms, err := network.SocketFactory(host, port, ctx.String("nat"))
+	pms, err := network.SocketFactory(host, port /*ctx.String("nat")*/, "none")
 	log.Trace("pms=", utils.StringInterface1(pms))
 	if err != nil {
 		log.Error(fmt.Sprintf("start server on %s error:%s", ctx.String("listen-address"), err))
@@ -181,12 +183,28 @@ func Main(ctx *cli.Context) error {
 	//	log.Error("discovery endpoint register error:", err)
 	//	os.Exit(1)
 	//}
-	registry, _ := rpc.NewRegistry(bcs.RegistryAddress, bcs.Client)
+	//registry := bcs.Registry(bcs.RegistryAddress)
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn.(*net.UDPConn), nil, policy)
-	raidenService := raiden_network.NewRaidenService(bcs, registry, cfg.PrivateKey, transport, discovery, cfg)
-	raidenService.Start()
+	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	go func() {
+		raidenService.Start()
+	}()
+	api := raiden_network.NewRaidenApi(raidenService)
+	regQuitHandler(api)
+	restful.Start(api, cfg)
 	return nil
+}
+func regQuitHandler(api *raiden_network.RaidenApi) {
+	go func() {
+		quitSignal := make(chan os.Signal, 1)
+		signal.Notify(quitSignal, os.Interrupt, os.Kill)
+		select {
+		case <-quitSignal:
+			api.Stop()
+			os.Exit(0)
+		}
+	}()
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
 	am := raiden_network.NewAccountManager(keystorePath)
@@ -285,7 +303,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	dataDir := ctx.String("datadir")
 	if len(dataDir) == 0 {
-		dataDir = path.Join(fs.GetHomePath(), ".goraiden")
+		dataDir = path.Join(utils.GetHomePath(), ".goraiden")
 	}
 	config.DataDir = dataDir
 	if !utils.Exists(config.DataDir) {

@@ -14,6 +14,8 @@ import (
 
 	"math/rand"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
@@ -70,6 +72,7 @@ type RaidenService struct {
 	Identifier2StateManagers map[uint64][]*transfer.StateManager
 	Identifier2Results       map[uint64][]*network.AsyncResult
 	SwapKey2TokenSwap        map[SwapKey]*TokenSwap
+	SwapKey2Task             map[SwapKey]Tasker
 	Tokens2ConnectionManager map[common.Address]*ConnectionManager
 	/*
 			  # This is a map from a hashlock to a list of channels, the same
@@ -111,10 +114,11 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Identifier2Results:       make(map[uint64][]*network.AsyncResult),
 		Token2Hashlock2Channels:  make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:        make(map[SwapKey]*TokenSwap),
+		SwapKey2Task:             make(map[SwapKey]Tasker),
 		Tokens2ConnectionManager: make(map[common.Address]*ConnectionManager),
 		AlarmTask:                blockchain.NewAlarmTask(chain.Client),
 		BlockChainEvents:         blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
-		GreenletTasksDispatcher:  &GreenletTasksDispatcher{},
+		GreenletTasksDispatcher:  NewGreenletTasksDispatcher(),
 		BlockNumberChan:          make(chan int64, 1),
 	}
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
@@ -154,10 +158,25 @@ func (this *RaidenService) Start() {
 		        # is mined, and the alarm starts polling at block C.
 	*/
 	this.RegisterRegistry()
+	err = this.RestoreSnapshot()
+	if err != nil {
+		log.Error(fmt.Sprintf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost!!", err, this.Config.DataBasePath))
+		os.Exit(1)
+	}
 	this.Protocol.Start()
 	this.loop()
 }
 
+//Stop the node.
+func (this *RaidenService) Stop() {
+	this.AlarmTask.Stop()
+	this.Protocol.StopAndWait()
+	this.BlockChainEvents.Stop()
+	this.SaveSnapshot()
+	time.Sleep(time.Second * 3) // let other goroutines quit
+	//anther instance cann run now
+	this.FileLocker.Unlock()
+}
 func (this *RaidenService) loop() {
 	var err error
 	var ok bool
@@ -175,6 +194,7 @@ func (this *RaidenService) loop() {
 				this.Protocol.ReceivedMessageResultChannel <- err
 			} else {
 				log.Info("Protocol.ReceivedMessageChannel closed")
+				return
 			}
 		case st, ok = <-this.BlockChainEvents.StateChangeChannel:
 			if ok {
@@ -184,12 +204,14 @@ func (this *RaidenService) loop() {
 				}
 			} else {
 				log.Info("BlockChainEvents.StateChangeChannel closed")
+				return
 			}
 		case blockNumber, ok = <-this.BlockNumberChan:
 			if ok {
 				this.handleBlockNumber(blockNumber)
 			} else {
 				log.Info("BlockNumberChan closed")
+				return
 			}
 		}
 	}
@@ -203,19 +225,6 @@ func (this *RaidenService) RegisterRegistry() {
 	}
 	for _, mgr := range mgrs {
 		this.RegisterChannelManager(mgr.Address)
-		//todo test and remove codes
-		//tokenAddress, _ := mgr.TokenAddress()
-		//managerAddress := mgr.Address
-		//var details []*network.ChannelDetails
-		//for _, proxy := range channelsmap[managerAddress] {
-		//	detail := this.getChannelDetail(tokenAddress, proxy)
-		//	details = append(details, detail)
-		//}
-		//edgeList, _ := mgr.GetChannelsAddresses()
-		//graph := network.NewChannelGraph(this.NodeAddress, managerAddress, tokenAddress, edgeList, details)
-		//this.Manager2Token[managerAddress] = tokenAddress
-		//this.Token2ChannelGraph[tokenAddress] = graph
-		////connectionsmanager later todo
 	}
 }
 
@@ -248,8 +257,8 @@ func (this *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *
 		ExternState:       externState,
 		BlockChainService: this.Chain,
 		RevealTimeout:     this.Config.RevealTimeout,
-		SettleTimeout:     this.Config.SettleTimeout,
 	}
+	channelDetail.SettleTimeout, _ = externState.NettingChannel.SettleTimeout()
 	return channelDetail
 }
 
@@ -272,14 +281,6 @@ func (this *RaidenService) GetBlockNumber() int64 {
 	return this.BlockNumber.Load()
 }
 
-//func (this *RaidenService) SetNodeNetworkState(nodeAddress common.Address) {
-//	for _,g:=range this.Token2ChannelGraph {
-//		ch,ok:=g.PartenerAddress2Channel[nodeAddress]
-//		if ok&& ch!=nil{
-//			ch.ExternState.
-//		}
-//	}
-//}
 func (this *RaidenService) FindChannelByAddress(nettingChannelAddress common.Address) (*channel.Channel, error) {
 	for _, g := range this.Token2ChannelGraph {
 		ch, ok := g.ChannelAddres2Channel[nettingChannelAddress]
@@ -515,93 +516,96 @@ func (this *RaidenService) ConnectionManagerForToken(tokenAddress common.Address
 		return mgr, nil
 	}
 	return nil, rerr.InvalidAddress(fmt.Sprintf("token %s is not registered", tokenAddress))
-
-	/*
-
-			  def leave_all_token_networks_async(self):
-		       token_addresses = self.token_to_channelgraph.keys()
-		       leave_results = []
-		       for token_address in token_addresses:
-		           try:
-		               connection_manager = self.connection_manager_for_token(token_address)
-		           except InvalidAddress:
-		               pass
-		           leave_results.append(connection_manager.leave_async())
-		       combined_result = AsyncResult()
-		       gevent.spawn(gevent.wait, leave_results).link(combined_result)
-		       return combined_result
-	*/
 }
-
+func (this *RaidenService) LeaveAllTokenNetworksAsync() *network.AsyncResult {
+	var leaveResults []*network.AsyncResult
+	for token, _ := range this.Token2ChannelGraph {
+		mgr, _ := this.ConnectionManagerForToken(token)
+		if mgr != nil {
+			leaveResults = append(leaveResults, mgr.LeaveAsync())
+		}
+	}
+	return WaitGroupAsyncResult(leaveResults)
+}
+func WaitGroupAsyncResult(results []*network.AsyncResult) *network.AsyncResult {
+	totalResult := network.NewAsyncResult()
+	wg := sync.WaitGroup{}
+	wg.Add(len(results))
+	for i, _ := range results {
+		go func(i int) {
+			<-results[i].Result
+			wg.Done()
+		}(i)
+	}
+	go func() {
+		wg.Wait()
+		totalResult.Result <- nil
+		close(totalResult.Result)
+	}()
+	return totalResult
+}
 func (this *RaidenService) CloseAndSettle() {
+	log.Info("raiden will close and settle all channels now")
+	var Mgrs []*ConnectionManager
+	for t, _ := range this.Token2ChannelGraph {
+		mgr, _ := this.ConnectionManagerForToken(t)
+		if mgr != nil {
+			Mgrs = append(Mgrs, mgr)
+		}
+	}
+	blocksToWait := func() int64 {
+		var max int64 = 0
+		for _, mgr := range Mgrs {
+			if max < mgr.minSettleBlocks() {
+				max = mgr.minSettleBlocks()
+			}
+		}
+		return max
+	}
+	var AllChannels []*channel.Channel
+	for _, mgr := range Mgrs {
+		AllChannels = append(AllChannels, mgr.openChannels()...)
+	}
+	leavingResult := this.LeaveAllTokenNetworksAsync()
+	//using the un-cached block number here
+	lastBlock := this.GetBlockNumber()
+	earliestSettlement := lastBlock + blocksToWait()
 	/*
-	   def close_and_settle(self):
-	         log.info('raiden will close and settle all channels now')
-
-	         connection_managers = [
-	             self.connection_manager_for_token(token_address) for
-	             token_address in self.token_to_channelgraph
-	         ]
-
-	         def blocks_to_wait():
-	             return max(
-	                 connection_manager.min_settle_blocks
-	                 for connection_manager in connection_managers
-	             )
-
-	         all_channels = list(
-	             itertools.chain.from_iterable(
-	                 [connection_manager.open_channels for connection_manager in connection_managers]
-	             )
-	         )
-
-	         leaving_greenlet = self.leave_all_token_networks_async()
-	         # using the un-cached block number here
-	         last_block = self.chain.block_number()
-
-	         earliest_settlement = last_block + blocks_to_wait()
-
-	         # TODO: estimate and set a `timeout` parameter in seconds
-	         # based on connection_manager.min_settle_blocks and an average
-	         # blocktime from the past
-
-	         current_block = last_block
-	         avg_block_time = self.chain.estimate_blocktime()
-	         wait_blocks_left = blocks_to_wait()
-	         while current_block < earliest_settlement:
-	             gevent.sleep(self.alarm.wait_time)
-	             last_block = self.chain.block_number()
-	             if last_block != current_block:
-	                 current_block = last_block
-	                 avg_block_time = self.chain.estimate_blocktime()
-	                 wait_blocks_left = blocks_to_wait()
-	                 not_settled = sum(
-	                     1 for channel in all_channels
-	                     if not channel.state == CHANNEL_STATE_SETTLED
-	                 )
-	                 if not_settled == 0:
-	                     log.debug('nothing left to settle')
-	                     break
-	                 log.info(
-	                     'waiting at least %s more blocks (~%s sec) for settlement'
-	                     '(%s channels not yet settled)' % (
-	                         wait_blocks_left,
-	                         wait_blocks_left * avg_block_time,
-	                         not_settled
-	                     )
-	                 )
-
-	             leaving_greenlet.wait(timeout=blocks_to_wait() * self.chain.estimate_blocktime() * 1.5)
-
-	         if any(channel.state != CHANNEL_STATE_SETTLED for channel in all_channels):
-	             log.error(
-	                 'Some channels were not settled!',
-	                 channels=[
-	                     pex(channel.channel_address) for channel in all_channels
-	                     if channel.state != CHANNEL_STATE_SETTLED
-	                 ]
-	             )
+			   # TODO: estimate and set a `timeout` parameter in seconds
+		    # based on connection_manager.min_settle_blocks and an average
+		    # blocktime from the past
 	*/
+	currentBlock := lastBlock
+	for currentBlock < earliestSettlement {
+		time.Sleep(time.Second * 10)
+		lastBlock := this.GetBlockNumber()
+		if lastBlock != currentBlock {
+			currentBlock = lastBlock
+			waitBlocksLeft := blocksToWait()
+			notSettled := 0
+			for _, c := range AllChannels {
+				if c.State() != transfer.CHANNEL_STATE_SETTLED {
+					notSettled++
+				}
+			}
+			if notSettled == 0 {
+				log.Debug("nothing left to settle")
+				break
+			}
+			log.Info(fmt.Sprintf("waiting at least %s more blocks for %d channels not yet settled", waitBlocksLeft, notSettled))
+		}
+		//why  leaving_greenlet.wait
+		timeoutch := time.After(time.Second * time.Duration(blocksToWait()))
+		select {
+		case <-timeoutch:
+		case <-leavingResult.Result:
+		}
+	}
+	for _, c := range AllChannels {
+		if c.State() != transfer.CHANNEL_STATE_SETTLED {
+			log.Error("channels were not settled:", utils.APex(c.MyAddress))
+		}
+	}
 }
 
 /*
@@ -682,7 +686,7 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 }
 func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount int64, identifier uint64) (result *network.AsyncResult) {
 	graph := this.Token2ChannelGraph[tokenAddress]
-	availableRoutes := graph.GetBestRoutes(this.Protocol.Address2NetworkStatus, this.NodeAddress, target, amount, utils.EmptyAddress)
+	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
 	result = network.NewAsyncResult()
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
@@ -697,9 +701,10 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 		Amount:     amount,
 		Token:      tokenAddress,
 		Initiator:  this.NodeAddress,
-		Target:     target, Expiration: 0,
-		Hashlock: utils.EmptyHash,
-		Secret:   utils.EmptyHash,
+		Target:     target,
+		Expiration: 0,
+		Hashlock:   utils.EmptyHash,
+		Secret:     utils.EmptyHash,
 	}
 	/*
 			 # Issue #489
@@ -724,7 +729,7 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 		RandomGenerator: utils.RandomGenerator,
 		BlockNumber:     this.GetBlockNumber(),
 	}
-	stateManger := transfer.NewStateManager(initiator.StateTransition, nil)
+	stateManger := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition)
 	this.StateMachineEventHandler.LogAndDispatch(stateManger, initInitiator)
 	/*
 			 # TODO: implement the network timeout raiden.config['msg_timeout'] and
@@ -745,7 +750,7 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 	target := msg.Target
 	token := msg.Token
 	graph := this.Token2ChannelGraph[token]
-	avaiableRoutes := graph.GetBestRoutes(this.Protocol.Address2NetworkStatus, this.NodeAddress, target, amount, msg.Sender)
+	avaiableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, msg.Sender)
 	fromChannel := graph.PartenerAddress2Channel[msg.Sender]
 	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender)
 	ourAddress := this.NodeAddress
@@ -759,7 +764,7 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 		FromRoute:   fromRoute,
 		BlockNumber: blockNumber,
 	}
-	stateManager := transfer.NewStateManager(mediator.StateTransition, nil)
+	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition)
 	this.StateMachineEventHandler.LogAndDispatch(stateManager, initMediator)
 	mgrs := this.Identifier2StateManagers[msg.Identifier]
 	mgrs = append(mgrs, stateManager)
@@ -778,7 +783,7 @@ func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer
 		FromTranfer: fromTransfer,
 		BlockNumber: this.GetBlockNumber(),
 	}
-	stateManger := transfer.NewStateManager(target.StateTransiton, nil)
+	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition)
 	this.StateMachineEventHandler.LogAndDispatch(stateManger, initTarget)
 	identifier := msg.Identifier
 	mgrs := this.Identifier2StateManagers[identifier]

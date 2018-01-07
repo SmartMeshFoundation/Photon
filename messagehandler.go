@@ -194,35 +194,28 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	}
 	return nil
 }
-func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfer) error {
-	return nil
+func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfer) {
+	key := SwapKey{
+		Identifier: msg.Identifier,
+		FromToken:  msg.Token,
+		FromAmount: msg.Amount.Int64(),
+	}
+	/*
+			If we are the maker the task is already running and waiting for the
+		    taker's MediatedTransfer
+	*/
+	task := this.raiden.SwapKey2Task[key]
+	if task != nil {
+		task.GetResponseChan() <- msg
+	} else {
+		/*
+		   If we are the taker we are receiving the maker transfer and should start our new task
+		*/
+		tokenSwap := this.raiden.SwapKey2TokenSwap[key]
+		task := NewTakerTokenSwapTask(this.raiden, tokenSwap, msg)
+		go func() {
+			task.Start()
+		}()
+		this.raiden.SwapKey2Task[key] = task
+	}
 }
-
-/*
-def message_tokenswap(self, message):
-    key = SwapKey(
-        message.identifier,
-        message.token,
-        message.lock.amount,
-    )
-
-    # If we are the maker the task is already running and waiting for the
-    # taker's MediatedTransfer
-    task = self.raiden.swapkey_to_greenlettask.get(key)
-    if task:
-        task.response_queue.put(message)
-
-    # If we are the taker we are receiving the maker transfer and should
-    # start our new task
-    else:
-        token_swap = self.raiden.swapkey_to_tokenswap[key]
-        task = TakerTokenSwapTask(
-            self.raiden,
-            token_swap,
-            message,
-        )
-        task.start()
-
-        self.raiden.swapkey_to_greenlettask[key] = task
-
-*/

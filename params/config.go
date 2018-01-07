@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/node"
 )
@@ -30,7 +32,7 @@ type Config struct {
 	RevealTimeout    int
 	SettleTimeout    int
 	DataBasePath     string
-	MsgTimeout       float64
+	MsgTimeout       time.Duration
 	Protocol         protocolConfig
 	UseRpc           bool
 	UseConsole       bool
@@ -61,6 +63,7 @@ var DefaultConfig = Config{
 	UseConsole:       false,
 	RegistryAddress:  ROPSTEN_REGISTRY_ADDRESS,
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
+	MsgTimeout:       100 * time.Second,
 }
 
 func init() {

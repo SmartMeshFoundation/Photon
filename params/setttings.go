@@ -24,7 +24,7 @@ const DEFAULT_PROTOCOL_RETRY_INTERVAL = 1.
 
 const DEFAULT_REVEAL_TIMEOUT = 30
 const DEFAULT_SETTLE_TIMEOUT = DEFAULT_REVEAL_TIMEOUT * 20
-const DEFAULT_EVENTS_POLL_TIMEOUT = 0.5
+const DEFAULT_EVENTS_POLL_TIMEOUT = time.Second
 const DEFAULT_POLL_TIMEOUT = 180 * time.Second
 const DEFAULT_JOINABLE_FUNDS_TARGET = 0.4
 const DEFAULT_INITIAL_CHANNEL_TARGET = 3
@@ -34,6 +34,7 @@ const DEFAULT_NAT_KEEPALIVE_RETRIES = 5
 const DEFAULT_NAT_KEEPALIVE_TIMEOUT = 30
 const DEFAULT_NAT_INVITATION_TIMEOUT = 180
 const Default_Tx_Timeout = 5 * time.Minute //15seconds for one block,it may take sever minutes
+const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for example ,settle all channles?
 
 var GAS_LIMIT_HEX string
 var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("Cf3C7400C227be86FcdB2c9Be7DEf5c671087620")

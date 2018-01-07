@@ -11,8 +11,7 @@ import (
 )
 
 func newrerr(msg1, msg2 string) error {
-	fmt.Errorf("%s: %s", msg1, msg2)
-	return nil
+	return fmt.Errorf("%s: %s", msg1, msg2)
 }
 
 /*
@@ -156,3 +155,11 @@ func TransactionThrew(txName string, receipt *types.Receipt) error {
 }
 
 var TransferTimeout = errors.New("TransferTimeout")
+
+func Timeout(msg string) error {
+	return newrerr("Timeout", msg)
+}
+
+func GoChannelClosed(msg string) error {
+	return newrerr("GoChannelClosed", msg)
+}

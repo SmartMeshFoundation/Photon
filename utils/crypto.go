@@ -35,6 +35,9 @@ func HPex(data common.Hash) string {
 func APex(data common.Address) string {
 	return common.Bytes2Hex(data[:8])
 }
+func APex2(data common.Address) string {
+	return common.Bytes2Hex(data[:2])
+}
 func PubkeyToAddress(pubkey []byte) common.Address {
 	return common.BytesToAddress(crypto.Keccak256(pubkey[1:])[12:])
 }

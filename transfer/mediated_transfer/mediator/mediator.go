@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+const NameMediatorTransition = "MediatorTransition"
+
 /*
  Reduce the lock expiration by some additional blocks to prevent this exploit:
  The payee could reveal the secret on it's lock expiration block, the lock

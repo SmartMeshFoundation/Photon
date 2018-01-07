@@ -145,12 +145,12 @@ func (sb *StateChangeLogQlBackend) WriteStateSnapshot(stateChangeId string, data
 	defer sb.lock.Unlock()
 	tx, _ := sb.db.Begin()
 	defer tx.Commit()
-	rows, err := tx.Query("select * from state_changes where id=1")
+	rows, err := tx.Query("select * from state_snapshot where identifier=1")
 	if err != nil {
 		return 0, err
 	}
 	if rows.Next() {
-		_, err = tx.Exec("update  state_snapshot set  VALUES($1,$2,$3)", 1, stateChangeId, data)
+		_, err = tx.Exec("update  state_snapshot set  statechange_id=$1,data=$2 where identifier=1", stateChangeId, data)
 	} else {
 		_, err = tx.Exec("INSERT INTO state_snapshot(identifier, statechange_id, data) VALUES($1,$2,$3)", 1, stateChangeId, data)
 	}
@@ -242,16 +242,25 @@ func (sb *StateChangeLogQlBackend) GetEventsInRange(fromblock, toblock int64) (e
 	var stmt *sql.Stmt
 	tx, _ := sb.db.Begin()
 	defer tx.Commit()
+	if fromblock < 0 {
+		fromblock = 0
+	}
 	if toblock > 0 {
 		stmt, err = tx.Prepare("SELECT * from  state_events WHERE block_number BETWEEN $1 AND $2 ")
 	} else {
-		stmt, err = tx.Prepare("SELECT * from  state_events WHERE block_number >= ?")
+		stmt, err = tx.Prepare("SELECT * from  state_events WHERE block_number >= $1")
 	}
 	if err != nil {
 		return
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query(fromblock, toblock)
+	var rows *sql.Rows
+	if toblock > 0 {
+		rows, err = stmt.Query(fromblock, toblock)
+	} else {
+		rows, err = stmt.Query(fromblock)
+	}
+
 	if err != nil {
 		return
 	}
@@ -336,7 +345,19 @@ func (this *StateChangeLog) GetStateChangeById(id string) (st StateChange, err e
 	st = StateChange(this.Serializer.DeSerialize(data))
 	return
 }
-func (this *StateChangeLog) Snapshort(stateChangeId string, state State) (int64, error) {
+func (this *StateChangeLog) Snapshot(stateChangeId string, state interface{}) (int64, error) {
 	data := this.Serializer.Serialize(state)
 	return this.Storage.WriteStateSnapshot(stateChangeId, data)
+}
+
+func (this *StateChangeLog) LoadSnapshot() (interface{}, error) {
+	_, data, err := this.Storage.GetStateSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+	result := this.Serializer.DeSerialize(data)
+	return result, nil
 }

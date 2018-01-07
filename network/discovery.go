@@ -8,6 +8,8 @@ import (
 
 	"context"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
@@ -18,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/kataras/go-errors"
 )
 
 var hostportPrefix = []byte("hostport_")
@@ -97,7 +98,7 @@ func (this *Discovery) NodeIdByHostPort(host string, port int) (node common.Addr
 	return utils.EmptyAddress, errors.New("not found")
 }
 
-//Allows registering and looking up by endpoint (host, port) for node_address.
+//Allows registering and looking up by endpoint (Host, Port) for node_address.
 type ContractDiscovery struct {
 	discovery   *rpc.EndpointRegistry
 	client      *ethclient.Client

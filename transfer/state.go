@@ -121,6 +121,12 @@ func NewMerkleTreeState(tree *Merkletree) *MerkleTreeState {
 		tree,
 	}
 }
+func NewMerkleTreeStateFromLeaves(leaves []common.Hash) *MerkleTreeState {
+	tree, _ := NewMerkleTree(leaves)
+	return &MerkleTreeState{
+		tree,
+	}
+}
 
 func (this *MerkleTreeState) StateName() string {
 	return "MerkleTreeState"

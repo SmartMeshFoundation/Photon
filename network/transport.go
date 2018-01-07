@@ -23,7 +23,7 @@ type Policier interface {
 	Consume(tokens float64) time.Duration
 }
 type Transporter interface {
-	Send(sender common.Address, host string, port int, data []byte) error
+	Send(receiver common.Address, host string, port int, data []byte) error
 	Receive(data []byte, host string, port int) error
 	Start()
 	Stop()
@@ -123,10 +123,10 @@ func (this *DummyNetwork) Register(transpoter Transporter, host string, port int
 
 //Register an attempt to send a packet. This method should be called
 //everytime send() is used.
-func (this *DummyNetwork) TrackSend(sender common.Address, host string, port int, data []byte) error {
+func (this *DummyNetwork) TrackSend(receiver common.Address, host string, port int, data []byte) error {
 	this.Counter += 1
 	for _, cb := range this.MessageSendCallbacks {
-		cb(sender, tohostport(host, port), data)
+		cb(receiver, tohostport(host, port), data)
 	}
 	return nil
 }
@@ -151,8 +151,8 @@ type ProtocolReceiver interface {
 type UDPTransport struct {
 	protocol      ProtocolReceiver
 	conn          *net.UDPConn
-	host          string
-	port          int
+	Host          string
+	Port          int
 	policy        Policier
 	isClosed      bool
 	stopReceiving bool //todo use atomic to replace
@@ -160,8 +160,8 @@ type UDPTransport struct {
 
 func NewUDPTransport(host string, port int, conn *net.UDPConn, protocol ProtocolReceiver, policy Policier) *UDPTransport {
 	t := &UDPTransport{
-		host:          host,
-		port:          port,
+		Host:          host,
+		Port:          port,
 		protocol:      protocol,
 		policy:        policy,
 		isClosed:      false,
@@ -203,6 +203,8 @@ func (this *UDPTransport) Start() {
 				fmt.Println("读取数据失败!", err)
 				if !t.isClosed {
 					continue
+				} else {
+					return
 				}
 
 			}
@@ -224,8 +226,8 @@ func (this *UDPTransport) Receive(data []byte, host string, port int) error {
 }
 func udpAddrFromHostport(host string, port int) *net.UDPAddr {
 	//ss := strings.Split(hostport, ":")
-	//host := ss[0]
-	//port, _ := strconv.Atoi(ss[1])
+	//Host := ss[0]
+	//Port, _ := strconv.Atoi(ss[1])
 	return &net.UDPAddr{IP: net.ParseIP(host), Port: port}
 }
 
@@ -233,12 +235,12 @@ func udpAddrFromHostport(host string, port int) *net.UDPAddr {
 Send `bytes_` to `host_port`.
 Args:
     sender (address): The address of the running node.
-    host_port (Tuple[(str, int)]): Tuple with the host name and port number.
+    host_port (Tuple[(str, int)]): Tuple with the Host name and Port number.
     bytes_ (bytes): The bytes that are going to be sent through the wire.
 */
-func (this *UDPTransport) Send(sender common.Address, host string, port int, data []byte) error {
-	dummyNetwork.TrackSend(sender, host, port, data)
-	log.Trace(fmt.Sprintf("send to %s %s:%d, data=\n%s\n", sender.String(), host, port, hex.Dump(data)))
+func (this *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
+	dummyNetwork.TrackSend(receiver, host, port, data)
+	log.Trace(fmt.Sprintf("send to %s %s:%d, data=\n%s\n", receiver.String(), host, port, hex.Dump(data)))
 	time.Sleep(this.policy.Consume(1))
 	//todo need one lock for write?
 	_, err := this.conn.WriteToUDP(data, udpAddrFromHostport(host, port))
@@ -252,8 +254,8 @@ func (this *UDPTransport) Register(proto ProtocolReceiver) {
 	this.protocol = proto
 }
 func (this *UDPTransport) Stop() {
-	this.conn.Close()
 	this.isClosed = true
+	this.conn.Close()
 }
 func (this *UDPTransport) StopAccepting() {
 	this.stopReceiving = true
@@ -277,9 +279,9 @@ func NewDummyTransport(host string, port int, protocol ProtocolReceiver, policy 
 	dummyNetwork.Register(t, host, port)
 	return t
 }
-func (this *DummyTransport) Send(sender common.Address, host string, port int, data []byte) error {
+func (this *DummyTransport) Send(receiver common.Address, host string, port int, data []byte) error {
 	time.Sleep(this.policy.Consume(1))
-	return dummyNetwork.Send(sender, host, port, data)
+	return dummyNetwork.Send(receiver, host, port, data)
 }
 func (this *DummyTransport) Receive(data []byte, host string, port int) error {
 	dummyNetwork.TrackReceive(common.Address{}, host, port, data)

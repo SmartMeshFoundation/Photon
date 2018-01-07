@@ -15,6 +15,7 @@ import (
 
 var errSentFailed = errors.New("sent failed")
 
+//run inside loop of raiden service
 type StateMachineEventHandler struct {
 	raiden *RaidenService
 }
@@ -262,7 +263,7 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 	return found
 }
 func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
-	log.Info("statechange received :%s", utils.StringInterface1(st))
+	log.Info("statechange received :", utils.StringInterface1(st))
 	_, err = this.raiden.TransactionLog.Log(st)
 	if err != nil {
 		return err

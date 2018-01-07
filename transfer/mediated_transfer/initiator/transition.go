@@ -9,6 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+const NameInitiatorTransition = "InitiatorTransition"
+
 /*
 """ Clear current state and try a new route.
 

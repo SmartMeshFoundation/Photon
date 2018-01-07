@@ -5,6 +5,7 @@ import (
 
 	"fmt"
 
+	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
@@ -135,17 +136,11 @@ func (this *RaidenApi) RegisterToken(tokenAddress common.Address) (mgrAddr commo
 }
 
 /*
-def connect_token_network(
-        self,
-        token_address,
-        funds,
-        initial_channel_target=3,
-        joinable_funds_target=.4):
-    """Instruct the ConnectionManager to establish and maintain a connection to the token
+Instruct the ConnectionManager to establish and maintain a connection to the token
     network.
 
     If the `token_address` is not already part of the raiden network, this will also register
-    the token.
+    the token. //十分不合理这一点,为什么api要设计成这样呢?
 
     Args:
         token_address (bin): the ERC20 token network to connect to.
@@ -153,53 +148,57 @@ def connect_token_network(
         initial_channel_target (int): number of channels to open proactively.
         joinable_funds_target (float): fraction of the funds that will be used to join
             channels opened by other participants.
-    """
-    if not isaddress(token_address):
-        raise InvalidAddress('token_address must be a valid address in binary')
-
-    try:
-        connection_manager = self.raiden.connection_manager_for_token(token_address)
-    except InvalidAddress:
-        # token is not yet registered
-        self.raiden.default_registry.add_token(token_address)
-
-        # wait for registration
-        while token_address not in self.raiden.tokens_to_connectionmanagers:
-            gevent.sleep(self.raiden.alarm.wait_time)
-        connection_manager = self.raiden.connection_manager_for_token(token_address)
-
-    connection_manager.connect(
-        funds,
-        initial_channel_target=initial_channel_target,
-        joinable_funds_target=joinable_funds_target
-    )
-
-def leave_token_network(self, token_address, only_receiving=True):
-    """Instruct the ConnectionManager to close all channels and wait for
-    settlement.
-    """
-    connection_manager = self.raiden.connection_manager_for_token(token_address)
-    return connection_manager.leave(only_receiving)
-
-def get_connection_managers_info(self):
-    """Get a dict whose keys are token addresses and whose values are
-    open channels, funds of last request, sum of deposits and number of channels"""
-    connection_managers = dict()
-
-    for token in self.get_tokens_list():
-        try:
-            connection_manager = self.raiden.connection_manager_for_token(token)
-        except InvalidAddress:
-            connection_manager = None
-        if connection_manager is not None and connection_manager.open_channels:
-            connection_managers[connection_manager.token_address] = {
-                'funds': connection_manager.funds,
-                'sum_deposits': connection_manager.sum_deposits,
-                'channels': len(connection_manager.open_channels),
-            }
-
-    return connection_managers
 */
+func (this *RaidenApi) ConnectTokenNetwork(tokenAddress common.Address, funds, initialChannelTarget int64, joinableFundsTarget float64) error {
+	cm, err := this.Raiden.ConnectionManagerForToken(tokenAddress)
+	if err != nil {
+		return err
+	}
+	return cm.Connect(funds, initialChannelTarget, joinableFundsTarget)
+}
+
+/*
+Instruct the ConnectionManager to close all channels and wait for
+    settlement
+*/
+func (this *RaidenApi) LeaveTokenNetwork(tokenAddress common.Address, onlyReceiving bool) ([]*channel.Channel, error) {
+	cm, err := this.Raiden.ConnectionManagerForToken(tokenAddress)
+	if err != nil {
+		return nil, err
+	}
+	chs := cm.Leave(onlyReceiving)
+	return chs, nil
+}
+
+/*
+Get a dict whose keys are token addresses and whose values are
+    open channels, funds of last request, sum of deposits and number of channels
+*/
+func (this *RaidenApi) GetConnectionManagersInfo() map[string]interface{} {
+	infos := make(map[string]interface{})
+	type info struct {
+		Funds       int64 `json:"funds"`
+		SumDeposits int64 `json:"sum_deposits"`
+		Channels    int   `json:"channels"`
+	}
+
+	for _, t := range this.GetTokenList() {
+		cm, err := this.Raiden.ConnectionManagerForToken(t)
+		if err != nil {
+			continue
+		}
+		if len(cm.openChannels()) > 0 {
+			info := &info{
+				Funds:       cm.funds,
+				SumDeposits: cm.sumDeposits(),
+				Channels:    len(cm.openChannels()),
+			}
+			infos[cm.tokenAddress.String()] = info
+		}
+	}
+	return infos
+}
+
 /*
 Open a channel with the peer at `partner_address`
     with the given `token_address`.
@@ -291,6 +290,10 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 		log.Error(err.Error())
 		return rerr.InsufficientFunds
 	}
+	err = token.Approve(ch.MyAddress, amount)
+	if err != nil {
+		return err
+	}
 	oldBalance := ch.ContractBalance()
 	err = ch.ExternState.Deposit(amount)
 	if err != nil {
@@ -302,7 +305,7 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 		        # Usually a single sleep is sufficient, since the `deposit` waits for
 		        # the transaction to be polled.
 	*/
-	//为什么收不到我自己的newbalance事件呢?
+	//为什么收不到我自己的newbalance事件呢? 确实没有存进去,为什么会失败呢?  todo
 	var totalSleep time.Duration = 0
 	for {
 		//too many race conditons! bai
@@ -319,165 +322,99 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 }
 
 /*
-def token_swap_and_wait(
-        self,
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address):
-    """ Start an atomic swap operation by sending a MediatedTransfer with
+Start an atomic swap operation by sending a MediatedTransfer with
     `maker_amount` of `maker_token` to `taker_address`. Only proceed when a
     new valid MediatedTransfer is received with `taker_amount` of
     `taker_token`.
-    """
+*/
+func (this *RaidenApi) TokenSwapAndWait(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount int64) error {
+	result, err := this.TokenSwapAsync(identifier, makerToken, takerToken, makerAddress, takerAddress,
+		makerAmount, takerAmount)
+	if err != nil {
+		return err
+	}
+	err = <-result.Result
+	return err
+}
 
-    async_result = self.token_swap_async(
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address,
-    )
-    async_result.wait()
+func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount int64) (result *network.AsyncResult, err error) {
+	_, ok := this.Raiden.Token2ChannelGraph[takerToken]
+	if !ok {
+		err = errors.New("unkown taker token")
+		return
+	}
+	_, ok = this.Raiden.Token2ChannelGraph[makerToken]
+	if !ok {
+		err = errors.New("unkown maker token")
+		return
+	}
+	tokenSwap := &TokenSwap{
+		Identifier:      identifier,
+		FromToken:       makerToken,
+		FromAmount:      makerAmount,
+		FromNodeAddress: makerAddress,
+		ToToken:         takerToken,
+		ToAmount:        takerAmount,
+		ToNodeAddress:   takerAddress,
+	}
+	result = network.NewAsyncResult()
+	task := NewMakerTokenSwapTask(this.Raiden, tokenSwap, result)
+	go func() {
+		task.Start()
+	}()
+	key := SwapKey{
+		Identifier: identifier,
+		FromToken:  takerToken,
+		FromAmount: takerAmount,
+	}
+	this.Raiden.SwapKey2TokenSwap[key] = tokenSwap
+	this.Raiden.SwapKey2Task[key] = task
+	return
+}
 
-def token_swap_async(
-        self,
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address):
-    """ Start a token swap operation by sending a MediatedTransfer with
-    `maker_amount` of `maker_token` to `taker_address`. Only proceed when a
-    new valid MediatedTransfer is received with `taker_amount` of
-    `taker_token`.
-    """
-    if not isaddress(maker_token):
-        raise InvalidAddress(
-            'Address for maker token is not in expected binary format in token swap'
-        )
-    if not isaddress(maker_address):
-        raise InvalidAddress(
-            'Address for maker is not in expected binary format in token swap'
-        )
-
-    if not isaddress(taker_token):
-        raise InvalidAddress(
-            'Address for taker token is not in expected binary format in token swap'
-        )
-    if not isaddress(taker_address):
-        raise InvalidAddress(
-            'Address for taker is not in expected binary format in token swap'
-        )
-
-    channelgraphs = self.raiden.token_to_channelgraph
-
-    if taker_token not in channelgraphs:
-        log.error('Unknown token {}'.format(pex(taker_token)))
-        return
-
-    if maker_token not in channelgraphs:
-        log.error('Unknown token {}'.format(pex(maker_token)))
-        return
-
-    token_swap = TokenSwap(
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address,
-    )
-
-    async_result = AsyncResult()
-    task = MakerTokenSwapTask(
-        self.raiden,
-        token_swap,
-        async_result,
-    )
-    task.start()
-
-    # the maker is expecting the taker transfer
-    key = SwapKey(
-        identifier,
-        taker_token,
-        taker_amount,
-    )
-    self.raiden.swapkey_to_greenlettask[key] = task
-    self.raiden.swapkey_to_tokenswap[key] = token_swap
-
-    return async_result
-
-def expect_token_swap(
-        self,
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address):
-    """ Register an expected transfer for this node.
+/*
+Register an expected transfer for this node.
 
     If a MediatedMessage is received for the `maker_asset` with
     `maker_amount` then proceed to send a MediatedTransfer to
     `maker_address` for `taker_asset` with `taker_amount`.
-    """
+*/
+func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount int64) (err error) {
+	_, ok := this.Raiden.Token2ChannelGraph[takerToken]
+	if !ok {
+		err = errors.New("unkown taker token")
+		return
+	}
+	_, ok = this.Raiden.Token2ChannelGraph[makerToken]
+	if !ok {
+		err = errors.New("unkown maker token")
+		return
+	}
+	//the taker is expecting the maker transfer
+	key := SwapKey{
+		Identifier: identifier,
+		FromToken:  makerToken,
+		FromAmount: makerAmount,
+	}
+	tokenSwap := &TokenSwap{
+		Identifier:      identifier,
+		FromToken:       makerToken,
+		FromAmount:      makerAmount,
+		FromNodeAddress: makerAddress,
+		ToToken:         takerToken,
+		ToAmount:        takerAmount,
+		ToNodeAddress:   takerAddress,
+	}
 
-    if not isaddress(maker_token):
-        raise InvalidAddress(
-            'Address for maker token is not in expected binary format in expect_token_swap'
-        )
-    if not isaddress(maker_address):
-        raise InvalidAddress(
-            'Address for maker is not in expected binary format in expect_token_swap'
-        )
+	this.Raiden.SwapKey2TokenSwap[key] = tokenSwap
+	return nil
+}
 
-    if not isaddress(taker_token):
-        raise InvalidAddress(
-            'Address for taker token is not in expected binary format in expect_token_swap'
-        )
-    if not isaddress(taker_address):
-        raise InvalidAddress(
-            'Address for taker is not in expected binary format in expect_token_swap'
-        )
+/*
 
-    channelgraphs = self.raiden.token_to_channelgraph
-
-    if taker_token not in channelgraphs:
-        log.error('Unknown token {}'.format(pex(taker_token)))
-        return
-
-    if maker_token not in channelgraphs:
-        log.error('Unknown token {}'.format(pex(maker_token)))
-        return
-
-    # the taker is expecting the maker transfer
-    key = SwapKey(
-        identifier,
-        maker_token,
-        maker_amount,
-    )
-
-    token_swap = TokenSwap(
-        identifier,
-        maker_token,
-        maker_amount,
-        maker_address,
-        taker_token,
-        taker_amount,
-        taker_address,
-    )
-
-    self.raiden.swapkey_to_tokenswap[key] = token_swap
 # expose a synchronous interface to the user
 token_swap = token_swap_and_wait
 transfer = transfer_and_wait  # expose a synchronous interface to the user
@@ -501,25 +438,6 @@ func (this *RaidenApi) GetTokenList() (tokens []common.Address) {
 	return
 }
 
-/*
-def transfer_and_wait(
-        self,
-        token_address,
-        amount,
-        target,
-        identifier=None,
-        timeout=None):
-    """ Do a transfer with `target` with the given `amount` of `token_address`. """
-    # pylint: disable=too-many-arguments
-
-    async_result = self.transfer_async(
-        token_address,
-        amount,
-        target,
-        identifier,
-    )
-    return async_result.wait(timeout=timeout)
-*/
 //Do a transfer with `target` with the given `amount` of `token_address`.
 func (this *RaidenApi) TransferAndWait(token common.Address, amount int64, target common.Address, identifier uint64, timeout time.Duration) (err error) {
 	result, err := this.TransferAsync(token, amount, target, identifier)
@@ -552,12 +470,12 @@ func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount int64, 
 		return
 	}
 	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok || graph.HasPath(this.Raiden.NodeAddress, target) {
+	if !ok || !graph.HasPath(this.Raiden.NodeAddress, target) {
 		err = rerr.NoPathError
 		return
 	}
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d identifier=%d",
-		this.Raiden.NodeAddress.Str(), target.String(), tokenAddress.String(), amount, identifier))
+		this.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, identifier))
 	result = this.Raiden.MediatedTransferAsync(tokenAddress, amount, target, identifier)
 	return
 }
@@ -599,7 +517,7 @@ func (this *RaidenApi) Settle(tokenAddress, partnerAddress common.Address) (ch *
 	if err != nil {
 		return
 	}
-	settleExpiration := ch.ExternState.ClosedBlock + settleTimeout
+	settleExpiration := ch.ExternState.ClosedBlock + int64(settleTimeout)
 	if currentblock <= settleExpiration {
 		err = rerr.InvalidState("settlement period is not yet over.")
 		return
@@ -607,42 +525,177 @@ func (this *RaidenApi) Settle(tokenAddress, partnerAddress common.Address) (ch *
 	err = ch.ExternState.Settle()
 	return
 }
-func (this *RaidenApi) GetTokenNetworkEvents(tokenAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
-	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok {
-		err = rerr.InvalidAddress("no such token")
+func (this *RaidenApi) GetTokenNetworkEvents(tokenAddress common.Address, fromBlock, toBlock int64) (data []interface{}, err error) {
+	type eventData struct {
+		/*
+					 {
+			        "event_type": "ChannelNew",
+			        "settle_timeout": 10,
+			        "netting_channel": "0xc0ea08a2d404d3172d2add29a45be56da40e2949",
+			        "participant1": "0x4894a542053248e0c504e3def2048c08f73e1ca6",
+			        "participant2": "0x356857Cd22CBEFccDa4e96AF13b408623473237A"
+			    }
+		*/
+		EventType      string `json:"event_type"`
+		SettleTimeout  int    `json:"settle_timeout"`
+		NettingChannel string `json:"netting_channel"`
+		Participant1   string `json:"participant1"`
+		Participant2   string `json:"participant2"`
+		TokenAddress   string `json:"token_address"`
 	}
-	return this.Raiden.BlockChainEvents.GetAllChannelManagerEvents(graph.ChannelManagerAddress, fromBlock, toBlock)
+	for t, graph := range this.Raiden.Token2ChannelGraph {
+		if tokenAddress == utils.EmptyAddress || t == tokenAddress {
+			events, err := this.Raiden.BlockChainEvents.GetAllChannelManagerEvents(graph.ChannelManagerAddress, fromBlock, toBlock)
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range events {
+				e2 := e.(*blockchain.EventChannelNew)
+				ed := &eventData{
+					EventType:      e2.EventName,
+					SettleTimeout:  e2.SettleTimeout,
+					NettingChannel: e2.NettingChannelAddress.String(),
+					Participant1:   e2.Participant1.String(),
+					Participant2:   e2.Participant2.String(),
+					TokenAddress:   t.String(),
+				}
+				data = append(data, ed)
+			}
+		}
+	}
+	return
 }
 
-func (this *RaidenApi) GetNetworkEvents(fromBlock, toBlock int64) ([]transfer.Event, error) {
-	return this.Raiden.BlockChainEvents.GetAllRegistryEvents(this.Raiden.RegistryAddress, fromBlock, toBlock)
+func (this *RaidenApi) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, error) {
+	type eventData struct {
+		/*
+					 "event_type": "TokenAdded",
+			        "token_address": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
+			        "channel_manager_address": "0xc0ea08a2d404d3172d2add29a45be56da40e2949"
+		*/
+		EventType             string `json:"event_type"`
+		TokenAddress          string `json:"token_address"`
+		ChannelManagerAddress string `json:"channel_manager_address"`
+	}
+	events, err := this.Raiden.BlockChainEvents.GetAllRegistryEvents(this.Raiden.RegistryAddress, fromBlock, toBlock)
+	if err != nil {
+		return nil, err
+	}
+	var data []interface{}
+	for _, e := range events {
+		e2 := e.(*blockchain.EventTokenAdded)
+		ed := &eventData{
+			EventType:             e2.EventName,
+			TokenAddress:          e2.TokenAddress.String(),
+			ChannelManagerAddress: e2.ChannelManagerAddress.String(),
+		}
+		data = append(data, ed)
+	}
+	return data, nil
 }
 
-func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock, toBlock int64) (data []transfer.Event, err error) {
+	/*
+
+	   {
+	       "event_type": "ChannelNewBalance",
+	       "participant": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
+	       "balance": 150000,
+	       "block_number": 54388
+	   }, {
+	       "event_type": "TransferUpdated",
+	       "token_address": "0x91337a300e0361bddb2e377dd4e88ccb7796663d",
+	       "channel_manager_address": "0xc0ea08a2d404d3172d2add29a45be56da40e2949"
+	   }, {
+	       "event_type": "EventTransferSentSuccess",
+	       "identifier": 14909067296492875713,
+	       "block_number": 2226,
+	       "amount": 7,
+	       "target": "0xc7262f1447fcb2f75ab14b2a28deed6006eea95b"
+	   }
+	*/
+
+	var events []transfer.Event
 	events, err = this.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
 	if err != nil {
 		return
 	}
-	raidenEvents, err := this.Raiden.TransactionLog.GetEventsInBlockRange(fromBlock, toBlock)
+	for _, e := range events {
+		m := make(map[string]interface{})
+		switch e2 := e.(type) {
+		case *blockchain.EventChannelNewBalance:
+			m["event_type"] = e2.EventName
+			m["participant"] = e2.ParticipantAddress.String()
+			m["balance"] = e2.Balance
+			m["block_number"] = e2.BlockNumber
+			data = append(data, m)
+		case *blockchain.EventChannelClosed:
+			m["event_type"] = e2.EventName
+			m["netting_channel_address"] = e2.ContractAddress.String()
+			m["closing_address"] = e2.ClosingAddress.String()
+			data = append(data, m)
+		case *blockchain.EventChannelSettled:
+			m["event_type"] = e2.EventName
+			m["netting_channel_address"] = e2.ContractAddress.String()
+			m["block_number"] = e2.BlockNumber
+			data = append(data, m)
+		case *blockchain.EventChannelSecretRevealed:
+			m["event_type"] = e2.EventName
+			m["netting_channel_address"] = e2.ContractAddress.String()
+			m["secret"] = e2.Secret.String()
+			data = append(data, m)
+			//case *blockchain.EventTransferUpdated:
+			//	m["event_type"] = e2.EventName
+			//	m["token_address"] = t.String()
+			//	m["channel_manager_address"] = graph.ChannelManagerAddress.String()
+		}
+
+	}
+
+	var raidenEvents []*transfer.InternalEvent
+	raidenEvents, err = this.Raiden.TransactionLog.GetEventsInBlockRange(fromBlock, toBlock)
 	if err != nil {
 		return
 	}
 	//Here choose which raiden internal events we want to expose to the end user
+	//没有办法识别这些event如何与channelAddress关联  todo
 	for _, ev := range raidenEvents {
-		switch ev2 := ev.EventObject.(type) {
+		m := make(map[string]interface{})
+		/*
+			   "event_type": "EventTransferSentSuccess",
+					   "identifier": 14909067296492875713,
+					   "block_number": 2226,
+					   "amount": 7,
+					   "target": "0xc7262f1447fcb2f75ab14b2a28deed6006eea95b"
+		*/
+		switch e2 := ev.EventObject.(type) {
 		case *transfer.EventTransferSentSuccess:
-			e := &EventTransferSentSuccessWrapper{*ev2, ev.BlockNumber, "EventTransferSentSuccess"}
-			events = append(events, e)
+			m["event_type"] = "EventTransferSentSuccess"
+			m["identifier"] = e2.Identifier
+			m["block_number"] = ev.BlockNumber
+			m["amount"] = e2.Amount
+			m["target"] = e2.Target
+			data = append(data, m)
 		case *transfer.EventTransferSentFailed:
-			e := &EventTransferSentFailedWrapper{*ev2, ev.BlockNumber, "EventTransferSentFailed"}
-			events = append(events, e)
+			m["event_type"] = "EventTransferSentFailed"
+			m["identifier"] = e2.Identifier
+			m["block_number"] = ev.BlockNumber
+			m["reason"] = e2.Reason
+			data = append(data, m)
 		case *transfer.EventTransferReceivedSuccess:
-			e := &EventEventTransferReceivedSuccessWrapper{*ev2, ev.BlockNumber, "EventTransferReceivedSuccess"}
-			events = append(events, e)
+			m["event_type"] = "EventTransferReceivedSuccess"
+			m["identifier"] = e2.Identifier
+			m["block_number"] = ev.BlockNumber
+			m["amount"] = e2.Amount
+			m["initiator"] = e2.Initiator.String()
+			data = append(data, m)
 		}
 	}
 	return
+}
+func (this *RaidenApi) Stop() {
+	log.Info("calling api stop..")
+	this.Raiden.Stop()
 }
 
 type EventTransferSentSuccessWrapper struct {

@@ -1,5 +1,7 @@
 package transfer
 
+import "encoding/gob"
+
 /*
 # Quick overview
 # --------------
@@ -87,12 +89,14 @@ type FuncStateTransition func(state State, stateChange StateChange) *TransitionR
 type StateManager struct {
 	FuncStateTransition FuncStateTransition
 	CurrentState        State
+	Name                string
 }
 
-//todo StateManager 看起来完全没用
-func NewStateManager(stateTransition FuncStateTransition, currentState State) *StateManager {
+func NewStateManager(stateTransition FuncStateTransition, currentState State, name string) *StateManager {
 	return &StateManager{
-		FuncStateTransition: stateTransition, CurrentState: currentState,
+		FuncStateTransition: stateTransition,
+		CurrentState:        currentState,
+		Name:                name,
 	}
 }
 
@@ -122,51 +126,7 @@ func (this *StateManager) Dispatch(stateChange StateChange) (events []Event) {
 	return
 }
 
-/*
-
-   def dispatch(self, state_change):
-       """ Apply the `state_change` in the current machine and return the
-       resulting events.
-
-       Args:
-           state_change (StateChange): An object representation of a state
-           change.
-
-       Return:
-           Event: A list of events produced by the state transition, it's
-           the upper layer's responsibility to decided how to handle these
-           events.
-       """
-       assert isinstance(state_change, StateChange)
-
-       # the state objects must be treated as immutable, so make a copy of the
-       # current state and pass the copy to the state machine to be modified.
-       next_state = deepcopy(self.current_state)
-
-       # update the current state by applying the change
-       iteration = self.state_transition(
-           next_state,
-           state_change,
-       )
-
-       assert isinstance(iteration, TransitionResult)
-
-       self.current_state, events = iteration
-
-       assert isinstance(self.current_state, (State, type(None)))
-       assert all(isinstance(e, Event) for e in events)
-
-       return events
-
-   def __eq__(self, other):
-       if isinstance(other, StateManager):
-           return (
-               self.state_transition == other.state_transition and
-               self.current_state == other.current_state
-           )
-       return False
-
-   def __ne__(self, other):
-       return not self.__eq__(other)
-
-*/
+func init() {
+	gob.Register(&StateManager{})
+	gob.Register(&TransitionResult{})
+}

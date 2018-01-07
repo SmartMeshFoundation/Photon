@@ -9,6 +9,8 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 )
 
+const NameTargetTransition = "TargetTransition"
+
 func init() {
 }
 
