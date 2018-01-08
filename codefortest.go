@@ -13,12 +13,12 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/raiden-network/network"
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 )
@@ -59,7 +59,7 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	return crypto.ToECDSAUnsafe(privkey), utils.PubkeyToAddress(privkey)
 }
 func newTestBlockChainService() *rpc.BlockChainService {
-	conn, err := ethclient.Dial(node.DefaultIPCEndpoint("geth"))
+	conn, err := helper.NewSafeClient(node.DefaultIPCEndpoint("geth"))
 	if err != nil {
 		log.Error("Failed to connect to the Ethereum client: ", err)
 	}

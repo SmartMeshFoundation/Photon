@@ -11,6 +11,7 @@ import (
 	"errors"
 
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -18,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -101,7 +101,7 @@ func (this *Discovery) NodeIdByHostPort(host string, port int) (node common.Addr
 //Allows registering and looking up by endpoint (Host, Port) for node_address.
 type ContractDiscovery struct {
 	discovery   *rpc.EndpointRegistry
-	client      *ethclient.Client
+	client      *helper.SafeEthClient
 	auth        *bind.TransactOpts
 	node        common.Address
 	cacheAddr   map[common.Address]string
@@ -109,7 +109,7 @@ type ContractDiscovery struct {
 	//db          ethdb.Database
 }
 
-func NewContractDiscovery(mynode common.Address, client *ethclient.Client, auth *bind.TransactOpts) *ContractDiscovery {
+func NewContractDiscovery(mynode common.Address, client *helper.SafeEthClient, auth *bind.TransactOpts) *ContractDiscovery {
 	c := &ContractDiscovery{
 		client:      client,
 		auth:        auth,

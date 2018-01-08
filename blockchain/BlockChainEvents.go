@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
@@ -12,13 +13,12 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 type BlockChainEvents struct {
-	client             *ethclient.Client
+	client             *helper.SafeEthClient
 	lock               sync.RWMutex
 	LogChannelMap      map[string]chan types.Log
 	RegistryAddress    common.Address //this address is unique
@@ -26,7 +26,7 @@ type BlockChainEvents struct {
 	StateChangeChannel chan transfer.StateChange
 }
 
-func NewBlockChainEvents(client *ethclient.Client, registryAddress common.Address) *BlockChainEvents {
+func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *BlockChainEvents {
 	be := &BlockChainEvents{client: client,
 		LogChannelMap:      make(map[string]chan types.Log),
 		Subscribes:         make(map[string]ethereum.Subscription),
@@ -61,6 +61,18 @@ func (this *BlockChainEvents) InstallEventListener() (err error) {
 		//event listener create error,must exit
 		if err != nil {
 			this.UninstallEventListener()
+		} else {
+			//if ethclient reconnect
+			c := this.client.RegisterReConnectNotify("BlockChainEvents")
+			go func() {
+				select {
+				case _, ok := <-c:
+					if ok {
+						//eventlistener need reinstall
+						this.InstallEventListener()
+					}
+				}
+			}()
 		}
 	}()
 	for _, name := range eventNames {
@@ -76,7 +88,7 @@ func (this *BlockChainEvents) InstallEventListener() (err error) {
 		this.Subscribes[name] = sub
 	}
 	//try to listen event rightnow
-	this.startEventLoop()
+	this.startListenEvent()
 	return err
 }
 func (this *BlockChainEvents) UninstallEventListener() (err error) {
@@ -85,7 +97,7 @@ func (this *BlockChainEvents) UninstallEventListener() (err error) {
 	}
 	return nil
 }
-func (this *BlockChainEvents) startEventLoop() {
+func (this *BlockChainEvents) startListenEvent() {
 	for _, name := range eventNames {
 		go func(name string) {
 			ch := this.LogChannelMap[name]

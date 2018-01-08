@@ -15,14 +15,13 @@ import (
 
 	"path/filepath"
 
-	"time"
-
-	"net"
-
 	"os/signal"
+	"runtime"
+	"time"
 
 	"github.com/SmartMeshFoundation/raiden-network"
 	"github.com/SmartMeshFoundation/raiden-network/network"
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/restful"
@@ -31,7 +30,6 @@ import (
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/slonzok/getpass"
@@ -170,7 +168,7 @@ func Main(ctx *cli.Context) error {
 	cfg := config(ctx, pms)
 	spew.Dump("Config:", cfg)
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
-	client, err := ethclient.Dial(ethEndpoint)
+	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
 		log.Error("cannot connect to geth :%s", ethEndpoint)
 		os.Exit(1)
@@ -185,7 +183,7 @@ func Main(ctx *cli.Context) error {
 	//}
 	//registry := bcs.Registry(bcs.RegistryAddress)
 	policy := network.NewTokenBucket(10, 1, time.Now)
-	transport := network.NewUDPTransport(host, port, pms.Conn.(*net.UDPConn), nil, policy)
+	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	go func() {
 		raidenService.Start()
@@ -326,4 +324,11 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	databasePath := filepath.Join(userDbPath, "log.db")
 	config.DataBasePath = databasePath
 	return &config
+}
+func init() {
+	//many race condtions don't resolve
+	setNativeThreadNumber()
+}
+func setNativeThreadNumber() {
+	runtime.GOMAXPROCS(1)
 }

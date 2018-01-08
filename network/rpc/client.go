@@ -13,13 +13,15 @@ import (
 
 	"fmt"
 
+	"sync"
+
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -39,7 +41,7 @@ type BlockChainService struct {
 	PrivKey               *ecdsa.PrivateKey
 	NodeAddress           common.Address
 	RegistryAddress       common.Address
-	Client                *ethclient.Client //太多地方使用,如果连接断开了,如何重连,需要一个集中管理的地方.
+	Client                *helper.SafeEthClient
 	PollTimeOut           time.Duration
 	AddressToken          map[common.Address]*TokenProxy
 	AddressDiscovery      map[common.Address]*EndpointRegistryProxy
@@ -48,9 +50,10 @@ type BlockChainService struct {
 	AddressRegistry       map[common.Address]*RegistryProxy
 	Auth                  *bind.TransactOpts
 	queryOpts             *bind.CallOpts
+	Lock                  sync.RWMutex
 }
 
-func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Address, client *ethclient.Client) *BlockChainService {
+func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) *BlockChainService {
 	bcs := &BlockChainService{
 		PrivKey:               privKey,
 		NodeAddress:           crypto.PubkeyToAddress(privKey.PublicKey),
@@ -104,14 +107,6 @@ func (this *BlockChainService) GetBlockHeader(blockNumber *big.Int) (*types.Head
 }
 
 func (this *BlockChainService) NextBlock() (currentBlock *big.Int, err error) {
-	//target_block_number = self.block_number() + 1
-	//current_block = target_block_number
-	//
-	//while not current_block >= target_block_number:
-	//current_block = self.block_number()
-	//gevent.sleep(0.5)
-	//
-	//return current_block
 	currentBlock, err = this.BlockNumber()
 	if err != nil {
 		return
@@ -162,6 +157,8 @@ func (this *BlockChainService) NettingChannel(address common.Address) (t *Nettin
 
 // Return a proxy to interact with a ChannelManagerContract.
 func (this *BlockChainService) Manager(address common.Address) (t *ChannelManagerContractProxy) {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	_, ok := this.AddressChannelManager[address]
 	if !ok {
 		mgr, _ := NewChannelManagerContract(address, this.Client)
@@ -230,7 +227,6 @@ func (this *RegistryProxy) GetContract() *Registry {
 	return this.registry
 }
 func (this *RegistryProxy) AddToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	//为什么对于明显已经出错的调用,remix会直接给出错误,这里却任何错误都不报呢? //todo fix it
 	tx, err := this.registry.AddToken(this.bcs.Auth, tokenAddress)
 	if err != nil {
 		return

@@ -1,9 +1,11 @@
 package rpc
 
 import (
+	"fmt"
+
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 )
@@ -33,9 +35,10 @@ const key = `
 `
 
 func MakeTestBlockChainService() *BlockChainService {
-	conn, err := ethclient.Dial(node.DefaultIPCEndpoint("geth"))
+	conn, err := helper.NewSafeClient(node.DefaultIPCEndpoint("geth"))
+	//conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
 	if err != nil {
-		log.Error("Failed to connect to the Ethereum client: ", err)
+		fmt.Printf("Failed to connect to the Ethereum client: ", err)
 	}
 	privkey, err := keystore.DecryptKey([]byte(key), "123")
 	if err != nil {

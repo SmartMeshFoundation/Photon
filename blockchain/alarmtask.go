@@ -11,8 +11,8 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -21,7 +21,7 @@ type AlarmCallback func(blockNumber int64) error
 
 //Task to notify when a block is mined.
 type AlarmTask struct {
-	client          *ethclient.Client //todo race condition and reconnect, wrapper?
+	client          *helper.SafeEthClient //todo race condition and reconnect, wrapper?
 	lastBlockNumber int64
 	shouldStop      chan struct{}
 	waitTime        time.Duration
@@ -29,7 +29,7 @@ type AlarmTask struct {
 	lock            sync.Mutex
 }
 
-func NewAlarmTask(client *ethclient.Client) *AlarmTask {
+func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 	t := &AlarmTask{
 		client:          client,
 		waitTime:        time.Second,
@@ -119,6 +119,15 @@ func (this *AlarmTask) waitNewBlock() error {
 			sub.Unsubscribe()
 			close(headerCh)
 			return nil
+		case err = <-sub.Err():
+			//reconnect here, todo fix ,how to distinguish which error should reconnect
+			log.Error("err=", err)
+			//spew.Dump(err)
+			//if eof try to reconnect
+			if err != nil {
+				this.client.RecoverDisconnect()
+				return errors.New("broken connection..")
+			}
 		}
 
 	}

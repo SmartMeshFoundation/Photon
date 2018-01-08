@@ -150,7 +150,7 @@ type ProtocolReceiver interface {
 }
 type UDPTransport struct {
 	protocol      ProtocolReceiver
-	conn          *net.UDPConn
+	conn          *SafeUdpConnection
 	Host          string
 	Port          int
 	policy        Policier
@@ -158,7 +158,7 @@ type UDPTransport struct {
 	stopReceiving bool //todo use atomic to replace
 }
 
-func NewUDPTransport(host string, port int, conn *net.UDPConn, protocol ProtocolReceiver, policy Policier) *UDPTransport {
+func NewUDPTransport(host string, port int, conn *SafeUdpConnection, protocol ProtocolReceiver, policy Policier) *UDPTransport {
 	t := &UDPTransport{
 		Host:          host,
 		Port:          port,
@@ -172,7 +172,7 @@ func NewUDPTransport(host string, port int, conn *net.UDPConn, protocol Protocol
 		Port: port}
 	var err error
 	if conn == nil {
-		conn, err = net.ListenUDP("udp", addr)
+		conn, err = NewSafeUdpConnection("udp", addr)
 		if err != nil {
 			log.Crit(fmt.Sprintf("listen udp %s:%d error %v", host, port, err))
 		}
@@ -180,10 +180,6 @@ func NewUDPTransport(host string, port int, conn *net.UDPConn, protocol Protocol
 	t.conn = conn
 	log.Trace(fmt.Sprintf("listen udp on %s:%d", host, port))
 	return t
-}
-func NewUDPTransportWithConnection(conn *net.UDPConn, protocol ProtocolReceiver, policy Policier) *UDPTransport {
-	host, port := SplitHostPort(conn.LocalAddr().String())
-	return NewUDPTransport(host, port, conn, protocol, policy)
 }
 func NewUDPTransportWithHostPort(host string, port int, protocol ProtocolReceiver, policy Policier) *UDPTransport {
 	return NewUDPTransport(host, port, nil, protocol, policy)

@@ -15,7 +15,7 @@ import (
 )
 
 type PortMappedSocket struct {
-	Conn         net.PacketConn
+	Conn         *SafeUdpConnection
 	Ip           string
 	Port         int
 	ExternalIp   string
@@ -23,8 +23,8 @@ type PortMappedSocket struct {
 	Method       string
 }
 
-func OpenBareSocket(ip string, port int) (net.PacketConn, error) {
-	return net.ListenUDP("udp", &net.UDPAddr{
+func OpenBareSocket(ip string, port int) (*SafeUdpConnection, error) {
+	return NewSafeUdpConnection("udp", &net.UDPAddr{
 		IP:   net.ParseIP(ip),
 		Port: port,
 	})

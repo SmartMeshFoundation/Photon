@@ -6,6 +6,7 @@ import (
 
 	"context"
 
+	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -47,7 +48,7 @@ func ensureContext(ctx context.Context) context.Context {
 //events of history
 //if contractAddress is empty,it will query all contract
 func EventGetInternal(ctx context.Context, contractAddress common.Address, fromBlock rpc.BlockNumber,
-	toBlock rpc.BlockNumber, eventName string, abistr string, client *ethclient.Client) ([]types.Log, error) {
+	toBlock rpc.BlockNumber, eventName string, abistr string, client *helper.SafeEthClient) ([]types.Log, error) {
 	q, err := buildQuery(contractAddress, fromBlock, toBlock, eventName, abistr)
 	if err != nil {
 		return nil, err
@@ -56,7 +57,7 @@ func EventGetInternal(ctx context.Context, contractAddress common.Address, fromB
 	return client.FilterLogs(ctx, *q)
 }
 
-func EventGet(contractAddress common.Address, eventName string, abistr string, client *ethclient.Client) ([]types.Log, error) {
+func EventGet(contractAddress common.Address, eventName string, abistr string, client *helper.SafeEthClient) ([]types.Log, error) {
 	return EventGetInternal(context.Background(), contractAddress, rpc.EarliestBlockNumber, rpc.LatestBlockNumber,
 		eventName, abistr, client)
 }
@@ -80,7 +81,7 @@ func EventSubscribeInternal(ctx context.Context, contractAddress common.Address,
 }
 
 func EventSubscribe(contractAddress common.Address,
-	eventName string, abistr string, client *ethclient.Client, ch chan types.Log) (ethereum.Subscription, error) {
+	eventName string, abistr string, client *helper.SafeEthClient, ch chan types.Log) (ethereum.Subscription, error) {
 	return EventSubscribeInternal(context.Background(), contractAddress, rpc.EarliestBlockNumber, rpc.LatestBlockNumber,
-		eventName, abistr, client, ch)
+		eventName, abistr, client.Client, ch)
 }

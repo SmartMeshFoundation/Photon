@@ -70,7 +70,8 @@ type RaidenProtocol struct {
 	retryTimes                   int
 	retryInterval                time.Duration
 	mapLock                      sync.Mutex
-	address2NetworkStatus        map[common.Address]*NetworkStatus //todo need a lock .or to a new struct keep status mananger
+	address2NetworkStatus        map[common.Address]*NetworkStatus
+	statusLock                   sync.RWMutex
 	ReceivedMessageChannel       chan *MessageToRaiden
 	ReceivedMessageResultChannel chan error
 }
@@ -233,6 +234,8 @@ func (this *RaidenProtocol) createAck(echohash common.Hash) *encoding.Ack {
 	return encoding.NewAck(this.nodeAddr, echohash)
 }
 func (this *RaidenProtocol) updateNetworkStatus(addr common.Address, status string) {
+	this.statusLock.Lock()
+	defer this.statusLock.Unlock()
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
 		s = &NetworkStatus{
@@ -244,6 +247,8 @@ func (this *RaidenProtocol) updateNetworkStatus(addr common.Address, status stri
 	s.LastTime = time.Now()
 }
 func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
+	this.statusLock.Lock()
+	defer this.statusLock.Unlock()
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
 		return NODE_NETWORK_UNKNOWN
