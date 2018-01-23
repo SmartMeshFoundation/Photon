@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/slonzok/getpass"
 )
 
 var (
@@ -180,7 +181,7 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	} else {
 		for i := 0; i < 3; i++ {
 			//retries three times
-			password = "123" //getpass.Prompt("Enter the password to unlock:")
+			password = getpass.Prompt("Enter the password to unlock:")
 			keybin, err = am.GetPrivateKey(addr, password)
 			if err != nil && i == 3 {
 				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
