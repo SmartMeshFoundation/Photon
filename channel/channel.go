@@ -40,24 +40,24 @@ func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelEx
 	}
 	if revealTimeout < 3 {
 		/*
-						# To guarantee that tokens won't be lost the expiration needs to
-			            # decrease at each hop, this is what forces the next hop to reveal
-			            # the secret with enough time for this node to unlock the lock with
-			            # the previous.
-			            #
-			            # This /should be/ at least:
-			            #
-			            #   reveal_timeout = blocks_to_learn + blocks_to_mine * 2
-			            #
-			            # Where:
-			            #
-			            # - `blocks_to_learn` is the estimated worst case for a given block
-			            # to propagate to the full network. This is the time to learn a
-			            # secret revealed throught the blockchain.
-			            # - `blocks_to_mine * 2` is the estimated worst case for a given
-			            # transfer to be included in a block. This is the time to close a
-			            # channel and then to unlock a lock on chain.
-			            #
+						 To guarantee that tokens won't be lost the expiration needs to
+			             decrease at each hop, this is what forces the next hop to reveal
+			             the secret with enough time for this node to unlock the lock with
+			             the previous.
+
+			             This /should be/ at least:
+
+			               reveal_timeout = blocks_to_learn + blocks_to_mine * 2
+
+			             Where:
+
+			             - `blocks_to_learn` is the estimated worst case for a given block
+			             to propagate to the full network. This is the time to learn a
+			             secret revealed throught the blockchain.
+			             - `blocks_to_mine * 2` is the estimated worst case for a given
+			             transfer to be included in a block. This is the time to close a
+			             channel and then to unlock a lock on chain.
+
 		*/
 		err = errors.New("reveal_timeout must be at least 3")
 		return
@@ -206,7 +206,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 		lock := c.OurState.GetLockByHashlock(hashlock)
 		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
-			utils.Pex(c.PartnerState.Address[:]), c.TokenAddress[:],
+			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
 		c.OurState.RegisterSecret(secret)
 	}
@@ -214,7 +214,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 		lock := c.PartnerState.GetLockByHashlock(hashlock)
 		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
-			utils.Pex(c.OurState.Address[:]), c.TokenAddress[:],
+			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
 		c.PartnerState.RegisterSecret(secret)
 	}
@@ -270,9 +270,9 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		return fmt.Errorf("Unsigned transfer")
 	}
 	/*
-			 # nonce is changed only when a transfer is un/registered, if the test
-		        # fails either we are out of sync, a message out of order, or it's a
-		        # forged transfer
+			  nonce is changed only when a transfer is un/registered, if the test
+		         fails either we are out of sync, a message out of order, or it's a
+		         forged transfer
 	*/
 	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
 	//如果一个node数据损坏了,那么这个channel将不能工作了? 所以数据一定不能损坏
@@ -284,15 +284,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		return rerr.InvalidNonce(utils.StringInterface(tr, 3))
 	}
 	/*
-			 if the locksroot is out-of-sync (because a transfer was created while
-		    a Secret was in traffic) the balance _will_ be wrong, so first check
-		    the locksroot and then the balance
+				 if the locksroot is out-of-sync (because a transfer was created while
+			    a Secret was in traffic) the balance _will_ be wrong, so first check
+			    the locksroot and then the balance
+		在创建完这个transfer和register这个transfer之间,收到了一个secret.
 	*/
 	if encoding.IsLockedTransfer(tr) {
-		mtr, ok := tr.(*encoding.MediatedTransfer) // todo fix MediatedTransfer is the same as RefundTransfer
-		if !ok {
-			return fmt.Errorf("unknown transfer type  for MediatedTransfer")
-		}
+		mtr := encoding.GetMtrFromLockedTransfer(tr)
 		lock := mtr.GetLock()
 		if fromState.IsKnown(lock.HashLock) {
 			//c may occur on normal operation
@@ -332,7 +330,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		endSettlePeriod := c.GetSettleExpiration(blockNumber)
 		expiresAfterSettle := mtr.Expiration > endSettlePeriod
 		isSender := mtr.Sender == c.OurState.Address
-		if isSender && expiresAfterSettle {
+		if isSender && expiresAfterSettle { //对方收到这个lock以后,可以到链上close或者updatetransfer,这样如果对方没有密码,自己仍然不能取到钱.
 			log.Error(fmt.Sprintf("Lock expires after the settlement period. node=%s,from=%s,to=%s,lockexpiration=%d,currentblock=%d,end_settle_period=%d",
 				utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 				mtr.Expiration, blockNumber, endSettlePeriod))
@@ -346,14 +344,19 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			utils.StringInterface(tr, 3))) //for nest struct
 		return fmt.Errorf("Negative transfer")
 	}
+	//由于已经不再使用directtransfer,所有这个amount肯定是0
 	amount := evMsg.TransferAmount.Int64() - fromState.TransferAmount()
+	//if amount != 0 {
+	// secret message
+	//	panic("direct transfer? it's deprecated")
+	//}
 	distributable := fromState.Distributable(toState)
 	if tr.Cmd() == encoding.DIRECTTRANSFER_CMDID {
 		if amount > distributable {
 			return rerr.InsufficientBalance
 		}
 	} else if encoding.IsLockedTransfer(tr) {
-		mtr := tr.(*encoding.MediatedTransfer)
+		mtr := encoding.GetMtrFromLockedTransfer(tr)
 		if amount+mtr.Amount.Int64() > distributable {
 			return rerr.InsufficientBalance
 		}
@@ -363,9 +366,9 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		lock := fromState.GetLockByHashlock(hashlock)
 		transferAmount := fromState.TransferAmount() + lock.Amount
 		/*
-			# transfer.transferred_amount could be larger than the previous
-				            # transferred_amount + lock.amount, that scenario is a bug of the
-				            # payer
+			 tr.transferred_amount could be larger than the previous
+				             transferred_amount + lock.amount, that scenario is a bug of the
+				             payer
 		*/
 		if sec.TransferAmount.Int64() != transferAmount {
 			return fmt.Errorf("invalid transferred_amount, expected: %d got: %d",
@@ -373,12 +376,12 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		}
 	}
 	/*
-			  # all checks need to be done before the internal state of the channel
-		        # is changed, otherwise if a check fails and the state was changed the
-		        # channel will be left trashed
+			   all checks need to be done before the internal state of the channel
+		         is changed, otherwise if a check fails and the state was changed the
+		         channel will be left trashed
 	*/
 	if encoding.IsLockedTransfer(tr) {
-		mtr := tr.(*encoding.MediatedTransfer)
+		mtr := encoding.GetMtrFromLockedTransfer(tr)
 		mroot := fromState.TreeState.Tree.MerkleRoot()
 		log.Debug(fmt.Sprintf("REGISTERED LOCK node=%s,from=%s,to=%s,currentlocksroot=%s,lockamouont=%d,lock_expiration=%d,lock_hashlock=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
@@ -388,8 +391,8 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			return err
 		}
 		/*
-					# register c channel as waiting for the secret (the secret can
-			            # be revealed through a message or a blockchain log)
+			 register c channel as waiting for the secret (the secret can
+			be revealed through a message or a blockchain log)
 		*/
 		c.ExternState.funcRegisterChannelForHashlock(c, mtr.HashLock)
 	}
@@ -406,12 +409,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		}
 	}
 	mroot := fromState.TreeState.Tree.MerkleRoot()
-	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%d,nonce=%s,current_locksroot=%s,\ntransfer=%s",
+	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%d,nonce=%d,current_locksroot=%s,\ntransfer=%s",
 		utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
-		fromState.TransferAmount(), fromState.Nonce(), utils.Pex(mroot[:])))
+		fromState.TransferAmount(), fromState.Nonce(), utils.Pex(mroot[:]), utils.StringInterface(tr, 3)))
 	return nil
 }
 
+//change nonce  means banlance proof state changed
 func (c *Channel) GetNextNonce() int64 {
 	if c.OurState.Nonce() != 0 {
 		return c.OurState.Nonce() + 1
@@ -496,6 +500,9 @@ func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encodi
 	hashlock := utils.Sha3(secret[:])
 	from := c.OurState
 	lock := from.GetLockByHashlock(hashlock)
+	if lock == nil {
+		return nil, fmt.Errorf("no such lock for secret:%s", utils.HPex(secret))
+	}
 	_, locksrootWithPendingLockRemoved, err := from.ComputeMerkleRootWithout(lock)
 	if err != nil {
 		return
@@ -525,6 +532,7 @@ func (c *Channel) StateTransition(st transfer.StateChange) (err error) {
 			}
 		}
 	case *mediated_transfer.ContractReceiveSettledStateChange:
+		//settled channel should be removed. todo bai fix it
 		if st2.ChannelAddress == c.MyAddress {
 			if c.ExternState.SetSettled(st2.SettledBlock) {
 				c.HandleSettled(st2.SettledBlock)

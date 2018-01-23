@@ -139,7 +139,7 @@ type EventContractSendWithdraw struct {
 	ChannelAddress common.Address
 }
 
-//Event emitted when a lock unlock succeded
+//Event emitted when a lock unlock succeded ,emit this event after receive a revealsecret message
 type EventUnlockSuccess struct {
 	Identifier uint64
 	Hashlock   common.Hash

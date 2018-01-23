@@ -8,8 +8,8 @@ import (
 )
 
 /*
-# Note: The init states must contain all the required data for trying doing
-# useful work, ie. there must /not/ be an event for requesting new data.
+ Note: The init states must contain all the required data for trying doing
+ useful work, ie. there must /not/ be an event for requesting new data.
 */
 type ActionInitInitiatorStateChange struct {
 	OurAddress      common.Address        //This node address.
@@ -90,7 +90,7 @@ A lock was withdrawn via the blockchain.
 type ContractReceiveWithdrawStateChange struct {
 	ChannelAddress common.Address
 	Secret         common.Hash
-	Receiver       common.Address
+	Receiver       common.Address //this address use secret to withdraw onchain
 }
 
 type ContractReceiveClosedStateChange struct {

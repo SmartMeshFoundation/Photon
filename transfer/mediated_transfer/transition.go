@@ -25,7 +25,7 @@ func UpdateRoute(Routes *transfer.RoutesState, stateChange *transfer.ActionRoute
 		} else {
 			ignored := false
 			canceled := false
-			// # TODO: re-add the new_route into the available_routes list if it can be used.
+			//  TODO: re-add the new_route into the available_routes list if it can be used.
 			for _, r := range Routes.IgnoredRoutes {
 				if r.HopNode == newRoute.HopNode {
 					ignored = true
@@ -53,11 +53,11 @@ def update_route(next_state, route_state_change):
 
     elif new_route.state == CHANNEL_STATE_OPENED:
         if available_idx:
-            # overwrite it, balance might have changed
+             overwrite it, balance might have changed
             available_routes[available_idx] = new_route
 
         else:
-            # TODO: re-add the new_route into the available_routes list if it can be used.
+             TODO: re-add the new_route into the available_routes list if it can be used.
             ignored = any(
                 route.node_address == new_route.node_address
                 for route in next_state.routes.ignored_routes
@@ -69,7 +69,7 @@ def update_route(next_state, route_state_change):
             )
 
             if not canceled and not ignored:
-                # new channel opened, add the route for use
+                 new channel opened, add the route for use
                 available_routes.append(new_route)
 
     next_state.routes.available_routes = available_routes

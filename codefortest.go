@@ -6,8 +6,6 @@ import (
 	"os"
 	"path"
 
-	"math/rand"
-
 	"time"
 
 	"encoding/hex"
@@ -26,8 +24,8 @@ import (
 var curAccountIndex = 0
 
 func newTestRaiden() *RaidenService {
-	transport := network.MakeTestUDPTransport(rand.New(utils.RandSrc).Intn(50000))
-	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
+	transport := network.MakeTestUDPTransport(50000 + curAccountIndex + 1)
+	discover := network.NewHttpDiscovery() //share the same discovery ,so node can find each other
 	bcs := newTestBlockChainService()
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
@@ -37,6 +35,8 @@ func newTestRaiden() *RaidenService {
 	config.ExternPort = transport.Port
 	config.Host = transport.Host
 	config.Port = transport.Port
+	config.RevealTimeout = 4
+	config.SettleTimeout = 20
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	os.MkdirAll(config.DataDir, os.ModePerm)
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
@@ -44,7 +44,12 @@ func newTestRaiden() *RaidenService {
 	return rd
 }
 func newTestRaidenApi() *RaidenApi {
-	return NewRaidenApi(newTestRaiden())
+	api := NewRaidenApi(newTestRaiden())
+	go func() {
+		api.Raiden.Start()
+	}()
+	time.Sleep(time.Second * 3)
+	return api
 }
 
 //maker sure these accounts are valid, and  engouh eths for test
@@ -86,9 +91,30 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 	time.Sleep(time.Second * 3)
 	return
 }
-func makeTestRaidenApis() (r1, r2, r3 *RaidenApi) {
-	r1 = newTestRaidenApi()
-	r2 = newTestRaidenApi()
-	r3 = newTestRaidenApi()
+func newTestRaidenApiQuick() *RaidenApi {
+	api := NewRaidenApi(newTestRaiden())
+	go func() {
+		api.Raiden.Start()
+	}()
+	return api
+}
+func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
+	rA = newTestRaidenApiQuick()
+	rB = newTestRaidenApiQuick()
+	rC = newTestRaidenApiQuick()
+	rD = newTestRaidenApiQuick()
+	go func() {
+		rA.Raiden.Start()
+	}()
+	go func() {
+		rB.Raiden.Start()
+	}()
+	go func() {
+		rC.Raiden.Start()
+	}()
+	go func() {
+		rD.Raiden.Start()
+	}()
+	time.Sleep(time.Second * 3)
 	return
 }

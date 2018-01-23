@@ -42,6 +42,7 @@ type Config struct {
 	DiscoveryAddress common.Address
 	DataDir          string
 	MyAddress        common.Address
+	Debug            bool
 }
 
 var DefaultConfig = Config{
@@ -64,6 +65,7 @@ var DefaultConfig = Config{
 	RegistryAddress:  ROPSTEN_REGISTRY_ADDRESS,
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
 	MsgTimeout:       100 * time.Second,
+	Debug:            true,
 }
 
 func init() {

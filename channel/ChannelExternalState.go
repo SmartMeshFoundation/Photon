@@ -6,11 +6,13 @@ import (
 
 	"errors"
 
+	"sync"
+
+	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -33,6 +35,7 @@ type ChannelExternalState struct {
 	IsCallClose                    bool
 	IsCallSettle                   bool
 	ChannelAddress                 common.Address
+	lock                           sync.Mutex
 }
 
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
@@ -77,6 +80,8 @@ func (this *ChannelExternalState) SetSettled(blocknumber int64) bool {
 //todo fix somany duplicate codes
 //call close function of smart contract
 func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState) error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	if !this.IsCallClose {
 		this.IsCallClose = true
 		var Nonce int64 = 0
@@ -110,6 +115,8 @@ func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState
 }
 
 func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState) error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	if bp != nil {
 		log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
 			this.ChannelAddress.String(), bp))
@@ -133,6 +140,8 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 }
 
 func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	log.Info(fmt.Sprintf("withdraw called %s", this.ChannelAddress.String()))
 	failed := false
 	for _, proof := range unlockproofs {
@@ -165,6 +174,8 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 }
 
 func (this *ChannelExternalState) Settle() error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	if this.IsCallSettle {
 		return nil
 	}
@@ -191,6 +202,8 @@ func (this *ChannelExternalState) Settle() error {
 }
 
 func (this *ChannelExternalState) Deposit(amount int64) error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	log.Info(fmt.Sprintf("Deposit called %s", this.ChannelAddress.String()))
 	tx, err := this.NettingChannel.GetContract().Deposit(this.bcs.Auth, big.NewInt(amount))
 	if err != nil {

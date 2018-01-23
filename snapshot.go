@@ -26,18 +26,21 @@ type Data2Save struct {
 
 //save state ,call many times is ok
 func (this *RaidenService) SaveSnapshot() {
+	if this.Config.Debug {
+		return
+	}
 	log.Info("SaveSnapshot...")
 	ds := &Data2Save{
 		RegistryAddress: this.RegistryAddress,
 		Transfers:       this.Identifier2StateManagers,
 	}
 	for _, g := range this.Token2ChannelGraph {
-		for _, c := range g.ChannelAddres2Channel {
+		for _, c := range g.ChannelAddress2Channel {
 			cs := channel.NewChannelSerialization(c)
 			ds.Channels = append(ds.Channels, cs)
 		}
 	}
-	_, err := this.TransactionLog.Snapshot("1", ds)
+	_, err := this.TransactionLog.Snapshot(1, ds)
 	if err != nil {
 		log.Error("save snapshot :", err)
 	}
@@ -45,6 +48,9 @@ func (this *RaidenService) SaveSnapshot() {
 
 //retore state ,only one time ,just after app start immediately
 func (this *RaidenService) RestoreSnapshot() error {
+	if this.Config.Debug {
+		return nil
+	}
 	log.Info("RestoreSnapshot...")
 	data, err := this.TransactionLog.LoadSnapshot()
 	if err != nil {
@@ -67,7 +73,7 @@ func (this *RaidenService) RestoreSnapshot() error {
 }
 func (this *RaidenService) restoreChannel(ds *Data2Save) error {
 	for _, g := range this.Token2ChannelGraph {
-		for _, c := range g.ChannelAddres2Channel {
+		for _, c := range g.ChannelAddress2Channel {
 			for _, cs := range ds.Channels {
 				//found a channel,maybe channel settled or new channel opened when i'm down
 				if cs.ChannelAddress == c.MyAddress {

@@ -53,11 +53,11 @@ Tracks the state of one of the participants in a channel
 */
 type ChannelEndState struct {
 	Address             common.Address
-	ContractBalance     int64 //or *big.Int?
-	Lock2PendingLocks   map[common.Hash]PendingLock
+	ContractBalance     int64                       //lock protect race codition with raidenapi
+	Lock2PendingLocks   map[common.Hash]PendingLock //the lock I have sent
 	Lock2UnclaimedLocks map[common.Hash]UnlockPartialProof
 	TreeState           *transfer.MerkleTreeState
-	BalanceProofState   *transfer.BalanceProofState
+	BalanceProofState   *transfer.BalanceProofState //race codition with raidenapi
 }
 
 func NewChannelEndState(participantAddress common.Address, participantBalance int64,
@@ -73,6 +73,7 @@ func NewChannelEndState(participantAddress common.Address, participantBalance in
 	return c
 }
 
+//how many tokens I have sent to  partner.
 func (this *ChannelEndState) TransferAmount() int64 {
 	if this.BalanceProofState != nil {
 		return this.BalanceProofState.TransferAmount
@@ -201,8 +202,8 @@ func (this *ChannelEndState) ComputeMerkleRootWithout(without *encoding.Lock) (*
 }
 
 /*
-   # Api design: using specialized methods to force the user to register the
-   # transfer and the lock in a single step
+    Api design: using specialized methods to force the user to register the
+    transfer and the lock in a single step
 	Register the latest known transfer.
 
        The sender needs to use this method before sending a locked transfer,
@@ -232,7 +233,7 @@ func (this *ChannelEndState) RegisterLockedTransfer(lockedTransfer encoding.Enve
 		return errors.New("not a locked lockedTransfer")
 	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(lockedTransfer)
-	mtranfer, _ := lockedTransfer.(*encoding.MediatedTransfer)
+	mtranfer := encoding.GetMtrFromLockedTransfer(lockedTransfer)
 	lock := mtranfer.GetLock()
 	if this.IsKnown(lock.HashLock) {
 		return errors.New("hashlock is already registered")

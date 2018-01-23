@@ -202,8 +202,8 @@ func (this *BlockChainEvents) GetAllRegistryEvents(registryAddress common.Addres
 }
 
 /*
-# These helpers have a better descriptive name and provide the translator for
-# the caller.
+ These helpers have a better descriptive name and provide the translator for
+ the caller.
 */
 func (this *BlockChainEvents) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)

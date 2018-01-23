@@ -51,6 +51,7 @@ type SentMessageState struct {
 	AsyncResult     *AsyncResult
 	AckChannel      chan error
 	ReceiverAddress common.Address
+	Success         bool
 }
 type NodesStatusGeter interface {
 	GetNetworkStatus(addr common.Address) string
@@ -153,6 +154,7 @@ func (this *RaidenProtocol) sendWithResult(receiver common.Address,
 		result = msgState.AsyncResult
 		return
 	}
+	log.Debug(fmt.Sprintf("send msg=%d,hash=%s", msg.Cmd(), utils.HPex(echohash)))
 	msgState = &SentMessageState{
 		AsyncResult:     NewAsyncResult(),
 		ReceiverAddress: receiver,
@@ -163,15 +165,14 @@ func (this *RaidenProtocol) sendWithResult(receiver common.Address,
 		select {
 		case _, ok := <-msgState.AckChannel: //tell caller ack has arrived
 			if ok {
+				log.Debug(fmt.Sprintf("msg=%d, sent success :%s", msg.Cmd(), utils.HPex(echohash)))
 				msgState.AsyncResult.Result <- nil
 			} else {
 				msgState.AsyncResult.Result <- errors.New("channel closed")
 			}
 			stopSendChannel <- struct{}{}
 			close(stopSendChannel)
-			this.mapLock.Lock()
 			close(msgState.AsyncResult.Result)
-			this.mapLock.Unlock()
 		case <-quit: //the caller cancel to wait this result
 			stopSendChannel <- struct{}{}
 			close(stopSendChannel)
@@ -278,18 +279,20 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 	messager = msg.(encoding.Messager)
 	err := messager.UnPack(data)
 	if err != nil {
-		log.Warn("message unpack error : ", err)
+		log.Warn(fmt.Sprintf("message unpack error : %s", err))
 		return
 	}
 	if messager.Cmd() == encoding.ACK_CMDID { //some one may be waiting this ack
 		ackMsg := messager.(*encoding.Ack)
+		log.Debug(fmt.Sprintf("receive ack ,hash=%s", utils.HPex(ackMsg.Echo)))
 		this.updateNetworkStatus(ackMsg.Sender, NODE_NETWORK_REACHABLE)
 		this.mapLock.Lock()
 		msgState, ok := this.SentHashesToChannel[ackMsg.Echo]
-		if ok {
+		if ok && msgState.Success == false {
 			msgState.AckChannel <- nil
 			close(msgState.AckChannel)
-			delete(this.SentHashesToChannel, ackMsg.Echo)
+			msgState.Success = true
+			//delete(this.SentHashesToChannel, ackMsg.Echo)
 		} else {
 			log.Debug(fmt.Sprintf("receive duplicate ack  from %s:%d ", host, port))
 		}
@@ -325,12 +328,15 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 }
 
 func (this *RaidenProtocol) StopAndWait() {
+	log.Info("RaidenProtocol stop...")
 	this.Transport.StopAccepting()
 	this.mapLock.Lock()
 	for k, c := range this.SentHashesToChannel {
 		delete(this.SentHashesToChannel, k)
-		close(c.AckChannel)
-		close(c.AsyncResult.Result)
+		if !c.Success {
+			close(c.AckChannel)
+			close(c.AsyncResult.Result)
+		}
 	}
 	this.mapLock.Unlock()
 	//what about the outgoing packets, maybe lost

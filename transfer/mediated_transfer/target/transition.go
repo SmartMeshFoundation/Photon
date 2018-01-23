@@ -60,8 +60,8 @@ func handleInitTraget(st *mediated_transfer.ActionInitTargetStateChange) *transf
 	}
 	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout, blockNumber)
 	/*
-			 # if there is not enough time to safely withdraw the token on-chain
-		    # silently let the transfer expire.
+			  if there is not enough time to safely withdraw the token on-chain
+		     silently let the transfer expire.
 	*/
 	if safeToWait {
 		secretRequest := &mediated_transfer.EventSendSecretRequest{
@@ -95,7 +95,7 @@ func handleSecretReveal(state *mediated_transfer.TargetState, st *mediated_trans
 		}
 		events = append(events, reveal)
 	} else {
-		//# TODO: event for byzantine behavior
+		// TODO: event for byzantine behavior
 	}
 	it = &transfer.TransitionResult{state, events}
 	return
@@ -119,7 +119,7 @@ func handleBlock(state *mediated_transfer.TargetState, st *transfer.BlockStateCh
 		state.BlockNumber = st.BlockNumber
 	}
 	/*
-	  # only emit the close event once
+	   only emit the close event once
 
 	*/
 	var events []transfer.Event
@@ -161,6 +161,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 		}
 		it = &transfer.TransitionResult{nil, []transfer.Event{failed}}
 	} else if state.State == mediated_transfer.STATE_BALANCE_PROOF {
+		//这些事件对应的处理都没有
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
 			Identifier: state.FromTransfer.Identifier,
 			Amount:     state.FromTransfer.Amount,
@@ -199,6 +200,7 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 			switch st2 := stateChange.(type) {
 			case *mediated_transfer.ReceiveBalanceProofStateChange:
 				it = handleBalanceProof(state, st2)
+				//目前没用
 			case *transfer.ActionRouteChangeStateChange:
 				it = handleRouteChange(state, st2)
 			case *transfer.BlockStateChange:

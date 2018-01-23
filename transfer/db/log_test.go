@@ -1,4 +1,4 @@
-package transfer
+package db
 
 import (
 	"bytes"
@@ -120,7 +120,7 @@ func TestGobWithWrapper(t *testing.T) {
 func TestNewStateChangeLog(t *testing.T) {
 	dbPath := path.Join(os.TempDir(), "test.db")
 	os.Remove(dbPath)
-	db := NewStateChangeLogQlBackend(dbPath)
+	db := NewStateChangeLogBoltBackend(dbPath)
 	t.Log(db)
 	data := []byte{1, 2, 3}
 	id, err := db.WriteStateChange(data)
@@ -138,24 +138,29 @@ func TestNewStateChangeLog(t *testing.T) {
 		spew.Dump(data2)
 		t.Error("data not equal")
 	}
-	_, err = db.WriteStateSnapshot(id, data)
+	s := &snapshotToWrite{
+		StateChangeId: 1,
+		State:         data,
+	}
+	_, err = db.WriteStateSnapshot(s)
 	if err != nil {
 		t.Error(err)
 	}
-	id2, data3, err := db.GetStateSnapshot()
+	s2, err := db.GetStateSnapshot()
 	if err != nil {
 		t.Error(err)
 	}
-	if id2 != id {
+	if s2.StateChangeId != s.StateChangeId {
 		t.Error("id not equal")
 	}
+	data3 := s2.State.([]byte)
 	if !bytes.Equal(data3, data) {
 		t.Error("data3 not equal")
 	}
 	number := utils.RandSrc.Int63()
-	events := []*eventWriterStruct{{StateChangeId: id,
+	events := []*InternalEvent{{StateChangeId: id,
 		BlockNumber: number,
-		EventData:   data}}
+		EventObject: data}}
 	err = db.WriteStateEvents(id, events)
 	if err != nil {
 		t.Error(err)

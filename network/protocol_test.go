@@ -9,8 +9,6 @@ import (
 
 	"time"
 
-	"net"
-
 	"os"
 
 	"errors"
@@ -168,7 +166,7 @@ func TestPingPythonRaiden(t *testing.T) {
 		return
 	}
 	transport := NewUDPTransport(pms.ExternalIp, pms.ExternalPort,
-		pms.Conn.(*net.UDPConn), nil, NewTokenBucket(10, 2, time.Now))
+		pms.Conn, nil, NewTokenBucket(10, 2, time.Now))
 	bcs := rpc.MakeTestBlockChainService()
 	discover := NewHttpDiscovery()
 	err = discover.Register(bcs.NodeAddress, pms.ExternalIp, pms.ExternalPort)

@@ -10,9 +10,10 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/db"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/fatedier/frp/src/utils/log"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/kataras/go-errors"
 )
 
@@ -51,38 +52,48 @@ Args:
 */
 func (this *RaidenApi) GetChannelList(tokenAddress common.Address, partnerAddress common.Address) (channels []*channel.Channel) {
 	if tokenAddress != utils.EmptyAddress && partnerAddress != utils.EmptyAddress {
-		graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-		if !ok {
+		graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+		if graph == nil {
 			return
 		}
-		ch, ok := graph.PartenerAddress2Channel[partnerAddress]
-		if !ok {
+		ch := graph.GetPartenerAddress2Channel(partnerAddress)
+		if ch == nil {
 			return
 		}
 		channels = []*channel.Channel{ch}
 		return
 	} else if tokenAddress != utils.EmptyAddress {
-		graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-		if !ok {
+		graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+		if graph == nil {
 			return
 		}
-		for _, c := range graph.ChannelAddres2Channel {
+		graph.Lock.Lock()
+		for _, c := range graph.ChannelAddress2Channel {
 			channels = append(channels, c)
 		}
+		graph.Lock.Unlock()
 	} else if partnerAddress != utils.EmptyAddress {
+		this.Raiden.Lock.RLock()
 		for _, g := range this.Raiden.Token2ChannelGraph {
+			g.Lock.Lock()
 			for p, c := range g.PartenerAddress2Channel {
 				if p == partnerAddress {
 					channels = append(channels, c)
 				}
 			}
+			g.Lock.Unlock()
 		}
+		this.Raiden.Lock.RUnlock()
 	} else {
+		this.Raiden.Lock.RLock()
 		for _, g := range this.Raiden.Token2ChannelGraph {
+			g.Lock.Lock()
 			for _, c := range g.PartenerAddress2Channel {
 				channels = append(channels, c)
 			}
+			g.Lock.Unlock()
 		}
+		this.Raiden.Lock.RUnlock()
 	}
 	return
 }
@@ -127,6 +138,7 @@ func (this *RaidenApi) RegisterToken(tokenAddress common.Address) (mgrAddr commo
 		err = errors.New("Token already registered")
 		return
 	}
+	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
 	if err != nil && err.Error() == "abi: unmarshalling empty output" {
 		return this.Raiden.Registry.AddToken(tokenAddress)
 	} else {
@@ -217,7 +229,8 @@ func (this *RaidenApi) Open(tokenAddress, partnerAddress common.Address, settleT
 	if err != nil {
 		return
 	}
-	if _, ok := this.Raiden.Token2ChannelGraph[tokenAddress]; !ok {
+	g := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	if g == nil {
 		log.Error("open not exists token channel")
 		err = rerr.UnknownTokenAddress("when open channel")
 		return
@@ -229,20 +242,20 @@ func (this *RaidenApi) Open(tokenAddress, partnerAddress common.Address, settleT
 	}
 	//wait channelNew Event
 	for {
-		g, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-		if !ok {
+		g := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+		if g == nil {
 			time.Sleep(time.Second)
 			continue
 		}
-		_, ok = g.PartenerAddress2Channel[partnerAddress]
-		if !ok {
+		ch = g.GetPartenerAddress2Channel(partnerAddress)
+		if ch == nil {
 			time.Sleep(time.Second)
 			continue
 		}
 		break
 	}
-	g := this.Raiden.Token2ChannelGraph[tokenAddress]
-	ch = g.PartenerAddress2Channel[partnerAddress]
+	g = this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	ch = g.GetPartenerAddress2Channel(partnerAddress)
 	return
 }
 
@@ -264,12 +277,13 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         execution.
 */
 func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amount int64, pollTimeout time.Duration) (err error) {
-	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok {
+
+	graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	if graph == nil {
 		return rerr.InvalidAddress("Unknown token address")
 	}
-	ch, ok := graph.PartenerAddress2Channel[partnerAddress]
-	if !ok {
+	ch := graph.GetPartenerAddress2Channel(partnerAddress)
+	if ch == nil {
 		return rerr.InvalidAddress("No channel with partner_address for the given token")
 	}
 	if ch.TokenAddress != tokenAddress { //impossible
@@ -281,9 +295,9 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 		return
 	}
 	/*
-			# Checking the balance is not helpful since this requires multiple
-		    # transactions that can race, e.g. the deposit check succeed but the
-		    # user spent his balance before deposit.
+			 Checking the balance is not helpful since this requires multiple
+		     transactions that can race, e.g. the deposit check succeed but the
+		     user spent his balance before deposit.
 	*/
 	if balance < amount {
 		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
@@ -300,10 +314,10 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 		return
 	}
 	/*
-			# Wait until the `ChannelNewBalance` event is processed.
-		        #
-		        # Usually a single sleep is sufficient, since the `deposit` waits for
-		        # the transaction to be polled.
+			 Wait until the `ChannelNewBalance` event is processed.
+
+		         Usually a single sleep is sufficient, since the `deposit` waits for
+		         the transaction to be polled.
 	*/
 	//为什么收不到我自己的newbalance事件呢? 确实没有存进去,为什么会失败呢?  todo
 	var totalSleep time.Duration = 0
@@ -340,13 +354,13 @@ func (this *RaidenApi) TokenSwapAndWait(identifier uint64, makerToken, takerToke
 
 func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount int64) (result *network.AsyncResult, err error) {
-	_, ok := this.Raiden.Token2ChannelGraph[takerToken]
-	if !ok {
+	g := this.Raiden.GetToken2ChannelGraph(takerToken)
+	if g == nil {
 		err = errors.New("unkown taker token")
 		return
 	}
-	_, ok = this.Raiden.Token2ChannelGraph[makerToken]
-	if !ok {
+	g = this.Raiden.GetToken2ChannelGraph(makerToken)
+	if g == nil {
 		err = errors.New("unkown maker token")
 		return
 	}
@@ -383,13 +397,13 @@ Register an expected transfer for this node.
 */
 func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount int64) (err error) {
-	_, ok := this.Raiden.Token2ChannelGraph[takerToken]
-	if !ok {
+	g := this.Raiden.GetToken2ChannelGraph(takerToken)
+	if g == nil {
 		err = errors.New("unkown taker token")
 		return
 	}
-	_, ok = this.Raiden.Token2ChannelGraph[makerToken]
-	if !ok {
+	g = this.Raiden.GetToken2ChannelGraph(makerToken)
+	if g == nil {
 		err = errors.New("unkown maker token")
 		return
 	}
@@ -413,13 +427,6 @@ func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken
 	return nil
 }
 
-/*
-
-# expose a synchronous interface to the user
-token_swap = token_swap_and_wait
-transfer = transfer_and_wait  # expose a synchronous interface to the user
-
-*/
 //Returns the currently network status of `node_address
 func (this *RaidenApi) GetNodeNetworkState(nodeAddress common.Address) string {
 	return this.Raiden.Protocol.GetNetworkStatus(nodeAddress)
@@ -432,9 +439,11 @@ func (this *RaidenApi) StartHealthCheckFor(nodeAddress common.Address) string {
 }
 
 func (this *RaidenApi) GetTokenList() (tokens []common.Address) {
+	this.Raiden.Lock.RLock()
 	for k, _ := range this.Raiden.Token2ChannelGraph {
 		tokens = append(tokens, k)
 	}
+	this.Raiden.Lock.RUnlock()
 	return
 }
 
@@ -448,7 +457,6 @@ func (this *RaidenApi) TransferAndWait(token common.Address, amount int64, targe
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			//?无需关闭? close(timeoutCh)
 			err = rerr.TransferTimeout
 		case err = <-result.Result:
 		}
@@ -469,8 +477,8 @@ func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount int64, 
 		err = rerr.InvalidAmount
 		return
 	}
-	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok || !graph.HasPath(this.Raiden.NodeAddress, target) {
+	graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	if graph == nil || !graph.HasPath(this.Raiden.NodeAddress, target) {
 		err = rerr.NoPathError
 		return
 	}
@@ -482,13 +490,13 @@ func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount int64, 
 
 //Close a channel opened with `partner_address` for the given `token_address`.
 func (this *RaidenApi) Close(tokenAddress, partnerAddress common.Address) (ch *channel.Channel, err error) {
-	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok {
+	graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	if graph == nil {
 		err = rerr.InvalidAddress("token address is not valid.")
 		return
 	}
-	ch, ok = graph.PartenerAddress2Channel[partnerAddress]
-	if !ok {
+	ch = graph.GetPartenerAddress2Channel(partnerAddress)
+	if ch == nil {
 		err = rerr.InvalidAddress("no such channel")
 		return
 	}
@@ -498,13 +506,13 @@ func (this *RaidenApi) Close(tokenAddress, partnerAddress common.Address) (ch *c
 
 //Settle a closed channel with `partner_address` for the given `token_address`.
 func (this *RaidenApi) Settle(tokenAddress, partnerAddress common.Address) (ch *channel.Channel, err error) {
-	graph, ok := this.Raiden.Token2ChannelGraph[tokenAddress]
-	if !ok {
+	graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
+	if graph == nil {
 		err = rerr.InvalidAddress("token address is not valid.")
 		return
 	}
-	ch, ok = graph.PartenerAddress2Channel[partnerAddress]
-	if !ok {
+	ch = graph.GetPartenerAddress2Channel(partnerAddress)
+	if ch == nil {
 		err = rerr.InvalidAddress("no such channel")
 		return
 	}
@@ -543,7 +551,7 @@ func (this *RaidenApi) GetTokenNetworkEvents(tokenAddress common.Address, fromBl
 		Participant2   string `json:"participant2"`
 		TokenAddress   string `json:"token_address"`
 	}
-	for t, graph := range this.Raiden.Token2ChannelGraph {
+	for t, graph := range this.Raiden.CloneToken2ChannelGraph() {
 		if tokenAddress == utils.EmptyAddress || t == tokenAddress {
 			events, err := this.Raiden.BlockChainEvents.GetAllChannelManagerEvents(graph.ChannelManagerAddress, fromBlock, toBlock)
 			if err != nil {
@@ -595,25 +603,6 @@ func (this *RaidenApi) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}
 }
 
 func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock, toBlock int64) (data []transfer.Event, err error) {
-	/*
-
-	   {
-	       "event_type": "ChannelNewBalance",
-	       "participant": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
-	       "balance": 150000,
-	       "block_number": 54388
-	   }, {
-	       "event_type": "TransferUpdated",
-	       "token_address": "0x91337a300e0361bddb2e377dd4e88ccb7796663d",
-	       "channel_manager_address": "0xc0ea08a2d404d3172d2add29a45be56da40e2949"
-	   }, {
-	       "event_type": "EventTransferSentSuccess",
-	       "identifier": 14909067296492875713,
-	       "block_number": 2226,
-	       "amount": 7,
-	       "target": "0xc7262f1447fcb2f75ab14b2a28deed6006eea95b"
-	   }
-	*/
 
 	var events []transfer.Event
 	events, err = this.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
@@ -652,7 +641,7 @@ func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock
 
 	}
 
-	var raidenEvents []*transfer.InternalEvent
+	var raidenEvents []*db.InternalEvent
 	raidenEvents, err = this.Raiden.TransactionLog.GetEventsInBlockRange(fromBlock, toBlock)
 	if err != nil {
 		return
@@ -661,13 +650,6 @@ func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock
 	//没有办法识别这些event如何与channelAddress关联  todo
 	for _, ev := range raidenEvents {
 		m := make(map[string]interface{})
-		/*
-			   "event_type": "EventTransferSentSuccess",
-					   "identifier": 14909067296492875713,
-					   "block_number": 2226,
-					   "amount": 7,
-					   "target": "0xc7262f1447fcb2f75ab14b2a28deed6006eea95b"
-		*/
 		switch e2 := ev.EventObject.(type) {
 		case *transfer.EventTransferSentSuccess:
 			m["event_type"] = "EventTransferSentSuccess"

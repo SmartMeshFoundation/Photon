@@ -430,8 +430,8 @@ func TestEventsForRevealSecret(t *testing.T) {
 	lastPair.PayeeState = mediated_transfer.STATE_PAYEE_SECRET_REVEALED
 	events = EventsForRevealSecret(pairs, ourAddress)
 	/*
-			 # the last known hop sent a secret reveal message, this node learned the
-		    # secret and now must reveal to the payer node from the transfer pair
+			  the last known hop sent a secret reveal message, this node learned the
+		     secret and now must reveal to the payer node from the transfer pair
 	*/
 	assert(t, len(events), 1)
 	ev, ok := events[0].(*mediated_transfer.EventSendRevealSecret)
@@ -442,8 +442,8 @@ func TestEventsForRevealSecret(t *testing.T) {
 
 	events = EventsForRevealSecret(pairs, ourAddress)
 	/*
-			  # the payeee from the first_pair did not send a secret reveal message, do
-		    # nothing
+			   the payeee from the first_pair did not send a secret reveal message, do
+		     nothing
 	*/
 	assert(t, len(events), 0)
 	firstPair.PayeeState = mediated_transfer.STATE_PAYEE_SECRET_REVEALED
@@ -572,10 +572,10 @@ func TestEventsFroBalanceProofSecretUnkown(t *testing.T) {
 
 	pairs = makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4}, utest.HOP6, 10, utest.UNIT_SECRET, 0, utest.UNIT_REVEAL_TIMEOUT)
 	/*
-			# Even though the secret is set, there is not a single transfer pair with a
-		    # 'secret known' state, so nothing should be done. This state is impossible
-		    # to reach, in reality someone needs to reveal the secret to the mediator,
-		    # so at least one other node knows the secret.
+			 Even though the secret is set, there is not a single transfer pair with a
+		     'secret known' state, so nothing should be done. This state is impossible
+		     to reach, in reality someone needs to reveal the secret to the mediator,
+		     so at least one other node knows the secret.
 	*/
 	events = eventsForBalanceProof(pairs, blockNumber)
 	assert(t, len(events), 0)
@@ -593,11 +593,11 @@ func TestEventsForBalanceProofLockExpired(t *testing.T) {
 	middlePair := pairs[len(pairs)-2]
 	middlePair.PayeeState = mediated_transfer.STATE_PAYEE_SECRET_REVEALED
 	/*
-			    # Even though the last node did not receive the payment we should send the
-		    # balance proof to the middle node to avoid unnecessarely closing the
-		    # middle channel. This state should not be reached under normal operation,
-		    # the last hop needs to choose a proper reveal_timeout and must go on-chain
-		    # to withdraw the token before the lock expires.
+			     Even though the last node did not receive the payment we should send the
+		     balance proof to the middle node to avoid unnecessarely closing the
+		     middle channel. This state should not be reached under normal operation,
+		     the last hop needs to choose a proper reveal_timeout and must go on-chain
+		     to withdraw the token before the lock expires.
 	*/
 	events = eventsForBalanceProof(pairs, blockNumber)
 	var balanceProof *mediated_transfer.EventSendBalanceProof
@@ -750,7 +750,7 @@ func TestInitMediator(t *testing.T) {
 	fromRoute, FromTransfer := utest.MakeFrom(utest.UNIT_TRANSFER_AMOUNT, utest.HOP2, int64(utest.HOP1_TIMEOUT), utils.NewRandomAddress(), utils.EmptyHash)
 	var routes = []*transfer.RouteState{utest.MakeRoute(utest.HOP2, utest.UNIT_TRANSFER_AMOUNT, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress())}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := &transfer.StateManager{StateTransition, nil}
+	sm := &transfer.StateManager{StateTransition, nil, "mediator"}
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	mstate := sm.CurrentState.(*mediated_transfer.MediatorState)
@@ -781,7 +781,7 @@ func TestNoValidRoutes(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, 1, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
 	}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := &transfer.StateManager{StateTransition, nil}
+	sm := &transfer.StateManager{StateTransition, nil, "mediator"}
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	assert(t, sm.CurrentState, nil)
@@ -789,105 +789,3 @@ func TestNoValidRoutes(t *testing.T) {
 	_, ok := events[0].(*mediated_transfer.EventSendRefundTransfer)
 	assert(t, ok, true)
 }
-
-/*
-@pytest.mark.xfail(reason='Not implemented')
-def test_lock_timeout_lower_than_previous_channel_settlement_period():
-    # For a path A-B-C, B cannot forward a mediated transfer to C with
-    # a lock timeout larger than the settlement timeout of the A-B
-    # channel.
-    #
-    # Consider that an attacker controls both nodes A and C:
-    #
-    # Channels A <-> B and B <-> C have a settlement=10 and B has a
-    # reveal_timeout=5
-    #
-    # (block=1) A -> B [T1 expires=20]
-    # (block=1) B -> C [T2 expires=20-5]
-    # (block=1) A close channel A-B
-    # (block=5) C close channel B-C (waited until lock_expiration=settle_timeout)
-    # (block=11) A call settle on channel A-B (settle_timeout is over)
-    # (block=12) C call unlock on channel B-C (lock is still valid)
-    #
-    # If B used min(lock.expiration, previous_channel.settlement)
-    #
-    # (block=1) A -> B [T1 expires=20]
-    # (block=1) B -> C [T2 expires=min(20,10)-5]
-    # (block=1) A close channel A-B
-    # (block=4) C close channel B-C (waited all possible blocks)
-    # (block=5) C call unlock on channel B-C (C is forced to unlock)
-    # (block=6) B learns the secret
-    # (block=7) B call unlock on channel A-B (settle_timeout is over)
-    raise NotImplementedError()
-
-
-@pytest.mark.xfail(reason='Not implemented. Issue: #382')
-def test_do_not_withdraw_an_almost_expiring_lock_if_a_payment_didnt_occur():
-    # For a path A1-B-C-A2, an attacker controlling A1 and A2 should not be
-    # able to force B-C to close the channel by burning token.
-    #
-    # The attack would be as follows:
-    #
-    # - Attacker uses two nodes to open two really cheap channels A1 <-> B and
-    #   node A2 <-> C
-    # - Attacker sends a mediated message with the lowest possible token
-    #   amount from A1 through B and C to A2
-    # - Since the attacker controls A1 and A2 it knows the secret, she can choose
-    #   when the secret is revealed
-    # - The secret is hold back until the hash time lock B->C is almost expiring,
-    #   then it's revealed (meaning that the attacker is losing token, that's why
-    #   it's using the lowest possible amount)
-    # - C wants the token from B, it will reveal the secret and close the channel
-    #   (because it must assume the balance proof won't make in time and it needs
-    #   to unlock on-chain)
-    #
-    # Mitigation:
-    #
-    # - C should only close the channel B-C if he has paid A2, since this may
-    #   only happen if the lock for the transfer C-A2 has not yet expired then C
-    #   has enough time to follow the protocol without closing the channel B-C.
-    raise NotImplementedError()
-
-
-@pytest.mark.xfail(reason='Not implemented. Issue: #382')
-def mediate_transfer_payee_timeout_must_be_lower_than_settlement_and_payer_timeout():
-    # Test:
-    # - the current payer route/transfer is the reference, not the from_route / from_transfer
-    # - the lowest value from blocks_until_settlement and lock expiration must be used
-    raise NotImplementedError()
-
-
-@pytest.mark.xfail(reason='Not implemented. Issue: #382')
-def payee_timeout_must_be_lower_than_payer_timeout_minus_reveal_timeout():
-    # The payee could reveal the secret on it's lock expiration block, the
-    # mediator node will respond with a balance-proof to the payee since the
-    # lock is valid and the mediator can safely get the token from the payer,
-    # the secret is know and if there are no additional blocks the mediator
-    # will be at risk of not being able to withdraw on-chain, so the channel
-    # will be closed to safely withdraw.
-    #
-    # T2.expiration cannot be equal to T1.expiration - reveal_timeout:
-    #
-    # T1 |---|
-    # T2     |---|
-    #        ^- reveal the secret
-    #        T1.expiration - reveal_timeout == current_block -> withdraw on chain
-    #
-    # If T2.expiration canot be equal to T1.expiration - reveal_timeout minus ONE:
-    #
-    # T1 |---|
-    # T2      |---|
-    #         ^- reveal the secret
-    #
-    # Race:
-    #  1> Secret is learned
-    #  2> balance-proof is sent to payee (payee transfer is paid)
-    #  3! New block is mined and Raiden learns about it
-    #  4> Now the secret is know, the payee is paid, and the current block is
-    #     equal to the payer.expiration - reveal-timeout -> withdraw on chain
-    #
-    # The race is depending on the handling of 3 before 4.
-    #
-    raise NotImplementedError()
-
-*/

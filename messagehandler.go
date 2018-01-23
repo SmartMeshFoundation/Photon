@@ -104,12 +104,12 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 
 func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransfer) (err error) {
 	this.balanceProof(msg)
-	graph := this.raiden.Token2ChannelGraph[msg.Token]
+	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
 	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
 		err = fmt.Errorf("Direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
-	ch := graph.PartenerAddress2Channel[msg.Sender]
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
 	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		return
@@ -124,17 +124,17 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 
 func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	this.balanceProof(msg)
-	if _, ok := this.raiden.Token2ChannelGraph[msg.Token]; !ok {
+	if graph := this.raiden.GetToken2ChannelGraph(msg.Token); graph == nil {
 		return rerr.UnknownTokenAddress(msg.Token.String())
 	}
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
-	graph := this.raiden.Token2ChannelGraph[msg.Token]
+	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
 	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
 		return rerr.UnknownAddress(fmt.Sprintf("Direct transfer from node without an existing channel partner %s  ", msg.Sender))
 	}
-	ch := graph.PartenerAddress2Channel[msg.Sender]
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
 	if ch.State() != transfer.CHANNEL_STATE_OPENED {
 		return rerr.TransferWhenClosed(ch.MyAddress.String())
 	}
@@ -161,25 +161,25 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 
 func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.MediatedTransfer) error {
 	this.balanceProof(msg)
-	// # TODO: Reject mediated transfer that the hashlock/identifier is known,
-	//# this is a downstream bug and the transfer is going in cycles (issue #490)
+	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
+	// this is a downstream bug and the transfer is going in cycles (issue #490)
 	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.Int64()}
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
 	/*
-			# TODO: add a separate message for token swaps to simplify message
-		    # handling (issue #487)
+			 TODO: add a separate message for token swaps to simplify message
+		     handling (issue #487)
 	*/
 	if _, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
 		this.messageTokenSwap(msg)
 		return nil
 	}
-	graph := this.raiden.Token2ChannelGraph[msg.Token]
+	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
 	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
 		return rerr.ChannelNotFound(fmt.Sprintf("mediated transfer from node without an existing channel %s", msg.Sender))
 	}
-	ch := graph.PartenerAddress2Channel[msg.Sender]
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
 	if ch.State() != transfer.CHANNEL_STATE_OPENED {
 		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is closed %s", ch.MyAddress))
 	}

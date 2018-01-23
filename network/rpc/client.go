@@ -15,10 +15,10 @@ import (
 
 	"sync"
 
+	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -127,7 +127,8 @@ func (this *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy
 	_, ok := this.AddressToken[tokenAddress]
 	if !ok {
 		token, _ := NewToken(tokenAddress, this.Client)
-		this.AddressToken[tokenAddress] = &TokenProxy{tokenAddress, this, token}
+		this.AddressToken[tokenAddress] = &TokenProxy{
+			Address: tokenAddress, bcs: this, Token: token}
 	}
 	return this.AddressToken[tokenAddress]
 }
@@ -162,7 +163,7 @@ func (this *BlockChainService) Manager(address common.Address) (t *ChannelManage
 	_, ok := this.AddressChannelManager[address]
 	if !ok {
 		mgr, _ := NewChannelManagerContract(address, this.Client)
-		this.AddressChannelManager[address] = &ChannelManagerContractProxy{address, this, mgr}
+		this.AddressChannelManager[address] = &ChannelManagerContractProxy{Address: address, bcs: this, mgr: mgr}
 	}
 	return this.AddressChannelManager[address]
 }
@@ -178,9 +179,9 @@ func (this *BlockChainService) Registry(address common.Address) (t *RegistryProx
 }
 
 /*
-all channel manager that i have participated
+all channel managers
 */
-func (this *BlockChainService) GetAllRevelantChannelManagers() (mgrs []*ChannelManagerContractProxy, err error) {
+func (this *BlockChainService) GetAllChannelManagers() (mgrs []*ChannelManagerContractProxy, err error) {
 	reg := this.Registry(this.RegistryAddress)
 	var mgrAddressess []common.Address
 	mgrAddressess, err = reg.ChannelManagerAddresses()
@@ -189,11 +190,11 @@ func (this *BlockChainService) GetAllRevelantChannelManagers() (mgrs []*ChannelM
 	}
 	for _, mgrAddr := range mgrAddressess {
 		mgr := this.Manager(mgrAddr)
-		var channels []*NettingChannelContractProxy
-		channels, err = mgr.NettingChannelByAddress(this.NodeAddress)
-		if err != nil || len(channels) <= 0 {
-			continue
-		}
+		//var channels []*NettingChannelContractProxy
+		//channels, err = mgr.NettingChannelByAddress(this.NodeAddress)
+		//if err != nil || len(channels) <= 0 {
+		//	continue
+		//}
 		mgrs = append(mgrs, mgr)
 	}
 	return
@@ -254,6 +255,7 @@ type ChannelManagerContractProxy struct {
 	Address common.Address //contract address
 	bcs     *BlockChainService
 	mgr     *ChannelManagerContract
+	lock    sync.Mutex //new channel protect
 }
 
 /// @notice Get all channels
@@ -323,6 +325,8 @@ func (this *ChannelManagerContractProxy) GetContract() *ChannelManagerContract {
 }
 
 func (this *ChannelManagerContractProxy) NewChannel(partnerAddress common.Address, settleTimeout int) (chAddr common.Address, err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	tx, err := this.mgr.NewChannel(this.bcs.Auth, partnerAddress, big.NewInt(int64(settleTimeout)))
 	if err != nil {
 		return
@@ -456,6 +460,7 @@ type TokenProxy struct {
 	Address common.Address
 	bcs     *BlockChainService
 	Token   *Token
+	lock    sync.Mutex
 }
 
 /// @return total amount of tokens
@@ -489,6 +494,8 @@ func (this *TokenProxy) Allowance(owner, spender common.Address) (int64, error) 
 /// @param _value The amount of wei to be approved for transfer
 /// @return Whether the approval was successful or not
 func (this *TokenProxy) Approve(spender common.Address, value int64) (err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	tx, err := this.Token.Approve(this.bcs.Auth, spender, big.NewInt(value))
 	if err != nil {
 		return err
@@ -502,6 +509,30 @@ func (this *TokenProxy) Approve(spender common.Address, value int64) (err error)
 		return errors.New("Approve tx execution failed")
 	} else {
 		log.Info(fmt.Sprint("Approve success %s,spender=%s,value=%d", this.Address.String(), utils.APex(spender), value))
+	}
+	return nil
+}
+
+/// @notice send `_value` token to `_to` from `msg.sender`
+/// @param _to The address of the recipient
+/// @param _value The amount of token to be transferred
+/// @return Whether the transfer was successful or not
+func (this *TokenProxy) Transfer(spender common.Address, value int64) (err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+	tx, err := this.Token.Transfer(this.bcs.Auth, spender, big.NewInt(value))
+	if err != nil {
+		return err
+	}
+	receipt, err := bind.WaitMined(GetCallContext(), this.bcs.Client, tx)
+	if err != nil {
+		return err
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Info(fmt.Sprint("Transfer failed %s,receipt=%s", this.Address.Str(), receipt))
+		return errors.New("Transfer tx execution failed")
+	} else {
+		log.Info(fmt.Sprint("Transfer success %s,spender=%s,value=%d", this.Address.String(), utils.APex(spender), value))
 	}
 	return nil
 }

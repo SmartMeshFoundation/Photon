@@ -139,16 +139,17 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			Hashlock:   hashlock,
 			Secret:     secret,
 		}
-		msg := &mt.EventSendMediatedTransfer{
-			Identifier: tr.Identifier,
-			Token:      tr.Token,
-			Amount:     tr.Amount,
-			HashLock:   tr.Hashlock,
-			Initiator:  state.OurAddress,
-			Target:     tr.Target,
-			Expiration: lockExpiration,
-			Receiver:   tryRoute.HopNode,
-		}
+		msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
+		//& mt.EventSendMediatedTransfer{
+		//	Identifier: tr.Identifier,
+		//	Token:      tr.Token,
+		//	Amount:     tr.Amount,
+		//	HashLock:   tr.Hashlock,
+		//	Initiator:  state.OurAddress,
+		//	Target:     tr.Target,
+		//	Expiration: lockExpiration,
+		//	Receiver:   tryRoute.HopNode,
+		//}
 		state.Transfer = tr
 		state.Message = msg
 		events := []transfer.Event{msg}
@@ -311,25 +312,29 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			}
 			return TryNewRoute(state)
 		} else {
-			log.Warn("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
-				utils.StringInterface1(originalState), utils.StringInterface1(st))
+			//todo fix, find a way to remove this identifier from raiden.Identifier2StateManagers
+			log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
+				utils.StringInterface1(originalState), utils.StringInterface1(st)))
 		}
 	} else if state.RevealSecret == nil {
 		switch st2 := st.(type) {
 		case *transfer.BlockStateChange:
 			it = HandleBlock(state, st2)
+			//目前没用,
 		case *transfer.ActionRouteChangeStateChange:
 			it = HandleRouteChange(state, st2)
 		case *mt.ReceiveSecretRequestStateChange:
 			it = HandleSecretRequest(state, st2)
 		case *mt.ReceiveTransferRefundStateChange:
 			it = HandleTransferRefund(state, st2)
+			//目前没用
 		case *mt.ActionCancelRouteStateChange:
 			it = HandleCancelRoute(state, st2)
+			//目前也没用
 		case *transfer.ActionCancelTransferStateChange:
 			it = HandleCancelTransfer(state)
 		default:
-			log.Warn(fmt.Sprint("RevealSecret is nil,cannot handle %s", utils.StringInterface1(st)))
+			log.Warn(fmt.Sprintf("RevealSecret is nil,cannot handle %s", utils.StringInterface(st, 3)))
 		}
 	} else {
 		switch st2 := st.(type) {
@@ -338,7 +343,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		case *mt.ReceiveSecretRevealStateChange:
 			it = HandleSecretReveal(state, st2)
 		default:
-			log.Warn(fmt.Sprintf("RevealSecret is not nil,cannot handle %s", utils.StringInterface1(st)))
+			log.Warn(fmt.Sprintf("RevealSecret is not nil,cannot handle %s", utils.StringInterface(st, 3)))
 		}
 	}
 	return it

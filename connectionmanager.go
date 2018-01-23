@@ -66,7 +66,7 @@ func (this *ConnectionManager) Connect(funds, initialChannelTarget int64, joinab
 		return errors.New("connecting needs a positive value for `funds`")
 	}
 	_, ok := this.raiden.MessageHandler.blockedTokens[this.tokenAddress]
-	if ok {
+	if ok { //first leave ,then connect to this token network
 		delete(this.raiden.MessageHandler.blockedTokens, this.tokenAddress)
 	}
 	this.initChannelTarget = initialChannelTarget
@@ -240,6 +240,7 @@ func (this *ConnectionManager) Leave(onlyReceiving bool) []*channel.Channel {
 func (this *ConnectionManager) WaitForSettle(closedChannels []*channel.Channel) bool {
 	found := false
 	for {
+		found = false
 		for _, c := range closedChannels {
 			if c.State() != transfer.CHANNEL_STATE_SETTLED {
 				found = true
@@ -266,9 +267,9 @@ func (this *ConnectionManager) openAndDeposit(partner common.Address, fundingAmo
 	if err != nil {
 		return err
 	}
-	cg := this.raiden.Token2ChannelGraph[this.tokenAddress]
-	_, ok := cg.PartenerAddress2Channel[partner]
-	if !ok {
+	cg := this.raiden.GetToken2ChannelGraph(this.tokenAddress)
+	ch := cg.GetPartenerAddress2Channel(partner)
+	if ch == nil {
 		err = fmt.Errorf("Opening new channel failed; channel already opened,  but partner not in channelgraph ,partner=%s,tokenaddress=%s", utils.APex(partner), utils.APex(this.tokenAddress))
 		log.Error(err.Error())
 		return err

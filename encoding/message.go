@@ -398,7 +398,6 @@ func (this *EnvelopMessage) signData(datahash common.Hash) []byte {
 
 /*
 to sign data(once+transferamount+locksroot+channel+hash(data))
-todo use unsafe to remove arguments msg
 */
 func (this *EnvelopMessage) Sign(privKey *ecdsa.PrivateKey, msg MessagePacker) error {
 	data := msg.Pack() //before signed, sign twice will be error
@@ -608,30 +607,6 @@ func (this *Lock) FromBytes(locksencoded []byte) {
 }
 
 /*
- def as_bytes(self):
-        if self._asbytes is None:
-            packed = messages.Lock(buffer_for(messages.Lock))
-            packed.amount = self.amount
-            packed.expiration = self.expiration
-            packed.hashlock = self.hashlock
-
-            self._asbytes = packed.data
-
-        # convert bytearray to bytes
-        return bytes(self._asbytes)
-
-    @classmethod
-    def from_bytes(cls, serialized):
-        packed = messages.Lock(serialized)
-
-        return cls(
-            packed.amount,
-            packed.expiration,
-            packed.hashlock,
-        )
-
-*/
-/*
 """
     A MediatedTransfer has a `target` address to which a chain of transfers shall
     be established. Here the `haslock` is mandatory.
@@ -797,6 +772,21 @@ func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
 
 func IsLockedTransfer(msg Messager) bool {
 	return msg.Cmd() == REFUNDTRANSFER_CMDID || msg.Cmd() == MEDIATEDTRANSFER_CMDID
+}
+
+//make sure tr is locked transfer
+func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
+	if !IsLockedTransfer(tr) {
+		panic("getmtr should never panic")
+	}
+	mtr, ok := tr.(*MediatedTransfer)
+	if !ok {
+		rtr, ok := tr.(*RefundTransfer)
+		if ok {
+			mtr = &rtr.MediatedTransfer
+		}
+	}
+	return
 }
 
 var MessageMap = map[int]Messager{

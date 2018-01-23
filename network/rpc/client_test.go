@@ -85,7 +85,7 @@ func TestEventGetChannelNew(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	oneChannelManagerAddress := common.HexToAddress("0x2a00314c128855512ce77c16c839c7f263bbe99")
 	logs, err := EventGetInternal(context.Background(), oneChannelManagerAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameChannelNew, ChannelManagerContractABI, bcs.Client.Client)
+		rpc.LatestBlockNumber, params.NameChannelNew, ChannelManagerContractABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -96,7 +96,7 @@ func TestEventGetChannelNew(t *testing.T) {
 func TestEventAddressRegistered(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	logs, err := EventGetInternal(context.Background(), params.ROPSTEN_DISCOVERY_ADDRESS, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameAddressRegistered, EndpointRegistryABI, bcs.Client.Client)
+		rpc.LatestBlockNumber, params.NameAddressRegistered, EndpointRegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return

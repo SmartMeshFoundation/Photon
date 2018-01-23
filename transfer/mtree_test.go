@@ -112,8 +112,8 @@ def test_three():
     assert merkle_root == calculated_root
     assert check_proof(merkle_proof1, merkle_root, hash_1)
 
-    # with an odd number of values, the last value wont appear by itself in the
-    # proof since it isn't hashed with another value
+     with an odd number of values, the last value wont appear by itself in the
+     proof since it isn't hashed with another value
     merkle_proof2 = tree.make_proof(hash_2)
     assert merkle_proof2 == [keccak(hash_0 + hash_1)]
     assert merkle_root == calculated_root

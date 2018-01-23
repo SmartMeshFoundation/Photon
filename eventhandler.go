@@ -73,8 +73,8 @@ func (this *StateMachineEventHandler) Dispatch(stateManager *transfer.StateManag
 }
 func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_transfer.EventSendMediatedTransfer) (err error) {
 	receiver := event.Receiver
-	graph := this.raiden.Token2ChannelGraph[event.Token]
-	ch := graph.PartenerAddress2Channel[receiver]
+	graph := this.raiden.GetToken2ChannelGraph(event.Token)
+	ch := graph.GetPartenerAddress2Channel(receiver)
 	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, 0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
 	if err != nil {
 		return
@@ -89,8 +89,8 @@ func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_
 }
 func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_transfer.EventSendRefundTransfer) (err error) {
 	receiver := event.Receiver
-	graph := this.raiden.Token2ChannelGraph[event.Token]
-	ch := graph.PartenerAddress2Channel[receiver]
+	graph := this.raiden.GetToken2ChannelGraph(event.Token)
+	ch := graph.GetPartenerAddress2Channel(receiver)
 	mtr, err := ch.CreateRefundTransfer(event.Initiator, event.Target, 0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
 	if err != nil {
 		return
@@ -121,30 +121,46 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event) (err error) 
 	case *mediated_transfer.EventSendRefundTransfer:
 		err = this.eventSendRefundTransfer(e2)
 	case *transfer.EventTransferSentSuccess:
+		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.Identifier))
+		//may receive multi success because of duplicate messages
+		/*
+			method 1.
+			remove this id info after success
+			method 2.
+			mark success
+		*/
+		this.raiden.Lock.Lock()
 		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
 			r.Result <- nil
 			close(r.Result)
 		}
+		//todo fix this ,when to delete Identifier2StateManager?
+		delete(this.raiden.Identifier2Results, e2.Identifier)
+		this.raiden.Lock.Unlock()
 	case *transfer.EventTransferSentFailed:
+		log.Info(fmt.Sprintf("EventTransferSentFailed for id %d", e2.Identifier))
+		this.raiden.Lock.Lock()
 		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
 			r.Result <- errSentFailed
 			close(r.Result)
 		}
+		delete(this.raiden.Identifier2Results, e2.Identifier)
+		this.raiden.Lock.Unlock()
 	case *transfer.EventTransferReceivedSuccess:
 	case *mediated_transfer.EventUnlockSuccess:
 	case *mediated_transfer.EventWithdrawFailed:
 	case *mediated_transfer.EventWithdrawSuccess:
 		/*
-					 # The withdraw is currently handled by the netting channel, once the close
-			    # event is detected all locks will be withdrawn
+					  The withdraw is currently handled by the netting channel, once the close
+			     event is detected all locks will be withdrawn
 		*/
 	case *mediated_transfer.EventContractSendWithdraw:
 		//do nothing for five events above
 	case *mediated_transfer.EventUnlockFailed:
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", e2.Hashlock, e2.Reason))
 	case *mediated_transfer.EventContractSendChannelClose:
-		graph := this.raiden.Token2ChannelGraph[e2.Token]
-		ch := graph.PartenerAddress2Channel[e2.ChannelAddress]
+		graph := this.raiden.GetToken2ChannelGraph(e2.Token)
+		ch := graph.GetPartenerAddress2Channel(e2.ChannelAddress)
 		balanceProof := ch.OurState.BalanceProofState
 		err = ch.ExternState.Close(balanceProof)
 	default:
@@ -164,7 +180,7 @@ func (this *StateMachineEventHandler) handleChannelNew(st *mediated_transfer.Con
 	participant1 := st.Participant1
 	participant2 := st.Participant2
 	tokenAddress := this.raiden.Manager2Token[managerAddress]
-	graph := this.raiden.Token2ChannelGraph[tokenAddress]
+	graph := this.raiden.GetToken2ChannelGraph(tokenAddress)
 	graph.AddPath(participant1, participant2)
 	connectionManager, err := this.raiden.ConnectionManagerForToken(tokenAddress)
 	if err != nil {
@@ -196,8 +212,8 @@ func (this *StateMachineEventHandler) handleBalance(st *mediated_transfer.Contra
 	tokenAddress := st.TokenAddress
 	participant := st.ParticipantAddress
 	balance := st.Balance
-	graph := this.raiden.Token2ChannelGraph[tokenAddress]
-	ch := graph.ChannelAddres2Channel[channelAddress]
+	graph := this.raiden.GetToken2ChannelGraph(tokenAddress)
+	ch := graph.GetChannelAddress2Channel(channelAddress)
 	ch.StateTransition(st)
 	if ch.ContractBalance() == 0 {
 		connectionManager, _ := this.raiden.ConnectionManagerForToken(tokenAddress)
@@ -219,6 +235,7 @@ func (this *StateMachineEventHandler) handleClosed(st *mediated_transfer.Contrac
 }
 
 func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.ContractReceiveSettledStateChange) error {
+	//todo remove channel st.channelAddress ,because this channel is already settled
 	ch, err := this.raiden.FindChannelByAddress(st.ChannelAddress)
 	if err != nil {
 		return err
@@ -253,13 +270,15 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 		return false
 	}
 	found := false
+	this.raiden.Lock.RLock()
 	for _, g := range this.raiden.Token2ChannelGraph {
-		_, ok := g.ChannelAddres2Channel[channelAddress]
-		if ok {
+		ch := g.GetChannelAddress2Channel(channelAddress)
+		if ch != nil {
 			found = true
 			break
 		}
 	}
+	this.raiden.Lock.RUnlock()
 	return found
 }
 func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {

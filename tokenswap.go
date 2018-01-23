@@ -5,6 +5,8 @@ import (
 
 	"time"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network"
@@ -24,6 +26,7 @@ type Tasker interface {
 }
 type GreenletTasksDispatcher struct {
 	//use map to simulate set
+	lock           sync.Mutex
 	hashlock2Tasks map[common.Hash]map[Tasker]bool
 }
 
@@ -47,6 +50,8 @@ Register the task to receive messages based on `hashlock`.
             checked for the received messages.
 */
 func (this *GreenletTasksDispatcher) RegisterTask(task Tasker, hashlock common.Hash) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	m, ok := this.hashlock2Tasks[hashlock]
 	if !ok {
 		m = make(map[Tasker]bool)
@@ -55,12 +60,15 @@ func (this *GreenletTasksDispatcher) RegisterTask(task Tasker, hashlock common.H
 	m[task] = true
 }
 func (this *GreenletTasksDispatcher) UnregisterTask(task Tasker, hashlock common.Hash, success bool) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	m, ok := this.hashlock2Tasks[hashlock]
 	if !ok {
 		log.Warn(fmt.Sprintf("remove unexisted hashlock %s", hashlock.String()))
 		return
 	}
 	delete(m, task)
+	close(task.GetResponseChan()) //close channel when task complete.
 	if len(m) == 0 {
 		delete(this.hashlock2Tasks, hashlock)
 	}
@@ -80,6 +88,7 @@ func (this *GreenletTasksDispatcher) Stop() {
 
 type BaseMediatedTransferTask struct {
 	ResponseChan chan encoding.SignedMessager
+	name         string //for debug
 }
 
 func (this *BaseMediatedTransferTask) GetResponseChan() chan encoding.SignedMessager {
@@ -118,7 +127,9 @@ func (this *BaseMediatedTransferTask) sendAndWaitBlock(raiden *RaidenService, re
 		log.Error("raiden.SendAsync", err)
 	}
 	msg, err = this.messagesUntilBlock(raiden, expirationBlock)
-	log.Debug(fmt.Sprintf("TIMED OUT ON BLOCK   tr=%s", utils.StringInterface(mtr, 3)))
+	if err != nil {
+		log.Debug(fmt.Sprintf("TIMED OUT ON BLOCK   tr=%s", utils.StringInterface(mtr, 3)))
+	}
 	return
 }
 
@@ -164,7 +175,7 @@ func (this *BaseMediatedTransferTask) waitForUnlockOrClose(raiden *RaidenService
 	for channel.OurState.IsLocked(hashlock) {
 		currentBlock := raiden.GetBlockNumber()
 		if currentBlock > blockToClose {
-			log.Warn(fmt.Sprintf("close channel (%s,%s) to prevent expiration of lock %s ", utils.APex(channel.OurState.Address), utils.APex(channel.PartnerState.Address), utils.HPex(hashlock)))
+			log.Warn(fmt.Sprintf("close channel (%s,%s) to prevent expiration of Lock %s ", utils.APex(channel.OurState.Address), utils.APex(channel.PartnerState.Address), utils.HPex(hashlock)))
 			//为什么给的proof是自己的?
 			err := channel.ExternState.Close(channel.OurState.BalanceProofState)
 			if err != nil {
@@ -186,6 +197,7 @@ func (this *BaseMediatedTransferTask) waitForUnlockOrClose(raiden *RaidenService
 		if msg == nil {
 			log.Error("ResponseChan channel already closed?")
 		} else if msg.Cmd() == encoding.SECRET_CMDID {
+			//这里设置断点,看看是没收到消息,还是什么原因
 			smsg := msg.(*encoding.Secret)
 			secret := smsg.Secret
 			hashlock := utils.Sha3(secret[:])
@@ -217,7 +229,7 @@ Utility to wait until the expiration block.
 
         For a chain A-B-C, if an attacker controls A and C a mediated transfer
         can be done through B and C will wait for/send a timeout, for that
-        reason B must not unregister the hashlock until the lock has expired,
+        reason B must not unregister the hashlock until the Lock has expired,
         otherwise the revealed secret wouldn't be caught.
 */
 func (this *BaseMediatedTransferTask) waitExpiration(raiden *RaidenService, mtr *encoding.MediatedTransfer, sleep time.Duration) {
@@ -236,9 +248,9 @@ func (this *BaseMediatedTransferTask) Stop() {
 }
 
 /*
-# Note: send_and_wait_valid methods are used to check the message type and
-# sender only, this can be improved by using a encrypted connection between the
-# nodes making the signature validation unnecessary
+ Note: send_and_wait_valid methods are used to check the message type and
+ sender only, this can be improved by using a encrypted connection between the
+ nodes making the signature validation unnecessary
 */
 // Implement the swaps as a restartable task (issue #303)
 
@@ -254,7 +266,7 @@ func NewMakerTokenSwapTask(raiden *RaidenService, tokenSwap *TokenSwap, asyncRes
 		raiden:                   raiden,
 		tokenswap:                tokenSwap,
 		asyncResult:              asyncResult,
-		BaseMediatedTransferTask: BaseMediatedTransferTask{make(chan encoding.SignedMessager)},
+		BaseMediatedTransferTask: BaseMediatedTransferTask{make(chan encoding.SignedMessager), "MakerTokenSwapTask"},
 	}
 	return mtt
 }
@@ -278,7 +290,7 @@ func (mtt *MakerTokenSwapTask) Start() {
 		secret := utils.RandomGenerator()
 		hashlock := utils.Sha3(secret[:])
 
-		fromChannel := fromGraph.ChannelAddres2Channel[route.ChannelAddress]
+		fromChannel := fromGraph.GetChannelAddress2Channel(route.ChannelAddress)
 		raiden.GreenletTasksDispatcher.RegisterTask(mtt, hashlock)
 		raiden.RegisterChannelForHashlock(fromToken, fromChannel, hashlock)
 		blockNumber := raiden.GetBlockNumber()
@@ -297,16 +309,16 @@ func (mtt *MakerTokenSwapTask) Start() {
 			raiden.GreenletTasksDispatcher.UnregisterTask(mtt, hashlock, false)
 		} else {
 			toHop := toMtr.Sender
-			toChannel := toGraph.PartenerAddress2Channel[toHop]
+			toChannel := toGraph.GetPartenerAddress2Channel(toHop)
 			err := toChannel.RegisterTransfer(raiden.GetBlockNumber(), toMtr)
 			if err != nil {
 				log.Error(" toChannel.RegisterTransfer ", err)
 			}
 			raiden.RegisterChannelForHashlock(toToken, toChannel, hashlock)
 			/*
-							 # A swap is composed of two mediated transfers, we need to
-				                # reveal the secret to both, since the maker is one of the ends
-				                # we just need to send the reveal secret directly to the taker.
+							  A swap is composed of two mediated transfers, we need to
+				                 reveal the secret to both, since the maker is one of the ends
+				                 we just need to send the reveal secret directly to the taker.
 			*/
 			revealSecretMsg := encoding.NewRevealSecret(secret)
 			revealSecretMsg.Sign(raiden.PrivateKey, revealSecretMsg)
@@ -314,17 +326,17 @@ func (mtt *MakerTokenSwapTask) Start() {
 			fromChannel.RegisterSecret(secret)
 
 			/*
-							 # Register the secret with the to_channel and send the
-				                # RevealSecret message to the node that is paying the to_token
-				                # (this node might, or might not be the same as the taker),
-				                # then wait for the withdraw.
+							  Register the secret with the to_channel and send the
+				                 RevealSecret message to the node that is paying the to_token
+				                 (this node might, or might not be the same as the taker),
+				                 then wait for the withdraw.
 			*/
 			raiden.HandleSecret(identifier, toToken, secret, nil, hashlock)
-			toChannel = toGraph.PartenerAddress2Channel[toMtr.Sender]
+			toChannel = toGraph.GetPartenerAddress2Channel(toMtr.Sender)
 			mtt.waitForUnlockOrClose(raiden, toGraph, toChannel, toMtr)
 			/*
-							  # unlock the from_token and optimistically reveal the secret
-				                # forward
+							   unlock the from_token and optimistically reveal the secret
+				                 forward
 			*/
 			raiden.HandleSecret(identifier, fromToken, secret, nil, hashlock)
 			raiden.GreenletTasksDispatcher.UnregisterTask(mtt, hashlock, true)
@@ -353,7 +365,8 @@ func (mtt *MakerTokenSwapTask) Start() {
             RefundTransfer: when an invalid state is reached by
                 our partner.
 */
-func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, nextHop common.Address, targetAddress common.Address, fromMtr *encoding.MediatedTransfer, toToken common.Address, toAmount int64) (mtr *encoding.MediatedTransfer) {
+func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, nextHop common.Address, targetAddress common.Address,
+	fromMtr *encoding.MediatedTransfer, toToken common.Address, toAmount int64) (mtr *encoding.MediatedTransfer) {
 	/*
 			        a valid state must have a secret request from the maker and a valid
 		        mediated transfer for the new token
@@ -367,15 +380,15 @@ func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, next
 		}
 		mtr2, ok := msg.(*encoding.MediatedTransfer)
 		/*
-					     # we need a lower expiration because:
-			                    # - otherwise the previous node is not operating correctly
-			                    # - we assume that received mediated transfer has a smaller
-			                    #   expiration to properly call close on edge cases
+					      we need a lower expiration because:
+			                     - otherwise the previous node is not operating correctly
+			                     - we assume that received mediated transfer has a smaller
+			                       expiration to properly call close on edge cases
 		*/
 		transferIsValid := ok && mtr2.Token == toToken && mtr2.Expiration <= fromMtr.Expiration
 		/*
-					   # The MediatedTransfer might be from `next_hop` or most likely from
-			            # a different node.
+					    The MediatedTransfer might be from `next_hop` or most likely from
+			             a different node.
 		*/
 		if transferIsValid {
 			if mtr2.Amount.Int64() == toAmount {
@@ -389,8 +402,8 @@ func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, next
 			return nil
 		} else {
 			/*
-							  # The other participant must not use a direct transfer to finish
-				            # the token swap, ignore it
+							   The other participant must not use a direct transfer to finish
+				             the token swap, ignore it
 			*/
 			log.Error(fmt.Sprintf("invalide message ingoring.. %s", utils.StringInterface(msg, 3)))
 		}
@@ -421,7 +434,7 @@ func NewTakerTokenSwapTask(raiden *RaidenService, tokenswap *TokenSwap, fromMtr 
 		raiden:                   raiden,
 		tokenswap:                tokenswap,
 		fromMediatedTransfer:     fromMtr,
-		BaseMediatedTransferTask: BaseMediatedTransferTask{make(chan encoding.SignedMessager)},
+		BaseMediatedTransferTask: BaseMediatedTransferTask{make(chan encoding.SignedMessager), "TakerTokenSwapTask"},
 	}
 	return ttt
 }
@@ -452,27 +465,30 @@ Start the second half of the exchange and wait for the SecretReveal
 */
 func (this *TakerTokenSwapTask) sendAndWaitValid(raiden *RaidenService, mtr *encoding.MediatedTransfer, makerPayerHop common.Address) (tr encoding.SignedMessager, secret *encoding.Secret) {
 	/*
-	   # the taker cannot discard the transfer since the secret is controlled
-	          # by another node (the maker), so we have no option but to wait for a
-	          # valid response until the lock expires
+	   the taker cannot discard the transfer since the secret is controlled
+	          by another node (the maker), so we have no option but to wait for a
+	          valid response until the Lock expires
 	*/
 	/*
-	   # Usually the RevealSecret for the MediatedTransfer from this node to
-	        # the maker should arrive first, but depending on the number of hops
-	        # and if the maker-path is optimistically revealing the Secret, then
-	        # the Secret message might arrive first.
+	   Usually the RevealSecret for the MediatedTransfer from this node to
+	        the maker should arrive first, but depending on the number of hops
+	        and if the maker-path is optimistically revealing the Secret, then
+	        the Secret message might arrive first.
 	*/
+	var revealSecretMsg *encoding.RevealSecret
+	var refundMsg *encoding.RefundTransfer
+	var rsOk bool
 	for {
 		msg, err := this.sendAndWaitBlock(raiden, mtr.Recipient, mtr, mtr.Expiration)
 		if err != nil {
 			log.Error(fmt.Sprintf("TAKER SWAP TIMED OUT node=%s, hashlock=%s", utils.APex(raiden.NodeAddress), utils.HPex(mtr.HashLock)))
 			return
 		}
-		revealSecretMsg, rsOk := msg.(*encoding.RevealSecret)
+		revealSecretMsg, rsOk = msg.(*encoding.RevealSecret)
 		validReveal := rsOk && revealSecretMsg.HashLock() == mtr.HashLock && revealSecretMsg.Sender == makerPayerHop
 
-		refundMsg, rOk := msg.(*encoding.RefundTransfer)
-		validRefund := rOk && refundMsg.Sender == makerPayerHop && refundMsg.Amount == mtr.Amount && refundMsg.Expiration <= mtr.Expiration && refundMsg.Token == mtr.Token
+		refundMsg, rsOk = msg.(*encoding.RefundTransfer)
+		validRefund := rsOk && refundMsg.Sender == makerPayerHop && refundMsg.Amount == mtr.Amount && refundMsg.Expiration <= mtr.Expiration && refundMsg.Token == mtr.Token
 		if msg.Cmd() == encoding.SECRET_CMDID {
 			m2 := msg.(*encoding.Secret)
 			if utils.Sha3(m2.Secret[:]) != mtr.HashLock {
@@ -492,17 +508,18 @@ func (this *TakerTokenSwapTask) sendAndWaitValid(raiden *RaidenService, mtr *enc
 }
 
 func (this *TakerTokenSwapTask) Start() {
+	var err error
 	var fee int64 = 0
 	raiden := this.raiden
 	tokenSwap := this.tokenswap
 	/*
-	   # this is the MediatedTransfer that wil pay the maker's half of the
-	          # swap, not necessarily from him
+	   this is the MediatedTransfer that wil pay the maker's half of the
+	          swap, not necessarily from him
 	*/
 	makerPayingTransfer := this.fromMediatedTransfer
 	/*
-	   # this is the address of the node that the taker actually has a channel
-	          # with (might or might not be the maker)
+	   this is the address of the node that the taker actually has a channel
+	          with (might or might not be the maker)
 	*/
 	makerPayerHop := makerPayingTransfer.Sender
 	if tokenSwap.Identifier != makerPayingTransfer.Identifier ||
@@ -521,10 +538,10 @@ func (this *TakerTokenSwapTask) Start() {
 	TakerReceivingToken := makerPayingTransfer.Token
 	takerPayingToken := makerReceivingToken
 
-	fromGraph := raiden.Token2ChannelGraph[TakerReceivingToken]
+	fromGraph := raiden.GetToken2ChannelGraph(TakerReceivingToken)
 
-	fromChannel := fromGraph.PartenerAddress2Channel[makerPayerHop]
-	toGraph := raiden.Token2ChannelGraph[makerReceivingToken]
+	fromChannel := fromGraph.GetPartenerAddress2Channel(makerPayerHop)
+	toGraph := raiden.GetToken2ChannelGraph(makerReceivingToken)
 	//update the channel's distributable and merkle tree
 	fromChannel.RegisterTransfer(raiden.GetBlockNumber(), makerPayingTransfer)
 
@@ -532,18 +549,17 @@ func (this *TakerTokenSwapTask) Start() {
 	raiden.GreenletTasksDispatcher.RegisterTask(this, hashlock)
 	raiden.RegisterChannelForHashlock(TakerReceivingToken, fromChannel, hashlock)
 	/*
-	   # send to the maker a secret request informing how much the taker will
-	   # be _paid_, this is used to inform the maker that his part of the
-	   # mediated transfer is okay
+	   send to the maker a secret request informing how much the taker will
+	   be _paid_, this is used to inform the maker that his part of the
+	   mediated transfer is okay
 	*/
 	secretRequestMsg := encoding.NewSecretRequest(identifier, makerPayingTransfer.HashLock, makerPayingTransfer.Amount.Int64())
 	secretRequestMsg.Sign(raiden.PrivateKey, secretRequestMsg)
 	raiden.SendAsync(makerAddress, secretRequestMsg)
 
-	lockExpiration := makerPayingTransfer.Expiration - int64(raiden.Config.RevealTimeout)
 	/*
-	   # Note: taker may only try different routes if a RefundTransfer is
-	          # received, because the maker is the node controlling the secret
+	   Note: taker may only try different routes if a RefundTransfer is
+	          received, because the maker is the node controlling the secret
 	*/
 	availableRoutes := toGraph.GetBestRoutes(
 		raiden.Protocol,
@@ -558,14 +574,25 @@ func (this *TakerTokenSwapTask) Start() {
 	}
 	var firstTransfer *encoding.MediatedTransfer
 	for _, route := range availableRoutes {
-		takerPayingChannel := toGraph.ChannelAddres2Channel[route.ChannelAddress]
+		takerPayingChannel := toGraph.GetChannelAddress2Channel(route.ChannelAddress)
 		takerPayingHop := route.HopNode
+		lockExpiration := int64(takerPayingChannel.SettleTimeout) + raiden.GetBlockNumber()
+		if lockExpiration > makerPayingTransfer.Expiration {
+			lockExpiration = makerPayingTransfer.Expiration
+		}
+		lockExpiration = lockExpiration - int64(raiden.Config.RevealTimeout)
 		log.Debug(fmt.Sprintf("TAKER TOKEN SWAP: from=%s,to=%s  hashlock=%s", utils.APex(raiden.NodeAddress), utils.APex(makerAddress), utils.HPex(hashlock)))
 		/*
 		   make a paying MediatedTransfer with same hashlock/identifier and the
-		               # taker's paying token/amount
+		                taker's paying token/amount
 		*/
 		takerPayingTransfer, _ := takerPayingChannel.CreateMediatedTransfer(raiden.NodeAddress, makerAddress, fee, toAmount, identifier, lockExpiration, hashlock)
+		takerPayingTransfer.Sign(raiden.PrivateKey, takerPayingTransfer)
+		err = takerPayingChannel.RegisterTransfer(raiden.GetBlockNumber(), takerPayingTransfer)
+		if err != nil {
+			log.Error("RegisterTransfer err ", err)
+			return
+		}
 		if firstTransfer == nil {
 			firstTransfer = takerPayingTransfer
 		}
@@ -574,8 +601,8 @@ func (this *TakerTokenSwapTask) Start() {
 		raiden.RegisterChannelForHashlock(makerReceivingToken, takerPayingChannel, hashlock)
 		response, secret := this.sendAndWaitValid(raiden, takerPayingTransfer, makerPayerHop)
 		/*
-		   # only refunds for `maker_receiving_token` must be considered
-		               # (check send_and_wait_valid)
+			only refunds for `maker_receiving_token` must be considered
+			(check send_and_wait_valid)
 		*/
 		if response == nil {
 			log.Debug(fmt.Sprintf("TAKER TOKEN SWAP FAILED from=%s,to=%s", utils.APex(raiden.NodeAddress), utils.APex(makerAddress)))
@@ -602,16 +629,20 @@ func (this *TakerTokenSwapTask) Start() {
 				response = this.waitRevealSecret(raiden, takerPayingHop, takerPayingTransfer.Expiration)
 			}
 			//unlock and send the Secret message
-			raiden.HandleSecret(identifier, takerPayingToken, tr.Secret, nil, hashlock)
+			if err = raiden.HandleSecret(identifier, takerPayingToken, tr.Secret, nil, hashlock); err != nil {
+				log.Error("taker HandleSecret err ", err.Error())
+			}
 			/*
-							  # if the secret arrived early, withdraw it, otherwise send the
-				                # RevealSecret forward in the maker-path
+				if the secret arrived early, withdraw it, otherwise send the
+				RevealSecret forward in the maker-path
 			*/
 			if secret != nil {
 				raiden.HandleSecret(identifier, TakerReceivingToken, tr.Secret, secret, hashlock)
 			}
 			//wait for the withdraw in case it did not happen yet
 			this.waitForUnlockOrClose(raiden, fromGraph, fromChannel, makerPayingTransfer)
+			//自行添加,否则会堵死
+			raiden.GreenletTasksDispatcher.UnregisterTask(this, hashlock, true)
 			return
 		} else {
 			log.Debug(fmt.Sprintf("TAKER TOKEN SWAP FAILED from=%s,to=%s", utils.APex(raiden.NodeAddress), utils.APex(makerAddress)))

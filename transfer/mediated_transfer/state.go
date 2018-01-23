@@ -154,12 +154,12 @@ const STATE_PAYEE_PENDING = "payee_pending"
 const STATE_PAYEE_SECRET_REVEALED = "payee_secret_revealed"
 
 /*
-#   The corresponding refund transfer was withdrawn on-chain, the payee has
-    #   /not/ withdrawn the lock yet, it only learned the secret through the
-    #   blockchain.
-    #   Note: This state is reachable only if there is a refund transfer, that
-    #   is represented by a different MediationPairState, and the refund
-    #   transfer is at 'payer_contract_withdraw'.
+   The corresponding refund transfer was withdrawn on-chain, the payee has
+       /not/ withdrawn the lock yet, it only learned the secret through the
+       blockchain.
+       Note: This state is reachable only if there is a refund transfer, that
+       is represented by a different MediationPairState, and the refund
+       transfer is at 'payer_contract_withdraw'.
 */
 const STATE_PAYEE_REFUND_WITHDRAW = "payee_refund_withdraw"
 
@@ -170,8 +170,8 @@ valid from all but the `payee_expired` state.
 const STATE_PAYEE_CONTRACT_WITHDRAW = "payee_contract_withdraw"
 
 /*
-   #   This node has sent a SendBalanceProof to the payee with the balance
-    #   updated.
+   This node has sent a SendBalanceProof to the payee with the balance
+    updated.
 */
 const STATE_PAYEE_BALANCE_PROOF = "payee_balance_proof"
 

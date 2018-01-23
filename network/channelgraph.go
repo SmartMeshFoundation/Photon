@@ -9,6 +9,8 @@ import (
 
 	"strings"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
@@ -35,9 +37,10 @@ type ChannelGraph struct {
 	TokenAddress            common.Address
 	ChannelManagerAddress   common.Address
 	PartenerAddress2Channel map[common.Address]*channel.Channel //多线程
-	ChannelAddres2Channel   map[common.Address]*channel.Channel //多线程
+	ChannelAddress2Channel  map[common.Address]*channel.Channel //多线程
 	address2index           map[common.Address]int
 	index2address           map[int]common.Address
+	Lock                    sync.Mutex
 }
 
 func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Address, edgeList []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
@@ -46,7 +49,7 @@ func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Addr
 		TokenAddress:            tokenAddress,
 		ChannelManagerAddress:   channelManagerAddress,
 		PartenerAddress2Channel: make(map[common.Address]*channel.Channel),
-		ChannelAddres2Channel:   make(map[common.Address]*channel.Channel),
+		ChannelAddress2Channel:  make(map[common.Address]*channel.Channel),
 		address2index:           make(map[common.Address]int),
 		index2address:           make(map[int]common.Address),
 		g:                       dijkstra.NewEmptyGraph(),
@@ -59,10 +62,10 @@ func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Addr
 				err, utils.APex(d.ChannelAddress)))
 		}
 	}
-	cg.printGraph()
+	cg.PrintGraph()
 	return cg
 }
-func (this *ChannelGraph) printGraph() {
+func (this *ChannelGraph) PrintGraph() {
 	rowheader := fmt.Sprintf("%s", strings.Repeat(" ", 14))
 	for i, _ := range this.index2address {
 		rowheader += fmt.Sprintf("     %s:%2d", utils.APex2(this.index2address[i]), i)
@@ -135,15 +138,17 @@ func (this *ChannelGraph) AddChannel(details *ChannelDetails) error {
 		return errors.New("Address mismatch, our_address doesn't match the channel details")
 	}
 	channelAddress := details.ChannelAddress
-	if _, ok := this.ChannelAddres2Channel[channelAddress]; !ok {
-		channel, err := channel.NewChannel(details.OurState, details.PartenerState,
+	if ch := this.GetChannelAddress2Channel(channelAddress); ch == nil {
+		ch, err := channel.NewChannel(details.OurState, details.PartenerState,
 			details.ExternState, this.TokenAddress, channelAddress, details.BlockChainService,
 			details.RevealTimeout, details.SettleTimeout)
 		if err != nil {
 			return err
 		}
-		this.PartenerAddress2Channel[details.PartenerState.Address] = channel
-		this.ChannelAddres2Channel[channelAddress] = channel
+		this.Lock.Lock()
+		this.PartenerAddress2Channel[details.PartenerState.Address] = ch
+		this.ChannelAddress2Channel[channelAddress] = ch
+		this.Lock.Unlock()
 		this.AddPath(details.OurState.Address, details.PartenerState.Address) //no need to do this? or makegraph is useless?
 	}
 	return nil
@@ -156,6 +161,8 @@ Compute all shortest paths in the graph.
             all paths between source and     target.
 */
 func (this *ChannelGraph) GetShortestPaths(source, target common.Address) (paths [][]common.Address, err error) {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		err = errors.New("source address is unkown")
@@ -178,33 +185,14 @@ func (this *ChannelGraph) GetShortestPaths(source, target common.Address) (paths
 }
 
 /*
-useless rightnow
- def get_paths_of_length(self, source, num_hops=1):
-       """ Searchs for all nodes that are `num_hops` away.
-
-       Returns:
-           list of paths: A list of all shortest paths that have length
-           `num_hops + 1`
-       """
-       # return a dictionary keyed by targets
-       # with a list of nodes in a shortest path
-       # from the source to one of the targets.
-       all_paths = networkx.shortest_path(self.graph, source)
-
-       return [
-           path
-           for path in all_paths.values()
-           if len(path) == num_hops + 1
-       ]
-
-*/
-/*
  True if there is a connecting path regardless of the number of hops.
 */
 func (this *ChannelGraph) HasPath(source, target common.Address) bool {
 	return this.ShortestPath(source, target) != utils.MaxInt
 }
 func (this *ChannelGraph) HashChannel(source, target common.Address) bool {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		return false
@@ -222,6 +210,8 @@ func (this *ChannelGraph) HashChannel(source, target common.Address) bool {
        return self.graph.has_edge(source_address, target_address)
 */
 func (this *ChannelGraph) ShortestPath(source, target common.Address) int {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		return utils.MaxInt
@@ -230,11 +220,16 @@ func (this *ChannelGraph) ShortestPath(source, target common.Address) int {
 	if !ok {
 		return utils.MaxInt
 	}
+	if sourceIndex == targetIndex {
+		return 0
+	}
 	return this.g.ShortestPath(sourceIndex, targetIndex)
 }
 
 //Remove an edge from the network.  this edge may  not exist
 func (this *ChannelGraph) RemovePath(source, target common.Address) {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		return
@@ -248,14 +243,16 @@ func (this *ChannelGraph) RemovePath(source, target common.Address) {
 
 /*
  """ True if the channel with `partner_address` is open and has spendable funds. """
-       # TODO: check if the partner's network is alive
+        TODO: check if the partner's network is alive
 */
 func (this *ChannelGraph) ChannelCanTransfer(partenerAddress common.Address) bool {
-	return this.PartenerAddress2Channel[partenerAddress].CanTransfer()
+	return this.GetPartenerAddress2Channel(partenerAddress).CanTransfer()
 }
 
-//Get all neihbours adjacent to self.our_address.
+//Get all neighbours adjacent to self.our_address. g is not thread safe
 func (this *ChannelGraph) GetNeighbours() []common.Address {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	neighboursIndex := this.g.GetAllNeighbours(this.address2index[this.OurAddress])
 	var neighbours []common.Address
 	for _, i := range neighboursIndex {
@@ -293,6 +290,9 @@ func (this *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Add
 	var nws neighborWeightList
 	for _, n := range neighbors {
 		w := this.ShortestPath(n, targetAddress)
+		if n == targetAddress {
+			log.Debug("equal")
+		}
 		nws = append(nws, &neighborWeight{n, w})
 	}
 	sort.Sort(nws)
@@ -313,14 +313,22 @@ Yield a two-tuple (path, channel) that can be used to mediate the
 func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress common.Address,
 	targetAdress common.Address, amount int64, previousAddress common.Address) (onlineNodes []*transfer.RouteState) {
 	/*
+		for direct transfer
+	*/
+	c := this.GetPartenerAddress2Channel(targetAdress)
+	if c != nil {
+		onlineNodes = append(onlineNodes, Channel2RouteState(c, targetAdress))
+		return
+	}
+	/*
 
-	   # XXX: consider using multiple channels for a single transfer. Useful
-	   # for cases were the `amount` is larger than what is available
-	   # individually in any of the channels.
-	   #
-	   # One possible approach is to _not_ filter these channels based on the
-	   # distributable amount, but to sort them based on available balance and
-	   # let the task use as many as required to finish the transfer.
+	   XXX: consider using multiple channels for a single transfer. Useful
+	   for cases were the `amount` is larger than what is available
+	   individually in any of the channels.
+
+	   One possible approach is to _not_ filter these channels based on the
+	   distributable amount, but to sort them based on available balance and
+	   let the task use as many as required to finish the transfer.
 
 	*/
 	neighbors := this.orderedNeighbours(ourAddress, targetAdress)
@@ -329,22 +337,22 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress
 		return
 	}
 	for _, partnerAddress := range neighbors {
-		c := this.PartenerAddress2Channel[partnerAddress]
+		c := this.GetPartenerAddress2Channel(partnerAddress)
 		//don't send the message backwards
 		if partnerAddress == previousAddress {
 			continue
 		}
 		if c.State() != transfer.CHANNEL_STATE_OPENED {
-			log.Info(fmt.Sprintf("channel %s-%s is not opened ,ignoring ..", utils.APex(ourAddress), utils.APex(partnerAddress)))
+			log.Debug(fmt.Sprintf("channel %s-%s is not opened ,ignoring ..", utils.APex(ourAddress), utils.APex(partnerAddress)))
 			continue
 		}
 		if amount > c.Distributable() {
-			log.Info(fmt.Sprintf("channel %s-%s doesn't have enough funds[%d],ignoring...", utils.APex(ourAddress), utils.APex(partnerAddress), amount))
+			log.Debug(fmt.Sprintf("channel %s-%s doesn't have enough funds[%d],ignoring...", utils.APex(ourAddress), utils.APex(partnerAddress), amount))
 			continue
 		}
 		status := nodesStatus.GetNetworkStatus(partnerAddress)
 		if status == NODE_NETWORK_UNREACHABLE {
-			log.Info(fmt.Sprintf("partener %s network ignored.. for:%s", utils.APex(partnerAddress), status))
+			log.Debug(fmt.Sprintf("partener %s network ignored.. for:%s", utils.APex(partnerAddress), status))
 			continue
 		}
 		routeState := Channel2RouteState(c, partnerAddress)
@@ -360,6 +368,18 @@ func (this *ChannelGraph) AllNodes() (nodes []common.Address) {
 		nodes = append(nodes, n)
 	}
 	return nodes
+}
+func (this *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *channel.Channel) {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
+	c = this.PartenerAddress2Channel[address]
+	return
+}
+func (this *ChannelGraph) GetChannelAddress2Channel(address common.Address) (c *channel.Channel) {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
+	c = this.ChannelAddress2Channel[address]
+	return
 }
 func Channel2RouteState(c *channel.Channel, partenerAddress common.Address) *transfer.RouteState {
 	return &transfer.RouteState{

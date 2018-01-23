@@ -5,10 +5,10 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/raiden-network/abi"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"

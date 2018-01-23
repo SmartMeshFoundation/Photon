@@ -10,13 +10,13 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/astaxie/beego/httplib"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -144,6 +144,12 @@ func (this *ContractDiscovery) put(addr common.Address, hostport string) {
 func (this *ContractDiscovery) Register(node common.Address, host string, port int) error {
 	if node != this.node {
 		log.Crit("register node to contract with unknown addr ", common.Bytes2Hex(node[:]))
+	}
+	log.Info(fmt.Sprintf("ContractDiscovery register %s %s:%d", node.String(), host, port))
+	h1, p1, err := this.Get(node)
+	//my node's host and port donesn't change after restart
+	if err == nil && h1 == host && p1 == port {
+		return nil
 	}
 	hostport := tohostport(host, port)
 	tx, err := this.discovery.RegisterEndpoint(this.auth, hostport)

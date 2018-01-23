@@ -607,6 +607,7 @@ func mediateTransfer(state *mediated_transfer.MediatorState, payerRoute *transfe
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
 		if len(state.TransfersPair) > 0 {
+			//中间的channell就只能等待超时了.超时以后会不会出错?
 			originalTransfer = state.TransfersPair[0].PayerTransfer
 			originalRoute = state.TransfersPair[0].PayerRoute
 		}
@@ -717,7 +718,7 @@ func handleContractWithDraw(state *mediated_transfer.MediatorState, st *mediated
 		     ContractReceiveWithdraw state change may be used for each.
 	*/
 	var events []transfer.Event
-	//This node withdrew the refund
+	//This node withdraw the refund
 	if st.Receiver == state.OurAddress {
 		for pos, pair := range state.TransfersPair {
 			if pair.PayerRoute.ChannelAddress == st.ChannelAddress {
@@ -835,6 +836,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		switch st2 := stateChange.(type) {
 		case *transfer.BlockStateChange:
 			it = handleBlock(state, st2)
+			//目前没用
 		case *transfer.ActionRouteChangeStateChange:
 			it = handleRouteChange(state, st2)
 		case *mediated_transfer.ReceiveTransferRefundStateChange:
@@ -844,12 +846,13 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		case *mediated_transfer.ContractReceiveWithdrawStateChange:
 			it = handleContractWithDraw(state, st2)
 		default:
-			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface1(st2)))
+			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
 	} else {
 		switch st2 := stateChange.(type) {
 		case *transfer.BlockStateChange:
 			it = handleBlock(state, st2)
+			//目前没用
 		case *transfer.ActionRouteChangeStateChange:
 			it = handleRouteChange(state, st2)
 		case *mediated_transfer.ReceiveSecretRevealStateChange:
@@ -859,7 +862,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		case *mediated_transfer.ContractReceiveWithdrawStateChange:
 			it = handleContractWithDraw(state, st2)
 		default:
-			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface1(st2)))
+			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
 	}
 	// this is the place for paranoia

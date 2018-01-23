@@ -7,8 +7,6 @@ import (
 
 	"net"
 
-	"encoding/hex"
-
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -204,8 +202,8 @@ func (this *UDPTransport) Start() {
 				}
 
 			}
-			log.Trace(fmt.Sprintf("receive from %s:%d,data=\n%s\n", remoteAddr.IP.String(),
-				remoteAddr.Port, hex.Dump(data[:read])))
+			log.Trace(fmt.Sprintf("%d receive from %s:%d,data=%d,hash=%s\n", t.Port, remoteAddr.IP.String(),
+				remoteAddr.Port, int(data[0]), utils.HPex(utils.Sha3(data[:read]))))
 			t.Receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
 		}
 
@@ -236,7 +234,7 @@ Args:
 */
 func (this *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
 	dummyNetwork.TrackSend(receiver, host, port, data)
-	log.Trace(fmt.Sprintf("send to %s %s:%d, data=\n%s\n", receiver.String(), host, port, hex.Dump(data)))
+	log.Trace(fmt.Sprintf("%d send to %s %s:%d, data=%d,hash=%s\n", this.Port, utils.APex(receiver), host, port, int(data[0]), utils.HPex(utils.Sha3(data))))
 	time.Sleep(this.policy.Consume(1))
 	//todo need one lock for write?
 	_, err := this.conn.WriteToUDP(data, udpAddrFromHostport(host, port))

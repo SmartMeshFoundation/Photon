@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -98,9 +97,10 @@ func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *Balan
 		envmsg.Locksroot, envmsg.Channel,
 		msgHash, envmsg.Signature)
 }
-func (this *BalanceProofState) String() string {
-	return utils.StringInterface(this, 1)
-}
+
+//func (this *BalanceProofState) String() string {
+//	return utils.StringInterface(this, 1)
+//}
 func (this *BalanceProofState) StateName() string {
 	return "BalanceProofState"
 }

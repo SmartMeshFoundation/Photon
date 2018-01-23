@@ -6,10 +6,10 @@ import (
 
 	"context"
 
+	"github.com/SmartMeshFoundation/raiden-network/abi"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"

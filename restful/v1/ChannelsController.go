@@ -8,7 +8,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gotips/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type ChannelsController struct {
@@ -18,10 +18,11 @@ type ChannelsController struct {
 type channelData struct {
 	ChannelAddress string `json:"channel_address"`
 	PartnerAddrses string `json:"partner_address"`
-	Balance        int64  `json:"balance""`
+	Balance        int64  `json:"balance"`
 	TokenAddress   string `json:"token_address"`
 	State          string `json:"state"`
 	SettleTimeout  int    `json:"settle_timeout"`
+	RevealTimeout  int    `json:"reveal_timeout"`
 }
 
 func (this *ChannelsController) Get() {
@@ -39,6 +40,7 @@ func (this *ChannelsController) Get() {
 			State:          c.State(),
 			TokenAddress:   c.TokenAddress.String(),
 			SettleTimeout:  c.SettleTimeout,
+			RevealTimeout:  c.RevealTimeout,
 		}
 		datas = append(datas, d)
 	}

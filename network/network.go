@@ -117,7 +117,7 @@ func SocketFactory(ip string, port int, strategy string) (pms *PortMappedSocket,
 	case "auto":
 		pms, err = UpnpMapping(ip, port)
 		if err != nil {
-			log.Info("upnp mapping failure err:", err)
+			log.Info(fmt.Sprintf("upnp mapping failure err:%s", err))
 		}
 		pms, err = StunMapping(ip, port)
 	case "none":

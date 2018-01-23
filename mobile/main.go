@@ -1,11 +1,9 @@
-package main
+package mobile
 
 import (
 	"os"
 
 	"fmt"
-
-	"strings"
 
 	"io/ioutil"
 
@@ -26,119 +24,36 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/restful"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
-	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"gopkg.in/urfave/cli.v1"
 )
 
-func main() {
+var (
+	argAddress                  string
+	argKeyStorePath             string
+	argEthRpcEndpoint           string
+	argRegistryContractAddress  string = params.ROPSTEN_REGISTRY_ADDRESS.String()
+	argDiscoveryContractAddress string = params.ROPSTEN_DISCOVERY_ADDRESS.String()
+	argListenAddress            string = "0.0.0.0:40001"
+	argApiAddress               string = "0.0.0.0:5001"
+	argDataDir                  string
+	argPasswordFile             string
+	argNat                      string = "auto"
+	argLogging                  string = "trace"
+	argLogfile                  string = ""
+)
 
-	app := cli.NewApp()
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "address",
-			Usage: "The ethereum address you would like raiden to use and for which a keystore file exists in your local system.",
-		},
-		ethutils.DirectoryFlag{
-			Name:  "keystore-path",
-			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
-			Value: ethutils.DirectoryString{params.DefaultKeyStoreDir()},
-		},
-		cli.StringFlag{
-			Name: "eth-rpc-endpoint",
-			Usage: `"host:port" address of ethereum JSON-RPC server.\n'
-	           'Also accepts a protocol prefix (ws:// or ipc channel) with optional port',`,
-			Value: node.DefaultIPCEndpoint("geth"),
-		},
-		cli.StringFlag{
-			Name:  "registry-contract-address",
-			Usage: `hex encoded address of the registry contract.`,
-			Value: params.ROPSTEN_REGISTRY_ADDRESS.String(),
-		},
-		cli.StringFlag{
-			Name:  "discovery-contract-address",
-			Usage: `hex encoded address of the discovery contract.`,
-			Value: params.ROPSTEN_DISCOVERY_ADDRESS.String(),
-		},
-		cli.StringFlag{
-			Name:  "listen-address",
-			Usage: `"host:port" for the raiden service to listen on.`,
-			Value: fmt.Sprintf("0.0.0.0:%d", params.INITIAL_PORT),
-		},
-		cli.StringFlag{
-			Name: "rpccorsdomain",
-			Usage: `Comma separated list of domains to accept cross origin requests.
-				(localhost enabled by default)`,
-			Value: "http://localhost:* /*",
-		},
-		cli.StringFlag{
-			Name:  "logging",
-			Usage: `ethereum.slogging config-string{trace,debug,info,warn,error,critical `,
-			Value: "trace",
-		},
-		cli.StringFlag{
-			Name:  "logfile",
-			Usage: "file path for logging to file",
-			Value: "",
-		},
-		cli.IntFlag{Name: "max-unresponsive-time",
-			Usage: `Max time in seconds for which an address can send no packets and
-	               still be considered healthy.`,
-			Value: 120,
-		},
-		cli.IntFlag{Name: "send-ping-time",
-			Usage: `Time in seconds after which if we have received no message from a
-	               node we have a connection with, we are going to send a PING message`,
-			Value: 60,
-		},
-		cli.BoolTFlag{Name: "rpc",
-			Usage: `Start with or without the RPC server. Default is to start
-	               the RPC server`,
-		},
-		cli.StringFlag{
-			Name:  "api-address",
-			Usage: `host:port" for the RPC server to listen on.`,
-			Value: "0.0.0.0:5001",
-		},
-		ethutils.DirectoryFlag{
-			Name:  "datadir",
-			Usage: "Directory for storing raiden data.",
-			Value: ethutils.DirectoryString{params.DefaultDataDir()},
-		},
-		cli.StringFlag{
-			Name:  "password-file",
-			Usage: "Text file containing password for provided account",
-		},
-		cli.StringFlag{
-			Name: "nat",
-			Usage: `
-[auto|upnp|stun|none]
-				Manually specify method to use for
-				determining public IP / NAT traversal.
-				Available methods:
-				"auto" - Try UPnP, then
-				STUN, fallback to none
-				"upnp" - Try UPnP,
-				fallback to none
-				"stun" - Try STUN, fallback
-				to none
-				"none" - Use the local interface
-				address (this will likely cause connectivity
-				issues)
-				[default: auto]`,
-			Value: "auto",
-		},
-	}
-	app.Action = Main
-	app.Name = "raiden"
-	app.Version = "0.1"
-	app.Run(os.Args)
+func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) {
+	argAddress = address
+	argKeyStorePath = keystorePath
+	argEthRpcEndpoint = ethRpcEndPoint
+	argDataDir = dataDir
+	argPasswordFile = passwordfile
+	Main()
 }
-func setupLog(ctx *cli.Context) {
-	loglevel := strings.ToLower(ctx.String("logging"))
+func setupLog() {
+	loglevel := argLogging
 	writer := os.Stderr
 	lvl := log.LvlTrace
 	switch loglevel {
@@ -155,7 +70,7 @@ func setupLog(ctx *cli.Context) {
 	case "critical":
 		lvl = log.LvlCrit
 	}
-	logfilename := ctx.String("logfile")
+	logfilename := argLogfile
 	if len(logfilename) > 0 {
 		file, err := os.Create(logfilename)
 		if err != nil {
@@ -167,25 +82,25 @@ func setupLog(ctx *cli.Context) {
 	fmt.Println("loglevel:", lvl.String())
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
 }
-func Main(ctx *cli.Context) error {
-	fmt.Printf("Welcom to GoRaiden,version %s\n", ctx.App.Version)
+func Main() error {
+	fmt.Printf("Welcom to GoRaiden,version %s\n", 0.1)
 	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
-	setupLog(ctx)
+	setupLog()
 	/*
 	  TODO:
 	        - Ask for confirmation to quit if there are any locked transfers that did
 	        not timeout.
 	*/
-	host, port := network.SplitHostPort(ctx.String("listen-address"))
-	pms, err := network.SocketFactory(host, port, ctx.String("nat"))
+	host, port := network.SplitHostPort(argListenAddress)
+	pms, err := network.SocketFactory(host, port, argNat)
 	log.Trace(fmt.Sprintf("pms=%s", utils.StringInterface1(pms)))
 	if err != nil {
-		log.Error(fmt.Sprintf("start server on %s error:%s", ctx.String("listen-address"), err))
+		log.Error(fmt.Sprintf("start server on %s error:%s", argListenAddress, err))
 		os.Exit(1)
 	}
-	cfg := config(ctx, pms)
+	cfg := config(pms)
 	//spew.Dump("Config:", cfg)
-	ethEndpoint := ctx.String("eth-rpc-endpoint")
+	ethEndpoint := argEthRpcEndpoint
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
 		log.Error(fmt.Sprintf("cannot connect to geth :%s err=%s", ethEndpoint, err))
@@ -280,23 +195,23 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	}
 	return
 }
-func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
+func config(pms *network.PortMappedSocket) *params.Config {
 	var err error
 	config := params.DefaultConfig
-	listenhost, listenport := network.SplitHostPort(ctx.String("listen-address"))
-	apihost, apiport := network.SplitHostPort(ctx.String("api-address"))
+	listenhost, listenport := network.SplitHostPort(argListenAddress)
+	apihost, apiport := network.SplitHostPort(argApiAddress)
 	config.Host = listenhost
 	config.Port = listenport
-	config.UseConsole = ctx.Bool("console")
-	config.UseRpc = ctx.Bool("rpc")
+	config.UseConsole = false
+	config.UseRpc = false
 	config.ApiHost = apihost
 	config.ApiPort = apiport
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
-	max_unresponsive_time := ctx.Int64("max-unresponsive-time")
+	max_unresponsive_time := int64(time.Minute)
 	config.Protocol.NatKeepAliveTimeout = max_unresponsive_time / params.DEFAULT_NAT_KEEPALIVE_RETRIES
-	address := common.HexToAddress(ctx.String("address"))
-	address, privkeyBin := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	address := common.HexToAddress(argAddress)
+	address, privkeyBin := promptAccount(address, argKeyStorePath, argPasswordFile)
 	config.PrivateKeyHex = hex.EncodeToString(privkeyBin)
 	config.PrivateKey, err = crypto.ToECDSA(privkeyBin)
 	config.MyAddress = address
@@ -304,15 +219,15 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 		log.Error("privkey error:", err)
 		os.Exit(1)
 	}
-	registAddrStr := ctx.String("registry-contract-address")
+	registAddrStr := argRegistryContractAddress
 	if len(registAddrStr) > 0 {
 		config.RegistryAddress = common.HexToAddress(registAddrStr)
 	}
-	discoverAddr := ctx.String("discovery-contract-address")
+	discoverAddr := argDiscoveryContractAddress
 	if len(discoverAddr) > 0 {
 		config.DiscoveryAddress = common.HexToAddress(discoverAddr)
 	}
-	dataDir := ctx.String("datadir")
+	dataDir := argDataDir
 	if len(dataDir) == 0 {
 		dataDir = path.Join(utils.GetHomePath(), ".goraiden")
 	}
