@@ -40,11 +40,18 @@ var (
 	argApiAddress               string = "0.0.0.0:5001"
 	argDataDir                  string
 	argPasswordFile             string
-	argNat                      string = "auto"
+	argNat                      string = "stun"
 	argLogging                  string = "trace"
 	argLogfile                  string = ""
 )
 
+/*
+address :节点地址,比如0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
+keystorePath:存放私钥的目录地址 geth的keystore目录
+ethRpcEndPoint: 连接geth的url 比如:ws://10.0.0.2:8546
+dataDir:节点工作目录,存放数据用,要求必须可写
+passwordfile:一个只包含私钥密码的文本文件
+*/
 func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) {
 	argAddress = address
 	argKeyStorePath = keystorePath
@@ -119,7 +126,9 @@ func Main() error {
 	}()
 	api := raiden_network.NewRaidenApi(raidenService)
 	regQuitHandler(api)
-	restful.Start(api, cfg)
+	go func() {
+		restful.Start(api, cfg)
+	}()
 	return nil
 }
 func regQuitHandler(api *raiden_network.RaidenApi) {
