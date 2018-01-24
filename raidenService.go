@@ -16,6 +16,8 @@ import (
 
 	"sync"
 
+	"sync/atomic"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
@@ -34,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/theckman/go-flock"
-	"go.uber.org/atomic"
 )
 
 //simulate async result of python
@@ -102,7 +103,7 @@ type RaidenService struct {
 	FileLocker               *flock.Flock
 	SnapshortDir             string
 	SerializationFile        string
-	BlockNumber              atomic.Int64
+	BlockNumber              *atomic.Value
 	BlockNumberChan          chan int64
 	Lock                     sync.RWMutex
 	TransferReqChan          chan *TransferReq
@@ -137,6 +138,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		BlockNumberChan:          make(chan int64, 1),
 		TransferReqChan:          make(chan *TransferReq, 1),
 		TransferResponseChan:     make(map[string]chan *network.AsyncResult),
+		BlockNumber:              new(atomic.Value),
 	}
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = NewStateMachineEventHandler(srv)
@@ -316,7 +318,7 @@ func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 	return nil
 }
 func (this *RaidenService) GetBlockNumber() int64 {
-	return this.BlockNumber.Load()
+	return this.BlockNumber.Load().(int64)
 }
 
 func (this *RaidenService) FindChannelByAddress(nettingChannelAddress common.Address) (*channel.Channel, error) {
