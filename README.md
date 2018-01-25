@@ -1,4 +1,4 @@
-# raiden-network
+# raiden-mobile
 Go implementation of the Ethereum yellowpaper
 
 ## About 
