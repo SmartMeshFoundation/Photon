@@ -22,7 +22,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/restful"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -52,13 +51,13 @@ ethRpcEndPoint: 连接geth的url 比如:ws://10.0.0.2:8546
 dataDir:节点工作目录,存放数据用,要求必须可写
 passwordfile:一个只包含私钥密码的文本文件
 */
-func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) {
+func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) (api *Api, err error) {
 	argAddress = address
 	argKeyStorePath = keystorePath
 	argEthRpcEndpoint = ethRpcEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
-	Main()
+	return mobileMain()
 }
 func setupLog() {
 	loglevel := argLogging
@@ -90,7 +89,7 @@ func setupLog() {
 	fmt.Println("loglevel:", lvl.String())
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
 }
-func Main() error {
+func mobileMain() (api *Api, err error) {
 	fmt.Printf("Welcom to GoRaiden,version %s\n", 0.1)
 	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
 	setupLog()
@@ -121,15 +120,15 @@ func Main() error {
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	raidenService.StartWg.Add(1)
 	go func() {
+		//startup may take long time and then enter loop
 		raidenService.Start()
 	}()
-	api := raiden_network.NewRaidenApi(raidenService)
-	regQuitHandler(api)
-	go func() {
-		restful.Start(api, cfg)
-	}()
-	return nil
+	api = &Api{raiden_network.NewRaidenApi(raidenService)}
+	regQuitHandler(api.api)
+	raidenService.StartWg.Wait()
+	return api, nil
 }
 func regQuitHandler(api *raiden_network.RaidenApi) {
 	go func() {

@@ -108,6 +108,7 @@ type RaidenService struct {
 	Lock                     sync.RWMutex
 	TransferReqChan          chan *TransferReq
 	TransferResponseChan     map[string]chan *network.AsyncResult
+	StartWg                  sync.WaitGroup //wait for start complete...
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -184,6 +185,7 @@ func (this *RaidenService) Start() {
 		os.Exit(1)
 	}
 	this.Protocol.Start()
+	this.StartWg.Done()
 	this.loop()
 }
 
