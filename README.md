@@ -2,10 +2,10 @@
 Go implementation of the Ethereum yellowpaper
 
 ## About 
-raiden-network is a pure Go  implementation of the raiden network,it's goal is to cooperate with python raiden and gives users another choice for mobile device.
+raiden-mobile is a pure Go  implementation of the raiden network,it's goal is to cooperate with python raiden and gives users another choice for mobile device.
 ## Build
 ```
-go get github.com/SmartMeshFoundation/raiden-network/tree/master/cmd/goraiden
+go get github.com/SmartMeshFoundation/raiden-mobile/tree/master/cmd/goraiden
 ```
 ## Usage
 
