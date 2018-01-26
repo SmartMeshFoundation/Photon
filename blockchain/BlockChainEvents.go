@@ -111,14 +111,20 @@ func (this *BlockChainEvents) startListenEvent() {
 					}
 					switch name {
 					case params.NameTokenAdded:
-						ev := NewEventTokenAdded(&l)
+						ev, err := NewEventTokenAdded(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveTokenAddedStateChange{
 							RegistryAddress: ev.ContractAddress,
 							TokenAddress:    ev.TokenAddress,
 							ManagerAddress:  ev.ChannelManagerAddress,
 						})
 					case params.NameChannelNew:
-						ev := NewEventEventChannelNew(&l)
+						ev, err := NewEventEventChannelNew(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveNewChannelStateChange{
 							ManagerAddress: ev.ContractAddress,
 							ChannelAddress: ev.NettingChannelAddress,
@@ -127,7 +133,10 @@ func (this *BlockChainEvents) startListenEvent() {
 							SettleTimeout:  ev.SettleTimeout,
 						})
 					case params.NameChannelNewBalance:
-						ev := NewEventChannelNewBalance(&l)
+						ev, err := NewEventChannelNewBalance(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveBalanceStateChange{
 							ChannelAddress:     ev.ContractAddress,
 							TokenAddress:       ev.TokenAddress,
@@ -136,20 +145,29 @@ func (this *BlockChainEvents) startListenEvent() {
 							BlockNumber:        ev.BlockNumber,
 						})
 					case params.NameChannelClosed:
-						ev := NewEventChannelClosed(&l)
+						ev, err := NewEventChannelClosed(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveClosedStateChange{
 							ChannelAddress: ev.ContractAddress,
 							ClosingAddress: ev.ClosingAddress,
 							ClosedBlock:    ev.BlockNumber,
 						})
 					case params.NameChannelSettled:
-						ev := NewEventChannelSettled(&l)
+						ev, err := NewEventChannelSettled(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveSettledStateChange{
 							ChannelAddress: ev.ContractAddress,
 							SettledBlock:   ev.BlockNumber,
 						})
 					case params.NameChannelSecretRevealed:
-						ev := NewEventChannelSecretRevealed(&l)
+						ev, err := NewEventChannelSecretRevealed(&l)
+						if err != nil {
+							continue
+						}
 						this.sendStateChange(&mediated_transfer.ContractReceiveWithdrawStateChange{
 							ChannelAddress: ev.ContractAddress,
 							Secret:         ev.Secret,
@@ -161,8 +179,8 @@ func (this *BlockChainEvents) startListenEvent() {
 					//event to statechange
 				case err := <-sub.Err():
 					log.Error(fmt.Sprintf("eventlistener %s error:%v", name, err))
-					close(ch)
-					//restart listener?
+					//close(ch)
+					return
 				}
 			}
 		}(name)
@@ -170,10 +188,10 @@ func (this *BlockChainEvents) startListenEvent() {
 }
 func (this *BlockChainEvents) Stop() {
 	close(this.StateChangeChannel)
-
-	for _, ch := range this.LogChannelMap {
-		close(ch)
-	}
+	//channel close by ethclient
+	//for _, ch := range this.LogChannelMap {
+	//	close(ch)
+	//}
 	for _, sub := range this.Subscribes {
 		sub.Unsubscribe()
 	}
@@ -196,7 +214,11 @@ func (this *BlockChainEvents) GetAllRegistryEvents(registryAddress common.Addres
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventTokenAdded(&l))
+		e, err := NewEventTokenAdded(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	return
 }
@@ -220,7 +242,11 @@ func (this *BlockChainEvents) GetAllChannelManagerEvents(mgrAddress common.Addre
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventEventChannelNew(&l))
+		e, err := NewEventEventChannelNew(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	return
 
@@ -247,7 +273,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventChannelNewBalance(&l))
+		e, err := NewEventChannelNewBalance(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], this.client)
@@ -255,7 +285,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventChannelClosed(&l))
+		e, err := NewEventChannelClosed(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameChannelSettled, eventAbiMap[params.NameChannelSettled], this.client)
@@ -263,7 +297,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventChannelSettled(&l))
+		e, err := NewEventChannelSettled(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], this.client)
@@ -271,7 +309,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventChannelSecretRevealed(&l))
+		e, err := NewEventChannelSecretRevealed(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameTransferUpdated, eventAbiMap[params.NameChannelSecretRevealed], this.client)
@@ -279,7 +321,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		return
 	}
 	for _, l := range logs {
-		events = append(events, NewEventTransferUpdated(&l))
+		e, err := NewEventTransferUpdated(&l)
+		if err != nil {
+			continue
+		}
+		events = append(events, e)
 	}
 	return
 }
