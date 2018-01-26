@@ -3,6 +3,8 @@ package target
 import (
 	"testing"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -18,7 +20,7 @@ func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber in
 	if expire == 0 {
 		expire = blocknumber + int64(utest.UNIT_REVEAL_TIMEOUT)
 	}
-	fromRoute, fromTransfer := utest.MakeFrom(amount, ourAddress, expire, initiator, utils.EmptyHash)
+	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
 	init := &mediated_transfer.ActionInitTargetStateChange{
 		OurAddress:  ourAddress,
 		FromRoute:   fromRoute,
@@ -32,7 +34,7 @@ func makeTargetState(ouraddress common.Address, amount, blocknumber int64, initi
 	if expire == 0 {
 		expire = blocknumber + int64(utest.UNIT_REVEAL_TIMEOUT)
 	}
-	fromRoute, fromTransfer := utest.MakeFrom(amount, ouraddress, expire, initiator, utils.EmptyHash)
+	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ouraddress, expire, initiator, utils.EmptyHash)
 	state := &mediated_transfer.TargetState{
 		OurAddress:   ouraddress,
 		FromRoute:    fromRoute,
@@ -49,7 +51,7 @@ func TestEventsForClose(t *testing.T) {
 	initiator := utest.HOP1
 	ourAddress := utest.ADDR
 	secret := utest.UNIT_SECRET
-	fromRoute, fromTransfer := utest.MakeFrom(amount, ourAddress, expire, initiator, secret)
+	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, secret)
 	safeToWait := expire - int64(fromRoute.RevealTimeout) - 1
 	unsafeToWait := expire - int64(fromRoute.RevealTimeout)
 
@@ -80,7 +82,7 @@ func TestEventsForCloseSecretUnkown(t *testing.T) {
 	initiator := utest.HOP1
 	ourAddress := utest.ADDR
 
-	fromRoute, fromTransfer := utest.MakeFrom(amount, ourAddress, expire, initiator, utils.EmptyHash)
+	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
 
 	state := &mediated_transfer.TargetState{
 		OurAddress:   ourAddress,
@@ -100,7 +102,7 @@ On-chain withdraw must be done if the channel is closed, regardless of
     the unsafe region.
 */
 func TestEventsForWithDraw(t *testing.T) {
-	var amount int64 = 3
+	var amount = big.NewInt(3)
 	var expire int64 = 10
 	initiator := utest.HOP1
 	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UNIT_SECRET, utils.Sha3(utest.UNIT_SECRET[:]), 1, utest.UNIT_TOKEN_ADDRESS)
@@ -156,22 +158,22 @@ The target node needs to inform the secret to the previous node to
 */
 func TestHandleSecretReveal(t *testing.T) {
 	var blockNumber int64 = 1
-	var amount int64 = 1
+	var amount = big.NewInt(1)
 	var expire int64 = int64(utest.UNIT_REVEAL_TIMEOUT) + blockNumber
 	initiator := utest.HOP1
 	ourAddress := utest.ADDR
 	secret := utest.UNIT_SECRET
-	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
+	state := makeTargetState(ourAddress, amount.Int64(), blockNumber, initiator, expire)
 	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
 		Secret: secret,
 		Sender: initiator,
 	}
 	//use mediatedTransfer to implement direct transfer
-	it := handleSecretReveal(state, stateChange)
-	assert(t, len(it.Events), 0)
+	//it := handleSecretReveal(state, stateChange)
+	//assert(t, len(it.Events), 0)
 	//real mediatedTransfere, have a hopnode
 	state.FromRoute = utest.MakeRoute(utest.HOP2, amount, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress())
-	it = handleSecretReveal(state, stateChange)
+	it := handleSecretReveal(state, stateChange)
 
 	assert(t, len(it.Events), 1)
 	ev := it.Events[0].(*mediated_transfer.EventSendRevealSecret)
@@ -258,7 +260,7 @@ func TestClearIfFinalizedExpired(t *testing.T) {
 
 func TestStateTransition(t *testing.T) {
 	initiator := utest.HOP6
-	var amount int64 = 3
+	var amount = big.NewInt(3)
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UNIT_REVEAL_TIMEOUT)
 	fromRoute, fromTransfer := utest.MakeFrom(amount, utest.ADDR, expire, initiator, utils.EmptyHash)

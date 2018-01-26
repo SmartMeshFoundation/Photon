@@ -5,6 +5,8 @@ import (
 
 	"fmt"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/network"
@@ -161,7 +163,7 @@ Instruct the ConnectionManager to establish and maintain a connection to the tok
         joinable_funds_target (float): fraction of the funds that will be used to join
             channels opened by other participants.
 */
-func (this *RaidenApi) ConnectTokenNetwork(tokenAddress common.Address, funds, initialChannelTarget int64, joinableFundsTarget float64) error {
+func (this *RaidenApi) ConnectTokenNetwork(tokenAddress common.Address, funds *big.Int, initialChannelTarget int64, joinableFundsTarget float64) error {
 	cm, err := this.Raiden.ConnectionManagerForToken(tokenAddress)
 	if err != nil {
 		return err
@@ -189,9 +191,9 @@ Get a dict whose keys are token addresses and whose values are
 func (this *RaidenApi) GetConnectionManagersInfo() map[string]interface{} {
 	infos := make(map[string]interface{})
 	type info struct {
-		Funds       int64 `json:"funds"`
-		SumDeposits int64 `json:"sum_deposits"`
-		Channels    int   `json:"channels"`
+		Funds       *big.Int `json:"funds"`
+		SumDeposits *big.Int `json:"sum_deposits"`
+		Channels    int      `json:"channels"`
 	}
 
 	for _, t := range this.GetTokenList() {
@@ -276,7 +278,7 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         AddressWithoutCode: The channel was settled during the deposit
         execution.
 */
-func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amount int64, pollTimeout time.Duration) (err error) {
+func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (err error) {
 
 	graph := this.Raiden.GetToken2ChannelGraph(tokenAddress)
 	if graph == nil {
@@ -299,7 +301,7 @@ func (this *RaidenApi) Deposit(tokenAddress, partnerAddress common.Address, amou
 		     transactions that can race, e.g. the deposit check succeed but the
 		     user spent his balance before deposit.
 	*/
-	if balance < amount {
+	if balance.Cmp(amount) < 0 {
 		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
 		log.Error(err.Error())
 		return rerr.InsufficientFunds
@@ -342,7 +344,7 @@ Start an atomic swap operation by sending a MediatedTransfer with
     `taker_token`.
 */
 func (this *RaidenApi) TokenSwapAndWait(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount int64) error {
+	makerAmount, takerAmount *big.Int) error {
 	result, err := this.TokenSwapAsync(identifier, makerToken, takerToken, makerAddress, takerAddress,
 		makerAmount, takerAmount)
 	if err != nil {
@@ -353,7 +355,7 @@ func (this *RaidenApi) TokenSwapAndWait(identifier uint64, makerToken, takerToke
 }
 
 func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount int64) (result *network.AsyncResult, err error) {
+	makerAmount, takerAmount *big.Int) (result *network.AsyncResult, err error) {
 	g := this.Raiden.GetToken2ChannelGraph(takerToken)
 	if g == nil {
 		err = errors.New("unkown taker token")
@@ -396,7 +398,7 @@ Register an expected transfer for this node.
     `maker_address` for `taker_asset` with `taker_amount`.
 */
 func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount int64) (err error) {
+	makerAmount, takerAmount *big.Int) (err error) {
 	g := this.Raiden.GetToken2ChannelGraph(takerToken)
 	if g == nil {
 		err = errors.New("unkown taker token")
@@ -448,7 +450,7 @@ func (this *RaidenApi) GetTokenList() (tokens []common.Address) {
 }
 
 //Do a transfer with `target` with the given `amount` of `token_address`.
-func (this *RaidenApi) TransferAndWait(token common.Address, amount int64, target common.Address, identifier uint64, timeout time.Duration) (err error) {
+func (this *RaidenApi) TransferAndWait(token common.Address, amount *big.Int, target common.Address, identifier uint64, timeout time.Duration) (err error) {
 	result, err := this.TransferAsync(token, amount, target, identifier)
 	if err != nil {
 		return err
@@ -468,12 +470,12 @@ func (this *RaidenApi) TransferAndWait(token common.Address, amount int64, targe
 	}
 	return
 }
-func (this *RaidenApi) Transfer(token common.Address, amount int64, target common.Address, identifier uint64, timeout time.Duration) error {
+func (this *RaidenApi) Transfer(token common.Address, amount *big.Int, target common.Address, identifier uint64, timeout time.Duration) error {
 	return this.TransferAndWait(token, amount, target, identifier, timeout)
 }
 
-func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount int64, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
-	if amount <= 0 {
+func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
+	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = rerr.InvalidAmount
 		return
 	}

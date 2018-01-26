@@ -3,6 +3,8 @@ package initiator
 import (
 	"fmt"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	mt "github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -77,7 +79,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	for len(state.Routes.AvailableRoutes) > 0 {
 		route := state.Routes.AvailableRoutes[0]
 		state.Routes.AvailableRoutes = state.Routes.AvailableRoutes[1:]
-		if route.AvaibleBalance < state.Transfer.Amount {
+		if route.AvaibleBalance.Cmp(state.Transfer.Amount) < 0 {
 			state.Routes.IgnoredRoutes = append(state.Routes.IgnoredRoutes, route)
 		} else {
 			tryRoute = route
@@ -131,7 +133,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout)
 		tr := &mt.LockedTransferState{
 			Identifier: state.Transfer.Identifier,
-			Amount:     state.Transfer.Amount,
+			Amount:     new(big.Int).Set(state.Transfer.Amount),
 			Token:      state.Transfer.Token,
 			Initiator:  state.Transfer.Initiator,
 			Target:     state.Transfer.Target,
@@ -205,7 +207,7 @@ func HandleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.Hashlock == state.Transfer.Hashlock &&
 		stateChange.Identifier == state.Transfer.Identifier &&
-		stateChange.Amount == state.Transfer.Amount
+		stateChange.Amount.Cmp(state.Transfer.Amount) == 0
 	isInvalid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.Hashlock == state.Transfer.Hashlock && !isValid
 	if isValid {

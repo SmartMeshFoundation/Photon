@@ -9,6 +9,8 @@ import (
 
 	"fmt"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -17,6 +19,7 @@ import (
 )
 
 var RepeatCount int = 100
+var big1 = big.NewInt(1)
 
 //a valid channel address onchain
 func getAChannel(api *RaidenApi) common.Address {
@@ -37,7 +40,7 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	key1 := SwapKey{
 		Identifier: 32,
 		FromToken:  utils.NewRandomAddress(),
-		FromAmount: 300,
+		FromAmount: big.NewInt(300),
 	}
 	key2 := key1
 	m := make(map[SwapKey]bool)
@@ -182,10 +185,10 @@ func TestRaidenApi_CloseAndSettle(t *testing.T) {
 	wg.Wait()
 }
 
-func findAValidChannel(ra, rb *RaidenApi) (addr common.Address, money int64) {
+func findAValidChannel(ra, rb *RaidenApi) (addr common.Address, money *big.Int) {
 	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
 		c := g.GetPartenerAddress2Channel(rb.Raiden.NodeAddress)
-		if c != nil && c.Balance() > 10 && c.State() == transfer.CHANNEL_STATE_OPENED {
+		if c != nil && c.Balance().Cmp(big.NewInt(10)) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
 			return c.MyAddress, c.Balance()
 		}
 	}
@@ -199,7 +202,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 	m := make(map[common.Address]common.Address)
 	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
 		for addr, c := range g.ChannelAddress2Channel {
-			if c.Balance() > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
+			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = ra.Raiden.NodeAddress
 				}
@@ -208,7 +211,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 	}
 	for _, g := range rb.Raiden.CloneToken2ChannelGraph() {
 		for addr, c := range g.ChannelAddress2Channel {
-			if c.Balance() > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
+			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = rb.Raiden.NodeAddress
 				}
@@ -225,7 +228,7 @@ func TestTransfer(t *testing.T) {
 	wgEnd := sync.WaitGroup{}
 	log.Info("channels number ", len(chm))
 	var i uint64 = 0
-	values := make(map[*channel.Channel]int64)
+	values := make(map[*channel.Channel]*big.Int)
 	for chaddr, nodeAddr := range chm {
 		i++
 		r := rb
@@ -237,7 +240,7 @@ func TestTransfer(t *testing.T) {
 		go func(r *RaidenApi, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
 			wgStart.Wait() //同时开始
-			err := r.Transfer(tokenAddr, 1, partnerAddr, id, time.Minute*2)
+			err := r.Transfer(tokenAddr, big1, partnerAddr, id, time.Minute*2)
 			if err != nil {
 				t.Error()
 			}
@@ -252,8 +255,8 @@ func TestTransfer(t *testing.T) {
 	wgEnd.Wait()
 	time.Sleep(time.Second * 30)
 	for c, v := range values {
-		if c.Balance() != v-1 {
-			log.Error(fmt.Sprintf("transfer amount misatch expect %d,get %d @%s", v-1, c.Balance(), c.MyAddress.String()))
+		if c.Balance().Cmp(x.Sub(v, big.NewInt(1))) != 0 {
+			log.Error(fmt.Sprintf("transfer amount misatch expect %d,get %d @%s", x.Sub(v, big.NewInt(1)), c.Balance(), c.MyAddress.String()))
 		}
 	}
 	//there are unfinished transfers?
@@ -274,7 +277,7 @@ func TestTransferWithPython(t *testing.T) {
 	wg.Add(cnt)
 	for i := 1; i < cnt+1; i++ {
 		go func(id int) {
-			err := ra.Transfer(c.TokenAddress, 1, c.PartnerState.Address, uint64(id), time.Second*50)
+			err := ra.Transfer(c.TokenAddress, big1, c.PartnerState.Address, uint64(id), time.Second*50)
 			if err != nil {
 				t.Error(err)
 			}
@@ -283,7 +286,7 @@ func TestTransferWithPython(t *testing.T) {
 	}
 	wg.Wait()
 	time.Sleep(time.Second * 3)
-	assert(t, c.Balance(), originalBalance-int64(cnt))
+	assert(t, c.Balance(), x.Sub(originalBalance, big.NewInt(int64(cnt))))
 }
 
 func TestPairTransfer(t *testing.T) {
@@ -296,14 +299,14 @@ func TestPairTransfer(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
-			err := ra.Transfer(c.TokenAddress, 1, rb.Raiden.NodeAddress, uint64(2*i), time.Minute)
+			err := ra.Transfer(c.TokenAddress, big1, rb.Raiden.NodeAddress, uint64(2*i), time.Minute)
 			if err != nil {
 				t.Error(err)
 			}
 			wg.Done()
 		}()
 		go func() {
-			err := rb.Transfer(c.TokenAddress, 1, ra.Raiden.NodeAddress, uint64(2*i+1), time.Minute)
+			err := rb.Transfer(c.TokenAddress, big1, ra.Raiden.NodeAddress, uint64(2*i+1), time.Minute)
 			if err != nil {
 				t.Error(err)
 			}
@@ -312,7 +315,7 @@ func TestPairTransfer(t *testing.T) {
 		wg.Wait()
 		time.Sleep(time.Second * 5) //let ra,rb update
 		c1 := ra.Raiden.GetChannelWithAddr(addr)
-		if c1.Balance() != amoney {
+		if c1.Balance().Cmp(amoney) != 0 {
 			t.Error(fmt.Sprintf("money not equal expect=%d,get =%d", c1.Balance(), amoney))
 			return
 		}
@@ -321,7 +324,7 @@ func TestPairTransfer(t *testing.T) {
 			return
 		}
 		c2 := rb.Raiden.GetChannelWithAddr(addr)
-		if c2.Balance() != bmoney {
+		if c2.Balance().Cmp(bmoney) != 0 {
 			t.Error(fmt.Sprintf("money not equal expect=%d get=%d", c2.Balance(), bmoney))
 			return
 		}

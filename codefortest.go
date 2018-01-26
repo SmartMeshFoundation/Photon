@@ -18,14 +18,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 )
 
 var curAccountIndex = 0
 
 func newTestRaiden() *RaidenService {
 	transport := network.MakeTestUDPTransport(50000 + curAccountIndex + 1)
-	discover := network.NewHttpDiscovery() //share the same discovery ,so node can find each other
+	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
 	bcs := newTestBlockChainService()
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
@@ -64,7 +63,7 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	return crypto.ToECDSAUnsafe(privkey), utils.PubkeyToAddress(privkey)
 }
 func newTestBlockChainService() *rpc.BlockChainService {
-	conn, err := helper.NewSafeClient(node.DefaultIPCEndpoint("geth"))
+	conn, err := helper.NewSafeClient(rpc.TestRpcEndpoint)
 	if err != nil {
 		log.Error("Failed to connect to the Ethereum client: ", err)
 	}
@@ -115,6 +114,9 @@ func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
 	go func() {
 		rD.Raiden.Start()
 	}()
-	time.Sleep(time.Second * 3)
+	rA.Raiden.StartWg.Wait()
+	rB.Raiden.StartWg.Wait()
+	rC.Raiden.StartWg.Wait()
+	rD.Raiden.StartWg.Wait()
 	return
 }

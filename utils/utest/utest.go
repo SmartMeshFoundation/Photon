@@ -1,6 +1,8 @@
 package utest
 
 import (
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -10,7 +12,7 @@ import (
 
 var UNIT_SETTLE_TIMEOUT = 50
 var UNIT_REVEAL_TIMEOUT = 5
-var UNIT_TRANSFER_AMOUNT int64 = 10
+var UNIT_TRANSFER_AMOUNT = big.NewInt(10)
 var UNIT_BLOCK_NUMBER int64 = 1
 var UNIT_IDENTIFIER uint64 = 3
 var UNIT_SECRET = common.StringToHash("secretsecretsecretsecretsecretse")
@@ -40,19 +42,19 @@ Helper for creating a route.
         reveal_timeout (int): The configure reveal_timeout of the raiden node.
         channel_address (address): The correspoding channel address.
 */
-func MakeRoute(nodeAddress common.Address, availableBalance int64, settleTimeout /*UNIT_SETTLE_TIMEOUT*/ int, revealTimeout /*UNIT_REVEAL_TIMEOUT*/ int, closedBlock int64, channelAddress common.Address) *transfer.RouteState {
+func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UNIT_SETTLE_TIMEOUT*/ int, revealTimeout /*UNIT_REVEAL_TIMEOUT*/ int, closedBlock int64, channelAddress common.Address) *transfer.RouteState {
 	return &transfer.RouteState{
 		State:          transfer.CHANNEL_STATE_OPENED,
 		HopNode:        nodeAddress,
 		ChannelAddress: channelAddress,
-		AvaibleBalance: availableBalance,
+		AvaibleBalance: new(big.Int).Set(availableBalance),
 		SettleTimeout:  settleTimeout,
 		RevealTimeout:  revealTimeout,
 		ClosedBlock:    closedBlock,
 	}
 }
 
-func MakeTransfer(amount int64, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, identifier uint64, token /*UNIT_TOKEN_ADDRESS*/ common.Address) *mediated_transfer.LockedTransferState {
+func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, identifier uint64, token /*UNIT_TOKEN_ADDRESS*/ common.Address) *mediated_transfer.LockedTransferState {
 	if secret != utils.EmptyHash {
 		if utils.Sha3(secret[:]) != hashlock {
 			log.Error("sha3(secret) != hashlock")
@@ -63,7 +65,7 @@ func MakeTransfer(amount int64, initiator, target common.Address, expiration int
 	}
 	return &mediated_transfer.LockedTransferState{
 		Identifier: identifier,
-		Amount:     amount,
+		Amount:     new(big.Int).Set(amount),
 		Token:      token,
 		Initiator:  initiator,
 		Target:     target,
@@ -72,7 +74,7 @@ func MakeTransfer(amount int64, initiator, target common.Address, expiration int
 		Secret:     secret,
 	}
 }
-func MakeFrom(amount int64, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediated_transfer.LockedTransferState) {
+func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediated_transfer.LockedTransferState) {
 	fromroute = MakeRoute(initiator, amount, UNIT_SETTLE_TIMEOUT, UNIT_REVEAL_TIMEOUT, 0, utils.EmptyAddress)
 	fromtransfer = MakeTransfer(amount, initiator, target, fromExpiration, secret, utils.EmptyHash, 0, UNIT_TOKEN_ADDRESS)
 	return

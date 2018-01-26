@@ -160,7 +160,7 @@ func setupLog(ctx *cli.Context) {
 		file, err := os.Create(logfilename)
 		if err != nil {
 			fmt.Printf("open logfile %s error:%s\n", logfilename, err)
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 		writer = file
 	}
@@ -181,7 +181,7 @@ func Main(ctx *cli.Context) error {
 	log.Trace(fmt.Sprintf("pms=%s", utils.StringInterface1(pms)))
 	if err != nil {
 		log.Error(fmt.Sprintf("start server on %s error:%s", ctx.String("listen-address"), err))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	cfg := config(ctx, pms)
 	//spew.Dump("Config:", cfg)
@@ -189,7 +189,7 @@ func Main(ctx *cli.Context) error {
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
 		log.Error(fmt.Sprintf("cannot connect to geth :%s err=%s", ethEndpoint, err))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
@@ -213,19 +213,19 @@ func regQuitHandler(api *raiden_network.RaidenApi) {
 		<-quitSignal
 		signal.Stop(quitSignal)
 		api.Stop()
-		os.Exit(0)
+		utils.SystemExit(0)
 	}()
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
 	am := raiden_network.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	if !am.AddressInKeyStore(adviceAddress) {
 		if adviceAddress != utils.EmptyAddress {
 			log.Error(fmt.Sprintf("account %s could not be found on the sytstem. aborting...", adviceAddress))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 		shouldPromt := true
 		fmt.Println("The following accounts were found in your machine:")
@@ -253,14 +253,14 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 		data, err := ioutil.ReadFile(passwordfile)
 		if err != nil {
 			log.Error(fmt.Sprintf("password_file error:%s", err))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 		password = string(data)
 		log.Trace(fmt.Sprintf("password is %s", password))
 		keybin, err = am.GetPrivateKey(addr, password)
 		if err != nil {
 			log.Error(fmt.Sprintf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 	} else {
 		for i := 0; i < 3; i++ {
@@ -269,7 +269,7 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			keybin, err = am.GetPrivateKey(addr, password)
 			if err != nil && i == 3 {
 				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-				os.Exit(1)
+				utils.SystemExit(1)
 			}
 			if err != nil {
 				log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
@@ -302,7 +302,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	config.MyAddress = address
 	if err != nil {
 		log.Error("privkey error:", err)
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	registAddrStr := ctx.String("registry-contract-address")
 	if len(registAddrStr) > 0 {
@@ -321,7 +321,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 		err = os.MkdirAll(config.DataDir, os.ModePerm)
 		if err != nil {
 			log.Error(fmt.Sprintf("Datadir:%s doesn't exist and cannot create %v", config.DataDir, err))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 	}
 	userDbPath := hex.EncodeToString(config.MyAddress[:])
@@ -331,7 +331,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 		err = os.MkdirAll(userDbPath, os.ModePerm)
 		if err != nil {
 			log.Error(fmt.Sprintf("Datadir:%s doesn't exist and cannot create %v", userDbPath, err))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 	}
 	databasePath := filepath.Join(userDbPath, "log.db")

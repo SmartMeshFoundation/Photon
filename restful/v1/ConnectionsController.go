@@ -5,7 +5,10 @@ import (
 
 	"encoding/json"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -21,7 +24,7 @@ func (this *ConnectionsController) Get() {
 //Connecting to a token network
 func (this *ConnectionsController) Put() {
 	type Req struct {
-		Funds int64 `json:"funds"`
+		Funds *big.Int `json:"funds"`
 	}
 	tokenstr := this.Ctx.Input.Param(":token")
 	var token common.Address
@@ -36,7 +39,7 @@ func (this *ConnectionsController) Put() {
 		this.Abort(http.StatusInternalServerError)
 		return
 	}
-	if req.Funds <= 0 {
+	if req.Funds.Cmp(utils.BigInt0) <= 0 {
 		this.Abort(http.StatusInternalServerError)
 		return
 	}

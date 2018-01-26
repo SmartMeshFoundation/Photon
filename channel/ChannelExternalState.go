@@ -85,7 +85,7 @@ func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState
 	if !this.IsCallClose {
 		this.IsCallClose = true
 		var Nonce int64 = 0
-		var TransferAmount int64 = 0
+		TransferAmount := utils.BigInt0
 		var LocksRoot common.Hash = utils.EmptyHash
 		//var ChannelAddress common.Address = utils.EmptyAddress
 		var MessageHash common.Hash = utils.EmptyHash
@@ -99,7 +99,7 @@ func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState
 			Signature = balanceProof.Signature
 		}
 		tx, err := this.NettingChannel.GetContract().Close(this.bcs.Auth, uint64(Nonce),
-			big.NewInt(TransferAmount), LocksRoot, MessageHash, Signature)
+			TransferAmount, LocksRoot, MessageHash, Signature)
 		if err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 	if bp != nil {
 		log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
 			this.ChannelAddress.String(), bp))
-		tx, err := this.NettingChannel.GetContract().UpdateTransfer(this.bcs.Auth, uint64(bp.Nonce), big.NewInt(bp.TransferAmount), bp.LocksRoot,
+		tx, err := this.NettingChannel.GetContract().UpdateTransfer(this.bcs.Auth, uint64(bp.Nonce), bp.TransferAmount, bp.LocksRoot,
 			bp.MessageHash, bp.Signature)
 		if err != nil {
 			return err
@@ -201,11 +201,11 @@ func (this *ChannelExternalState) Settle() error {
 	return nil
 }
 
-func (this *ChannelExternalState) Deposit(amount int64) error {
+func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
 	log.Info(fmt.Sprintf("Deposit called %s", this.ChannelAddress.String()))
-	tx, err := this.NettingChannel.GetContract().Deposit(this.bcs.Auth, big.NewInt(amount))
+	tx, err := this.NettingChannel.GetContract().Deposit(this.bcs.Auth, amount)
 	if err != nil {
 		log.Info(fmt.Sprintf("Deposit failed %s", this.ChannelAddress.String()))
 		return err

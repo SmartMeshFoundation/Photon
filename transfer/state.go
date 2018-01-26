@@ -5,6 +5,8 @@ import (
 
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -27,7 +29,7 @@ type RouteState struct {
 	State          string
 	HopNode        common.Address
 	ChannelAddress common.Address
-	AvaibleBalance int64
+	AvaibleBalance *big.Int
 	SettleTimeout  int
 	RevealTimeout  int
 	ClosedBlock    int64
@@ -47,12 +49,12 @@ Args:
             the block number at which the channel was closed.
 */
 func NewRouteState(state string, nodeAddress common.Address, channelAddress common.Address,
-	avaibleBalance int64, settleTimeout int, revealTimeout int, closedBlock int64) *RouteState {
+	avaibleBalance *big.Int, settleTimeout int, revealTimeout int, closedBlock int64) *RouteState {
 	s := &RouteState{
 		State:          state,
 		HopNode:        nodeAddress, //hop
 		ChannelAddress: channelAddress,
-		AvaibleBalance: avaibleBalance,
+		AvaibleBalance: new(big.Int).Set(avaibleBalance),
 		SettleTimeout:  settleTimeout,
 		RevealTimeout:  revealTimeout,
 		ClosedBlock:    closedBlock,
@@ -70,7 +72,7 @@ func (this *RouteState) StateName() string {
 
 type BalanceProofState struct {
 	Nonce          int64
-	TransferAmount int64
+	TransferAmount *big.Int
 	LocksRoot      common.Hash
 	ChannelAddress common.Address
 	MessageHash    common.Hash
@@ -78,11 +80,11 @@ type BalanceProofState struct {
 	Signature []byte
 }
 
-func NewBalanceProofState(nonce int64, transferAmount int64, locksRoot common.Hash,
+func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common.Hash,
 	channelAddress common.Address, messageHash common.Hash, signature []byte) *BalanceProofState {
 	s := &BalanceProofState{
 		Nonce:          nonce,
-		TransferAmount: transferAmount,
+		TransferAmount: new(big.Int).Set(transferAmount),
 		LocksRoot:      locksRoot,
 		ChannelAddress: channelAddress,
 		MessageHash:    messageHash,
@@ -93,7 +95,7 @@ func NewBalanceProofState(nonce int64, transferAmount int64, locksRoot common.Ha
 func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *BalanceProofState {
 	envmsg := msg.GetEnvelopMessage()
 	msgHash := encoding.HashMessageWithoutSignature(msg)
-	return NewBalanceProofState(envmsg.Nonce, envmsg.TransferAmount.Int64(),
+	return NewBalanceProofState(envmsg.Nonce, envmsg.TransferAmount,
 		envmsg.Locksroot, envmsg.Channel,
 		msgHash, envmsg.Signature)
 }

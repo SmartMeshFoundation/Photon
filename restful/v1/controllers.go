@@ -16,6 +16,8 @@ import (
 
 	"strconv"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -85,11 +87,11 @@ type transferData struct {
 		    "amount": 200,
 		    "identifier": 42
 	*/
-	Initiator  string `json:"initiator_address"`
-	Target     string `json:"target_address"`
-	Token      string `json:"token_address"`
-	Amount     int64  `json:"amount"`
-	Identifier uint64 `json:"identifier"`
+	Initiator  string   `json:"initiator_address"`
+	Target     string   `json:"target_address"`
+	Token      string   `json:"token_address"`
+	Amount     *big.Int `json:"amount"`
+	Identifier uint64   `json:"identifier"`
 }
 
 func (this *Controller) Transfers() {
@@ -108,7 +110,7 @@ func (this *Controller) Transfers() {
 	if req.Identifier == 0 {
 		req.Identifier = rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
 	}
-	if req.Amount <= 0 {
+	if req.Amount.Cmp(utils.BigInt0) <= 0 {
 		this.Abort(http.StatusBadRequest)
 		return
 	}
@@ -135,11 +137,11 @@ func (this *Controller) TokenSwap() {
 	   }
 	*/
 	type Req struct {
-		Role            string `json:"role"`
-		SendingAmount   int64  `json:"sending_amount"`
-		SendingToken    string `json:"sending_token"`
-		ReceivingAmount int64  `json:"receiving_amount"`
-		ReceivingToken  string `json:"receiving_token"`
+		Role            string   `json:"role"`
+		SendingAmount   *big.Int `json:"sending_amount"`
+		SendingToken    string   `json:"sending_token"`
+		ReceivingAmount *big.Int `json:"receiving_amount"`
+		ReceivingToken  string   `json:"receiving_token"`
 	}
 	targetstr := this.Ctx.Input.Param(":target")
 	idstr := this.Ctx.Input.Param(":id")

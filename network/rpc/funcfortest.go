@@ -7,7 +7,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 )
 
 const key = `
@@ -34,8 +33,11 @@ const key = `
 }
 `
 
+//var TestRpcEndpoint=node.DefaultIPCEndpoint("geth")
+var TestRpcEndpoint = "ws://10.0.0.2:8546"
+
 func MakeTestBlockChainService() *BlockChainService {
-	conn, err := helper.NewSafeClient(node.DefaultIPCEndpoint("geth"))
+	conn, err := helper.NewSafeClient(TestRpcEndpoint)
 	//conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
 	if err != nil {
 		fmt.Printf("Failed to connect to the Ethereum client: ", err)

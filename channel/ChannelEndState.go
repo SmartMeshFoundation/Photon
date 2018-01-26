@@ -7,6 +7,8 @@ import (
 
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -53,14 +55,14 @@ Tracks the state of one of the participants in a channel
 */
 type ChannelEndState struct {
 	Address             common.Address
-	ContractBalance     int64                       //lock protect race codition with raidenapi
+	ContractBalance     *big.Int                    //lock protect race codition with raidenapi
 	Lock2PendingLocks   map[common.Hash]PendingLock //the lock I have sent
 	Lock2UnclaimedLocks map[common.Hash]UnlockPartialProof
 	TreeState           *transfer.MerkleTreeState
 	BalanceProofState   *transfer.BalanceProofState //race codition with raidenapi
 }
 
-func NewChannelEndState(participantAddress common.Address, participantBalance int64,
+func NewChannelEndState(participantAddress common.Address, participantBalance *big.Int,
 	balanceProof *transfer.BalanceProofState, tree *transfer.MerkleTreeState) *ChannelEndState {
 	c := &ChannelEndState{
 		Address:             participantAddress,
@@ -74,19 +76,19 @@ func NewChannelEndState(participantAddress common.Address, participantBalance in
 }
 
 //how many tokens I have sent to  partner.
-func (this *ChannelEndState) TransferAmount() int64 {
+func (this *ChannelEndState) TransferAmount() *big.Int {
 	if this.BalanceProofState != nil {
 		return this.BalanceProofState.TransferAmount
 	}
-	return 0
+	return big.NewInt(0)
 }
-func (this *ChannelEndState) AmountLocked() int64 {
-	var sum int64 = 0
+func (this *ChannelEndState) AmountLocked() *big.Int {
+	sum := big.NewInt(0)
 	for _, v := range this.Lock2PendingLocks {
-		sum += v.Lock.Amount
+		sum = sum.Add(sum, v.Lock.Amount)
 	}
 	for _, v := range this.Lock2UnclaimedLocks {
-		sum += v.Lock.Amount
+		sum = sum.Add(sum, v.Lock.Amount)
 	}
 	return sum
 }
@@ -98,12 +100,14 @@ func (this *ChannelEndState) Nonce() int64 {
 	return 0
 }
 
-func (this *ChannelEndState) Balance(counterpart *ChannelEndState) int64 {
-	return this.ContractBalance - this.TransferAmount() + counterpart.TransferAmount()
+func (this *ChannelEndState) Balance(counterpart *ChannelEndState) *big.Int {
+	x := new(big.Int).Sub(this.ContractBalance, this.TransferAmount())
+	x.Add(x, counterpart.TransferAmount())
+	return x
 }
 
-func (this *ChannelEndState) Distributable(counterpart *ChannelEndState) int64 {
-	return this.Balance(counterpart) - this.AmountLocked()
+func (this *ChannelEndState) Distributable(counterpart *ChannelEndState) *big.Int {
+	return new(big.Int).Sub(this.Balance(counterpart), this.AmountLocked())
 }
 
 //True if the `hashlock` corresponds to a known lock.
@@ -128,11 +132,11 @@ Update the contract balance, it must always increase.
 return error If the `contract_balance` is smaller than the current
            balance.
 */
-func (this *ChannelEndState) UpdateContractBalance(balance int64) error {
-	if balance < this.ContractBalance {
+func (this *ChannelEndState) UpdateContractBalance(balance *big.Int) error {
+	if balance.Cmp(this.ContractBalance) < 0 {
 		return errBalanceDecrease
 	}
-	this.ContractBalance = balance
+	this.ContractBalance = new(big.Int).Set(balance)
 	return nil
 }
 
@@ -346,5 +350,5 @@ func (this *ChannelEndState) ComputeProofForLock(secret common.Hash, lock *encod
 
 //where to use?
 func (this *ChannelEndState) Equal(other *ChannelEndState) bool {
-	return this.ContractBalance == other.ContractBalance && this.Address == other.Address
+	return this.ContractBalance.Cmp(other.ContractBalance) == 0 && this.Address == other.Address
 }

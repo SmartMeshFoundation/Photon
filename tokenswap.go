@@ -7,6 +7,8 @@ import (
 
 	"sync"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network"
@@ -284,7 +286,7 @@ func (mtt *MakerTokenSwapTask) Start() {
 	toGraph := raiden.Token2ChannelGraph[toToken]
 
 	fromRoutes := fromGraph.GetBestRoutes(raiden.Protocol, raiden.NodeAddress, toNodeAddress, fromAmount, utils.EmptyAddress)
-	var fee int64 = 0
+	var fee = utils.BigInt0
 	for _, route := range fromRoutes {
 		//for each new path a new secret must be used
 		secret := utils.RandomGenerator()
@@ -366,7 +368,7 @@ func (mtt *MakerTokenSwapTask) Start() {
                 our partner.
 */
 func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, nextHop common.Address, targetAddress common.Address,
-	fromMtr *encoding.MediatedTransfer, toToken common.Address, toAmount int64) (mtr *encoding.MediatedTransfer) {
+	fromMtr *encoding.MediatedTransfer, toToken common.Address, toAmount *big.Int) (mtr *encoding.MediatedTransfer) {
 	/*
 			        a valid state must have a secret request from the maker and a valid
 		        mediated transfer for the new token
@@ -391,7 +393,7 @@ func (mtt *MakerTokenSwapTask) sendAndWaitValidState(raiden *RaidenService, next
 			             a different node.
 		*/
 		if transferIsValid {
-			if mtr2.Amount.Int64() == toAmount {
+			if mtr2.Amount.Cmp(toAmount) == 0 {
 				mtr = mtr2
 			}
 		} else if msg.Cmd() == encoding.SECRETREQUEST_CMDID && msg.GetSender() == targetAddress {
@@ -488,7 +490,7 @@ func (this *TakerTokenSwapTask) sendAndWaitValid(raiden *RaidenService, mtr *enc
 		validReveal := rsOk && revealSecretMsg.HashLock() == mtr.HashLock && revealSecretMsg.Sender == makerPayerHop
 
 		refundMsg, rsOk = msg.(*encoding.RefundTransfer)
-		validRefund := rsOk && refundMsg.Sender == makerPayerHop && refundMsg.Amount == mtr.Amount && refundMsg.Expiration <= mtr.Expiration && refundMsg.Token == mtr.Token
+		validRefund := rsOk && refundMsg.Sender == makerPayerHop && refundMsg.Amount.Cmp(mtr.Amount) == 0 && refundMsg.Expiration <= mtr.Expiration && refundMsg.Token == mtr.Token
 		if msg.Cmd() == encoding.SECRET_CMDID {
 			m2 := msg.(*encoding.Secret)
 			if utils.Sha3(m2.Secret[:]) != mtr.HashLock {
@@ -509,7 +511,7 @@ func (this *TakerTokenSwapTask) sendAndWaitValid(raiden *RaidenService, mtr *enc
 
 func (this *TakerTokenSwapTask) Start() {
 	var err error
-	var fee int64 = 0
+	var fee = utils.BigInt0
 	raiden := this.raiden
 	tokenSwap := this.tokenswap
 	/*
@@ -524,7 +526,7 @@ func (this *TakerTokenSwapTask) Start() {
 	makerPayerHop := makerPayingTransfer.Sender
 	if tokenSwap.Identifier != makerPayingTransfer.Identifier ||
 		tokenSwap.FromToken != makerPayingTransfer.Token ||
-		tokenSwap.FromAmount != makerPayingTransfer.GetLock().Amount ||
+		tokenSwap.FromAmount.Cmp(makerPayingTransfer.GetLock().Amount) != 0 ||
 		tokenSwap.FromNodeAddress != makerPayingTransfer.Initiator {
 		log.Error("TakerTokenSwapTask doesn't match , \ntokenswap=%s\n,makerpayingtransfer=%s", utils.StringInterface(tokenSwap, 2), utils.StringInterface(makerPayingTransfer, 3))
 		return
@@ -553,7 +555,7 @@ func (this *TakerTokenSwapTask) Start() {
 	   be _paid_, this is used to inform the maker that his part of the
 	   mediated transfer is okay
 	*/
-	secretRequestMsg := encoding.NewSecretRequest(identifier, makerPayingTransfer.HashLock, makerPayingTransfer.Amount.Int64())
+	secretRequestMsg := encoding.NewSecretRequest(identifier, makerPayingTransfer.HashLock, makerPayingTransfer.Amount)
 	secretRequestMsg.Sign(raiden.PrivateKey, secretRequestMsg)
 	raiden.SendAsync(makerAddress, secretRequestMsg)
 
@@ -565,7 +567,7 @@ func (this *TakerTokenSwapTask) Start() {
 		raiden.Protocol,
 		raiden.NodeAddress,
 		makerAddress,
-		makerPayingTransfer.Amount.Int64(), //这个数量错了?感觉应该是toamount呢?
+		makerPayingTransfer.Amount, //这个数量错了?感觉应该是toamount呢?
 		utils.EmptyAddress,
 	)
 	if len(availableRoutes) == 0 {

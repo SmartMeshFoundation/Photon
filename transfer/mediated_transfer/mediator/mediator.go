@@ -3,6 +3,8 @@ package mediator
 import (
 	"fmt"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -75,7 +77,7 @@ func IsValidRefund(originTr, refundTr *mediated_transfer.LockedTransferState, re
 		return false
 	}
 	return originTr.Identifier == refundTr.Identifier &&
-		originTr.Amount == refundTr.Amount &&
+		originTr.Amount.Cmp(refundTr.Amount) == 0 &&
 		originTr.Hashlock == refundTr.Hashlock &&
 		originTr.Target == refundTr.Target &&
 		/*
@@ -243,12 +245,12 @@ Finds the first route available that may be used.
     Returns:
         (RouteState): The next route.
 */
-func nextRoute(rss *transfer.RoutesState, timeoutBlocks int, transferAmount int64) *transfer.RouteState {
+func nextRoute(rss *transfer.RoutesState, timeoutBlocks int, transferAmount *big.Int) *transfer.RouteState {
 	for len(rss.AvailableRoutes) > 0 {
 		route := rss.AvailableRoutes[0]
 		rss.AvailableRoutes = rss.AvailableRoutes[1:]
 		lockTimeout := timeoutBlocks - route.RevealTimeout
-		if route.AvaibleBalance >= transferAmount && lockTimeout > 0 {
+		if route.AvaibleBalance.Cmp(transferAmount) >= 0 && lockTimeout > 0 {
 			return route
 		} else {
 			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
@@ -290,7 +292,7 @@ func nextTransferPair(payerRoute *transfer.RouteState, payerTransfer *mediated_t
 		lockExpiration := int64(lockTimeout) + blockNumber
 		payeeTransfer := &mediated_transfer.LockedTransferState{
 			Identifier: payerTransfer.Identifier,
-			Amount:     payerTransfer.Amount,
+			Amount:     new(big.Int).Set(payerTransfer.Amount),
 			Token:      payerTransfer.Token,
 			Initiator:  payerTransfer.Initiator,
 			Target:     payerTransfer.Target,
@@ -410,7 +412,7 @@ func eventsForRefundTransfer(refundRoute *transfer.RouteState, refundTransfer *m
 		rtr2 := &mediated_transfer.EventSendRefundTransfer{
 			Identifier: refundTransfer.Identifier,
 			Token:      refundTransfer.Token,
-			Amount:     refundTransfer.Amount,
+			Amount:     new(big.Int).Set(refundTransfer.Amount),
 			HashLock:   refundTransfer.Hashlock,
 			Initiator:  refundTransfer.Initiator,
 			Target:     refundTransfer.Target,

@@ -88,20 +88,20 @@ func (c *Channel) State() string {
  Return the available amount of the token that our end of the
         channel can transfer to the partner.
 */
-func (c *Channel) Distributable() int64 {
+func (c *Channel) Distributable() *big.Int {
 	return c.OurState.Distributable(c.PartnerState)
 }
 func (c *Channel) CanTransfer() bool {
-	return c.State() == transfer.CHANNEL_STATE_OPENED && c.Distributable() > 0
+	return c.State() == transfer.CHANNEL_STATE_OPENED && c.Distributable().Cmp(utils.BigInt0) > 0
 }
 
 //Return the total amount of token we deposited in the channel
-func (c *Channel) ContractBalance() int64 {
+func (c *Channel) ContractBalance() *big.Int {
 	return c.OurState.ContractBalance
 }
 
 //Return how much we transferred to partner.
-func (c *Channel) TransferAmount() int64 {
+func (c *Channel) TransferAmount() *big.Int {
 	return c.OurState.TransferAmount()
 }
 
@@ -111,8 +111,11 @@ func (c *Channel) TransferAmount() int64 {
         Balance is equal to `initial_deposit + received_amount - sent_amount`,
         were both `receive_amount` and `sent_amount` are unlocked.
 */
-func (c *Channel) Balance() int64 {
-	return c.OurState.ContractBalance - c.OurState.TransferAmount() + c.PartnerState.TransferAmount()
+func (c *Channel) Balance() *big.Int {
+	x := new(big.Int)
+	x.Sub(c.OurState.ContractBalance, c.OurState.TransferAmount())
+	x.Add(x, c.PartnerState.TransferAmount())
+	return x
 }
 
 /*
@@ -122,14 +125,14 @@ Return the current amount of our token that is locked waiting for a
         The locked value is equal to locked transfers that have been
         initialized but their secret has not being revealed.
 */
-func (c *Channel) Locked() int64 {
+func (c *Channel) Locked() *big.Int {
 	return c.OurState.AmountLocked()
 }
 
 /*
 token on road...
 */
-func (c *Channel) Outstanding() int64 {
+func (c *Channel) Outstanding() *big.Int {
 	return c.PartnerState.AmountLocked()
 }
 
@@ -204,7 +207,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 	}
 	if ourKnown {
 		lock := c.OurState.GetLockByHashlock(hashlock)
-		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%d",
+		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
 			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
@@ -212,7 +215,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 	}
 	if partenerKnown {
 		lock := c.PartnerState.GetLockByHashlock(hashlock)
-		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%d",
+		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
@@ -338,40 +341,40 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		}
 	}
 	// only check the balance if the locksroot matched
-	if evMsg.TransferAmount.Int64() < fromState.TransferAmount() {
+	if evMsg.TransferAmount.Cmp(fromState.TransferAmount()) < 0 {
 		log.Error(fmt.Sprintf("NEGATIVE TRANSFER node=%s,from=%s,to=%s,transfer=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 			utils.StringInterface(tr, 3))) //for nest struct
 		return fmt.Errorf("Negative transfer")
 	}
 	//由于已经不再使用directtransfer,所有这个amount肯定是0
-	amount := evMsg.TransferAmount.Int64() - fromState.TransferAmount()
+	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
 	//if amount != 0 {
 	// secret message
 	//	panic("direct transfer? it's deprecated")
 	//}
 	distributable := fromState.Distributable(toState)
 	if tr.Cmd() == encoding.DIRECTTRANSFER_CMDID {
-		if amount > distributable {
+		if amount.Cmp(distributable) > 0 {
 			return rerr.InsufficientBalance
 		}
 	} else if encoding.IsLockedTransfer(tr) {
 		mtr := encoding.GetMtrFromLockedTransfer(tr)
-		if amount+mtr.Amount.Int64() > distributable {
+		if new(big.Int).Add(amount, mtr.Amount).Cmp(distributable) > 0 {
 			return rerr.InsufficientBalance
 		}
 	} else if tr.Cmd() == encoding.SECRET_CMDID {
 		sec := tr.(*encoding.Secret)
 		hashlock := utils.Sha3(sec.Secret[:])
 		lock := fromState.GetLockByHashlock(hashlock)
-		transferAmount := fromState.TransferAmount() + lock.Amount
+		transferAmount := new(big.Int).Add(fromState.TransferAmount(), lock.Amount)
 		/*
 			 tr.transferred_amount could be larger than the previous
 				             transferred_amount + lock.amount, that scenario is a bug of the
 				             payer
 		*/
-		if sec.TransferAmount.Int64() != transferAmount {
-			return fmt.Errorf("invalid transferred_amount, expected: %d got: %d",
+		if sec.TransferAmount.Cmp(transferAmount) != 0 {
+			return fmt.Errorf("invalid transferred_amount, expected: %s got: %s",
 				transferAmount, sec.TransferAmount.Int64())
 		}
 	}
@@ -383,9 +386,9 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	if encoding.IsLockedTransfer(tr) {
 		mtr := encoding.GetMtrFromLockedTransfer(tr)
 		mroot := fromState.TreeState.Tree.MerkleRoot()
-		log.Debug(fmt.Sprintf("REGISTERED LOCK node=%s,from=%s,to=%s,currentlocksroot=%s,lockamouont=%d,lock_expiration=%d,lock_hashlock=%s",
+		log.Debug(fmt.Sprintf("REGISTERED LOCK node=%s,from=%s,to=%s,currentlocksroot=%s,lockamouont=%s,lock_expiration=%d,lock_hashlock=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
-			utils.Pex(mroot[:]), mtr.Amount.Int64(), mtr.Expiration, mtr.HashLock.String()))
+			utils.Pex(mroot[:]), mtr.Amount, mtr.Expiration, mtr.HashLock.String()))
 		err = fromState.RegisterLockedTransfer(tr)
 		if err != nil {
 			return err
@@ -409,7 +412,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		}
 	}
 	mroot := fromState.TreeState.Tree.MerkleRoot()
-	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%d,nonce=%d,current_locksroot=%s,\ntransfer=%s",
+	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%s,nonce=%s,current_locksroot=%s,\ntransfer=%s",
 		utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 		fromState.TransferAmount(), fromState.Nonce(), utils.Pex(mroot[:]), utils.StringInterface(tr, 3)))
 	return nil
@@ -430,18 +433,18 @@ func (c *Channel) GetNextNonce() int64 {
         This message needs to be signed and registered with the channel before
         sent.
 */
-func (c *Channel) CreateDirectTransfer(amount int64, identifier uint64) (tr *encoding.DirectTransfer, err error) {
+func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *encoding.DirectTransfer, err error) {
 	if !c.CanTransfer() {
 		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
 	}
 	from := c.OurState
 	to := c.PartnerState
 	distributable := from.Distributable(to)
-	if amount <= 0 || amount > distributable {
-		log.Debug(fmt.Sprintf("Insufficient funds : amount=%d, distributable=%d", amount, distributable))
-		return nil, fmt.Errorf("Insufficient funds")
+	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(distributable) > 0 {
+		log.Debug(fmt.Sprintf("Insufficient funds : amount=%s, distributable=%s", amount, distributable))
+		return nil, rerr.InsufficientFunds
 	}
-	tranferAmount := from.TransferAmount() + amount
+	tranferAmount := new(big.Int).Add(from.TransferAmount(), amount)
 	currentLocksroot := to.TreeState.Tree.MerkleRoot()
 	nonce := c.GetNextNonce()
 	tr = encoding.NewDirectTransfer(identifier, nonce, c.TokenAddress, c.MyAddress, tranferAmount, to.Address, currentLocksroot)
@@ -461,12 +464,12 @@ Return a MediatedTransfer message.
             expiration (int): The maximum block number until the transfer
                 message can be received.
 */
-func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target common.Address, fee int64, amount int64, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
+func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
 		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
 	}
-	if amount <= 0 || amount > c.Distributable() {
-		log.Debug("Insufficient funds  amount=%d,distributable=%d", amount, c.Distributable())
+	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(c.Distributable()) > 0 {
+		log.Debug("Insufficient funds  amount=%s,distributable=%s", amount, c.Distributable())
 		return nil, fmt.Errorf("Insufficient funds")
 	}
 	from := c.OurState
@@ -480,14 +483,14 @@ func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target com
 	transferAmount := from.TransferAmount()
 	nonce := c.GetNextNonce()
 	tr = encoding.NewMediatedTransfer(identifier, nonce, c.TokenAddress, c.MyAddress,
-		big.NewInt(transferAmount), to.Address, updatedLocksroot, lock, transfer_target, transfer_initiator, fee)
+		transferAmount, to.Address, updatedLocksroot, lock, transfer_target, transfer_initiator, fee)
 	return
 }
 
 /*
 similar as CreateMediatedTransfer
 */
-func (c *Channel) CreateRefundTransfer(transfer_initiator, transfer_target common.Address, fee int64, amount int64, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.RefundTransfer, err error) {
+func (c *Channel) CreateRefundTransfer(transfer_initiator, transfer_target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.RefundTransfer, err error) {
 	mtr, err := c.CreateMediatedTransfer(transfer_initiator, transfer_target, fee, amount, identifier, expiration, hashlock)
 	if err != nil {
 		return
@@ -507,7 +510,7 @@ func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encodi
 	if err != nil {
 		return
 	}
-	transferAmount := from.TransferAmount() + lock.Amount
+	transferAmount := new(big.Int).Add(from.TransferAmount(), lock.Amount)
 	nonce := c.GetNextNonce()
 	tr = encoding.NewSecret(identifer, nonce, c.MyAddress, transferAmount, locksrootWithPendingLockRemoved, secret)
 	return
@@ -549,11 +552,15 @@ func (c *Channel) StateTransition(st transfer.StateChange) (err error) {
 		if err != nil {
 			return
 		}
-		if channelState.ContractBalance != balance {
+		if channelState.ContractBalance.Cmp(balance) != 0 {
 			err = channelState.UpdateContractBalance(balance)
 		}
 	}
 	return
+}
+func (c *Channel) String() string {
+	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
+		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
 }
 
 type ChannelSerialization struct {

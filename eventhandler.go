@@ -75,7 +75,7 @@ func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_
 	receiver := event.Receiver
 	graph := this.raiden.GetToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
-	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, 0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
+	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, utils.BigInt0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
 	if err != nil {
 		return
 	}
@@ -91,7 +91,7 @@ func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_tr
 	receiver := event.Receiver
 	graph := this.raiden.GetToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
-	mtr, err := ch.CreateRefundTransfer(event.Initiator, event.Target, 0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
+	mtr, err := ch.CreateRefundTransfer(event.Initiator, event.Target, utils.BigInt0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
 	if err != nil {
 		return
 	}
@@ -215,7 +215,7 @@ func (this *StateMachineEventHandler) handleBalance(st *mediated_transfer.Contra
 	graph := this.raiden.GetToken2ChannelGraph(tokenAddress)
 	ch := graph.GetChannelAddress2Channel(channelAddress)
 	ch.StateTransition(st)
-	if ch.ContractBalance() == 0 {
+	if ch.ContractBalance().Cmp(utils.BigInt0) == 0 {
 		connectionManager, _ := this.raiden.ConnectionManagerForToken(tokenAddress)
 		go func() {
 			connectionManager.JoinChannel(participant, balance)

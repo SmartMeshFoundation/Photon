@@ -3,6 +3,8 @@ package transfer
 import (
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -30,7 +32,7 @@ Event emitted by the initiator when a transfer is considered sucessful.
 */
 type EventTransferSentSuccess struct {
 	Identifier uint64
-	Amount     int64
+	Amount     *big.Int
 	Target     common.Address
 }
 
@@ -57,7 +59,7 @@ Event emitted when a payee has received a payment.
 */
 type EventTransferReceivedSuccess struct {
 	Identifier uint64
-	Amount     int64
+	Amount     *big.Int
 	Initiator  common.Address
 }
 

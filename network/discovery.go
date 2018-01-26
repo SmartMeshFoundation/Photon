@@ -125,7 +125,10 @@ func NewContractDiscovery(mynode common.Address, client *helper.SafeEthClient, a
 		go func() {
 			for { //monitor event on chain
 				l := <-ch
-				ev := blockchain.NewEventAddressRegistered(&l)
+				ev, err := blockchain.NewEventAddressRegistered(&l)
+				if err != nil {
+					continue
+				}
 				log.Debug(fmt.Sprintf("receive register socket:%#v", ev))
 				c.put(ev.EthAddress, ev.Socket)
 			}

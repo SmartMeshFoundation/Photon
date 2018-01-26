@@ -8,6 +8,8 @@ import (
 
 	"time"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/params"
@@ -24,7 +26,7 @@ type ConnectionManager struct {
 	lock                sync.Mutex
 	channelGraph        *network.ChannelGraph
 	tokenAddress        common.Address
-	funds               int64
+	funds               *big.Int
 	initChannelTarget   int64
 	joinableFundsTarget float64
 }
@@ -35,7 +37,7 @@ func NewConnectionManager(raiden *RaidenService, tokenAddress common.Address, gr
 		api:                 NewRaidenApi(raiden),
 		channelGraph:        graph,
 		tokenAddress:        tokenAddress,
-		funds:               0,
+		funds:               utils.BigInt0,
 		initChannelTarget:   3,
 		joinableFundsTarget: 0.4,
 	}
@@ -61,8 +63,8 @@ Connect to the network.
             initial_channel_target (int): number of channels to open immediately
             joinable_funds_target (float): amount of funds not initially assigned
 */
-func (this *ConnectionManager) Connect(funds, initialChannelTarget int64, joinableFundsTarget float64) error {
-	if funds <= 0 {
+func (this *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int64, joinableFundsTarget float64) error {
+	if funds.Cmp(utils.BigInt0) <= 0 {
 		return errors.New("connecting needs a positive value for `funds`")
 	}
 	_, ok := this.raiden.MessageHandler.blockedTokens[this.tokenAddress]
@@ -103,14 +105,15 @@ func (this *ConnectionManager) openChannels() []*channel.Channel {
 
 //"The calculated funding per partner depending on configuration and
 //overall funding of the ConnectionManager.
-func (this *ConnectionManager) initialFundingPerPartner() int64 {
+func (this *ConnectionManager) initialFundingPerPartner() *big.Int {
 	if this.initChannelTarget > 0 {
-		var f1, f2 float64
-		f1 = float64(this.funds)
-		f2 = float64(this.initChannelTarget)
-		return int64(f1 * (1 - this.joinableFundsTarget) / f2)
+		f1 := new(big.Float).SetInt(this.funds)
+		f3 := big.NewFloat(1 - this.joinableFundsTarget)
+		f1.Mul(f1, f3)
+		i1, _ := f1.Int(nil)
+		return i1.Div(i1, big.NewInt(this.initChannelTarget))
 	}
-	return 0
+	return utils.BigInt0
 }
 
 /*
@@ -122,24 +125,25 @@ func (this *ConnectionManager) WantsMoreChannels() bool {
 	if ok {
 		return false
 	}
-	return this.fundsRemaining() > 0 && len(this.openChannels()) < int(this.initChannelTarget)
+	return this.fundsRemaining().Cmp(utils.BigInt0) > 0 && len(this.openChannels()) < int(this.initChannelTarget)
 }
 
 //The remaining funds after subtracting the already deposited amounts.
-func (this *ConnectionManager) fundsRemaining() int64 {
-	if this.funds > 0 {
-		remaining := this.funds - this.sumDeposits()
+func (this *ConnectionManager) fundsRemaining() *big.Int {
+	if this.funds.Cmp(utils.BigInt0) > 0 {
+		remaining := new(big.Int)
+		remaining.Sub(this.funds, this.sumDeposits())
 		return remaining
 	}
-	return 0
+	return utils.BigInt0
 }
 
 //Shorthand for getting sum of all open channels deposited funds
-func (this *ConnectionManager) sumDeposits() int64 {
+func (this *ConnectionManager) sumDeposits() *big.Int {
 	chs := this.openChannels()
-	var sum int64 = 0
+	var sum = big.NewInt(0)
 	for _, c := range chs {
-		sum += c.ContractBalance()
+		sum.Add(sum, c.ContractBalance())
 	}
 	return sum
 }
@@ -262,7 +266,7 @@ Open a channel with `partner` and deposit `funding_amount` tokens.
         If the channel was already opened (a known race condition),
         this skips the opening and only deposits.
 */
-func (this *ConnectionManager) openAndDeposit(partner common.Address, fundingAmount int64) error {
+func (this *ConnectionManager) openAndDeposit(partner common.Address, fundingAmount *big.Int) error {
 	_, err := this.api.Open(this.tokenAddress, partner, this.raiden.Config.SettleTimeout, this.raiden.Config.RevealTimeout)
 	if err != nil {
 		return err
@@ -310,7 +314,7 @@ Will be called when new channels in the token network are detected.
         If the connection manager has no funds, this is a noop.
 */
 func (this *ConnectionManager) RetryConnect() {
-	if this.funds <= 0 {
+	if this.funds.Cmp(utils.BigInt0) <= 0 {
 		return
 	}
 	if this.LeaveState() {
@@ -318,7 +322,7 @@ func (this *ConnectionManager) RetryConnect() {
 	}
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	if this.fundsRemaining() <= 0 {
+	if this.fundsRemaining().Cmp(utils.BigInt0) <= 0 {
 		return
 	}
 	if len(this.openChannels()) >= int(this.initChannelTarget) {
@@ -335,8 +339,8 @@ Will be called, when we were selected as channel partner by another
 
         If the connection manager has no funds, this is a noop.
 */
-func (this *ConnectionManager) JoinChannel(partnerAddress common.Address, partnerDepost int64) {
-	if this.funds <= 0 {
+func (this *ConnectionManager) JoinChannel(partnerAddress common.Address, partnerDepost *big.Int) {
+	if this.funds.Cmp(utils.BigInt0) <= 0 {
 		return
 	}
 	if this.LeaveState() {
@@ -347,13 +351,13 @@ func (this *ConnectionManager) JoinChannel(partnerAddress common.Address, partne
 	remaining := this.fundsRemaining()
 	initial := this.initialFundingPerPartner()
 	joiningFunds := partnerDepost
-	if joiningFunds > remaining {
+	if joiningFunds.Cmp(remaining) > 0 {
 		joiningFunds = remaining
 	}
-	if joiningFunds > initial {
+	if joiningFunds.Cmp(initial) > 0 {
 		joiningFunds = initial
 	}
-	if joiningFunds <= 0 {
+	if joiningFunds.Cmp(utils.BigInt0) <= 0 {
 		return
 	}
 	err := this.api.Deposit(this.tokenAddress, partnerAddress, joiningFunds, params.DEFAULT_POLL_TIMEOUT)

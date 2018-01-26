@@ -353,12 +353,12 @@ type NettingChannelContractProxy struct {
 
 /// @notice Get the address and balance of both partners in a channel.
 /// @return The address and balance pairs.
-func (this *NettingChannelContractProxy) AddressAndBalance() (addr1 common.Address, balance1 int64, addr2 common.Address, balance2 int64, err error) {
+func (this *NettingChannelContractProxy) AddressAndBalance() (addr1 common.Address, balance1 *big.Int, addr2 common.Address, balance2 *big.Int, err error) {
 	result, err := this.ch.AddressAndBalance(this.bcs.QueryOpts())
 	if err != nil {
 		return
 	}
-	return result.Participant1, result.Balance1.Int64(), result.Participant2, result.Balance2.Int64(), err
+	return result.Participant1, result.Balance1, result.Participant2, result.Balance2, err
 }
 
 /// @notice Returns the number of blocks until the settlement timeout.
@@ -470,12 +470,12 @@ func (this *TokenProxy) TotalSupply() (*big.Int, error) {
 
 /// @param _owner The address from which the balance will be retrieved
 /// @return The balance
-func (this *TokenProxy) BalanceOf(addr common.Address) (int64, error) {
+func (this *TokenProxy) BalanceOf(addr common.Address) (*big.Int, error) {
 	amount, err := this.Token.BalanceOf(this.bcs.QueryOpts(), addr)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return amount.Int64(), err //todo if amount larger than max int64?
+	return amount, err //todo if amount larger than max int64?
 }
 
 /// @param _owner The address of the account owning tokens
@@ -493,10 +493,10 @@ func (this *TokenProxy) Allowance(owner, spender common.Address) (int64, error) 
 /// @param _spender The address of the account able to transfer the tokens
 /// @param _value The amount of wei to be approved for transfer
 /// @return Whether the approval was successful or not
-func (this *TokenProxy) Approve(spender common.Address, value int64) (err error) {
+func (this *TokenProxy) Approve(spender common.Address, value *big.Int) (err error) {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	tx, err := this.Token.Approve(this.bcs.Auth, spender, big.NewInt(value))
+	tx, err := this.Token.Approve(this.bcs.Auth, spender, value)
 	if err != nil {
 		return err
 	}
@@ -517,10 +517,10 @@ func (this *TokenProxy) Approve(spender common.Address, value int64) (err error)
 /// @param _to The address of the recipient
 /// @param _value The amount of token to be transferred
 /// @return Whether the transfer was successful or not
-func (this *TokenProxy) Transfer(spender common.Address, value int64) (err error) {
+func (this *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error) {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	tx, err := this.Token.Transfer(this.bcs.Auth, spender, big.NewInt(value))
+	tx, err := this.Token.Transfer(this.bcs.Auth, spender, value)
 	if err != nil {
 		return err
 	}

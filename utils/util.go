@@ -13,6 +13,8 @@ import (
 
 	"crypto/ecdsa"
 
+	"runtime/debug"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -125,4 +127,10 @@ func GetHomePath() string {
 		return os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
 	}
 	return os.Getenv("HOME")
+}
+
+func SystemExit(code int) {
+	debug.PrintStack()
+	time.Sleep(time.Second * 2)
+	os.Exit(code)
 }

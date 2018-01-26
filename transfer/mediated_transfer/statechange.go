@@ -3,6 +3,8 @@ package mediated_transfer
 import (
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -49,7 +51,7 @@ type ActionCancelRouteStateChange struct {
 // A SecretRequest message received.
 type ReceiveSecretRequestStateChange struct {
 	Identifier uint64
-	Amount     int64
+	Amount     *big.Int
 	Hashlock   common.Hash
 	Sender     common.Address
 }
@@ -108,7 +110,7 @@ type ContractReceiveBalanceStateChange struct {
 	ChannelAddress     common.Address
 	TokenAddress       common.Address
 	ParticipantAddress common.Address
-	Balance            int64 //todo type error?
+	Balance            *big.Int //todo type error?
 	BlockNumber        int64
 }
 

@@ -3,6 +3,8 @@ package transfer
 import (
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -37,14 +39,14 @@ type ActionCancelTransferStateChange struct {
 }
 type ActionTransferDirectStateChange struct {
 	Identifier   uint64
-	Amount       int64
+	Amount       *big.Int
 	TokenAddress common.Address
 	NodeAddress  common.Address
 }
 
 type ReceiveTransferDirectStateChange struct {
 	Identifier   uint64
-	Amount       int64
+	Amount       *big.Int
 	TokenAddress common.Address
 	Sender       common.Address
 }

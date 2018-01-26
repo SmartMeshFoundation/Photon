@@ -11,6 +11,8 @@ import (
 
 	"sync"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
@@ -311,7 +313,7 @@ Yield a two-tuple (path, channel) that can be used to mediate the
     transfer. The result is ordered from the best to worst path.
 */
 func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress common.Address,
-	targetAdress common.Address, amount int64, previousAddress common.Address) (onlineNodes []*transfer.RouteState) {
+	targetAdress common.Address, amount *big.Int, previousAddress common.Address) (onlineNodes []*transfer.RouteState) {
 	/*
 		for direct transfer
 	*/
@@ -346,7 +348,7 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress
 			log.Debug(fmt.Sprintf("channel %s-%s is not opened ,ignoring ..", utils.APex(ourAddress), utils.APex(partnerAddress)))
 			continue
 		}
-		if amount > c.Distributable() {
+		if amount.Cmp(c.Distributable()) > 0 {
 			log.Debug(fmt.Sprintf("channel %s-%s doesn't have enough funds[%d],ignoring...", utils.APex(ourAddress), utils.APex(partnerAddress), amount))
 			continue
 		}

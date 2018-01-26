@@ -97,7 +97,7 @@ type EnvelopMessager interface {
 /*All accepted messages should be confirmed by an `Ack` which echoes the
 orginals Message hash.
 
-We don't sign Acks because attack vector can be mitigated and to speed up
+We don'T sign Acks because attack vector can be mitigated and to speed up
 things.
 */
 type Ack struct {
@@ -181,12 +181,12 @@ func SignMessage(privKey *ecdsa.PrivateKey, pack MessagePacker) []byte {
 
 //func SetSignature(privkey *ecdsa.PrivateKey, pack MessagePacker) error {
 //	signature:=SignMessage(privkey,pack)
-//	t := reflect.ValueOf(pack)
-//	if t.Kind() == reflect.Ptr {
-//		t = t.Elem()
+//	T := reflect.ValueOf(pack)
+//	if T.Kind() == reflect.Ptr {
+//		T = T.Elem()
 //	}
-//	if t.Kind()==reflect.Struct{
-//		codeField := t.FieldByName("Signature")
+//	if T.Kind()==reflect.Struct{
+//		codeField := T.FieldByName("Signature")
 //		if codeField.IsValid() {
 //			codeField.SetBytes(signature)
 //		} else{
@@ -272,11 +272,11 @@ type SecretRequest struct {
 	Amount     *big.Int
 }
 
-func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount int64) *SecretRequest {
+func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount *big.Int) *SecretRequest {
 	p := &SecretRequest{
 		Identifier: Identifier,
 		HashLock:   hashLock,
-		Amount:     big.NewInt(amount),
+		Amount:     new(big.Int).Set(amount),
 	}
 	p.CmdId = SECRETREQUEST_CMDID
 	return p
@@ -449,7 +449,7 @@ func (this *Secret) HashLock() common.Hash {
 	return utils.Sha3(this.Secret[:])
 }
 func NewSecret(Identifier uint64, nonce int64, channel common.Address,
-	transferamount int64, locksroot common.Hash, secret common.Hash) *Secret {
+	transferamount *big.Int, locksroot common.Hash, secret common.Hash) *Secret {
 	p := &Secret{
 		Secret: secret,
 	}
@@ -457,7 +457,7 @@ func NewSecret(Identifier uint64, nonce int64, channel common.Address,
 	p.CmdId = SECRET_CMDID
 	p.Nonce = nonce
 	p.Channel = channel
-	p.TransferAmount = big.NewInt(transferamount)
+	p.TransferAmount = new(big.Int).Set(transferamount)
 	p.Locksroot = locksroot
 	return p
 }
@@ -532,7 +532,7 @@ type DirectTransfer struct {
 }
 
 func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
-	channel common.Address, transferAmount int64,
+	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash) *DirectTransfer {
 	p := &DirectTransfer{
 		Token:     token,
@@ -542,7 +542,7 @@ func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
 	p.CmdId = DIRECTTRANSFER_CMDID
 	p.Nonce = nonce
 	p.Channel = channel
-	p.TransferAmount = big.NewInt(transferAmount)
+	p.TransferAmount = new(big.Int).Set(transferAmount)
 	p.Locksroot = locksroot
 	return p
 }
@@ -588,21 +588,21 @@ func (this *DirectTransfer) UnPack(data []byte) error {
 
 type Lock struct {
 	Expiration int64 //expiration block number
-	Amount     int64
+	Amount     *big.Int
 	HashLock   common.Hash
 }
 
 func (this *Lock) AsBytes() []byte {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.BigEndian, this.Expiration)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(this.Amount)))
+	buf.Write(utils.BigIntTo32Bytes(this.Amount))
 	buf.Write(this.HashLock[:])
 	return buf.Bytes()
 }
 func (this *Lock) FromBytes(locksencoded []byte) {
 	buf := bytes.NewBuffer(locksencoded)
 	binary.Read(buf, binary.BigEndian, &this.Expiration)
-	this.Amount = readBigInt(buf).Int64()
+	this.Amount = readBigInt(buf)
 	buf.Read(this.HashLock[:])
 }
 
@@ -658,30 +658,30 @@ type MediatedTransfer struct {
 func NewMediatedTransfer(identifier uint64, nonce int64, token common.Address,
 	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash, lock *Lock,
-	target common.Address, initiator common.Address, fee int64) *MediatedTransfer {
+	target common.Address, initiator common.Address, fee *big.Int) *MediatedTransfer {
 	p := &MediatedTransfer{
 		Token:     token,
 		Recipient: recipient,
 		Target:    target,
 		Initiator: initiator,
-		Fee:       big.NewInt(fee),
+		Fee:       new(big.Int).Set(fee),
 	}
 	p.Identifier = identifier
 	p.Nonce = nonce
-	p.TransferAmount = transferAmount
+	p.TransferAmount = new(big.Int).Set(transferAmount)
 	p.Locksroot = locksroot //包含此次未完全完成交易的merkletree root
 	p.CmdId = MEDIATEDTRANSFER_CMDID
 	p.Channel = channel
 	p.Expiration = lock.Expiration
 	p.HashLock = lock.HashLock
-	p.Amount = big.NewInt(lock.Amount)
+	p.Amount = new(big.Int).Set(lock.Amount)
 	return p
 }
 
 func (this *MediatedTransfer) GetLock() *Lock {
 	return &Lock{
 		Expiration: this.Expiration,
-		Amount:     this.Amount.Int64(),
+		Amount:     this.Amount,
 		HashLock:   this.HashLock,
 	}
 }
@@ -762,7 +762,7 @@ type RefundTransfer struct {
 func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
 	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash, lock *Lock,
-	target common.Address, initiator common.Address, fee int64) *RefundTransfer {
+	target common.Address, initiator common.Address, fee *big.Int) *RefundTransfer {
 	p := &RefundTransfer{}
 	p.MediatedTransfer = *(NewMediatedTransfer(identifier, nonce, token, channel, transferAmount, recipient,
 		locksroot, lock, target, initiator, fee))

@@ -13,6 +13,8 @@ import (
 
 	"math/big"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -86,14 +88,14 @@ func TestType(t *testing.T) {
 		t.Log("is type  cmd struct")
 	}
 	//if _, ok := p.(*cmdstruct); ok {
-	//	t.Log("struct is type cmd struct")
+	//	T.Log("struct is type cmd struct")
 	//}
 }
 func TestEnvelopeMessage(t *testing.T) {
 	tokenaddress := utils.NewRandomAddress()
 	channel := utils.NewRandomAddress()
 	p := NewDirectTransfer(32, 11, tokenaddress, channel,
-		11, utils.EmptyAddress,
+		big.NewInt(11), utils.EmptyAddress,
 		utils.EmptyHash)
 	var sm SignedMessager = p
 	err := p.Sign(GetTestPrivKey(), p)
@@ -131,7 +133,7 @@ func TestHash(t *testing.T) {
 }
 
 func TestDirectTransfer(t *testing.T) {
-	d1 := NewDirectTransfer(22, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), 12, utils.NewRandomAddress(), utils.Sha3([]byte("abd")))
+	d1 := NewDirectTransfer(22, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(12), utils.NewRandomAddress(), utils.Sha3([]byte("abd")))
 	d1.Sign(GetTestPrivKey(), d1)
 	d2 := new(DirectTransfer)
 	err := d2.UnPack(d1.Pack())
@@ -141,7 +143,7 @@ func TestDirectTransfer(t *testing.T) {
 	if !reflect.DeepEqual(d1, d2) {
 		t.Error("not equal")
 	}
-	//t.Log(utils.StringInterface(d1, 3))
+	//T.Log(utils.StringInterface(d1, 3))
 	//if utils.StringInterface(d1, 3) != utils.StringInterface(d2, 3) {
 	//
 	//}
@@ -149,12 +151,12 @@ func TestDirectTransfer(t *testing.T) {
 
 func TestMediatedTransfer(t *testing.T) {
 	lock := &Lock{
-		Amount:     34,
+		Amount:     big.NewInt(34),
 		Expiration: 4589895, //expiration block number
 		HashLock:   utils.Sha3([]byte("hashlock")),
 	}
 	m1 := NewMediatedTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
-		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), 33)
+		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	m1.Sign(GetTestPrivKey(), m1)
 	data := m1.Pack()
 	m2 := new(MediatedTransfer)
@@ -168,12 +170,12 @@ func TestMediatedTransfer(t *testing.T) {
 
 func TestNewRefundTransfer(t *testing.T) {
 	lock := &Lock{
-		Amount:     34,
+		Amount:     big.NewInt(34),
 		Expiration: 4589895, //expiration block number
 		HashLock:   utils.Sha3([]byte("hashlock")),
 	}
 	m1 := NewRefundTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
-		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), 33)
+		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	m1.Sign(GetTestPrivKey(), m1)
 	data := m1.Pack()
 	m2 := new(RefundTransfer)
@@ -186,7 +188,7 @@ func TestNewRefundTransfer(t *testing.T) {
 }
 
 func TestNewSecret(t *testing.T) {
-	s1 := NewSecret(30, 40, utils.NewRandomAddress(), 50, utils.Sha3([]byte("oo")), utils.Sha3([]byte("xxx")))
+	s1 := NewSecret(30, 40, utils.NewRandomAddress(), big.NewInt(50), utils.Sha3([]byte("oo")), utils.Sha3([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(Secret)
@@ -216,7 +218,7 @@ func TestNewRevealSecret(t *testing.T) {
 }
 
 func TestNewSecretRequest(t *testing.T) {
-	s1 := NewSecretRequest(606, utils.Sha3([]byte("xxx")), 506)
+	s1 := NewSecretRequest(606, utils.Sha3([]byte("xxx")), big.NewInt(506))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(SecretRequest)
@@ -232,7 +234,7 @@ func TestNewSecretRequest(t *testing.T) {
 
 func TestLock_AsBytes(t *testing.T) {
 	lock := &Lock{
-		Amount:     34,
+		Amount:     big.NewInt(34),
 		Expiration: 4589895, //expiration block number
 		HashLock:   utils.Sha3([]byte("hashlock")),
 	}
@@ -242,5 +244,26 @@ func TestLock_AsBytes(t *testing.T) {
 	if !reflect.DeepEqual(lock, lock2) {
 		t.Error("not equal")
 	}
-	//t.Log(lock.AsBytes())
+	//T.Log(lock.AsBytes())
+}
+
+type testStruct struct {
+	T  int
+	Bt *big.Int
+}
+
+func TestBigInt(t *testing.T) {
+	tt := &testStruct{
+		T: 3,
+	}
+	tt.Bt = new(big.Int)
+	tt.Bt.SetString("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa", 0)
+	t.Log(tt.Bt.String())
+	data, _ := json.Marshal(tt)
+	t.Log(string(data))
+	var tt2 testStruct
+	json.Unmarshal(data, &tt2)
+	if !reflect.DeepEqual(tt.Bt.Bytes(), tt2.Bt.Bytes()) {
+		t.Error("not equal")
+	}
 }

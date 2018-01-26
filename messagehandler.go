@@ -3,6 +3,8 @@ package raiden_network
 import (
 	"fmt"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
@@ -79,7 +81,10 @@ func (this *RaidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret
 func (this *RaidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
 	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock)
 	stateChange := &mediated_transfer.ReceiveSecretRequestStateChange{
-		Identifier: msg.Identifier, Amount: msg.Amount.Int64(), Hashlock: msg.HashLock, Sender: msg.Sender,
+		Identifier: msg.Identifier,
+		Amount:     new(big.Int).Set(msg.Amount),
+		Hashlock:   msg.HashLock,
+		Sender:     msg.Sender,
 	}
 	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
@@ -115,8 +120,15 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 		return
 	}
 	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock)
-	transferState := &mediated_transfer.LockedTransferState{Identifier: msg.Identifier, Amount: msg.Amount.Int64(), Token: msg.Token, Initiator: msg.Initiator,
-		Target: msg.Target, Expiration: msg.Expiration, Hashlock: msg.HashLock, Secret: utils.EmptyHash}
+	transferState := &mediated_transfer.LockedTransferState{
+		Identifier: msg.Identifier,
+		Amount:     new(big.Int).Set(msg.Amount),
+		Token:      msg.Token,
+		Initiator:  msg.Initiator,
+		Target:     msg.Target,
+		Expiration: msg.Expiration,
+		Hashlock:   msg.HashLock,
+		Secret:     utils.EmptyHash}
 	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{msg.Sender, transferState}
 	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
@@ -138,7 +150,8 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 	if ch.State() != transfer.CHANNEL_STATE_OPENED {
 		return rerr.TransferWhenClosed(ch.MyAddress.String())
 	}
-	amount := msg.TransferAmount.Int64() - ch.PartnerState.TransferAmount()
+	var amount = new(big.Int)
+	amount = amount.Sub(msg.TransferAmount, ch.PartnerState.TransferAmount())
 	stateChange := &transfer.ReceiveTransferDirectStateChange{
 		Identifier:   msg.Identifier,
 		Amount:       amount,
@@ -163,7 +176,7 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	this.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// this is a downstream bug and the transfer is going in cycles (issue #490)
-	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.Int64()}
+	key := SwapKey{msg.Identifier, msg.Token, msg.Amount}
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
@@ -198,7 +211,7 @@ func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfe
 	key := SwapKey{
 		Identifier: msg.Identifier,
 		FromToken:  msg.Token,
-		FromAmount: msg.Amount.Int64(),
+		FromAmount: msg.Amount,
 	}
 	/*
 			If we are the maker the task is already running and waiting for the

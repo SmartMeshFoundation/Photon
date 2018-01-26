@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -16,13 +18,13 @@ type ChannelsController struct {
 }
 
 type channelData struct {
-	ChannelAddress string `json:"channel_address"`
-	PartnerAddrses string `json:"partner_address"`
-	Balance        int64  `json:"balance"`
-	TokenAddress   string `json:"token_address"`
-	State          string `json:"state"`
-	SettleTimeout  int    `json:"settle_timeout"`
-	RevealTimeout  int    `json:"reveal_timeout"`
+	ChannelAddress string   `json:"channel_address"`
+	PartnerAddrses string   `json:"partner_address"`
+	Balance        *big.Int `json:"balance"`
+	TokenAddress   string   `json:"token_address"`
+	State          string   `json:"state"`
+	SettleTimeout  int      `json:"settle_timeout"`
+	RevealTimeout  int      `json:"reveal_timeout"`
 }
 
 func (this *ChannelsController) Get() {
@@ -103,7 +105,7 @@ func (this *ChannelsController) OpenChannel() {
 				SettleTimeout:  c.SettleTimeout,
 				TokenAddress:   c.TokenAddress.String(),
 			}
-			if req.Balance > 0 {
+			if req.Balance.Cmp(utils.BigInt0) > 0 {
 				err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DEFAULT_POLL_TIMEOUT)
 				if err == nil {
 					d.Balance = c.Balance()
@@ -128,7 +130,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 	chAddr := common.HexToAddress(chstr)
 	type req struct {
 		State   string
-		Balance int64
+		Balance *big.Int
 	}
 	r := &req{}
 	err := json.Unmarshal(this.Ctx.Input.RequestBody, r)
@@ -142,7 +144,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 		this.Abort(http.StatusConflict)
 		return
 	}
-	if r.Balance > 0 { //deposit
+	if r.Balance.Cmp(utils.BigInt0) > 0 { //deposit
 		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerState.Address, r.Balance, params.DEFAULT_POLL_TIMEOUT)
 		if err != nil {
 			this.Abort(http.StatusRequestTimeout)

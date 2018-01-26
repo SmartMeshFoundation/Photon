@@ -3,6 +3,8 @@ package mediated_transfer
 import (
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,7 +24,7 @@ State of a transfer that is time hash locked.
 */
 type LockedTransferState struct {
 	Identifier uint64         //A unique identifer for the transfer.
-	Amount     int64          // Amount of `token` being transferred.
+	Amount     *big.Int       // Amount of `token` being transferred.
 	Token      common.Address //Token being transferred.
 	Initiator  common.Address //Transfer initiator
 	Target     common.Address //Transfer target address.
@@ -34,7 +36,7 @@ type LockedTransferState struct {
 func (self *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 	//expiration maybe different
 	return self.Identifier == other.Identifier &&
-		self.Amount == other.Amount &&
+		self.Amount.Cmp(other.Amount) == 0 &&
 		self.Token == other.Token &&
 		self.Target == other.Target &&
 		self.Hashlock == other.Hashlock &&
@@ -45,7 +47,7 @@ func (self *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 func LockedTransferFromMessage(msg *encoding.MediatedTransfer) *LockedTransferState {
 	return &LockedTransferState{
 		Identifier: msg.Identifier,
-		Amount:     msg.Amount.Int64(),
+		Amount:     new(big.Int).Set(msg.Amount),
 		Token:      msg.Token,
 		Initiator:  msg.Initiator,
 		Target:     msg.Target,

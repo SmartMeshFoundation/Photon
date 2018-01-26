@@ -6,8 +6,6 @@ import (
 
 	"fmt"
 
-	"os"
-
 	"path/filepath"
 
 	"time"
@@ -17,6 +15,8 @@ import (
 	"sync"
 
 	"sync/atomic"
+
+	"math/big"
 
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
@@ -43,15 +43,15 @@ import (
 type SwapKey struct {
 	Identifier uint64
 	FromToken  common.Address
-	FromAmount int64
+	FromAmount *big.Int
 }
 type TokenSwap struct {
 	Identifier      uint64
 	FromToken       common.Address
-	FromAmount      int64
+	FromAmount      *big.Int
 	FromNodeAddress common.Address //the node address of the owner of the `from_token`
 	ToToken         common.Address
-	ToAmount        int64
+	ToAmount        *big.Int
 	ToNodeAddress   common.Address //the node address of the owner of the `to_token`
 }
 
@@ -60,7 +60,7 @@ tokenAddress common.Address, amount int64, target common.Address, identifier uin
 */
 type TransferReq struct {
 	TokenAddress common.Address
-	Amount       int64
+	Amount       *big.Int
 	Target       common.Address
 	Identifier   uint64
 	ReqId        string
@@ -116,7 +116,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	if config.SettleTimeout < params.NETTINGCHANNEL_SETTLE_TIMEOUT_MIN || config.SettleTimeout > params.NETTINGCHANNEL_SETTLE_TIMEOUT_MAX {
 		log.Error(fmt.Sprintf("settle timeout must be in range %d-%d",
 			params.NETTINGCHANNEL_SETTLE_TIMEOUT_MIN, params.NETTINGCHANNEL_SETTLE_TIMEOUT_MAX))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	srv = &RaidenService{
 		Chain:                    chain,
@@ -149,13 +149,13 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	locked, err := srv.FileLocker.TryLock()
 	if err != nil || !locked {
 		log.Error(fmt.Sprint("another instance already running at %s", config.DataBasePath))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	srv.SnapshortDir = filepath.Join(config.DataBasePath)
 	err = discover.Register(srv.NodeAddress, srv.Config.ExternIp, srv.Config.ExternPort)
 	if err != nil {
 		log.Error(fmt.Sprintf("register discover endpoint error:%s", err))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	log.Info("node discovery register complete...")
 	//srv.Start()
@@ -164,6 +164,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 
 // Start the node.
 func (this *RaidenService) Start() {
+	this.StartWg.Add(1)
 	this.AlarmTask.Start()
 	this.AlarmTask.RegisterCallback(func(number int64) error {
 		return this.setBlockNumber(number)
@@ -171,7 +172,7 @@ func (this *RaidenService) Start() {
 	err := this.BlockChainEvents.InstallEventListener()
 	if err != nil {
 		log.Error(fmt.Sprintf("BlockChainEvents listener error %v", err))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	/*
 			  Registry registration must start *after* the alarm task, this avoid
@@ -182,7 +183,7 @@ func (this *RaidenService) Start() {
 	err = this.RestoreSnapshot()
 	if err != nil {
 		log.Error(fmt.Sprintf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost!!", err, this.Config.DataBasePath))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	this.Protocol.Start()
 	this.StartWg.Done()
@@ -257,13 +258,13 @@ func (this *RaidenService) RegisterRegistry() {
 	mgrs, err := this.Chain.GetAllChannelManagers()
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterRegistry err:%s", err))
-		os.Exit(1)
+		utils.SystemExit(1)
 	}
 	for _, mgr := range mgrs {
 		err = this.RegisterChannelManager(mgr.Address)
 		if err != nil {
 			log.Error(fmt.Sprintf("RegisterChannelManager err:%s", err))
-			os.Exit(1)
+			utils.SystemExit(1)
 		}
 	}
 }
@@ -271,7 +272,7 @@ func (this *RaidenService) RegisterRegistry() {
 func (this *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
 	addr1, b1, addr2, b2, _ := proxy.AddressAndBalance()
 	var ourAddr, partnerAddr common.Address
-	var ourBalance, partnerBalance int64
+	var ourBalance, partnerBalance *big.Int
 	if addr1 == this.NodeAddress {
 		ourAddr = addr1
 		partnerAddr = addr2
@@ -677,7 +678,7 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (this *RaidenService) MediatedTransferAsync(tokenAddress common.Address, amount int64, target common.Address, identifier uint64) *network.AsyncResult {
+func (this *RaidenService) MediatedTransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
 	req := &TransferReq{
 		TokenAddress: tokenAddress,
 		Amount:       amount,
@@ -716,11 +717,11 @@ Do a direct tranfer with target.
        are required to complete the transfer (from the payer's perspective),
        whereas the mediated transfer requires 6 messages.
 */
-func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Address, amount int64, identifier uint64) (result *network.AsyncResult) {
+func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	directChannel := graph.GetPartenerAddress2Channel(target)
 	result = network.NewAsyncResult()
-	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable() < amount {
+	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- errors.New("no available direct channel")
 		return
 	} else {
@@ -756,7 +757,7 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 	}
 	return
 }
-func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount int64, identifier uint64) (result *network.AsyncResult) {
+func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
 	result = network.NewAsyncResult()
@@ -770,7 +771,7 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 	routesState := transfer.NewRoutesState(availableRoutes)
 	transferState := &mediated_transfer.LockedTransferState{
 		Identifier: identifier,
-		Amount:     amount,
+		Amount:     new(big.Int).Set(amount),
 		Token:      tokenAddress,
 		Initiator:  this.NodeAddress,
 		Target:     target,
@@ -822,7 +823,7 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 
 //收到了MediatedTransfer
 func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfer) {
-	amount := msg.Amount.Int64()
+	amount := msg.Amount
 	target := msg.Target
 	token := msg.Token
 	graph := this.GetToken2ChannelGraph(token)

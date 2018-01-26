@@ -121,7 +121,7 @@ func (this *AlarmTask) waitNewBlock() error {
 			return nil
 		case err = <-sub.Err():
 			//reconnect here, todo fix ,how to distinguish which error should reconnect
-			log.Error("err=", err)
+			log.Error(fmt.Sprintf("err=%s", err))
 			//spew.Dump(err)
 			//if eof try to reconnect
 			if err != nil {

@@ -3,6 +3,8 @@ package mediated_transfer
 import (
 	"encoding/gob"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -10,7 +12,7 @@ import (
 type EventSendMediatedTransfer struct {
 	Identifier uint64
 	Token      common.Address
-	Amount     int64
+	Amount     *big.Int
 	HashLock   common.Hash
 	Initiator  common.Address
 	Target     common.Address
@@ -22,7 +24,7 @@ func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common
 	return &EventSendMediatedTransfer{
 		Identifier: transfer.Identifier,
 		Token:      transfer.Token,
-		Amount:     transfer.Amount,
+		Amount:     new(big.Int).Set(transfer.Amount),
 		HashLock:   transfer.Hashlock,
 		Initiator:  transfer.Initiator,
 		Target:     transfer.Target,
@@ -99,7 +101,7 @@ Event used by a target node to request the secret from the initiator
 */
 type EventSendSecretRequest struct {
 	Identifer uint64
-	Amount    int64
+	Amount    *big.Int
 	Hashlock  common.Hash
 	Receiver  common.Address
 }
@@ -114,7 +116,7 @@ Event used to cleanly backtrack the current node in the route.
 type EventSendRefundTransfer struct {
 	Identifier uint64
 	Token      common.Address
-	Amount     int64
+	Amount     *big.Int
 	HashLock   common.Hash
 	Initiator  common.Address
 	Target     common.Address

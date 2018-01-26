@@ -3,6 +3,8 @@ package initiator
 import (
 	"testing"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -11,10 +13,12 @@ import (
 	assert2 "github.com/stretchr/testify/assert"
 )
 
+var x = big.NewInt(0)
+
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
 }
-func makeInitStateChange(routes []*transfer.RouteState, target common.Address, amount int64, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) *mediated_transfer.ActionInitInitiatorStateChange {
+func makeInitStateChange(routes []*transfer.RouteState, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) *mediated_transfer.ActionInitInitiatorStateChange {
 	tr := &mediated_transfer.LockedTransferState{
 		Identifier: identifier,
 		Amount:     amount,
@@ -31,7 +35,7 @@ func makeInitStateChange(routes []*transfer.RouteState, target common.Address, a
 	}
 	return initStateChange
 }
-func makeInitiatorState(routes []*transfer.RouteState, target common.Address, amount int64, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) (initState *mediated_transfer.InitiatorState) {
+func makeInitiatorState(routes []*transfer.RouteState, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) (initState *mediated_transfer.InitiatorState) {
 	initStateChange := makeInitStateChange(routes, target, amount, blocknumber, ourAddress, identifier, token)
 	it := StateTransition(nil, initStateChange)
 	initState = it.NewState.(*mediated_transfer.InitiatorState)
@@ -41,7 +45,7 @@ func TestNextRoute(t *testing.T) {
 	target := utest.HOP1
 	routes := []*transfer.RouteState{
 		utest.MakeRoute(utest.HOP2, utest.UNIT_TRANSFER_AMOUNT, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
-		utest.MakeRoute(utest.HOP3, utest.UNIT_TRANSFER_AMOUNT-1, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
+		utest.MakeRoute(utest.HOP3, x.Sub(utest.UNIT_TRANSFER_AMOUNT, big.NewInt(1)), utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP4, utest.UNIT_TRANSFER_AMOUNT, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
 	}
 	state := makeInitiatorState(routes, target, utest.UNIT_TRANSFER_AMOUNT, 0, utest.ADDR, 0, utest.UNIT_TOKEN_ADDRESS)
@@ -77,7 +81,7 @@ func TestInitWithUsableRoutes(t *testing.T) {
 	}
 	initStateChange := makeInitStateChange(routes, targetAddress, utest.UNIT_TRANSFER_AMOUNT, blockNumber, ourAddrses, 0, utest.UNIT_TOKEN_ADDRESS)
 	expiration := blockNumber + int64(utest.HOP1_TIMEOUT)
-	initiatorStateMachine := &transfer.StateManager{StateTransition, nil}
+	initiatorStateMachine := &transfer.StateManager{StateTransition, nil, NameInitiatorTransition}
 	assert(t, initiatorStateMachine.CurrentState, nil)
 	events := initiatorStateMachine.Dispatch(initStateChange)
 	initiatorState := initiatorStateMachine.CurrentState.(*mediated_transfer.InitiatorState)
@@ -115,7 +119,7 @@ func TestInitWithoutRoutes(t *testing.T) {
 	ourAddrses := utest.ADDR
 	routes := []*transfer.RouteState{}
 	initStateChange := makeInitStateChange(routes, targetAddress, utest.UNIT_TRANSFER_AMOUNT, blockNumber, ourAddrses, 0, utest.UNIT_TOKEN_ADDRESS)
-	initiatorStateMachine := &transfer.StateManager{StateTransition, nil}
+	initiatorStateMachine := &transfer.StateManager{StateTransition, nil, NameInitiatorTransition}
 	assert(t, initiatorStateMachine.CurrentState, nil)
 	events := initiatorStateMachine.Dispatch(initStateChange)
 
@@ -144,7 +148,7 @@ func TestStateWaitSecretRequestValid(t *testing.T) {
 		Hashlock:   hashlock,
 		Sender:     targetAddress,
 	}
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 1)
 	_, ok := events[0].(*mediated_transfer.EventSendRevealSecret)
@@ -174,7 +178,7 @@ func TestStateWaitUnlockValid(t *testing.T) {
 		Receiver:   targetAddress,
 		Sender:     ourAddress,
 	}
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
 		Secret: secret,
 		Sender: mediatorAddress,
@@ -230,7 +234,7 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 	var beforeState mediated_transfer.InitiatorState
 	utils.DeepCopy(&beforeState, currentState)
 
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
 		Secret: secret,
 		Sender: utest.ADDR, //wrong sender
@@ -262,7 +266,7 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	}
 	var priorState mediated_transfer.InitiatorState
 	utils.DeepCopy(&priorState, currentState)
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 1)
@@ -289,7 +293,7 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 		Sender:   mediatorAddress,
 		Transfer: tr,
 	}
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 1)
@@ -318,7 +322,7 @@ func TestRefundTransferInvalidSender(t *testing.T) {
 	}
 	var priorState mediated_transfer.InitiatorState
 	utils.DeepCopy(&priorState, currentState)
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 0)
@@ -345,7 +349,7 @@ func TestCancelTransfer(t *testing.T) {
 		Identifier: identifier,
 	}
 
-	sm := &transfer.StateManager{StateTransition, currentState}
+	sm := &transfer.StateManager{StateTransition, currentState, NameInitiatorTransition}
 
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 1)

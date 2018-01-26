@@ -3,6 +3,8 @@ package mediator
 import (
 	"testing"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -11,6 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	assert2 "github.com/stretchr/testify/assert"
 )
+
+var x = big.NewInt(0)
+var big10 = big.NewInt(10)
 
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
@@ -32,7 +37,7 @@ func makeInitStateChange(fromTransfer *mediated_transfer.LockedTransferState, fr
 		BlockNumber: 1,
 	}
 }
-func makeTransferPair(payer, payee, initiator, target common.Address, amount int64, expiration int64, secret common.Hash, revealTimeout int) *mediated_transfer.MediationPairState {
+func makeTransferPair(payer, payee, initiator, target common.Address, amount *big.Int, expiration int64, secret common.Hash, revealTimeout int) *mediated_transfer.MediationPairState {
 	payerExpiration := expiration
 	payeeExpiration := expiration - int64(revealTimeout)
 	return mediated_transfer.NewMediationPairState(
@@ -54,7 +59,7 @@ func makeTransfersPair(initiator common.Address, hops []common.Address, target c
 		if nextExpiration <= 0 {
 			log.Error("nextExpiration<=0")
 		}
-		pair := makeTransferPair(payer, payee, initiator, target, amount, nextExpiration, secret, revealTimeout)
+		pair := makeTransferPair(payer, payee, initiator, target, big.NewInt(amount), nextExpiration, secret, revealTimeout)
 		pairs = append(pairs, pair)
 		/*
 					    assumes that the node sending the refund will follow the protocol and
@@ -72,7 +77,7 @@ func makeMediatorState(fromTransfer *mediated_transfer.LockedTransferState, from
 
 //A hash time lock is valid up to the expiraiton block.
 func TestIsLockValid(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 10
 	initiator := utest.HOP1
 	target := utest.HOP2
@@ -88,7 +93,7 @@ It's safe to wait for a secret while there are more than reveal timeout
     blocks until the lock expiration.
 */
 func TestIsSafeToWait(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 40
 	initiator := utest.HOP1
 	target := utest.HOP2
@@ -105,7 +110,7 @@ func TestIsSafeToWait(t *testing.T) {
 
 //Don't close the channel if the payee transfer is not paid.
 func TestIsChannelCloseNeededUnpaid(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 10
 	var revealTimeout int = 5
 
@@ -127,7 +132,7 @@ func TestIsChannelCloseNeededUnpaid(t *testing.T) {
 
 //Close the channel if the payee transfer is paid but the payer has not paid.
 func TestIsChannelClosedNeededPaid(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 10
 	var revealTimeout int = 5
 
@@ -145,7 +150,7 @@ func TestIsChannelClosedNeededPaid(t *testing.T) {
 
 //If the channel is already closed the anser is always no.
 func TestIsChannelCloseNeedChannelClosed(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 10
 	var revealTimeout int = 5
 
@@ -162,7 +167,7 @@ func TestIsChannelCloseNeedChannelClosed(t *testing.T) {
 }
 
 func TestIsChannelCloseNeededClosed(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 10
 	var revealTimeout int = 5
 
@@ -182,7 +187,7 @@ func TestIsValidRefund(t *testing.T) {
 	validSender := utest.HOP2
 	tr := &mediated_transfer.LockedTransferState{
 		Identifier: 20,
-		Amount:     30,
+		Amount:     big.NewInt(30),
 		Token:      utest.UNIT_TOKEN_ADDRESS,
 		Initiator:  initiator,
 		Target:     target,
@@ -192,7 +197,7 @@ func TestIsValidRefund(t *testing.T) {
 	}
 	refundLowerExpiration := &mediated_transfer.LockedTransferState{
 		Identifier: 20,
-		Amount:     30,
+		Amount:     big.NewInt(30),
 		Token:      utest.UNIT_TOKEN_ADDRESS,
 		Initiator:  initiator,
 		Target:     target,
@@ -205,7 +210,7 @@ func TestIsValidRefund(t *testing.T) {
 
 	refundSameExpiration := &mediated_transfer.LockedTransferState{
 		Identifier: 20,
-		Amount:     30,
+		Amount:     big.NewInt(30),
 		Token:      utest.UNIT_TOKEN_ADDRESS,
 		Initiator:  initiator,
 		Target:     target,
@@ -217,7 +222,7 @@ func TestIsValidRefund(t *testing.T) {
 }
 
 func TestGetTimeoutBlocks(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	initiator := utest.HOP1
 	nextHop := utest.HOP2
 	settleTimeout := 30
@@ -253,13 +258,13 @@ func TestGetTimeoutBlocks(t *testing.T) {
 
 //Routes that dont have enough available_balance must be ignored.
 func TestNextRouteAmount(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	revealTimeout := 30
 	timeoutBlocks := 40
 	routes := []*transfer.RouteState{
-		utest.MakeRoute(utest.HOP2, amount*2, 0, revealTimeout, 0, utils.NewRandomAddress()),
-		utest.MakeRoute(utest.HOP1, amount+1, 0, revealTimeout, 0, utils.NewRandomAddress()),
-		utest.MakeRoute(utest.HOP3, amount/2, 0, revealTimeout, 0, utils.NewRandomAddress()),
+		utest.MakeRoute(utest.HOP2, x.Add(amount, amount), 0, revealTimeout, 0, utils.NewRandomAddress()),
+		utest.MakeRoute(utest.HOP1, x.Add(amount, big.NewInt(1)), 0, revealTimeout, 0, utils.NewRandomAddress()),
+		utest.MakeRoute(utest.HOP3, x.Div(amount, big.NewInt(2)), 0, revealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP4, amount, 0, revealTimeout, 0, utils.NewRandomAddress()),
 	}
 	routesState := transfer.NewRoutesState(routes)
@@ -284,8 +289,8 @@ func TestNextRouteAmount(t *testing.T) {
 
 //Routes with a larger reveal timeout than timeout_blocks must be ignored.
 func TestNextRouteRevealTimeout(t *testing.T) {
-	var amount int64 = 10
-	var balance int64 = 20
+	var amount = big.NewInt(10)
+	var balance = big.NewInt(20)
 	timeoutBlocks := 40
 
 	routes := []*transfer.RouteState{
@@ -309,7 +314,7 @@ func TestNextRouteRevealTimeout(t *testing.T) {
 func TestNextTransferPair(t *testing.T) {
 	timeoutBlocks := 47
 	var blockNumber int64 = 3
-	var balance int64 = 10
+	var balance = big.NewInt(10)
 	initiator := utest.HOP1
 	target := utest.ADDR
 
@@ -389,7 +394,7 @@ func TestSetExpiredPairs(t *testing.T) {
 }
 
 func TestEventsForRefund(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var expiration int64 = 30
 	var revealTimeout int = 17
 	var timeoutBlocks int = int(expiration)
@@ -714,7 +719,7 @@ func TestSecretLearned(t *testing.T) {
 	assert(t, balanceNumber, 1)
 }
 func TestMediateTransfer(t *testing.T) {
-	var amount int64 = 10
+	var amount = big.NewInt(10)
 	var blockNumber int64 = 5
 	var expiration int64 = 30
 	var routes = []*transfer.RouteState{utest.MakeRoute(utest.HOP2, utest.UNIT_TRANSFER_AMOUNT, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress())}
@@ -777,8 +782,8 @@ func TestInitMediator(t *testing.T) {
 
 func TestNoValidRoutes(t *testing.T) {
 	fromRoute, FromTransfer := utest.MakeFrom(utest.UNIT_TRANSFER_AMOUNT, utest.HOP2, int64(utest.HOP1_TIMEOUT), utils.NewRandomAddress(), utils.EmptyHash)
-	var routes = []*transfer.RouteState{utest.MakeRoute(utest.HOP2, utest.UNIT_TRANSFER_AMOUNT-1, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
-		utest.MakeRoute(utest.HOP3, 1, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
+	var routes = []*transfer.RouteState{utest.MakeRoute(utest.HOP2, x.Sub(utest.UNIT_TRANSFER_AMOUNT, big.NewInt(1)), utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
+		utest.MakeRoute(utest.HOP3, big.NewInt(1), utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
 	}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
 	sm := &transfer.StateManager{StateTransition, nil, "mediator"}
