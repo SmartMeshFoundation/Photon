@@ -31,6 +31,8 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	return c, err
 }
 func (this *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} {
+	this.lock.Lock()
+	defer this.lock.Unlock()
 	c, ok := this.ReConnect[name]
 	if ok {
 		log.Warn("NeedReConnectNotify should only call once")
@@ -54,10 +56,16 @@ func (this *SafeEthClient) RecoverDisconnect() {
 			//reconnect ok
 			this.lock.Lock()
 			this.Client = client
-			this.lock.Unlock()
-			for _, c := range this.ReConnect {
+			var keys []string
+			for name, c := range this.ReConnect {
+				keys = append(keys, name)
 				c <- struct{}{}
+				close(c)
 			}
+			for _, name := range keys {
+				delete(this.ReConnect, name)
+			}
+			this.lock.Unlock()
 			return
 		}
 		time.Sleep(time.Second * 3)
