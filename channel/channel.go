@@ -412,7 +412,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		}
 	}
 	mroot := fromState.TreeState.Tree.MerkleRoot()
-	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%s,nonce=%s,current_locksroot=%s,\ntransfer=%s",
+	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%s,nonce=%d,current_locksroot=%s,\ntransfer=%s",
 		utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 		fromState.TransferAmount(), fromState.Nonce(), utils.Pex(mroot[:]), utils.StringInterface(tr, 3)))
 	return nil

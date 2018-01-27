@@ -176,7 +176,7 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	this.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// this is a downstream bug and the transfer is going in cycles (issue #490)
-	key := SwapKey{msg.Identifier, msg.Token, msg.Amount}
+	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.String()}
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
@@ -211,7 +211,7 @@ func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfe
 	key := SwapKey{
 		Identifier: msg.Identifier,
 		FromToken:  msg.Token,
-		FromAmount: msg.Amount,
+		FromAmount: msg.Amount.String(),
 	}
 	/*
 			If we are the maker the task is already running and waiting for the

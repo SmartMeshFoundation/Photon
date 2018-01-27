@@ -38,12 +38,11 @@ import (
 	"github.com/theckman/go-flock"
 )
 
-//simulate async result of python
-
+//key for map, no pointer
 type SwapKey struct {
 	Identifier uint64
 	FromToken  common.Address
-	FromAmount *big.Int
+	FromAmount string //string of  big int
 }
 type TokenSwap struct {
 	Identifier      uint64

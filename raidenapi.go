@@ -369,10 +369,10 @@ func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken,
 	tokenSwap := &TokenSwap{
 		Identifier:      identifier,
 		FromToken:       makerToken,
-		FromAmount:      makerAmount,
+		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
 		ToToken:         takerToken,
-		ToAmount:        takerAmount,
+		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
 	}
 	result = network.NewAsyncResult()
@@ -383,7 +383,7 @@ func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken,
 	key := SwapKey{
 		Identifier: identifier,
 		FromToken:  takerToken,
-		FromAmount: takerAmount,
+		FromAmount: takerAmount.String(),
 	}
 	this.Raiden.SwapKey2TokenSwap[key] = tokenSwap
 	this.Raiden.SwapKey2Task[key] = task
@@ -413,15 +413,15 @@ func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken
 	key := SwapKey{
 		Identifier: identifier,
 		FromToken:  makerToken,
-		FromAmount: makerAmount,
+		FromAmount: makerAmount.String(),
 	}
 	tokenSwap := &TokenSwap{
 		Identifier:      identifier,
 		FromToken:       makerToken,
-		FromAmount:      makerAmount,
+		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
 		ToToken:         takerToken,
-		ToAmount:        takerAmount,
+		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
 	}
 

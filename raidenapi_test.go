@@ -40,7 +40,7 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	key1 := SwapKey{
 		Identifier: 32,
 		FromToken:  utils.NewRandomAddress(),
-		FromAmount: big.NewInt(300),
+		FromAmount: big.NewInt(300).String(),
 	}
 	key2 := key1
 	m := make(map[SwapKey]bool)
