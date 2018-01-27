@@ -75,6 +75,7 @@ type RaidenProtocol struct {
 	statusLock                   sync.RWMutex
 	ReceivedMessageChannel       chan *MessageToRaiden
 	ReceivedMessageResultChannel chan error
+	OrderedSendLockMap           map[common.Address]*sync.Mutex //maker sure message order to the partner
 }
 
 func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, privKey *ecdsa.PrivateKey) *RaidenProtocol {
@@ -89,6 +90,7 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 		address2NetworkStatus:        make(map[common.Address]*NetworkStatus),
 		ReceivedMessageChannel:       make(chan *MessageToRaiden),
 		ReceivedMessageResultChannel: make(chan error),
+		OrderedSendLockMap:           make(map[common.Address]*sync.Mutex),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	tr, ok := transport.(*UDPTransport)
@@ -188,9 +190,27 @@ func (this *RaidenProtocol) sendWithResult(receiver common.Address,
 	msgState.AsyncResult.Sub = sub
 	this.mapLock.Lock()
 	this.SentHashesToChannel[echohash] = msgState
+
 	this.mapLock.Unlock()
 	result = msgState.AsyncResult
 	go func() { //try to send many times
+		this.mapLock.Lock()
+		/*
+			lock the message on road,make sure the message is ordered
+		*/
+		orderLock, ok2 := this.OrderedSendLockMap[receiver]
+		if !ok2 {
+			log.Trace("orderlock notfound")
+			orderLock = &sync.Mutex{}
+			this.OrderedSendLockMap[receiver] = orderLock
+		}
+		this.mapLock.Unlock()
+		orderLock.Lock()
+		log.Trace(fmt.Sprintf("orderLock %s lock", receiver.String()))
+		defer func() {
+			orderLock.Unlock()
+			log.Trace(fmt.Sprintf("orderLock %s unlock", receiver.String()))
+		}()
 		for i := 0; i < this.retryTimes; i++ {
 			//log.Trace(fmt.Sprintf("before send:\n%s\n", hex.Dump(data)))
 			err := this.sendRawWitNoAck(receiver, data)

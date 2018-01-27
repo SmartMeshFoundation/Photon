@@ -129,7 +129,7 @@ func NewContractDiscovery(mynode common.Address, client *helper.SafeEthClient, a
 				if err != nil {
 					continue
 				}
-				log.Debug(fmt.Sprintf("receive register socket:%#v", ev))
+				log.Debug(fmt.Sprintf("receive register node=%s, socket=%s", ev.EthAddress.Str(), ev.Socket))
 				c.put(ev.EthAddress, ev.Socket)
 			}
 

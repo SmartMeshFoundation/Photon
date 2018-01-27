@@ -24,8 +24,9 @@ var curAccountIndex = 0
 
 func newTestRaiden() *RaidenService {
 	transport := network.MakeTestUDPTransport(50000 + curAccountIndex + 1)
-	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
 	bcs := newTestBlockChainService()
+	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
+	//discover := network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey
@@ -47,7 +48,8 @@ func newTestRaidenApi() *RaidenApi {
 	go func() {
 		api.Raiden.Start()
 	}()
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second)
+	api.Raiden.StartWg.Wait()
 	return api
 }
 
@@ -114,6 +116,7 @@ func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
 	go func() {
 		rD.Raiden.Start()
 	}()
+	time.Sleep(time.Second)
 	rA.Raiden.StartWg.Wait()
 	rB.Raiden.StartWg.Wait()
 	rC.Raiden.StartWg.Wait()
