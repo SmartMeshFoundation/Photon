@@ -55,7 +55,7 @@ func (this *Api) GetChannelList() (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	channels, err = marshal(chs)
+	channels, err = marshal(datas)
 	return
 }
 
