@@ -91,7 +91,7 @@ func setupLog() {
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
 }
 func mobileMain() (api *Api, err error) {
-	fmt.Printf("Welcom to GoRaiden,version %s\n", 0.1)
+	fmt.Printf("Welcom to GoRaiden,version %f\n", 0.1)
 	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
 	setupLog()
 	/*
@@ -128,6 +128,7 @@ func mobileMain() (api *Api, err error) {
 	}()
 	api = &Api{raiden_network.NewRaidenApi(raidenService)}
 	regQuitHandler(api.api)
+	time.Sleep(time.Millisecond * 10) //let go func run
 	raidenService.StartWg.Wait()
 	return api, nil
 }
