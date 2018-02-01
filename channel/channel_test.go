@@ -10,9 +10,7 @@ import (
 	"os"
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -146,18 +144,6 @@ func TestEndState(t *testing.T) {
 	assert.EqualValues(t, state1.Nonce(), 2)
 	assert.EqualValues(t, state2.Nonce(), 0)
 }
-func newTestBlockChainService() *rpc.BlockChainService {
-	conn, err := helper.NewSafeClient(rpc.TestRpcEndpoint)
-	if err != nil {
-		log.Error("Failed to connect to the Ethereum client: ", err)
-	}
-	privkey, _ := utils.MakePrivateKeyAddress()
-	if err != nil {
-		log.Error("Failed to create authorized transactor: ", err)
-	}
-	return rpc.NewBlockChainService(privkey, params.ROPSTEN_REGISTRY_ADDRESS, conn)
-}
-
 func makeExternState() *ChannelExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address

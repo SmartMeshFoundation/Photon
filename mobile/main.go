@@ -122,14 +122,10 @@ func mobileMain() (api *Api, err error) {
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
-	go func() {
-		//startup may take long time and then enter loop
-		raidenService.Start()
-	}()
+	//startup may take long time
+	raidenService.Start()
 	api = &Api{raiden_network.NewRaidenApi(raidenService)}
 	regQuitHandler(api.api)
-	time.Sleep(time.Millisecond * 10) //let go func run
-	raidenService.StartWg.Wait()
 	return api, nil
 }
 func regQuitHandler(api *raiden_network.RaidenApi) {

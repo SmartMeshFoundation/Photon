@@ -10,6 +10,8 @@ import (
 
 	"encoding/hex"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
@@ -45,11 +47,7 @@ func newTestRaiden() *RaidenService {
 }
 func newTestRaidenApi() *RaidenApi {
 	api := NewRaidenApi(newTestRaiden())
-	go func() {
-		api.Raiden.Start()
-	}()
-	time.Sleep(time.Second)
-	api.Raiden.StartWg.Wait()
+	api.Raiden.Start()
 	return api
 }
 
@@ -67,13 +65,13 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 func newTestBlockChainService() *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRpcEndpoint)
 	if err != nil {
-		log.Error("Failed to connect to the Ethereum client: ", err)
+		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
 	privkey, _ := testGetnextValidAccount()
 	if err != nil {
 		log.Error("Failed to create authorized transactor: ", err)
 	}
-	return rpc.NewBlockChainService(privkey, params.ROPSTEN_REGISTRY_ADDRESS, conn)
+	return rpc.NewBlockChainService(privkey, rpc.PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
 }
 
 func makeTestRaidens() (r1, r2, r3 *RaidenService) {
@@ -104,22 +102,23 @@ func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
 	rB = newTestRaidenApiQuick()
 	rC = newTestRaidenApiQuick()
 	rD = newTestRaidenApiQuick()
+	wg := sync.WaitGroup{}
+	wg.Add(4)
 	go func() {
 		rA.Raiden.Start()
+		wg.Done()
 	}()
 	go func() {
 		rB.Raiden.Start()
+		wg.Done()
 	}()
 	go func() {
 		rC.Raiden.Start()
+		wg.Done()
 	}()
 	go func() {
 		rD.Raiden.Start()
+		wg.Done()
 	}()
-	time.Sleep(time.Second)
-	rA.Raiden.StartWg.Wait()
-	rB.Raiden.StartWg.Wait()
-	rC.Raiden.StartWg.Wait()
-	rD.Raiden.StartWg.Wait()
 	return
 }

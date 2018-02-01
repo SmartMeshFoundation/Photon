@@ -108,13 +108,26 @@ func (c *Channel) TransferAmount() *big.Int {
 /*
 		Return our current balance.
 
-        Balance is equal to `initial_deposit + received_amount - sent_amount`,
+        OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
         were both `receive_amount` and `sent_amount` are unlocked.
 */
 func (c *Channel) Balance() *big.Int {
 	x := new(big.Int)
 	x.Sub(c.OurState.ContractBalance, c.OurState.TransferAmount())
 	x.Add(x, c.PartnerState.TransferAmount())
+	return x
+}
+
+/*
+		Return partner current balance.
+
+        OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
+        were both `receive_amount` and `sent_amount` are unlocked.
+*/
+func (c *Channel) PartnerBalance() *big.Int {
+	x := new(big.Int)
+	x.Sub(c.PartnerState.ContractBalance, c.PartnerState.TransferAmount())
+	x.Add(x, c.OurState.TransferAmount())
 	return x
 }
 
@@ -564,10 +577,10 @@ func (c *Channel) String() string {
 }
 
 type ChannelSerialization struct {
-	ChannelAddress             common.Address
-	TokenAddress               common.Address
-	PartnerAddress             common.Address
-	OurAddress                 common.Address
+	ChannelAddress             common.Address `storm:"id"`
+	TokenAddress               common.Address `storm:"index"`
+	PartnerAddress             common.Address `storm:"index"`
+	OurAddress                 common.Address `storm:"index"`
 	RevealTimeout              int
 	OurBalanceProof            *transfer.BalanceProofState
 	PartnerBalanceProof        *transfer.BalanceProofState
@@ -577,6 +590,12 @@ type ChannelSerialization struct {
 	OurLock2UnclaimedLocks     map[common.Hash]UnlockPartialProof
 	PartnerLock2PendingLocks   map[common.Hash]PendingLock
 	PartnerLock2UnclaimedLocks map[common.Hash]UnlockPartialProof
+	State                      string
+	OurBalance                 *big.Int
+	PartnerBalance             *big.Int
+	OurContractBalance         *big.Int
+	PartnerContractBalance     *big.Int
+	SettleTimeout              int
 }
 
 func NewChannelSerialization(c *Channel) *ChannelSerialization {
@@ -594,6 +613,12 @@ func NewChannelSerialization(c *Channel) *ChannelSerialization {
 		OurLock2UnclaimedLocks:     c.OurState.Lock2UnclaimedLocks,
 		PartnerLock2PendingLocks:   c.PartnerState.Lock2PendingLocks,
 		PartnerLock2UnclaimedLocks: c.PartnerState.Lock2UnclaimedLocks,
+		State:                  c.State(),
+		OurBalance:             c.Balance(),
+		PartnerBalance:         c.PartnerBalance(),
+		SettleTimeout:          c.SettleTimeout,
+		OurContractBalance:     c.ContractBalance(),
+		PartnerContractBalance: c.PartnerState.ContractBalance,
 	}
 	return s
 }

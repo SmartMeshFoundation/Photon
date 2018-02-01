@@ -55,7 +55,7 @@ func Main(ctx *cli.Context) error {
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		log.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
 	address := common.HexToAddress(ctx.String("address"))
 	address, key := promptAccount(address, ctx.String("keystore-path"))

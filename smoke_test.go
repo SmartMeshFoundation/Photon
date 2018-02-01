@@ -25,7 +25,9 @@ func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
 }
 func deployAToken(t *testing.T, raiden *RaidenService) (addr common.Address) {
-	addr, tx, _, err := rpc.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, big.NewInt(0x500000), "Contracts in Go!!!", 0, "Go!")
+	n := new(big.Int)
+	n.SetBytes(raiden.NodeAddress[:])
+	addr, tx, _, err := rpc.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, "Contracts in Go!!!", 0, "Go!")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -93,11 +95,11 @@ func TestSmoke(t *testing.T) {
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
 	var tAmount = big.NewInt(1)
-	if true {
+	if false {
 		tokenAddr, tokenAddr2 = newEnv(t, ra, rb, rc, rd)
 	} else {
-		tokenAddr = common.HexToAddress("0xDB166384c95A7EFee3dEac89502685EaFf2A697A")
-		tokenAddr2 = common.HexToAddress("0xBF724B8a37FE76170a5EF06e2ebB44Fc33bbCDa6")
+		tokenAddr = common.HexToAddress("0x0CD57FFf807fBB160941981a573A91f8B4880924")
+		tokenAddr2 = common.HexToAddress("0xb1Bd4Ad117BD467101fDB9e35cFCf86945b3CF75")
 		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
 		log.Info("channels about token1")
 		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
@@ -132,7 +134,7 @@ func TestSmoke(t *testing.T) {
 	assert(t, rc.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 4 D connect to this token network")
-	if true {
+	if false {
 		err = rd.ConnectTokenNetwork(tokenAddr, big.NewInt(300), 3, 0.4)
 		if err != nil {
 			t.Error(err)
@@ -191,8 +193,10 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.GetChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 	assert(t, rc.Raiden.GetChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 	log.Info(" step 8 test leave network take a long long time")
-	_, err = rd.LeaveTokenNetwork(tokenAddr, true)
-	if err != nil {
-		t.Error(err)
+	if false {
+		_, err = rd.LeaveTokenNetwork(tokenAddr, true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }

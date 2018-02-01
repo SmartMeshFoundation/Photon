@@ -40,7 +40,7 @@ func (this *RaidenService) SaveSnapshot() {
 			ds.Channels = append(ds.Channels, cs)
 		}
 	}
-	_, err := this.TransactionLog.Snapshot(1, ds)
+	_, err := this.db.Snapshot(1, ds)
 	if err != nil {
 		log.Error("save snapshot :", err)
 	}
@@ -52,7 +52,7 @@ func (this *RaidenService) RestoreSnapshot() error {
 		return nil
 	}
 	log.Info("RestoreSnapshot...")
-	data, err := this.TransactionLog.LoadSnapshot()
+	data, err := this.db.LoadSnapshot()
 	if err != nil {
 		log.Error("restore snapshot :", err)
 		return err

@@ -32,14 +32,17 @@ func (this *ChannelsController) Get() {
 		this.SpecifiedChannel()
 		return
 	}
-	chs := RaidenApi.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, err := RaidenApi.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	if err != nil {
+		this.Abort(http.StatusInternalServerError)
+	}
 	var datas []*channelData
 	for _, c := range chs {
 		d := &channelData{
-			ChannelAddress: c.MyAddress.String(),
-			PartnerAddrses: c.PartnerState.Address.String(),
-			Balance:        c.Balance(),
-			State:          c.State(),
+			ChannelAddress: c.ChannelAddress.String(),
+			PartnerAddrses: c.PartnerAddress.String(),
+			Balance:        c.OurBalance,
+			State:          c.State,
 			TokenAddress:   c.TokenAddress.String(),
 			SettleTimeout:  c.SettleTimeout,
 			RevealTimeout:  c.RevealTimeout,
@@ -67,10 +70,10 @@ func (this *ChannelsController) SpecifiedChannel() {
 		return
 	}
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.ChannelAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}
@@ -98,17 +101,17 @@ func (this *ChannelsController) OpenChannel() {
 			return
 		} else {
 			d := &channelData{
-				ChannelAddress: c.MyAddress.String(),
-				PartnerAddrses: c.PartnerState.Address.String(),
-				Balance:        c.Balance(),
-				State:          c.State(),
+				ChannelAddress: c.ChannelAddress.String(),
+				PartnerAddrses: c.PartnerAddress.String(),
+				Balance:        c.OurBalance,
+				State:          c.State,
 				SettleTimeout:  c.SettleTimeout,
 				TokenAddress:   c.TokenAddress.String(),
 			}
 			if req.Balance.Cmp(utils.BigInt0) > 0 {
 				err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DEFAULT_POLL_TIMEOUT)
 				if err == nil {
-					d.Balance = c.Balance()
+					d.Balance = c.OurBalance
 				} else {
 					log.Error(" RaidenApi.Deposit error : ", err)
 				}
@@ -145,7 +148,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 		return
 	}
 	if r.Balance.Cmp(utils.BigInt0) > 0 { //deposit
-		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerState.Address, r.Balance, params.DEFAULT_POLL_TIMEOUT)
+		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerAddress, r.Balance, params.DEFAULT_POLL_TIMEOUT)
 		if err != nil {
 			this.Abort(http.StatusRequestTimeout)
 			return
@@ -157,15 +160,14 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 			return
 		}
 		if r.State == transfer.CHANNEL_STATE_CLOSED {
-			_, err = RaidenApi.Close(c.TokenAddress, c.PartnerState.Address)
+			c, err = RaidenApi.Close(c.TokenAddress, c.PartnerAddress)
 			if err != nil {
 				log.Error(err.Error())
 				this.Abort(http.StatusInternalServerError)
 				return
 			}
 		} else {
-			//_, err = RaidenApi.Settle(c.TokenAddress, c.PartnerState.Address)
-			err = c.ExternState.Settle()
+			c, err = RaidenApi.Settle(c.TokenAddress, c.PartnerAddress)
 			if err != nil {
 				log.Error(err.Error())
 				this.Abort(http.StatusConflict)
@@ -173,11 +175,13 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 			}
 		}
 	}
+	//reload new data from database
+	c, _ = RaidenApi.GetChannel(c.ChannelAddress)
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.ChannelAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}

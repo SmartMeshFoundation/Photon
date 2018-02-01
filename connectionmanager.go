@@ -92,11 +92,11 @@ func (this *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int6
 	this.lock.Unlock()
 	return err
 }
-func (this *ConnectionManager) openChannels() []*channel.Channel {
-	chs := this.api.GetChannelList(this.tokenAddress, utils.EmptyAddress)
-	var chs2 []*channel.Channel
+func (this *ConnectionManager) openChannels() []*channel.ChannelSerialization {
+	chs, _ := this.api.GetChannelList(this.tokenAddress, utils.EmptyAddress)
+	var chs2 []*channel.ChannelSerialization
 	for _, c := range chs {
-		if c.State() == transfer.CHANNEL_STATE_OPENED {
+		if c.State == transfer.CHANNEL_STATE_OPENED {
 			chs2 = append(chs2, c)
 		}
 	}
@@ -143,15 +143,15 @@ func (this *ConnectionManager) sumDeposits() *big.Int {
 	chs := this.openChannels()
 	var sum = big.NewInt(0)
 	for _, c := range chs {
-		sum.Add(sum, c.ContractBalance())
+		sum.Add(sum, c.OurContractBalance)
 	}
 	return sum
 }
 
 //Shorthand for getting channels that had received any transfers in this token network
-func (this *ConnectionManager) receivingChannels() (chs []*channel.Channel) {
+func (this *ConnectionManager) receivingChannels() (chs []*channel.ChannelSerialization) {
 	for _, c := range this.openChannels() {
-		if len(c.ReceivedTransfers) > 0 {
+		if c.PartnerBalanceProof != nil && c.PartnerBalanceProof.Nonce > 0 {
 			chs = append(chs, c)
 		}
 	}
@@ -165,9 +165,12 @@ func (this *ConnectionManager) minSettleBlocks() int64 {
 	currentBlock := this.raiden.GetBlockNumber()
 	for _, c := range chs {
 		var sinceClosed int64
-		if c.State() == transfer.CHANNEL_STATE_CLOSED {
-			sinceClosed = currentBlock - c.ExternState.ClosedBlock
-		} else if c.State() == transfer.CHANNEL_STATE_OPENED {
+		if c.State == transfer.CHANNEL_STATE_CLOSED {
+			//todo fix this!
+			log.Info(fmt.Sprintf("calc minSettleBlocks need fix:%d", currentBlock))
+			// sinceClosed = currentBlock - c.ExternState.ClosedBlock
+			sinceClosed = int64(c.SettleTimeout)
+		} else if c.State == transfer.CHANNEL_STATE_OPENED {
 			sinceClosed = -1
 		} else {
 			sinceClosed = 0
@@ -195,24 +198,25 @@ Close all channels in the token network.
         If only_receiving is False then we close and settle all channels irrespective of them
         having received transfers or not.
 */
-func (this *ConnectionManager) closeAll(onlyReceiving bool) []*channel.Channel {
+func (this *ConnectionManager) closeAll(onlyReceiving bool) []*channel.ChannelSerialization {
 	this.lock.Lock()
 	defer this.lock.Unlock()
 	this.initChannelTarget = 0
-	var channelsToClose []*channel.Channel
+	var channelsToClose []*channel.ChannelSerialization
 	if onlyReceiving {
 		channelsToClose = this.receivingChannels()
 	} else {
 		channelsToClose = this.openChannels()
 	}
 	for _, c := range channelsToClose {
-		_, err := this.api.Close(this.tokenAddress, c.PartnerState.Address)
+		_, err := this.api.Close(this.tokenAddress, c.PartnerAddress)
 		if err != nil {
-			log.Error("close channel %s error:%s", utils.APex(c.MyAddress), err)
+			log.Error(fmt.Sprintf("close channel %s error:%s", utils.APex(c.ChannelAddress), err))
 		}
 	}
 	return channelsToClose
 }
+
 func (this *ConnectionManager) LeaveAsync() *network.AsyncResult {
 	result := network.NewAsyncResult()
 	go func() {
@@ -227,7 +231,7 @@ func (this *ConnectionManager) LeaveAsync() *network.AsyncResult {
 Leave the token network.
         This implies closing all channels and waiting for all channels to be settled.
 */
-func (this *ConnectionManager) Leave(onlyReceiving bool) []*channel.Channel {
+func (this *ConnectionManager) Leave(onlyReceiving bool) []*channel.ChannelSerialization {
 	this.raiden.MessageHandler.blockedTokens[this.tokenAddress] = true
 	if this.initChannelTarget > 0 {
 		this.initChannelTarget = 0
@@ -241,12 +245,12 @@ func (this *ConnectionManager) Leave(onlyReceiving bool) []*channel.Channel {
 "Wait for all closed channels of the token network to settle.
         Note, that this does not time out.
 */
-func (this *ConnectionManager) WaitForSettle(closedChannels []*channel.Channel) bool {
+func (this *ConnectionManager) WaitForSettle(closedChannels []*channel.ChannelSerialization) bool {
 	found := false
 	for {
 		found = false
 		for _, c := range closedChannels {
-			if c.State() != transfer.CHANNEL_STATE_SETTLED {
+			if c.State != transfer.CHANNEL_STATE_SETTLED {
 				found = true
 				break
 			}
@@ -374,7 +378,7 @@ Search the token network for potential channel partners.
 func (this *ConnectionManager) findNewPartners(number int) []common.Address {
 	var known = make(map[common.Address]bool)
 	for _, c := range this.openChannels() {
-		known[c.PartnerState.Address] = true
+		known[c.PartnerAddress] = true
 	}
 	known[this.BOOTSTRAP_ADDR] = true
 	known[this.raiden.NodeAddress] = true

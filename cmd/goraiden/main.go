@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 
 	"os/signal"
-	"runtime"
 	"time"
 
 	"github.com/SmartMeshFoundation/raiden-network"
@@ -343,5 +342,5 @@ func init() {
 	setNativeThreadNumber()
 }
 func setNativeThreadNumber() {
-	runtime.GOMAXPROCS(1)
+	//runtime.GOMAXPROCS(1)
 }

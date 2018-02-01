@@ -21,12 +21,12 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
+	"github.com/SmartMeshFoundation/raiden-network/models"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/db"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/initiator"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
@@ -54,15 +54,34 @@ type TokenSwap struct {
 	ToNodeAddress   common.Address //the node address of the owner of the `to_token`
 }
 
-/*
-tokenAddress common.Address, amount int64, target common.Address, identifier uint64
-*/
+const TransferReqName = "transfer"
+const NewChannelReqName = "newchannel"
+const CloseChannelReqName = "closechannel"
+const SettleChannelReqName = "settlechannel"
+const DepositChannelReqName = "deposit"
+
 type TransferReq struct {
 	TokenAddress common.Address
 	Amount       *big.Int
 	Target       common.Address
 	Identifier   uint64
-	ReqId        string
+}
+type NewChannelReq struct {
+	tokenAddress   common.Address
+	partnerAddress common.Address
+	settleTimeout  int
+}
+type CloseSettleChannelReq struct {
+	addr common.Address //channel address
+}
+type DepositChannelReq struct {
+	addr   common.Address
+	amount *big.Int
+}
+type ApiReq struct {
+	ReqId string
+	Name  string      //operation name
+	Req   interface{} //operatoin
 }
 
 // A Raiden node.
@@ -97,7 +116,7 @@ type RaidenService struct {
 	StateMachineEventHandler *StateMachineEventHandler
 	BlockChainEvents         *blockchain.BlockChainEvents
 	AlarmTask                *blockchain.AlarmTask
-	TransactionLog           *db.StateChangeLog
+	db                       *models.ModelDB
 	GreenletTasksDispatcher  *GreenletTasksDispatcher
 	FileLocker               *flock.Flock
 	SnapshortDir             string
@@ -105,9 +124,8 @@ type RaidenService struct {
 	BlockNumber              *atomic.Value
 	BlockNumberChan          chan int64
 	Lock                     sync.RWMutex
-	TransferReqChan          chan *TransferReq
+	TransferReqChan          chan *ApiReq
 	TransferResponseChan     map[string]chan *network.AsyncResult
-	StartWg                  sync.WaitGroup //wait for start complete...
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -136,14 +154,22 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		BlockChainEvents:         blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
 		GreenletTasksDispatcher:  NewGreenletTasksDispatcher(),
 		BlockNumberChan:          make(chan int64, 1),
-		TransferReqChan:          make(chan *TransferReq, 1),
+		TransferReqChan:          make(chan *ApiReq, 10),
 		TransferResponseChan:     make(map[string]chan *network.AsyncResult),
 		BlockNumber:              new(atomic.Value),
 	}
+	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = NewStateMachineEventHandler(srv)
 	srv.Protocol = network.NewRaidenProtocol(transport, discover, privateKey)
-	srv.TransactionLog = db.NewStateChangeLog(config.DataBasePath)
+	srv.db, err = models.OpenDb(config.DataBasePath)
+	if err != nil {
+		log.Error("open db error")
+		utils.SystemExit(1)
+	}
+	/*
+		only one instance for one data directory
+	*/
 	srv.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
 	locked, err := srv.FileLocker.TryLock()
 	if err != nil || !locked {
@@ -163,7 +189,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 
 // Start the node.
 func (this *RaidenService) Start() {
-	this.StartWg.Add(1)
 	this.AlarmTask.Start()
 	this.AlarmTask.RegisterCallback(func(number int64) error {
 		return this.setBlockNumber(number)
@@ -185,8 +210,9 @@ func (this *RaidenService) Start() {
 		utils.SystemExit(1)
 	}
 	this.Protocol.Start()
-	this.StartWg.Done()
-	this.loop()
+	go func() {
+		this.loop()
+	}()
 }
 
 //Stop the node.
@@ -196,6 +222,7 @@ func (this *RaidenService) Stop() {
 	this.BlockChainEvents.Stop()
 	this.SaveSnapshot()
 	time.Sleep(time.Second * 3) // let other goroutines quit
+	this.db.CloseDB()
 	//anther instance cann run now
 	this.FileLocker.Unlock()
 }
@@ -205,7 +232,7 @@ func (this *RaidenService) loop() {
 	var m *network.MessageToRaiden
 	var st transfer.StateChange
 	var blockNumber int64
-	var transferReq *TransferReq
+	var req *ApiReq
 	for {
 		select {
 		case m, ok = <-this.Protocol.ReceivedMessageChannel:
@@ -236,18 +263,11 @@ func (this *RaidenService) loop() {
 				log.Info("BlockNumberChan closed")
 				return
 			}
-		case transferReq, ok = <-this.TransferReqChan:
+		case req, ok = <-this.TransferReqChan:
 			if ok {
-				r := transferReq
-				result := this.StartMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Identifier)
-				this.Lock.Lock()
-				//should never block
-				this.TransferResponseChan[r.ReqId] <- result
-				close(this.TransferResponseChan[r.ReqId])
-				delete(this.TransferResponseChan, r.ReqId)
-				this.Lock.Unlock()
+				this.handleReq(req)
 			} else {
-				log.Info("transferReq closed")
+				log.Info("req closed")
 			}
 		}
 	}
@@ -549,6 +569,18 @@ func (this *RaidenService) RegisterChannelManager(managerAddress common.Address)
 	this.Token2ChannelGraph[tokenAddress] = graph
 	this.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(this, tokenAddress, graph)
 	this.Lock.Unlock()
+	//new token, save to db
+	err = this.db.AddToken(tokenAddress)
+	if err != nil {
+		log.Info(err.Error())
+	}
+	for _, c := range graph.ChannelAddress2Channel {
+		err = this.db.AddChannel(channel.NewChannelSerialization(c))
+		if err != nil {
+			log.Info(err.Error())
+		}
+	}
+
 	return
 }
 func (this *RaidenService) RegisterNettingChannel(tokenAddress, channelAddress common.Address) {
@@ -561,6 +593,11 @@ func (this *RaidenService) RegisterNettingChannel(tokenAddress, channelAddress c
 	err = graph.AddChannel(detail)
 	if err != nil {
 		log.Error(err.Error())
+	}
+	err = this.db.AddChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[channelAddress]))
+	if err != nil {
+		log.Error(err.Error())
+		return
 	}
 	return
 }
@@ -622,7 +659,9 @@ func (this *RaidenService) CloseAndSettle() {
 	}
 	var AllChannels []*channel.Channel
 	for _, mgr := range Mgrs {
-		AllChannels = append(AllChannels, mgr.openChannels()...)
+		for _, c := range mgr.openChannels() {
+			AllChannels = append(AllChannels, this.GetChannelWithAddr(c.ChannelAddress))
+		}
 	}
 	leavingResult := this.LeaveAllTokenNetworksAsync()
 	//using the un-cached block number here
@@ -677,14 +716,21 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (this *RaidenService) MediatedTransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
-	req := &TransferReq{
-		TokenAddress: tokenAddress,
-		Amount:       amount,
-		Target:       target,
-		Identifier:   identifier,
-		ReqId:        utils.RandomString(10),
+func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  TransferReqName,
+		Req: &TransferReq{
+			TokenAddress: tokenAddress,
+			Amount:       amount,
+			Target:       target,
+			Identifier:   identifier,
+		},
 	}
+	return this.sendReqClient(req)
+	//return this.StartMediatedTransfer(tokenAddress, target, amount, identifier)
+}
+func (this *RaidenService) sendReqClient(req *ApiReq) *network.AsyncResult {
 	result := make(chan *network.AsyncResult, 1)
 	this.Lock.Lock()
 	this.TransferResponseChan[req.ReqId] = result
@@ -692,7 +738,49 @@ func (this *RaidenService) MediatedTransferAsync(tokenAddress common.Address, am
 	this.TransferReqChan <- req
 	ar := <-result
 	return ar
-	//return this.StartMediatedTransfer(tokenAddress, target, amount, identifier)
+}
+func (this *RaidenService) NewChannelClient(token, partner common.Address, settleTimeout int) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  NewChannelReqName,
+		Req: &NewChannelReq{
+			tokenAddress:   token,
+			partnerAddress: partner,
+			settleTimeout:  settleTimeout,
+		},
+	}
+	return this.sendReqClient(req)
+}
+func (this *RaidenService) DepositChannelClient(channelAddres common.Address, amount *big.Int) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  DepositChannelReqName,
+		Req: &DepositChannelReq{
+			addr:   channelAddres,
+			amount: amount,
+		},
+	}
+	return this.sendReqClient(req)
+}
+func (this *RaidenService) CloseChannelClient(channelAddress common.Address) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  CloseChannelReqName,
+		Req: &CloseSettleChannelReq{
+			addr: channelAddress,
+		},
+	}
+	return this.sendReqClient(req)
+}
+func (this *RaidenService) SettleChannelClient(channelAddress common.Address) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  SettleChannelReqName,
+		Req: &CloseSettleChannelReq{
+			addr: channelAddress,
+		},
+	}
+	return this.sendReqClient(req)
 }
 
 /*
@@ -738,14 +826,14 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 			NodeAddress:  directChannel.PartnerState.Address,
 		}
 		// TODO: add the transfer sent event
-		stateChangeId, _ := this.TransactionLog.Log(directTransferStateChange)
+		stateChangeId, _ := this.db.LogStateChange(directTransferStateChange)
 		//This should be set once the direct transfer is acknowledged
 		transferSuccess := transfer.EventTransferSentSuccess{
 			Identifier: identifier,
 			Amount:     amount,
 			Target:     target,
 		}
-		this.TransactionLog.LogEvents(stateChangeId, []transfer.Event{transferSuccess}, this.GetBlockNumber())
+		this.db.LogEvents(stateChangeId, []transfer.Event{transferSuccess}, this.GetBlockNumber())
 		result2, err := this.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 		if err != nil {
 			result.Result <- err
@@ -910,4 +998,81 @@ func (this *RaidenService) GetChannel(tokenAddr, partnerAddr common.Address) *ch
 		return nil
 	}
 	return g.GetPartenerAddress2Channel(partnerAddr)
+}
+func (this *RaidenService) newChannel(token, partner common.Address, settleTimeout int) (result *network.AsyncResult) {
+	result = network.NewAsyncResult()
+	go func() {
+		var err error
+		defer func() {
+			result.Result <- err
+			close(result.Result)
+		}()
+		chMgrAddr, err := this.Registry.ChannelManagerByToken(token)
+		if err != nil {
+			return
+		}
+		chMgr := this.Chain.Manager(chMgrAddr)
+		_, err = chMgr.NewChannel(partner, settleTimeout)
+		if err != nil {
+			return
+		}
+		//defer write result
+	}()
+	return
+}
+func (this *RaidenService) depositChannel(channelAddress common.Address, amount *big.Int) (result *network.AsyncResult) {
+	result = network.NewAsyncResult()
+	c := this.GetChannelWithAddr(channelAddress)
+	go func() {
+		err := c.ExternState.Deposit(amount)
+		result.Result <- err
+		close(result.Result)
+	}()
+	return
+}
+func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, op string) (result *network.AsyncResult) {
+	result = network.NewAsyncResult()
+	c := this.GetChannelWithAddr(channelAddress)
+	go func() {
+		var err error
+		c2, _ := this.db.GetChannelByAddress(c.MyAddress)
+		proof := c2.PartnerBalanceProof
+		if op == CloseChannelReqName {
+			err = c.ExternState.Close(proof)
+		} else {
+			err = c.ExternState.Settle()
+		}
+		result.Result <- err
+		close(result.Result)
+	}()
+	return
+}
+func (this *RaidenService) handleReq(req *ApiReq) {
+	var result *network.AsyncResult
+	switch req.Name {
+	case TransferReqName: //mediated transfer only
+		r := req.Req.(*TransferReq)
+		result = this.StartMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Identifier)
+	case NewChannelReqName:
+		r := req.Req.(*NewChannelReq)
+		result = this.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
+	case DepositChannelReqName:
+		r := req.Req.(*DepositChannelReq)
+		result = this.depositChannel(r.addr, r.amount)
+	case CloseChannelReqName:
+		r := req.Req.(*CloseSettleChannelReq)
+		result = this.closeOrSettleChannel(r.addr, req.Name)
+	case SettleChannelReqName:
+		r := req.Req.(*CloseSettleChannelReq)
+		result = this.closeOrSettleChannel(r.addr, req.Name)
+	default:
+		panic("unkown req")
+	}
+	r := req
+	this.Lock.Lock()
+	//should never block
+	this.TransferResponseChan[r.ReqId] <- result
+	close(this.TransferResponseChan[r.ReqId])
+	delete(this.TransferResponseChan, r.ReqId)
+	this.Lock.Unlock()
 }

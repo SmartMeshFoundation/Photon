@@ -76,7 +76,7 @@ func (this *ConnectionsController) Delete() {
 	} else if len(chs) > 0 {
 		var addrs []string
 		for _, c := range chs {
-			addrs = append(addrs, c.MyAddress.String())
+			addrs = append(addrs, c.ChannelAddress.String())
 		}
 		this.Data["json"] = addrs
 		this.ServeJSON()

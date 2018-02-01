@@ -46,14 +46,17 @@ type partnersData struct {
 
 func (this *Controller) TokenPartners() {
 	tokenAddr := common.HexToAddress(this.Ctx.Input.Param(":token"))
-	partnerAddr := common.HexToAddress(this.Ctx.Input.Param(":partner"))
-	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s,partner=%s", utils.APex(tokenAddr), utils.APex(partnerAddr)))
-	chs := RaidenApi.GetChannelList(tokenAddr, partnerAddr)
+	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s", utils.APex(tokenAddr)))
+	chs, err := RaidenApi.Raiden.db.GetChannelList(tokenAddr, utils.EmptyAddress)
+	if err != nil {
+		this.Abort(http.StatusInternalServerError)
+		return
+	}
 	var datas []*partnersData
 	for _, c := range chs {
 		d := &partnersData{
-			PartnerAddress: c.PartnerState.Address.String(),
-			Channel:        "api/1/channles/" + c.MyAddress.String(),
+			PartnerAddress: c.PartnerAddress.String(),
+			Channel:        "api/1/channles/" + c.ChannelAddress.String(),
 		}
 		datas = append(datas, d)
 	}

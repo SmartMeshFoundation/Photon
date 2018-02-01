@@ -158,7 +158,7 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		TokenAddress: msg.Token,
 		Sender:       msg.Sender,
 	}
-	stateChangeId, err := this.raiden.TransactionLog.Log(stateChange)
+	stateChangeId, err := this.raiden.db.LogStateChange(stateChange)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		Amount:     amount,
 		Initiator:  msg.Sender,
 	}
-	err = this.raiden.TransactionLog.LogEvents(stateChangeId, []transfer.Event{receiveSuccess}, this.raiden.GetBlockNumber())
+	err = this.raiden.db.LogEvents(stateChangeId, []transfer.Event{receiveSuccess}, this.raiden.GetBlockNumber())
 	return err
 }
 

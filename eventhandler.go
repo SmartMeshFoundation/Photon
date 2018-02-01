@@ -5,6 +5,7 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
@@ -31,11 +32,11 @@ func NewStateMachineEventHandler(raiden *RaidenService) *StateMachineEventHandle
 Log a state change, dispatch it to all state managers and log generated events
 */
 func (this *StateMachineEventHandler) LogAndDispatchToAllTasks(st transfer.StateChange) {
-	stateChangeId, _ := this.raiden.TransactionLog.Log(st)
+	stateChangeId, _ := this.raiden.db.LogStateChange(st)
 	for _, mgrs := range this.raiden.Identifier2StateManagers {
 		for _, mgr := range mgrs {
 			events := this.Dispatch(mgr, st)
-			this.raiden.TransactionLog.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
+			this.raiden.db.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
 		}
 
 	}
@@ -46,19 +47,19 @@ Log a state change, dispatch it to the state manager corresponding to `idenfitie
         and log generated events
 */
 func (this *StateMachineEventHandler) LogAndDispatchByIdentifier(identifier uint64, st transfer.StateChange) {
-	stateChangeId, _ := this.raiden.TransactionLog.Log(st)
+	stateChangeId, _ := this.raiden.db.LogStateChange(st)
 	mgrs := this.raiden.Identifier2StateManagers[identifier]
 	for _, mgr := range mgrs {
 		events := this.Dispatch(mgr, st)
-		this.raiden.TransactionLog.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
+		this.raiden.db.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
 	}
 }
 
 //Log a state change, dispatch it to the given state manager and log generated events
 func (this *StateMachineEventHandler) LogAndDispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) []transfer.Event {
-	stateChangeId, _ := this.raiden.TransactionLog.Log(stateChange)
+	stateChangeId, _ := this.raiden.db.LogStateChange(stateChange)
 	events := this.Dispatch(stateManager, stateChange)
-	this.raiden.TransactionLog.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
+	this.raiden.db.LogEvents(stateChangeId, events, this.raiden.GetBlockNumber())
 	return events
 }
 func (this *StateMachineEventHandler) Dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
@@ -215,6 +216,7 @@ func (this *StateMachineEventHandler) handleBalance(st *mediated_transfer.Contra
 	graph := this.raiden.GetToken2ChannelGraph(tokenAddress)
 	ch := graph.GetChannelAddress2Channel(channelAddress)
 	ch.StateTransition(st)
+	this.raiden.db.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
 	if ch.ContractBalance().Cmp(utils.BigInt0) == 0 {
 		connectionManager, _ := this.raiden.ConnectionManagerForToken(tokenAddress)
 		go func() {
@@ -231,6 +233,7 @@ func (this *StateMachineEventHandler) handleClosed(st *mediated_transfer.Contrac
 		return err
 	}
 	ch.StateTransition(st)
+	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return nil
 }
 
@@ -241,6 +244,7 @@ func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.Contra
 		return err
 	}
 	ch.StateTransition(st)
+	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return nil
 }
 func (this *StateMachineEventHandler) handleWithdraw(st *mediated_transfer.ContractReceiveWithdrawStateChange) error {
@@ -283,7 +287,7 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 }
 func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
 	log.Info("statechange received :", utils.StringInterface1(st))
-	_, err = this.raiden.TransactionLog.Log(st)
+	_, err = this.raiden.db.LogStateChange(st)
 	if err != nil {
 		return err
 	}

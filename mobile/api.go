@@ -41,14 +41,14 @@ type channelData struct {
 
 //GET /api/1/channels
 func (this *Api) GetChannelList() (channels string, err error) {
-	chs := this.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, _ := this.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	var datas []*channelData
 	for _, c := range chs {
 		d := &channelData{
-			ChannelAddress: c.MyAddress.String(),
-			PartnerAddrses: c.PartnerState.Address.String(),
-			Balance:        c.Balance(),
-			State:          c.State(),
+			ChannelAddress: c.OurAddress.String(),
+			PartnerAddrses: c.PartnerAddress.String(),
+			Balance:        c.OurBalance,
+			State:          c.State,
 			TokenAddress:   c.TokenAddress.String(),
 			SettleTimeout:  c.SettleTimeout,
 			RevealTimeout:  c.RevealTimeout,
@@ -67,10 +67,10 @@ func (this *Api) GetOneChannel(channelAddress string) (channel string, err error
 		return
 	}
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.OurAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}
@@ -88,17 +88,17 @@ func (this *Api) OpenChannel(partnerAddress, tokenAddress string, settleTimeout 
 		return
 	} else {
 		d := &channelData{
-			ChannelAddress: c.MyAddress.String(),
-			PartnerAddrses: c.PartnerState.Address.String(),
-			Balance:        c.Balance(),
-			State:          c.State(),
+			ChannelAddress: c.OurAddress.String(),
+			PartnerAddrses: c.PartnerAddress.String(),
+			Balance:        c.OurBalance,
+			State:          c.State,
 			SettleTimeout:  c.SettleTimeout,
 			TokenAddress:   c.TokenAddress.String(),
 		}
 		if balance.Cmp(utils.BigInt0) > 0 {
 			err = this.api.Deposit(tokenAddr, partnerAddr, balance, params.DEFAULT_POLL_TIMEOUT)
 			if err == nil {
-				d.Balance = c.Balance()
+				d.Balance = c.OurBalance
 			} else {
 				log.Error(" RaidenApi.Deposit error : ", err)
 				return
@@ -117,16 +117,16 @@ func (this *Api) CloseChannel(channelAddres string) (channel string, err error) 
 		log.Error(err.Error())
 		return
 	}
-	c, err = this.api.Close(c.TokenAddress, c.PartnerState.Address)
+	c, err = this.api.Close(c.TokenAddress, c.PartnerAddress)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.OurAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}
@@ -140,16 +140,16 @@ func (this *Api) SettleChannel(channelAddres string) (channel string, err error)
 		log.Error(err.Error())
 		return
 	}
-	c, err = this.api.Settle(c.TokenAddress, c.PartnerState.Address)
+	c, err = this.api.Settle(c.TokenAddress, c.PartnerAddress)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.OurAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}
@@ -164,16 +164,16 @@ func (this *Api) DepositChannel(channelAddres string, balanceStr string) (channe
 		log.Error(err.Error())
 		return
 	}
-	err = this.api.Deposit(c.TokenAddress, c.PartnerState.Address, balance, params.DEFAULT_POLL_TIMEOUT)
+	err = this.api.Deposit(c.TokenAddress, c.PartnerAddress, balance, params.DEFAULT_POLL_TIMEOUT)
 	if err != nil {
 		return
 	}
 
 	d := &channelData{
-		ChannelAddress: c.MyAddress.String(),
-		PartnerAddrses: c.PartnerState.Address.String(),
-		Balance:        c.Balance(),
-		State:          c.State(),
+		ChannelAddress: c.OurAddress.String(),
+		PartnerAddrses: c.PartnerAddress.String(),
+		Balance:        c.OurBalance,
+		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
 	}
@@ -232,12 +232,12 @@ type partnersData struct {
 //GET /api/1/tokens/0x61bb630d3b2e8eda0fc1d50f9f958ec02e3969f6/partners
 func (this *Api) TokenPartners(tokenAddress string) (channels string, err error) {
 	tokenAddr := common.HexToAddress(tokenAddress)
-	chs := this.api.GetChannelList(tokenAddr, utils.EmptyAddress)
+	chs, _ := this.api.GetChannelList(tokenAddr, utils.EmptyAddress)
 	var datas []*partnersData
 	for _, c := range chs {
 		d := &partnersData{
-			PartnerAddress: c.PartnerState.Address.String(),
-			Channel:        "api/1/channles/" + c.MyAddress.String(),
+			PartnerAddress: c.PartnerAddress.String(),
+			Channel:        "api/1/channles/" + c.OurAddress.String(),
 		}
 		datas = append(datas, d)
 	}
@@ -380,7 +380,7 @@ func (this *Api) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress stri
 
 	var addrs []string
 	for _, c := range chs {
-		addrs = append(addrs, c.MyAddress.String())
+		addrs = append(addrs, c.OurAddress.String())
 	}
 	channels, err = marshal(addrs)
 	return
