@@ -65,7 +65,7 @@ var DefaultConfig = Config{
 	RegistryAddress:  ROPSTEN_REGISTRY_ADDRESS,
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
 	MsgTimeout:       100 * time.Second,
-	Debug:            true,
+	Debug:            false,
 }
 
 func init() {
