@@ -1,5 +1,7 @@
 # raiden-mobile
-Go implementation of the Ethereum yellowpaper
+Go implementation of the [raiden network](https://raiden.network/101.html) 
+
+raiden-mobile is supported by multi platform  which includes Windows,Linux,Android,iOS etc.
 
 ## About 
 raiden-mobile is a pure Go  implementation of the raiden network,it's goal is to cooperate with python raiden and gives users another choice for mobile device.
