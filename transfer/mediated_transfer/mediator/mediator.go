@@ -769,7 +769,7 @@ func handleBalanceProof(state *mediated_transfer.MediatorState, st *mediated_tra
 	var events []transfer.Event
 	for _, pair := range state.TransfersPair {
 		if pair.PayerRoute.HopNode == st.NodeAddress {
-			withdraw := mediated_transfer.EventWithdrawSuccess{pair.PayeeTransfer.Identifier, pair.PayeeTransfer.Hashlock}
+			withdraw := &mediated_transfer.EventWithdrawSuccess{pair.PayeeTransfer.Identifier, pair.PayeeTransfer.Hashlock}
 			events = append(events, withdraw)
 			pair.PayerState = mediated_transfer.STATE_PAYER_BALANCE_PROOF
 		}
