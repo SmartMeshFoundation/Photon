@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
+	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 )
@@ -34,7 +34,7 @@ const key = `
 }
 `
 
-var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("Cf3C7400C227be86FcdB2c9Be7DEf5c671087620")
+var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = params.ROPSTEN_REGISTRY_ADDRESS
 var TestRpcEndpoint = node.DefaultIPCEndpoint("geth")
 
 //var TestRpcEndpoint = "ws://10.0.0.2:8546"

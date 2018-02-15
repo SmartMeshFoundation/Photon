@@ -63,16 +63,17 @@ func (this *StateMachineEventHandler) LogAndDispatch(stateManager *transfer.Stat
 	return events
 }
 func (this *StateMachineEventHandler) Dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
+	this.updateStateManagerFromReceivedMessageOrUserRequest(stateManager, stateChange)
 	events = stateManager.Dispatch(stateChange)
 	for _, e := range events {
-		err := this.OnEvent(e)
+		err := this.OnEvent(e, stateManager)
 		if err != nil {
 			log.Error(fmt.Sprintf("StateMachineEventHandler Dispatch:%v\n", err))
 		}
 	}
 	return
 }
-func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_transfer.EventSendMediatedTransfer) (err error) {
+func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_transfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
 	graph := this.raiden.GetToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
@@ -85,10 +86,28 @@ func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_
 	if err != nil {
 		return
 	}
+	this.updateStateManagerFromEvent(receiver, mtr, stateManager)
 	err = this.raiden.SendAsync(receiver, mtr)
 	return
 }
-func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_transfer.EventSendRefundTransfer) (err error) {
+func (this *StateMachineEventHandler) eventSendBalanceProof(event *mediated_transfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
+	receiver := event.Receiver
+	graph := this.raiden.GetToken2ChannelGraph(event.Token)
+	ch := graph.GetPartenerAddress2Channel(receiver)
+	tr, err := ch.CreateSecret(event.Identifier, event.Secret)
+	if err != nil {
+		return
+	}
+	tr.Sign(this.raiden.PrivateKey, tr)
+	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), tr)
+	if err != nil {
+		return
+	}
+	this.updateStateManagerFromEvent(receiver, tr, stateManager)
+	err = this.raiden.SendAsync(receiver, tr)
+	return
+}
+func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_transfer.EventSendRefundTransfer, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
 	graph := this.raiden.GetToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
@@ -101,26 +120,38 @@ func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_tr
 	if err != nil {
 		return
 	}
+	this.updateStateManagerFromEvent(receiver, mtr, stateManager)
 	err = this.raiden.SendAsync(receiver, mtr)
 	return
 }
-func (this *StateMachineEventHandler) OnEvent(event transfer.Event) (err error) {
+func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	switch e2 := event.(type) {
 	case *mediated_transfer.EventSendMediatedTransfer:
-		err = this.eventSendMediatedTransfer(e2)
+		//this.raiden.ConditionQuit("EventSendMediatedTransferBefore")
+		err = this.eventSendMediatedTransfer(e2, stateManager)
+		this.raiden.ConditionQuit("EventSendMediatedTransferAfter")
 	case *mediated_transfer.EventSendRevealSecret:
+		//this.raiden.ConditionQuit("EventSendRevealSecretBefore")
 		revealMessage := encoding.NewRevealSecret(e2.Secret)
 		revealMessage.Sign(this.raiden.PrivateKey, revealMessage)
-		err = this.raiden.SendAsync(e2.Receiver, revealMessage)
+		err = this.raiden.SendAsync(e2.Receiver, revealMessage) //单独处理 reaveal secret
+		this.raiden.ConditionQuit("EventSendRevealSecretAfter")
 	case *mediated_transfer.EventSendBalanceProof:
 		//unlock and update remotely (send the Secret message)
-		err = this.raiden.HandleSecret(e2.Identifier, e2.Token, e2.Secret, nil, utils.Sha3(e2.Secret[:]))
+		//this.raiden.ConditionQuit("EventSendBalanceProofBefore")
+		err = this.eventSendBalanceProof(e2, stateManager)
+		this.raiden.ConditionQuit("EventSendBalanceProofAfter")
 	case *mediated_transfer.EventSendSecretRequest:
+		//this.raiden.ConditionQuit("EventSendSecretRequestBefore")
 		secretRequest := encoding.NewSecretRequest(e2.Identifer, e2.Hashlock, e2.Amount)
 		secretRequest.Sign(this.raiden.PrivateKey, secretRequest)
+		this.updateStateManagerFromEvent(e2.Receiver, secretRequest, stateManager)
 		err = this.raiden.SendAsync(e2.Receiver, secretRequest)
+		this.raiden.ConditionQuit("EventSendSecretRequestAfter")
 	case *mediated_transfer.EventSendRefundTransfer:
-		err = this.eventSendRefundTransfer(e2)
+		//this.raiden.ConditionQuit("EventSendRefundTransferBefore")
+		err = this.eventSendRefundTransfer(e2, stateManager)
+		this.raiden.ConditionQuit("EventSendRefundTransferAfter")
 	case *transfer.EventTransferSentSuccess:
 		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.Identifier))
 		//may receive multi success because of duplicate messages
@@ -136,7 +167,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event) (err error) 
 			close(r.Result)
 		}
 		//todo fix this ,when to delete Identifier2StateManager?
-		delete(this.raiden.Identifier2Results, e2.Identifier)
+		//delete(this.raiden.Identifier2Results, e2.Identifier)
 		this.raiden.Lock.Unlock()
 	case *transfer.EventTransferSentFailed:
 		log.Info(fmt.Sprintf("EventTransferSentFailed for id %d", e2.Identifier))
@@ -145,7 +176,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event) (err error) 
 			r.Result <- errSentFailed
 			close(r.Result)
 		}
-		delete(this.raiden.Identifier2Results, e2.Identifier)
+		//delete(this.raiden.Identifier2Results, e2.Identifier)
 		this.raiden.Lock.Unlock()
 	case *transfer.EventTransferReceivedSuccess:
 	case *mediated_transfer.EventUnlockSuccess:
@@ -257,8 +288,14 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 	var channelAddress common.Address
 	switch st2 := st.(type) { //filter event only about me
 	case *mediated_transfer.ContractReceiveTokenAddedStateChange:
+		if st2.RegistryAddress != this.raiden.RegistryAddress { //there maybe many registry contracts on blockchain
+			return false
+		}
 		return true
 	case *mediated_transfer.ContractReceiveNewChannelStateChange:
+		if this.raiden.Manager2Token[st2.ManagerAddress] == utils.EmptyAddress { //newchannel on another registry contract
+			return false
+		}
 		return true
 	case *mediated_transfer.ContractReceiveBalanceStateChange:
 		channelAddress = st2.ChannelAddress
@@ -286,7 +323,7 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 	return found
 }
 func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
-	log.Info("statechange received :", utils.StringInterface1(st))
+	log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface1(st)))
 	_, err = this.raiden.db.LogStateChange(st)
 	if err != nil {
 		return err
@@ -312,4 +349,154 @@ func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateC
 		log.Error(err.Error())
 	}
 	return
+}
+
+//recive a message and before processed
+func (this *StateMachineEventHandler) updateStateManagerFromReceivedMessageOrUserRequest2(mgr *transfer.StateManager, stateChange transfer.StateChange) {
+	var msg encoding.Messager
+	var quitName string
+	switch st2 := stateChange.(type) {
+	case *mediated_transfer.ActionInitTargetStateChange:
+		quitName = "ActionInitTargetStateChange"
+		msg = st2.Message
+		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
+	case *mediated_transfer.ReceiveSecretRequestStateChange:
+		quitName = "ReceiveSecretRequestStateChange"
+		msg = st2.Message
+	case *mediated_transfer.ReceiveTransferRefundStateChange:
+		quitName = "ReceiveTransferRefundStateChange"
+		msg = st2.Message
+	case *mediated_transfer.ReceiveBalanceProofStateChange:
+		quitName = "ReceiveBalanceProofStateChange"
+		_, ok := st2.Message.(*encoding.Secret)
+		if ok {
+			msg = st2.Message //可能是mediated transfer,direct transfer,refundtransfer,secret 四中情况触发.
+		}
+	case *mediated_transfer.ActionInitMediatorStateChange:
+		quitName = "ActionInitMediatorStateChange"
+		msg = st2.Message
+		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
+	case *mediated_transfer.ActionInitInitiatorStateChange:
+		quitName = "ActionInitInitiatorStateChange"
+		mgr.LastReceivedMessage = st2
+		//new transfer trigger from user
+	case *mediated_transfer.ReceiveSecretRevealStateChange:
+		quitName = "ReceiveSecretRevealStateChange"
+		//reveal secret 需要单独处理
+	}
+	if msg != nil {
+		mgr.ManagerState = transfer.StateManager_ReceivedMessage
+		mgr.LastReceivedMessage = msg
+		tag := msg.Tag().(*transfer.MessageTag)
+		tag.SetStateManager(mgr)
+		msg.SetTag(tag)
+		tx := this.raiden.db.StartTx()
+		this.raiden.db.UpdateStateManaer(mgr, tx)
+		if mgr.ChannelAddress != utils.EmptyAddress {
+			ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+			this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		}
+		tx.Commit()
+		this.raiden.ConditionQuit(quitName)
+	}
+}
+func (this *StateMachineEventHandler) updateStateManagerFromReceivedMessageOrUserRequest(mgr *transfer.StateManager, stateChange transfer.StateChange) {
+	var msg encoding.Messager
+	var quitName string
+	switch st2 := stateChange.(type) {
+	case *mediated_transfer.ActionInitTargetStateChange:
+		quitName = "ActionInitTargetStateChange"
+		msg = st2.Message
+		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
+	case *mediated_transfer.ReceiveSecretRequestStateChange:
+		quitName = "ReceiveSecretRequestStateChange"
+		msg = st2.Message
+	case *mediated_transfer.ReceiveTransferRefundStateChange:
+		quitName = "ReceiveTransferRefundStateChange"
+		msg = st2.Message
+	case *mediated_transfer.ReceiveBalanceProofStateChange:
+		quitName = "ReceiveBalanceProofStateChange"
+		_, ok := st2.Message.(*encoding.Secret)
+		if ok {
+			msg = st2.Message //可能是mediated transfer,direct transfer,refundtransfer,secret 四中情况触发.
+		}
+	case *mediated_transfer.ActionInitMediatorStateChange:
+		quitName = "ActionInitMediatorStateChange"
+		msg = st2.Message
+		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
+	case *mediated_transfer.ActionInitInitiatorStateChange:
+		quitName = "ActionInitInitiatorStateChange"
+		mgr.LastReceivedMessage = st2
+		//new transfer trigger from user
+	case *mediated_transfer.ReceiveSecretRevealStateChange:
+		quitName = "ReceiveSecretRevealStateChange"
+		//reveal secret 需要单独处理
+	}
+	if msg != nil {
+		mgr.ManagerState = transfer.StateManager_ReceivedMessage
+		mgr.LastReceivedMessage = msg
+		tag := msg.Tag().(*transfer.MessageTag)
+		tag.SetStateManager(mgr)
+		msg.SetTag(tag)
+		//tx := this.raiden.db.StartTx()
+		//this.raiden.db.UpdateStateManaer(mgr, tx)
+		//if mgr.ChannelAddress != utils.EmptyAddress {
+		//	ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+		//	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		//}
+		//tx.Commit()
+		this.raiden.ConditionQuit(quitName)
+	}
+}
+func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver common.Address, msg encoding.Messager, mgr *transfer.StateManager) {
+	var msgtoSend encoding.Messager
+	switch msg2 := msg.(type) {
+	case *encoding.MediatedTransfer:
+		msgtoSend = msg2
+		mgr.ChannelAddress = msg2.Channel
+	case *encoding.Secret:
+		msgtoSend = msg2
+	case *encoding.RefundTransfer:
+		msgtoSend = msg2 //对于refund transfer,channel address已经发生了变化,原来的channel状态怎么办? todo fix
+	case *encoding.SecretRequest:
+		msgtoSend = msg2
+	default:
+		panic(fmt.Sprintf("unknown message updateStateManagerFromEvent :%s", utils.StringInterface(msg, 3)))
+	}
+	tag := &transfer.MessageTag{
+		MessageId:         utils.RandomString(10),
+		EchoHash:          utils.Sha3(msg.Pack(), receiver[:]),
+		IsASendingMessage: true,
+		Receiver:          receiver,
+	}
+	tag.SetStateManager(mgr)
+	msgtoSend.SetTag(tag)
+	tx := this.raiden.db.StartTx()
+	mgr.ManagerState = transfer.StateManager_SendMessage
+	mgr.LastSendMessage = msgtoSend
+	msg3, ok := mgr.LastReceivedMessage.(encoding.Messager) //maybe  ActionInitInitiatorStateChange
+	if ok {
+		receiveTag := msg3.Tag()
+		if receiveTag == nil {
+			panic("must not be empty")
+		}
+		receiveMessageTag := receiveTag.(*transfer.MessageTag)
+		if receiveMessageTag.ReceiveProcessComplete == false {
+			mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
+
+			receiveMessageTag.ReceiveProcessComplete = true
+			ack := this.raiden.Protocol.CreateAck(receiveMessageTag.EchoHash)
+			this.raiden.db.SaveAck(receiveMessageTag.EchoHash, ack.Pack(), tx)
+		}
+	} else {
+		//user start a transfer.
+	}
+	this.raiden.db.UpdateStateManaer(mgr, tx)
+	this.raiden.ConditionQuit("InEventTx")
+	if mgr.ChannelAddress == utils.EmptyAddress {
+		panic("channel address must not be empty")
+	}
+	ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	tx.Commit()
 }

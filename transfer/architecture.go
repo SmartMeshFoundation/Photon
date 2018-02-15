@@ -1,6 +1,12 @@
 package transfer
 
-import "encoding/gob"
+import (
+	"encoding/gob"
+	"time"
+
+	"github.com/SmartMeshFoundation/raiden-network/encoding"
+	"github.com/ethereum/go-ethereum/common"
+)
 
 /*
  Quick overview
@@ -87,16 +93,54 @@ type TransitionResult struct {
 */
 type FuncStateTransition func(state State, stateChange StateChange) *TransitionResult
 type StateManager struct {
+	ID                  int64 `storm:"id,increment"`
 	FuncStateTransition FuncStateTransition
 	CurrentState        State
 	Name                string
+	LastActive          time.Time //the latest message sent time
+	ManagerState        string    `storm:"index"` //state for initiator and target ,distingush operation from crash
+	Identifier          uint64    //transfer identifier
+	TokenAddress        common.Address
+	ChannelAddress      common.Address
+
+	LastReceivedMessage    interface{}       //message received status, except reveal secret,may be init statechange
+	LastSendMessage        encoding.Messager //sending message.
+	IsBalanceProofSent     bool              //mediatedtransfer must both true for finish
+	IsBalanceProofReceived bool              //mediatedtransfer must both true for finish
 }
 
-func NewStateManager(stateTransition FuncStateTransition, currentState State, name string) *StateManager {
+const StateManager_State_Init = "ManagerInit"
+const StateManager_ReceivedMessage = "ManagerReceivedOneMessage"
+const StateManager_SendMessage = "ManagerSendMessage" //may sending several message, for example reveal secret
+const StateManager_ReceivedMessageProcessComplete = "ManagerReceivedMessageComplete"
+const StateManager_SendMessageSuccesss = "ManagerSendMessageSuccess"
+const StateManager_TransferComplete = "ManagerTransferComplete"
+
+type MessageTag struct {
+	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
+	ReceiveProcessComplete bool          //收到消息是否处理完毕,
+	SendingMessageComplete bool          //发送的消息是否已经收到ack
+	IsASendingMessage      bool          //this message is on sending or receiveing?
+	MessageId              string        //messageId for ping message
+	EchoHash               common.Hash
+	Receiver               common.Address
+}
+
+func (this *MessageTag) GetStateManager() *StateManager {
+	return this.stateManager
+}
+func (this *MessageTag) SetStateManager(stateManager *StateManager) {
+	this.stateManager = stateManager
+}
+func NewStateManager(stateTransition FuncStateTransition, currentState State, name string, identifier uint64, tokenAddress common.Address) *StateManager {
 	return &StateManager{
 		FuncStateTransition: stateTransition,
 		CurrentState:        currentState,
 		Name:                name,
+		ManagerState:        StateManager_State_Init,
+		LastActive:          time.Now(),
+		Identifier:          identifier,
+		TokenAddress:        tokenAddress,
 	}
 }
 
@@ -129,4 +173,5 @@ func (this *StateManager) Dispatch(stateChange StateChange) (events []Event) {
 func init() {
 	gob.Register(&StateManager{})
 	gob.Register(&TransitionResult{})
+	gob.Register(&MessageTag{})
 }

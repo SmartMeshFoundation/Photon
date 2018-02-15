@@ -360,12 +360,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			utils.StringInterface(tr, 3))) //for nest struct
 		return fmt.Errorf("Negative transfer")
 	}
-	//由于已经不再使用directtransfer,所有这个amount肯定是0
 	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
-	//if amount != 0 {
-	// secret message
-	//	panic("direct transfer? it's deprecated")
-	//}
 	distributable := fromState.Distributable(toState)
 	if tr.Cmd() == encoding.DIRECTTRANSFER_CMDID {
 		if amount.Cmp(distributable) > 0 {
@@ -577,10 +572,13 @@ func (c *Channel) String() string {
 }
 
 type ChannelSerialization struct {
-	ChannelAddress             common.Address `storm:"id"`
-	TokenAddress               common.Address `storm:"index"`
-	PartnerAddress             common.Address `storm:"index"`
-	OurAddress                 common.Address `storm:"index"`
+	ChannelAddress             common.Address
+	ChannelAddressString       string `storm:"id"` //only for storm, because of save bug
+	TokenAddress               common.Address
+	PartnerAddress             common.Address
+	TokenAddressString         string `storm:"index"`
+	PartnerAddressString       string `storm:"index"`
+	OurAddress                 common.Address
 	RevealTimeout              int
 	OurBalanceProof            *transfer.BalanceProofState
 	PartnerBalanceProof        *transfer.BalanceProofState
@@ -601,8 +599,11 @@ type ChannelSerialization struct {
 func NewChannelSerialization(c *Channel) *ChannelSerialization {
 	s := &ChannelSerialization{
 		ChannelAddress:             c.MyAddress,
+		ChannelAddressString:       c.MyAddress.String(),
 		TokenAddress:               c.TokenAddress,
+		TokenAddressString:         c.TokenAddress.String(),
 		PartnerAddress:             c.PartnerState.Address,
+		PartnerAddressString:       c.PartnerState.Address.String(),
 		OurAddress:                 c.OurState.Address,
 		RevealTimeout:              c.RevealTimeout,
 		OurBalanceProof:            c.OurState.BalanceProofState,

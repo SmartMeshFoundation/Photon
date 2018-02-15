@@ -74,6 +74,9 @@ func Random(n int) []byte {
 func RandomString(n int) string {
 	return string(Random(n))
 }
+func NewRandomInt(n int) int {
+	return rand.New(RandSrc).Intn(n)
+}
 func NewRandomAddress() common.Address {
 	hash := Sha3([]byte(Random(10)))
 	return common.BytesToAddress(hash[12:])
@@ -130,7 +133,9 @@ func GetHomePath() string {
 }
 
 func SystemExit(code int) {
-	debug.PrintStack()
+	if code != 0 {
+		debug.PrintStack()
+	}
 	time.Sleep(time.Second * 2)
 	os.Exit(code)
 }

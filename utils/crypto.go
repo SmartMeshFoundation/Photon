@@ -30,10 +30,10 @@ func Pex(data []byte) string {
 
 //pex for hash
 func HPex(data common.Hash) string {
-	return common.Bytes2Hex(data[:8])
+	return common.Bytes2Hex(data[:4])
 }
 func APex(data common.Address) string {
-	return common.Bytes2Hex(data[:8])
+	return common.Bytes2Hex(data[:4])
 }
 func APex2(data common.Address) string {
 	return common.Bytes2Hex(data[:2])

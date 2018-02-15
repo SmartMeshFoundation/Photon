@@ -47,7 +47,7 @@ type partnersData struct {
 func (this *Controller) TokenPartners() {
 	tokenAddr := common.HexToAddress(this.Ctx.Input.Param(":token"))
 	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s", utils.APex(tokenAddr)))
-	chs, err := RaidenApi.Raiden.db.GetChannelList(tokenAddr, utils.EmptyAddress)
+	chs, err := RaidenApi.GetChannelList(tokenAddr, utils.EmptyAddress)
 	if err != nil {
 		this.Abort(http.StatusInternalServerError)
 		return
@@ -102,7 +102,7 @@ func (this *Controller) Transfers() {
 	tokenAddr := common.HexToAddress(token)
 	target := this.Ctx.Input.Param(":target")
 	targetAddr := common.HexToAddress(target)
-	log.Trace("request body:", this.Ctx.Input.RequestBody)
+	log.Trace(fmt.Sprintf("request body:%s", this.Ctx.Input.RequestBody))
 	req := &transferData{}
 	err := json.Unmarshal(this.Ctx.Input.RequestBody, req)
 	if err != nil {

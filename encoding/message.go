@@ -21,6 +21,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+type MessageType int
+
 const ACK_CMDID = 0
 const PING_CMDID = 1
 const SECRETREQUEST_CMDID = 3
@@ -30,26 +32,10 @@ const MEDIATEDTRANSFER_CMDID = 7
 const REFUNDTRANSFER_CMDID = 8
 const REVEALSECRET_CMDID = 11
 
-var ACK = to_bigendian(ACK_CMDID)
-var PING = to_bigendian(PING_CMDID)
-var SECRETREQUEST = to_bigendian(SECRETREQUEST_CMDID)
-var SECRET = to_bigendian(SECRET_CMDID)
-var REVEALSECRET = to_bigendian(REVEALSECRET_CMDID)
-var DIRECTTRANSFER = to_bigendian(DIRECTTRANSFER_CMDID)
-var MEDIATEDTRANSFER = to_bigendian(MEDIATEDTRANSFER_CMDID)
-var REFUNDTRANSFER = to_bigendian(REFUNDTRANSFER_CMDID)
-
 const SignatureLength = 65
 const TokenLength = 20
 
 var errPacketLength = errors.New("packet length error")
-
-func to_bigendian(cmd int) int {
-	if cmd < 0 || cmd > 256 {
-		log.Crit("invalid cmd id ", cmd)
-	}
-	return cmd
-}
 
 type MessagePacker interface {
 	//pack message to byte array
@@ -71,15 +57,28 @@ type MessagePackerUnpacker interface {
 
 type Messager interface {
 	Cmd() int
+	Tag() interface{}
+	SetTag(tag interface{})
+	Name() string
 	MessagePackerUnpacker
 }
 
-type cmdstruct struct {
-	CmdId int32
+type CmdStruct struct {
+	CmdId       int32
+	InternalTag interface{} //for save to database
 }
 
-func (this *cmdstruct) Cmd() int {
+func (this *CmdStruct) Cmd() int {
 	return int(this.CmdId)
+}
+func (this *CmdStruct) Tag() interface{} {
+	return this.InternalTag
+}
+func (this *CmdStruct) SetTag(tag interface{}) {
+	this.InternalTag = tag
+}
+func (this *CmdStruct) Name() string {
+	return MessageType(this.CmdId).String()
 }
 
 type SignedMessager interface {
@@ -94,6 +93,30 @@ type EnvelopMessager interface {
 	GetEnvelopMessage() *EnvelopMessage
 }
 
+// String return the string representation of message type.
+func (t MessageType) String() string {
+	switch t {
+	case ACK_CMDID:
+		return "Ack"
+	case PING_CMDID:
+		return "Ping"
+	case SECRETREQUEST_CMDID:
+		return "SecretRequest"
+	case SECRET_CMDID:
+		return "Secret"
+	case DIRECTTRANSFER_CMDID:
+		return "DirectTransfer"
+	case MEDIATEDTRANSFER_CMDID:
+		return "MediatedTransfer"
+	case REFUNDTRANSFER_CMDID:
+		return "RefundTransfer"
+	case REVEALSECRET_CMDID:
+		return "RevealSecret"
+	default:
+		return "<unknown>"
+	}
+}
+
 /*All accepted messages should be confirmed by an `Ack` which echoes the
 orginals Message hash.
 
@@ -101,14 +124,14 @@ We don'T sign Acks because attack vector can be mitigated and to speed up
 things.
 */
 type Ack struct {
-	cmdstruct
+	CmdStruct
 	Sender common.Address
 	Echo   common.Hash
 }
 
 func NewAck(sender common.Address, echo common.Hash) *Ack {
 	return &Ack{
-		cmdstruct: cmdstruct{CmdId: ACK_CMDID},
+		CmdStruct: CmdStruct{CmdId: ACK_CMDID},
 		Sender:    sender,
 		Echo:      echo,
 	}
@@ -142,7 +165,7 @@ func (this *Ack) UnPack(data []byte) error {
 }
 
 type SignedMessage struct {
-	cmdstruct
+	CmdStruct
 	Sender    common.Address
 	Signature []byte
 }
@@ -227,7 +250,7 @@ type Ping struct {
 
 func NewPing(nonce int64) *Ping {
 	p := &Ping{
-		//SignedMessage:SignedMessage{cmdstruct: cmdstruct{CmdId: PING_CMDID}},
+		//SignedMessage:SignedMessage{CmdStruct: CmdStruct{CmdId: PING_CMDID}},
 		Nonce: nonce,
 	}
 	p.CmdId = PING_CMDID
@@ -802,7 +825,7 @@ var MessageMap = map[int]Messager{
 
 func init() {
 	gob.Register(&Ack{})
-	gob.Register(&cmdstruct{})
+	gob.Register(&CmdStruct{})
 	gob.Register(&DirectTransfer{})
 	gob.Register(&EnvelopMessage{})
 	gob.Register(&Lock{})

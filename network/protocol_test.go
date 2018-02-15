@@ -15,7 +15,6 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -52,6 +51,7 @@ func TestDiscovery(t *testing.T) {
 	}
 }
 func TestNewHttpDiscovery(t *testing.T) {
+	return //http discovery has been obsolete
 	dis := NewHttpDiscovery()
 	host := "127.0.0.1"
 	port := rand.New(utils.RandSrc).Intn(50000)
@@ -157,35 +157,6 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
 		t.Errorf("secret not match")
 	}
-}
-
-func TestPingPythonRaiden(t *testing.T) {
-	pms, err := SocketFactory("0.0.0.0", params.INITIAL_PORT, "stun")
-	if err != nil {
-		t.Errorf("Port mapping error")
-		return
-	}
-	transport := NewUDPTransport(pms.ExternalIp, pms.ExternalPort,
-		pms.Conn, nil, NewTokenBucket(10, 2, time.Now))
-	bcs := rpc.MakeTestBlockChainService()
-	discover := NewHttpDiscovery()
-	err = discover.Register(bcs.NodeAddress, pms.ExternalIp, pms.ExternalPort)
-	if err != nil {
-		t.Errorf("register Port string to blockchain error:%v", err)
-		return
-	}
-	p1 := NewRaidenProtocol(transport, discover, bcs.PrivKey)
-	t.Logf("proto=%#v", transport.protocol)
-	counterpart := common.HexToAddress("0x33df901abc22dcb7f33c2a77ad43cc98fbfa0790")
-	ping := encoding.NewPing(32)
-	ping.Sign(bcs.PrivKey, ping)
-	err = p1.SendAndWait(counterpart, ping, time.Minute)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Logf("wait... close")
-	<-time.After(time.Minute * 50)
 }
 
 func TestNew(t *testing.T) {

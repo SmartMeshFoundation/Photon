@@ -43,6 +43,7 @@ type Config struct {
 	DataDir          string
 	MyAddress        common.Address
 	Debug            bool
+	ConditionQuit    ConditionQuit
 }
 
 var DefaultConfig = Config{
@@ -66,6 +67,12 @@ var DefaultConfig = Config{
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
 	MsgTimeout:       100 * time.Second,
 	Debug:            false,
+}
+
+type ConditionQuit struct {
+	QuitEvent  string //name match
+	IsBefore   bool   //quit before event occur
+	RandomQuit bool   //随机退出
 }
 
 func init() {

@@ -1,22 +1,30 @@
 package models
 
 import (
+	"fmt"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
-func (model *ModelDB) AddChannel(c *channel.ChannelSerialization) error {
-	var c2 channel.ChannelSerialization
-	err := model.db.One("ChannelAddress", c.ChannelAddress, &c2)
-	if err == nil {
-		err = model.db.Update(c)
-	} else {
-		err = model.db.Save(c)
-		//notify new channel added
-		model.handleChannelCallback(model.NewChannelCallbacks, c)
-
+func (model *ModelDB) NewChannel(c *channel.ChannelSerialization) error {
+	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddress.String()))
+	err := model.db.Save(c)
+	//notify new channel added
+	model.handleChannelCallback(model.NewChannelCallbacks, c)
+	if err != nil {
+		log.Error(fmt.Sprintf("NewChannel for models err:%s", err))
+	}
+	return err
+}
+func (model *ModelDB) UpdateChannelNoTx(c *channel.ChannelSerialization) error {
+	log.Trace(fmt.Sprintf("save channel %s", c.ChannelAddress.String()))
+	err := model.db.Save(c)
+	if err != nil {
+		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
 	}
 	return err
 }
@@ -37,7 +45,7 @@ func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.Ch
 
 //update channel balance
 func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerialization) error {
-	err := model.AddChannel(c)
+	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
 	}
@@ -47,10 +55,18 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerializati
 }
 
 //update channel balance? transfer complete?
+func (model *ModelDB) UpdateChannel(c *channel.ChannelSerialization, tx storm.Node) error {
+	log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
+	err := tx.Save(c)
+	if err != nil {
+		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
+	}
+	return err
+}
 
 //update channel state ,close settle
 func (model *ModelDB) UpdateChannelState(c *channel.ChannelSerialization) error {
-	err := model.AddChannel(c)
+	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
 	}
@@ -68,7 +84,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Chan
 	if partner == utils.EmptyAddress {
 		panic("partner is empty")
 	}
-	err = model.db.Find("TokenAddress", token, &cs)
+	err = model.db.Find("TokenAddressString", token.String(), &cs)
 	if err != nil {
 		return
 	}
@@ -84,7 +100,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Chan
 //channel (token,partner)
 func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channel.ChannelSerialization, err error) {
 	var c2 channel.ChannelSerialization
-	err = model.db.One("ChannelAddress", channelAddress, &c2)
+	err = model.db.One("ChannelAddressString", channelAddress.String(), &c2)
 	if err == nil {
 		c = &c2
 	}
@@ -97,10 +113,10 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 		err = model.db.All(&cs)
 		return
 	} else if token == utils.EmptyAddress {
-		err = model.db.Find("PartnerAddress", partner, &cs)
+		err = model.db.Find("PartnerAddressString", partner.String(), &cs)
 		return
 	} else if partner == utils.EmptyAddress {
-		err = model.db.Find("TokenAddress", token, &cs)
+		err = model.db.Find("TokenAddressString", token.String(), &cs)
 		return
 	} else {
 		panic("one of token and partner must be empty")

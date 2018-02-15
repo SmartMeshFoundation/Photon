@@ -38,10 +38,16 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 
 var GAS_LIMIT_HEX string
 
-//var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("Cf3C7400C227be86FcdB2c9Be7DEf5c671087620")
-//var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("5a93A5E5b754898f06F7A0f4abac419547600B25")
-var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("66eea3159a01d134dd64bfe36fde4be9ed9c1695")
-var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("1e3941d8c05fffa7466216480209240cc26ea577")
+//for private
+var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("Cf3C7400C227be86FcdB2c9Be7DEf5c671087620")
+
+//private clean
+//var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("0x7F167440F1aB963ddbDe19F5B355e1889E9DA187")
+var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("5a93A5E5b754898f06F7A0f4abac419547600B25")
+
+//for testnet
+//var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("66eea3159a01d134dd64bfe36fde4be9ed9c1695")
+//var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("1e3941d8c05fffa7466216480209240cc26ea577")
 
 const NETTINGCHANNEL_SETTLE_TIMEOUT_MIN = 6
 

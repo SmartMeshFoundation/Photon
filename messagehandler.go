@@ -7,9 +7,13 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
+	"github.com/SmartMeshFoundation/raiden-network/models"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/initiator"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -39,11 +43,17 @@ func NewRaidenMessageHandler(raiden *RaidenService) *RaidenMessageHandler {
  Handles `message` and sends an ACK on success.
 */
 func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash common.Hash) (err error) {
+	msg.SetTag(&transfer.MessageTag{
+		EchoHash:          hash,
+		IsASendingMessage: false,
+		MessageId:         utils.RandomString(10),
+	})
 	switch m2 := msg.(type) {
 	case *encoding.SecretRequest:
 		err = this.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
-		err = this.messageRevealSecret(m2)
+		this.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
+		err = this.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
 	case *encoding.Secret:
 		err = this.messageSecret(m2)
 	case *encoding.DirectTransfer:
@@ -66,6 +76,7 @@ func (this *RaidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
 		Identifier:   msg.Identifier,
 		NodeAddress:  msg.Sender,
 		BalanceProof: transfer.NewBalanceProofStateFromEnvelopMessage(msger),
+		Message:      msger,
 	}
 	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(balanceProof.Identifier, balanceProof)
 }
@@ -74,7 +85,7 @@ func (this *RaidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret
 	sender := msg.Sender
 	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock())
 	this.raiden.RegisterSecret(secret)
-	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{secret, sender}
+	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{secret, sender, msg}
 	this.raiden.StateMachineEventHandler.LogAndDispatchToAllTasks(stateChange)
 	return nil
 }
@@ -85,9 +96,55 @@ func (this *RaidenMessageHandler) messageSecretRequest(msg *encoding.SecretReque
 		Amount:     new(big.Int).Set(msg.Amount),
 		Hashlock:   msg.HashLock,
 		Sender:     msg.Sender,
+		Message:    msg,
 	}
 	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
+}
+func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
+	if msg.Tag() == nil {
+		log.Error(fmt.Sprintf("tag must not be nil ,only when token swap %s", utils.StringInterface(msg, 5)))
+		return
+	}
+	tx := this.raiden.db.StartTx()
+	msgTag := msg.Tag().(*transfer.MessageTag)
+	mgr := msgTag.GetStateManager()
+
+	if msgTag.ReceiveProcessComplete != false {
+		panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
+	}
+
+	mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
+	msgTag.ReceiveProcessComplete = true
+	ack := this.raiden.Protocol.CreateAck(msgTag.EchoHash)
+	this.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)
+	_, ok := mgr.LastReceivedMessage.(*encoding.Secret)
+	if !ok {
+		panic("must be a secret message")
+	}
+	mgr.IsBalanceProofReceived = true
+	if mgr.Name == target.NameTargetTransition {
+		mgr.ManagerState = transfer.StateManager_TransferComplete
+	} else if mgr.Name == initiator.NameInitiatorTransition {
+		// initiator 不应该收到
+	} else if mgr.Name == mediator.NameMediatorTransition {
+		/*
+			如何判断结束呢?
+				1. 收到了上一家的balanceproof
+				2. 下家的balanceproof已经发送成功
+		*/
+		if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
+			mgr.ManagerState = transfer.StateManager_TransferComplete
+		}
+	}
+	this.raiden.db.UpdateStateManaer(mgr, tx)
+	if mgr.ChannelAddress == utils.EmptyAddress {
+		panic("channeladdress must be valid")
+	}
+	ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	tx.Commit()
+	this.raiden.ConditionQuit("SecretSendAck")
 }
 func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	this.balanceProof(msg)
@@ -104,6 +161,19 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 		this.raiden.HandleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
 	}
 	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, hashlock)
+	//mark balanceproof complete
+	this.markSecretComplete(msg)
+	/*
+		the following seems useless , remove it ,todo fix ,remove
+	*/
+	/*
+		stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
+			Secret:  secret,
+			Sender:  msg.Sender,
+			Message: nil, //
+		}
+		this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(identifer, stateChange)
+	*/
 	return nil
 }
 
@@ -129,7 +199,7 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 		Expiration: msg.Expiration,
 		Hashlock:   msg.HashLock,
 		Secret:     utils.EmptyHash}
-	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{msg.Sender, transferState}
+	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{msg.Sender, transferState, msg}
 	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
 }
@@ -157,6 +227,7 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		Amount:       amount,
 		TokenAddress: msg.Token,
 		Sender:       msg.Sender,
+		Message:      msg,
 	}
 	stateChangeId, err := this.raiden.db.LogStateChange(stateChange)
 	if err != nil {

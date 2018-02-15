@@ -98,8 +98,8 @@ func TestSmoke(t *testing.T) {
 	if false {
 		tokenAddr, tokenAddr2 = newEnv(t, ra, rb, rc, rd)
 	} else {
-		tokenAddr = common.HexToAddress("0x0CD57FFf807fBB160941981a573A91f8B4880924")
-		tokenAddr2 = common.HexToAddress("0xb1Bd4Ad117BD467101fDB9e35cFCf86945b3CF75")
+		tokenAddr = common.HexToAddress("0xF6Ae54B3D493A3612055ea97831D8B64d448c772")
+		tokenAddr2 = common.HexToAddress("0xa376863CA47E23292e8950b4cd7561C1f0CaB634")
 		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
 		log.Info("channels about token1")
 		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()

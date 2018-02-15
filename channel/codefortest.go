@@ -28,7 +28,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 func makeTestExternState() *ChannelExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x1309B5eAd287aD4A41CEB6df6A359529a561ECC6"))
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0xB6F7124387Fd9AAE083E32A60905601D1A71EDeC"))
 	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs)
 }
 func MakeTestPairChannel() (*Channel, *Channel) {

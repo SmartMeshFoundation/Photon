@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -49,6 +50,7 @@ type ReceiveTransferDirectStateChange struct {
 	Amount       *big.Int
 	TokenAddress common.Address
 	Sender       common.Address
+	Message      *encoding.DirectTransfer
 }
 
 func init() {

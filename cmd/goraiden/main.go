@@ -18,6 +18,8 @@ import (
 	"os/signal"
 	"time"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/raiden-network"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
@@ -129,6 +131,15 @@ func main() {
 				issues)
 				[default: auto]`,
 			Value: "auto",
+		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "enable debug feature",
+		},
+		cli.StringFlag{
+			Name:  "conditionquit",
+			Usage: "quit at specified point for test",
+			Value: "",
 		},
 	}
 	app.Action = Main
@@ -335,6 +346,12 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	databasePath := filepath.Join(userDbPath, "log.db")
 	config.DataBasePath = databasePath
+	if ctx.Bool("debug") {
+		config.Debug = true
+		conditionquit := ctx.String("conditionquit")
+		json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
+		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
+	}
 	return &config
 }
 func init() {

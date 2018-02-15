@@ -18,6 +18,14 @@ import (
 
 	"math/big"
 
+	"strings"
+
+	"os"
+
+	"runtime"
+
+	"runtime/debug"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
@@ -84,6 +92,11 @@ type ApiReq struct {
 	Req   interface{} //operatoin
 }
 
+type ProtocolMessage struct {
+	receiver common.Address
+	Message  encoding.Messager
+}
+
 // A Raiden node.
 type RaidenService struct {
 	Chain              *rpc.BlockChainService
@@ -104,28 +117,29 @@ type RaidenService struct {
 	Identifier2Results       map[uint64][]*network.AsyncResult
 	SwapKey2TokenSwap        map[SwapKey]*TokenSwap
 	SwapKey2Task             map[SwapKey]Tasker
-	Tokens2ConnectionManager map[common.Address]*ConnectionManager
+	Tokens2ConnectionManager map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
 	/*
 			   This is a map from a hashlock to a list of channels, the same
 		         hashlock can be used in more than one token (for tokenswaps), a
 		         channel should be removed from this list only when the Lock is
 		         released/withdrawn but not when the secret is registered.
 	*/
-	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel //多线程
-	MessageHandler           *RaidenMessageHandler
-	StateMachineEventHandler *StateMachineEventHandler
-	BlockChainEvents         *blockchain.BlockChainEvents
-	AlarmTask                *blockchain.AlarmTask
-	db                       *models.ModelDB
-	GreenletTasksDispatcher  *GreenletTasksDispatcher
-	FileLocker               *flock.Flock
-	SnapshortDir             string
-	SerializationFile        string
-	BlockNumber              *atomic.Value
-	BlockNumberChan          chan int64
-	Lock                     sync.RWMutex
-	TransferReqChan          chan *ApiReq
-	TransferResponseChan     map[string]chan *network.AsyncResult
+	Token2Hashlock2Channels     map[common.Address]map[common.Hash][]*channel.Channel //多线程
+	MessageHandler              *RaidenMessageHandler
+	StateMachineEventHandler    *StateMachineEventHandler
+	BlockChainEvents            *blockchain.BlockChainEvents
+	AlarmTask                   *blockchain.AlarmTask
+	db                          *models.ModelDB
+	GreenletTasksDispatcher     *GreenletTasksDispatcher
+	FileLocker                  *flock.Flock
+	SnapshortDir                string
+	SerializationFile           string
+	BlockNumber                 *atomic.Value
+	BlockNumberChan             chan int64
+	Lock                        sync.RWMutex
+	TransferReqChan             chan *ApiReq
+	TransferResponseChan        map[string]chan *network.AsyncResult
+	ProtocolMessageSendComplete chan *ProtocolMessage
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -136,27 +150,28 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		utils.SystemExit(1)
 	}
 	srv = &RaidenService{
-		Chain:                    chain,
-		Registry:                 chain.Registry(chain.RegistryAddress),
-		RegistryAddress:          chain.RegistryAddress,
-		PrivateKey:               privateKey,
-		Config:                   config,
-		NodeAddress:              crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:       make(map[common.Address]*network.ChannelGraph),
-		Manager2Token:            make(map[common.Address]common.Address),
-		Identifier2StateManagers: make(map[uint64][]*transfer.StateManager),
-		Identifier2Results:       make(map[uint64][]*network.AsyncResult),
-		Token2Hashlock2Channels:  make(map[common.Address]map[common.Hash][]*channel.Channel),
-		SwapKey2TokenSwap:        make(map[SwapKey]*TokenSwap),
-		SwapKey2Task:             make(map[SwapKey]Tasker),
-		Tokens2ConnectionManager: make(map[common.Address]*ConnectionManager),
-		AlarmTask:                blockchain.NewAlarmTask(chain.Client),
-		BlockChainEvents:         blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
-		GreenletTasksDispatcher:  NewGreenletTasksDispatcher(),
-		BlockNumberChan:          make(chan int64, 1),
-		TransferReqChan:          make(chan *ApiReq, 10),
-		TransferResponseChan:     make(map[string]chan *network.AsyncResult),
-		BlockNumber:              new(atomic.Value),
+		Chain:                       chain,
+		Registry:                    chain.Registry(chain.RegistryAddress),
+		RegistryAddress:             chain.RegistryAddress,
+		PrivateKey:                  privateKey,
+		Config:                      config,
+		NodeAddress:                 crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph:          make(map[common.Address]*network.ChannelGraph),
+		Manager2Token:               make(map[common.Address]common.Address),
+		Identifier2StateManagers:    make(map[uint64][]*transfer.StateManager),
+		Identifier2Results:          make(map[uint64][]*network.AsyncResult),
+		Token2Hashlock2Channels:     make(map[common.Address]map[common.Hash][]*channel.Channel),
+		SwapKey2TokenSwap:           make(map[SwapKey]*TokenSwap),
+		SwapKey2Task:                make(map[SwapKey]Tasker),
+		Tokens2ConnectionManager:    make(map[common.Address]*ConnectionManager),
+		AlarmTask:                   blockchain.NewAlarmTask(chain.Client),
+		BlockChainEvents:            blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
+		GreenletTasksDispatcher:     NewGreenletTasksDispatcher(),
+		BlockNumberChan:             make(chan int64, 1),
+		TransferReqChan:             make(chan *ApiReq, 10),
+		TransferResponseChan:        make(map[string]chan *network.AsyncResult),
+		BlockNumber:                 new(atomic.Value),
+		ProtocolMessageSendComplete: make(chan *ProtocolMessage, 10),
 	}
 	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
@@ -167,6 +182,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		log.Error("open db error")
 		utils.SystemExit(1)
 	}
+	srv.Protocol.SetReceivedMessageSaver(NewAckHelper(srv.db))
 	/*
 		only one instance for one data directory
 	*/
@@ -190,6 +206,8 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 // Start the node.
 func (this *RaidenService) Start() {
 	this.AlarmTask.Start()
+	//must have a valid blocknumber before any transfer operation
+	this.BlockNumber.Store(this.AlarmTask.LastBlockNumber)
 	this.AlarmTask.RegisterCallback(func(number int64) error {
 		return this.setBlockNumber(number)
 	})
@@ -211,20 +229,50 @@ func (this *RaidenService) Start() {
 	}
 	this.Protocol.Start()
 	go func() {
+		if this.Config.ConditionQuit.RandomQuit {
+			go func() {
+				isPrime := func(value int) bool {
+					if value <= 3 {
+						return value >= 2
+					}
+					if value%2 == 0 || value%3 == 0 {
+						return false
+					}
+					for i := 5; i*i <= value; i += 6 {
+						if value%i == 0 || value%(i+2) == 0 {
+							return false
+						}
+					}
+					return true
+				}
+				for {
+					/*
+						随机休眠不超过五秒,如果休眠毫秒数是素数,直接退出 ,此概率大概是13%
+					*/
+					n := utils.NewRandomInt(5000)
+					time.Sleep(time.Duration(n) * time.Millisecond)
+					if isPrime(n) {
+						panic("random quit")
+					}
+				}
+			}()
+		}
 		this.loop()
 	}()
 }
 
 //Stop the node.
 func (this *RaidenService) Stop() {
+	log.Info("raiden service stop...")
 	this.AlarmTask.Stop()
 	this.Protocol.StopAndWait()
 	this.BlockChainEvents.Stop()
 	this.SaveSnapshot()
-	time.Sleep(time.Second * 3) // let other goroutines quit
+	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	this.db.CloseDB()
 	//anther instance cann run now
 	this.FileLocker.Unlock()
+	log.Info("raiden service stop ok...")
 }
 func (this *RaidenService) loop() {
 	var err error
@@ -233,6 +281,7 @@ func (this *RaidenService) loop() {
 	var st transfer.StateChange
 	var blockNumber int64
 	var req *ApiReq
+	var sentMessage *ProtocolMessage
 	for {
 		select {
 		case m, ok = <-this.Protocol.ReceivedMessageChannel:
@@ -268,6 +317,51 @@ func (this *RaidenService) loop() {
 				this.handleReq(req)
 			} else {
 				log.Info("req closed")
+			}
+		case sentMessage, ok = <-this.ProtocolMessageSendComplete:
+			if ok {
+				if sentMessage.Message.Tag() != nil { //
+					sentTag := sentMessage.Message.Tag()
+					sentMessageTag := sentTag.(*transfer.MessageTag)
+					if sentMessageTag.GetStateManager() != nil {
+						mgr := sentMessageTag.GetStateManager()
+						mgr.ManagerState = transfer.StateManager_SendMessageSuccesss
+						sentMessageTag.SendingMessageComplete = true
+						tx := this.db.StartTx()
+						_, ok = sentMessage.Message.(*encoding.Secret)
+						if ok {
+							mgr.IsBalanceProofSent = true
+							if mgr.Name == initiator.NameInitiatorTransition {
+								mgr.ManagerState = transfer.StateManager_TransferComplete
+							} else if mgr.Name == target.NameTargetTransition {
+
+							} else if mgr.Name == mediator.NameMediatorTransition {
+								/*
+									如何判断结束呢?
+										1. 收到了上一家的balanceproof
+										2. 下家的balanceproof已经发送成功
+								*/
+								if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
+									mgr.ManagerState = transfer.StateManager_TransferComplete
+								}
+
+							}
+						}
+						this.db.UpdateStateManaer(mgr, tx)
+						tx.Commit()
+						this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
+					} else if sentMessageTag.EchoHash != utils.EmptyHash {
+						//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
+						this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
+						this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
+					} else {
+						panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
+					}
+				} else {
+					log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
+				}
+			} else {
+				log.Info("ProtocolMessageSendComplete closed")
 			}
 		}
 	}
@@ -366,8 +460,26 @@ func (this *RaidenService) SendAsync(recipient common.Address, msg encoding.Sign
 	if recipient == this.NodeAddress {
 		log.Error(fmt.Sprintf("this must be a bug ,sending message to it self"))
 	}
-	_, err := this.Protocol.SendAsync(recipient, msg)
-	return err
+	revealSecretMessage, ok := msg.(*encoding.RevealSecret)
+	if ok && revealSecretMessage != nil {
+		srs := models.NewSentRevealSecret(revealSecretMessage, recipient)
+		this.db.NewSentRevealSecret(srs)
+		if msg.Tag() == nil {
+			msg.SetTag(&transfer.MessageTag{
+				EchoHash:          srs.EchoHash,
+				IsASendingMessage: true,
+			})
+		}
+	}
+	result := this.Protocol.SendAsync(recipient, msg)
+	go func() {
+		<-result.Result //always success
+		this.ProtocolMessageSendComplete <- &ProtocolMessage{
+			receiver: recipient,
+			Message:  msg,
+		}
+	}()
+	return nil
 }
 
 /*
@@ -404,6 +516,8 @@ func (this *RaidenService) RegisterSecret(secret common.Hash) {
 	for _, hashchannel := range this.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			ch.RegisterSecret(secret)
+			this.ConditionQuit("BeforeSendRevealSecret")
+			this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			//The protocol ignores duplicated messages.
 			this.SendAsync(ch.PartnerState.Address, revealSecretMessage)
 		}
@@ -504,6 +618,8 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 					if err != nil {
 						return
 					}
+					this.ConditionQuit("BeforeSendRevealSecret")
+					this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 					messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, revealSecretMessage})
 				}
 			} else {
@@ -511,6 +627,8 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 				if err != nil {
 					return
 				}
+				this.ConditionQuit("BeforeSendRevealSecret")
+				this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 				messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, revealSecretMessage})
 			}
 		} else {
@@ -574,15 +692,20 @@ func (this *RaidenService) RegisterChannelManager(managerAddress common.Address)
 	if err != nil {
 		log.Info(err.Error())
 	}
-	for _, c := range graph.ChannelAddress2Channel {
-		err = this.db.AddChannel(channel.NewChannelSerialization(c))
-		if err != nil {
-			log.Info(err.Error())
-		}
-	}
+	// we need restore channel status from database after restart...
+	//for _, c := range graph.ChannelAddress2Channel {
+	//	err = this.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	//	if err != nil {
+	//		log.Info(err.Error())
+	//	}
+	//}
 
 	return
 }
+
+/*
+found new channel on blockchain when running...
+*/
 func (this *RaidenService) RegisterNettingChannel(tokenAddress, channelAddress common.Address) {
 	nettingChannel, err := this.Chain.NettingChannel(channelAddress)
 	if err != nil {
@@ -594,7 +717,7 @@ func (this *RaidenService) RegisterNettingChannel(tokenAddress, channelAddress c
 	if err != nil {
 		log.Error(err.Error())
 	}
-	err = this.db.AddChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[channelAddress]))
+	err = this.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[channelAddress]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -834,13 +957,7 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 			Target:     target,
 		}
 		this.db.LogEvents(stateChangeId, []transfer.Event{transferSuccess}, this.GetBlockNumber())
-		result2, err := this.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
-		if err != nil {
-			result.Result <- err
-			return
-		} else {
-			result = result2
-		}
+		result = this.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 	}
 	return
 }
@@ -889,7 +1006,7 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 		RandomGenerator: utils.RandomGenerator,
 		BlockNumber:     this.GetBlockNumber(),
 	}
-	stateManger := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition)
+	stateManger := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, transferState.Identifier, transferState.Token)
 	/*
 		  TODO: implement the network timeout raiden.config['msg_timeout'] and
 			cancel the current transfer if it hapens (issue #374)
@@ -903,12 +1020,12 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 	results := this.Identifier2Results[identifier]
 	results = append(results, result)
 	this.Identifier2Results[identifier] = results
-
+	this.db.AddStateManager(stateManger) //how to save Identifier2StateManagers todo
 	this.StateMachineEventHandler.LogAndDispatch(stateManger, initInitiator)
 	return result
 }
 
-//收到了MediatedTransfer
+//receive a MediatedTransfer, i'm a hop node
 func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfer) {
 	amount := msg.Amount
 	target := msg.Target
@@ -927,15 +1044,17 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 		Routes:      routesState,
 		FromRoute:   fromRoute,
 		BlockNumber: blockNumber,
+		Message:     msg,
 	}
-	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition)
+	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.Identifier, fromTransfer.Token)
+	this.db.AddStateManager(stateManager)
 	this.StateMachineEventHandler.LogAndDispatch(stateManager, initMediator)
 	mgrs := this.Identifier2StateManagers[msg.Identifier]
 	mgrs = append(mgrs, stateManager)
-	this.Identifier2StateManagers[msg.Identifier] = mgrs
+	this.Identifier2StateManagers[msg.Identifier] = mgrs //for path A-B-C-B-D-E ,node B will have two StateManagers for one identifier
 }
 
-//收到了MediatedTransfer,我是最终目标
+//receive a MediatedTransfer, i'm the target
 func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer) {
 	graph := this.GetToken2ChannelGraph(msg.Token)
 	fromChannel := graph.GetPartenerAddress2Channel(msg.Sender)
@@ -946,8 +1065,10 @@ func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer
 		FromRoute:   fromRoute,
 		FromTranfer: fromTransfer,
 		BlockNumber: this.GetBlockNumber(),
+		Message:     msg,
 	}
-	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition)
+	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.Identifier, fromTransfer.Token)
+	this.db.AddStateManager(stateManger)
 	this.StateMachineEventHandler.LogAndDispatch(stateManger, initTarget)
 	identifier := msg.Identifier
 	mgrs := this.Identifier2StateManagers[identifier]
@@ -1075,4 +1196,29 @@ func (this *RaidenService) handleReq(req *ApiReq) {
 	close(this.TransferResponseChan[r.ReqId])
 	delete(this.TransferResponseChan, r.ReqId)
 	this.Lock.Unlock()
+}
+
+func (this *RaidenService) ConditionQuit(eventName string) {
+	if strings.ToLower(eventName) == strings.ToLower(this.Config.ConditionQuit.QuitEvent) {
+		log.Error(fmt.Sprintf("quitevent=%s\n", eventName))
+		debug.PrintStack()
+		os.Exit(111)
+	}
+}
+
+func PrintStack() {
+	os.Stderr.Write(Stack())
+}
+
+// Stack returns a formatted stack trace of the goroutine that calls it.
+// It calls runtime.Stack with a large enough buffer to capture the entire trace.
+func Stack() []byte {
+	buf := make([]byte, 1024)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return buf[:n]
+		}
+		buf = make([]byte, 2*len(buf))
+	}
 }

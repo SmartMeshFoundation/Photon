@@ -187,6 +187,7 @@ func (this *BlockChainEvents) startListenEvent() {
 	}
 }
 func (this *BlockChainEvents) Stop() {
+	log.Info("BlockChainEvents stop...")
 	close(this.StateChangeChannel)
 	//channel close by ethclient
 	//for _, ch := range this.LogChannelMap {
@@ -195,6 +196,7 @@ func (this *BlockChainEvents) Stop() {
 	for _, sub := range this.Subscribes {
 		sub.Unsubscribe()
 	}
+	log.Info("BlockChainEvents stop ok...")
 }
 func (this *BlockChainEvents) sendStateChange(st transfer.StateChange) {
 	this.StateChangeChannel <- st

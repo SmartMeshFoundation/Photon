@@ -60,10 +60,10 @@ func Main(ctx *cli.Context) error {
 	address := common.HexToAddress(ctx.String("address"))
 	address, key := promptAccount(address, ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
-	deployContract(key, conn)
+	DeployContract(key, conn)
 	return nil
 }
-func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
+func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	auth := bind.NewKeyedTransactor(key)
 	//DeployNettingChannelLibrary
 	NettingChannelLibraryAddress, tx, _, err := rpc.DeployNettingChannelLibrary(auth, conn)

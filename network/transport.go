@@ -7,6 +7,7 @@ import (
 
 	"net"
 
+	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -194,7 +195,7 @@ func (this *UDPTransport) Start() {
 			read, remoteAddr, err := t.conn.ReadFromUDP(data)
 			//log.Trace("receive data:")
 			if err != nil {
-				fmt.Println("读取数据失败!", err)
+				fmt.Println("udp read data failure!", err)
 				if !t.isClosed {
 					continue
 				} else {
@@ -202,8 +203,8 @@ func (this *UDPTransport) Start() {
 				}
 
 			}
-			log.Trace(fmt.Sprintf("%d receive from %s:%d,data=%d,hash=%s\n", t.Port, remoteAddr.IP.String(),
-				remoteAddr.Port, int(data[0]), utils.HPex(utils.Sha3(data[:read]))))
+			log.Trace(fmt.Sprintf("%d receive from %s:%d,message=%s,hash=%s\n", t.Port, remoteAddr.IP.String(),
+				remoteAddr.Port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
 			t.Receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
 		}
 
@@ -234,7 +235,7 @@ Args:
 */
 func (this *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
 	dummyNetwork.TrackSend(receiver, host, port, data)
-	log.Trace(fmt.Sprintf("%d send to %s %s:%d, data=%d,hash=%s\n", this.Port, utils.APex(receiver), host, port, int(data[0]), utils.HPex(utils.Sha3(data))))
+	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,hash=%s\n", this.Port, utils.APex(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
 	time.Sleep(this.policy.Consume(1))
 	//todo need one lock for write?
 	_, err := this.conn.WriteToUDP(data, udpAddrFromHostport(host, port))

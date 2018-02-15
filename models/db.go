@@ -93,7 +93,7 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 			return
 		}
 		model.initDb()
-		model.db.Set(bucketMeta, "close", false)
+		model.MarkDbOpenedStatus()
 	} else {
 		err = model.db.Get(bucketMeta, "version", &ver)
 		if err != nil {
@@ -110,12 +110,28 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 		}
 		if closeFlag != true {
 			log.Error("database not closed  last..., try to restore?")
-			//todo fixit ,how to retore from a crashed raiden?
 		}
-		model.db.Set(bucketMeta, "close", false)
 	}
 
 	return
+}
+
+/*
+第一步打开数据库
+第二步检测是否正常关闭 IsDbCrashedLastTime
+第三步 根据第二步的情况恢复数据
+第四步 标记数据库可以正常处理数据了. MarkDbOpenedStatus
+*/
+func (model *ModelDB) MarkDbOpenedStatus() {
+	model.db.Set(bucketMeta, "close", false)
+}
+func (model *ModelDB) IsDbCrashedLastTime() bool {
+	var closeFlag bool
+	err := model.db.Get(bucketMeta, "close", &closeFlag)
+	if err != nil {
+		log.Crit(fmt.Sprintf("db meta data error"))
+	}
+	return closeFlag != true
 }
 func (model *ModelDB) CloseDB() {
 	model.lock.Lock()
@@ -201,6 +217,7 @@ func (model *ModelDB) LoadSnapshot() (state interface{}, err error) {
 func init() {
 	gob.Register(&InternalEvent{})
 	gob.Register(&snapshotToWrite{})
+	gob.Register(common.Address{})
 }
 
 func (model *ModelDB) initDb() {

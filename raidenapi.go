@@ -387,9 +387,6 @@ func (this *RaidenApi) TransferAndWait(token common.Address, amount *big.Int, ta
 	} else {
 		err = <-result.Result
 	}
-	if result.Sub != nil { //for mediatedTranfer ,no way to cancel transfer
-		result.Sub.Unsubscribe()
-	}
 	return
 }
 func (this *RaidenApi) Transfer(token common.Address, amount *big.Int, target common.Address, identifier uint64, timeout time.Duration) error {
@@ -605,6 +602,7 @@ func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock
 func (this *RaidenApi) Stop() {
 	log.Info("calling api stop..")
 	this.Raiden.Stop()
+	log.Info("stop successful..")
 }
 
 type EventTransferSentSuccessWrapper struct {

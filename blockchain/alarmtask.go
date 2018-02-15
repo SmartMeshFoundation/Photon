@@ -21,8 +21,8 @@ type AlarmCallback func(blockNumber int64) error
 
 //Task to notify when a block is mined.
 type AlarmTask struct {
-	client          *helper.SafeEthClient //todo race condition and reconnect, wrapper?
-	lastBlockNumber int64
+	client          *helper.SafeEthClient
+	LastBlockNumber int64
 	shouldStop      chan struct{}
 	waitTime        time.Duration
 	callback        []AlarmCallback
@@ -33,7 +33,7 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 	t := &AlarmTask{
 		client:          client,
 		waitTime:        time.Second,
-		lastBlockNumber: -1,
+		LastBlockNumber: -1,
 		shouldStop:      make(chan struct{}), //sync channel
 	}
 	return t
@@ -68,7 +68,7 @@ func (this *AlarmTask) RemoveCallback(cb AlarmCallback) {
 }
 
 func (this *AlarmTask) run() {
-	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", this.lastBlockNumber))
+	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", this.LastBlockNumber))
 	for {
 		err := this.waitNewBlock()
 		if err != nil {
@@ -78,7 +78,7 @@ func (this *AlarmTask) run() {
 }
 
 func (this *AlarmTask) waitNewBlock() error {
-	currentBlock := this.lastBlockNumber
+	currentBlock := this.LastBlockNumber
 	headerCh := make(chan *types.Header, 1)
 	//get the lastest number imediatelly
 	h, err := this.client.HeaderByNumber(context.Background(), nil)
@@ -135,9 +135,16 @@ func (this *AlarmTask) waitNewBlock() error {
 }
 
 func (this *AlarmTask) Start() {
+	h, err := this.client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		panic(fmt.Sprintf("HeaderByNumber error %s", err))
+	}
+	this.LastBlockNumber = h.Number.Int64()
 	go this.run()
 }
 func (this *AlarmTask) Stop() {
+	log.Info("alarm task stop...")
 	this.shouldStop <- struct{}{}
 	close(this.shouldStop)
+	log.Info("alarm task stop ok...")
 }

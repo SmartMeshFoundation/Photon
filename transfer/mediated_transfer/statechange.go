@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -23,11 +24,12 @@ type ActionInitInitiatorStateChange struct {
 
 // Initial state for a new mediator.
 type ActionInitMediatorStateChange struct {
-	OurAddress  common.Address        //This node address.
-	FromTranfer *LockedTransferState  //The received MediatedTransfer.
-	Routes      *transfer.RoutesState //The current available routes.
-	FromRoute   *transfer.RouteState  //The route from which the MediatedTransfer was received.
-	BlockNumber int64                 //The current block number.
+	OurAddress  common.Address             //This node address.
+	FromTranfer *LockedTransferState       //The received MediatedTransfer.
+	Routes      *transfer.RoutesState      //The current available routes.
+	FromRoute   *transfer.RouteState       //The route from which the MediatedTransfer was received.
+	BlockNumber int64                      //The current block number.
+	Message     *encoding.MediatedTransfer //the message trigger this statechange
 }
 
 //Initial state for a new target.
@@ -36,6 +38,7 @@ type ActionInitTargetStateChange struct {
 	FromTranfer *LockedTransferState //The received MediatedTransfer.
 	FromRoute   *transfer.RouteState //The route from which the MediatedTransfer was received.
 	BlockNumber int64
+	Message     *encoding.MediatedTransfer //the message trigger this statechange
 }
 
 /*
@@ -54,18 +57,21 @@ type ReceiveSecretRequestStateChange struct {
 	Amount     *big.Int
 	Hashlock   common.Hash
 	Sender     common.Address
+	Message    *encoding.SecretRequest //the message trigger this statechange
 }
 
 //A SecretReveal message received
 type ReceiveSecretRevealStateChange struct {
-	Secret common.Hash
-	Sender common.Address
+	Secret  common.Hash
+	Sender  common.Address
+	Message *encoding.RevealSecret //the message trigger this statechange
 }
 
 // A RefundTransfer message received.
 type ReceiveTransferRefundStateChange struct {
 	Sender   common.Address
 	Transfer *LockedTransferState
+	Message  *encoding.RefundTransfer //the message trigger this statechange
 }
 
 //A balance proof `identifier` was received.
@@ -73,6 +79,7 @@ type ReceiveBalanceProofStateChange struct {
 	Identifier   uint64
 	NodeAddress  common.Address
 	BalanceProof *transfer.BalanceProofState
+	Message      encoding.EnvelopMessager //the message trigger this statechange
 }
 
 /*

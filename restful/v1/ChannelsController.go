@@ -6,6 +6,8 @@ import (
 
 	"math/big"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -84,7 +86,7 @@ func (this *ChannelsController) SpecifiedChannel() {
 //put request
 func (this *ChannelsController) OpenChannel() {
 	req := &channelData{}
-	log.Trace("request body:", this.Ctx.Input.RequestBody)
+	log.Trace(fmt.Sprintf("request body:%s", this.Ctx.Input.RequestBody))
 	err := json.Unmarshal(this.Ctx.Input.RequestBody, req)
 	if err != nil {
 		log.Error(err.Error())

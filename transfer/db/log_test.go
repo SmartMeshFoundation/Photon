@@ -69,6 +69,7 @@ func TestGob(t *testing.T) {
 		return
 	}
 	t.Logf("r=%#v", r)
+
 }
 
 /*
