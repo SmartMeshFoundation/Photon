@@ -23,6 +23,7 @@ type channelData struct {
 	ChannelAddress string   `json:"channel_address"`
 	PartnerAddrses string   `json:"partner_address"`
 	Balance        *big.Int `json:"balance"`
+	PartnerBalance *big.Int `json:"patner_balance"`
 	TokenAddress   string   `json:"token_address"`
 	State          string   `json:"state"`
 	SettleTimeout  int      `json:"settle_timeout"`
@@ -44,6 +45,7 @@ func (this *ChannelsController) Get() {
 			ChannelAddress: c.ChannelAddress.String(),
 			PartnerAddrses: c.PartnerAddress.String(),
 			Balance:        c.OurBalance,
+			PartnerBalance: c.PartnerBalance,
 			State:          c.State,
 			TokenAddress:   c.TokenAddress.String(),
 			SettleTimeout:  c.SettleTimeout,
@@ -75,6 +77,7 @@ func (this *ChannelsController) SpecifiedChannel() {
 		ChannelAddress: c.ChannelAddress.String(),
 		PartnerAddrses: c.PartnerAddress.String(),
 		Balance:        c.OurBalance,
+		PartnerBalance: c.PartnerBalance,
 		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
@@ -106,6 +109,7 @@ func (this *ChannelsController) OpenChannel() {
 				ChannelAddress: c.ChannelAddress.String(),
 				PartnerAddrses: c.PartnerAddress.String(),
 				Balance:        c.OurBalance,
+				PartnerBalance: c.PartnerBalance,
 				State:          c.State,
 				SettleTimeout:  c.SettleTimeout,
 				TokenAddress:   c.TokenAddress.String(),
@@ -183,6 +187,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 		ChannelAddress: c.ChannelAddress.String(),
 		PartnerAddrses: c.PartnerAddress.String(),
 		Balance:        c.OurBalance,
+		PartnerBalance: c.PartnerBalance,
 		State:          c.State,
 		SettleTimeout:  c.SettleTimeout,
 		TokenAddress:   c.TokenAddress.String(),
