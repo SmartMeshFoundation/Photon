@@ -131,7 +131,9 @@ func NewGraphFromFile(fn string) *Graph {
 	}
 	return NewGraph(v)
 }
-
+func (g*Graph) GetAllVertices() map[int]Vertex {
+	return g.vertices
+}
 func (g *Graph) Len() int    { return len(g.vertices) }
 func (g *Graph) visit(v int) { g.visited[v] = true }
 
