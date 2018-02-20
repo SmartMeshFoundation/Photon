@@ -51,6 +51,10 @@ func main() {
 	           'Also accepts a protocol prefix (ws:// or ipc channel) with optional port',`,
 			Value: node.DefaultIPCEndpoint("geth"),
 		},
+		cli.BoolFlag{
+			Name:  "create-channel",
+			Usage: "create channels between node for test.",
+		},
 	}
 	app.Action = Main
 	app.Name = "raidendeploy"
@@ -86,7 +90,9 @@ func Main(ctx *cli.Context) error {
 	}
 	fmt.Sprintf("key=%s", key)
 	TransferMoneyForAccounts(key, conn, accounts[1:], token)
-	CreateChannels(conn, accounts, keys, manager, token)
+	if ctx.Bool("create-channel") {
+		CreateChannels(conn, accounts, keys, manager, token)
+	}
 	return nil
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
@@ -217,7 +223,7 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	AccountD := accounts[3]
 	AccountE := accounts[4]
 	AccountF := accounts[5]
-	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB, AccountC, AccountD, AccountE, AccountF)
+	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
 	keyA := keys[0]
 	keyB := keys[1]
 	keyC := keys[2]
