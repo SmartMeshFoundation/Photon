@@ -503,7 +503,7 @@ func (c *Channel) CreateRefundTransfer(transfer_initiator, transfer_target commo
 	if err != nil {
 		return
 	}
-	tr = &encoding.RefundTransfer{MediatedTransfer: *mtr}
+	tr = encoding.NewRefundTransferFromMediatedTransfer(mtr)
 	return
 }
 

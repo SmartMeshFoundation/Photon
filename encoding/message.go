@@ -365,7 +365,10 @@ func NewRevealSecret(secret common.Hash) *RevealSecret {
 	p.CmdId = REVEALSECRET_CMDID
 	return p
 }
-
+func CloneRevealSecret(rs *RevealSecret) *RevealSecret {
+	rs2 := *rs
+	return &rs2
+}
 func (this *RevealSecret) HashLock() common.Hash {
 	if bytes.Equal(this.hashLock[:], utils.EmptyHash[:]) {
 		this.hashLock = utils.Sha3(this.Secret[:])
@@ -792,7 +795,12 @@ func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
 	p.CmdId = REFUNDTRANSFER_CMDID
 	return p
 }
-
+func NewRefundTransferFromMediatedTransfer(mtr *MediatedTransfer) *RefundTransfer {
+	p := &RefundTransfer{}
+	p.MediatedTransfer = *mtr
+	p.CmdId = REFUNDTRANSFER_CMDID
+	return p
+}
 func IsLockedTransfer(msg Messager) bool {
 	return msg.Cmd() == REFUNDTRANSFER_CMDID || msg.Cmd() == MEDIATEDTRANSFER_CMDID
 }

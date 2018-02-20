@@ -110,6 +110,6 @@ func (model *ModelDB) GetAllUncompleteSentRevealSecret() []*SentRevealSecret {
 	if err != nil && err != storm.ErrNotFound {
 		panic(fmt.Sprintf("GetAllUncompleteSentRevealSecret err=%s", err))
 	}
-	log.Trace(fmt.Sprintf("GetAllUncompleteSentRevealSecret=%s", utils.StringInterface(msgs, 3)))
+	log.Trace(fmt.Sprintf("GetAllUncompleteSentRevealSecret=%s", utils.StringInterface(msgs, 7)))
 	return msgs
 }

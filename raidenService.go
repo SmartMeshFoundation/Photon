@@ -320,6 +320,7 @@ func (this *RaidenService) loop() {
 			}
 		case sentMessage, ok = <-this.ProtocolMessageSendComplete:
 			if ok {
+				log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface1(sentMessage)))
 				if sentMessage.Message.Tag() != nil { //
 					sentTag := sentMessage.Message.Tag()
 					sentMessageTag := sentTag.(*transfer.MessageTag)
@@ -469,6 +470,11 @@ func (this *RaidenService) SendAsync(recipient common.Address, msg encoding.Sign
 				EchoHash:          srs.EchoHash,
 				IsASendingMessage: true,
 			})
+		} else {
+			messageTag := msg.Tag().(*transfer.MessageTag)
+			if messageTag.EchoHash != srs.EchoHash {
+				panic("reveal secret's echo hash not equal")
+			}
 		}
 	}
 	result := this.Protocol.SendAsync(recipient, msg)
@@ -519,7 +525,8 @@ func (this *RaidenService) RegisterSecret(secret common.Hash) {
 			this.ConditionQuit("BeforeSendRevealSecret")
 			this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			//The protocol ignores duplicated messages.
-			this.SendAsync(ch.PartnerState.Address, revealSecretMessage)
+			//make sure not send the same instance multi times.
+			this.SendAsync(ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage))
 		}
 	}
 }
@@ -620,7 +627,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 					}
 					this.ConditionQuit("BeforeSendRevealSecret")
 					this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-					messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, revealSecretMessage})
+					messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage)})
 				}
 			} else {
 				err = ch.RegisterSecret(secret)
@@ -629,7 +636,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 				}
 				this.ConditionQuit("BeforeSendRevealSecret")
 				this.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-				messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, revealSecretMessage})
+				messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage)})
 			}
 		} else {
 			log.Error("Channel is registered for a given Lock but the Lock is not contained in it.")

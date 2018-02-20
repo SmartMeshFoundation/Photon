@@ -101,7 +101,9 @@ type StateManager struct {
 	ManagerState        string    `storm:"index"` //state for initiator and target ,distingush operation from crash
 	Identifier          uint64    //transfer identifier
 	TokenAddress        common.Address
-	ChannelAddress      common.Address
+	ChannelAddress      common.Address //channel address from initiator A-B-C channel A-B
+	ChannelAddressTo    common.Address //mediated transfer will send to. A-B-C channel B-C
+	ChannelAddresRefund common.Address //node received a refund transfer, should save and forget.
 
 	LastReceivedMessage    interface{}       //message received status, except reveal secret,may be init statechange
 	LastSendMessage        encoding.Messager //sending message.

@@ -69,7 +69,7 @@ func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Addr
 }
 func (this *ChannelGraph) PrintGraph() {
 	rowheader := fmt.Sprintf("%s", strings.Repeat(" ", 14))
-	for i, _ := range this.index2address {
+	for i := 0; i < len(this.index2address); i++ {
 		rowheader += fmt.Sprintf("     %s:%2d", utils.APex2(this.index2address[i]), i)
 	}
 	fmt.Println(rowheader)
@@ -175,7 +175,7 @@ func (this *ChannelGraph) GetShortestPaths(source, target common.Address) (paths
 		err = errors.New("target address is unkown")
 		return
 	}
-	indexPaths := this.g.AllShortestPath(sourceIndex, targetIndex)
+	indexPaths := dijkstra.NewGraph(this.g.GetAllVertices()).AllShortestPath(sourceIndex, targetIndex)
 	for _, ip := range indexPaths {
 		var p []common.Address
 		for _, i := range ip {
@@ -225,7 +225,7 @@ func (this *ChannelGraph) ShortestPath(source, target common.Address) int {
 	if sourceIndex == targetIndex {
 		return 0
 	}
-	return this.g.ShortestPath(sourceIndex, targetIndex)
+	return dijkstra.NewGraph(this.g.GetAllVertices()).ShortestPath(sourceIndex, targetIndex)
 }
 
 //Remove an edge from the network.  this edge may  not exist
@@ -298,6 +298,7 @@ func (this *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Add
 		nws = append(nws, &neighborWeight{n, w})
 	}
 	sort.Sort(nws)
+	log.Trace(fmt.Sprintf("nws=%s\n", utils.StringInterface(nws, 3)))
 	neighbors = []common.Address{}
 	for _, nw := range nws {
 		if nw.weight != utils.MaxInt {
@@ -314,14 +315,14 @@ Yield a two-tuple (path, channel) that can be used to mediate the
 */
 func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress common.Address,
 	targetAdress common.Address, amount *big.Int, previousAddress common.Address) (onlineNodes []*transfer.RouteState) {
-	/*
-		for direct transfer
-	*/
-	c := this.GetPartenerAddress2Channel(targetAdress)
-	if c != nil {
-		onlineNodes = append(onlineNodes, Channel2RouteState(c, targetAdress))
-		return
-	}
+	///*
+	//	for direct transfer
+	//*/
+	//c := this.GetPartenerAddress2Channel(targetAdress)
+	//if c != nil {
+	//	onlineNodes = append(onlineNodes, Channel2RouteState(c, targetAdress))
+	//	return
+	//}
 	/*
 
 	   XXX: consider using multiple channels for a single transfer. Useful

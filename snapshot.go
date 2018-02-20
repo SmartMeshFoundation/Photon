@@ -178,6 +178,10 @@ func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 	switch mgr.Name {
 	case initiator.NameInitiatorTransition:
 		mgr.FuncStateTransition = initiator.StateTransition
+		if mgr.CurrentState != nil {
+			state := mgr.CurrentState.(*mediated_transfer.InitiatorState)
+			state.RandomGenerator = utils.RandomGenerator
+		}
 	case mediator.NameMediatorTransition:
 		mgr.FuncStateTransition = mediator.StateTransition
 	case target.NameTargetTransition:
