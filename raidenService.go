@@ -672,7 +672,7 @@ func (this *RaidenService) RegisterChannelManager(managerAddress common.Address)
 	//new token, save to db
 	err = this.db.AddToken(tokenAddress)
 	if err != nil {
-		log.Info(err.Error())
+		log.Error(err.Error())
 	}
 	// we need restore channel status from database after restart...
 	//for _, c := range graph.ChannelAddress2Channel {

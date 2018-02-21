@@ -1,0 +1,4 @@
+{
+  "raiden": "/api/1",
+  "web3": "http://localhost:8545"
+}

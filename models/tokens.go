@@ -12,7 +12,7 @@ const bucketToken = "bucketToken"
 const keyToken = "tokens"
 
 func (model *ModelDB) GetAllTokens() (tokens AddressMap, err error) {
-	err = model.db.Get(bucketToken, keyToken, tokens)
+	err = model.db.Get(bucketToken, keyToken, &tokens)
 	return
 }
 func (model *ModelDB) SetAllTokens(tokens map[common.Address]*network.ChannelGraph) error {
