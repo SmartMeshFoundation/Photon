@@ -313,7 +313,7 @@ func (this *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Add
 Yield a two-tuple (path, channel) that can be used to mediate the
     transfer. The result is ordered from the best to worst path.
 */
-func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGeter, ourAddress common.Address,
+func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
 	targetAdress common.Address, amount *big.Int, previousAddress common.Address) (onlineNodes []*transfer.RouteState) {
 	///*
 	//	for direct transfer

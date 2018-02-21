@@ -51,8 +51,12 @@ type SentMessageState struct {
 	EchoHash common.Hash       //message echo hash
 	Data     []byte            //packed message
 }
-type NodesStatusGeter interface {
+type NodesStatusGetter interface {
 	GetNetworkStatus(addr common.Address) string
+	GetNetworkStatusAndLastVisitTime(addr common.Address) (status string, lastVisitTime time.Time)
+}
+type PingSender interface {
+	SendPing(receiver common.Address) error
 }
 
 func NewAsyncResult() *AsyncResult {
@@ -153,7 +157,12 @@ func (this *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte
 	}
 	return this.Transport.Send(receiver, host, port, data)
 }
-
+func (this *RaidenProtocol) SendPing(receiver common.Address) error {
+	ping := encoding.NewPing(utils.NewRandomInt64())
+	ping.Sign(this.privKey, ping)
+	data := ping.Pack()
+	return this.sendRawWitNoAck(receiver, data)
+}
 func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- *SentMessageState {
 
 	this.mapLock.Lock()
@@ -331,6 +340,15 @@ func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
 		return NODE_NETWORK_UNKNOWN
 	}
 	return s.Status
+}
+func (this *RaidenProtocol) GetNetworkStatusAndLastVisitTime(addr common.Address) (status string, lastVisitTime time.Time) {
+	this.statusLock.Lock()
+	defer this.statusLock.Unlock()
+	s, ok := this.address2NetworkStatus[addr]
+	if !ok {
+		return NODE_NETWORK_UNKNOWN, time.Now()
+	}
+	return s.Status, s.LastTime
 }
 func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 	if len(data) > params.UDP_MAX_MESSAGE_SIZE {

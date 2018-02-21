@@ -77,6 +77,9 @@ func RandomString(n int) string {
 func NewRandomInt(n int) int {
 	return rand.New(RandSrc).Intn(n)
 }
+func NewRandomInt64() int64 {
+	return rand.New(RandSrc).Int63()
+}
 func NewRandomAddress() common.Address {
 	hash := Sha3([]byte(Random(10)))
 	return common.BytesToAddress(hash[12:])

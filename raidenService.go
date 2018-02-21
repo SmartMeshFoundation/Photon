@@ -140,6 +140,7 @@ type RaidenService struct {
 	TransferReqChan             chan *ApiReq
 	TransferResponseChan        map[string]chan *network.AsyncResult
 	ProtocolMessageSendComplete chan *ProtocolMessage
+	RoutesTask                  *RoutesTask
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -200,12 +201,15 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	log.Info("node discovery register complete...")
 	//srv.Start()
+	//start routes detect task
+	srv.RoutesTask = NewRoutesTask(srv.Protocol, srv.Protocol)
 	return srv
 }
 
 // Start the node.
 func (this *RaidenService) Start() {
 	this.AlarmTask.Start()
+	this.RoutesTask.Start()
 	//must have a valid blocknumber before any transfer operation
 	this.BlockNumber.Store(this.AlarmTask.LastBlockNumber)
 	this.AlarmTask.RegisterCallback(func(number int64) error {
@@ -265,6 +269,7 @@ func (this *RaidenService) Start() {
 func (this *RaidenService) Stop() {
 	log.Info("raiden service stop...")
 	this.AlarmTask.Stop()
+	this.RoutesTask.Stop()
 	this.Protocol.StopAndWait()
 	this.BlockChainEvents.Stop()
 	this.SaveSnapshot()
@@ -282,6 +287,7 @@ func (this *RaidenService) loop() {
 	var blockNumber int64
 	var req *ApiReq
 	var sentMessage *ProtocolMessage
+	var routestask *RoutesToDetect
 	for {
 		select {
 		case m, ok = <-this.Protocol.ReceivedMessageChannel:
@@ -317,52 +323,21 @@ func (this *RaidenService) loop() {
 				this.handleReq(req)
 			} else {
 				log.Info("req closed")
+				return
 			}
 		case sentMessage, ok = <-this.ProtocolMessageSendComplete:
 			if ok {
-				log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface1(sentMessage)))
-				if sentMessage.Message.Tag() != nil { //
-					sentTag := sentMessage.Message.Tag()
-					sentMessageTag := sentTag.(*transfer.MessageTag)
-					if sentMessageTag.GetStateManager() != nil {
-						mgr := sentMessageTag.GetStateManager()
-						mgr.ManagerState = transfer.StateManager_SendMessageSuccesss
-						sentMessageTag.SendingMessageComplete = true
-						tx := this.db.StartTx()
-						_, ok = sentMessage.Message.(*encoding.Secret)
-						if ok {
-							mgr.IsBalanceProofSent = true
-							if mgr.Name == initiator.NameInitiatorTransition {
-								mgr.ManagerState = transfer.StateManager_TransferComplete
-							} else if mgr.Name == target.NameTargetTransition {
-
-							} else if mgr.Name == mediator.NameMediatorTransition {
-								/*
-									如何判断结束呢?
-										1. 收到了上一家的balanceproof
-										2. 下家的balanceproof已经发送成功
-								*/
-								if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
-									mgr.ManagerState = transfer.StateManager_TransferComplete
-								}
-
-							}
-						}
-						this.db.UpdateStateManaer(mgr, tx)
-						tx.Commit()
-						this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-					} else if sentMessageTag.EchoHash != utils.EmptyHash {
-						//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
-						this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-						this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
-					} else {
-						panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
-					}
-				} else {
-					log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
-				}
+				this.handleSentMessage(sentMessage)
 			} else {
 				log.Info("ProtocolMessageSendComplete closed")
+				return
+			}
+		case routestask, ok = <-this.RoutesTask.TaskResult:
+			if ok {
+				this.handleRoutesTask(routestask)
+			} else {
+				log.Info("RoutesTask.TaskResult closed")
+				return
 			}
 		}
 	}
@@ -1027,8 +1002,14 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 	results := this.Identifier2Results[identifier]
 	results = append(results, result)
 	this.Identifier2Results[identifier] = results
-	this.db.AddStateManager(stateManger) //how to save Identifier2StateManagers todo
-	this.StateMachineEventHandler.LogAndDispatch(stateManger, initInitiator)
+	this.db.AddStateManager(stateManger)
+	//ping before send transfer
+	this.RoutesTask.NewTask <- &RoutesToDetect{
+		RoutesState:     initInitiator.Routes,
+		StateManager:    stateManger,
+		InitStateChange: initInitiator,
+	}
+	//this.StateMachineEventHandler.LogAndDispatch(stateManger, initInitiator)
 	return result
 }
 
@@ -1055,10 +1036,16 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 	}
 	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.Identifier, fromTransfer.Token)
 	this.db.AddStateManager(stateManager)
-	this.StateMachineEventHandler.LogAndDispatch(stateManager, initMediator)
 	mgrs := this.Identifier2StateManagers[msg.Identifier]
 	mgrs = append(mgrs, stateManager)
-	this.Identifier2StateManagers[msg.Identifier] = mgrs //for path A-B-C-B-D-E ,node B will have two StateManagers for one identifier
+	this.Identifier2StateManagers[msg.Identifier] = mgrs //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
+	//ping before send transfer
+	this.RoutesTask.NewTask <- &RoutesToDetect{
+		RoutesState:     initMediator.Routes,
+		StateManager:    stateManager,
+		InitStateChange: initMediator,
+	}
+	//this.StateMachineEventHandler.LogAndDispatch(stateManager, initMediator)
 }
 
 //receive a MediatedTransfer, i'm the target
@@ -1076,11 +1063,12 @@ func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer
 	}
 	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.Identifier, fromTransfer.Token)
 	this.db.AddStateManager(stateManger)
-	this.StateMachineEventHandler.LogAndDispatch(stateManger, initTarget)
 	identifier := msg.Identifier
 	mgrs := this.Identifier2StateManagers[identifier]
 	mgrs = append(mgrs, stateManger)
 	this.Identifier2StateManagers[identifier] = mgrs
+
+	this.StateMachineEventHandler.LogAndDispatch(stateManger, initTarget)
 }
 
 func (this *RaidenService) StartHealthCheckFor(address common.Address) {
@@ -1204,7 +1192,62 @@ func (this *RaidenService) handleReq(req *ApiReq) {
 	delete(this.TransferResponseChan, r.ReqId)
 	this.Lock.Unlock()
 }
+func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
+	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface1(sentMessage)))
+	if sentMessage.Message.Tag() != nil { //
+		sentTag := sentMessage.Message.Tag()
+		sentMessageTag := sentTag.(*transfer.MessageTag)
+		if sentMessageTag.GetStateManager() != nil {
+			mgr := sentMessageTag.GetStateManager()
+			mgr.ManagerState = transfer.StateManager_SendMessageSuccesss
+			sentMessageTag.SendingMessageComplete = true
+			tx := this.db.StartTx()
+			_, ok := sentMessage.Message.(*encoding.Secret)
+			if ok {
+				mgr.IsBalanceProofSent = true
+				if mgr.Name == initiator.NameInitiatorTransition {
+					mgr.ManagerState = transfer.StateManager_TransferComplete
+				} else if mgr.Name == target.NameTargetTransition {
 
+				} else if mgr.Name == mediator.NameMediatorTransition {
+					/*
+						how to detect a mediator node is finish or not?
+							1. receive prev balanceproof
+							2. balanceproof  send to next successfully
+						//todo when refund?
+					*/
+					if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
+						mgr.ManagerState = transfer.StateManager_TransferComplete
+					}
+
+				}
+			}
+			this.db.UpdateStateManaer(mgr, tx)
+			tx.Commit()
+			this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
+		} else if sentMessageTag.EchoHash != utils.EmptyHash {
+			//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
+			this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
+			this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
+		} else {
+			panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
+		}
+	} else {
+		log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
+	}
+}
+func (this *RaidenService) handleRoutesTask(task *RoutesToDetect) {
+	/*
+		no need to modify InitStateChange's Routes, because RoutesTask share the same instance
+	*/
+	switch task.InitStateChange.(type) {
+	case *mediated_transfer.ActionInitInitiatorStateChange:
+		//do nothing
+	case *mediated_transfer.ActionInitMediatorStateChange:
+		//do nothing
+	}
+	this.StateMachineEventHandler.LogAndDispatch(task.StateManager, task.InitStateChange)
+}
 func (this *RaidenService) ConditionQuit(eventName string) {
 	if strings.ToLower(eventName) == strings.ToLower(this.Config.ConditionQuit.QuitEvent) {
 		log.Error(fmt.Sprintf("quitevent=%s\n", eventName))
