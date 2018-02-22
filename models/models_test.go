@@ -16,7 +16,6 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -29,7 +28,7 @@ func init() {
 }
 func setupDb(t *testing.T) (model *ModelDB) {
 	dbPath := path.Join(os.TempDir(), "testxxxx.db")
-	//os.Remove(dbPath)
+	os.Remove(dbPath)
 	os.Remove(dbPath + ".lock")
 	model, err := OpenDb(dbPath)
 	if err != nil {
@@ -101,28 +100,20 @@ func TestToken(t *testing.T) {
 		return true
 	}
 	ts, err := model.GetAllTokens()
-	if err == nil {
+	if len(ts) > 0 {
 		t.Error("should not found")
 	}
 	if len(ts) != 0 {
 		t.Error("should be empty")
 	}
-	tokens := make(map[common.Address]*network.ChannelGraph)
-	for i := 0; i < 3; i++ {
-		tokens[utils.NewRandomAddress()] = nil
-	}
-	err = model.SetAllTokens(tokens)
-	if err != nil {
-		t.Error(err)
-	}
 	t1 := utils.NewRandomAddress()
 	model.RegisterNewTokenCallback(funcb)
-	err = model.AddToken(t1)
+	err = model.AddToken(t1, utils.NewRandomAddress())
 	if err != nil {
 		t.Error(err)
 	}
 	t2 := utils.NewRandomAddress()
-	err = model.AddToken(t2)
+	err = model.AddToken(t2, utils.NewRandomAddress())
 	if err != nil {
 		t.Error(err)
 	}

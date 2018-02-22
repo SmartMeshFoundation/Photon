@@ -279,13 +279,13 @@ func (this *RaidenApi) TokenSwapAndWait(identifier uint64, makerToken, takerToke
 
 func (this *RaidenApi) TokenSwapAsync(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) (result *network.AsyncResult, err error) {
-	g := this.Raiden.GetToken2ChannelGraph(takerToken)
-	if g == nil {
+	chs, err := this.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
+	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
 		return
 	}
-	g = this.Raiden.GetToken2ChannelGraph(makerToken)
-	if g == nil {
+	chs, err = this.Raiden.db.GetChannelList(makerToken, utils.EmptyAddress)
+	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown maker token")
 		return
 	}
@@ -322,13 +322,13 @@ Register an expected transfer for this node.
 */
 func (this *RaidenApi) ExpectTokenSwap(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) (err error) {
-	g := this.Raiden.GetToken2ChannelGraph(takerToken)
-	if g == nil {
+	chs, err := this.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
+	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
 		return
 	}
-	g = this.Raiden.GetToken2ChannelGraph(makerToken)
-	if g == nil {
+	chs, err = this.Raiden.db.GetChannelList(makerToken, utils.EmptyAddress)
+	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown maker token")
 		return
 	}
@@ -475,9 +475,13 @@ func (this *RaidenApi) GetTokenNetworkEvents(tokenAddress common.Address, fromBl
 		Participant2   string `json:"participant2"`
 		TokenAddress   string `json:"token_address"`
 	}
-	for t, graph := range this.Raiden.CloneToken2ChannelGraph() {
+	tokens, err := this.Raiden.db.GetAllTokens()
+	if err != nil {
+		return
+	}
+	for t, manager := range tokens {
 		if tokenAddress == utils.EmptyAddress || t == tokenAddress {
-			events, err := this.Raiden.BlockChainEvents.GetAllChannelManagerEvents(graph.ChannelManagerAddress, fromBlock, toBlock)
+			events, err := this.Raiden.BlockChainEvents.GetAllChannelManagerEvents(manager, fromBlock, toBlock)
 			if err != nil {
 				return nil, err
 			}

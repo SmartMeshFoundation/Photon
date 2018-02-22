@@ -1,12 +1,12 @@
 package models
 
 import (
-	"github.com/SmartMeshFoundation/raiden-network/network"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/ethereum/go-ethereum/log"
 )
 
-type AddressMap map[common.Address]bool
+type AddressMap map[common.Address]common.Address
 
 const bucketToken = "bucketToken"
 const keyToken = "tokens"
@@ -15,27 +15,20 @@ func (model *ModelDB) GetAllTokens() (tokens AddressMap, err error) {
 	err = model.db.Get(bucketToken, keyToken, &tokens)
 	return
 }
-func (model *ModelDB) SetAllTokens(tokens map[common.Address]*network.ChannelGraph) error {
-	m := make(AddressMap)
-	for t, _ := range tokens {
-		m[t] = true
-	}
-	return model.db.Set(bucketToken, keyToken, m)
-}
 
 //notify when new token add?
-func (model *ModelDB) AddToken(token common.Address) error {
+func (model *ModelDB) AddToken(token common.Address, manager common.Address) error {
 	var m AddressMap
 	err := model.db.Get(bucketToken, keyToken, &m)
 	if err != nil {
 		return err
 	}
-	if m[token] {
+	if m[token] != utils.EmptyAddress {
 		//startup ...
-		log.Info("AddToken ,but already exists")
+		log.Error("AddToken ,but already exists,should be ignored when startup...")
 		return nil
 	}
-	m[token] = true
+	m[token] = manager
 	err = model.db.Set(bucketToken, keyToken, m)
 	model.handleTokenCallback(model.NewTokenCallbacks, token)
 	return err

@@ -190,11 +190,6 @@ func (this *BlockChainService) GetAllChannelManagers() (mgrs []*ChannelManagerCo
 	}
 	for _, mgrAddr := range mgrAddressess {
 		mgr := this.Manager(mgrAddr)
-		//var channels []*NettingChannelContractProxy
-		//channels, err = mgr.NettingChannelByAddress(this.NodeAddress)
-		//if err != nil || len(channels) <= 0 {
-		//	continue
-		//}
 		mgrs = append(mgrs, mgr)
 	}
 	return
