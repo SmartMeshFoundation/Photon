@@ -20,15 +20,16 @@ import (
 )
 
 type Channel struct {
-	OurState          *ChannelEndState
-	PartnerState      *ChannelEndState
-	ExternState       *ChannelExternalState
-	TokenAddress      common.Address
-	MyAddress         common.Address //this channel
-	RevealTimeout     int
-	SettleTimeout     int
-	ReceivedTransfers []encoding.SignedMessager
-	SentTransfers     []encoding.SignedMessager
+	OurState             *ChannelEndState
+	PartnerState         *ChannelEndState
+	ExternState          *ChannelExternalState
+	TokenAddress         common.Address
+	MyAddress            common.Address //this channel
+	RevealTimeout        int
+	SettleTimeout        int
+	ReceivedTransfers    []encoding.SignedMessager
+	SentTransfers        []encoding.SignedMessager
+	IsCloseEventComplete bool //channel close event has been processed  completely  ,  crash when processing close event
 }
 
 func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelExternalState,
@@ -169,6 +170,7 @@ func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address)
 	if err != nil {
 		log.Error(fmt.Sprintf("withdraw on % failed, channel is gone, error:%s", c.MyAddress.String(), err))
 	}
+	c.IsCloseEventComplete = true
 }
 
 //there is nothing tod rightnow
@@ -535,7 +537,8 @@ func (c *Channel) StateTransition(st transfer.StateChange) (err error) {
 		}
 	case *mediated_transfer.ContractReceiveClosedStateChange:
 		if st2.ChannelAddress == c.MyAddress {
-			if c.ExternState.SetClosed(st2.ClosedBlock) {
+			if !c.IsCloseEventComplete {
+				c.ExternState.SetClosed(st2.ClosedBlock)
 				c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
 			} else {
 				log.Warn(fmt.Sprint("channel closed on a different block or close event happened twice channel=%s,closedblock=%s,thisblock=%sn",

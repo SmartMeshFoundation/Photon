@@ -208,14 +208,19 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 
 // Start the node.
 func (this *RaidenService) Start() {
+	lastHandledBlockNumber := this.db.GetLatestBlockNumber()
 	this.AlarmTask.Start()
 	this.RoutesTask.Start()
 	//must have a valid blocknumber before any transfer operation
 	this.BlockNumber.Store(this.AlarmTask.LastBlockNumber)
 	this.AlarmTask.RegisterCallback(func(number int64) error {
+		this.db.SaveLatestBlockNumber(number)
 		return this.setBlockNumber(number)
 	})
-	err := this.BlockChainEvents.InstallEventListener()
+	/*
+		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+	*/
+	err := this.BlockChainEvents.Start(lastHandledBlockNumber)
 	if err != nil {
 		log.Error(fmt.Sprintf("BlockChainEvents listener error %v", err))
 		utils.SystemExit(1)

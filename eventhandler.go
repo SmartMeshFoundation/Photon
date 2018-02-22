@@ -352,55 +352,6 @@ func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateC
 	return
 }
 
-//func (this *StateMachineEventHandler) updateStateManagerFromReceivedMessageOrUserRequest2(mgr *transfer.StateManager, stateChange transfer.StateChange) {
-//	var msg encoding.Messager
-//	var quitName string
-//	switch st2 := stateChange.(type) {
-//	case *mediated_transfer.ActionInitTargetStateChange:
-//		quitName = "ActionInitTargetStateChange"
-//		msg = st2.Message
-//		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
-//	case *mediated_transfer.ReceiveSecretRequestStateChange:
-//		quitName = "ReceiveSecretRequestStateChange"
-//		msg = st2.Message
-//	case *mediated_transfer.ReceiveTransferRefundStateChange:
-//		quitName = "ReceiveTransferRefundStateChange"
-//		msg = st2.Message
-//	case *mediated_transfer.ReceiveBalanceProofStateChange:
-//		quitName = "ReceiveBalanceProofStateChange"
-//		_, ok := st2.Message.(*encoding.Secret)
-//		if ok {
-//			msg = st2.Message //可能是mediated transfer,direct transfer,refundtransfer,secret 四中情况触发.
-//		}
-//	case *mediated_transfer.ActionInitMediatorStateChange:
-//		quitName = "ActionInitMediatorStateChange"
-//		msg = st2.Message
-//		mgr.ChannelAddress = st2.FromRoute.ChannelAddress
-//	case *mediated_transfer.ActionInitInitiatorStateChange:
-//		quitName = "ActionInitInitiatorStateChange"
-//		mgr.LastReceivedMessage = st2
-//		//new transfer trigger from user
-//	case *mediated_transfer.ReceiveSecretRevealStateChange:
-//		quitName = "ReceiveSecretRevealStateChange"
-//		//reveal secret 需要单独处理
-//	}
-//	if msg != nil {
-//		mgr.ManagerState = transfer.StateManager_ReceivedMessage
-//		mgr.LastReceivedMessage = msg
-//		tag := msg.Tag().(*transfer.MessageTag)
-//		tag.SetStateManager(mgr)
-//		msg.SetTag(tag)
-//		tx := this.raiden.db.StartTx()
-//		this.raiden.db.UpdateStateManaer(mgr, tx)
-//		if mgr.ChannelAddress != utils.EmptyAddress {
-//			ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
-//			this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-//		}
-//		tx.Commit()
-//		this.raiden.ConditionQuit(quitName)
-//	}
-//}
-
 //recive a message and before processed
 func (this *StateMachineEventHandler) updateStateManagerFromReceivedMessageOrUserRequest(mgr *transfer.StateManager, stateChange transfer.StateChange) {
 	var msg encoding.Messager

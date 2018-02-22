@@ -129,9 +129,10 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 		// initiator 不应该收到
 	} else if mgr.Name == mediator.NameMediatorTransition {
 		/*
-			如何判断结束呢?
-				1. 收到了上一家的balanceproof
-				2. 下家的balanceproof已经发送成功
+			how to detect a mediator node is finish or not?
+				1. receive prev balanceproof
+				2. balanceproof  send to next successfully
+			//todo when refund?
 		*/
 		if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
 			mgr.ManagerState = transfer.StateManager_TransferComplete

@@ -28,10 +28,9 @@ type BlockChainEvents struct {
 
 func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *BlockChainEvents {
 	be := &BlockChainEvents{client: client,
-		LogChannelMap:      make(map[string]chan types.Log),
-		Subscribes:         make(map[string]ethereum.Subscription),
-		StateChangeChannel: make(chan transfer.StateChange, 20),
-		RegistryAddress:    registryAddress,
+		LogChannelMap:   make(map[string]chan types.Log),
+		Subscribes:      make(map[string]ethereum.Subscription),
+		RegistryAddress: registryAddress,
 	}
 	for _, name := range eventNames {
 		be.LogChannelMap[name] = make(chan types.Log, 10)
@@ -330,4 +329,65 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		events = append(events, e)
 	}
 	return
+}
+
+/*
+events ChannelClosed and ChannelSecretRevealed must be sent to channels's Channel
+*/
+func (this *BlockChainEvents) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
+	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
+	if FromBlockNUmber < 0 {
+		FromBlockNUmber = 0
+	}
+
+	ToBlockNumber := ethrpc.LatestBlockNumber
+
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
+		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], this.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		e, err := NewEventChannelClosed(&l)
+		if err != nil {
+			continue
+		}
+		stateChanges = append(stateChanges, &mediated_transfer.ContractReceiveClosedStateChange{
+			ChannelAddress: e.ContractAddress,
+			ClosingAddress: e.ClosingAddress,
+			ClosedBlock:    e.BlockNumber,
+		})
+	}
+
+	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
+		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], this.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		e, err := NewEventChannelSecretRevealed(&l)
+		if err != nil {
+			continue
+		}
+		stateChanges = append(stateChanges, &mediated_transfer.ContractReceiveWithdrawStateChange{
+			ChannelAddress: e.ContractAddress,
+			Secret:         e.Secret,
+			Receiver:       e.ReceiverAddress,
+		})
+	}
+	return
+}
+
+/*
+events send to  channel can duplicate but cannot lose.
+1. first resend events may lost (duplicat is ok)
+2. listen new events on blockchain
+*/
+func (this *BlockChainEvents) Start(LastBlockNumber int64) error {
+	stateChanges := this.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
+	this.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
+	for _, st := range stateChanges {
+		this.sendStateChange(st)
+	}
+	return this.InstallEventListener()
 }

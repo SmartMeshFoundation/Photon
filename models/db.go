@@ -225,4 +225,5 @@ func (model *ModelDB) initDb() {
 	model.db.Init(&snapshotToWrite{})
 	model.db.Init(&StateChange{})
 	model.db.Init(&channel.ChannelSerialization{})
+	model.db.Set(bucketBlockNumber, keyBlockNumber, 0)
 }

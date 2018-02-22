@@ -117,7 +117,7 @@ func (this *AlarmTask) waitNewBlock() error {
 			}
 		case <-this.shouldStop:
 			sub.Unsubscribe()
-			close(headerCh)
+			//close(headerCh) //should close by ethclient
 			return nil
 		case err = <-sub.Err():
 			//reconnect here, todo fix ,how to distinguish which error should reconnect
