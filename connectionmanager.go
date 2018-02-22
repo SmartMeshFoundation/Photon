@@ -24,18 +24,19 @@ type ConnectionManager struct {
 	raiden              *RaidenService
 	api                 *RaidenApi
 	lock                sync.Mutex
-	channelGraph        *network.ChannelGraph
 	tokenAddress        common.Address
 	funds               *big.Int
 	initChannelTarget   int64
 	joinableFundsTarget float64
 }
 
-func NewConnectionManager(raiden *RaidenService, tokenAddress common.Address, graph *network.ChannelGraph) *ConnectionManager {
+/*
+if crash,does connection manager need to restore?
+*/
+func NewConnectionManager(raiden *RaidenService, tokenAddress common.Address) *ConnectionManager {
 	cm := &ConnectionManager{
 		raiden:              raiden,
 		api:                 NewRaidenApi(raiden),
-		channelGraph:        graph,
 		tokenAddress:        tokenAddress,
 		funds:               utils.BigInt0,
 		initChannelTarget:   3,
@@ -77,7 +78,11 @@ func (this *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int6
 	if len(openChannels) > 0 {
 		log.Debug(fmt.Sprintf("connect() called on an already joined token network tokenaddress=%s,openchannels=%d,sumdeposits=%d,funds=%d", utils.APex(this.tokenAddress), len(openChannels), this.sumDeposits(), this.funds))
 	}
-	if !this.channelGraph.HaveNodes() {
+	chs, err := this.raiden.db.GetChannelList(this.tokenAddress, utils.EmptyAddress)
+	if err != nil {
+		return err
+	}
+	if len(chs) == 0 {
 		log.Debug("bootstrapping token network.")
 		this.lock.Lock()
 		_, err := this.api.Open(this.tokenAddress, this.BOOTSTRAP_ADDR, this.raiden.Config.SettleTimeout, this.raiden.Config.RevealTimeout)
@@ -88,7 +93,7 @@ func (this *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int6
 	}
 	this.lock.Lock()
 	this.funds = funds
-	err := this.addNewPartners()
+	err = this.addNewPartners()
 	this.lock.Unlock()
 	return err
 }
@@ -275,8 +280,10 @@ func (this *ConnectionManager) openAndDeposit(partner common.Address, fundingAmo
 	if err != nil {
 		return err
 	}
-	cg := this.raiden.GetToken2ChannelGraph(this.tokenAddress)
-	ch := cg.GetPartenerAddress2Channel(partner)
+	ch, err := this.raiden.db.GetChannel(this.tokenAddress, partner)
+	if err != nil {
+		return err
+	}
 	if ch == nil {
 		err = fmt.Errorf("Opening new channel failed; channel already opened,  but partner not in channelgraph ,partner=%s,tokenaddress=%s", utils.APex(partner), utils.APex(this.tokenAddress))
 		log.Error(err.Error())
@@ -382,11 +389,14 @@ func (this *ConnectionManager) findNewPartners(number int) []common.Address {
 	}
 	known[this.BOOTSTRAP_ADDR] = true
 	known[this.raiden.NodeAddress] = true
-	allnodes := this.channelGraph.AllNodes()
+	chs, err := this.raiden.db.GetChannelList(this.tokenAddress, utils.EmptyAddress)
+	if err == nil {
+		panic(fmt.Sprintf("GetChannelList err %s", err))
+	}
 	var availables []common.Address
-	for _, n := range allnodes {
-		if !known[n] {
-			availables = append(availables, n)
+	for _, ch := range chs {
+		if !known[ch.ChannelAddress] {
+			availables = append(availables, ch.ChannelAddress)
 		}
 	}
 	log.Debug(fmt.Sprintf("found %d partners", len(availables)))

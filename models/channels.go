@@ -111,15 +111,15 @@ func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *cha
 func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channel.ChannelSerialization, err error) {
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
-		return
 	} else if token == utils.EmptyAddress {
 		err = model.db.Find("PartnerAddressString", partner.String(), &cs)
-		return
 	} else if partner == utils.EmptyAddress {
 		err = model.db.Find("TokenAddressString", token.String(), &cs)
-		return
 	} else {
 		panic("one of token and partner must be empty")
+	}
+	if err == storm.ErrNotFound {
+		err = nil
 	}
 	return
 }

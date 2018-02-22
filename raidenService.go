@@ -672,7 +672,7 @@ func (this *RaidenService) RegisterChannelManager(managerAddress common.Address)
 	this.Lock.Lock()
 	this.Manager2Token[managerAddress] = tokenAddress
 	this.Token2ChannelGraph[tokenAddress] = graph
-	this.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(this, tokenAddress, graph)
+	this.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(this, tokenAddress)
 	this.Lock.Unlock()
 	//new token, save to db
 	err = this.db.AddToken(tokenAddress)
