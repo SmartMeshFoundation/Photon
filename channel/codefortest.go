@@ -10,7 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gotips/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func newTestBlockChainService() *rpc.BlockChainService {

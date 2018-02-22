@@ -571,7 +571,6 @@ func (this *RaidenApi) GetChannelEvents(channelAddress common.Address, fromBlock
 		return
 	}
 	//Here choose which raiden internal events we want to expose to the end user
-	//没有办法识别这些event如何与channelAddress关联  todo
 	for _, ev := range raidenEvents {
 		m := make(map[string]interface{})
 		switch e2 := ev.EventObject.(type) {
