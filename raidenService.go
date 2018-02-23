@@ -1007,7 +1007,7 @@ mediated transfer for token swap
 we must make sure that taker use the maker's secret.
 and taker's lock expiration should be short than maker's todo(fix this)
 */
-func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash) (result *network.AsyncResult, stateManager *transfer.StateManager) {
+func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
 	result = network.NewAsyncResult()
@@ -1025,7 +1025,7 @@ func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target commo
 		Token:      tokenAddress,
 		Initiator:  this.NodeAddress,
 		Target:     target,
-		Expiration: 0,
+		Expiration: expiration,
 		Hashlock:   utils.EmptyHash,
 		Secret:     utils.EmptyHash,
 	}
@@ -1086,7 +1086,7 @@ func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target commo
 2. user start a maker mediated transfer
 */
 func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
-	result, _ = this.StartTakerMediatedTransfer(tokenAddress, target, amount, identifier, utils.EmptyHash)
+	result, _ = this.StartTakerMediatedTransfer(tokenAddress, target, amount, identifier, utils.EmptyHash, 0)
 	return
 }
 

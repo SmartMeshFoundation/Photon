@@ -130,6 +130,9 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			         the expiration goes this is no problem.
 		*/
 		lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout)
+		if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
+			lockExpiration = state.Transfer.Expiration
+		}
 		tr := &mt.LockedTransferState{
 			Identifier: state.Transfer.Identifier,
 			Amount:     new(big.Int).Set(state.Transfer.Amount),

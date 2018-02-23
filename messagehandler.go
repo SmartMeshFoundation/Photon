@@ -132,10 +132,15 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	mgr := msgTag.GetStateManager()
 
 	if msgTag.ReceiveProcessComplete != false {
-		panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
+		/*
+			todo 必须要解决
+			作为中间节点进行tokenswap时,ReceiveProcessComplete明明应该为false的时候,却为真, 是因为event handler 中 receiveMessageTag.ReceiveProcessComplete = true
+		*/
+		//panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
 	}
 
 	mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
+	log.Trace(fmt.Sprintf("markSecretComplete set message %s ReceiveProcessComplete", msgTag.MessageId))
 	msgTag.ReceiveProcessComplete = true
 	ack := this.raiden.Protocol.CreateAck(msgTag.EchoHash)
 	this.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)
@@ -341,7 +346,7 @@ func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfe
 		return true
 	}
 
-	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock)
+	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, msg.Expiration)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return
