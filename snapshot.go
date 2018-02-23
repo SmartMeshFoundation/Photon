@@ -180,7 +180,7 @@ func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 		mgr.FuncStateTransition = initiator.StateTransition
 		if mgr.CurrentState != nil {
 			state := mgr.CurrentState.(*mediated_transfer.InitiatorState)
-			state.RandomGenerator = utils.RandomGenerator
+			state.RandomGenerator = utils.RandomSecretGenerator //todo fix for tokenswap
 		}
 	case mediator.NameMediatorTransition:
 		mgr.FuncStateTransition = mediator.StateTransition

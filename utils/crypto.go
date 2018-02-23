@@ -25,7 +25,7 @@ func Sha3(data ...[]byte) common.Hash {
 	return crypto.Keccak256Hash(data...)
 }
 func Pex(data []byte) string {
-	return common.Bytes2Hex(data[:8])
+	return common.Bytes2Hex(data[:4])
 }
 
 //pex for hash

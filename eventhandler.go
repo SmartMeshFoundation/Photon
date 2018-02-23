@@ -165,7 +165,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		this.raiden.Lock.Lock()
 		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
 			r.Result <- nil
-			close(r.Result)
+			//close(r.Result) for tokenswap may error todo fix it. 为什么不让tokenswap使用两个有规律的id,而不是完全相同的两个id呢
 		}
 		//todo fix this ,when to delete Identifier2StateManager?
 		//delete(this.raiden.Identifier2Results, e2.Identifier)
@@ -175,7 +175,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		this.raiden.Lock.Lock()
 		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
 			r.Result <- errSentFailed
-			close(r.Result)
+			//close(r.Result) for tokenswap may error
 		}
 		//delete(this.raiden.Identifier2Results, e2.Identifier)
 		this.raiden.Lock.Unlock()

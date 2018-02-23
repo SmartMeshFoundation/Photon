@@ -117,8 +117,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		}
 	} else {
 		state.Route = tryRoute
-		secret := state.RandomGenerator()
-		hashlock := utils.Sha3(secret[:])
+		secret, hashlock := state.RandomGenerator()
 		/*
 					  The initiator doesn't need to learn the secret, so there is no need
 			         to decrement reveal_timeout from the lock timeout.
@@ -142,16 +141,6 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			Secret:     secret,
 		}
 		msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
-		//& mt.EventSendMediatedTransfer{
-		//	Identifier: tr.Identifier,
-		//	Token:      tr.Token,
-		//	Amount:     tr.Amount,
-		//	HashLock:   tr.Hashlock,
-		//	Initiator:  state.OurAddress,
-		//	Target:     tr.Target,
-		//	Expiration: lockExpiration,
-		//	Receiver:   tryRoute.HopNode,
-		//}
 		state.Transfer = tr
 		state.Message = msg
 		events := []transfer.Event{msg}
@@ -242,7 +231,7 @@ Send a balance proof to the next hop with the current mediated transfer
     lock removed and the balance updated.
 */
 func HandleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
-	if st.Sender == state.Route.HopNode {
+	if st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
 		/*
 					   next hop learned the secret, unlock the token locally and send the
 			         withdraw message to next hop
@@ -335,6 +324,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			//目前也没用
 		case *transfer.ActionCancelTransferStateChange:
 			it = HandleCancelTransfer(state)
+		case *mt.ReceiveSecretRevealStateChange:
+			//只要密码正确,就应该发送secret ,流程上可能有问题,但是结果是没错的(只有在token swap的时候才会走到这一步) . 因为按照协议层要求,同一个消息不会重复发送, 导致在tokenswap的时候maker不可能重复发送reveal secret
+			log.Warn(fmt.Sprintf("send balance proof before send a reveal secret message, this is only for token swap taker"))
+			it = HandleSecretReveal(state, st2)
 		default:
 			log.Warn(fmt.Sprintf("RevealSecret is nil,cannot handle %s", utils.StringInterface(st, 3)))
 		}

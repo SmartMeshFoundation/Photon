@@ -67,6 +67,8 @@ const NewChannelReqName = "newchannel"
 const CloseChannelReqName = "closechannel"
 const SettleChannelReqName = "settlechannel"
 const DepositChannelReqName = "deposit"
+const TokenSwapMakerReqName = "tokenswapmaker"
+const TokenSwapTakerReqName = "tokenswaptaker"
 
 type TransferReq struct {
 	TokenAddress common.Address
@@ -86,6 +88,12 @@ type DepositChannelReq struct {
 	addr   common.Address
 	amount *big.Int
 }
+type TokenSwapMakerReq struct {
+	tokenSwap *TokenSwap
+}
+type TokenSwapTakerReq struct {
+	tokenSwap *TokenSwap
+}
 type ApiReq struct {
 	ReqId string
 	Name  string      //operation name
@@ -96,6 +104,18 @@ type ProtocolMessage struct {
 	receiver common.Address
 	Message  encoding.Messager
 }
+
+//return true to ignore this message,otherwise continue to process
+type SecretRequestPredictor func(msg *encoding.SecretRequest) (ignore bool)
+
+//return true this listener should not be called next time
+type RevealSecretListener func(msg *encoding.RevealSecret) (remove bool)
+
+//return true this listener should not be called next time
+type ReceivedMediatedTrasnferListener func(msg *encoding.MediatedTransfer) (remove bool)
+
+//return true this listener should not be called next time
+type SentMediatedTransferListener func(msg *encoding.MediatedTransfer) (remove bool)
 
 // A Raiden node.
 type RaidenService struct {
@@ -124,23 +144,27 @@ type RaidenService struct {
 		         channel should be removed from this list only when the Lock is
 		         released/withdrawn but not when the secret is registered.
 	*/
-	Token2Hashlock2Channels     map[common.Address]map[common.Hash][]*channel.Channel //多线程
-	MessageHandler              *RaidenMessageHandler
-	StateMachineEventHandler    *StateMachineEventHandler
-	BlockChainEvents            *blockchain.BlockChainEvents
-	AlarmTask                   *blockchain.AlarmTask
-	db                          *models.ModelDB
-	GreenletTasksDispatcher     *GreenletTasksDispatcher
-	FileLocker                  *flock.Flock
-	SnapshortDir                string
-	SerializationFile           string
-	BlockNumber                 *atomic.Value
-	BlockNumberChan             chan int64
-	Lock                        sync.RWMutex
-	TransferReqChan             chan *ApiReq
-	TransferResponseChan        map[string]chan *network.AsyncResult
-	ProtocolMessageSendComplete chan *ProtocolMessage
-	RoutesTask                  *RoutesTask
+	Token2Hashlock2Channels             map[common.Address]map[common.Hash][]*channel.Channel //多线程
+	MessageHandler                      *RaidenMessageHandler
+	StateMachineEventHandler            *StateMachineEventHandler
+	BlockChainEvents                    *blockchain.BlockChainEvents
+	AlarmTask                           *blockchain.AlarmTask
+	db                                  *models.ModelDB
+	GreenletTasksDispatcher             *GreenletTasksDispatcher
+	FileLocker                          *flock.Flock
+	SnapshortDir                        string
+	SerializationFile                   string
+	BlockNumber                         *atomic.Value
+	BlockNumberChan                     chan int64
+	Lock                                sync.RWMutex
+	TransferReqChan                     chan *ApiReq
+	TransferResponseChan                map[string]chan *network.AsyncResult
+	ProtocolMessageSendComplete         chan *ProtocolMessage
+	RoutesTask                          *RoutesTask
+	SecretRequestPredictorMap           map[common.Hash]SecretRequestPredictor
+	RevealSecretListenerMap             map[common.Hash]RevealSecretListener
+	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool
+	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -151,28 +175,32 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		utils.SystemExit(1)
 	}
 	srv = &RaidenService{
-		Chain:                       chain,
-		Registry:                    chain.Registry(chain.RegistryAddress),
-		RegistryAddress:             chain.RegistryAddress,
-		PrivateKey:                  privateKey,
-		Config:                      config,
-		NodeAddress:                 crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:          make(map[common.Address]*network.ChannelGraph),
-		Manager2Token:               make(map[common.Address]common.Address),
-		Identifier2StateManagers:    make(map[uint64][]*transfer.StateManager),
-		Identifier2Results:          make(map[uint64][]*network.AsyncResult),
-		Token2Hashlock2Channels:     make(map[common.Address]map[common.Hash][]*channel.Channel),
-		SwapKey2TokenSwap:           make(map[SwapKey]*TokenSwap),
-		SwapKey2Task:                make(map[SwapKey]Tasker),
-		Tokens2ConnectionManager:    make(map[common.Address]*ConnectionManager),
-		AlarmTask:                   blockchain.NewAlarmTask(chain.Client),
-		BlockChainEvents:            blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
-		GreenletTasksDispatcher:     NewGreenletTasksDispatcher(),
-		BlockNumberChan:             make(chan int64, 1),
-		TransferReqChan:             make(chan *ApiReq, 10),
-		TransferResponseChan:        make(map[string]chan *network.AsyncResult),
-		BlockNumber:                 new(atomic.Value),
-		ProtocolMessageSendComplete: make(chan *ProtocolMessage, 10),
+		Chain:                               chain,
+		Registry:                            chain.Registry(chain.RegistryAddress),
+		RegistryAddress:                     chain.RegistryAddress,
+		PrivateKey:                          privateKey,
+		Config:                              config,
+		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph:                  make(map[common.Address]*network.ChannelGraph),
+		Manager2Token:                       make(map[common.Address]common.Address),
+		Identifier2StateManagers:            make(map[uint64][]*transfer.StateManager),
+		Identifier2Results:                  make(map[uint64][]*network.AsyncResult),
+		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
+		SwapKey2TokenSwap:                   make(map[SwapKey]*TokenSwap),
+		SwapKey2Task:                        make(map[SwapKey]Tasker),
+		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
+		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
+		BlockChainEvents:                    blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
+		GreenletTasksDispatcher:             NewGreenletTasksDispatcher(),
+		BlockNumberChan:                     make(chan int64, 1),
+		TransferReqChan:                     make(chan *ApiReq, 10),
+		TransferResponseChan:                make(map[string]chan *network.AsyncResult),
+		BlockNumber:                         new(atomic.Value),
+		ProtocolMessageSendComplete:         make(chan *ProtocolMessage, 10),
+		SecretRequestPredictorMap:           make(map[common.Hash]SecretRequestPredictor),
+		RevealSecretListenerMap:             make(map[common.Hash]RevealSecretListener),
+		ReceivedMediatedTrasnferListenerMap: make(map[*ReceivedMediatedTrasnferListener]bool),
+		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
 	}
 	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
@@ -454,6 +482,15 @@ func (this *RaidenService) SendAsync(recipient common.Address, msg encoding.Sign
 			messageTag := msg.Tag().(*transfer.MessageTag)
 			if messageTag.EchoHash != srs.EchoHash {
 				panic("reveal secret's echo hash not equal")
+			}
+		}
+	}
+	mtr, ok := msg.(*encoding.MediatedTransfer)
+	if ok && mtr != nil {
+		for f, _ := range this.SentMediatedTransferListenerMap {
+			remove := (*f)(mtr)
+			if remove {
+				delete(this.SentMediatedTransferListenerMap, f)
 			}
 		}
 	}
@@ -892,6 +929,22 @@ func (this *RaidenService) SettleChannelClient(channelAddress common.Address) *n
 	}
 	return this.sendReqClient(req)
 }
+func (this *RaidenService) TokenSwapMakerClient(tokenswap *TokenSwap) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  TokenSwapMakerReqName,
+		Req:   &TokenSwapMakerReq{tokenswap},
+	}
+	return this.sendReqClient(req)
+}
+func (this *RaidenService) TokenSwapTakerClient(tokenswap *TokenSwap) *network.AsyncResult {
+	req := &ApiReq{
+		ReqId: utils.RandomString(10),
+		Name:  TokenSwapTakerReqName,
+		Req:   &TokenSwapTakerReq{tokenswap},
+	}
+	return this.sendReqClient(req)
+}
 
 /*
 Do a direct tranfer with target.
@@ -948,13 +1001,19 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 	}
 	return
 }
-func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
+
+/*
+mediated transfer for token swap
+we must make sure that taker use the maker's secret.
+and taker's lock expiration should be short than maker's todo(fix this)
+*/
+func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash) (result *network.AsyncResult, stateManager *transfer.StateManager) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
 	result = network.NewAsyncResult()
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
-		return result
+		return
 	}
 	if identifier == 0 {
 		identifier = rand.New(utils.RandSrc).Uint64()
@@ -987,13 +1046,17 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 		        use the same /random/ secret.
 	*/
 	initInitiator := &mediated_transfer.ActionInitInitiatorStateChange{
-		OurAddress:      this.NodeAddress,
-		Tranfer:         transferState,
-		Routes:          routesState,
-		RandomGenerator: utils.RandomGenerator,
-		BlockNumber:     this.GetBlockNumber(),
+		OurAddress:  this.NodeAddress,
+		Tranfer:     transferState,
+		Routes:      routesState,
+		BlockNumber: this.GetBlockNumber(),
 	}
-	stateManger := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, transferState.Identifier, transferState.Token)
+	if hashlock == utils.EmptyHash {
+		initInitiator.RandomGenerator = utils.RandomSecretGenerator
+	} else {
+		initInitiator.RandomGenerator = utils.NewSepecifiedSecretGenerator(hashlock)
+	}
+	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, transferState.Identifier, transferState.Token)
 	/*
 		  TODO: implement the network timeout raiden.config['msg_timeout'] and
 			cancel the current transfer if it hapens (issue #374)
@@ -1002,20 +1065,29 @@ func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Add
 		first register the this transfer id, otherwise error may occur imediatelly
 	*/
 	mgrs := this.Identifier2StateManagers[identifier]
-	mgrs = append(mgrs, stateManger)
+	mgrs = append(mgrs, stateManager)
 	this.Identifier2StateManagers[identifier] = mgrs
 	results := this.Identifier2Results[identifier]
 	results = append(results, result)
 	this.Identifier2Results[identifier] = results
-	this.db.AddStateManager(stateManger)
+	this.db.AddStateManager(stateManager)
 	//ping before send transfer
 	this.RoutesTask.NewTask <- &RoutesToDetect{
 		RoutesState:     initInitiator.Routes,
-		StateManager:    stateManger,
+		StateManager:    stateManager,
 		InitStateChange: initInitiator,
 	}
-	//this.StateMachineEventHandler.LogAndDispatch(stateManger, initInitiator)
-	return result
+	//this.StateMachineEventHandler.LogAndDispatch(stateManager, initInitiator)
+	return
+}
+
+/*
+1. user start a mediated transfer
+2. user start a maker mediated transfer
+*/
+func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
+	result, _ = this.StartTakerMediatedTransfer(tokenAddress, target, amount, identifier, utils.EmptyHash)
+	return
 }
 
 //receive a MediatedTransfer, i'm a hop node
@@ -1168,6 +1240,64 @@ func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, o
 	}()
 	return
 }
+
+//save and restore todo?
+func (this *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
+	var hashlock common.Hash
+	var hasReceiveTakerMediatedTransfer bool
+	var sentMtrHook SentMediatedTransferListener
+	var receiveMtrHook ReceivedMediatedTrasnferListener
+	var secretRequestHook SecretRequestPredictor
+	secretRequestHook = func(msg *encoding.SecretRequest) (ignore bool) {
+		if !hasReceiveTakerMediatedTransfer {
+			/*
+				ignore secret request until recieve a valid taker mediated transfer.
+				we assume that :
+				taker have two independent queue for secret request and mediated transfer
+			*/
+			delete(this.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
+			return true
+		}
+		return false
+	}
+	sentMtrHook = func(mtr *encoding.MediatedTransfer) (remove bool) {
+		if mtr.Identifier == tokenswap.Identifier && mtr.Token == tokenswap.FromToken && mtr.Target == tokenswap.ToNodeAddress && mtr.Amount.Cmp(tokenswap.FromAmount) == 0 {
+			if hashlock != utils.EmptyHash {
+				log.Info(fmt.Sprintf("tokenswap maker select new path ,because of different hash lock"))
+				delete(this.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
+			}
+			hashlock = mtr.HashLock //hashlock may change when select new route path
+			this.SecretRequestPredictorMap[hashlock] = secretRequestHook
+		}
+		return false
+	}
+	receiveMtrHook = func(mtr *encoding.MediatedTransfer) (remove bool) {
+		/*
+			recevive taker's mediated transfer , the transfer must use argument of tokenswap and have the same hashlock
+		*/
+		if mtr.Identifier == tokenswap.Identifier && hashlock == mtr.HashLock && mtr.Token == tokenswap.ToToken && mtr.Target == tokenswap.FromNodeAddress && mtr.Amount.Cmp(tokenswap.ToAmount) == 0 {
+			hasReceiveTakerMediatedTransfer = true
+			delete(this.SentMediatedTransferListenerMap, &sentMtrHook)
+			return true
+		}
+		return false
+	}
+	this.SentMediatedTransferListenerMap[&sentMtrHook] = true
+	this.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
+	result = this.StartMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, tokenswap.Identifier)
+	return
+}
+func (this *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
+	result = network.NewAsyncResult()
+	result.Result <- nil
+	key := SwapKey{
+		Identifier: tokenswap.Identifier,
+		FromToken:  tokenswap.FromToken,
+		FromAmount: tokenswap.FromAmount.String(),
+	}
+	this.SwapKey2TokenSwap[key] = tokenswap
+	return
+}
 func (this *RaidenService) handleReq(req *ApiReq) {
 	var result *network.AsyncResult
 	switch req.Name {
@@ -1186,6 +1316,12 @@ func (this *RaidenService) handleReq(req *ApiReq) {
 	case SettleChannelReqName:
 		r := req.Req.(*CloseSettleChannelReq)
 		result = this.closeOrSettleChannel(r.addr, req.Name)
+	case TokenSwapMakerReqName:
+		r := req.Req.(*TokenSwapMakerReq)
+		result = this.tokenSwapMaker(r.tokenSwap)
+	case TokenSwapTakerReqName:
+		r := req.Req.(*TokenSwapTakerReq)
+		result = this.tokenSwapTaker(r.tokenSwap)
 	default:
 		panic("unkown req")
 	}

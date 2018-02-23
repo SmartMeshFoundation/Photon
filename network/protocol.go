@@ -168,12 +168,18 @@ func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan
 	this.mapLock.Lock()
 	defer this.mapLock.Unlock()
 	key := fmt.Sprintf("%s-%s", receiver.String(), token.String())
-	sendingChan, ok := this.sendingQueueMap[key]
-	if ok {
-		return sendingChan
+	var sendingChan chan *SentMessageState
+	var ok bool
+	if token == utils.EmptyAddress { //no token means that this message doesn't need ordered.
+		sendingChan = make(chan *SentMessageState, 1) //should not block sender
+	} else {
+		sendingChan, ok = this.sendingQueueMap[key]
+		if ok {
+			return sendingChan
+		}
+		sendingChan = make(chan *SentMessageState, 1000) //should not block sender
+		this.sendingQueueMap[key] = sendingChan
 	}
-	sendingChan = make(chan *SentMessageState, 1000) //should not block sender
-	this.sendingQueueMap[key] = sendingChan
 	go func() {
 		/*
 			1. if this packet is on sending, retry send immediately

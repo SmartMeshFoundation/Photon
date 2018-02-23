@@ -178,7 +178,6 @@ func (this *BaseMediatedTransferTask) waitForUnlockOrClose(raiden *RaidenService
 		currentBlock := raiden.GetBlockNumber()
 		if currentBlock > blockToClose {
 			log.Warn(fmt.Sprintf("close channel (%s,%s) to prevent expiration of Lock %s ", utils.APex(channel.OurState.Address), utils.APex(channel.PartnerState.Address), utils.HPex(hashlock)))
-			//为什么给的proof是自己的?
 			err := channel.ExternState.Close(channel.OurState.BalanceProofState)
 			if err != nil {
 				log.Error("close channel err:", err)
@@ -289,8 +288,7 @@ func (mtt *MakerTokenSwapTask) Start() {
 	var fee = utils.BigInt0
 	for _, route := range fromRoutes {
 		//for each new path a new secret must be used
-		secret := utils.RandomGenerator()
-		hashlock := utils.Sha3(secret[:])
+		secret, hashlock := utils.RandomSecretGenerator()
 
 		fromChannel := fromGraph.GetChannelAddress2Channel(route.ChannelAddress)
 		raiden.GreenletTasksDispatcher.RegisterTask(mtt, hashlock)

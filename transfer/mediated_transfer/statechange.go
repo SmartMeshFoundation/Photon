@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -18,7 +19,7 @@ type ActionInitInitiatorStateChange struct {
 	OurAddress      common.Address        //This node address.
 	Tranfer         *LockedTransferState  //A state object containing the transfer details.
 	Routes          *transfer.RoutesState //The current available routes.
-	RandomGenerator RandomGenerator       //A generator for secrets.
+	RandomGenerator utils.SecretGenerator //A generator for secrets.
 	BlockNumber     int64                 //The current block number.
 }
 

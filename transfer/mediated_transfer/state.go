@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -66,14 +67,13 @@ State of a node initiating a mediated transfer.
         block_number (int): Latest known block number.
         random_generator (generator): A generator that yields valid secrets.
 */
-// Return n random bytes suitable for cryptographic us
-type RandomGenerator func() common.Hash
+
 type InitiatorState struct {
 	OurAddress        common.Address        //This node address.
 	Transfer          *LockedTransferState  // The description of the mediated transfer.
 	Routes            *transfer.RoutesState //Routes available for this transfer.
 	BlockNumber       int64                 //Latest known block number.
-	RandomGenerator   RandomGenerator       //A generator that yields valid secrets.
+	RandomGenerator   utils.SecretGenerator //A generator that yields valid secrets.
 	Message           transfer.Event        // current message in-transit todo this type?
 	Route             *transfer.RouteState  //current route being used
 	SecretRequest     *encoding.SecretRequest

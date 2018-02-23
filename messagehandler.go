@@ -17,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/go-errors/errors"
 )
 
 /*
@@ -50,15 +51,35 @@ func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash co
 	})
 	switch m2 := msg.(type) {
 	case *encoding.SecretRequest:
+		f := this.raiden.SecretRequestPredictorMap[m2.HashLock]
+		if f != nil {
+			ignore := (f)(m2)
+			if ignore {
+				return errors.New("ignore this secret request")
+			}
+		}
 		err = this.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
 		this.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
+		f := this.raiden.RevealSecretListenerMap[m2.HashLock()]
+		if f != nil {
+			remove := (f)(m2)
+			if remove {
+				delete(this.raiden.RevealSecretListenerMap, m2.HashLock())
+			}
+		}
 		err = this.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
 	case *encoding.Secret:
 		err = this.messageSecret(m2)
 	case *encoding.DirectTransfer:
 		err = this.messageDirectTransfer(m2)
 	case *encoding.MediatedTransfer:
+		for f, _ := range this.raiden.ReceivedMediatedTrasnferListenerMap {
+			remove := (*f)(m2)
+			if remove {
+				delete(this.raiden.ReceivedMediatedTrasnferListenerMap, f)
+			}
+		}
 		err = this.MessageMediatedTransfer(m2)
 	case *encoding.RefundTransfer:
 		err = this.messageRefundTransfer(m2)
@@ -256,9 +277,9 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 			 TODO: add a separate message for token swaps to simplify message
 		     handling (issue #487)
 	*/
-	if _, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
-		this.messageTokenSwap(msg)
-		return nil
+	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
+		this.messageTokenSwap(msg, tokenswap)
+		//return nil
 	}
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
 	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
@@ -279,28 +300,52 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	}
 	return nil
 }
-func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfer) {
-	key := SwapKey{
-		Identifier: msg.Identifier,
-		FromToken:  msg.Token,
-		FromAmount: msg.Amount.String(),
+
+/*
+taker process token swap
+*/
+func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) {
+	var hashlock common.Hash = msg.HashLock
+	var hasReceiveRevealSecret bool
+	var stateManager *transfer.StateManager
+	if msg.Identifier != tokenswap.Identifier || msg.Amount.Cmp(tokenswap.FromAmount) != 0 || msg.Initiator != tokenswap.FromNodeAddress || msg.Token != tokenswap.FromToken || msg.Target != tokenswap.ToNodeAddress {
+		log.Info("receive a mediated transfer, not match tokenswap condition")
+		return
 	}
-	/*
-			If we are the maker the task is already running and waiting for the
-		    taker's MediatedTransfer
-	*/
-	task := this.raiden.SwapKey2Task[key]
-	if task != nil {
-		task.GetResponseChan() <- msg
-	} else {
-		/*
-		   If we are the taker we are receiving the maker transfer and should start our new task
-		*/
-		tokenSwap := this.raiden.SwapKey2TokenSwap[key]
-		task := NewTakerTokenSwapTask(this.raiden, tokenSwap, msg)
-		go func() {
-			task.Start()
-		}()
-		this.raiden.SwapKey2Task[key] = task
+	var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
+		if !hasReceiveRevealSecret {
+			/*
+				ignore secret request until recieve a valid reveal secret.
+				we assume that :
+				maker first send a valid reveal secret and then send secret request, otherwis may deadlock but  taker willnot lose tokens.
+			*/
+			return true
+		}
+		return false
 	}
+	var receiveRevealSecretHook RevealSecretListener = func(msg *encoding.RevealSecret) (remove bool) {
+		if msg.HashLock() != hashlock {
+			return false
+		}
+		state := stateManager.CurrentState
+		initState, ok := state.(*mediated_transfer.InitiatorState)
+		if !ok {
+			panic(fmt.Sprintf("must be a InitiatorState"))
+		}
+		if initState.Transfer.Hashlock != msg.HashLock() {
+			panic(fmt.Sprintf("hashlock must be same , state lock=%s,msg lock=%s", utils.HPex(initState.Transfer.Hashlock), utils.HPex(msg.HashLock())))
+		}
+		initState.Transfer.Secret = msg.Secret
+		hasReceiveRevealSecret = true
+		delete(this.raiden.SecretRequestPredictorMap, hashlock)
+		return true
+	}
+
+	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock)
+	if stateManager == nil {
+		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
+		return
+	}
+	this.raiden.SecretRequestPredictorMap[hashlock] = secretRequestHook
+	this.raiden.RevealSecretListenerMap[hashlock] = receiveRevealSecretHook
 }

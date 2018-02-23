@@ -123,8 +123,18 @@ func Exists(dir string) bool {
 	return true
 }
 
-func RandomGenerator() common.Hash {
-	return Sha3(Random(32))
+// Return n random bytes suitable for cryptographic and it's corresponding hashlock
+type SecretGenerator func() (secret, hashlock common.Hash)
+
+func RandomSecretGenerator() (secret, hashlock common.Hash) {
+	secret = common.BytesToHash(Random(32))
+	hashlock = Sha3(secret[:])
+	return
+}
+func NewSepecifiedSecretGenerator(hashlock common.Hash) SecretGenerator {
+	return func() (secret, hashlock2 common.Hash) {
+		return EmptyHash, hashlock
+	}
 }
 
 // GetHomePath returns the user's $HOME directory
