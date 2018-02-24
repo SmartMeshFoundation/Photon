@@ -7,7 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/labstack/gommon/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 /*

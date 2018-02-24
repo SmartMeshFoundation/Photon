@@ -5,6 +5,8 @@ import (
 
 	"math/big"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/models"
@@ -17,7 +19,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/go-errors/errors"
 )
 
 /*

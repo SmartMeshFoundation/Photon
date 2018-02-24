@@ -441,7 +441,7 @@ func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver commo
 		receiveMessageTag := receiveTag.(*transfer.MessageTag)
 		if receiveMessageTag.ReceiveProcessComplete == false {
 			mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
-
+			log.Trace(fmt.Sprintf("set message %s ReceiveProcessComplete", receiveMessageTag.MessageId))
 			receiveMessageTag.ReceiveProcessComplete = true
 			ack := this.raiden.Protocol.CreateAck(receiveMessageTag.EchoHash)
 			this.raiden.db.SaveAck(receiveMessageTag.EchoHash, ack.Pack(), tx)

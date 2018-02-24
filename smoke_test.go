@@ -114,7 +114,7 @@ func TestSmoke(t *testing.T) {
 		return
 	}
 	//let rb finish transfer
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 5)
 	//channel a-b of tokenaddr
 	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
 	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
@@ -125,7 +125,7 @@ func TestSmoke(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Second) //let rb,rc to update
+	time.Sleep(time.Second * 5) //let rb,rc to update
 	//channel a-b of tokenaddr
 	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount).Sub(x, tAmount))
 	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount).Add(x, tAmount))

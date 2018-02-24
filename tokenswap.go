@@ -9,6 +9,8 @@ import (
 
 	"math/big"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network"
@@ -17,7 +19,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
-	"github.com/kataras/go-errors"
 )
 
 type Tasker interface {

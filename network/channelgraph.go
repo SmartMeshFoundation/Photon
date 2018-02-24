@@ -336,7 +336,7 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddres
 	*/
 	neighbors := this.orderedNeighbours(ourAddress, targetAdress)
 	if len(neighbors) == 0 {
-		log.Warn(fmt.Sprint("no routes avaiable from %s to %s", utils.APex(ourAddress), utils.APex(targetAdress)))
+		log.Warn(fmt.Sprintf("no routes avaiable from %s to %s", utils.APex(ourAddress), utils.APex(targetAdress)))
 		return
 	}
 	for _, partnerAddress := range neighbors {

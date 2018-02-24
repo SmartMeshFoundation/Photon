@@ -9,12 +9,13 @@ import (
 
 	"math/big"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/raiden-network"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/kataras/go-errors"
 )
 
 type Api struct {
