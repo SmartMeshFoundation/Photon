@@ -9,6 +9,8 @@ import (
 
 	"sync"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/models"
@@ -18,7 +20,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/kataras/go-errors"
 )
 
 type RaidenApi struct {
@@ -397,6 +398,18 @@ func (this *RaidenApi) Transfer(token common.Address, amount *big.Int, target co
 }
 
 func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
+	tokens := this.Tokens()
+	found := false
+	for _, t := range tokens {
+		if t == tokenAddress {
+			found = true
+			break
+		}
+	}
+	if !found {
+		err = errors.New("token not exist")
+		return
+	}
 	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = rerr.InvalidAmount
 		return
