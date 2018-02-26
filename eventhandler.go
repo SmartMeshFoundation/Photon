@@ -462,8 +462,8 @@ func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver commo
 	}
 	if mgr.ChannelAddresRefund != utils.EmptyAddress { //for mediated transfer and initiator
 		_, isrefund := mgr.LastReceivedMessage.(*encoding.RefundTransfer)
-		_, ismediated := mgr.LastSendMessage.(*encoding.MediatedTransfer)
-		if isrefund && ismediated {
+		islocktransfer := encoding.IsLockedTransfer(mgr.LastSendMessage) //when receive refund transfer, next message must be a refund transfer or mediated transfer.
+		if isrefund && islocktransfer {
 			ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddresRefund)
 			this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 			mgr.ChannelAddresRefund = utils.EmptyAddress
