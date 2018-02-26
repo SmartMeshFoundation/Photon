@@ -55,24 +55,32 @@ func (this *RoutesTask) loop() {
 
 func (this *RoutesTask) startTask(task *RoutesToDetect) {
 	var availables []*transfer.RouteState
-	var needWait bool
+	var needWait bool = true
+	pingcnt := 0
+	const MaxPingOneTime = 10
 	for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
-		status, lastVisitTime := this.NodesStatusGetter.GetNetworkStatusAndLastVisitTime(task.RoutesState.AvailableRoutes[i].HopNode)
-		if status == network.NODE_NETWORK_REACHABLE && lastVisitTime.Add(5*time.Second).After(time.Now()) {
+		status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
+		if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
+			if i == 0 {
+				needWait = false
+			}
 			continue //just detect seconds ago
 		}
-		needWait = true
 		err := this.PingSender.SendPing(task.RoutesState.AvailableRoutes[i].HopNode)
 		if err != nil {
 			log.Error(fmt.Sprintf("sendping to %s err:%s", task.RoutesState.AvailableRoutes[i].HopNode.String(), err))
+		}
+		pingcnt++
+		if pingcnt >= MaxPingOneTime {
+			break
 		}
 	}
 	//wait ack 3 seconds, long or short?
 	if needWait {
 		time.Sleep(3 * time.Second)
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
-			status, lastVisitTime := this.NodesStatusGetter.GetNetworkStatusAndLastVisitTime(task.RoutesState.AvailableRoutes[i].HopNode)
-			if status == network.NODE_NETWORK_REACHABLE && lastVisitTime.Add(10*time.Second).After(time.Now()) {
+			status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
+			if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
 				availables = append(availables, task.RoutesState.AvailableRoutes[i])
 			} else {
 				task.RoutesState.IgnoredRoutes = append(task.RoutesState.IgnoredRoutes, task.RoutesState.AvailableRoutes[i])

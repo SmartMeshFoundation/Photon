@@ -29,8 +29,8 @@ const NODE_NETWORK_REACHABLE = "reachable"
 type NodesStatusMap map[common.Address]*NetworkStatus
 
 type NetworkStatus struct {
-	LastTime time.Time //last update time
-	Status   string
+	LastAckTime time.Time //time of last received ack message
+	Status      string
 }
 type MessageToRaiden struct {
 	Msg      encoding.SignedMessager
@@ -53,7 +53,7 @@ type SentMessageState struct {
 }
 type NodesStatusGetter interface {
 	GetNetworkStatus(addr common.Address) string
-	GetNetworkStatusAndLastVisitTime(addr common.Address) (status string, lastVisitTime time.Time)
+	GetNetworkStatusAndLastAckTime(addr common.Address) (status string, lastAckTime time.Time)
 }
 type PingSender interface {
 	SendPing(receiver common.Address) error
@@ -336,7 +336,7 @@ func (this *RaidenProtocol) updateNetworkStatus(addr common.Address, status stri
 		this.address2NetworkStatus[addr] = s
 	}
 	s.Status = status
-	s.LastTime = time.Now()
+	s.LastAckTime = time.Now()
 }
 func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
 	this.statusLock.Lock()
@@ -347,14 +347,14 @@ func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
 	}
 	return s.Status
 }
-func (this *RaidenProtocol) GetNetworkStatusAndLastVisitTime(addr common.Address) (status string, lastVisitTime time.Time) {
+func (this *RaidenProtocol) GetNetworkStatusAndLastAckTime(addr common.Address) (status string, lastAckTime time.Time) {
 	this.statusLock.Lock()
 	defer this.statusLock.Unlock()
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
 		return NODE_NETWORK_UNKNOWN, time.Now()
 	}
-	return s.Status, s.LastTime
+	return s.Status, s.LastAckTime
 }
 func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 	if len(data) > params.UDP_MAX_MESSAGE_SIZE {
