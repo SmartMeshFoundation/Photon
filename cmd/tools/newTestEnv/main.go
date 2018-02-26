@@ -72,27 +72,10 @@ func Main(ctx *cli.Context) error {
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
 	registryAddress := DeployContract(key, conn)
+	//registryAddress := common.HexToAddress("0xAEABE46207c1f31f44C3F5876383B808d4280456")
 	registry, _ := rpc.NewRegistry(registryAddress, conn)
-	managerAddress, tokenAddress := NewToken(key, conn, registry)
-	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
-	token, _ := rpc.NewToken(tokenAddress, conn)
-	am := raiden_network.NewAccountManager(ctx.String("keystore-path"))
-	var accounts []common.Address
-	var keys []*ecdsa.PrivateKey
-	for _, account := range am.Accounts {
-		accounts = append(accounts, account.Address)
-		keybin, err := am.GetPrivateKey(account.Address, globalPassword)
-		if err != nil {
-			log.Fatalf("password error for %s", account.Address.String())
-		}
-		keytemp, _ := crypto.ToECDSA(keybin)
-		keys = append(keys, keytemp)
-	}
-	fmt.Sprintf("key=%s", key)
-	TransferMoneyForAccounts(key, conn, accounts[1:], token)
-	if ctx.Bool("create-channel") {
-		CreateChannels(conn, accounts, keys, manager, token)
-	}
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
 	return nil
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
@@ -163,6 +146,28 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 	fmt.Printf("RegistryAddress=%s\n", RegistryAddress.String())
 	return
 }
+func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry, keystorepath string, createchannel bool) {
+	managerAddress, tokenAddress := NewToken(key, conn, registry)
+	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
+	token, _ := rpc.NewToken(tokenAddress, conn)
+	am := raiden_network.NewAccountManager(keystorepath)
+	var accounts []common.Address
+	var keys []*ecdsa.PrivateKey
+	for _, account := range am.Accounts {
+		accounts = append(accounts, account.Address)
+		keybin, err := am.GetPrivateKey(account.Address, globalPassword)
+		if err != nil {
+			log.Fatalf("password error for %s", account.Address.String())
+		}
+		keytemp, _ := crypto.ToECDSA(keybin)
+		keys = append(keys, keytemp)
+	}
+	fmt.Sprintf("key=%s", key)
+	TransferMoneyForAccounts(key, conn, accounts[1:], token)
+	if createchannel {
+		CreateChannels(conn, accounts, keys, manager, token)
+	}
+}
 func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
 	tokenAddr, tx, _, err := rpc.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
@@ -191,10 +196,11 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Regis
 func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *rpc.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
+	auth := bind.NewKeyedTransactor(key)
+	nonce, _ := conn.PendingNonceAt(context.Background(), auth.From)
 	for index, account := range accounts {
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
-			nonce, _ := conn.PendingNonceAt(context.Background(), auth2.From)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
 			tx, err := token.Transfer(auth2, account, big.NewInt(500000))
