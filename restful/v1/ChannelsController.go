@@ -117,6 +117,7 @@ func (this *ChannelsController) OpenChannel() {
 			if req.Balance.Cmp(utils.BigInt0) > 0 {
 				err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DEFAULT_POLL_TIMEOUT)
 				if err == nil {
+					c, _ := RaidenApi.GetChannel(c.ChannelAddress)
 					d.Balance = c.OurBalance
 				} else {
 					log.Error(" RaidenApi.Deposit error : ", err)
@@ -153,7 +154,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 		this.Abort(http.StatusConflict)
 		return
 	}
-	if r.Balance.Cmp(utils.BigInt0) > 0 { //deposit
+	if r.Balance != nil && r.Balance.Cmp(utils.BigInt0) > 0 { //deposit
 		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerAddress, r.Balance, params.DEFAULT_POLL_TIMEOUT)
 		if err != nil {
 			this.Abort(http.StatusRequestTimeout)

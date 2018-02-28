@@ -220,7 +220,7 @@ func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 		log.Info("Deposit failed %s,receipt=%s", this.ChannelAddress.String(), receipt.String())
 		return errors.New("Deposit execution failed ,maybe reverted?")
 	} else {
-		log.Info("Deposit success ", this.ChannelAddress.String())
+		log.Info(fmt.Sprintf("Deposit success %s", this.ChannelAddress.String()))
 	}
 	return nil
 }
