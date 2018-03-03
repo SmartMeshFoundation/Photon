@@ -541,8 +541,8 @@ func (c *Channel) StateTransition(st transfer.StateChange) (err error) {
 				c.ExternState.SetClosed(st2.ClosedBlock)
 				c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
 			} else {
-				log.Warn(fmt.Sprint("channel closed on a different block or close event happened twice channel=%s,closedblock=%s,thisblock=%sn",
-					c.MyAddress, c.ExternState.ClosedBlock, st2.ClosedBlock))
+				log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%s,thisblock=%s",
+					c.MyAddress.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
 			}
 		}
 	case *mediated_transfer.ContractReceiveSettledStateChange:

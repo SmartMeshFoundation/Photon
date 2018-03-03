@@ -389,14 +389,11 @@ func (this *ConnectionManager) findNewPartners(number int) []common.Address {
 	}
 	known[this.BOOTSTRAP_ADDR] = true
 	known[this.raiden.NodeAddress] = true
-	chs, err := this.raiden.db.GetChannelList(this.tokenAddress, utils.EmptyAddress)
-	if err == nil {
-		panic(fmt.Sprintf("GetChannelList err %s", err))
-	}
+	channelAddresses := this.raiden.db.GetTokenNodes(this.tokenAddress)
 	var availables []common.Address
-	for _, ch := range chs {
-		if !known[ch.ChannelAddress] {
-			availables = append(availables, ch.ChannelAddress)
+	for _, addr := range channelAddresses {
+		if !known[addr] {
+			availables = append(availables, addr)
 		}
 	}
 	log.Debug(fmt.Sprintf("found %d partners", len(availables)))

@@ -716,6 +716,10 @@ func (this *RaidenService) RegisterChannelManager(managerAddress common.Address)
 	if err != nil {
 		log.Error(err.Error())
 	}
+	err = this.db.UpdateTokenNodes(tokenAddress, graph.AllNodes())
+	if err != nil {
+		log.Error(err.Error())
+	}
 	// we need restore channel status from database after restart...
 	//for _, c := range graph.ChannelAddress2Channel {
 	//	err = this.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
