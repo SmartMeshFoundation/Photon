@@ -1008,9 +1008,20 @@ we must make sure that taker use the maker's secret.
 and taker's lock expiration should be short than maker's todo(fix this)
 */
 func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
+	return this.startMediatedTransferInternal(tokenAddress, target, amount, identifier, hashlock, expiration)
+}
+
+/*
+lauch a new mediated trasfer
+Args:
+ hashlock: caller can specify a hashlock or use empty ,when empty, will generate a random secret.
+ expiration: caller can specify a valid blocknumber or 0, when 0 ,will calculate based on settle timeout of channel.
+*/
+func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
 	result = network.NewAsyncResult()
+	result.Tag = target //tell the difference when token swap
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -1334,7 +1345,7 @@ func (this *RaidenService) handleReq(req *ApiReq) {
 	this.Lock.Unlock()
 }
 func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
-	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface1(sentMessage)))
+	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 	if sentMessage.Message.Tag() != nil { //
 		sentTag := sentMessage.Message.Tag()
 		sentMessageTag := sentTag.(*transfer.MessageTag)

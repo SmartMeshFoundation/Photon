@@ -46,6 +46,7 @@ Event emitted by the payer when a transfer has failed.
 type EventTransferSentFailed struct {
 	Identifier uint64
 	Reason     string
+	Target     common.Address //transfer's target, may be not the same as receipient
 }
 
 /*

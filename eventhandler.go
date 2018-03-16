@@ -154,31 +154,9 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		err = this.eventSendRefundTransfer(e2, stateManager)
 		this.raiden.ConditionQuit("EventSendRefundTransferAfter")
 	case *transfer.EventTransferSentSuccess:
-		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.Identifier))
-		//may receive multi success because of duplicate messages
-		/*
-			method 1.
-			remove this id info after success
-			method 2.
-			mark success
-		*/
-		this.raiden.Lock.Lock()
-		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
-			r.Result <- nil
-			//close(r.Result) for tokenswap may error todo fix it. 为什么不让tokenswap使用两个有规律的id,而不是完全相同的两个id呢
-		}
-		//todo fix this ,when to delete Identifier2StateManager?
-		//delete(this.raiden.Identifier2Results, e2.Identifier)
-		this.raiden.Lock.Unlock()
+		this.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
-		log.Info(fmt.Sprintf("EventTransferSentFailed for id %d", e2.Identifier))
-		this.raiden.Lock.Lock()
-		for _, r := range this.raiden.Identifier2Results[e2.Identifier] {
-			r.Result <- errSentFailed
-			//close(r.Result) for tokenswap may error
-		}
-		//delete(this.raiden.Identifier2Results, e2.Identifier)
-		this.raiden.Lock.Unlock()
+		this.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
 	case *mediated_transfer.EventUnlockSuccess:
 	case *mediated_transfer.EventWithdrawFailed:
@@ -202,7 +180,47 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 	}
 	return
 }
-
+func (this *StateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
+	var err error
+	var identifier uint64
+	var target common.Address
+	switch e2 := ev.(type) {
+	case *transfer.EventTransferSentSuccess:
+		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.Identifier))
+		identifier = e2.Identifier
+		target = e2.Target
+		err = nil
+	case *transfer.EventTransferSentFailed:
+		log.Warn(fmt.Sprintf("EventTransferSentFailed for id %d,because of %s", e2.Identifier, e2.Reason))
+		identifier = e2.Identifier
+		target = e2.Target
+		err = errors.New(e2.Reason)
+	default:
+		panic("unknow event")
+	}
+	results := this.raiden.Identifier2Results[identifier]
+	if len(results) <= 0 { //restart after crash?
+		log.Error(fmt.Sprintf("transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
+		return
+	}
+	for i, r := range results {
+		t2, ok := r.Tag.(common.Address)
+		if !ok {
+			panic("Identifier2Results's tag must be Address")
+		}
+		if t2 == target {
+			r.Result <- err
+			results = append(results[:i], results[i+1:]...)
+			close(r.Result) //for tokenswap may error todo fix it. 为什么不让tokenswap使用两个有规律的id,而不是完全相同的两个id呢
+			break
+		}
+	}
+	if len(results) == 0 {
+		delete(this.raiden.Identifier2Results, identifier)
+	} else {
+		this.raiden.Identifier2Results[identifier] = results
+	}
+}
 func (this *StateMachineEventHandler) HandleTokenAdded(st *mediated_transfer.ContractReceiveTokenAddedStateChange) error {
 	managerAddress := st.ManagerAddress
 	return this.raiden.RegisterChannelManager(managerAddress)

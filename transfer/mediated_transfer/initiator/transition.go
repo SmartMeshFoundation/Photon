@@ -49,6 +49,7 @@ func UserCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 	cancel := &transfer.EventTransferSentFailed{
 		Identifier: state.Transfer.Identifier,
 		Reason:     "user canceled transfer",
+		Target:     state.Transfer.Target,
 	}
 	return &transfer.TransitionResult{
 		NewState: nil,
@@ -106,6 +107,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		transferFailed := &transfer.EventTransferSentFailed{
 			Identifier: state.Transfer.Identifier,
 			Reason:     "no route available",
+			Target:     state.Transfer.Target,
 		}
 		events := []transfer.Event{transferFailed}
 		if unlockFailed != nil {
