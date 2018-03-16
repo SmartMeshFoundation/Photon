@@ -15,6 +15,8 @@ import (
 
 	"runtime/debug"
 
+	"fmt"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -90,6 +92,10 @@ func MakePrivateKeyAddress() (*ecdsa.PrivateKey, common.Address) {
 	return key, addr
 }
 func StringInterface(i interface{}, depth int) string {
+	stringer, ok := i.(fmt.Stringer)
+	if ok {
+		return stringer.String()
+	}
 	c := spew.Config
 	spew.Config.DisableMethods = false
 	//spew.Config.ContinueOnMethod = false
@@ -99,6 +105,10 @@ func StringInterface(i interface{}, depth int) string {
 	return s
 }
 func StringInterface1(i interface{}) string {
+	stringer, ok := i.(fmt.Stringer)
+	if ok {
+		return stringer.String()
+	}
 	c := spew.Config
 	spew.Config.DisableMethods = true
 	spew.Config.MaxDepth = 1

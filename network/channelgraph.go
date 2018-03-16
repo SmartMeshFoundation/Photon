@@ -298,7 +298,7 @@ func (this *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Add
 		nws = append(nws, &neighborWeight{n, w})
 	}
 	sort.Sort(nws)
-	log.Trace(fmt.Sprintf("nws=%s\n", utils.StringInterface(nws, 3)))
+	//log.Trace(fmt.Sprintf("nws=%s\n", utils.StringInterface(nws, 3)))
 	neighbors = []common.Address{}
 	for _, nw := range nws {
 		if nw.weight != utils.MaxInt {

@@ -60,6 +60,7 @@ type Messager interface {
 	Tag() interface{}
 	SetTag(tag interface{})
 	Name() string
+	String() string
 	MessagePackerUnpacker
 }
 
@@ -163,6 +164,9 @@ func (this *Ack) UnPack(data []byte) error {
 	}
 	return nil
 }
+func (this *Ack) String() string {
+	return fmt.Sprintf("Message{type=Ack sender=%s,echo=%s}", utils.APex2(this.Sender), utils.HPex(this.Echo))
+}
 
 type SignedMessage struct {
 	CmdStruct
@@ -202,22 +206,6 @@ func SignMessage(privKey *ecdsa.PrivateKey, pack MessagePacker) []byte {
 	return sig
 }
 
-//func SetSignature(privkey *ecdsa.PrivateKey, pack MessagePacker) error {
-//	signature:=SignMessage(privkey,pack)
-//	T := reflect.ValueOf(pack)
-//	if T.Kind() == reflect.Ptr {
-//		T = T.Elem()
-//	}
-//	if T.Kind()==reflect.Struct{
-//		codeField := T.FieldByName("Signature")
-//		if codeField.IsValid() {
-//			codeField.SetBytes(signature)
-//		} else{
-//			return errors.New("field signature not found")
-//		}
-//	}
-//	return nil
-//}
 func HashMessage(pack MessagePacker) common.Hash {
 	return utils.Sha3(pack.Pack())
 }
@@ -287,6 +275,10 @@ func (this *Ping) UnPack(data []byte) error {
 	return nil
 }
 
+func (this *Ping) String() string {
+	return fmt.Sprintf("Message{type=Ping Nonce=%d,sender=%s, has signature=%v}", this.Nonce, utils.APex2(this.Sender), len(this.Signature) != 0)
+}
+
 //Requests the secret which unlocks a hashlock.
 type SecretRequest struct {
 	SignedMessage
@@ -342,6 +334,11 @@ func (this *SecretRequest) UnPack(data []byte) error {
 	}
 	err = this.VerifySignature(data)
 	return err
+}
+
+func (this *SecretRequest) String() string {
+	return fmt.Sprintf("Message{type=SecretRequest identifier=%d,hashlock=%s,amount=%s,sender=%s,has signature=%v}", this.Identifier,
+		utils.HPex(this.HashLock), this.Amount.String(), utils.APex2(this.Sender), len(this.Signature) != 0)
 }
 
 /*
@@ -401,6 +398,10 @@ func (this *RevealSecret) UnPack(data []byte) error {
 	}
 	return this.VerifySignature(data)
 }
+func (this *RevealSecret) String() string {
+	return fmt.Sprintf("Message{type=RevealSecret,hashlock=%s,secret=%s,sender=%s,has signature=%v}", utils.HPex(this.hashLock),
+		utils.HPex(this.Secret), utils.APex2(this.Sender), len(this.Signature) != 0)
+}
 
 type EnvelopMessage struct {
 	SignedMessage
@@ -411,6 +412,10 @@ type EnvelopMessage struct {
 	Identifier     uint64
 }
 
+func (this *EnvelopMessage) String() string {
+	return fmt.Sprintf("EnvelopMessage{Nonce=%d,Channel=%s,TransferAmount=%s,Locksroot=%s,Identifier=%d sender=%s,has signature=%v}", this.Nonce,
+		utils.APex2(this.Channel), this.TransferAmount, utils.HPex(this.Locksroot), this.Identifier, utils.APex2(this.Sender), len(this.Signature) != 0)
+}
 func (this *EnvelopMessage) signData(datahash common.Hash) []byte {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.BigEndian, this.Nonce)
@@ -525,6 +530,9 @@ func (this *Secret) UnPack(data []byte) error {
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
+func (this *Secret) String() string {
+	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(this.Secret), this.EnvelopMessage.String())
+}
 
 /*
 """ A direct token exchange, used when both participants have a previously
@@ -557,6 +565,10 @@ type DirectTransfer struct {
 	Recipient common.Address //20bytes
 }
 
+func (this *DirectTransfer) String() string {
+	return fmt.Sprintf("Message{type=DirectTransfer token=%s,recipient=%s,%s}", utils.APex2(this.Token),
+		utils.APex2(this.Recipient), this.EnvelopMessage.String())
+}
 func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
 	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash) *DirectTransfer {
@@ -653,23 +665,6 @@ func (this *Lock) FromBytes(locksencoded []byte) {
     """
 */
 type MediatedTransfer struct {
-	/*
-			cmdid(MEDIATEDTRANSFER),  # [0:1]
-		        pad(3),                   # [1:4]
-		        nonce,                    # [4:12]
-		        identifier,               # [12:20]
-		        expiration,               # [20:28]
-		        token,                    # [28:48]
-		        recipient,                # [48:68]
-		        target,                   # [68:88]
-		        initiator,                # [88:108]
-		        locksroot,                # [108:140]
-		        hashlock,                 # [140:172]
-		        transferred_amount,       # [172:204]
-		        amount,                   # [204:236]
-		        fee,                      # [236:268]
-		        signature,                # [268:333]
-	*/
 	EnvelopMessage
 	Expiration int64
 	Token      common.Address
@@ -681,6 +676,11 @@ type MediatedTransfer struct {
 	Fee        *big.Int
 }
 
+func (this *MediatedTransfer) String() string {
+	return fmt.Sprintf("Message{type=MediatedTransfer expiration=%d,token=%s,recipient=%s,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
+		this.Expiration, utils.APex2(this.Token), utils.APex2(this.Recipient), utils.APex2(this.Target), utils.APex2(this.Initiator),
+		utils.HPex(this.HashLock), this.Amount, this.Fee, this.EnvelopMessage.String())
+}
 func NewMediatedTransfer(identifier uint64, nonce int64, token common.Address,
 	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash, lock *Lock,
@@ -711,23 +711,6 @@ func (this *MediatedTransfer) GetLock() *Lock {
 		HashLock:   this.HashLock,
 	}
 }
-
-/* cmdid(MEDIATEDTRANSFER),
-   pad(3),
-   nonce,
-   identifier,
-   expiration,
-   token,
-   channel,
-   recipient,
-   target,
-   initiator,
-   locksroot,
-   hashlock,
-   transferred_amount,
-   amount,
-   fee,
-   signature,*/
 
 func (this *MediatedTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
@@ -785,6 +768,11 @@ type RefundTransfer struct {
 	MediatedTransfer
 }
 
+func (this *RefundTransfer) String() string {
+	return fmt.Sprintf("Message{type=RefundTransfer expiration=%d,token=%s,recipient=%s,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
+		this.Expiration, utils.APex2(this.Token), utils.APex2(this.Recipient), utils.APex2(this.Target), utils.APex2(this.Initiator),
+		utils.HPex(this.HashLock), this.Amount, this.Fee, this.EnvelopMessage.String())
+}
 func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
 	channel common.Address, transferAmount *big.Int,
 	recipient common.Address, locksroot common.Hash, lock *Lock,

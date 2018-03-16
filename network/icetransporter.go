@@ -140,7 +140,7 @@ func (it *IceTransport) Send(receiver common.Address, host string, port int, dat
 	it.lock.Lock()
 	defer it.lock.Unlock()
 	it.removeExpiredConnection()
-	log.Trace(fmt.Sprintf("%s send to %s , message=%s,hash=%s\n", it.name, utils.APex(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
+	log.Trace(fmt.Sprintf("%s send to %s , message=%s,hash=%s\n", it.name, utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
 	var err error
 	if it.sendStatus != StatusCanSend {
 		return errHasStopped
@@ -156,7 +156,7 @@ func (it *IceTransport) Send(receiver common.Address, host string, port int, dat
 		is := &IceStream{
 			Status: IceTransporterStateInit,
 		}
-		is.ist, err = gopjnath.NewIceStreamTransport(it.name, func(u uint, bytes []byte, addr gopjnath.SockAddr) {
+		is.ist, err = gopjnath.NewIceStreamTransport(fmt.Sprintf("%s-%s", it.name, utils.APex2(receiver)), func(u uint, bytes []byte, addr gopjnath.SockAddr) {
 			it.Receive(bytes, "", 0)
 		}, func(op gopjnath.IceTransportOp, e error) {
 			it.handelIceCompleteForControlling(is, receiver, op, e, data)
@@ -198,7 +198,7 @@ func (it *IceTransport) handleSdpArrived(partner common.Address, sdp string) (my
 		CanExchangeSdp: true,
 	}
 	sdpchan := make(chan *sdpresult, 1)
-	is.ist, err = gopjnath.NewIceStreamTransport(it.name, func(u uint, bytes []byte, addr gopjnath.SockAddr) {
+	is.ist, err = gopjnath.NewIceStreamTransport(fmt.Sprintf("%s-%s", it.name, utils.APex2(partner)), func(u uint, bytes []byte, addr gopjnath.SockAddr) {
 		//log.Trace(fmt.Sprintf("receive:%s", string(bytes)))
 		it.Receive(bytes, partner.String(), 0)
 	}, func(op gopjnath.IceTransportOp, e error) {

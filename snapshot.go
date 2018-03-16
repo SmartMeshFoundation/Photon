@@ -124,7 +124,6 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 		if mgr.ManagerState == transfer.StateManager_State_Init || mgr.ManagerState == transfer.StateManager_TransferComplete {
 			continue
 		}
-
 		setStateManagerFuncPointer(mgr)
 		idmgrs := this.Identifier2StateManagers[mgr.Identifier]
 		idmgrs = append(idmgrs, mgr)

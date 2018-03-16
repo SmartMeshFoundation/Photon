@@ -28,7 +28,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/restful"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
-	"github.com/davecgh/go-spew/spew"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -216,7 +215,7 @@ func Main(ctx *cli.Context) error {
 		utils.SystemExit(1)
 	}
 	cfg := config(ctx, pms)
-	spew.Dump("Config:", cfg)
+	log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {

@@ -427,6 +427,10 @@ func (this *RaidenService) setBlockNumber(blocknumber int64) error {
 }
 func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 	statechange := &transfer.BlockStateChange{blocknumber}
+	/*
+		todo when to remove statemanager ?
+			when currentState==nil && StateManager.ManagerState!=StateManager_State_Init ,should delete this statemanager.
+	*/
 	this.StateMachineEventHandler.LogAndDispatchToAllTasks(statechange)
 	for _, cg := range this.CloneToken2ChannelGraph() {
 		cg.Lock.Lock() //dead lock!!..
