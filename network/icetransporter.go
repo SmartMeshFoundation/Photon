@@ -111,6 +111,7 @@ func (it *IceTransport) Register(protcol ProtocolReceiver) {
 /*
 for connections that don't use for a long time, just to remove.
 for connections in use but may be invalid because of network, remove too.
+this function should be protected by lock
 */
 func (it *IceTransport) removeExpiredConnection() {
 	if time.Now().Sub(it.lastCheck) < it.checkInterval {
@@ -155,24 +156,20 @@ func (it *IceTransport) Send(receiver common.Address, host string, port int, dat
 		is := &IceStream{
 			Status: IceTransporterStateInit,
 		}
-		log.Trace("aaaaa")
 		is.ist, err = gopjnath.NewIceStreamTransport(it.name, func(u uint, bytes []byte, addr gopjnath.SockAddr) {
 			it.Receive(bytes, "", 0)
 		}, func(op gopjnath.IceTransportOp, e error) {
 			it.handelIceCompleteForControlling(is, receiver, op, e, data)
 		})
-		log.Trace("xxxxx")
 		if err != nil {
 			log.Trace(fmt.Sprintf("%s NewIceStreamTransport err %s", it.name, err))
 			return err
 		}
-		log.Trace("bbbbb")
 		it.IceStreamMap[receiver] = is
 		err := it.signal.TryReach(receiver)
 		if err != nil {
 			return err
 		}
-		log.Trace("cccc")
 		is.CanExchangeSdp = true
 	}
 	return nil
@@ -332,7 +329,13 @@ func (it *IceTransport) Receive(data []byte, host string, port int) error {
 	}
 	log.Trace(fmt.Sprintf("%s receive message,message=%s,hash=%s\n", it.name, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data))))
 	if it.protocol != nil {
-		it.protocol.Receive(data, host, port)
+		log.Trace(fmt.Sprintf("%s message for protocol", it.name))
+		go func() {
+			//icestream 看起来收发用的是同一个线程,因此接收是一定不能堵塞的,否则会造成无法发送.(收发锁死的情况会出现)
+			it.protocol.Receive(data, host, port)
+			log.Trace(fmt.Sprintf("%s message for protocol complete...", it.name))
+		}()
+
 	}
 	return nil
 }

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/labstack/gommon/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type IceTransportOp int
@@ -104,8 +104,23 @@ func destroyString(s C.pj_str_t) {
 
 var once sync.Once
 
+func SetIceLogLevel(lvl log.Lvl) {
+	switch lvl {
+	case log.LvlCrit:
+		fallthrough
+	case log.LvlError:
+		C.pj_log_set_level(1)
+	case log.LvlWarn:
+		C.pj_log_set_level(2)
+	case log.LvlInfo:
+		C.pj_log_set_level(3)
+	case log.LvlDebug:
+		C.pj_log_set_level(3)
+	case log.LvlTrace:
+		C.pj_log_set_level(3)
+	}
+}
 func iceInitInternal(sturnServer, turnServer, turnUserName, turnPassword string) error {
-	C.pj_log_set_level(2) //message important than warn.
 	result := C.goice_init(C.CString(sturnServer), C.CString(turnServer), C.CString(turnUserName), C.CString(turnPassword))
 	if result != C.PJ_SUCCESS {
 		fmt.Println("result :", result)
@@ -119,7 +134,7 @@ func IceInit(sturnServer, turnServer, turnUserName, turnPassword string) error {
 	once.Do(func() {
 		err := iceInitInternal(sturnServer, turnServer, turnUserName, turnPassword)
 		if err != nil {
-			log.Fatal(fmt.Sprintf("IceInit init err %v", err))
+			log.Crit(fmt.Sprintf("IceInit init err %v", err))
 		}
 	})
 	return nil

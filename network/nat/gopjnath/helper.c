@@ -339,7 +339,7 @@ pj_status_t gopjnath_create_instance(IceInstance*ii, char *name)
 		return status;
 	}
 	else {
-		PJ_LOG(3, (THIS_FILE, "%s ICE instance successfully created",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s ICE instance successfully created", ii->name));
 		return PJ_SUCCESS;
 	}
 }
@@ -362,12 +362,12 @@ void gopjnath_destroy_instance(IceInstance*ii)
 		ii->icest = NULL;
 	}
 	else {
-		PJ_LOG(3, (THIS_FILE, "%s Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s Error: No ICE instance, create it first", ii->name));
 	}
 	if (ii->user_data != NULL) {
 		free(ii->user_data);
 	}
-	if (ii->ipool != NULL){
+	if (ii->ipool != NULL) {
 		pj_pool_release(ii->ipool);
 	}
 	PJ_LOG(3, (THIS_FILE, "%s ICE instance destroyed", ii->name));
@@ -382,14 +382,14 @@ void gopjnath_destroy_instance(IceInstance*ii)
 pj_status_t gopjnath_init_session(IceInstance*ii, pj_ice_sess_role role)
 {
 	pj_status_t status;
-	PJ_LOG(1, (THIS_FILE, "%s gopjnath_init_session",ii->name));
+	PJ_LOG(3, (THIS_FILE, "%s gopjnath_init_session", ii->name));
 	if (ii->icest == NULL) {
-		PJ_LOG(1, (THIS_FILE, "%s  gopjnath_init_session Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s  gopjnath_init_session Error: No ICE instance, create it first", ii->name));
 		return PJ_EINVAL;
 	}
 
 	if (pj_ice_strans_has_sess(ii->icest)) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_init_session Error: Session already created",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_init_session Error: Session already created", ii->name));
 		return PJ_EINVAL;
 	}
 
@@ -400,7 +400,7 @@ pj_status_t gopjnath_init_session(IceInstance*ii, pj_ice_sess_role role)
 	}
 
 	else {
-		PJ_LOG(3, (THIS_FILE, "%s ICE session created",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s ICE session created", ii->name));
 	}
 	reset_rem_info(ii);
 	return PJ_SUCCESS;
@@ -415,12 +415,12 @@ pj_status_t gopjnath_stop_session(IceInstance*ii)
 	pj_status_t status;
 
 	if (ii->icest == NULL) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_stop_session Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_stop_session Error: No ICE instance, create it first", ii->name));
 		return PJ_EINVAL;
 	}
 
 	if (!pj_ice_strans_has_sess(ii->icest)) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_stop_session Error: No ICE session, initialize first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_stop_session Error: No ICE session, initialize first", ii->name));
 		return PJ_EINVAL;
 	}
 
@@ -430,7 +430,7 @@ pj_status_t gopjnath_stop_session(IceInstance*ii)
 		return status;
 	}
 	else
-		PJ_LOG(3, (THIS_FILE, "%s ICE session stopped",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s ICE session stopped", ii->name));
 
 	reset_rem_info(ii);
 	return PJ_SUCCESS;
@@ -558,7 +558,7 @@ void gopjnath_show_ice(IceInstance*ii)
 	int len;
 
 	if (ii->icest == NULL) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_show_ice Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_show_ice Error: No ICE instance, create it first", ii->name));
 		return;
 	}
 	puts(ii->name);
@@ -645,7 +645,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 		if (line == NULL) {
 			break;
 		}
-		PJ_LOG(3, (THIS_FILE, "%s processing line :%s", ii->name,line));
+		PJ_LOG(4, (THIS_FILE, "%s processing line :%s", ii->name, line));
 		pj_size_t len;
 
 		len = strlen(line);
@@ -676,7 +676,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 
 			cnt = sscanf(line + 2, "%s %s RTP/", media, portstr);
 			if (cnt != 2) {
-				PJ_LOG(1, (THIS_FILE, "%s Error parsing media line",ii->name));
+				PJ_LOG(1, (THIS_FILE, "%s Error parsing media line", ii->name));
 				goto on_error;
 			}
 
@@ -691,7 +691,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 
 			cnt = sscanf(line + 2, "%s %s %s", c, net, ip);
 			if (cnt != 3) {
-				PJ_LOG(1, (THIS_FILE, "%s Error parsing connection line",ii->name));
+				PJ_LOG(1, (THIS_FILE, "%s Error parsing connection line", ii->name));
 				goto on_error;
 			}
 
@@ -717,7 +717,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 
 				cnt = sscanf(val, "%d IN %s %s", &port, net, ip);
 				if (cnt != 3) {
-					PJ_LOG(1, (THIS_FILE, "%s Error parsing rtcp attribute",ii->name));
+					PJ_LOG(1, (THIS_FILE, "%s Error parsing rtcp attribute", ii->name));
 					goto on_error;
 				}
 
@@ -731,7 +731,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 				status = pj_sockaddr_set_str_addr(af, &ii->rem.def_addr[1],
 					&tmp_addr);
 				if (status != PJ_SUCCESS) {
-					PJ_LOG(1, (THIS_FILE, "%s Invalid IP address",ii->name));
+					PJ_LOG(1, (THIS_FILE, "%s Invalid IP address", ii->name));
 					goto on_error;
 				}
 				pj_sockaddr_set_port(&ii->rem.def_addr[1], (pj_uint16_t)port);
@@ -754,7 +754,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 					&port,
 					type);
 				if (cnt != 7) {
-					PJ_LOG(1, (THIS_FILE, "%s error: Invalid ICE candidate line",ii->name));
+					PJ_LOG(1, (THIS_FILE, "%s error: Invalid ICE candidate line", ii->name));
 					goto on_error;
 				}
 				cand = &ii->rem.cand[ii->rem.cand_cnt];
@@ -767,7 +767,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 				else if (strcmp(type, "relay") == 0)
 					cand->type = PJ_ICE_CAND_TYPE_RELAYED;
 				else {
-					PJ_LOG(1, (THIS_FILE, "%s Error: invalid candidate type '%s'",ii->name,
+					PJ_LOG(1, (THIS_FILE, "%s Error: invalid candidate type '%s'", ii->name,
 						type));
 					goto on_error;
 				}
@@ -783,7 +783,7 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 				pj_sockaddr_init(af, &cand->addr, NULL, 0);
 				status = pj_sockaddr_set_str_addr(af, &cand->addr, &tmpaddr);
 				if (status != PJ_SUCCESS) {
-					PJ_LOG(1, (THIS_FILE, "%s Error: invalid IP address '%s'",ii->name,
+					PJ_LOG(1, (THIS_FILE, "%s Error: invalid IP address '%s'", ii->name,
 						ipaddr));
 					goto on_error;
 				}
@@ -803,12 +803,12 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 		ii->rem.pwd[0] == 0 ||
 		ii->rem.comp_cnt == 0)
 	{
-		PJ_LOG(1, (THIS_FILE, "%s Error: not enough info",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s Error: not enough info", ii->name));
 		goto on_error;
 	}
 
 	if (comp0_port == 0 || comp0_addr[0] == '\0') {
-		PJ_LOG(1, (THIS_FILE, "%s Error: default address for component 0 not found",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s Error: default address for component 0 not found", ii->name));
 		goto on_error;
 	}
 	else {
@@ -826,13 +826,13 @@ pj_status_t gopjnath_input_remote(IceInstance *ii, char * sdp)
 		status = pj_sockaddr_set_str_addr(af, &ii->rem.def_addr[0],
 			&tmp_addr);
 		if (status != PJ_SUCCESS) {
-			PJ_LOG(1, (THIS_FILE, "%s Invalid IP address in c= line",ii->name));
+			PJ_LOG(1, (THIS_FILE, "%s Invalid IP address in c= line", ii->name));
 			goto on_error;
 		}
 		pj_sockaddr_set_port(&ii->rem.def_addr[0], (pj_uint16_t)comp0_port);
 	}
 
-	PJ_LOG(3, (THIS_FILE, "%s Done, %d remote candidate(s) added",ii->name,
+	PJ_LOG(3, (THIS_FILE, "%s Done, %d remote candidate(s) added", ii->name,
 		ii->rem.cand_cnt));
 	return PJ_SUCCESS;
 
@@ -850,21 +850,21 @@ pj_status_t gopjnath_start_nego(IceInstance*ii)
 	pj_status_t status;
 
 	if (ii->icest == NULL) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No ICE instance, create it first", ii->name));
 		return PJ_EINVAL;
 	}
 
 	if (!pj_ice_strans_has_sess(ii->icest)) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No ICE session, initialize first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No ICE session, initialize first", ii->name));
 		return  PJ_EINVAL;
 	}
 
 	if (ii->rem.cand_cnt == 0) {
-		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No remote info, input remote info first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_start_nego Error: No remote info, input remote info first", ii->name));
 		return  PJ_EINVAL;
 	}
 
-	PJ_LOG(3, (THIS_FILE, "%s gopjnath_start_nego Starting ICE negotiation..",ii->name));
+	PJ_LOG(3, (THIS_FILE, "%s gopjnath_start_nego Starting ICE negotiation..", ii->name));
 
 	status = pj_ice_strans_start_ice(ii->icest,
 		pj_cstr(&rufrag, ii->rem.ufrag),
@@ -876,7 +876,7 @@ pj_status_t gopjnath_start_nego(IceInstance*ii)
 		return status;
 	}
 	else {
-		PJ_LOG(3, (THIS_FILE, "%s ICE negotiation started",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s ICE negotiation started", ii->name));
 		return PJ_SUCCESS;
 	}
 }
@@ -891,27 +891,31 @@ pj_status_t gopjnath_send_data(IceInstance*ii, const void *data, pj_size_t len)
 	unsigned int comp_id = 1;
 
 	if (ii->icest == NULL) {
-		PJ_LOG(1, (THIS_FILE, "%s Error: No ICE instance, create it first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s Error: No ICE instance, create it first", ii->name));
 		return PJ_EINVAL;
 	}
 
 	if (!pj_ice_strans_has_sess(ii->icest)) {
-		PJ_LOG(1, (THIS_FILE, "%s Error: No ICE session, initialize first",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s Error: No ICE session, initialize first", ii->name));
 		return PJ_EINVAL;
 	}
 
 
 	if (!pj_ice_strans_sess_is_complete(ii->icest)) {
-		PJ_LOG(1, (THIS_FILE, "%s Error: ICE negotiation has not been started or is in progress",ii->name));
+		PJ_LOG(1, (THIS_FILE, "%s Error: ICE negotiation has not been started or is in progress", ii->name));
 		return PJ_EINVAL;
 	}
-
+	status = regThisThread();
+	if (status != PJ_SUCCESS) {
+		PJ_LOG(1, (THIS_FILE, "%s gopjnath_send_data reg this thread err ", ii->name));
+		return status;
+	}
 	/*
 		if (comp_id<1 || comp_id>pj_ice_strans_get_running_comp_cnt(appcfg.icest)) {
 			PJ_LOG(1, (THIS_FILE, "Error: invalid component ID"));
 			return;
 		}*/
-	PJ_LOG(3, (THIS_FILE, "%s Send data %d",ii->name, len));
+	PJ_LOG(3, (THIS_FILE, "%s Send data %d", ii->name, len));
 	status = pj_ice_strans_sendto(ii->icest, comp_id, data, len,
 		&ii->rem.def_addr[comp_id - 1],
 		pj_sockaddr_get_len(&ii->rem.def_addr[comp_id - 1]));
@@ -921,7 +925,7 @@ pj_status_t gopjnath_send_data(IceInstance*ii, const void *data, pj_size_t len)
 		return status;
 	}
 	else {
-		PJ_LOG(3, (THIS_FILE, "%s Data sent",ii->name));
+		PJ_LOG(3, (THIS_FILE, "%s Data sent", ii->name));
 		return PJ_SUCCESS;
 	}
 }

@@ -13,6 +13,10 @@ import (
 
 	"errors"
 
+	"math/big"
+
+	"sync"
+
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -169,4 +173,49 @@ func TestNew(t *testing.T) {
 	default:
 		t.Error("type convert error")
 	}
+}
+
+func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
+	var msg encoding.SignedMessager
+	var wg = sync.WaitGroup{}
+	p1 := MakeTestIceRaidenProtocol("client1")
+	p2 := MakeTestIceRaidenProtocol("client2")
+	p1.Start()
+	p2.Start()
+	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
+	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
+	go func() {
+		m := <-p2.ReceivedMessageChannel
+		t.Logf("client2 received msg :%#v", m)
+		msg = m.Msg
+		p2.ReceivedMessageResultChannel <- nil
+		secretRequest := encoding.NewSecretRequest(33, utils.EmptyHash, big.NewInt(12))
+		secretRequest.Sign(p2.privKey, secretRequest)
+		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Minute)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	go func() {
+		m := <-p1.ReceivedMessageChannel
+		t.Logf("client1 received msg:%#v", m)
+		p1.ReceivedMessageResultChannel <- nil
+		time.Sleep(time.Millisecond * 10)
+		wg.Done()
+	}()
+	wg.Add(1)
+	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	revealSecretMsg2, ok := msg.(*encoding.RevealSecret)
+	if !ok {
+		t.Errorf("recevied message type error")
+		return
+	}
+	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
+		t.Errorf("secret not match")
+	}
+	wg.Wait()
 }

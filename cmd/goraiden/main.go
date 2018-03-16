@@ -23,10 +23,12 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
+	"github.com/SmartMeshFoundation/raiden-network/network/nat/gopjnath"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/restful"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/davecgh/go-spew/spew"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -129,6 +131,7 @@ func main() {
 				"none" - Use the local interface
 				address (this will likely cause connectivity
 				issues)
+				"ice"- Use ice framework for nat punching
 				[default: auto]`,
 			Value: "auto",
 		},
@@ -140,6 +143,21 @@ func main() {
 			Name:  "conditionquit",
 			Usage: "quit at specified point for test",
 			Value: "",
+		},
+		cli.StringFlag{
+			Name:  "turn-server",
+			Usage: "tur server for ice",
+			Value: "182.254.155.208:3478",
+		},
+		cli.StringFlag{
+			Name:  "turn-user",
+			Usage: "turn username for turn server",
+			Value: "bai",
+		},
+		cli.StringFlag{
+			Name:  "turn-pass",
+			Usage: "turn password for turn server",
+			Value: "bai",
 		},
 	}
 	app.Action = Main
@@ -176,25 +194,29 @@ func setupLog(ctx *cli.Context) {
 	}
 	fmt.Println("loglevel:", lvl.String())
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
+	gopjnath.SetIceLogLevel(lvl)
 }
 func Main(ctx *cli.Context) error {
+	var pms *network.PortMappedSocket
+	var err error
+	var discovery network.DiscoveryInterface
+	var transport network.Transporter
 	fmt.Printf("Welcom to GoRaiden,version %s\n", ctx.App.Version)
-	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
 	setupLog(ctx)
-	/*
-	  TODO:
-	        - Ask for confirmation to quit if there are any locked transfers that did
-	        not timeout.
-	*/
-	host, port := network.SplitHostPort(ctx.String("listen-address"))
-	pms, err := network.SocketFactory(host, port, ctx.String("nat"))
-	log.Trace(fmt.Sprintf("pms=%s", utils.StringInterface1(pms)))
+	if ctx.String("nat") != "ice" {
+		host, port := network.SplitHostPort(ctx.String("listen-address"))
+		pms, err = network.SocketFactory(host, port, ctx.String("nat"))
+		log.Trace(fmt.Sprintf("pms=%s", utils.StringInterface1(pms)))
+	} else {
+		pms = &network.PortMappedSocket{}
+	}
+
 	if err != nil {
 		log.Error(fmt.Sprintf("start server on %s error:%s", ctx.String("listen-address"), err))
 		utils.SystemExit(1)
 	}
 	cfg := config(ctx, pms)
-	//spew.Dump("Config:", cfg)
+	spew.Dump("Config:", cfg)
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
@@ -203,10 +225,15 @@ func Main(ctx *cli.Context) error {
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
-	discovery := network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
-	//discovery := network.NewHttpDiscovery()
-	policy := network.NewTokenBucket(10, 1, time.Now)
-	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
+	if !cfg.UseIce {
+		discovery = network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
+		policy := network.NewTokenBucket(10, 1, time.Now)
+		transport = network.NewUDPTransport(pms.Ip, pms.Port, pms.Conn, nil, policy)
+	} else {
+		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
+		transport = network.NewIceTransporter(bcs.PrivKey, utils.APex2(bcs.NodeAddress))
+		discovery = network.NewIceHelperDiscovery()
+	}
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	go func() {
 		raidenService.Start()
@@ -351,6 +378,13 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 		conditionquit := ctx.String("conditionquit")
 		json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
+	}
+	config.Ice.StunServer = ctx.String("turn-server")
+	config.Ice.TurnServer = ctx.String("turn-server")
+	config.Ice.TurnUser = ctx.String("turn-user")
+	config.Ice.TurnPassword = ctx.String("turn-pass")
+	if ctx.String("nat") == "ice" {
+		config.UseIce = true
 	}
 	return &config
 }

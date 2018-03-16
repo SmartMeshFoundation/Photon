@@ -75,9 +75,9 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 			break
 		}
 	}
-	//wait ack 3 seconds, long or short?
+	//wait ack 5 seconds, long or short?
 	if needWait {
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
 			status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
 			if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {

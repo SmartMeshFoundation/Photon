@@ -33,7 +33,7 @@ func (this *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack 
 
 	} else {
 		if len(data) == 0 {
-			log.Error(fmt.Sprintf("save ack for non revealsecret which should be saved before"))
+			log.Error(fmt.Sprintf("save ack for non revealsecret which should be saved before,msg type is %s", encoding.MessageType(msg.Cmd())))
 		}
 	}
 }

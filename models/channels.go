@@ -56,7 +56,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerializati
 
 //update channel balance? transfer complete?
 func (model *ModelDB) UpdateChannel(c *channel.ChannelSerialization, tx storm.Node) error {
-	log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
+	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
 	err := tx.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))

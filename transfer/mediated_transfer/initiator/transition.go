@@ -307,8 +307,8 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			return TryNewRoute(state)
 		} else {
 			//todo fix, find a way to remove this identifier from raiden.Identifier2StateManagers
-			log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
-				utils.StringInterface1(originalState), utils.StringInterface1(st)))
+			//log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
+			//	utils.StringInterface1(originalState), utils.StringInterface1(st)))
 		}
 	} else if state.RevealSecret == nil {
 		switch st2 := st.(type) {

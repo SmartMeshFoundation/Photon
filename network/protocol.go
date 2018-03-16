@@ -125,6 +125,10 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 	if ok {
 		tr.Register(rp)
 	}
+	tr2, ok := transport.(*IceTransport)
+	if ok {
+		tr2.Register(rp)
+	}
 	return rp
 }
 
@@ -203,7 +207,7 @@ func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan
 				nextTimeout := timeoutExponentialBackoff(this.retryTimes, this.retryInterval, this.retryInterval*10)
 				err := this.sendRawWitNoAck(receiver, msgState.Data)
 				if err != nil {
-					log.Info(err.Error())
+					log.Info(fmt.Sprintf("sendRawWitNoAck %s msg error %s", key, err.Error()))
 				}
 				timeout := time.After(nextTimeout())
 				select {
@@ -419,8 +423,10 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 			this.sendAck(signedMessager.GetSender(), this.CreateAck(echohash))
 		} else {
 			//send message to raiden ,and wait result
+			log.Trace("send message to raiden...")
 			this.ReceivedMessageChannel <- &MessageToRaiden{signedMessager, echohash}
 			err, ok = <-this.ReceivedMessageResultChannel
+			log.Trace("receive message response from raiden")
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
 				ack := this.CreateAck(echohash)

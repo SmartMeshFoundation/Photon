@@ -7,6 +7,8 @@ import (
 
 	"math/rand"
 
+	"crypto/ecdsa"
+
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -40,5 +42,16 @@ func MakeTestRaidenProtocol() *RaidenProtocol {
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey)
 	testdiscovery.Register(rp.nodeAddr, "127.0.0.1", port)
+	return rp
+}
+
+func NewTestIceTransport(key *ecdsa.PrivateKey, name string) *IceTransport {
+	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "119.28.43.121:5222")
+	it := NewIceTransporter(key, name)
+	return it
+}
+func MakeTestIceRaidenProtocol(name string) *RaidenProtocol {
+	key, _ := crypto.GenerateKey()
+	rp := NewRaidenProtocol(NewTestIceTransport(key, name), NewIceHelperDiscovery(), key)
 	return rp
 }

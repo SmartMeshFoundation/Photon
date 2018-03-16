@@ -44,6 +44,25 @@ type Config struct {
 	MyAddress        common.Address
 	Debug            bool
 	ConditionQuit    ConditionQuit
+	Ice              iceConfig
+	UseIce           bool
+}
+type iceConfig struct {
+	/*
+		signal server url for ice
+	*/
+	SignalServer string
+	/*
+		must be xmpp
+	*/
+	SignalEngine string
+	/*
+		turn server for ice
+	*/
+	TurnServer   string
+	StunServer   string
+	TurnUser     string
+	TurnPassword string
 }
 
 var DefaultConfig = Config{
@@ -67,6 +86,10 @@ var DefaultConfig = Config{
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
 	MsgTimeout:       100 * time.Second,
 	Debug:            false,
+	UseIce:           false, //use ice for p2p communication
+	Ice: iceConfig{
+		SignalServer: DefaultSignalServer,
+	},
 }
 
 type ConditionQuit struct {

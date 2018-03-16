@@ -207,9 +207,9 @@ func (i *IceStreamTransport) Send(data []byte) error {
 	defer C.free(cdata)
 	err := regThisThread()
 	if err != nil {
-		log.Info(fmt.Sprintf("%s send regthisthread fail %s", i.name, err))
+		log.Error(fmt.Sprintf("%s send regthisthread fail %s", i.name, err))
 	}
-	log.Trace("icestreamtransport %s send data %v", i.name, data[0])
+	log.Trace(fmt.Sprintf("icestreamtransport %s send data %v", i.name, data[0]))
 	status := C.gopjnath_send_data(i.i, cdata, C.pj_size_t(len(data)))
 	if status != C.PJ_SUCCESS {
 		return casterr(status)
@@ -273,6 +273,7 @@ func go_data_callback(i *C.pj_ice_strans, comp_id C.unsigned, pkt unsafe.Pointer
 	if strans == nil {
 		panic(fmt.Sprintf("key error=%s", key)) //碰到一次panic,为什么呢,
 	}
+	log.Trace(fmt.Sprintf("icedata callback %s received data %v", strans.name, data[0]))
 	strans.OnRxData(uint(comp_id), data, s)
 }
 
