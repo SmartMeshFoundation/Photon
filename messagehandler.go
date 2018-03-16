@@ -105,14 +105,12 @@ func (this *RaidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
 func (this *RaidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.Secret
 	sender := msg.Sender
-	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock())
 	this.raiden.RegisterSecret(secret)
 	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{secret, sender, msg}
 	this.raiden.StateMachineEventHandler.LogAndDispatchToAllTasks(stateChange)
 	return nil
 }
 func (this *RaidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
-	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock)
 	stateChange := &mediated_transfer.ReceiveSecretRequestStateChange{
 		Identifier: msg.Identifier,
 		Amount:     new(big.Int).Set(msg.Amount),
@@ -188,7 +186,6 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	} else {
 		this.raiden.HandleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
 	}
-	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, hashlock)
 	//mark balanceproof complete
 	this.markSecretComplete(msg)
 	/*
@@ -217,7 +214,6 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 	if err != nil {
 		return
 	}
-	this.raiden.GreenletTasksDispatcher.DispatchMessage(msg, msg.HashLock)
 	transferState := &mediated_transfer.LockedTransferState{
 		Identifier: msg.Identifier,
 		Amount:     new(big.Int).Set(msg.Amount),

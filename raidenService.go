@@ -136,7 +136,6 @@ type RaidenService struct {
 	Identifier2StateManagers map[uint64][]*transfer.StateManager
 	Identifier2Results       map[uint64][]*network.AsyncResult
 	SwapKey2TokenSwap        map[SwapKey]*TokenSwap
-	SwapKey2Task             map[SwapKey]Tasker
 	Tokens2ConnectionManager map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
 	/*
 			   This is a map from a hashlock to a list of channels, the same
@@ -150,7 +149,6 @@ type RaidenService struct {
 	BlockChainEvents                    *blockchain.BlockChainEvents
 	AlarmTask                           *blockchain.AlarmTask
 	db                                  *models.ModelDB
-	GreenletTasksDispatcher             *GreenletTasksDispatcher
 	FileLocker                          *flock.Flock
 	SnapshortDir                        string
 	SerializationFile                   string
@@ -161,10 +159,10 @@ type RaidenService struct {
 	TransferResponseChan                map[string]chan *network.AsyncResult
 	ProtocolMessageSendComplete         chan *ProtocolMessage
 	RoutesTask                          *RoutesTask
-	SecretRequestPredictorMap           map[common.Hash]SecretRequestPredictor
-	RevealSecretListenerMap             map[common.Hash]RevealSecretListener
-	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool
-	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool
+	SecretRequestPredictorMap           map[common.Hash]SecretRequestPredictor     //for tokenswap
+	RevealSecretListenerMap             map[common.Hash]RevealSecretListener       //for tokenswap
+	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
+	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -187,11 +185,9 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Identifier2Results:                  make(map[uint64][]*network.AsyncResult),
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[SwapKey]*TokenSwap),
-		SwapKey2Task:                        make(map[SwapKey]Tasker),
 		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
 		BlockChainEvents:                    blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
-		GreenletTasksDispatcher:             NewGreenletTasksDispatcher(),
 		BlockNumberChan:                     make(chan int64, 1),
 		TransferReqChan:                     make(chan *ApiReq, 10),
 		TransferResponseChan:                make(map[string]chan *network.AsyncResult),

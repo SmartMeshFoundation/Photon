@@ -132,8 +132,8 @@ func main() {
 				address (this will likely cause connectivity
 				issues)
 				"ice"- Use ice framework for nat punching
-				[default: auto]`,
-			Value: "auto",
+				[default: ice]`,
+			Value: "ice",
 		},
 		cli.BoolFlag{
 			Name:  "debug",

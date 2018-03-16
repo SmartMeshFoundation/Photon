@@ -22,7 +22,8 @@ func (this *AckHelper) GetAck(echohash common.Hash) []byte {
 func (this *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
 	data := this.GetAck(echohash)
 	_, ok := msg.(*encoding.RevealSecret)
-	if ok {
+	_, ok2 := msg.(*encoding.SecretRequest)
+	if ok || ok2 {
 		if len(data) > 0 {
 			log.Error(fmt.Sprintf("save ack for  RevealSecret which is already exist"))
 		} else {
