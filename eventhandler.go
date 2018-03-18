@@ -168,6 +168,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 	case *mediated_transfer.EventContractSendWithdraw:
 		//do nothing for five events above
 	case *mediated_transfer.EventUnlockFailed:
+		//should remove hashlock from channel todo fix bai
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", e2.Hashlock, e2.Reason))
 	case *mediated_transfer.EventContractSendChannelClose:
 		graph := this.raiden.GetToken2ChannelGraph(e2.Token)

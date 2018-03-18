@@ -134,7 +134,7 @@ pj_status_t regThisThread();
 // windows code goes here
 #define strtok_safe strtok_s
 #else
-
+#define strtok_safe strtok_r
 #endif
 #endif // !GOICE_HELPER_H
 

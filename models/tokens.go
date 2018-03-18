@@ -29,7 +29,7 @@ func (model *ModelDB) AddToken(token common.Address, manager common.Address) err
 	}
 	if m[token] != utils.EmptyAddress {
 		//startup ...
-		log.Error("AddToken ,but already exists,should be ignored when startup...")
+		log.Info("AddToken ,but already exists,should be ignored when startup...")
 		return nil
 	}
 	m[token] = manager

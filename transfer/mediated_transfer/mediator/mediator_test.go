@@ -755,7 +755,7 @@ func TestInitMediator(t *testing.T) {
 	fromRoute, FromTransfer := utest.MakeFrom(utest.UNIT_TRANSFER_AMOUNT, utest.HOP2, int64(utest.HOP1_TIMEOUT), utils.NewRandomAddress(), utils.EmptyHash)
 	var routes = []*transfer.RouteState{utest.MakeRoute(utest.HOP2, utest.UNIT_TRANSFER_AMOUNT, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress())}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := &transfer.StateManager{StateTransition, nil, "mediator"}
+	sm := transfer.NewStateManager(StateTransition, nil, "mediator", 3, utils.NewRandomAddress())
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	mstate := sm.CurrentState.(*mediated_transfer.MediatorState)
@@ -786,7 +786,7 @@ func TestNoValidRoutes(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, big.NewInt(1), utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress()),
 	}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := &transfer.StateManager{StateTransition, nil, "mediator"}
+	sm := transfer.NewStateManager(StateTransition, nil, "mediator", 3, utils.NewRandomAddress())
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	assert(t, sm.CurrentState, nil)

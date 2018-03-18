@@ -744,6 +744,7 @@ func (this *RaidenService) RegisterNettingChannel(tokenAddress, channelAddress c
 	err = graph.AddChannel(detail)
 	if err != nil {
 		log.Error(err.Error())
+		return
 	}
 	err = this.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[channelAddress]))
 	if err != nil {

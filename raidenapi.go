@@ -178,6 +178,7 @@ func (this *RaidenApi) Open(tokenAddress, partnerAddress common.Address, settleT
 	}
 	if settleTimeout <= revealTimeout {
 		err = rerr.InvalidSettleTimeout
+		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
