@@ -60,8 +60,9 @@ func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Addr
 	for _, d := range channelDetails {
 		err := cg.AddChannel(d)
 		if err != nil {
-			log.Warn(fmt.Sprintf("'Error at registering opened channel contract. Perhaps contract is invalid? err=%s, channeladdress=%s",
+			log.Error(fmt.Sprintf("'Error at registering opened channel contract. Perhaps contract is invalid? err=%s, channeladdress=%s",
 				err, utils.APex(d.ChannelAddress)))
+			cg.RemovePath(d.OurState.Address, d.PartenerState.Address)
 		}
 	}
 	cg.PrintGraph()
@@ -241,6 +242,7 @@ func (this *ChannelGraph) RemovePath(source, target common.Address) {
 		return
 	}
 	this.g.RemoveEdge(sourceIndex, targetIndex)
+	this.g.RemoveEdge(targetIndex, sourceIndex)
 }
 
 /*
