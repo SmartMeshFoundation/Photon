@@ -19,6 +19,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,13 +27,13 @@ import (
 )
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
 //need a valid account on blockchain and it needs gas
 func TestDiscovery(t *testing.T) {
 	bcs := rpc.MakeTestBlockChainService()
-	discover := NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
+	discover := NewContractDiscovery(bcs.NodeAddress, params.ROPSTEN_DISCOVERY_ADDRESS, bcs.Client, bcs.Auth)
 	host, port, err := discover.Get(bcs.NodeAddress)
 	if err != nil {
 		t.Error(err)

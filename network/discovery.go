@@ -14,7 +14,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/blockchain"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/astaxie/beego/httplib"
 	"github.com/ethereum/go-ethereum/common"
@@ -106,20 +105,22 @@ type ContractDiscovery struct {
 	node        common.Address
 	cacheAddr   map[common.Address]string
 	cacheSocket map[string]common.Address
+	myaddress   common.Address
 	//db          ethdb.Database
 }
 
-func NewContractDiscovery(mynode common.Address, client *helper.SafeEthClient, auth *bind.TransactOpts) *ContractDiscovery {
+func NewContractDiscovery(mynode, myaddress common.Address, client *helper.SafeEthClient, auth *bind.TransactOpts) *ContractDiscovery {
 	c := &ContractDiscovery{
 		client:      client,
 		auth:        auth,
 		node:        mynode,
 		cacheAddr:   make(map[common.Address]string),
 		cacheSocket: make(map[string]common.Address),
+		myaddress:   myaddress,
 	}
-	c.discovery, _ = rpc.NewEndpointRegistry(params.ROPSTEN_DISCOVERY_ADDRESS, client)
+	c.discovery, _ = rpc.NewEndpointRegistry(myaddress, client)
 	ch := make(chan types.Log, 1)
-	_, err := rpc.EventSubscribe(params.ROPSTEN_DISCOVERY_ADDRESS, "AddressRegistered", rpc.EndpointRegistryABI, client, ch)
+	_, err := rpc.EventSubscribe(myaddress, "AddressRegistered", rpc.EndpointRegistryABI, client, ch)
 	if err == nil {
 		//c.db = db.GetDefaultDb()
 		go func() {
@@ -146,7 +147,7 @@ func (this *ContractDiscovery) put(addr common.Address, hostport string) {
 }
 func (this *ContractDiscovery) Register(node common.Address, host string, port int) error {
 	if node != this.node {
-		log.Crit("register node to contract with unknown addr ", common.Bytes2Hex(node[:]))
+		log.Crit(fmt.Sprintf("register node to contract with unknown addr ", utils.APex(node)))
 	}
 	log.Info(fmt.Sprintf("ContractDiscovery register %s %s:%d", node.String(), host, port))
 	h1, p1, err := this.Get(node)

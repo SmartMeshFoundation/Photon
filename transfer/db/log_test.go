@@ -33,7 +33,7 @@ type structbase struct {
 }
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 func TestObjTypeName(t *testing.T) {
 	if objTypeName(struct1{}) != "struct1" {

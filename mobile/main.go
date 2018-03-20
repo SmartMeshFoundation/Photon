@@ -88,7 +88,7 @@ func setupLog() {
 		writer = file
 	}
 	fmt.Println("loglevel:", lvl.String())
-	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
 }
 func mobileMain() (api *Api, err error) {
 	fmt.Printf("Welcom to GoRaiden,version %f\n", 0.1)
@@ -117,7 +117,7 @@ func mobileMain() (api *Api, err error) {
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
-	discovery := network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
+	discovery := network.NewContractDiscovery(bcs.NodeAddress, common.HexToAddress(argDiscoveryContractAddress), bcs.Client, bcs.Auth)
 	//discovery := network.NewHttpDiscovery()
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)

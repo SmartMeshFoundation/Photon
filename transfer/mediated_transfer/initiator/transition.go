@@ -88,7 +88,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		}
 	}
 	var unlockFailed *mt.EventUnlockFailed = nil
-	if state.Message != nil {
+	if state.Message != nil { //目前无论是发起时还是取消路由，Message都会被设置为nil，所以这个事件永远也不会发生。
 		unlockFailed = &mt.EventUnlockFailed{
 			Identifier: state.Transfer.Identifier,
 			Hashlock:   state.Transfer.Hashlock,

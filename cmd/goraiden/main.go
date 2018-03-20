@@ -192,7 +192,7 @@ func setupLog(ctx *cli.Context) {
 		writer = file
 	}
 	fmt.Println("loglevel:", lvl.String())
-	log.Root().SetHandler(log.LvlFilterHandler(lvl, log.StreamHandler(writer, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
 	gopjnath.SetIceLogLevel(lvl)
 }
 func Main(ctx *cli.Context) error {
@@ -225,7 +225,7 @@ func Main(ctx *cli.Context) error {
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
 	if !cfg.UseIce {
-		discovery = network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
+		discovery = network.NewContractDiscovery(bcs.NodeAddress, cfg.DiscoveryAddress, bcs.Client, bcs.Auth)
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport = network.NewUDPTransport(pms.Ip, pms.Port, pms.Conn, nil, policy)
 	} else {

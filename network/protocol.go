@@ -289,7 +289,7 @@ func (this *RaidenProtocol) sendWithResult(receiver common.Address,
 		result = msgState.AsyncResult
 		return
 	}
-	log.Debug(fmt.Sprintf("send msg=%s,expected hash=%s", encoding.MessageType(msg.Cmd()), utils.HPex(echohash)))
+	log.Debug(fmt.Sprintf("send msg=%s to=%s,expected hash=%s", encoding.MessageType(msg.Cmd()), utils.APex2(receiver), utils.HPex(echohash)))
 	msgState = &SentMessageState{
 		AsyncResult:     NewAsyncResult(),
 		ReceiverAddress: receiver,
@@ -408,8 +408,8 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 		}
 		this.mapLock.Unlock()
 	} else {
-		log.Trace(fmt.Sprintf("received msg=%s,expect ack=%s", encoding.MessageType(messager.Cmd()), utils.HPex(echohash)))
 		signedMessager, ok := messager.(encoding.SignedMessager)
+		log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack=%s", encoding.MessageType(messager.Cmd()), utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
 		if !ok {
 			log.Warn("message should be signed except for ack")
 		}
@@ -423,10 +423,10 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 			this.sendAck(signedMessager.GetSender(), this.CreateAck(echohash))
 		} else {
 			//send message to raiden ,and wait result
-			log.Trace("send message to raiden...")
+			log.Trace(fmt.Sprintf("protocol send message to raiden... %s", signedMessager))
 			this.ReceivedMessageChannel <- &MessageToRaiden{signedMessager, echohash}
 			err, ok = <-this.ReceivedMessageResultChannel
-			log.Trace("receive message response from raiden")
+			log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%s", ok, err))
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
 				ack := this.CreateAck(echohash)

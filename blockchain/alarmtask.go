@@ -103,7 +103,9 @@ func (this *AlarmTask) waitNewBlock() error {
 					log.Warn(fmt.Sprintf("alarm missed %d blocks", h.Number.Int64()-currentBlock))
 				}
 				currentBlock = h.Number.Int64()
-				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
+				if currentBlock%10 == 0 {
+					log.Trace(fmt.Sprintf("new block :%d", currentBlock))
+				}
 				var removes []AlarmCallback
 				for _, cb := range this.callback {
 					err := cb(currentBlock)

@@ -24,7 +24,7 @@ import (
 )
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 func setupDb(t *testing.T) (model *ModelDB) {
 	dbPath := path.Join(os.TempDir(), "testxxxx.db")

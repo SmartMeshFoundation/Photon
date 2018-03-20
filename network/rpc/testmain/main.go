@@ -4,12 +4,13 @@ import (
 	"os"
 
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 func TestAddToken() {
 	bcs := rpc.MakeTestBlockChainService()
