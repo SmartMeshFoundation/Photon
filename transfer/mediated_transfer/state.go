@@ -101,6 +101,7 @@ type MediatorState struct {
 		        reveal and simplifies secret setting
 	*/
 	TransfersPair []*MediationPairState
+	HasRefunded   bool //此节点已经发生了refund，肯定不能再用了。
 }
 
 /*

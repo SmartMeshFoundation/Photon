@@ -13,6 +13,10 @@ func UpdateRoute(Routes *transfer.RoutesState, stateChange *transfer.ActionRoute
 			break
 		}
 	}
+	//this ActionRouteChangeStateChange has no relation with Routes.
+	if len(Routes.AvailableRoutes) == 0 || idx == len(Routes.AvailableRoutes)-1 {
+		return
+	}
 	//如果为空一定能找到?
 	// TODO: what if the route that changed is the current route?
 	if newRoute.State != transfer.CHANNEL_STATE_OPENED {
@@ -43,35 +47,3 @@ func UpdateRoute(Routes *transfer.RoutesState, stateChange *transfer.ActionRoute
 	}
 	Routes.AvailableRoutes = availableRoutes
 }
-
-/*
-
-def update_route(next_state, route_state_change):
-
-    if new_route.state != CHANNEL_STATE_OPENED:
-        available_routes.pop(available_idx)
-
-    elif new_route.state == CHANNEL_STATE_OPENED:
-        if available_idx:
-             overwrite it, balance might have changed
-            available_routes[available_idx] = new_route
-
-        else:
-             TODO: re-add the new_route into the available_routes list if it can be used.
-            ignored = any(
-                route.node_address == new_route.node_address
-                for route in next_state.routes.ignored_routes
-            )
-
-            canceled = any(
-                route.node_address == new_route.node_address
-                for route in next_state.routes.canceled_routes
-            )
-
-            if not canceled and not ignored:
-                 new channel opened, add the route for use
-                available_routes.append(new_route)
-
-    next_state.routes.available_routes = available_routes
-
-*/

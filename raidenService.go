@@ -610,8 +610,10 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 		msg      encoding.SignedMessager
 	}
 	var messagesToSend []*MsgToSend
+	log.Trace(fmt.Sprintf("channelsList for %s =%#v", utils.HPex(hashlock), channelsList))
 	for _, ch := range channelsList { //处理在间接交易过程中重复使用的节点
 		//unlock a pending Lock
+		log.Trace(fmt.Sprintf("process channel %s-%s", utils.APex2(ch.OurState.Address), utils.APex2((ch.PartnerState.Address))))
 		if ch.OurState.IsKnown(hashlock) {
 			var secretMsg *encoding.Secret
 			secretMsg, err = ch.CreateSecret(identifier, secret)
@@ -656,7 +658,13 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 				messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage)})
 			}
 		} else {
-			log.Error("Channel is registered for a given Lock but the Lock is not contained in it.")
+			/*
+				todo reimplement HandleSecret
+				HandleSecret 应该完全重写，很奇怪实现，
+				1.作为target，收到Secret Message，认为交易已经完成。
+				2. 中间节点，收到Secret Message，也认为交易已经完成，完全没必要再发送Reveal Secret了，
+			*/
+			log.Warn("Channel is registered for a given Lock but the Lock is not contained in it. can be ignored when I'm a mediated node")
 		}
 
 	}

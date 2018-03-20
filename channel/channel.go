@@ -479,7 +479,7 @@ func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target com
 		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
 	}
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(c.Distributable()) > 0 {
-		log.Debug("Insufficient funds  amount=%s,distributable=%s", amount, c.Distributable())
+		log.Info(fmt.Sprintf("Insufficient funds  amount=%s,distributable=%s", amount, c.Distributable()))
 		return nil, fmt.Errorf("Insufficient funds")
 	}
 	from := c.OurState

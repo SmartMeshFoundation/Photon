@@ -98,6 +98,11 @@ type ConditionQuit struct {
 	RandomQuit bool   //随机退出
 }
 
+/*
+在中介节点发生refund的时候是否当成普通的mediatedtransfer来处理，也就是删除raidenservice中的HandleSecret
+*/
+var TreatRefundTransferAsNormalMediatedTransfer = true
+
 func init() {
 
 }

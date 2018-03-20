@@ -167,6 +167,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		*/
 	case *mediated_transfer.EventContractSendWithdraw:
 		//do nothing for five events above
+		//todo 应该立即在链上提现啊 ....很严重
 	case *mediated_transfer.EventUnlockFailed:
 		//should remove hashlock from channel todo fix bai
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", e2.Hashlock, e2.Reason))
@@ -237,6 +238,7 @@ func (this *StateMachineEventHandler) handleChannelNew(st *mediated_transfer.Con
 	connectionManager, err := this.raiden.ConnectionManagerForToken(tokenAddress)
 	if err != nil {
 		log.Error(err.Error())
+		return err
 	}
 	isParticipant := this.raiden.NodeAddress == participant2 || this.raiden.NodeAddress == participant1
 	isBootstrap := connectionManager.BOOTSTRAP_ADDR == participant1 || connectionManager.BOOTSTRAP_ADDR == participant2

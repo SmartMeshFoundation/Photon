@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/models"
+	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
@@ -167,7 +168,10 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	if mgr.ChannelAddress == utils.EmptyAddress {
 		panic("channeladdress must be valid")
 	}
-	ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+	if mgr.ChannelAddress != msg.Channel {
+		log.Info(fmt.Sprintf("this is a secret message from refunded node %s", msg))
+	}
+	ch := this.raiden.GetChannelWithAddr(msg.Channel)
 	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 	tx.Commit()
 	this.raiden.ConditionQuit("SecretSendAck")
@@ -184,7 +188,15 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	if err != nil {
 		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
 	} else {
-		this.raiden.HandleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
+		fmt.Sprintf("hashlock=%s,identifier=%s,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel)
+		if !params.TreatRefundTransferAsNormalMediatedTransfer {
+			this.raiden.HandleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
+		} else {
+			err = nettingChannel.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+			if err != nil {
+				log.Error(fmt.Sprintf("messageSecret RegisterTransfer err=%s", err))
+			}
+		}
 	}
 	//mark balanceproof complete
 	this.markSecretComplete(msg)
