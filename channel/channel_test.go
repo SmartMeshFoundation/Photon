@@ -147,8 +147,8 @@ func TestEndState(t *testing.T) {
 func makeExternState() *ChannelExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x1309B5eAd287aD4A41CEB6df6A359529a561ECC6"))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs)
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x5BFC50667F097F44B881e2ce4dA2B5Ff4dAdF962"))
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
 }
 func TestSenderCannotOverSpend(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()

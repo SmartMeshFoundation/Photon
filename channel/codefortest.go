@@ -16,11 +16,11 @@ import (
 func newTestBlockChainService() *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRpcEndpoint)
 	if err != nil {
-		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
+		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
 	privkey, _ := utils.MakePrivateKeyAddress()
 	if err != nil {
-		log.Error("Failed to create authorized transactor: ", err)
+		log.Crit("Failed to create authorized transactor: ", err)
 	}
 	return rpc.NewBlockChainService(privkey, rpc.PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
 }
@@ -28,8 +28,8 @@ func newTestBlockChainService() *rpc.BlockChainService {
 func makeTestExternState() *ChannelExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0xB6F7124387Fd9AAE083E32A60905601D1A71EDeC"))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs)
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x5BFC50667F097F44B881e2ce4dA2B5Ff4dAdF962"))
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
 }
 func MakeTestPairChannel() (*Channel, *Channel) {
 	tokenAddress := utils.NewRandomAddress()

@@ -36,10 +36,11 @@ type ChannelExternalState struct {
 	IsCallSettle                   bool
 	ChannelAddress                 common.Address
 	lock                           sync.Mutex
+	db                             ChannelDb
 }
 
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
-	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService) *ChannelExternalState {
+	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService, db ChannelDb) *ChannelExternalState {
 	var err error
 	cs := &ChannelExternalState{
 		funcRegisterChannelForHashlock: fun,
@@ -48,6 +49,7 @@ func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
 		ChanClosed:                     make(chan struct{}, 1),
 		ChanSettled:                    make(chan struct{}, 1),
 		ChannelAddress:                 channelAddress,
+		db:                             db,
 	}
 	cs.OpenedBlock, err = nettingChannel.Opened()
 	if err != nil {
@@ -145,6 +147,10 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 	log.Info(fmt.Sprintf("withdraw called %s", this.ChannelAddress.String()))
 	failed := false
 	for _, proof := range unlockproofs {
+		if this.db.IsThisLockHasWithdraw(this.ChannelAddress, proof.Secret) {
+			log.Info(fmt.Sprintf("withdraw secret has been used %s-%s", utils.APex(this.ChannelAddress), utils.HPex(proof.Secret)))
+			continue
+		}
 		tx, err := this.NettingChannel.GetContract().Withdraw(this.bcs.Auth, proof.LockEncoded, transfer.Proof2Bytes(proof.MerkleProof), proof.Secret)
 		lock := new(encoding.Lock)
 		lock.FromBytes(proof.LockEncoded)
@@ -164,6 +170,10 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 			failed = true
 			//return errors.New("withdraw execution failed ,maybe reverted?")
 		} else {
+			/*
+				allow try withdraw next time if not success?
+			*/
+			this.db.WithdrawThisLock(this.ChannelAddress, proof.Secret)
 			log.Info("withdraw success %s,proof=%s", this.ChannelAddress.String(), utils.StringInterface1(proof))
 		}
 	}

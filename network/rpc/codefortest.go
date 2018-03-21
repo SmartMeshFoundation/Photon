@@ -35,7 +35,7 @@ const key = `
 `
 
 var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = params.ROPSTEN_REGISTRY_ADDRESS
-var TestRpcEndpoint = node.DefaultIPCEndpoint("geth")
+var TestRpcEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
 
 //var TestRpcEndpoint = "ws://10.0.0.2:8546"
 func MakeTestBlockChainService() *BlockChainService {
@@ -46,7 +46,7 @@ func MakeTestBlockChainService() *BlockChainService {
 	}
 	privkey, err := keystore.DecryptKey([]byte(key), "123")
 	if err != nil {
-		log.Error("Failed to create authorized transactor: ", err)
+		log.Crit("Failed to create authorized transactor: ", err)
 	}
 	return NewBlockChainService(privkey.PrivateKey, PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
 }

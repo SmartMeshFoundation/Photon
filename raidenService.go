@@ -408,7 +408,7 @@ func (this *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *
 	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
 		this.RegisterChannelForHashlock(tokenAddress, channel, hashlock)
 	}
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, this.Chain)
+	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, this.Chain, this.db)
 	channelDetail := &network.ChannelDetails{
 		ChannelAddress:    channelAddress,
 		OurState:          ourState,

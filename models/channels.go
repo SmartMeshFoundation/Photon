@@ -3,6 +3,8 @@ package models
 import (
 	"fmt"
 
+	"bytes"
+	"encoding/hex"
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/asdine/storm"
@@ -122,4 +124,37 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 		err = nil
 	}
 	return
+}
+
+const bucketWithDraw = "bucketWithdraw"
+
+/*
+	is secret has withdrawed on channel?
+*/
+func (model *ModelDB) IsThisLockHasWithdraw(channel common.Address, secret common.Hash) bool {
+	var result bool
+	key := new(bytes.Buffer)
+	key.Write(channel[:])
+	key.Write(secret[:])
+	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
+	if err != nil {
+		return false
+	}
+	if result != true {
+		panic("withdraw cannot be set to false")
+	}
+	return result
+}
+
+/*
+ I have withdrawed this secret on channel.
+*/
+func (model *ModelDB) WithdrawThisLock(channel common.Address, secret common.Hash) {
+	key := new(bytes.Buffer)
+	key.Write(channel[:])
+	key.Write(secret[:])
+	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
+	if err != nil {
+		log.Error(fmt.Sprintf("WithdrawThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
+	}
 }
