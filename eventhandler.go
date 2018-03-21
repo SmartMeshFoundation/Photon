@@ -125,6 +125,21 @@ func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_tr
 	err = this.raiden.SendAsync(receiver, mtr)
 	return
 }
+func (this *StateMachineEventHandler) eventContractSendChannelClose(event *mediated_transfer.EventContractSendChannelClose) (err error) {
+	graph := this.raiden.GetToken2ChannelGraph(event.Token)
+	if graph == nil {
+		err = fmt.Errorf("EventContractSendChannelClose but token %s doesn't exist", utils.APex(event.Token))
+		return
+	}
+	ch := graph.ChannelAddress2Channel[event.ChannelAddress]
+	if ch == nil {
+		err = fmt.Errorf("EventContractSendChannelClose  but channel %s doesn't exist,maybe have already settled", utils.APex(event.ChannelAddress))
+		return
+	}
+	balanceProof := ch.OurState.BalanceProofState
+	err = ch.ExternState.Close(balanceProof)
+	return
+}
 func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	switch e2 := event.(type) {
 	case *mediated_transfer.EventSendMediatedTransfer:
@@ -175,10 +190,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		//should remove hashlock from channel todo fix bai
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", e2.Hashlock, e2.Reason))
 	case *mediated_transfer.EventContractSendChannelClose:
-		graph := this.raiden.GetToken2ChannelGraph(e2.Token)
-		ch := graph.GetPartenerAddress2Channel(e2.ChannelAddress)
-		balanceProof := ch.OurState.BalanceProofState
-		err = ch.ExternState.Close(balanceProof)
+		err = this.eventContractSendChannelClose(e2)
 	default:
 		err = fmt.Errorf("unkown event :%s", utils.StringInterface1(event))
 		log.Error(err.Error())
