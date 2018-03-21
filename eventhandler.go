@@ -160,6 +160,9 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 	case *transfer.EventTransferReceivedSuccess:
 	case *mediated_transfer.EventUnlockSuccess:
 	case *mediated_transfer.EventWithdrawFailed:
+		/*
+			notify related channel to remove expired lock. todo fix
+		*/
 	case *mediated_transfer.EventWithdrawSuccess:
 		/*
 					  The withdraw is currently handled by the netting channel, once the close

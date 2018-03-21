@@ -256,6 +256,9 @@ func TestGetTimeoutBlocks(t *testing.T) {
 
 }
 
+/*
+下一个route主要看，是否有足够的时间（reveal timeout），足够的钱。
+*/
 //Routes that dont have enough available_balance must be ignored.
 func TestNextRouteAmount(t *testing.T) {
 	var amount = big.NewInt(10)
@@ -418,6 +421,8 @@ func TestEventsForRefund(t *testing.T) {
 /*
  The secret is revealed backwards to the payer once the payee sent the
     SecretReveal.
+Transfer Path 1...2->Me->3...3->Me->4...target
+但是从mediated transfer的处理方式来说，这种应该是不会出现的，Me虽然即使会出现在path中两次，但是也不会放在同一个stateManager中的。
 */
 func TestEventsForRevealSecret(t *testing.T) {
 	secret := utest.UNIT_SECRET
@@ -636,7 +641,8 @@ func TestEventsForClose(t *testing.T) {
 	}
 }
 
-/* 这个是怎么发生的呢?
+/* 比如1..2->me->3...6
+	如果6没收到消息，3就只能反复尝试，直到超时。 这个时候path上除了1知道密码以外，其他人都不知道，所以安全，不用关闭channel
 If the secret is known but the payee transfer has not being paid the
    node must not settle on-chain, otherwise the payee can burn tokens to
    induce the mediator to close a channel.

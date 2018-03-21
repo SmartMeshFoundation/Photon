@@ -135,6 +135,10 @@ type EventContractSendChannelClose struct {
 	Token          common.Address
 }
 
+/*
+上家不知什么原因要关闭channel，我一旦知道密码，应该立即到链上提现。
+channel 自己会关注是否要提现，但是如果是在关闭以后才获取到密码的呢？
+*/
 //Event emitted when the lock must be withdrawn on-chain.
 type EventContractSendWithdraw struct {
 	Transfer       *LockedTransferState
@@ -147,6 +151,10 @@ type EventUnlockSuccess struct {
 	Hashlock   common.Hash
 }
 
+/*
+下家没有在expiration之内收到balanceproof，也没有选择在链上兑现。
+能想到的应对就是移除失效的lock
+*/
 //Event emitted when a lock unlock failed.
 type EventUnlockFailed struct {
 	Identifier uint64
@@ -160,6 +168,10 @@ type EventWithdrawSuccess struct {
 	Hashlock   common.Hash
 }
 
+/*
+上家没有在expiration之内收到balanceproof，也没有在链上兑现。
+能想到的应对就是移除失效的lock
+*/
 //Event emitted when a lock withdraw failed.
 type EventWithdrawFailed struct {
 	Identifier uint64

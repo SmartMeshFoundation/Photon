@@ -141,13 +141,12 @@ Get a dict whose keys are token addresses and whose values are
     open channels, funds of last request, sum of deposits and number of channels
 */
 func (this *RaidenApi) GetConnectionManagersInfo() map[string]interface{} {
-	infos := make(map[string]interface{})
 	type info struct {
 		Funds       *big.Int `json:"funds"`
 		SumDeposits *big.Int `json:"sum_deposits"`
 		Channels    int      `json:"channels"`
 	}
-
+	infos := make(map[string]interface{})
 	for _, t := range this.GetTokenList() {
 		cm, err := this.Raiden.ConnectionManagerForToken(t)
 		if err != nil {
