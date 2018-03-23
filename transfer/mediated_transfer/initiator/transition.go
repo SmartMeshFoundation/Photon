@@ -162,6 +162,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
 		state.Transfer = tr
 		state.Message = msg
+		log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", tr.Identifier, tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
 		events := []transfer.Event{msg}
 		if unlockFailed != nil {
 			events = append(events, unlockFailed)
@@ -172,14 +173,37 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		}
 	}
 }
-
+func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
+	if state.BlockNumber == state.Transfer.Expiration {
+		unlockFailed := &mt.EventUnlockFailed{
+			Identifier:     state.Transfer.Identifier,
+			Hashlock:       state.Transfer.Hashlock,
+			ChannelAddress: state.Route.ChannelAddress,
+			Reason:         "lock expired",
+		}
+		events = append(events, unlockFailed)
+	}
+	for i, tr := range state.CanceledTransfers {
+		route := state.Routes.CanceledRoutes[i]
+		if state.BlockNumber == tr.Expiration {
+			unlockFailed := &mt.EventUnlockFailed{
+				Identifier:     tr.Identifier,
+				Hashlock:       tr.HashLock,
+				ChannelAddress: route.ChannelAddress,
+				Reason:         "lock expired",
+			}
+			events = append(events, unlockFailed)
+		}
+	}
+	return
+}
 func HandleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
 	}
 	return &transfer.TransitionResult{
 		NewState: state,
-		Events:   nil,
+		Events:   expiredHashLockEvents(state),
 	}
 }
 

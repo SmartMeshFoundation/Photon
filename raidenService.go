@@ -427,6 +427,7 @@ func (this *RaidenService) setBlockNumber(blocknumber int64) error {
 }
 func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 	statechange := &transfer.BlockStateChange{blocknumber}
+	this.BlockNumber.Store(blocknumber)
 	/*
 		todo when to remove statemanager ?
 			when currentState==nil && StateManager.ManagerState!=StateManager_State_Init ,should delete this statemanager.
@@ -439,7 +440,7 @@ func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 		}
 		cg.Lock.Unlock()
 	}
-	this.BlockNumber.Store(blocknumber)
+
 	return nil
 }
 func (this *RaidenService) GetBlockNumber() int64 {

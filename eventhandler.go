@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/initiator"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -153,6 +154,7 @@ func (this *StateMachineEventHandler) eventWithdrawFailed(e2 *mediated_transfer.
 		log.Error(fmt.Sprintf("payer's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
 		return
 	}
+	log.Info(fmt.Sprint("remove expired hashlock channel=%s,hashlock=%s", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
 	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
 }
 func (this *StateMachineEventHandler) eventContractSendWithdraw(e2 *mediated_transfer.EventContractSendWithdraw, manager *transfer.StateManager) (err error) {
@@ -176,7 +178,7 @@ func (this *StateMachineEventHandler) eventContractSendWithdraw(e2 *mediated_tra
 the transfer I payed for a payee has expired.
 */
 func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.EventUnlockFailed, manager *transfer.StateManager) (err error) {
-	if manager.Name != mediator.NameMediatorTransition {
+	if manager.Name != mediator.NameMediatorTransition && manager.Name != initiator.NameInitiatorTransition {
 		panic("event unlock failed only happen for a mediated node")
 	}
 	ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
@@ -184,6 +186,7 @@ func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.Ev
 		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
 		return
 	}
+	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
 	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
 }
 func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
