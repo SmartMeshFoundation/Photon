@@ -1,6 +1,8 @@
 package channel
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+)
 
 type ChannelDb interface {
 	/*
@@ -11,4 +13,8 @@ type ChannelDb interface {
 	 I have withdrawed this secret on channel.
 	*/
 	WithdrawThisLock(channel common.Address, secret common.Hash)
+	/*
+		get the latest channel status
+	*/
+	GetChannelByAddress(channelAddress common.Address) (c *ChannelSerialization, err error)
 }

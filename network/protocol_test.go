@@ -220,3 +220,35 @@ func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
+	log.Trace("log...")
+	p1 := MakeTestDiscardExpiredTransferRaidenProtocol()
+	registercallback()
+	p1.Start()
+	expiration := 7 //7 second
+	lock := encoding.Lock{
+		Expiration: int64(expiration),
+		Amount:     big.NewInt(10),
+		HashLock:   utils.Sha3([]byte("test")),
+	}
+	reciever := utils.NewRandomAddress()
+	mtr := encoding.NewMediatedTransfer(1, 1, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, reciever, utils.EmptyHash, &lock,
+		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+	mtr.Sign(p1.privKey, mtr)
+	err := p1.SendAndWait(reciever, mtr, time.Second*5)
+	if err != errTimeout {
+		t.Errorf("should time out but get %s", err)
+		return
+	}
+	lock.Expiration = 3
+	mtr2 := encoding.NewMediatedTransfer(1, 1, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, reciever, utils.EmptyHash, &lock,
+		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+	mtr2.Sign(p1.privKey, mtr2)
+	err = p1.SendAndWait(reciever, mtr2, time.Second*5)
+	if err != errExpired {
+		t.Error(errors.New("should expired before timeout"))
+		return
+	}
+
+}

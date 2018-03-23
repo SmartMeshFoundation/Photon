@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -79,6 +80,7 @@ type InitiatorState struct {
 	SecretRequest     *encoding.SecretRequest
 	RevealSecret      *EventSendRevealSecret
 	CanceledTransfers []transfer.Event
+	Db                channel.ChannelDb
 }
 
 /*
@@ -102,6 +104,7 @@ type MediatorState struct {
 	*/
 	TransfersPair []*MediationPairState
 	HasRefunded   bool //此节点已经发生了refund，肯定不能再用了。
+	Db            channel.ChannelDb
 }
 
 /*
@@ -131,6 +134,7 @@ type TargetState struct {
 	BlockNumber  int64
 	Secret       common.Hash
 	State        string // default secret_request
+	Db           channel.ChannelDb
 }
 
 /*

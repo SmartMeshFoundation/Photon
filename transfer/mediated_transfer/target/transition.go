@@ -7,6 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const NameTargetTransition = "TargetTransition"
@@ -35,9 +36,25 @@ func eventsForClose(state *mediated_transfer.TargetState) (events []transfer.Eve
 }
 
 //Withdraw from the from_channel if it is closed and the secret is known.
-func eventsForWithdraw(fromTransfer *mediated_transfer.LockedTransferState, fromRoute *transfer.RouteState) (events []transfer.Event) {
+func eventsForWithdraw(state *mediated_transfer.TargetState, fromRoute *transfer.RouteState) (events []transfer.Event) {
+	fromTransfer := state.FromTransfer
+	if state.Db != nil {
+		ch, err := state.Db.GetChannelByAddress(fromRoute.ChannelAddress)
+		if err != nil {
+			log.Error(fmt.Sprintf("get channel %s from db err %s", utils.APex(fromRoute.ChannelAddress), err))
+		} else {
+			fromRoute.State = ch.State
+		}
+	} else {
+		log.Error(" db is nil can only be ignored when you are run testing...")
+	}
 	isChannelOpen := fromRoute.State == transfer.CHANNEL_STATE_OPENED
-	if !isChannelOpen && fromTransfer.Secret != utils.EmptyHash {
+	if !isChannelOpen && fromTransfer.Secret != utils.EmptyHash { //重复发送，直到取现成功？或者expired？
+		if state.Db != nil {
+			if state.Db.IsThisLockHasWithdraw(fromRoute.ChannelAddress, fromTransfer.Secret) {
+				return
+			}
+		}
 		withdraw := &mediated_transfer.EventContractSendWithdraw{
 			Transfer:       fromTransfer,
 			ChannelAddress: fromRoute.ChannelAddress,
@@ -57,6 +74,7 @@ func handleInitTraget(st *mediated_transfer.ActionInitTargetStateChange) *transf
 		FromRoute:    route,
 		FromTransfer: tr,
 		BlockNumber:  blockNumber,
+		Db:           st.Db,
 	}
 	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout, blockNumber)
 	/*
@@ -126,6 +144,8 @@ func handleBlock(state *mediated_transfer.TargetState, st *transfer.BlockStateCh
 	if state.State != mediated_transfer.STATE_WAITING_CLOSE {
 		events = eventsForClose(state)
 	}
+	events2 := eventsForWithdraw(state, state.FromRoute)
+	events = append(events, events2...)
 	it = &transfer.TransitionResult{state, events}
 	return
 }
@@ -138,7 +158,7 @@ func handleRouteChange(state *mediated_transfer.TargetState, st *transfer.Action
 		the route might be closed by another task
 	*/
 	state.FromRoute = st.Route
-	withdrawEvents := eventsForWithdraw(state.FromTransfer, state.FromRoute)
+	withdrawEvents := eventsForWithdraw(state, state.FromRoute)
 	it = &transfer.TransitionResult{state, withdrawEvents}
 	return
 }
@@ -155,9 +175,10 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 	it = previt
 	if state.FromTransfer.Secret == utils.EmptyHash && state.BlockNumber > state.FromTransfer.Expiration {
 		failed := &mediated_transfer.EventWithdrawFailed{
-			Identifier: state.FromTransfer.Identifier,
-			Hashlock:   state.FromTransfer.Hashlock,
-			Reason:     "lock expired",
+			Identifier:     state.FromTransfer.Identifier,
+			Hashlock:       state.FromTransfer.Hashlock,
+			ChannelAddress: state.FromRoute.ChannelAddress,
+			Reason:         "lock expired",
 		}
 		it = &transfer.TransitionResult{nil, []transfer.Event{failed}}
 	} else if state.State == mediated_transfer.STATE_BALANCE_PROOF {

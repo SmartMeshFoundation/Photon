@@ -13,7 +13,6 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -168,7 +167,7 @@ func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address)
 	unlockProofs := c.PartnerState.GetKnownUnlocks()
 	err := c.ExternState.WithDraw(unlockProofs)
 	if err != nil {
-		log.Error(fmt.Sprintf("withdraw on % failed, channel is gone, error:%s", c.MyAddress.String(), err))
+		log.Error(fmt.Sprintf("withdraw on % failed, channel is gone, error:%s", utils.APex(c.MyAddress), err))
 	}
 	c.IsCloseEventComplete = true
 }
@@ -235,6 +234,25 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
 		c.PartnerState.RegisterSecret(secret)
+	}
+	return nil
+}
+
+/*
+remove a expired hashlock
+*/
+func (c *Channel) RemoveExpiredHashlock(hashlock common.Hash, blockNumber int64) error {
+	ourKnown := c.OurState.IsKnown(hashlock)
+	partenerKnown := c.PartnerState.IsKnown(hashlock)
+	if !ourKnown && !partenerKnown {
+		return fmt.Errorf("there is no such hashlock. hashlock %s token %s",
+			utils.Pex(hashlock[:]), utils.Pex(c.TokenAddress[:]))
+	}
+	if ourKnown {
+		return c.OurState.RemoveExpiredHashLock(hashlock, blockNumber)
+	}
+	if partenerKnown {
+		return c.PartnerState.RemoveExpiredHashLock(hashlock, blockNumber)
 	}
 	return nil
 }
@@ -526,49 +544,6 @@ func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encodi
 	return
 }
 
-func (c *Channel) StateTransition(st transfer.StateChange) (err error) {
-	switch st2 := st.(type) {
-	case *transfer.BlockStateChange:
-		if c.State() == transfer.CHANNEL_STATE_CLOSED {
-			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
-			if st2.BlockNumber > settlementEnd {
-				err = c.ExternState.Settle()
-			}
-		}
-	case *mediated_transfer.ContractReceiveClosedStateChange:
-		if st2.ChannelAddress == c.MyAddress {
-			if !c.IsCloseEventComplete {
-				c.ExternState.SetClosed(st2.ClosedBlock)
-				c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
-			} else {
-				log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%s,thisblock=%s",
-					c.MyAddress.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
-			}
-		}
-	case *mediated_transfer.ContractReceiveSettledStateChange:
-		//settled channel should be removed. todo bai fix it
-		if st2.ChannelAddress == c.MyAddress {
-			if c.ExternState.SetSettled(st2.SettledBlock) {
-				c.HandleSettled(st2.SettledBlock)
-			} else {
-				log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
-					c.MyAddress.String(), c.ExternState.SettledBlock, st2.SettledBlock))
-			}
-		}
-	case *mediated_transfer.ContractReceiveBalanceStateChange:
-		participant := st2.ParticipantAddress
-		balance := st2.Balance
-		var channelState *ChannelEndState
-		channelState, err = c.GetStateFor(participant)
-		if err != nil {
-			return
-		}
-		if channelState.ContractBalance.Cmp(balance) != 0 {
-			err = channelState.UpdateContractBalance(balance)
-		}
-	}
-	return
-}
 func (c *Channel) String() string {
 	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
 		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
@@ -596,6 +571,10 @@ type ChannelSerialization struct {
 	PartnerBalance             *big.Int
 	OurContractBalance         *big.Int
 	PartnerContractBalance     *big.Int
+	OurAmountLocked            *big.Int
+	PartnerAmountLocked        *big.Int
+	ClosedBlock                int64
+	SettledBlock               int64
 	SettleTimeout              int
 }
 
@@ -623,6 +602,10 @@ func NewChannelSerialization(c *Channel) *ChannelSerialization {
 		SettleTimeout:          c.SettleTimeout,
 		OurContractBalance:     c.ContractBalance(),
 		PartnerContractBalance: c.PartnerState.ContractBalance,
+		OurAmountLocked:        c.OurState.AmountLocked(),
+		PartnerAmountLocked:    c.PartnerState.AmountLocked(),
+		ClosedBlock:            c.ExternState.ClosedBlock,
+		SettledBlock:           c.ExternState.SettledBlock,
 	}
 	return s
 }

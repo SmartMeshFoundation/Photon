@@ -26,11 +26,12 @@ import (
 type ModelDB struct {
 	db                      *storm.DB
 	lock                    sync.Mutex
-	NewTokenCallbacks       map[*NewTokenCb]bool
-	NewChannelCallbacks     map[*ChannelCb]bool
-	ChannelDepositCallbacks map[*ChannelCb]bool
-	ChannelStateCallbacks   map[*ChannelCb]bool
+	newTokenCallbacks       map[*NewTokenCb]bool
+	newChannelCallbacks     map[*ChannelCb]bool
+	channelDepositCallbacks map[*ChannelCb]bool
+	channelStateCallbacks   map[*ChannelCb]bool
 	mlock                   sync.Mutex
+	Name                    string
 }
 
 type InternalEvent struct {
@@ -61,10 +62,10 @@ const dbVersion = 1
 
 func newModelDB() (db *ModelDB) {
 	return &ModelDB{
-		NewTokenCallbacks:       make(map[*NewTokenCb]bool),
-		NewChannelCallbacks:     make(map[*ChannelCb]bool),
-		ChannelDepositCallbacks: make(map[*ChannelCb]bool),
-		ChannelStateCallbacks:   make(map[*ChannelCb]bool),
+		newTokenCallbacks:       make(map[*NewTokenCb]bool),
+		newChannelCallbacks:     make(map[*ChannelCb]bool),
+		channelDepositCallbacks: make(map[*ChannelCb]bool),
+		channelStateCallbacks:   make(map[*ChannelCb]bool),
 	}
 
 }
@@ -79,6 +80,7 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 		log.Crit(err.Error())
 		return
 	}
+	model.Name = dbPath
 	if needCreateDb {
 		err = model.db.Set(bucketMeta, "version", dbVersion)
 		if err != nil {
@@ -218,6 +220,7 @@ func init() {
 	gob.Register(&InternalEvent{})
 	gob.Register(&snapshotToWrite{})
 	gob.Register(common.Address{})
+	gob.Register(&ModelDB{}) //cannot save and restore by gob,only avoid noise by gob
 }
 
 func (model *ModelDB) initDb() {

@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
@@ -101,7 +102,7 @@ True if this node needs to close the channel to withdraw on-chain.
 func isChannelCloseNeeded(tr *mediated_transfer.MediationPairState, blockNumber int64) bool {
 	payeeReceived := StateTransferPaidMap[tr.PayeeState]
 	payerPayed := StateTransferPaidMap[tr.PayerState]
-	payerChannelOpen := tr.PayerRoute.State == transfer.CHANNEL_STATE_OPENED //todo fix state, 这个State用得是交易创建时的状态，这个状态应该会不断变化。但是目前没有体现。
+	payerChannelOpen := tr.PayerRoute.State == transfer.CHANNEL_STATE_OPENED
 	AlreadyClosing := tr.PayerState == mediated_transfer.STATE_PAYER_WAITING_CLOSE
 	safeToWait := IsSafeToWait(tr.PayerTransfer, tr.PayerRoute.RevealTimeout, blockNumber)
 
@@ -361,9 +362,10 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 			if pair.PayerState != mediated_transfer.STATE_PAYER_EXPIRED {
 				pair.PayerState = mediated_transfer.STATE_PAYER_EXPIRED
 				withdrawFailed := &mediated_transfer.EventWithdrawFailed{
-					Identifier: pair.PayerTransfer.Identifier,
-					Hashlock:   pair.PayerTransfer.Hashlock,
-					Reason:     "lock expired",
+					Identifier:     pair.PayerTransfer.Identifier,
+					Hashlock:       pair.PayerTransfer.Hashlock,
+					ChannelAddress: pair.PayerRoute.ChannelAddress,
+					Reason:         "lock expired",
 				}
 				events = append(events, withdrawFailed)
 			}
@@ -377,9 +379,10 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 			if pair.PayeeState != mediated_transfer.STATE_PAYEE_EXPIRED {
 				pair.PayeeState = mediated_transfer.STATE_PAYEE_EXPIRED
 				unlockFailed := &mediated_transfer.EventUnlockFailed{
-					Identifier: pair.PayeeTransfer.Identifier,
-					Hashlock:   pair.PayeeTransfer.Hashlock,
-					Reason:     "lock expired",
+					Identifier:     pair.PayeeTransfer.Identifier,
+					Hashlock:       pair.PayeeTransfer.Hashlock,
+					ChannelAddress: pair.PayeeRoute.ChannelAddress,
+					Reason:         "lock expired",
 				}
 				events = append(events, unlockFailed)
 			}
@@ -553,12 +556,31 @@ Withdraw on any payer channel that is closed and the secret is known.
         B will withdraw on channel(A, B) before C's confirmation.
         A may learn the secret faster than other nodes.
 */
-func eventsForWithdraw(transfersPair []*mediated_transfer.MediationPairState) (events []transfer.Event) {
+func eventsForWithdraw(transfersPair []*mediated_transfer.MediationPairState, db channel.ChannelDb) (events []transfer.Event) {
 	pendings := getPendingTransferPairs(transfersPair)
 	for _, pair := range pendings {
 		payerChannelOpen := pair.PayerRoute.State == transfer.CHANNEL_STATE_OPENED
 		secretKnown := pair.PayerTransfer.Secret != utils.EmptyHash
-		if !payerChannelOpen && secretKnown { //todo 这个消息应该会反复触发多次，加上限制，只触发一次就好了。。
+		/*
+				todo 这个消息应该会反复触发多次，加上限制，只触发一次就好了。。
+				由于ContractReceiveWithdrawStateChange 并不派发，导致会不停的发送EventContractSendWithdraw，目前raiden的选择是忽略该事件，但是带来一个潜在安全性问题
+			比如：
+			A-B-C-B-E-D
+			E拿到秘钥以后立即通知c(并把密钥告诉c），但是等一段时间再告诉B
+			这时候C选择关闭B-C通道，然后在B-C通道上withdraw。
+			这时候由于B在接到关闭B-C通道的时候，并不知道密钥，导致无法withdraw C给B的token，但是C拿到了B给C的token。
+			由于忽略EventContractSendWithdraw事件，导致B会丢失C给B点token
+		*/
+
+		if !payerChannelOpen && secretKnown {
+			//这个是临时补丁，后续要完整解决
+			if db != nil {
+				//避免无限制重发EventContractSendWithdraw
+				if db.IsThisLockHasWithdraw(pair.PayerRoute.ChannelAddress, pair.PayerTransfer.Secret) {
+					pair.PayerState = mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW
+					continue
+				}
+			}
 			pair.PayerState = mediated_transfer.STATE_PAYER_WAITING_WITHDRAW
 			withdraw := &mediated_transfer.EventContractSendWithdraw{
 				Transfer:       pair.PayerTransfer,
@@ -587,12 +609,28 @@ func secretLearned(state *mediated_transfer.MediatorState, secret common.Hash, p
 	eventsWrongOrder := SetPayeeStateAndCheckRevealOrder(state.TransfersPair, payeeAddress, newPayeeState)
 	eventsSecretReveal := EventsForRevealSecret(state.TransfersPair, state.OurAddress)
 	eventBalanceProof := eventsForBalanceProof(state.TransfersPair, state.BlockNumber)
-	eventsWithdraw := eventsForWithdraw(state.TransfersPair)
+	eventsWithdraw := eventsForWithdraw(state.TransfersPair, state.Db)
 	events = append(events, eventsWrongOrder...)
 	events = append(events, eventsSecretReveal...)
 	events = append(events, eventBalanceProof...)
 	events = append(events, eventsWithdraw...)
 	return &transfer.TransitionResult{state, events}
+}
+
+/*
+update all routes state from db
+*/
+func updateAvaiableRoutesFromDb(db channel.ChannelDb, routes *transfer.RoutesState) {
+	for _, r := range routes.AvailableRoutes {
+		ch, err := db.GetChannelByAddress(r.ChannelAddress)
+		if err != nil {
+			log.Error(fmt.Sprintf("get channel %s from db err %s", r.ChannelAddress, err))
+		} else {
+			r.ClosedBlock = ch.ClosedBlock
+			r.AvaibleBalance = ch.OurBalance.Sub(ch.OurBalance, ch.OurAmountLocked)
+			r.State = ch.State
+		}
+	}
 }
 
 /*
@@ -611,6 +649,11 @@ func mediateTransfer(state *mediated_transfer.MediatorState, payerRoute *transfe
 		if state.HasRefunded {
 			panic("has rufuned mediated node should never receive another transfer.")
 		}
+	}
+	if state.Db != nil {
+		updateAvaiableRoutesFromDb(state.Db, state.Routes)
+	} else {
+		log.Error(" db is nil can only be ignored when you are run testing...")
 	}
 	timeoutBlocks := int(getTimeoutBlocks(payerRoute, payerTransfer, state.BlockNumber))
 	if timeoutBlocks > 0 {
@@ -672,7 +715,7 @@ func handleBlock(state *mediated_transfer.MediatorState, st *transfer.BlockState
 	}
 	state.BlockNumber = blockNumber
 	closeEvents := eventsForClose(state.TransfersPair, blockNumber)
-	withdrawEvents := eventsForWithdraw(state.TransfersPair)
+	withdrawEvents := eventsForWithdraw(state.TransfersPair, state.Db)
 	unlockfailEvents := setExpiredPairs(state.TransfersPair, blockNumber)
 	var events []transfer.Event
 	events = append(events, closeEvents...)
@@ -834,7 +877,7 @@ func handleRouteChange(state *mediated_transfer.MediatorState, st *transfer.Acti
 		mediated_transfer.UpdateRoute(state.Routes, st)
 	}
 	//  a route might be closed by another task
-	withdrawEvents := eventsForWithdraw(state.TransfersPair)
+	withdrawEvents := eventsForWithdraw(state.TransfersPair, state.Db)
 	return &transfer.TransitionResult{state, withdrawEvents}
 }
 
@@ -855,6 +898,34 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		}
 		state = nil
 	}
+	//update all route state if possible
+	if state != nil {
+		if state.Db != nil {
+			for _, pair := range state.TransfersPair {
+				r := pair.PayerRoute
+				ch, err := state.Db.GetChannelByAddress(r.ChannelAddress)
+				if err != nil {
+					log.Error(fmt.Sprintf("get channel %s from db err %s", utils.APex(r.ChannelAddress), err))
+				} else {
+					r.State = ch.State
+					r.AvaibleBalance = ch.OurBalance.Sub(ch.OurBalance, ch.OurAmountLocked)
+					r.ClosedBlock = ch.ClosedBlock
+				}
+				r = pair.PayeeRoute
+				ch, err = state.Db.GetChannelByAddress(r.ChannelAddress)
+				if err != nil {
+					log.Error(fmt.Sprintf("get channel %s from db err %s", utils.APex(r.ChannelAddress), err))
+				} else {
+					r.State = ch.State
+					r.AvaibleBalance = ch.OurBalance.Sub(ch.OurBalance, ch.OurAmountLocked)
+					r.ClosedBlock = ch.ClosedBlock
+				}
+			}
+		} else {
+			log.Error(" db is nil can only be ignored when you are run testing...")
+		}
+
+	}
 	if state == nil { //nil 判断小心了,有可能是空指针被当做非空了.
 		if aim, ok := stateChange.(*mediated_transfer.ActionInitMediatorStateChange); ok {
 			state := &mediated_transfer.MediatorState{
@@ -862,6 +933,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 				Routes:      aim.Routes,
 				BlockNumber: aim.BlockNumber,
 				Hashlock:    aim.FromTranfer.Hashlock,
+				Db:          aim.Db,
 			}
 			it = mediateTransfer(state, aim.FromRoute, aim.FromTranfer)
 		}

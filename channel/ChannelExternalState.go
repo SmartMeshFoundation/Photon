@@ -121,7 +121,7 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 	defer this.lock.Unlock()
 	if bp != nil {
 		log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
-			this.ChannelAddress.String(), bp))
+			utils.APex(this.ChannelAddress), utils.StringInterface(bp, 3)))
 		tx, err := this.NettingChannel.GetContract().UpdateTransfer(this.bcs.Auth, uint64(bp.Nonce), bp.TransferAmount, bp.LocksRoot,
 			bp.MessageHash, bp.Signature)
 		if err != nil {
@@ -132,10 +132,10 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 			return err
 		}
 		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Info("updatetransfer failed %s,receipt=%s", this.ChannelAddress.String(), receipt.String())
+			log.Info(fmt.Sprintf("updatetransfer failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 			return errors.New("tx execution failed")
 		} else {
-			log.Info("updatetransfer success %s,balanceproof=%s", this.ChannelAddress.String(), utils.StringInterface1(bp))
+			log.Info(fmt.Sprintf("updatetransfer success %s,balanceproof=%s", utils.APex(this.ChannelAddress), utils.StringInterface1(bp)))
 		}
 	}
 	return nil
@@ -144,7 +144,7 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	log.Info(fmt.Sprintf("withdraw called %s", this.ChannelAddress.String()))
+	log.Info(fmt.Sprintf("withdraw called %s", utils.APex(this.ChannelAddress)))
 	failed := false
 	for _, proof := range unlockproofs {
 		if this.db.IsThisLockHasWithdraw(this.ChannelAddress, proof.Secret) {
@@ -156,7 +156,7 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 		lock.FromBytes(proof.LockEncoded)
 		if err != nil {
 			failed = true
-			log.Info(fmt.Sprintf("withdraw failed %s,lock=%s", this.ChannelAddress.String(), utils.StringInterface1(lock)))
+			log.Info(fmt.Sprintf("withdraw failed %s on channel %s,lock=%s", err, utils.APex2(this.ChannelAddress), utils.StringInterface(lock, 7)))
 			continue
 			//return err
 		}
@@ -166,7 +166,7 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 			failed = true
 		}
 		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Info("withdraw failed %s,receipt=%s", this.ChannelAddress.String(), receipt.String())
+			log.Info(fmt.Sprintf("withdraw failed %s,receipt=%s", utils.APex2(this.ChannelAddress), receipt))
 			failed = true
 			//return errors.New("withdraw execution failed ,maybe reverted?")
 		} else {
@@ -174,11 +174,11 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 				allow try withdraw next time if not success?
 			*/
 			this.db.WithdrawThisLock(this.ChannelAddress, proof.Secret)
-			log.Info("withdraw success %s,proof=%s", this.ChannelAddress.String(), utils.StringInterface1(proof))
+			log.Info(fmt.Sprintf("withdraw success %s,proof=%s", utils.APex2(this.ChannelAddress), utils.StringInterface1(proof)))
 		}
 	}
 	if failed {
-		return fmt.Errorf("there are errors when withdraw on channel %s for %s", this.ChannelAddress, this.bcs.NodeAddress)
+		return fmt.Errorf("there are errors when withdraw on channel %s  for %s", utils.APex2(this.ChannelAddress), utils.APex2(this.bcs.NodeAddress))
 	}
 	return nil
 }
@@ -190,10 +190,10 @@ func (this *ChannelExternalState) Settle() error {
 		return nil
 	}
 	this.IsCallSettle = true
-	log.Info(fmt.Sprintf("settle called %s", this.ChannelAddress.String()))
+	log.Info(fmt.Sprintf("settle called %s", utils.APex(this.ChannelAddress)))
 	tx, err := this.NettingChannel.GetContract().Settle(this.bcs.Auth)
 	if err != nil {
-		log.Info(fmt.Sprintf("settle failed %s", this.ChannelAddress.String()))
+		log.Info(fmt.Sprintf("settle failed %s", utils.APex(this.ChannelAddress)))
 		return err
 		//return err
 	}
@@ -203,10 +203,10 @@ func (this *ChannelExternalState) Settle() error {
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info("settle failed %s,receipt=%s", this.ChannelAddress.String(), receipt.String())
+		log.Info("settle failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt)
 		return errors.New("settle execution failed ,maybe reverted?")
 	} else {
-		log.Info("settle success %s", this.ChannelAddress.String())
+		log.Info("settle success %s", utils.APex(this.ChannelAddress))
 	}
 	return nil
 }
@@ -214,10 +214,10 @@ func (this *ChannelExternalState) Settle() error {
 func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	log.Info(fmt.Sprintf("Deposit called %s", this.ChannelAddress.String()))
+	log.Info(fmt.Sprintf("Deposit called %s", utils.APex(this.ChannelAddress)))
 	tx, err := this.NettingChannel.GetContract().Deposit(this.bcs.Auth, amount)
 	if err != nil {
-		log.Info(fmt.Sprintf("Deposit failed %s", this.ChannelAddress.String()))
+		log.Info(fmt.Sprintf("Deposit failed %s", utils.APex(this.ChannelAddress)))
 		return err
 		//return err
 	}
@@ -227,10 +227,10 @@ func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info("Deposit failed %s,receipt=%s", this.ChannelAddress.String(), receipt.String())
+		log.Info("Deposit failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt)
 		return errors.New("Deposit execution failed ,maybe reverted?")
 	} else {
-		log.Info(fmt.Sprintf("Deposit success %s", this.ChannelAddress.String()))
+		log.Info(fmt.Sprintf("Deposit success %s", utils.APex(this.ChannelAddress)))
 	}
 	return nil
 }

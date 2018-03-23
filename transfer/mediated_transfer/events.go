@@ -157,9 +157,10 @@ type EventUnlockSuccess struct {
 */
 //Event emitted when a lock unlock failed.
 type EventUnlockFailed struct {
-	Identifier uint64
-	Hashlock   common.Hash
-	Reason     string
+	Identifier     uint64
+	Hashlock       common.Hash
+	ChannelAddress common.Address
+	Reason         string
 }
 
 //Event emitted when a lock withdraw succeded.
@@ -169,14 +170,15 @@ type EventWithdrawSuccess struct {
 }
 
 /*
-上家没有在expiration之内收到balanceproof，也没有在链上兑现。
+上家没有在expiration之内给我balanceproof，我也没有在链上兑现（因为没有密码）。
 能想到的应对就是移除失效的lock
 */
 //Event emitted when a lock withdraw failed.
 type EventWithdrawFailed struct {
-	Identifier uint64
-	Hashlock   common.Hash
-	Reason     string
+	Identifier     uint64
+	Hashlock       common.Hash
+	ChannelAddress common.Address
+	Reason         string
 }
 
 func init() {

@@ -34,7 +34,7 @@ func (model *ModelDB) AddToken(token common.Address, manager common.Address) err
 	}
 	m[token] = manager
 	err = model.db.Set(bucketToken, keyToken, m)
-	model.handleTokenCallback(model.NewTokenCallbacks, token)
+	model.handleTokenCallback(model.newTokenCallbacks, token)
 	return err
 }
 func (model *ModelDB) handleTokenCallback(m map[*NewTokenCb]bool, token common.Address) {

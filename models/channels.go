@@ -5,6 +5,7 @@ import (
 
 	"bytes"
 	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/raiden-network/channel"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/asdine/storm"
@@ -16,7 +17,7 @@ func (model *ModelDB) NewChannel(c *channel.ChannelSerialization) error {
 	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddress.String()))
 	err := model.db.Save(c)
 	//notify new channel added
-	model.handleChannelCallback(model.NewChannelCallbacks, c)
+	model.handleChannelCallback(model.newChannelCallbacks, c)
 	if err != nil {
 		log.Error(fmt.Sprintf("NewChannel for models err:%s", err))
 	}
@@ -52,7 +53,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerializati
 		return err
 	}
 	//notify listener
-	model.handleChannelCallback(model.ChannelDepositCallbacks, c)
+	model.handleChannelCallback(model.channelDepositCallbacks, c)
 	return nil
 }
 
@@ -73,7 +74,7 @@ func (model *ModelDB) UpdateChannelState(c *channel.ChannelSerialization) error 
 		return err
 	}
 	//notify listener
-	model.handleChannelCallback(model.ChannelStateCallbacks, c)
+	model.handleChannelCallback(model.channelStateCallbacks, c)
 	return nil
 }
 

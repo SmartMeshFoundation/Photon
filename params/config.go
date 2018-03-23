@@ -46,6 +46,7 @@ type Config struct {
 	ConditionQuit    ConditionQuit
 	Ice              iceConfig
 	UseIce           bool
+	NoNetwork        bool
 }
 type iceConfig struct {
 	/*

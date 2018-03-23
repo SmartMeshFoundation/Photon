@@ -11,42 +11,42 @@ type ChannelCb func(c *channel.ChannelSerialization) (remove bool)
 
 func (model *ModelDB) RegisterNewTokenCallback(f NewTokenCb) {
 	model.mlock.Lock()
-	model.NewTokenCallbacks[&f] = true
+	model.newTokenCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 func (model *ModelDB) RegisterNewChannellCallback(f ChannelCb) {
 	model.mlock.Lock()
-	model.NewChannelCallbacks[&f] = true
+	model.newChannelCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 func (model *ModelDB) RegisterChannelDepositCallback(f ChannelCb) {
 	model.mlock.Lock()
-	model.ChannelDepositCallbacks[&f] = true
+	model.channelDepositCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 func (model *ModelDB) RegisterChannelStateCallback(f ChannelCb) {
 	model.mlock.Lock()
-	model.ChannelStateCallbacks[&f] = true
+	model.channelStateCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
 func (model *ModelDB) UnRegisterNewTokenCallback(f NewTokenCb) {
 	model.mlock.Lock()
-	delete(model.NewTokenCallbacks, &f)
+	delete(model.newTokenCallbacks, &f)
 	model.mlock.Unlock()
 }
 func (model *ModelDB) UnRegisterNewChannellCallback(f ChannelCb) {
 	model.mlock.Lock()
-	delete(model.NewChannelCallbacks, &f)
+	delete(model.newChannelCallbacks, &f)
 	model.mlock.Unlock()
 }
 func (model *ModelDB) UnRegisterChannelDepositCallback(f ChannelCb) {
 	model.mlock.Lock()
-	delete(model.ChannelDepositCallbacks, &f)
+	delete(model.channelDepositCallbacks, &f)
 	model.mlock.Unlock()
 }
 func (model *ModelDB) UnRegisterChannelStateCallback(f ChannelCb) {
 	model.mlock.Lock()
-	delete(model.ChannelStateCallbacks, &f)
+	delete(model.channelStateCallbacks, &f)
 	model.mlock.Unlock()
 }

@@ -26,6 +26,9 @@ const NODE_NETWORK_UNKNOWN = "unknown"
 const NODE_NETWORK_UNREACHABLE = "unreachable"
 const NODE_NETWORK_REACHABLE = "reachable"
 
+var errTimeout = errors.New("wait timeout")
+var errExpired = errors.New("message expired")
+
 type NodesStatusMap map[common.Address]*NetworkStatus
 
 type NetworkStatus struct {
@@ -57,6 +60,17 @@ type NodesStatusGetter interface {
 }
 type PingSender interface {
 	SendPing(receiver common.Address) error
+}
+
+/*
+get the lastest block number,so sender can remove expired mediated transfer.
+for example :
+A send B a mediated transfer, but B is offline
+when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
+message secret,secretRequest,revealSecret won't allow error
+*/
+type BlockNumberGetter interface {
+	GetBlockNumber() int64
 }
 
 func NewAsyncResult() *AsyncResult {
@@ -104,10 +118,11 @@ type RaidenProtocol struct {
 	sendingQueueMap              map[string]chan *SentMessageState //write to this channel to send a message
 	quitWaitGroup                sync.WaitGroup                    //wait before quit
 	receivedMessageSaver         ReceivedMessageSaver
+	BlockNumberGetter            BlockNumberGetter
 	onStop                       bool //flag for stop
 }
 
-func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, privKey *ecdsa.PrivateKey) *RaidenProtocol {
+func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
 		Transport:                    transport,
 		discovery:                    discovery,
@@ -119,6 +134,7 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 		ReceivedMessageChannel:       make(chan *MessageToRaiden),
 		ReceivedMessageResultChannel: make(chan error),
 		sendingQueueMap:              make(map[string]chan *SentMessageState),
+		BlockNumberGetter:            blockNumberGetter,
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	tr, ok := transport.(*UDPTransport)
@@ -167,6 +183,23 @@ func (this *RaidenProtocol) SendPing(receiver common.Address) error {
 	data := ping.Pack()
 	return this.sendRawWitNoAck(receiver, data)
 }
+
+/*
+message mediatedTransfer and refundTransfer can safely be discarded when expired.
+*/
+func (this *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
+	var expired int64 = 0
+	switch msg2 := msg.(type) {
+	case *encoding.MediatedTransfer:
+		expired = msg2.Expiration
+	case *encoding.RefundTransfer:
+		expired = msg2.Expiration
+	}
+	if expired > 0 && expired <= this.BlockNumberGetter.GetBlockNumber() {
+		return false
+	}
+	return true
+}
 func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- *SentMessageState {
 
 	this.mapLock.Lock()
@@ -199,11 +232,17 @@ func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan
 			msgState, ok := <-sendingChan
 			if !ok {
 				log.Info(fmt.Sprintf("queue %s quit, because of chan closed", key))
-				log.Trace("")
 				this.quitWaitGroup.Done() //user stop
 				return
 			}
 			for {
+				if !this.messageCanBeSent(msgState.Message) {
+					log.Info(fmt.Sprintf("message cannot be send because of expired msg=%s", msgState.Message))
+					msgState.AsyncResult.Result <- errExpired
+					close(msgState.AsyncResult.Result)
+					this.quitWaitGroup.Done()
+					break
+				}
 				nextTimeout := timeoutExponentialBackoff(this.retryTimes, this.retryInterval, this.retryInterval*10)
 				err := this.sendRawWitNoAck(receiver, msgState.Data)
 				if err != nil {
@@ -318,7 +357,7 @@ func (this *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Me
 			this.updateNetworkStatus(receiver, NODE_NETWORK_REACHABLE)
 		}
 	case <-timeoutCh:
-		err = errors.New("time out of sendWithResult")
+		err = errTimeout
 		this.updateNetworkStatus(receiver, NODE_NETWORK_UNREACHABLE)
 	}
 	return err

@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	mt "github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -79,6 +80,19 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	var tryRoute *transfer.RouteState = nil
 	for len(state.Routes.AvailableRoutes) > 0 {
 		route := state.Routes.AvailableRoutes[0]
+		if state.Db != nil {
+			ch, err := state.Db.GetChannelByAddress(route.ChannelAddress)
+			if err != nil {
+				log.Error(fmt.Sprintf("get channle %s status from db err %s", utils.APex(route.ChannelAddress), err))
+			} else {
+				route.AvaibleBalance = ch.OurBalance.Sub(ch.OurBalance, ch.OurAmountLocked)
+				route.State = ch.State
+				route.ClosedBlock = ch.ClosedBlock
+			}
+		} else {
+			log.Error(" db is nil can only be ignored when you are run testing...")
+		}
+
 		state.Routes.AvailableRoutes = state.Routes.AvailableRoutes[1:]
 		if route.AvaibleBalance.Cmp(state.Transfer.Amount) < 0 {
 			state.Routes.IgnoredRoutes = append(state.Routes.IgnoredRoutes, route)
@@ -176,9 +190,8 @@ func HandleRouteChange(state *mt.InitiatorState, stateChange *transfer.ActionRou
 		Events:   nil,
 	}
 }
-
 func HandleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
-	if stateChange.Sender == state.Route.HopNode {
+	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
 		return CancelCurrentRoute(state)
 	} else {
 		return &transfer.TransitionResult{state, nil}
@@ -305,6 +318,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				Routes:          &routes,
 				BlockNumber:     staii.BlockNumber,
 				RandomGenerator: staii.RandomGenerator,
+				Db:              staii.Db,
 			}
 			return TryNewRoute(state)
 		} else {

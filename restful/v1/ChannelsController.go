@@ -20,14 +20,16 @@ type ChannelsController struct {
 }
 
 type channelData struct {
-	ChannelAddress string   `json:"channel_address"`
-	PartnerAddrses string   `json:"partner_address"`
-	Balance        *big.Int `json:"balance"`
-	PartnerBalance *big.Int `json:"patner_balance"`
-	TokenAddress   string   `json:"token_address"`
-	State          string   `json:"state"`
-	SettleTimeout  int      `json:"settle_timeout"`
-	RevealTimeout  int      `json:"reveal_timeout"`
+	ChannelAddress      string   `json:"channel_address"`
+	PartnerAddrses      string   `json:"partner_address"`
+	Balance             *big.Int `json:"balance"`
+	PartnerBalance      *big.Int `json:"patner_balance"`
+	LockedAmount        *big.Int `json:"locked_amount"`
+	PartnerLockedAmount *big.Int `json:"partner_locked_amount"`
+	TokenAddress        string   `json:"token_address"`
+	State               string   `json:"state"`
+	SettleTimeout       int      `json:"settle_timeout"`
+	RevealTimeout       int      `json:"reveal_timeout"`
 }
 
 func (this *ChannelsController) Get() {
@@ -42,14 +44,16 @@ func (this *ChannelsController) Get() {
 	var datas []*channelData
 	for _, c := range chs {
 		d := &channelData{
-			ChannelAddress: c.ChannelAddress.String(),
-			PartnerAddrses: c.PartnerAddress.String(),
-			Balance:        c.OurBalance,
-			PartnerBalance: c.PartnerBalance,
-			State:          c.State,
-			TokenAddress:   c.TokenAddress.String(),
-			SettleTimeout:  c.SettleTimeout,
-			RevealTimeout:  c.RevealTimeout,
+			ChannelAddress:      c.ChannelAddress.String(),
+			PartnerAddrses:      c.PartnerAddress.String(),
+			Balance:             c.OurBalance,
+			PartnerBalance:      c.PartnerBalance,
+			State:               c.State,
+			TokenAddress:        c.TokenAddress.String(),
+			SettleTimeout:       c.SettleTimeout,
+			RevealTimeout:       c.RevealTimeout,
+			LockedAmount:        c.OurAmountLocked,
+			PartnerLockedAmount: c.PartnerAmountLocked,
 		}
 		datas = append(datas, d)
 	}
@@ -74,13 +78,15 @@ func (this *ChannelsController) SpecifiedChannel() {
 		return
 	}
 	d := &channelData{
-		ChannelAddress: c.ChannelAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		PartnerBalance: c.PartnerBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	this.Data["json"] = d
 	this.ServeJSON()
@@ -106,13 +112,15 @@ func (this *ChannelsController) OpenChannel() {
 			return
 		} else {
 			d := &channelData{
-				ChannelAddress: c.ChannelAddress.String(),
-				PartnerAddrses: c.PartnerAddress.String(),
-				Balance:        c.OurBalance,
-				PartnerBalance: c.PartnerBalance,
-				State:          c.State,
-				SettleTimeout:  c.SettleTimeout,
-				TokenAddress:   c.TokenAddress.String(),
+				ChannelAddress:      c.ChannelAddress.String(),
+				PartnerAddrses:      c.PartnerAddress.String(),
+				Balance:             c.OurBalance,
+				PartnerBalance:      c.PartnerBalance,
+				State:               c.State,
+				SettleTimeout:       c.SettleTimeout,
+				TokenAddress:        c.TokenAddress.String(),
+				LockedAmount:        c.OurAmountLocked,
+				PartnerLockedAmount: c.PartnerAmountLocked,
 			}
 			if req.Balance.Cmp(utils.BigInt0) > 0 {
 				err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DEFAULT_POLL_TIMEOUT)
@@ -185,13 +193,15 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 	//reload new data from database
 	c, _ = RaidenApi.GetChannel(c.ChannelAddress)
 	d := &channelData{
-		ChannelAddress: c.ChannelAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		PartnerBalance: c.PartnerBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	this.Data["json"] = d
 	this.ServeJSON()

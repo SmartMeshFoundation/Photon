@@ -149,7 +149,7 @@ func (this *ContractDiscovery) Register(node common.Address, host string, port i
 	if node != this.node {
 		log.Crit(fmt.Sprintf("register node to contract with unknown addr ", utils.APex(node)))
 	}
-	log.Info(fmt.Sprintf("ContractDiscovery register %s %s:%d", node.String(), host, port))
+	log.Info(fmt.Sprintf("ContractDiscovery register %s %s:%d", utils.APex(node), host, port))
 	h1, p1, err := this.Get(node)
 	//my node's host and port donesn't change after restart
 	if err == nil && h1 == host && p1 == port {

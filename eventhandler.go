@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
+	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -88,6 +89,7 @@ func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_
 		return
 	}
 	this.updateStateManagerFromEvent(receiver, mtr, stateManager)
+	this.raiden.ConditionQuit("EventSendMediatedTransferBefore")
 	err = this.raiden.SendAsync(receiver, mtr)
 	return
 }
@@ -105,6 +107,7 @@ func (this *StateMachineEventHandler) eventSendBalanceProof(event *mediated_tran
 		return
 	}
 	this.updateStateManagerFromEvent(receiver, tr, stateManager)
+	this.raiden.ConditionQuit("EventSendBalanceProofBefore")
 	err = this.raiden.SendAsync(receiver, tr)
 	return
 }
@@ -122,6 +125,7 @@ func (this *StateMachineEventHandler) eventSendRefundTransfer(event *mediated_tr
 		return
 	}
 	this.updateStateManagerFromEvent(receiver, mtr, stateManager)
+	this.raiden.ConditionQuit("EventSendRefundTransferBefore")
 	err = this.raiden.SendAsync(receiver, mtr)
 	return
 }
@@ -140,32 +144,71 @@ func (this *StateMachineEventHandler) eventContractSendChannelClose(event *media
 	err = ch.ExternState.Close(balanceProof)
 	return
 }
+func (this *StateMachineEventHandler) eventWithdrawFailed(e2 *mediated_transfer.EventWithdrawFailed, manager *transfer.StateManager) (err error) {
+	if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
+		panic("EventWithdrawFailed can only comes from a target node or mediated node")
+	}
+	ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("payer's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
+		return
+	}
+	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
+}
+func (this *StateMachineEventHandler) eventContractSendWithdraw(e2 *mediated_transfer.EventContractSendWithdraw, manager *transfer.StateManager) (err error) {
+	if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
+		panic("EventWithdrawFailed can only comes from a target node or mediated node")
+	}
+	ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
+		return
+	}
+	unlockProofs := ch.PartnerState.GetKnownUnlocks()
+	err = ch.ExternState.WithDraw(unlockProofs)
+	if err != nil {
+		log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", utils.APex(ch.MyAddress), err))
+	}
+	return nil
+}
+
+/*
+the transfer I payed for a payee has expired.
+*/
+func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.EventUnlockFailed, manager *transfer.StateManager) (err error) {
+	if manager.Name != mediator.NameMediatorTransition {
+		panic("event unlock failed only happen for a mediated node")
+	}
+	ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
+		return
+	}
+	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
+}
 func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	switch e2 := event.(type) {
 	case *mediated_transfer.EventSendMediatedTransfer:
-		//this.raiden.ConditionQuit("EventSendMediatedTransferBefore")
 		err = this.eventSendMediatedTransfer(e2, stateManager)
 		this.raiden.ConditionQuit("EventSendMediatedTransferAfter")
 	case *mediated_transfer.EventSendRevealSecret:
-		//this.raiden.ConditionQuit("EventSendRevealSecretBefore")
+		this.raiden.ConditionQuit("EventSendRevealSecretBefore")
 		revealMessage := encoding.NewRevealSecret(e2.Secret)
 		revealMessage.Sign(this.raiden.PrivateKey, revealMessage)
 		err = this.raiden.SendAsync(e2.Receiver, revealMessage) //单独处理 reaveal secret
 		this.raiden.ConditionQuit("EventSendRevealSecretAfter")
 	case *mediated_transfer.EventSendBalanceProof:
 		//unlock and update remotely (send the Secret message)
-		//this.raiden.ConditionQuit("EventSendBalanceProofBefore")
 		err = this.eventSendBalanceProof(e2, stateManager)
 		this.raiden.ConditionQuit("EventSendBalanceProofAfter")
 	case *mediated_transfer.EventSendSecretRequest:
-		//this.raiden.ConditionQuit("EventSendSecretRequestBefore")
 		secretRequest := encoding.NewSecretRequest(e2.Identifer, e2.Hashlock, e2.Amount)
 		secretRequest.Sign(this.raiden.PrivateKey, secretRequest)
 		this.updateStateManagerFromEvent(e2.Receiver, secretRequest, stateManager)
+		this.raiden.ConditionQuit("EventSendSecretRequestBefore")
 		err = this.raiden.SendAsync(e2.Receiver, secretRequest)
 		this.raiden.ConditionQuit("EventSendSecretRequestAfter")
 	case *mediated_transfer.EventSendRefundTransfer:
-		//this.raiden.ConditionQuit("EventSendRefundTransferBefore")
 		err = this.eventSendRefundTransfer(e2, stateManager)
 		this.raiden.ConditionQuit("EventSendRefundTransferAfter")
 	case *transfer.EventTransferSentSuccess:
@@ -178,6 +221,8 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		/*
 			notify related channel to remove expired lock. todo fix
 		*/
+		log.Error(fmt.Sprintf("EventWithdrawFailed hashlock=%s,reason=%s", utils.HPex(e2.Hashlock), e2.Reason))
+		err = this.eventWithdrawFailed(e2, stateManager)
 	case *mediated_transfer.EventWithdrawSuccess:
 		/*
 					  The withdraw is currently handled by the netting channel, once the close
@@ -185,10 +230,11 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 		*/
 	case *mediated_transfer.EventContractSendWithdraw:
 		//do nothing for five events above
-		//todo 应该立即在链上提现啊 ....很严重
+		err = this.eventContractSendWithdraw(e2, stateManager)
 	case *mediated_transfer.EventUnlockFailed:
 		//should remove hashlock from channel todo fix bai
-		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", e2.Hashlock, e2.Reason))
+		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", utils.HPex(e2.Hashlock), e2.Reason))
+		err = this.eventUnlockFailed(e2, stateManager)
 	case *mediated_transfer.EventContractSendChannelClose:
 		err = this.eventContractSendChannelClose(e2)
 	default:
@@ -283,7 +329,10 @@ func (this *StateMachineEventHandler) handleBalance(st *mediated_transfer.Contra
 	balance := st.Balance
 	graph := this.raiden.GetToken2ChannelGraph(tokenAddress)
 	ch := graph.GetChannelAddress2Channel(channelAddress)
-	ch.StateTransition(st)
+	err := this.ChannelStateTransition(ch, st)
+	if err != nil {
+		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+	}
 	this.raiden.db.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
 	if ch.ContractBalance().Cmp(utils.BigInt0) == 0 {
 		connectionManager, _ := this.raiden.ConnectionManagerForToken(tokenAddress)
@@ -300,7 +349,10 @@ func (this *StateMachineEventHandler) handleClosed(st *mediated_transfer.Contrac
 	if err != nil {
 		return err
 	}
-	ch.StateTransition(st)
+	err = this.ChannelStateTransition(ch, st)
+	if err != nil {
+		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+	}
 	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return nil
 }
@@ -311,13 +363,64 @@ func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.Contra
 	if err != nil {
 		return err
 	}
-	ch.StateTransition(st)
+	err = this.ChannelStateTransition(ch, st)
+	if err != nil {
+		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+	}
 	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return nil
 }
 func (this *StateMachineEventHandler) handleWithdraw(st *mediated_transfer.ContractReceiveWithdrawStateChange) error {
 	this.raiden.RegisterSecret(st.Secret)
 	return nil
+}
+
+//avoid dead lock
+func (this *StateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
+	switch st2 := st.(type) {
+	case *transfer.BlockStateChange:
+		if c.State() == transfer.CHANNEL_STATE_CLOSED {
+			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
+			if st2.BlockNumber > settlementEnd {
+				//should not block todo fix it
+				err = c.ExternState.Settle()
+			}
+		}
+	case *mediated_transfer.ContractReceiveClosedStateChange:
+		if st2.ChannelAddress == c.MyAddress {
+			if !c.IsCloseEventComplete {
+				c.ExternState.SetClosed(st2.ClosedBlock)
+				//should not block todo fix it
+				c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
+			} else {
+				log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%s,thisblock=%s",
+					c.MyAddress.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
+			}
+		}
+	case *mediated_transfer.ContractReceiveSettledStateChange:
+		//settled channel should be removed. todo bai fix it
+		if st2.ChannelAddress == c.MyAddress {
+			if c.ExternState.SetSettled(st2.SettledBlock) {
+				c.HandleSettled(st2.SettledBlock)
+			} else {
+				log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+					c.MyAddress.String(), c.ExternState.SettledBlock, st2.SettledBlock))
+			}
+		}
+	case *mediated_transfer.ContractReceiveBalanceStateChange:
+		participant := st2.ParticipantAddress
+		balance := st2.Balance
+		var channelState *channel.ChannelEndState
+		channelState, err = c.GetStateFor(participant)
+		if err != nil {
+			return
+		}
+		if channelState.ContractBalance.Cmp(balance) != 0 {
+			err = channelState.UpdateContractBalance(balance)
+		}
+	}
+	return
+
 }
 
 //only care statechanges about me

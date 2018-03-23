@@ -141,6 +141,7 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 			case transfer.StateManager_ReceivedMessage:
 				st, ok := mgr.LastReceivedMessage.(mediated_transfer.ActionInitInitiatorStateChange)
 				if ok {
+					st.Db = this.db
 					this.StateMachineEventHandler.Dispatch(mgr, st)
 				} else {
 					//receive a message,and not handled

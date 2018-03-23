@@ -158,6 +158,10 @@ func main() {
 			Usage: "turn password for turn server",
 			Value: "bai",
 		},
+		cli.BoolFlag{
+			Name:  "nonetwork",
+			Usage: "disable network, for example ,when we want to settle all channels",
+		},
 	}
 	app.Action = Main
 	app.Name = "raiden"
@@ -198,8 +202,6 @@ func setupLog(ctx *cli.Context) {
 func Main(ctx *cli.Context) error {
 	var pms *network.PortMappedSocket
 	var err error
-	var discovery network.DiscoveryInterface
-	var transport network.Transporter
 	fmt.Printf("Welcom to GoRaiden,version %s\n", ctx.App.Version)
 	setupLog(ctx)
 	if ctx.String("nat") != "ice" {
@@ -209,7 +211,6 @@ func Main(ctx *cli.Context) error {
 	} else {
 		pms = &network.PortMappedSocket{}
 	}
-
 	if err != nil {
 		log.Error(fmt.Sprintf("start server on %s error:%s", ctx.String("listen-address"), err))
 		utils.SystemExit(1)
@@ -224,15 +225,7 @@ func Main(ctx *cli.Context) error {
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
-	if !cfg.UseIce {
-		discovery = network.NewContractDiscovery(bcs.NodeAddress, cfg.DiscoveryAddress, bcs.Client, bcs.Auth)
-		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport = network.NewUDPTransport(pms.Ip, pms.Port, pms.Conn, nil, policy)
-	} else {
-		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
-		transport = network.NewIceTransporter(bcs.PrivKey, utils.APex2(bcs.NodeAddress))
-		discovery = network.NewIceHelperDiscovery()
-	}
+	transport, discovery := buildTransportAndDiscovery(cfg, pms, bcs)
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	go func() {
 		raidenService.Start()
@@ -241,6 +234,24 @@ func Main(ctx *cli.Context) error {
 	regQuitHandler(api)
 	restful.Start(api, cfg)
 	return nil
+}
+func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocket, bcs *rpc.BlockChainService) (transport network.Transporter, discovery network.DiscoveryInterface) {
+	if cfg.NoNetwork {
+		discovery = network.NewDiscovery()
+		policy := network.NewTokenBucket(10, 1, time.Now)
+		transport = network.NewDummyTransport(pms.Ip, pms.Port, nil, policy)
+	} else {
+		if !cfg.UseIce {
+			discovery = network.NewContractDiscovery(bcs.NodeAddress, cfg.DiscoveryAddress, bcs.Client, bcs.Auth)
+			policy := network.NewTokenBucket(10, 1, time.Now)
+			transport = network.NewUDPTransport(pms.Ip, pms.Port, pms.Conn, nil, policy)
+		} else {
+			network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
+			transport = network.NewIceTransporter(bcs.PrivKey, utils.APex2(bcs.NodeAddress))
+			discovery = network.NewIceHelperDiscovery()
+		}
+	}
+	return
 }
 func regQuitHandler(api *raiden_network.RaidenApi) {
 	go func() {
@@ -384,6 +395,9 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	config.Ice.TurnPassword = ctx.String("turn-pass")
 	if ctx.String("nat") == "ice" {
 		config.UseIce = true
+	}
+	if ctx.Bool("nonetwork") {
+		config.NoNetwork = true
 	}
 	return &config
 }

@@ -232,11 +232,11 @@ func (this *RegistryProxy) AddToken(tokenAddress common.Address) (mgrAddr common
 		return
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("AddToken failed %s,receipt=%s", this.Address.String(), receipt))
+		log.Info(fmt.Sprintf("AddToken failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		err = errors.New("AddToken tx execution failed")
 		return
 	} else {
-		log.Info(fmt.Sprintf("AddToken success %s,token=%s", this.Address.String(), tokenAddress.String()))
+		log.Info(fmt.Sprintf("AddToken success %s,token=%s", utils.APex(this.Address), tokenAddress.String()))
 	}
 	//receipt.Logs[0].Data
 	//spew.Config.DisableMethods = true
@@ -331,11 +331,11 @@ func (this *ChannelManagerContractProxy) NewChannel(partnerAddress common.Addres
 		return
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("NewChannel failed %s,receipt=%s", this.Address.String(), receipt))
+		log.Info(fmt.Sprintf("NewChannel failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		err = errors.New("NewChannel tx execution failed")
 		return
 	} else {
-		log.Info(fmt.Sprintf("NewChannel success %s, partnerAddress=%s", this.Address.String(), partnerAddress.String()))
+		log.Info(fmt.Sprintf("NewChannel success %s, partnerAddress=%s", utils.APex(this.Address), utils.APex(partnerAddress)))
 	}
 	return this.GetChannelWith(partnerAddress)
 }
@@ -443,10 +443,10 @@ func (this *EndpointRegistryProxy) RegisterEndpoint(socket string) (err error) {
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprint("registerEndpoint failed %s,receipt=%s", this.Address.Str(), receipt))
+		log.Info(fmt.Sprintf("registerEndpoint failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("RegisterEndpoint tx execution failed")
 	} else {
-		log.Info(fmt.Sprint("RegisterEndpoint success %s,socket=%s", this.Address.String(), socket))
+		log.Info(fmt.Sprint("RegisterEndpoint success %s,socket=%s", utils.APex(this.Address), socket))
 	}
 	return nil
 }
@@ -500,10 +500,10 @@ func (this *TokenProxy) Approve(spender common.Address, value *big.Int) (err err
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprint("Approve failed %s,receipt=%s", this.Address.Str(), receipt))
+		log.Info(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("Approve tx execution failed")
 	} else {
-		log.Info(fmt.Sprint("Approve success %s,spender=%s,value=%d", this.Address.String(), utils.APex(spender), value))
+		log.Info(fmt.Sprint("Approve success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
 	}
 	return nil
 }
@@ -524,10 +524,10 @@ func (this *TokenProxy) Transfer(spender common.Address, value *big.Int) (err er
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprint("Transfer failed %s,receipt=%s", this.Address.Str(), receipt))
+		log.Info(fmt.Sprintf("Transfer failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("Transfer tx execution failed")
 	} else {
-		log.Info(fmt.Sprint("Transfer success %s,spender=%s,value=%d", this.Address.String(), utils.APex(spender), value))
+		log.Info(fmt.Sprint("Transfer success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
 	}
 	return nil
 }

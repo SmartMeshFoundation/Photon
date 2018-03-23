@@ -201,7 +201,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = NewStateMachineEventHandler(srv)
-	srv.Protocol = network.NewRaidenProtocol(transport, discover, privateKey)
+	srv.Protocol = network.NewRaidenProtocol(transport, discover, privateKey, srv)
 	srv.db, err = models.OpenDb(config.DataBasePath)
 	if err != nil {
 		log.Error("open db error")
@@ -435,7 +435,7 @@ func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 	for _, cg := range this.CloneToken2ChannelGraph() {
 		cg.Lock.Lock() //dead lock!!..
 		for _, channel := range cg.ChannelAddress2Channel {
-			channel.StateTransition(statechange)
+			this.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
 		}
 		cg.Lock.Unlock()
 	}
@@ -1074,6 +1074,7 @@ func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target co
 		Tranfer:     transferState,
 		Routes:      routesState,
 		BlockNumber: this.GetBlockNumber(),
+		Db:          this.db,
 	}
 	if hashlock == utils.EmptyHash {
 		initInitiator.RandomGenerator = utils.RandomSecretGenerator
@@ -1134,6 +1135,7 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 		FromRoute:   fromRoute,
 		BlockNumber: blockNumber,
 		Message:     msg,
+		Db:          this.db,
 	}
 	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.Identifier, fromTransfer.Token)
 	this.db.AddStateManager(stateManager)
@@ -1161,6 +1163,7 @@ func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer
 		FromTranfer: fromTransfer,
 		BlockNumber: this.GetBlockNumber(),
 		Message:     msg,
+		Db:          this.db,
 	}
 	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.Identifier, fromTransfer.Token)
 	this.db.AddStateManager(stateManger)

@@ -37,14 +37,40 @@ func MakeTestUDPTransport(port int) *UDPTransport {
 func GetTestDiscovery() DiscoveryInterface {
 	return testdiscovery
 }
+
+type testBlockNumberGetter struct{}
+
+func (t *testBlockNumberGetter) GetBlockNumber() int64 {
+	return 0
+}
+
+type TimeBlockNumberGetter struct {
+	t time.Time
+}
+
+func NewTimeBlockNumberGetter(t time.Time) *TimeBlockNumberGetter {
+	return &TimeBlockNumberGetter{t}
+}
+func (t *TimeBlockNumberGetter) GetBlockNumber() int64 {
+	/*
+		assume 1s a block
+	*/
+	return int64(time.Now().Sub(t.t) / time.Second)
+}
 func MakeTestRaidenProtocol() *RaidenProtocol {
 	port := rand.New(utils.RandSrc).Intn(50000)
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey)
+	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey, &testBlockNumberGetter{})
 	testdiscovery.Register(rp.nodeAddr, "127.0.0.1", port)
 	return rp
 }
-
+func MakeTestDiscardExpiredTransferRaidenProtocol() *RaidenProtocol {
+	port := rand.New(utils.RandSrc).Intn(50000)
+	privkey, _ := crypto.GenerateKey()
+	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey, NewTimeBlockNumberGetter(time.Now()))
+	testdiscovery.Register(rp.nodeAddr, "127.0.0.1", port)
+	return rp
+}
 func NewTestIceTransport(key *ecdsa.PrivateKey, name string) *IceTransport {
 	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "119.28.43.121:5222")
 	it := NewIceTransporter(key, name)
@@ -52,6 +78,6 @@ func NewTestIceTransport(key *ecdsa.PrivateKey, name string) *IceTransport {
 }
 func MakeTestIceRaidenProtocol(name string) *RaidenProtocol {
 	key, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(NewTestIceTransport(key, name), NewIceHelperDiscovery(), key)
+	rp := NewRaidenProtocol(NewTestIceTransport(key, name), NewIceHelperDiscovery(), key, &testBlockNumberGetter{})
 	return rp
 }

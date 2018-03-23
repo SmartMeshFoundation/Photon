@@ -628,3 +628,57 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 	err := testChannel.RegisterTransfer(blockNumber+int64(settleTimeout)+1, transfer)
 	assert.Equal(t, err, nil)
 }
+
+func TestChannel_RemoveExpiredHashlock(t *testing.T) {
+	settleTimeout := 30
+	ch0, ch1 := makePairChannel()
+	balance0 := ch0.Balance()
+	balance1 := ch1.Balance()
+	var amount = big.NewInt(10)
+	var blockNumber int64 = 10
+	expiration := blockNumber + int64(settleTimeout) - 1
+	secret := utils.Sha3([]byte("secret"))
+	hashlock := utils.Sha3(secret[:])
+	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, 1, expiration, hashlock)
+	assert.Equal(t, err, nil)
+	transfer1.Sign(ch0.ExternState.bcs.PrivKey, transfer1)
+	err = ch0.RegisterTransfer(blockNumber, transfer1)
+	assert.Equal(t, err, nil)
+	err = ch1.RegisterTransfer(blockNumber, transfer1)
+	assert.Equal(t, err, nil)
+	assertSyncedChannels(ch0, balance0, nil,
+		ch1, balance1, []*encoding.Lock{transfer1.GetLock()}, t)
+	lock0 := ch0.Locked()
+	lock1 := ch1.Locked()
+	assert.Equal(t, lock0, amount)
+	assert.Equal(t, lock1, utils.BigInt0)
+	notExpiredBlockNumber := expiration - 1
+	err = ch0.RemoveExpiredHashlock(hashlock, notExpiredBlockNumber)
+	if err == nil {
+		t.Error("can not remove a not expired lock")
+		return
+	}
+	expiredBlockNumber := expiration
+	err = ch0.RemoveExpiredHashlock(utils.Sha3([]byte("not exists")), notExpiredBlockNumber)
+	if err == nil {
+		t.Error("remove a not exists hashlock")
+		return
+	}
+	err = ch0.RemoveExpiredHashlock(hashlock, expiredBlockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RemoveExpiredHashlock(hashlock, expiredBlockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	lock0 = ch0.Locked()
+	lock1 = ch1.Locked()
+	assert.Equal(t, lock0, utils.BigInt0)
+	assert.Equal(t, lock1, utils.BigInt0)
+
+	assertSyncedChannels(ch0, balance0, nil,
+		ch1, balance1, nil, t)
+}

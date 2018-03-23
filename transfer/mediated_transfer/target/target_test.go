@@ -5,14 +5,20 @@ import (
 
 	"math/big"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/SmartMeshFoundation/raiden-network/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	assert2 "github.com/stretchr/testify/assert"
 )
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
 }
@@ -107,10 +113,14 @@ func TestEventsForWithDraw(t *testing.T) {
 	initiator := utest.HOP1
 	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UNIT_SECRET, utils.Sha3(utest.UNIT_SECRET[:]), 1, utest.UNIT_TOKEN_ADDRESS)
 	route := utest.MakeRoute(initiator, amount, utest.UNIT_SETTLE_TIMEOUT, utest.UNIT_REVEAL_TIMEOUT, 0, utils.NewRandomAddress())
-	events := eventsForWithdraw(tr, route)
+	state := &mediated_transfer.TargetState{
+		FromTransfer: tr,
+		FromRoute:    route,
+	}
+	events := eventsForWithdraw(state, route)
 	assert(t, len(events), 0)
 	route.State = transfer.CHANNEL_STATE_CLOSED
-	events = eventsForWithdraw(tr, route)
+	events = eventsForWithdraw(state, route)
 	assert(t, len(events) > 0, true)
 	ev, ok := events[0].(*mediated_transfer.EventContractSendWithdraw)
 	assert(t, ok, true)
