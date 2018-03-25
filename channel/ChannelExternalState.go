@@ -32,8 +32,6 @@ type ChannelExternalState struct {
 	SettledBlock                   int64
 	ChanClosed                     chan struct{}
 	ChanSettled                    chan struct{}
-	IsCallClose                    bool
-	IsCallSettle                   bool
 	ChannelAddress                 common.Address
 	lock                           sync.Mutex
 	db                             ChannelDb
@@ -84,34 +82,32 @@ func (this *ChannelExternalState) SetSettled(blocknumber int64) bool {
 func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState) error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	if !this.IsCallClose {
-		this.IsCallClose = true
-		var Nonce int64 = 0
-		TransferAmount := utils.BigInt0
-		var LocksRoot common.Hash = utils.EmptyHash
-		//var ChannelAddress common.Address = utils.EmptyAddress
-		var MessageHash common.Hash = utils.EmptyHash
-		var Signature []byte = nil
-		if balanceProof != nil {
-			Nonce = balanceProof.Nonce
-			TransferAmount = balanceProof.TransferAmount
-			LocksRoot = balanceProof.LocksRoot
-			//ChannelAddress = balanceProof.ChannelAddress
-			MessageHash = balanceProof.MessageHash
-			Signature = balanceProof.Signature
-		}
-		tx, err := this.NettingChannel.GetContract().Close(this.bcs.Auth, uint64(Nonce),
-			TransferAmount, LocksRoot, MessageHash, Signature)
-		if err != nil {
-			return err
-		}
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), this.bcs.Client, tx)
-		if err != nil {
-			return err
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			return errors.New("tx execution failed")
-		}
+	var Nonce int64 = 0
+	TransferAmount := utils.BigInt0
+	var LocksRoot common.Hash = utils.EmptyHash
+	//var ChannelAddress common.Address = utils.EmptyAddress
+	var MessageHash common.Hash = utils.EmptyHash
+	var Signature []byte = nil
+	if balanceProof != nil {
+		Nonce = balanceProof.Nonce
+		TransferAmount = balanceProof.TransferAmount
+		LocksRoot = balanceProof.LocksRoot
+		//ChannelAddress = balanceProof.ChannelAddress
+		MessageHash = balanceProof.MessageHash
+		Signature = balanceProof.Signature
+	}
+	tx, err := this.NettingChannel.GetContract().Close(this.bcs.Auth, uint64(Nonce),
+		TransferAmount, LocksRoot, MessageHash, Signature)
+	if err != nil {
+		return err
+	}
+	receipt, err := bind.WaitMined(rpc.GetCallContext(), this.bcs.Client, tx)
+	if err != nil {
+		return err
+	}
+	//log.Trace(fmt.Sprintf("receipt=%s", receipt))
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return errors.New("tx execution failed")
 	}
 	return nil
 }
@@ -186,10 +182,6 @@ func (this *ChannelExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 func (this *ChannelExternalState) Settle() error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	if this.IsCallSettle {
-		return nil
-	}
-	this.IsCallSettle = true
 	log.Info(fmt.Sprintf("settle called %s", utils.APex(this.ChannelAddress)))
 	tx, err := this.NettingChannel.GetContract().Settle(this.bcs.Auth)
 	if err != nil {

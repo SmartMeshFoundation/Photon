@@ -1254,6 +1254,10 @@ func (this *RaidenService) depositChannel(channelAddress common.Address, amount 
 func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, op string) (result *network.AsyncResult) {
 	result = network.NewAsyncResult()
 	c := this.GetChannelWithAddr(channelAddress)
+	if c == nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
 	go func() {
 		var err error
 		c2, _ := this.db.GetChannelByAddress(c.MyAddress)

@@ -178,7 +178,7 @@ func (this *ChannelsController) CloseSettleDepositChannel() {
 			c, err = RaidenApi.Close(c.TokenAddress, c.PartnerAddress)
 			if err != nil {
 				log.Error(err.Error())
-				this.Abort(http.StatusInternalServerError)
+				this.Abort(http.StatusConflict)
 				return
 			}
 		} else {
