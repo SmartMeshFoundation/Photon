@@ -52,19 +52,19 @@ func QueryingConnectionsDetailsTest(url string) {
 	Infos := make(map[string]*ConnectionsDetails)
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Querying Connecions Details")
+	log.Println("Start Querying Connecions Details")
 	Infos, Status, err = QueryingConnectionsDetails(url)
 	ShowError(err)
 	//本地注释：显示错误详细信息
 	ShowQueryingConnectionsDetailsMsgDetail(Status)
 	if Infos != nil {
 		//for k, v := range Infos {
-		//	fmt.Println("Token:", k, " Funds:", v.Funds, " SumDeposits:", v.SumDeposits, " Channels:", v.Channels)
+		//	log.Println("Token:", k, " Funds:", v.Funds, " SumDeposits:", v.SumDeposits, " Channels:", v.Channels)
 		//}
 	}
 	switch Status {
 	case "200 OK":
-		fmt.Println("Test pass:QueryingConnectionsDetails")
+		log.Println("Test pass:QueryingConnectionsDetails")
 
 	default:
 		fmt.Printf("Test failed:QueryingConnectionsDetails:%s\n", Status)
@@ -74,18 +74,18 @@ func QueryingConnectionsDetailsTest(url string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowQueryingConnectionsDetailsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful query")
+		log.Println("Successful query")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,QueryingConnectionsDetails Failure:%s\n", Status)
 	}

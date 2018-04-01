@@ -55,7 +55,7 @@ func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance
 func OpenChannelTest(url string, url2 string) {
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Open Channel")
+	log.Println("Start Open Channel")
 	Address, _, _ := QueryingNodeAddress(url2)
 	PartnerAddress := Address.OurAddress
 	Tokens, _, _ := QueryingRegisteredTokens(url)
@@ -67,7 +67,7 @@ func OpenChannelTest(url string, url2 string) {
 	ShowOpenChannelMsgDetail(Status)
 	switch Status {
 	case "201 Created":
-		fmt.Println("Test pass: successful Creation channels")
+		log.Println("Test pass: successful Creation channels")
 	default:
 		fmt.Printf("Test failed: %s\n", Status)
 		if HalfLife {
@@ -76,25 +76,25 @@ func OpenChannelTest(url string, url2 string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowOpenChannelMsgDetail(Status string) {
 	switch Status {
 	case "201 Created":
-		fmt.Println("Successful Creation channels")
+		log.Println("Successful Creation channels")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed")
+		log.Println("The provided json is in some way malformed")
 	case "408 Request Timeout":
-		fmt.Println("The deposit event was not read in time by the ethereum node")
+		log.Println("The deposit event was not read in time by the ethereum node")
 	case "409 Conflict":
-		fmt.Println("The input is invalid, such as too low a settle timeout")
+		log.Println("The input is invalid, such as too low a settle timeout")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
-		fmt.Println("Unknown error,OpenChannel:", Status)
+		log.Println("Unknown error,OpenChannel:", Status)
 	}
 }

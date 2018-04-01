@@ -47,11 +47,11 @@ func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenP
 func QueryingAllPartnersForOneTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Querying All Partners For a Existent Token")
+	log.Println("Start Querying All Partners For a Existent Token")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	//fmt.Printf("!!!!!!!!!!!!Token:%s\n", Tokens[0])
 	if Tokens == nil {
-		fmt.Println("Warning:No registered Token!")
+		log.Println("Warning:No registered Token!")
 	} else {
 		_, Status, err := QueryingAllPartnersForOneToken(url, Tokens[0])
 		ShowError(err)
@@ -59,7 +59,7 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 		ShowQueryingAllPartnersForOneTokenMsgDetail(Status)
 		switch Status {
 		case "200 OK":
-			fmt.Println("Test pass:Querying All Partners For a Tokens Success!")
+			log.Println("Test pass:Querying All Partners For a Tokens Success!")
 		default:
 			fmt.Printf("Test failed:Querying All Partners For a Tokens Failure! %s\n", Status)
 			if HalfLife {
@@ -68,14 +68,14 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 		}
 	}
 
-	fmt.Println("Start Querying All Partners For a Nonexistent Token")
+	log.Println("Start Querying All Partners For a Nonexistent Token")
 	_, Status, err := QueryingAllPartnersForOneToken(url, "0x0000")
 	ShowError(err)
 	//本地注释：显示错误详细信息
 	ShowQueryingAllPartnersForOneTokenMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
-		fmt.Println("Test pass:Querying All Partners For a Nonexistent Tokens Success!")
+		log.Println("Test pass:Querying All Partners For a Nonexistent Tokens Success!")
 	default:
 		fmt.Printf("Test failed:Querying All Partners For a Nonexistent Tokens Failure! %s\n", Status)
 		if HalfLife {
@@ -84,20 +84,20 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowQueryingAllPartnersForOneTokenMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful query")
+		log.Println("Successful query")
 	case "302 Redirect":
-		fmt.Println("The user accesses the channel link endpoint")
+		log.Println("The user accesses the channel link endpoint")
 	case "404 Not Found":
-		fmt.Println("The token does not exist")
+		log.Println("The token does not exist")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,QueryingAllPartnersForOneToken Failure:%s\n", Status)
 	}

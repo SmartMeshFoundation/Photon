@@ -29,7 +29,7 @@ func CreateNewToken(EthRpcEndpoint string, KeystorePath string) (TokenName strin
 		log.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
 	_, key := promptAccount(KeystorePath)
-	//fmt.Println("start to deploy ...")
+	//log.Println("start to deploy ...")
 	registryAddress = DeployContract(key, conn)
 	registry, _ := rpc.NewRegistry(registryAddress, conn)
 	TokenName = createTokenAndChannels(key, conn, registry, KeystorePath, false)

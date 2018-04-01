@@ -52,7 +52,7 @@ func SettleChannelTest(url string) {
 	var Status string
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Settle Channel")
+	log.Println("Start Settle Channel")
 
 	//本地注释：Settle一个不存在的通道
 	ChannelAddress = "0x00000"
@@ -61,9 +61,9 @@ func SettleChannelTest(url string) {
 	//本地注释：显示错误详细信息
 	ShowSettleChannelMsgDetail(Status)
 	if Status == "409 Conflict" {
-		fmt.Println("Test pass:Settle a not exist Channel")
+		log.Println("Test pass:Settle a not exist Channel")
 	} else {
-		fmt.Println("Test failed:Settle a not exist Channel")
+		log.Println("Test failed:Settle a not exist Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -85,9 +85,9 @@ func SettleChannelTest(url string) {
 	ShowError(err)
 	ShowSettleChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Settle a opened Channel")
+		log.Println("Test pass:Settle a opened Channel")
 	} else {
-		fmt.Println("Test failed:Settle a opened Channel")
+		log.Println("Test failed:Settle a opened Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -109,9 +109,9 @@ Testclosed:
 	//本地注释：显示错误详细信息
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Settle a closed Channel")
+		log.Println("Test pass:Settle a closed Channel")
 	} else {
-		fmt.Println("Test failed:Settle a closed Channel")
+		log.Println("Test failed:Settle a closed Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -132,9 +132,9 @@ Testsettled:
 	ShowError(err)
 	ShowSettleChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Settle a settled Channel")
+		log.Println("Test pass:Settle a settled Channel")
 	} else {
-		fmt.Println("Test failed:Settle a settled Channel")
+		log.Println("Test failed:Settle a settled Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -142,22 +142,22 @@ Testsettled:
 EndTest:
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowSettleChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Settle Channel Success!")
+		log.Println("Settle Channel Success!")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed!")
+		log.Println("The provided json is in some way malformed!")
 	case "409 Conflict":
-		fmt.Println("Provided channel does not exist，or is inside settlement period")
+		log.Println("Provided channel does not exist，or is inside settlement period")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,Settle Channel Failure! %s\n", Status)
 	}

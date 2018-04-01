@@ -1,29 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"github.com/larspensjo/config"
+	"log"
 )
 
 //本地注释：详细测试交易
 func TransferTest(NewTokenName string) (code int) {
 
-	fmt.Println("==============================================================================================")
-	fmt.Println("Start TransferTest")
+	log.Println("==============================================================================================")
+	log.Println("Start TransferTest")
 
 	c, err := config.ReadDefault("./ApiTest.INI")
 
 	if err != nil {
-		fmt.Println("config.ReadDefault error:", err)
+		log.Println("config.ReadDefault error:", err)
 		return
 	}
 
-	Node1Url, err := c.String("NOTE1", "api_address")
-	Node2Url, err := c.String("NOTE2", "api_address")
-	Node3Url, err := c.String("NOTE3", "api_address")
-	Node4Url, err := c.String("NOTE4", "api_address")
-	Node5Url, err := c.String("NOTE5", "api_address")
-	Node6Url, err := c.String("NOTE6", "api_address")
+	Node1Url, err := c.String("NODE1", "api_address")
+	Node2Url, err := c.String("NODE2", "api_address")
+	Node3Url, err := c.String("NODE3", "api_address")
+	Node4Url, err := c.String("NODE4", "api_address")
+	Node5Url, err := c.String("NODE5", "api_address")
+	Node6Url, err := c.String("NODE6", "api_address")
 
 	Node1Url = "http://" + Node1Url
 	Node2Url = "http://" + Node2Url
@@ -42,7 +42,7 @@ func TransferTest(NewTokenName string) (code int) {
 	Node5Address, Status, err := QueryingNodeAddress(Node5Url)
 	Node6Address, Status, err := QueryingNodeAddress(Node6Url)
 
-	fmt.Println("Create Channels:A(100)-B(50) A(100)-C(50) B(100)-D(50) C(100)-D(50) D(100)-E(50) E(100)-F(50)")
+	log.Println("Create Channels:A(100)-B(50) A(100)-C(50) B(100)-D(50) C(100)-D(50) D(100)-E(50) E(100)-F(50)")
 	//本地注释：A-B建立通道
 	Channel, Status, err := OpenChannel(Node1Url, Node2Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node2Url, Channel.ChannelAddress, 50)
@@ -65,11 +65,11 @@ func TransferTest(NewTokenName string) (code int) {
 	//Channel, Status, err = OpenChannel(Node4Url, Node1Address.OurAddress, NewTokenNames[0], 100, 1000)
 	//Deposit2Channel(Node1Url, Channel.ChannelAddress, 50)
 
-	fmt.Println("Create Channels Complete")
+	log.Println("Create Channels Complete")
 	var Amount int32
 
 	Amount = 5
-	fmt.Println("Transfer ", Amount, " tokens from A to B")
+	log.Println("Transfer ", Amount, " tokens from A to B")
 	//本地注释：A->F 5Token
 	TransferResult, Status, err := InitiatingTransfer(Node1Url, NewTokenName, Node2Address.OurAddress, Amount)
 	ShowError(err)
@@ -77,7 +77,7 @@ func TransferTest(NewTokenName string) (code int) {
 	ResultJudge(TransferResult, Status, err, Node1Address.OurAddress, Node2Address.OurAddress, NewTokenName, Amount)
 
 	Amount = 6
-	fmt.Println("Transfer ", Amount, " tokens from A to C")
+	log.Println("Transfer ", Amount, " tokens from A to C")
 	//本地注释：A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node3Address.OurAddress, Amount)
 	ShowError(err)
@@ -85,7 +85,7 @@ func TransferTest(NewTokenName string) (code int) {
 	ResultJudge(TransferResult, Status, err, Node1Address.OurAddress, Node3Address.OurAddress, NewTokenName, Amount)
 
 	Amount = 7
-	fmt.Println("Transfer ", Amount, " tokens from A to D")
+	log.Println("Transfer ", Amount, " tokens from A to D")
 	//本地注释：A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node4Address.OurAddress, Amount)
 	ShowError(err)
@@ -93,16 +93,16 @@ func TransferTest(NewTokenName string) (code int) {
 	ResultJudge(TransferResult, Status, err, Node1Address.OurAddress, Node4Address.OurAddress, NewTokenName, Amount)
 
 	Amount = 8
-	fmt.Println("Transfer ", Amount, " tokens from A to F")
+	log.Println("Transfer ", Amount, " tokens from A to F")
 	//本地注释：A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node6Address.OurAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
 	ResultJudge(TransferResult, Status, err, Node1Address.OurAddress, Node6Address.OurAddress, NewTokenName, Amount)
 
-	fmt.Println("Finish TransferTest")
+	log.Println("Finish TransferTest")
 
-	//fmt.Println("==============================================================================================")
+	//log.Println("==============================================================================================")
 
 	return 0
 }

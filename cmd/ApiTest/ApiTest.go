@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/larspensjo/config"
+	"log"
 	"time"
 )
 
@@ -10,15 +10,15 @@ import (
 func ApiTest() {
 	c, err := config.ReadDefault("./ApiTest.INI")
 	if err != nil {
-		fmt.Println("Read error:", err)
+		log.Println("Read error:", err)
 		return
 	}
-	Node1Url, err := c.String("NOTE1", "api_address")
-	Node2Url, err := c.String("NOTE2", "api_address")
-	Node3Url, err := c.String("NOTE3", "api_address")
-	Node4Url, err := c.String("NOTE4", "api_address")
-	Node5Url, err := c.String("NOTE5", "api_address")
-	Node6Url, err := c.String("NOTE6", "api_address")
+	Node1Url, err := c.String("NODE1", "api_address")
+	Node2Url, err := c.String("NODE2", "api_address")
+	Node3Url, err := c.String("NODE3", "api_address")
+	Node4Url, err := c.String("NODE4", "api_address")
+	Node5Url, err := c.String("NODE5", "api_address")
+	Node6Url, err := c.String("NODE6", "api_address")
 
 	Node1Url = "http://" + Node1Url
 	Node2Url = "http://" + Node2Url
@@ -27,8 +27,8 @@ func ApiTest() {
 	Node5Url = "http://" + Node5Url
 	Node6Url = "http://" + Node6Url
 
-	fmt.Println("==============================================================================================")
-	fmt.Println("Start Test goRaiden Api")
+	log.Println("==============================================================================================")
+	log.Println("Start Test goRaiden Api")
 	start := time.Now()
 	//本地注释：测试查询某节点地址
 	QueryingNodeAddressTest(Node1Url)
@@ -71,6 +71,6 @@ func ApiTest() {
 	//本地注释：查询通道事件
 	QueryingChannelEventsTest(Node1Url)
 	duration := time.Since(start)
-	fmt.Println("Total time used:", duration.Seconds(), " seconds")
-	//fmt.Println("==============================================================================================")
+	log.Println("Total time used:", duration.Seconds(), " seconds")
+	//log.Println("==============================================================================================")
 }

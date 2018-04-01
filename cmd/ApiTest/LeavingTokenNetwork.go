@@ -46,7 +46,7 @@ func LeavingTokenNetworkTest(url string) {
 	var Status string
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Leaving Token Network")
+	log.Println("Start Leaving Token Network")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 
 	//本地注释：测试不存在的Token
@@ -55,9 +55,9 @@ func LeavingTokenNetworkTest(url string) {
 	//本地注释：显示错误详细信息
 	ShowLeavingTokenNetworkMsgDetail(Status)
 	if Status == "500 Internal Server Error" {
-		fmt.Println("Test pass:Leaving a not exist TokenNetwork")
+		log.Println("Test pass:Leaving a not exist TokenNetwork")
 	} else {
-		fmt.Println("Test failed:Leaving a not exist TokenNetwork")
+		log.Println("Test failed:Leaving a not exist TokenNetwork")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -79,19 +79,19 @@ func LeavingTokenNetworkTest(url string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowLeavingTokenNetworkMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successfully leaving a token network")
+		log.Println("Successfully leaving a token network")
 
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,leaving a TokenNetwork Failure:%s\n", Status)
 	}

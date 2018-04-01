@@ -1,8 +1,11 @@
 package main
 
-import ()
+import (
+	"log"
+)
 
 func main() {
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	//本地注释：布置新场景，注册新Token，注册新雷电网络，启动雷电测试节点
 	NewTokenName := NewScene()
 	//本地注释：强化测试正常交易

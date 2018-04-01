@@ -39,36 +39,36 @@ func QueryingRegisteredTokens(url string) (Tokens []string, Status string, err e
 func QueryingRegisteredTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Querying Registered Tokens")
+	log.Println("Start Querying Registered Tokens")
 	_, Status, err := QueryingRegisteredTokens(url)
 	ShowError(err)
 	//本地注释：显示错误详细信息
 	ShowQueryingRegisteredTokensMsgDetail(Status)
 	switch Status {
 	case "200 OK":
-		fmt.Println("Test pass:Querying Registered Tokens Success!")
+		log.Println("Test pass:Querying Registered Tokens Success!")
 	default:
-		fmt.Println("Test failed:Querying Registered Tokens Failure! %s", Status)
+		log.Println("Test failed:Querying Registered Tokens Failure! %s", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowQueryingRegisteredTokensMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful query")
+		log.Println("Successful query")
 	case "404 Not Found":
-		fmt.Println("The token does not exist")
+		log.Println("The token does not exist")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,QueryingRegisteredTokens Failure:%s\n", Status)
 	}

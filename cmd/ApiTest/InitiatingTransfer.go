@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -81,34 +82,34 @@ func InitiatingTransferTest(url string, TargetUrl string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：验证交易结果
 func ResultJudge(TransferResult TransferResponse, Status string, err error, InitiatorAddress string, TargetAddress string, TokenAddress string, Amount int32) {
 	if Status != "200 OK" {
-		fmt.Println("Transfer failed:", Status)
+		log.Println("Transfer failed:", Status)
 	} else {
 		var e bool
 		e = false
 		if TransferResult.InitiatorAddress != InitiatorAddress {
-			fmt.Println("Transfer failed:InitiatorAddress mismatching")
+			log.Println("Transfer failed:InitiatorAddress mismatching")
 			e = true
 		}
 		if TransferResult.TargetAddress != TargetAddress {
-			fmt.Println("Transfer failed:TargetAddress mismatching")
+			log.Println("Transfer failed:TargetAddress mismatching")
 			e = true
 		}
 		if TransferResult.TokenAddress != TokenAddress {
-			fmt.Println("Transfer failed:TokenAddress mismatching")
+			log.Println("Transfer failed:TokenAddress mismatching")
 			e = true
 		}
 		if TransferResult.Amount != Amount {
-			fmt.Println("Transfer failed:Amount mismatching")
+			log.Println("Transfer failed:Amount mismatching")
 			e = true
 		}
 		if e == false {
-			fmt.Println("Transfer Success")
+			log.Println("Transfer Success")
 		}
 	}
 }
@@ -117,19 +118,19 @@ func ResultJudge(TransferResult TransferResponse, Status string, err error, Init
 func ShowInitiatingTransferMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful Transfer creation.")
+		log.Println("Successful Transfer creation.")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed")
+		log.Println("The provided json is in some way malformed")
 	case "402 Payment required":
-		fmt.Println("The transfer can’t start due to insufficient balance")
+		log.Println("The transfer can’t start due to insufficient balance")
 	case "408 Timeout":
-		fmt.Println("A timeout happened during the transfer")
+		log.Println("A timeout happened during the transfer")
 	case "409 Conflict":
-		fmt.Println("The address or the amount is invalid or if there is no path to the target")
+		log.Println("The address or the amount is invalid or if there is no path to the target")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,InitiatingTransfer Failure:%s\n", Status)
 	}

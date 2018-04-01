@@ -20,30 +20,30 @@ func KillAndRestartStartraiden() {
 	param.conditionquit = "{\"QuitEvent\":\"RefundTransferRecevieAckxx}"
 	param.debug = true
 
-	r:=rand.Intn(3)
+	r := rand.Intn(3)
 	//节点1
-	//note 1
-	if r==1 {
+	//NODE 1
+	if r == 1 {
 		pstr = append(pstr, "/im")
 		pstr = append(pstr, "goraiden1.exe")
 		pstr = append(pstr, "/f")
 		Exec_shell("taskkill.exe", pstr)
-		time.Sleep(8*time.Second)
+		time.Sleep(8 * time.Second)
 		param.api_address = "127.0.0.1:5001"
 		param.listen_address = "127.0.0.1:40001"
 		param.address = "0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa"
 		pstr = param.getParam()
-		//fmt.Println(pstr)
+		//log.Println(pstr)
 		Exec_shell("goraiden1.exe", pstr)
 	}
 	//节点2
-	//note 2
-	if r==2 {
+	//NODE 2
+	if r == 2 {
 		pstr = append(pstr, "/im")
 		pstr = append(pstr, "goraiden2.exe")
 		pstr = append(pstr, "/f")
 		Exec_shell("taskkill.exe", pstr)
-		time.Sleep(8*time.Second)
+		time.Sleep(8 * time.Second)
 		param.api_address = "127.0.0.1:5002"
 		param.listen_address = "127.0.0.1:40002"
 		param.address = "0x33df901abc22dcb7f33c2a77ad43cc98fbfa0790"
@@ -51,8 +51,8 @@ func KillAndRestartStartraiden() {
 		Exec_shell("goraiden2.exe", pstr)
 	}
 	//节点3
-	//note 3
-	if r==3 {
+	//NODE 3
+	if r == 3 {
 		pstr = append(pstr, "/im")
 		pstr = append(pstr, "goraiden3.exe")
 		pstr = append(pstr, "/f")
@@ -64,5 +64,5 @@ func KillAndRestartStartraiden() {
 		pstr = param.getParam()
 		Exec_shell("goraiden3.exe", pstr)
 	}
-	time.Sleep(30*time.Second)
+	time.Sleep(30 * time.Second)
 }

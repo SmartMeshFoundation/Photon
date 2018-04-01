@@ -51,9 +51,9 @@ func Deposit2ChannelTest(url string) {
 	var i int
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Deposit2Channel")
+	log.Println("Start Deposit2Channel")
 	Balance = 100
-	fmt.Println("Deposit to a not exist Channel")
+	log.Println("Deposit to a not exist Channel")
 	//本地注释：充值一个不存在的通道
 	ChannelAddress = "0xffffffffffffffffffffffffffffffffffffffff"
 	Status, err = Deposit2Channel(url, ChannelAddress, Balance)
@@ -61,15 +61,15 @@ func Deposit2ChannelTest(url string) {
 	//本地注释：显示错误详细信息
 	ShowDeposit2ChannelMsgDetail(Status)
 	if Status == "409 Conflict" {
-		fmt.Println("Test pass:Deposit to a not exist Channel")
+		log.Println("Test pass:Deposit to a not exist Channel")
 	} else {
-		fmt.Println("Test failed:Deposit to a not exist Channel")
+		log.Println("Test failed:Deposit to a not exist Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
 	}
 
-	fmt.Println("Deposit to a opened Channel")
+	log.Println("Deposit to a opened Channel")
 	//本地注释：查询所有通道
 	Channels, _, _ := QueryingNodeAllChannels(url)
 	//本地注释：充值open通道
@@ -90,7 +90,7 @@ func Deposit2ChannelTest(url string) {
 			}
 		}
 	}
-	fmt.Println("Deposit to a closed Channel")
+	log.Println("Deposit to a closed Channel")
 	//本地注释：充值closed通道
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "closed" {
@@ -109,7 +109,7 @@ func Deposit2ChannelTest(url string) {
 			}
 		}
 	}
-	fmt.Println("Deposit to a settled Channel")
+	log.Println("Deposit to a settled Channel")
 	//本地注释：充值settled通道
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "settled" {
@@ -131,26 +131,26 @@ func Deposit2ChannelTest(url string) {
 
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowDeposit2ChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Success Deposit")
+		log.Println("Success Deposit")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed!")
+		log.Println("The provided json is in some way malformed!")
 	case "402 Payment required":
-		fmt.Println("Insufficient balance to do a deposit")
+		log.Println("Insufficient balance to do a deposit")
 	case "408 Request Timeout":
-		fmt.Println("The deposit event was not read in time by the ethereum node")
+		log.Println("The deposit event was not read in time by the ethereum node")
 	case "409 Conflict":
-		fmt.Println("Provided channel does not exist")
+		log.Println("Provided channel does not exist")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,Deposit Failure! %s\n", Status)
 	}

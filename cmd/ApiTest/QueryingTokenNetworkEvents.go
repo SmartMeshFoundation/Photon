@@ -49,7 +49,7 @@ func QueryingTokenNetworkEventsTest(url string) {
 	var err error
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Querying Token Network Events")
+	log.Println("Start Querying Token Network Events")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	//本地注释：测试不存在的Token
 	_, Status, err = QueryingTokenNetworkEvents(url, "0xffffffffffffffffffffffffffffffffffffffff")
@@ -58,9 +58,9 @@ func QueryingTokenNetworkEventsTest(url string) {
 	ShowQueryingTokenNetworkEventsMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
-		fmt.Println("Test pass:Querying  nonexistent Tokens")
+		log.Println("Test pass:Querying  nonexistent Tokens")
 	default:
-		fmt.Println("Test failed:Querying  nonexistent Tokens:", Status)
+		log.Println("Test failed:Querying  nonexistent Tokens:", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -73,7 +73,7 @@ func QueryingTokenNetworkEventsTest(url string) {
 		ShowQueryingTokenNetworkEventsMsgDetail(Status)
 		switch Status {
 		case "200 OK":
-			fmt.Println("Test pass:QueryingRegisteredTokens:", Tokens[i])
+			log.Println("Test pass:QueryingRegisteredTokens:", Tokens[i])
 		default:
 			fmt.Printf("Test failed:QueryingRegisteredTokens:", Status)
 			if HalfLife {
@@ -83,22 +83,22 @@ func QueryingTokenNetworkEventsTest(url string) {
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowQueryingTokenNetworkEventsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful query")
+		log.Println("Successful query")
 	case "400 Bad Request":
-		fmt.Println("The provided query string is malformed")
+		log.Println("The provided query string is malformed")
 	case "404 Not Found":
-		fmt.Println("The token does not exist")
+		log.Println("The token does not exist")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,QueryingGeneralNetworkEvents Failure:%s\n", Status)
 	}

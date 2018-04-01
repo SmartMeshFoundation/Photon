@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -70,11 +70,11 @@ func TokenSwapsTest(url1 string, url2 string) {
 	var id int64
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Token Swaps")
+	log.Println("Start Token Swaps")
 	Address, _, _ := QueryingNodeAddress(url2)
 	Tokens, _, _ := QueryingRegisteredTokens(url1)
 	if len(Tokens) < 2 {
-		fmt.Println("Registered Tokens <2")
+		log.Println("Registered Tokens <2")
 		return
 	}
 
@@ -94,21 +94,21 @@ func TokenSwapsTest(url1 string, url2 string) {
 
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowTokenSwapsMsgDetail(Status string) {
 	switch Status {
 	case "201 Created":
-		fmt.Println("Successful Creation!")
+		log.Println("Successful Creation!")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed!")
+		log.Println("The provided json is in some way malformed!")
 	case "408 Request Timeout":
-		fmt.Println("The token swap operation times out!")
+		log.Println("The token swap operation times out!")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	default:
-		fmt.Println("Unknown error:", Status)
+		log.Println("Unknown error:", Status)
 	}
 }

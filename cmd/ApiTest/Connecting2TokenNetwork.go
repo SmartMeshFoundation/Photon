@@ -48,24 +48,24 @@ func Connecting2TokenNetworkTest(url string, Funds int32) {
 	var Status string
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Connecting2TokenNetwork")
+	log.Println("Start Connecting2TokenNetwork")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 
 	//本地注释：测试不存在的Token
-	fmt.Println("Start Connecting to a not exist TokenNetwork")
+	log.Println("Start Connecting to a not exist TokenNetwork")
 	Status, err = Connecting2TokenNetwork(url, "0xffffffffffffffffffffffffffffffffffffffff", Funds)
 	ShowError(err)
 	//本地注释：显示错误详细信息
 	ShowConnecting2TokenNetworkMsgDetail(Status)
 	if Status == "500 Internal Server Error" {
-		fmt.Println("Test pass:Connecting to a not exist TokenNetwork")
+		log.Println("Test pass:Connecting to a not exist TokenNetwork")
 	} else {
-		fmt.Println("Test failed:Connecting to a not exist TokenNetwork")
+		log.Println("Test failed:Connecting to a not exist TokenNetwork")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
 	}
-	fmt.Println("Start Connecting to a registered TokenNetwork")
+	log.Println("Start Connecting to a registered TokenNetwork")
 	//本地注释：测试已经注册的Token
 	for i := 0; i < len(Tokens); i++ {
 		Status, err = Connecting2TokenNetwork(url, Tokens[i], Funds)
@@ -84,22 +84,22 @@ func Connecting2TokenNetworkTest(url string, Funds int32) {
 
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowConnecting2TokenNetworkMsgDetail(Status string) {
 	switch Status {
 	case "204 No Content":
-		fmt.Println("Successful connection creation")
+		log.Println("Successful connection creation")
 	case "402 Payment required":
-		fmt.Println("Any of the channel deposits fail due to insufficient ETH balance")
+		log.Println("Any of the channel deposits fail due to insufficient ETH balance")
 	case "408 Request Timeout":
-		fmt.Println("A timeout happened during any of the transactions")
+		log.Println("A timeout happened during any of the transactions")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,Connecting2TokenNetwork Failure:%s\n", Status)
 	}

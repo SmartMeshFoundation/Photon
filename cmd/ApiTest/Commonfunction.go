@@ -2,10 +2,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/big"
 	"time"
+	//"os"
+	"os"
 )
 
 const MaxTry int = 20
@@ -154,13 +155,15 @@ func GetTime() string {
 
 //Print time
 func ShowTime() {
-	fmt.Println(GetTime())
+	log.Println(GetTime())
 }
 
 //Show Error Msg
 func ShowError(err error) {
 	if err != nil {
-		log.SetFlags(log.Lshortfile | log.LstdFlags)
-		log.Println(err)
+		//log.SetFlags(log.Lshortfile | log.LstdFlags)
+		//log.Println(err)
+		log.Output(3, err.Error())
+		os.Exit(-1)
 	}
 }

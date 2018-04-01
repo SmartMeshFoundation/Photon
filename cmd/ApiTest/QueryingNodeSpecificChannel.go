@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -42,7 +41,7 @@ func QueryingNodeSpecificChannelTest(url string) {
 	existedchannel = ""
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Querying Node Existed Specific Channel")
+	log.Println("Start Querying Node Existed Specific Channel")
 	Channels, _, _ := QueryingNodeAllChannels(url)
 	if Channels != nil {
 		if len(Channels) >= 1 {
@@ -55,43 +54,43 @@ func QueryingNodeSpecificChannelTest(url string) {
 	ShowQueryingNodeSpecificChannelMsgDetail(Status)
 	switch Status {
 	case "200 OK":
-		fmt.Println("Test pass:querying node existed Specific channel Success!")
+		log.Println("Test pass:querying node existed Specific channel Success!")
 	default:
-		fmt.Println("Test failed:querying node1 existed channels Failure:", Status)
+		log.Println("Test failed:querying node1 existed channels Failure:", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
 	}
-	fmt.Println("Start Querying Node  not existed Specific Channel")
+	log.Println("Start Querying Node  not existed Specific Channel")
 	_, Status, err = QueryingNodeSpecificChannel(url, "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 	ShowError(err)
 	ShowQueryingNodeSpecificChannelMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
-		fmt.Println("Test pass:querying node not existed Specific channel Success!")
+		log.Println("Test pass:querying node not existed Specific channel Success!")
 	default:
-		fmt.Println("Test failed:querying node1 not existed channels Failure:", Status)
+		log.Println("Test failed:querying node1 not existed channels Failure:", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
 	}
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowQueryingNodeSpecificChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Successful Query")
+		log.Println("Successful Query")
 	case "404 Not Found":
-		fmt.Println("The channel does not exist")
+		log.Println("The channel does not exist")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
-		fmt.Println("Unknown error,QueryingNodeSpecificChannel:", Status)
+		log.Println("Unknown error,QueryingNodeSpecificChannel:", Status)
 	}
 }

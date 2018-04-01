@@ -52,7 +52,7 @@ func CloseChannelTest(url string) {
 	var Status string
 	start := time.Now()
 	ShowTime()
-	fmt.Println("Start Close Channel")
+	log.Println("Start Close Channel")
 
 	//本地注释：关闭一个不存在的通道
 	ChannelAddress = "0x00000"
@@ -60,9 +60,9 @@ func CloseChannelTest(url string) {
 	ShowError(err)
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "409 Conflict" {
-		fmt.Println("Test pass:Close a not exist Channel")
+		log.Println("Test pass:Close a not exist Channel")
 	} else {
-		fmt.Println("Test failed:Close a not exist Channel")
+		log.Println("Test failed:Close a not exist Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -84,9 +84,9 @@ func CloseChannelTest(url string) {
 	ShowError(err)
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Close a opened Channel")
+		log.Println("Test pass:Close a opened Channel")
 	} else {
-		fmt.Println("Test failed:Close a opened Channel")
+		log.Println("Test failed:Close a opened Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -109,9 +109,9 @@ Testclosed:
 	ShowError(err)
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Close a closed Channel")
+		log.Println("Test pass:Close a closed Channel")
 	} else {
-		fmt.Println("Test failed:Close a closed Channel")
+		log.Println("Test failed:Close a closed Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -132,9 +132,9 @@ Testsettled:
 	ShowError(err)
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "200 OK" {
-		fmt.Println("Test pass:Close a settled Channel")
+		log.Println("Test pass:Close a settled Channel")
 	} else {
-		fmt.Println("Test failed:Close a settled Channel")
+		log.Println("Test failed:Close a settled Channel")
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -142,22 +142,22 @@ Testsettled:
 EndTest:
 	duration := time.Since(start)
 	ShowTime()
-	fmt.Println("time used:", duration.Nanoseconds()/1000000, " ms")
+	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
 //本地注释：显示错误详细信息
 func ShowCloseChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
-		fmt.Println("Close Channel Success!")
+		log.Println("Close Channel Success!")
 	case "400 Bad Request":
-		fmt.Println("The provided json is in some way malformed!")
+		log.Println("The provided json is in some way malformed!")
 	case "409 Conflict":
-		fmt.Println("Provided channel does not exist")
+		log.Println("Provided channel does not exist")
 	case "500 Server Error":
-		fmt.Println("Internal Raiden node error")
+		log.Println("Internal Raiden node error")
 	case "504 TimeOut":
-		fmt.Println("No response,timeout")
+		log.Println("No response,timeout")
 	default:
 		fmt.Printf("Unknown error,Close Channel Failure! %s\n", Status)
 	}
