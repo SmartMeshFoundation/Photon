@@ -48,7 +48,8 @@ func QueryingNodeSpecificChannelTest(url string) {
 			existedchannel = Channels[0].ChannelAddress
 		}
 	}
-	//fmt.Printf("Existed Specific Channel:%s\n", existedchannel)
+	log.Printf("Existed Specific Channel:%s\n", existedchannel)
+	//如果确实没有channel，你这个岂不是把正确当成错误来处理了？
 	_, Status, err := QueryingNodeSpecificChannel(url, existedchannel)
 	ShowError(err)
 	ShowQueryingNodeSpecificChannelMsgDetail(Status)
