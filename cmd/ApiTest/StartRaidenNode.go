@@ -1,13 +1,22 @@
 package main
 
 import (
-	"github.com/larspensjo/config"
 	"log"
 	"os/exec"
 	"time"
+
+	"os"
+
+	"github.com/kataras/iris/utils"
+	"github.com/larspensjo/config"
 )
 
 func Exec_shell(cmdstr string, param []string) bool {
+	if !utils.Exists(cmdstr) {
+		log.Println(cmdstr + " is not exist")
+		os.Exit(-1)
+		return false
+	}
 	cmd := exec.Command(cmdstr, param...)
 	//stdout, _ := cmd.StdoutPipe()
 	//stderr, _ := cmd.StderrPipe()
