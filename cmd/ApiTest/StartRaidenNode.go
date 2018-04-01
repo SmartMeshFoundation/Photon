@@ -7,54 +7,74 @@ import (
 
 	"os"
 
+	"bufio"
+	"io"
+
 	"github.com/kataras/iris/utils"
 	"github.com/larspensjo/config"
 )
 
-func Exec_shell(cmdstr string, param []string) bool {
+func Exec_shell(cmdstr string, param []string, logfile string) bool {
 	if !utils.Exists(cmdstr) {
 		log.Println(cmdstr + " is not exist")
 		os.Exit(-1)
 		return false
 	}
 	cmd := exec.Command(cmdstr, param...)
-	//stdout, _ := cmd.StdoutPipe()
-	//stderr, _ := cmd.StderrPipe()
+
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
 	err := cmd.Start()
 
 	if err != nil {
 		log.Println(err)
 		return false
 	}
-	//
-	//reader := bufio.NewReader(stdout)
-	//readererr := bufio.NewReader(stderr)
-	//
-	////本地注释：实时循环读取输出流中的一行内容
-	////A real-time loop reads a line in the output stream.
+
+	reader := bufio.NewReader(stdout)
+	readererr := bufio.NewReader(stderr)
+
+	logFile, err := os.Create(logfile)
+	defer logFile.Close()
+	if err != nil {
+		log.Fatalln("open file error !")
+	}
+	debugLog := log.New(logFile, "[Debug]", log.Llongfile)
+	//debugLog.Println("A debug message here")
+	//debugLog.SetPrefix("[Info]")
+	//debugLog.Println("A Info Message here ")
+
+	//本地注释：实时循环读取输出流中的一行内容
+	//A real-time loop reads a line in the output stream.
+	go func() {
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil || io.EOF == err {
+				break
+			}
+			//log.Println(line)
+			debugLog.Println(line)
+		}
+	}()
+
 	//go func() {
-	//	for {
-	//		line, err := reader.ReadString('\n')
-	//		if err != nil || io.EOF == err {
-	//			break
-	//		}
-	//		log.Println(line)
-	//	}
+	for {
+		line, err := readererr.ReadString('\n')
+		if err != nil || io.EOF == err {
+			break
+		}
+		//log.Println(line)
+		debugLog.Println(line)
+	}
 	//}()
-	//
-	//for {
-	//	line, err := readererr.ReadString('\n')
-	//	if err != nil || io.EOF == err {
-	//		break
-	//	}
-	//	log.Println(line)
-	//}
-	//
-	//err = cmd.Wait()
-	//if err != nil {
-	//	log.Println(err)
-	//	return false
-	//}
+
+	err = cmd.Wait()
+	if err != nil {
+		//log.Println(err)
+		debugLog.Println(err)
+		return false
+	}
 
 	return true
 }
@@ -66,9 +86,9 @@ func Startraiden(RegistryAddress string) {
 	var pstr2 []string
 	//本地注释：杀死旧进程
 	pstr2 = append(pstr2, "goraiden")
-	Exec_shell("/usr/bin/killall", pstr2)
+	Exec_shell("/usr/bin/killall", pstr2, "./ka.log")
 	//本地注释：杀死旧进程后等待释放端口
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	param := new(RaidenParam)
 	c, err := config.ReadDefault("./ApiTest.INI")
@@ -163,7 +183,7 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node1.log")
 	//本地注释：节点2
 	//NODE 2
 	s, err = c.String("NODE2", "api_address")
@@ -191,7 +211,7 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node2.log")
 	//本地注释：节点3
 	//NODE 3
 	s, err = c.String("NODE3", "api_address")
@@ -219,7 +239,7 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node3.log")
 	//本地注释：节点4
 	//NODE 4
 	s, err = c.String("NODE4", "api_address")
@@ -247,7 +267,7 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node4.log")
 	//本地注释：节点5
 	//NODE 5
 	s, err = c.String("NODE5", "api_address")
@@ -275,7 +295,7 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node5.log")
 	//本地注释：节点6
 	//NODE 6
 	s, err = c.String("NODE6", "api_address")
@@ -303,5 +323,5 @@ func Startraiden(RegistryAddress string) {
 		log.Println("Read error:", err)
 		return
 	}
-	Exec_shell(s, pstr)
+	go Exec_shell(s, pstr, "./Node6.log")
 }
