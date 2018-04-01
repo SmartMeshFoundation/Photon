@@ -242,6 +242,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 remove a expired hashlock
 */
 func (c *Channel) RemoveExpiredHashlock(hashlock common.Hash, blockNumber int64) error {
+	var err error
 	ourKnown := c.OurState.IsKnown(hashlock)
 	partenerKnown := c.PartnerState.IsKnown(hashlock)
 	if !ourKnown && !partenerKnown {
@@ -249,12 +250,15 @@ func (c *Channel) RemoveExpiredHashlock(hashlock common.Hash, blockNumber int64)
 			utils.Pex(hashlock[:]), utils.Pex(c.TokenAddress[:]))
 	}
 	if ourKnown {
-		return c.OurState.RemoveExpiredHashLock(hashlock, blockNumber)
+		err = c.OurState.RemoveExpiredHashLock(hashlock, blockNumber)
 	}
 	if partenerKnown {
-		return c.PartnerState.RemoveExpiredHashLock(hashlock, blockNumber)
+		err = c.PartnerState.RemoveExpiredHashLock(hashlock, blockNumber)
 	}
-	return nil
+	if err == nil {
+		c.ExternState.db.RemoveLock(c.MyAddress, hashlock)
+	}
+	return err
 }
 
 //Register a signed transfer, updating the channel's state accordingly.

@@ -174,18 +174,20 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	}
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
-	if state.BlockNumber == state.Transfer.Expiration {
-		unlockFailed := &mt.EventUnlockFailed{
-			Identifier:     state.Transfer.Identifier,
-			Hashlock:       state.Transfer.Hashlock,
-			ChannelAddress: state.Route.ChannelAddress,
-			Reason:         "lock expired",
+	if state.BlockNumber > state.Transfer.Expiration {
+		if !state.Db.IsThisLockRemoved(state.Route.ChannelAddress, state.Transfer.Hashlock) {
+			unlockFailed := &mt.EventUnlockFailed{
+				Identifier:     state.Transfer.Identifier,
+				Hashlock:       state.Transfer.Hashlock,
+				ChannelAddress: state.Route.ChannelAddress,
+				Reason:         "lock expired",
+			}
+			events = append(events, unlockFailed)
 		}
-		events = append(events, unlockFailed)
 	}
 	for i, tr := range state.CanceledTransfers {
 		route := state.Routes.CanceledRoutes[i]
-		if state.BlockNumber == tr.Expiration {
+		if state.BlockNumber > tr.Expiration && !state.Db.IsThisLockRemoved(route.ChannelAddress, tr.HashLock) {
 			unlockFailed := &mt.EventUnlockFailed{
 				Identifier:     tr.Identifier,
 				Hashlock:       tr.HashLock,
@@ -197,6 +199,10 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 	}
 	return
 }
+
+/*
+make sure not call this when transfer already finished , state is nil means finished.
+*/
 func HandleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
