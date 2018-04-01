@@ -1,0 +1,298 @@
+package main
+
+import (
+	"fmt"
+	"github.com/larspensjo/config"
+	"os/exec"
+	"time"
+)
+
+func Exec_shell(cmdstr string, param []string) bool {
+	cmd := exec.Command(cmdstr, param...)
+	//stdout, _ := cmd.StdoutPipe()
+	//stderr, _ := cmd.StderrPipe()
+	err := cmd.Start()
+
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	//
+	//reader := bufio.NewReader(stdout)
+	//readererr := bufio.NewReader(stderr)
+	//
+	////本地注释：实时循环读取输出流中的一行内容
+	////A real-time loop reads a line in the output stream.
+	//go func() {
+	//	for {
+	//		line, err := reader.ReadString('\n')
+	//		if err != nil || io.EOF == err {
+	//			break
+	//		}
+	//		fmt.Println(line)
+	//	}
+	//}()
+	//
+	//for {
+	//	line, err := readererr.ReadString('\n')
+	//	if err != nil || io.EOF == err {
+	//		break
+	//	}
+	//	fmt.Println(line)
+	//}
+	//
+	//err = cmd.Wait()
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return false
+	//}
+
+	return true
+}
+
+func Startraiden(RegistryAddress string) {
+	var pstr []string
+	//本地注释：公共参数
+	//public parameter
+	var pstr2 []string
+	//本地注释：杀死旧进程
+	pstr2 = append(pstr2, "goraiden")
+	Exec_shell("/usr/bin/killall", pstr2)
+	//本地注释：杀死旧进程后等待释放端口
+	time.Sleep(30 * time.Second)
+
+	param := new(RaidenParam)
+	c, err := config.ReadDefault("./ApiTest.INI")
+
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+
+	s, err := c.String("common", "datadir")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.datadir = s
+	s, err = c.String("common", "keystore_path")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.keystore_path = s
+	s, err = c.String("common", "discovery_contract_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.discovery_contract_address = s
+	if RegistryAddress == "" {
+		s, err = c.String("common", "registry_contract_address")
+		if err != nil {
+			fmt.Println("Read error:", err)
+			return
+		}
+		param.registry_contract_address = s
+	} else {
+		param.registry_contract_address = RegistryAddress
+	}
+	s, err = c.String("common", "password_file")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.password_file = s
+	s, err = c.String("common", "nat")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.nat = s
+	s, err = c.String("common", "eth_rpc_endpoint")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.eth_rpc_endpoint = s
+	s, err = c.String("common", "conditionquit")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.conditionquit = s
+	b, err := c.Bool("common", "debug")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.debug = b
+	//本地注释：节点1
+	//note 1
+	s, err = c.String("NOTE1", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE1", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE1", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE1", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+	//本地注释：节点2
+	//note 2
+	s, err = c.String("NOTE2", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE2", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE2", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE2", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+	//本地注释：节点3
+	//note 3
+	s, err = c.String("NOTE3", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE3", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE3", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE3", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+	//本地注释：节点4
+	//note 4
+	s, err = c.String("NOTE4", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE4", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE4", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE4", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+	//本地注释：节点5
+	//note 5
+	s, err = c.String("NOTE5", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE5", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE5", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE5", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+	//本地注释：节点6
+	//note 6
+	s, err = c.String("NOTE6", "api_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.api_address = s
+	s, err = c.String("NOTE6", "listen_address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.listen_address = s
+	s, err = c.String("NOTE6", "address")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	param.address = s
+	pstr = param.getParam()
+	//fmt.Println(pstr)
+	s, err = c.String("NOTE6", "raidenpath")
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+	Exec_shell(s, pstr)
+}
