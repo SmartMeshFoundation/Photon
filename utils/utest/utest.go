@@ -64,14 +64,16 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 		hashlock = UNIT_HASHLOCK
 	}
 	return &mediated_transfer.LockedTransferState{
-		Identifier: identifier,
-		Amount:     new(big.Int).Set(amount),
-		Token:      token,
-		Initiator:  initiator,
-		Target:     target,
-		Expiration: expiration,
-		Hashlock:   hashlock,
-		Secret:     secret,
+		Identifier:   identifier,
+		TargetAmount: new(big.Int).Set(amount),
+		Amount:       new(big.Int).Set(amount),
+		Token:        token,
+		Initiator:    initiator,
+		Target:       target,
+		Expiration:   expiration,
+		Hashlock:     hashlock,
+		Secret:       secret,
+		Fee:          utils.BigInt0,
 	}
 }
 func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediated_transfer.LockedTransferState) {

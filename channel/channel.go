@@ -11,6 +11,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/encoding"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/network/rpc/fee"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
@@ -28,7 +29,8 @@ type Channel struct {
 	SettleTimeout        int
 	ReceivedTransfers    []encoding.SignedMessager
 	SentTransfers        []encoding.SignedMessager
-	IsCloseEventComplete bool //channel close event has been processed  completely  ,  crash when processing close event
+	IsCloseEventComplete bool           //channel close event has been processed  completely  ,  crash when processing close event
+	feeCharger           fee.FeeCharger //calc fee for each transfer?
 }
 
 func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelExternalState,
@@ -240,6 +242,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 
 /*
 remove a expired hashlock
+todo need a new signature of balance proof to remove this invalid lock
 */
 func (c *Channel) RemoveExpiredHashlock(hashlock common.Hash, blockNumber int64) error {
 	var err error

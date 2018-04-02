@@ -25,20 +25,22 @@ State of a transfer that is time hash locked.
         secret (bin): The secret that unlocks the lock, may be None.
 */
 type LockedTransferState struct {
-	Identifier uint64         //A unique identifer for the transfer.
-	Amount     *big.Int       // Amount of `token` being transferred.
-	Token      common.Address //Token being transferred.
-	Initiator  common.Address //Transfer initiator
-	Target     common.Address //Transfer target address.
-	Expiration int64          //The absolute block number that the lock expires.
-	Hashlock   common.Hash    // The hashlock.
-	Secret     common.Hash    //The secret that unlocks the lock, may be None.
+	Identifier   uint64         //A unique identifer for the transfer.
+	TargetAmount *big.Int       //amount target should recevied
+	Amount       *big.Int       // Amount of `token` being transferred.
+	Token        common.Address //Token being transferred.
+	Initiator    common.Address //Transfer initiator
+	Target       common.Address //Transfer target address.
+	Expiration   int64          //The absolute block number that the lock expires.
+	Hashlock     common.Hash    // The hashlock.
+	Secret       common.Hash    //The secret that unlocks the lock, may be None.
+	Fee          *big.Int       // how much fee left for other hop node.
 }
 
 func (self *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 	//expiration maybe different
 	return self.Identifier == other.Identifier &&
-		self.Amount.Cmp(other.Amount) == 0 &&
+		self.TargetAmount.Cmp(other.TargetAmount) == 0 &&
 		self.Token == other.Token &&
 		self.Target == other.Target &&
 		self.Hashlock == other.Hashlock &&
@@ -48,13 +50,15 @@ func (self *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 //Create LockedTransferState from a MediatedTransfer message.
 func LockedTransferFromMessage(msg *encoding.MediatedTransfer) *LockedTransferState {
 	return &LockedTransferState{
-		Identifier: msg.Identifier,
-		Amount:     new(big.Int).Set(msg.Amount),
-		Token:      msg.Token,
-		Initiator:  msg.Initiator,
-		Target:     msg.Target,
-		Expiration: msg.Expiration,
-		Hashlock:   msg.HashLock,
+		Identifier:   msg.Identifier,
+		TargetAmount: new(big.Int).Sub(msg.Amount, msg.Fee),
+		Amount:       new(big.Int).Set(msg.Amount),
+		Token:        msg.Token,
+		Initiator:    msg.Initiator,
+		Target:       msg.Target,
+		Expiration:   msg.Expiration,
+		Hashlock:     msg.HashLock,
+		Fee:          msg.Fee,
 	}
 }
 

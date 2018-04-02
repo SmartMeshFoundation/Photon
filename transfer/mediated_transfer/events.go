@@ -18,6 +18,7 @@ type EventSendMediatedTransfer struct {
 	Target     common.Address
 	Expiration int64
 	Receiver   common.Address
+	Fee        *big.Int // target should get amount-fee.
 }
 
 func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
@@ -30,6 +31,7 @@ func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common
 		Target:     transfer.Target,
 		Expiration: transfer.Expiration,
 		Receiver:   receiver,
+		Fee:        transfer.Fee,
 	}
 }
 
@@ -114,14 +116,16 @@ Event used to cleanly backtrack the current node in the route.
     of losing token.
 */
 type EventSendRefundTransfer struct {
-	Identifier uint64
-	Token      common.Address
-	Amount     *big.Int
-	HashLock   common.Hash
-	Initiator  common.Address
-	Target     common.Address
-	Expiration int64
-	Receiver   common.Address
+	Identifier   uint64
+	Token        common.Address
+	TargetAmount *big.Int
+	Amount       *big.Int
+	Fee          *big.Int
+	HashLock     common.Hash
+	Initiator    common.Address
+	Target       common.Address
+	Expiration   int64
+	Receiver     common.Address
 }
 
 /*

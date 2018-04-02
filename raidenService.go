@@ -1033,7 +1033,7 @@ Args:
 */
 func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
-	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress)
+	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress, this)
 	result = network.NewAsyncResult()
 	result.Tag = target //tell the difference when token swap
 	if len(availableRoutes) <= 0 {
@@ -1045,14 +1045,16 @@ func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target co
 	}
 	routesState := transfer.NewRoutesState(availableRoutes)
 	transferState := &mediated_transfer.LockedTransferState{
-		Identifier: identifier,
-		Amount:     new(big.Int).Set(amount),
-		Token:      tokenAddress,
-		Initiator:  this.NodeAddress,
-		Target:     target,
-		Expiration: expiration,
-		Hashlock:   utils.EmptyHash,
-		Secret:     utils.EmptyHash,
+		Identifier:   identifier,
+		TargetAmount: new(big.Int).Set(amount),
+		Amount:       new(big.Int).Set(amount),
+		Token:        tokenAddress,
+		Initiator:    this.NodeAddress,
+		Target:       target,
+		Expiration:   expiration,
+		Hashlock:     utils.EmptyHash,
+		Secret:       utils.EmptyHash,
+		Fee:          utils.BigInt0,
 	}
 	/*
 			  Issue #489
@@ -1122,9 +1124,9 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 	target := msg.Target
 	token := msg.Token
 	graph := this.GetToken2ChannelGraph(token)
-	avaiableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, msg.Sender)
+	avaiableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, msg.Sender, this)
 	fromChannel := graph.GetPartenerAddress2Channel(msg.Sender)
-	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender)
+	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender, amount, this)
 	ourAddress := this.NodeAddress
 	fromTransfer := mediated_transfer.LockedTransferFromMessage(msg)
 	routesState := transfer.NewRoutesState(avaiableRoutes)
@@ -1156,7 +1158,7 @@ func (this *RaidenService) MediateMediatedTransfer(msg *encoding.MediatedTransfe
 func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer) {
 	graph := this.GetToken2ChannelGraph(msg.Token)
 	fromChannel := graph.GetPartenerAddress2Channel(msg.Sender)
-	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender)
+	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender, msg.Amount, this)
 	fromTransfer := mediated_transfer.LockedTransferFromMessage(msg)
 	initTarget := &mediated_transfer.ActionInitTargetStateChange{
 		OurAddress:  this.NodeAddress,
@@ -1420,6 +1422,15 @@ func (this *RaidenService) handleRoutesTask(task *RoutesToDetect) {
 		//do nothing
 	}
 	this.StateMachineEventHandler.LogAndDispatch(task.StateManager, task.InitStateChange)
+}
+
+/*
+todo fix fee problem.
+*/
+func (this *RaidenService) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
+	x := big.NewInt(3)
+	return x
+	//return x.Add(x, new(big.Int).Div(amount, big.NewInt(1000)))
 }
 func (this *RaidenService) ConditionQuit(eventName string) {
 	if strings.ToLower(eventName) == strings.ToLower(this.Config.ConditionQuit.QuitEvent) {

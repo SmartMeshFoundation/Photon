@@ -234,7 +234,9 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 		Target:     msg.Target,
 		Expiration: msg.Expiration,
 		Hashlock:   msg.HashLock,
-		Secret:     utils.EmptyHash}
+		Secret:     utils.EmptyHash,
+		Fee:        msg.Fee,
+	}
 	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{
 		Sender:   msg.Sender,
 		Transfer: transferState,

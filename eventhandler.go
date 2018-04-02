@@ -80,7 +80,7 @@ func (this *StateMachineEventHandler) eventSendMediatedTransfer(event *mediated_
 	receiver := event.Receiver
 	graph := this.raiden.GetToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
-	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, utils.BigInt0, event.Amount, event.Identifier, event.Expiration, event.HashLock)
+	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, event.Fee, event.Amount, event.Identifier, event.Expiration, event.HashLock)
 	if err != nil {
 		return
 	}
@@ -221,9 +221,7 @@ func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager
 	case *transfer.EventTransferReceivedSuccess:
 	case *mediated_transfer.EventUnlockSuccess:
 	case *mediated_transfer.EventWithdrawFailed:
-		/*
-			notify related channel to remove expired lock. todo fix
-		*/
+		//TODO need payer's new signature to remove this expired lock
 		log.Error(fmt.Sprintf("EventWithdrawFailed hashlock=%s,reason=%s", utils.HPex(e2.Hashlock), e2.Reason))
 		err = this.eventWithdrawFailed(e2, stateManager)
 	case *mediated_transfer.EventWithdrawSuccess:

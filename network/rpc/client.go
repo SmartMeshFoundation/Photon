@@ -470,7 +470,7 @@ func (this *TokenProxy) BalanceOf(addr common.Address) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return amount, err //todo if amount larger than max int64?
+	return amount, err
 }
 
 /// @param _owner The address of the account owning tokens

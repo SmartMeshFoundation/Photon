@@ -30,6 +30,8 @@ type RouteState struct {
 	HopNode        common.Address
 	ChannelAddress common.Address
 	AvaibleBalance *big.Int
+	Fee            *big.Int // how much fee to this channel charge charge .
+	TotalFee       *big.Int // how much fee for all path when initiator use this route
 	SettleTimeout  int
 	RevealTimeout  int
 	ClosedBlock    int64

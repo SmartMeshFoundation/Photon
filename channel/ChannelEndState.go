@@ -140,7 +140,6 @@ func (this *ChannelEndState) UpdateContractBalance(balance *big.Int) error {
 	return nil
 }
 
-//todo return nil?
 func (this *ChannelEndState) GetLockByHashlock(hashlock common.Hash) *encoding.Lock {
 	lock, ok := this.Lock2PendingLocks[hashlock]
 	if ok {

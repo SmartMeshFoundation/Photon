@@ -94,7 +94,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		}
 
 		state.Routes.AvailableRoutes = state.Routes.AvailableRoutes[1:]
-		if route.AvaibleBalance.Cmp(state.Transfer.Amount) < 0 {
+		if route.AvaibleBalance.Cmp(new(big.Int).Add(state.Transfer.TargetAmount, route.Fee)) < 0 {
 			state.Routes.IgnoredRoutes = append(state.Routes.IgnoredRoutes, route)
 		} else {
 			tryRoute = route
@@ -150,14 +150,16 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			lockExpiration = state.Transfer.Expiration
 		}
 		tr := &mt.LockedTransferState{
-			Identifier: state.Transfer.Identifier,
-			Amount:     new(big.Int).Set(state.Transfer.Amount),
-			Token:      state.Transfer.Token,
-			Initiator:  state.Transfer.Initiator,
-			Target:     state.Transfer.Target,
-			Expiration: lockExpiration,
-			Hashlock:   hashlock,
-			Secret:     secret,
+			Identifier:   state.Transfer.Identifier,
+			TargetAmount: state.Transfer.TargetAmount,
+			Amount:       new(big.Int).Add(state.Transfer.TargetAmount, tryRoute.TotalFee),
+			Token:        state.Transfer.Token,
+			Initiator:    state.Transfer.Initiator,
+			Target:       state.Transfer.Target,
+			Expiration:   lockExpiration,
+			Hashlock:     hashlock,
+			Secret:       secret,
+			Fee:          tryRoute.TotalFee,
 		}
 		msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
 		state.Transfer = tr
@@ -244,7 +246,7 @@ func HandleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.Hashlock == state.Transfer.Hashlock &&
 		stateChange.Identifier == state.Transfer.Identifier &&
-		stateChange.Amount.Cmp(state.Transfer.Amount) == 0
+		stateChange.Amount.Cmp(state.Transfer.TargetAmount) == 0
 	isInvalid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.Hashlock == state.Transfer.Hashlock && !isValid
 	if isValid {

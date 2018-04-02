@@ -30,7 +30,6 @@ func (this *DummyProtocol) Receive(data []byte, host string, port int) {
 	log.Debug(fmt.Sprintf("receive from %s:%d data len=%d", host, port, len(data)))
 }
 func MakeTestUDPTransport(port int) *UDPTransport {
-	//todo how to get my ip
 	return NewUDPTransportWithHostPort("127.0.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
 }
 

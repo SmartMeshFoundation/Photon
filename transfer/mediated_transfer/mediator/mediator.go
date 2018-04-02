@@ -293,17 +293,24 @@ func nextTransferPair(payerRoute *transfer.RouteState, payerTransfer *mediated_t
 		if payeeRoute.RevealTimeout >= timeoutBlocks {
 			panic("payeeRoute.RevealTimeout>=timeoutBlocks")
 		}
+
 		lockTimeout := timeoutBlocks - payeeRoute.RevealTimeout
 		lockExpiration := int64(lockTimeout) + blockNumber
 		payeeTransfer := &mediated_transfer.LockedTransferState{
-			Identifier: payerTransfer.Identifier,
-			Amount:     new(big.Int).Set(payerTransfer.Amount),
-			Token:      payerTransfer.Token,
-			Initiator:  payerTransfer.Initiator,
-			Target:     payerTransfer.Target,
-			Expiration: lockExpiration,
-			Hashlock:   payerTransfer.Hashlock,
-			Secret:     payerTransfer.Secret,
+			Identifier:   payerTransfer.Identifier,
+			TargetAmount: payerTransfer.TargetAmount,
+			Amount:       big.NewInt(0).Sub(payerTransfer.Amount, payeeRoute.Fee),
+			Token:        payerTransfer.Token,
+			Initiator:    payerTransfer.Initiator,
+			Target:       payerTransfer.Target,
+			Expiration:   lockExpiration,
+			Hashlock:     payerTransfer.Hashlock,
+			Secret:       payerTransfer.Secret,
+			Fee:          big.NewInt(0).Sub(payerTransfer.Fee, payeeRoute.Fee),
+		}
+		if payeeTransfer.Fee.Cmp(utils.BigInt0) < 0 || payeeTransfer.Amount.Cmp(utils.BigInt0) < 0 {
+			//no enough fee to route.
+			return
 		}
 		transferPair = mediated_transfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
 		events = []transfer.Event{mediated_transfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode)}
@@ -419,14 +426,16 @@ func eventsForRefundTransfer(refundRoute *transfer.RouteState, refundTransfer *m
 	if newLockTimeout > 0 {
 		newLockExpiration := int64(newLockTimeout) + blockNumber
 		rtr2 := &mediated_transfer.EventSendRefundTransfer{
-			Identifier: refundTransfer.Identifier,
-			Token:      refundTransfer.Token,
-			Amount:     new(big.Int).Set(refundTransfer.Amount),
-			HashLock:   refundTransfer.Hashlock,
-			Initiator:  refundTransfer.Initiator,
-			Target:     refundTransfer.Target,
-			Expiration: newLockExpiration,
-			Receiver:   refundRoute.HopNode,
+			Identifier:   refundTransfer.Identifier,
+			Token:        refundTransfer.Token,
+			Amount:       new(big.Int).Set(refundTransfer.Amount),
+			TargetAmount: refundTransfer.TargetAmount,
+			Fee:          refundTransfer.Fee,
+			HashLock:     refundTransfer.Hashlock,
+			Initiator:    refundTransfer.Initiator,
+			Target:       refundTransfer.Target,
+			Expiration:   newLockExpiration,
+			Receiver:     refundRoute.HopNode,
 		}
 		events = append(events, rtr2)
 	}
@@ -672,14 +681,16 @@ func mediateTransfer(state *mediated_transfer.MediatorState, payerRoute *transfe
 			if params.TreatRefundTransferAsNormalMediatedTransfer {
 				rftr := refundEvents[0].(*mediated_transfer.EventSendRefundTransfer)
 				payeeLockedTransfer := &mediated_transfer.LockedTransferState{
-					Identifier: rftr.Identifier,
-					Amount:     new(big.Int).Set(rftr.Amount),
-					Token:      rftr.Token,
-					Initiator:  rftr.Initiator,
-					Target:     rftr.Target,
-					Expiration: rftr.Expiration,
-					Hashlock:   rftr.HashLock,
-					Secret:     payerTransfer.Secret,
+					Identifier:   rftr.Identifier,
+					TargetAmount: rftr.TargetAmount,
+					Amount:       new(big.Int).Set(rftr.Amount),
+					Token:        rftr.Token,
+					Initiator:    rftr.Initiator,
+					Target:       rftr.Target,
+					Expiration:   rftr.Expiration,
+					Hashlock:     rftr.HashLock,
+					Secret:       payerTransfer.Secret,
+					Fee:          rftr.Fee, //refund transfer shouldnot charge.
 				}
 				payeeRoute := *originalRoute //route 信息是错误的，但是不影响，只要不继续route。
 				transferPair = mediated_transfer.NewMediationPairState(payerRoute, &payeeRoute, payerTransfer, payeeLockedTransfer)
