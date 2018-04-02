@@ -195,10 +195,10 @@ func (this *ChannelExternalState) Settle() error {
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info("settle failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt)
+		log.Info(fmt.Sprintf("settle failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 		return errors.New("settle execution failed ,maybe reverted?")
 	} else {
-		log.Info("settle success %s", utils.APex(this.ChannelAddress))
+		log.Info(fmt.Sprintf("settle success %s", utils.APex(this.ChannelAddress)))
 	}
 	return nil
 }
@@ -219,7 +219,7 @@ func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 		return err
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info("Deposit failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt)
+		log.Info(fmt.Sprintf("Deposit failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 		return errors.New("Deposit execution failed ,maybe reverted?")
 	} else {
 		log.Info(fmt.Sprintf("Deposit success %s", utils.APex(this.ChannelAddress)))
