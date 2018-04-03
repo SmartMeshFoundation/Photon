@@ -34,6 +34,7 @@ import (
 var globalPassword string = "123"
 
 func main() {
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -44,7 +45,7 @@ func main() {
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
 			//Value: ethutils.DirectoryString{params.DefaultKeyStoreDir()},
-			Value: utils.GetHomePath() + "/privnet3/keystore",
+			Value: "../../../testdata/keystore",
 		},
 		cli.StringFlag{
 			Name: "eth-rpc-endpoint",
@@ -64,6 +65,7 @@ func main() {
 }
 
 func Main(ctx *cli.Context) error {
+	fmt.Printf("eth-rpc-endpoint:%s", ctx.String("eth-rpc-endpoint"))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
@@ -73,7 +75,7 @@ func Main(ctx *cli.Context) error {
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
 	registryAddress := DeployContract(key, conn)
-	//registryAddress := common.HexToAddress("0xAEABE46207c1f31f44C3F5876383B808d4280456")
+	//registryAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
 	registry, _ := rpc.NewRegistry(registryAddress, conn)
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
 	//createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
@@ -157,7 +159,7 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 }
 func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry, keystorepath string, createchannel bool) {
 	managerAddress, tokenAddress := NewToken(key, conn, registry)
-	//tokenAddress := common.HexToAddress("0xb5dD9960B29f407Ad8Da3A8f220c34e2AD55caE4")
+	//tokenAddress := common.HexToAddress("0xD29A9Cbf2Ca88981D0794ce94e68495c4bC16F28")
 	//managerAddress, _ := registry.ChannelManagerByToken(nil, tokenAddress)
 	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
 	token, _ := rpc.NewToken(tokenAddress, conn)
@@ -214,7 +216,7 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
-			tx, err := token.Transfer(auth2, account, big.NewInt(500000))
+			tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
 			}
@@ -229,8 +231,47 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 		time.Sleep(time.Millisecond * 100)
 	}
 	wg.Wait()
+	for _, account := range accounts {
+		b, _ := token.BalanceOf(nil, account)
+		log.Printf("account %s has token %s\n", utils.APex(account), b)
+	}
 }
+
+//path A-B-C-F-B-D-G-E
 func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+	if len(accounts) < 6 {
+		panic("need 6 accounts")
+	}
+	AccountA := accounts[0]
+	AccountB := accounts[1]
+	AccountC := accounts[2]
+	AccountD := accounts[3]
+	AccountE := accounts[4]
+	AccountF := accounts[5]
+	AccountG := accounts[6]
+	fmt.Printf("accountA=%s\naccountB=%s\naccountC=%s\naccountD=%s\naccountE=%s\naccountF=%s\naccountG=%s\n",
+		AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(),
+		AccountE.String(), AccountF.String(), AccountG.String())
+	keyA := keys[0]
+	keyB := keys[1]
+	keyC := keys[2]
+	keyD := keys[3]
+	keyE := keys[4]
+	keyF := keys[5]
+	keyG := keys[6]
+	fmt.Sprintf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
+	creatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, manager, token, conn)
+	creatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 90, manager, token, conn)
+	creatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, manager, token, conn)
+	creatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, 70, manager, token, conn)
+	creatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, 60, manager, token, conn)
+	creatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 10, manager, token, conn)
+	creatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, 90, manager, token, conn)
+	creatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, 80, manager, token, conn)
+
+}
+
+func CreateChannels_2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -356,6 +397,7 @@ func CreateChannels_fun1(conn *ethclient.Client, accounts []common.Address, keys
 
 }
 func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *rpc.ChannelManagerContract, token *rpc.Token, conn *ethclient.Client) {
+	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth1.GasLimit = uint64(params.GAS_LIMIT)
 	auth1.GasPrice = big.NewInt(params.GAS_PRICE)
@@ -389,6 +431,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	wg2 := sync.WaitGroup{}
 	go func() {
 		wg2.Add(1)
+		defer wg2.Done()
 		tx, err := token.Approve(auth1, channelAddress, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
@@ -409,10 +452,10 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Deposit when mining :%v", err)
 		}
 		fmt.Printf("Deposit complete...\n")
-		wg2.Done()
 	}()
 	go func() {
 		wg2.Add(1)
+		defer wg2.Done()
 		tx, err := token.Approve(auth2, channelAddress, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
@@ -433,8 +476,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Deposit when mining :%v", err)
 		}
 		fmt.Printf("Deposit complete...\n")
-		wg2.Done()
 	}()
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond * 10)
 	wg2.Wait()
 }
