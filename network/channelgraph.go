@@ -265,7 +265,9 @@ func (this *ChannelGraph) ShortestPath(source, target common.Address, amount *bi
 	}
 	for _, v := range g2.Verticies {
 		w := feeCharger.GetNodeChargeFee(this.index2address[v.ID], this.TokenAddress, amount).Int64()
-		v.SetWeight(w) // from v's fee is w.
+		if w > 0 { //for no fee policy, all nodes charge 0 ,so use the shortest path first.
+			v.SetWeight(w) // from v's fee is w.
+		}
 	}
 	path, err := g2.Shortest(sourceIndex, targetIndex)
 	if err != nil {
@@ -394,7 +396,12 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddres
 			continue
 		}
 		routeState := Channel2RouteState(c, nw.neighbor, amount, feeCharger)
-		routeState.TotalFee = big.NewInt(int64(nw.weight))
+		if routeState.Fee.Cmp(utils.BigInt0) > 0 {
+			routeState.TotalFee = big.NewInt(int64(nw.weight))
+		} else { //no fee policy,
+			routeState.TotalFee = utils.BigInt0
+		}
+
 		onlineNodes = append(onlineNodes, routeState)
 	}
 	return
