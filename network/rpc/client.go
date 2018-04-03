@@ -527,7 +527,7 @@ func (this *TokenProxy) Transfer(spender common.Address, value *big.Int) (err er
 		log.Info(fmt.Sprintf("Transfer failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("Transfer tx execution failed")
 	} else {
-		log.Info(fmt.Sprint("Transfer success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
+		log.Info(fmt.Sprintf("Transfer success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
 	}
 	return nil
 }

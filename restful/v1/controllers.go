@@ -95,6 +95,7 @@ type transferData struct {
 	Token      string   `json:"token_address"`
 	Amount     *big.Int `json:"amount"`
 	Identifier uint64   `json:"identifier"`
+	Fee        *big.Int `json:"fee"`
 }
 
 func (this *Controller) Transfers() {
@@ -117,7 +118,14 @@ func (this *Controller) Transfers() {
 		this.Abort(http.StatusBadRequest)
 		return
 	}
-	err = RaidenApi.Transfer(tokenAddr, req.Amount, targetAddr, req.Identifier, params.MaxRequestTimeout)
+	if req.Fee == nil {
+		req.Fee = utils.BigInt0
+	}
+	if req.Fee.Cmp(utils.BigInt0) < 0 {
+		this.Abort(http.StatusBadRequest)
+		return
+	}
+	err = RaidenApi.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout)
 	if err != nil {
 		this.Abort(http.StatusConflict)
 		return

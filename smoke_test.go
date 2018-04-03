@@ -13,6 +13,7 @@ import (
 
 	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
 	assert2 "github.com/stretchr/testify/assert"
@@ -95,11 +96,11 @@ func TestSmoke(t *testing.T) {
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
 	var tAmount = big.NewInt(1)
-	if false {
+	if true {
 		tokenAddr, tokenAddr2 = newEnv(t, ra, rb, rc, rd)
 	} else {
-		tokenAddr = common.HexToAddress("0xF6Ae54B3D493A3612055ea97831D8B64d448c772")
-		tokenAddr2 = common.HexToAddress("0xa376863CA47E23292e8950b4cd7561C1f0CaB634")
+		tokenAddr = common.HexToAddress("0x088015E873D8C94ac1bf3731198309E25683Cc9E")
+		tokenAddr2 = common.HexToAddress("0xF3AdEde8030D33d6B360e7d0FE08E5e4c1425c8C")
 		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
 		log.Info("channels about token1")
 		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
@@ -108,7 +109,7 @@ func TestSmoke(t *testing.T) {
 	}
 
 	log.Info("step 2 transfer from A to B")
-	err = ra.Transfer(tokenAddr, tAmount, rb.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rb.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
 	if err != nil {
 		t.Error(err)
 		return
@@ -120,7 +121,7 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 3 transfer from A to C")
-	err = ra.Transfer(tokenAddr, tAmount, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
 	if err != nil {
 		t.Error(err)
 		return
@@ -198,5 +199,49 @@ func TestSmoke(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestFeeCharger(t *testing.T) {
+	var err error
+	policy := &ConstantFeePolicy{}
+	ra, rb, rc, rd := makeTestRaidenApisWithFee(policy)
+	log.Info("step 1. build env for test")
+	var tokenAddr, tokenAddr2 common.Address
+	var contractBalance = big.NewInt(100)
+	var tAmount = big.NewInt(1)
+	if false {
+		tokenAddr, tokenAddr2 = newEnv(t, ra, rb, rc, rd)
+	} else {
+		tokenAddr = common.HexToAddress("0x883FF6D87eB3f0b6f9122E96cE01d9b508bEC2C9")
+		tokenAddr2 = common.HexToAddress("0xd319EBa3d8237c8b72759f0BB368Fb0A31De7CcA")
+		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
+		log.Info("channels about token1")
+		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
+		log.Info("channels about token2")
+		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
+	}
+	log.Info("tokenAddr=%s,tokenaddr2=%s", tokenAddr.String(), tokenAddr2.String())
+	log.Info("transfer from A to C")
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	//let rb finish transfer
+	time.Sleep(time.Second * 3)
+	abAmount := new(big.Int).Add(tAmount, policy.GetNodeChargeFee(rb.Raiden.NodeAddress, tokenAddr, tAmount))
+	//channel a-b of tokenaddr
+	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, abAmount))
+	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, abAmount))
+	bcAmount := tAmount
+	assert(t, rb.Raiden.GetChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, bcAmount))
+	assert(t, rc.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, bcAmount))
+
+	//specifed a  wrong fee,
+	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
+	if err == nil {
+		t.Error(fmt.Sprintf("should fail because of not engough fee."))
+		return
 	}
 }

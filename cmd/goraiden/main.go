@@ -162,6 +162,10 @@ func main() {
 			Name:  "nonetwork",
 			Usage: "disable network, for example ,when we want to settle all channels",
 		},
+		cli.BoolFlag{
+			Name:  "fee",
+			Usage: "enable mediation fee",
+		},
 	}
 	app.Action = Main
 	app.Name = "raiden"
@@ -227,6 +231,11 @@ func Main(ctx *cli.Context) error {
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
 	transport, discovery := buildTransportAndDiscovery(cfg, pms, bcs)
 	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	if cfg.EnableMediationFee {
+		//do nothing.
+	} else {
+		raidenService.SetFeePolicy(&raiden_network.NoFeePolicy{})
+	}
 	go func() {
 		raidenService.Start()
 	}()
@@ -398,6 +407,9 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	if ctx.Bool("nonetwork") {
 		config.NoNetwork = true
+	}
+	if ctx.Bool("fee") {
+		config.EnableMediationFee = true
 	}
 	return &config
 }

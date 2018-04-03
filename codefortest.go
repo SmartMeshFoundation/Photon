@@ -15,6 +15,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/helper"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/network/rpc/fee"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,10 @@ import (
 var curAccountIndex = 0
 
 func newTestRaiden() *RaidenService {
+	return newTestRaidenWithPolicy(&NoFeePolicy{})
+}
+
+func newTestRaidenWithPolicy(feePolicy fee.FeeCharger) *RaidenService {
 	transport := network.MakeTestUDPTransport(50000 + curAccountIndex + 1)
 	bcs := newTestBlockChainService()
 	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
@@ -37,12 +42,13 @@ func newTestRaiden() *RaidenService {
 	config.ExternPort = transport.Port
 	config.Host = transport.Host
 	config.Port = transport.Port
-	config.RevealTimeout = 4
-	config.SettleTimeout = 20
+	config.RevealTimeout = 10
+	config.SettleTimeout = 600
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	os.MkdirAll(config.DataDir, os.ModePerm)
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
 	rd := NewRaidenService(bcs, bcs.PrivKey, transport, discover, &config)
+	rd.SetFeePolicy(feePolicy)
 	return rd
 }
 func newTestRaidenApi() *RaidenApi {
@@ -53,7 +59,7 @@ func newTestRaidenApi() *RaidenApi {
 
 //maker sure these accounts are valid, and  engouh eths for test
 func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
-	am := NewAccountManager("d:\\privnet\\keystore")
+	am := NewAccountManager("testdata/keystore")
 	privkey, err := am.GetPrivateKey(am.Accounts[curAccountIndex].Address, "123")
 	if err != nil {
 		fmt.Sprintf("testGetnextValidAccount err:", err)
@@ -97,6 +103,7 @@ func newTestRaidenApiQuick() *RaidenApi {
 	}()
 	return api
 }
+
 func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
 	rA = newTestRaidenApiQuick()
 	rB = newTestRaidenApiQuick()
@@ -120,5 +127,32 @@ func makeTestRaidenApis() (rA, rB, rC, rD *RaidenApi) {
 		rD.Raiden.Start()
 		wg.Done()
 	}()
+	return
+}
+
+func makeTestRaidenApisWithFee(policy fee.FeeCharger) (rA, rB, rC, rD *RaidenApi) {
+	rA = NewRaidenApi(newTestRaidenWithPolicy(policy))
+	rB = NewRaidenApi(newTestRaidenWithPolicy(policy))
+	rC = NewRaidenApi(newTestRaidenWithPolicy(policy))
+	rD = NewRaidenApi(newTestRaidenWithPolicy(policy))
+	wg := sync.WaitGroup{}
+	wg.Add(4)
+	go func() {
+		rA.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		rB.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		rC.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		rD.Raiden.Start()
+		wg.Done()
+	}()
+	wg.Wait()
 	return
 }

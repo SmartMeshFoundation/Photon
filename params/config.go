@@ -23,30 +23,31 @@ type protocolConfig struct {
 	NatKeepAliveTimeout  int64
 }
 type Config struct {
-	Host             string
-	Port             int
-	ExternIp         string
-	ExternPort       int
-	PrivateKeyHex    string
-	PrivateKey       *ecdsa.PrivateKey
-	RevealTimeout    int
-	SettleTimeout    int
-	DataBasePath     string
-	MsgTimeout       time.Duration
-	Protocol         protocolConfig
-	UseRpc           bool
-	UseConsole       bool
-	ApiHost          string
-	ApiPort          int
-	RegistryAddress  common.Address
-	DiscoveryAddress common.Address
-	DataDir          string
-	MyAddress        common.Address
-	Debug            bool
-	ConditionQuit    ConditionQuit
-	Ice              iceConfig
-	UseIce           bool
-	NoNetwork        bool
+	Host               string
+	Port               int
+	ExternIp           string
+	ExternPort         int
+	PrivateKeyHex      string
+	PrivateKey         *ecdsa.PrivateKey
+	RevealTimeout      int
+	SettleTimeout      int
+	DataBasePath       string
+	MsgTimeout         time.Duration
+	Protocol           protocolConfig
+	UseRpc             bool
+	UseConsole         bool
+	ApiHost            string
+	ApiPort            int
+	RegistryAddress    common.Address
+	DiscoveryAddress   common.Address
+	DataDir            string
+	MyAddress          common.Address
+	Debug              bool
+	ConditionQuit      ConditionQuit
+	Ice                iceConfig
+	UseIce             bool
+	NoNetwork          bool
+	EnableMediationFee bool //default false. which means no fee at all.
 }
 type iceConfig struct {
 	/*

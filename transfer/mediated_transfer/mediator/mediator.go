@@ -312,6 +312,12 @@ func nextTransferPair(payerRoute *transfer.RouteState, payerTransfer *mediated_t
 			//no enough fee to route.
 			return
 		}
+		if payeeRoute.HopNode == payeeTransfer.Target {
+			//i'm the last hop,so take the rest of the fee
+			payeeTransfer.Fee = utils.BigInt0
+			payeeTransfer.Amount = payerTransfer.TargetAmount
+		}
+		//log how many tokens fee for this transfer . todo
 		transferPair = mediated_transfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
 		events = []transfer.Event{mediated_transfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode)}
 	}

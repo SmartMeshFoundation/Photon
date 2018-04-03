@@ -7,5 +7,5 @@ import (
 )
 
 func TestPromptAccount(t *testing.T) {
-	promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
+	promptAccount(utils.EmptyAddress, `../../testdata/keystore`, "")
 }

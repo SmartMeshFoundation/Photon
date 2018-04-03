@@ -376,8 +376,8 @@ func (this *RaidenApi) GetTokenList() (tokens []common.Address) {
 }
 
 //Do a transfer with `target` with the given `amount` of `token_address`.
-func (this *RaidenApi) TransferAndWait(token common.Address, amount *big.Int, target common.Address, identifier uint64, timeout time.Duration) (err error) {
-	result, err := this.TransferAsync(token, amount, target, identifier)
+func (this *RaidenApi) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration) (err error) {
+	result, err := this.TransferAsync(token, amount, fee, target, identifier)
 	if err != nil {
 		return err
 	}
@@ -393,11 +393,11 @@ func (this *RaidenApi) TransferAndWait(token common.Address, amount *big.Int, ta
 	}
 	return
 }
-func (this *RaidenApi) Transfer(token common.Address, amount *big.Int, target common.Address, identifier uint64, timeout time.Duration) error {
-	return this.TransferAndWait(token, amount, target, identifier, timeout)
+func (this *RaidenApi) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration) error {
+	return this.TransferAndWait(token, amount, fee, target, identifier, timeout)
 }
 
-func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
+func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
 	tokens := this.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -416,7 +416,7 @@ func (this *RaidenApi) TransferAsync(tokenAddress common.Address, amount *big.In
 	}
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d identifier=%d",
 		this.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, identifier))
-	result = this.Raiden.MediatedTransferAsyncClient(tokenAddress, amount, target, identifier)
+	result = this.Raiden.MediatedTransferAsyncClient(tokenAddress, amount, fee, target, identifier)
 	return
 }
 

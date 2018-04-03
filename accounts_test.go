@@ -12,7 +12,7 @@ func TestDefaultKeyStoreDir(t *testing.T) {
 }
 
 func TestAccountManager(t *testing.T) {
-	am := NewAccountManager("d:\\privnet\\keystore")
+	am := NewAccountManager("testdata/keystore")
 	privkey, err := am.GetPrivateKey(am.Accounts[0].Address, "123")
 	if err != nil {
 		t.Error(err)

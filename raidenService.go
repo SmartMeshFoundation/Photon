@@ -32,6 +32,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/models"
 	"github.com/SmartMeshFoundation/raiden-network/network"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
+	"github.com/SmartMeshFoundation/raiden-network/network/rpc/fee"
 	"github.com/SmartMeshFoundation/raiden-network/params"
 	"github.com/SmartMeshFoundation/raiden-network/rerr"
 	"github.com/SmartMeshFoundation/raiden-network/transfer"
@@ -75,6 +76,7 @@ type TransferReq struct {
 	Amount       *big.Int
 	Target       common.Address
 	Identifier   uint64
+	Fee          *big.Int
 }
 type NewChannelReq struct {
 	tokenAddress   common.Address
@@ -159,6 +161,7 @@ type RaidenService struct {
 	TransferResponseChan                map[string]chan *network.AsyncResult
 	ProtocolMessageSendComplete         chan *ProtocolMessage
 	RoutesTask                          *RoutesTask
+	FeePolicy                           fee.FeeCharger                             //Mediation fee
 	SecretRequestPredictorMap           map[common.Hash]SecretRequestPredictor     //for tokenswap
 	RevealSecretListenerMap             map[common.Hash]RevealSecretListener       //for tokenswap
 	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
@@ -197,6 +200,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		RevealSecretListenerMap:             make(map[common.Hash]RevealSecretListener),
 		ReceivedMediatedTrasnferListenerMap: make(map[*ReceivedMediatedTrasnferListener]bool),
 		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
+		FeePolicy:                           &ConstantFeePolicy{},
 	}
 	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
@@ -877,7 +881,7 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
+func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
 	req := &ApiReq{
 		ReqId: utils.RandomString(10),
 		Name:  TransferReqName,
@@ -886,6 +890,7 @@ func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Addre
 			Amount:       amount,
 			Target:       target,
 			Identifier:   identifier,
+			Fee:          fee,
 		},
 	}
 	return this.sendReqClient(req)
@@ -1022,7 +1027,7 @@ we must make sure that taker use the maker's secret.
 and taker's lock expiration should be short than maker's todo(fix this)
 */
 func (this *RaidenService) StartTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
-	return this.startMediatedTransferInternal(tokenAddress, target, amount, identifier, hashlock, expiration)
+	return this.startMediatedTransferInternal(tokenAddress, target, amount, utils.BigInt0, identifier, hashlock, expiration)
 }
 
 /*
@@ -1031,7 +1036,7 @@ Args:
  hashlock: caller can specify a hashlock or use empty ,when empty, will generate a random secret.
  expiration: caller can specify a valid blocknumber or 0, when 0 ,will calculate based on settle timeout of channel.
 */
-func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
+func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
 	graph := this.GetToken2ChannelGraph(tokenAddress)
 	availableRoutes := graph.GetBestRoutes(this.Protocol, this.NodeAddress, target, amount, utils.EmptyAddress, this)
 	result = network.NewAsyncResult()
@@ -1042,6 +1047,14 @@ func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target co
 	}
 	if identifier == 0 {
 		identifier = rand.New(utils.RandSrc).Uint64()
+	}
+	/*
+		when user specified fee, for test or other purpose.
+	*/
+	if fee.Cmp(utils.BigInt0) > 0 {
+		for _, r := range availableRoutes {
+			r.TotalFee = fee //use the user's fee to replace algorithm's
+		}
 	}
 	routesState := transfer.NewRoutesState(availableRoutes)
 	transferState := &mediated_transfer.LockedTransferState{
@@ -1113,8 +1126,8 @@ func (this *RaidenService) startMediatedTransferInternal(tokenAddress, target co
 1. user start a mediated transfer
 2. user start a maker mediated transfer
 */
-func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
-	result, _ = this.StartTakerMediatedTransfer(tokenAddress, target, amount, identifier, utils.EmptyHash, 0)
+func (this *RaidenService) StartMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, identifier uint64) (result *network.AsyncResult) {
+	result, _ = this.startMediatedTransferInternal(tokenAddress, target, amount, fee, identifier, utils.EmptyHash, 0)
 	return
 }
 
@@ -1318,7 +1331,7 @@ func (this *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network
 	}
 	this.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	this.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result = this.StartMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, tokenswap.Identifier)
+	result = this.StartMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.Identifier)
 	return
 }
 func (this *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
@@ -1337,7 +1350,7 @@ func (this *RaidenService) handleReq(req *ApiReq) {
 	switch req.Name {
 	case TransferReqName: //mediated transfer only
 		r := req.Req.(*TransferReq)
-		result = this.StartMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Identifier)
+		result = this.StartMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Identifier)
 	case NewChannelReqName:
 		r := req.Req.(*NewChannelReq)
 		result = this.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
@@ -1424,13 +1437,11 @@ func (this *RaidenService) handleRoutesTask(task *RoutesToDetect) {
 	this.StateMachineEventHandler.LogAndDispatch(task.StateManager, task.InitStateChange)
 }
 
-/*
-todo fix fee problem.
-*/
 func (this *RaidenService) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
-	x := big.NewInt(3)
-	return x
-	//return x.Add(x, new(big.Int).Div(amount, big.NewInt(1000)))
+	return this.FeePolicy.GetNodeChargeFee(nodeAddress, tokenAddress, amount)
+}
+func (this *RaidenService) SetFeePolicy(feePolicy fee.FeeCharger) {
+	this.FeePolicy = feePolicy
 }
 func (this *RaidenService) ConditionQuit(eventName string) {
 	if strings.ToLower(eventName) == strings.ToLower(this.Config.ConditionQuit.QuitEvent) {
