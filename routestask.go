@@ -76,6 +76,7 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 		}
 	}
 	//wait ack 5 seconds, long or short?
+	needWait = false //for test only,shoulde be removed.
 	if needWait {
 		time.Sleep(5 * time.Second)
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
