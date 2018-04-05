@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"strconv"
 
@@ -125,14 +126,14 @@ func TransferCase(NewTokenName string, SChannels []TransferCaseChannel, TransCas
 
 	NodeAAddress, _, _ := QueryingNodeAddress(TransCase.Node1Url)
 	NodeBAddress, _, _ := QueryingNodeAddress(TransCase.Node2Url)
-	log.Println("TransCase.Node1Url=", TransCase.Node1Url, " NewTokenName=", NewTokenName, " NodeBAddress.OurAddress=", NodeBAddress.OurAddress, " Amount=", Amount)
-	//time.Sleep(time.Hour)
+	//log.Println("TransCase.Node1Url=", TransCase.Node1Url, " NewTokenName=", NewTokenName, " NodeBAddress.OurAddress=", NodeBAddress.OurAddress, " Amount=", Amount)
 	TransferResult, Status, err := InitiatingTransfer(TransCase.Node1Url, NewTokenName, NodeBAddress.OurAddress, Amount)
 	//ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
 	//
 	ResultJudge(TransferResult, Status, err, NodeAAddress.OurAddress, NodeBAddress.OurAddress, NewTokenName, Amount)
 	//
+	time.Sleep(6 * time.Second)
 	if CheckChannel(DChannels) {
 		log.Println("Transfer case test success!")
 	} else {
@@ -242,16 +243,22 @@ func CheckChannel(DChannels []TransferCaseChannel) (checked bool) {
 		var l int
 		for l = 0; l < len(Channels); l++ {
 			if Channels[l].PartnerAddress == NodeBAddress.OurAddress {
-				if (Channels[l].Balance + Channels[l].LockedAmount) != (DChannels[i].Balance1 + DChannels[i].LockedBalance1) {
+				if Channels[l].Balance != DChannels[i].Balance1 {
 					return false
 				}
-				if (Channels[l].PatnerBalance + Channels[l].PartnerLockedAmount) != (DChannels[i].Balance2 + DChannels[i].LockedBalance2) {
+				if Channels[l].LockedAmount != DChannels[i].LockedBalance1 {
+					return false
+				}
+				if Channels[l].PatnerBalance != DChannels[i].Balance2 {
+					return false
+				}
+				if Channels[l].PartnerLockedAmount != DChannels[i].LockedBalance2 {
 					return false
 				}
 				break
 			}
 		}
-		if l < len(Channels) {
+		if l >= len(Channels) {
 			return false
 		}
 	}
