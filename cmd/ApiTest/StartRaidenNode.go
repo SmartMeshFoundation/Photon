@@ -1,22 +1,23 @@
 package main
 
 import (
-	"log"
-	"os/exec"
-	"time"
-
-	"os"
-
 	"bufio"
 	"io"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
+
+	"strconv"
 
 	"github.com/kataras/iris/utils"
 	"github.com/larspensjo/config"
 )
 
-func Exec_shell(cmdstr string, param []string, logfile string) bool {
+func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) bool {
 	if !utils.Exists(cmdstr) {
-		log.Println(cmdstr + " is not exist")
+		log.Println(cmdstr+" is not exist", param)
 		os.Exit(-1)
 		return false
 	}
@@ -35,16 +36,18 @@ func Exec_shell(cmdstr string, param []string, logfile string) bool {
 	reader := bufio.NewReader(stdout)
 	readererr := bufio.NewReader(stderr)
 
+	logPath := filepath.Dir(logfile)
+	if !utils.Exists(logPath) {
+		os.Mkdir(logPath, 0777)
+	}
+
 	logFile, err := os.Create(logfile)
 	defer logFile.Close()
 	if err != nil {
-		log.Fatalln("open file error !")
+		log.Fatalln("Create log file error !", logfile)
 	}
-	debugLog := log.New(logFile, "[Debug]", log.Llongfile)
-	//debugLog.Println("A debug message here")
-	//debugLog.SetPrefix("[Info]")
-	//debugLog.Println("A Info Message here ")
 
+	debugLog := log.New(logFile, "[Debug]", log.Llongfile)
 	//本地注释：实时循环读取输出流中的一行内容
 	//A real-time loop reads a line in the output stream.
 	go func() {
@@ -70,12 +73,22 @@ func Exec_shell(cmdstr string, param []string, logfile string) bool {
 	//}()
 
 	err = cmd.Wait()
+
+	if !canquit {
+		log.Println("cmd ", cmdstr, " exited:", param)
+	}
+
 	if err != nil {
 		//log.Println(err)
 		debugLog.Println(err)
+		if !canquit {
+			os.Exit(-1)
+		}
 		return false
 	}
-
+	if !canquit {
+		os.Exit(-1)
+	}
 	return true
 }
 
@@ -86,7 +99,7 @@ func Startraiden(RegistryAddress string) {
 	var pstr2 []string
 	//本地注释：杀死旧进程
 	pstr2 = append(pstr2, "goraiden")
-	Exec_shell("/usr/bin/killall", pstr2, "./ka.log")
+	Exec_shell("/usr/bin/killall", pstr2, "./ka.log", true)
 	//本地注释：杀死旧进程后等待释放端口
 	time.Sleep(10 * time.Second)
 
@@ -98,230 +111,35 @@ func Startraiden(RegistryAddress string) {
 		return
 	}
 
-	s, err := c.String("common", "datadir")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.datadir = s
-	s, err = c.String("common", "keystore_path")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.keystore_path = s
-	s, err = c.String("common", "discovery_contract_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.discovery_contract_address = s
+	param.datadir = c.RdString("common", "datadir", "/smtwork/share/.goraiden")
+	param.keystore_path = c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
+	param.discovery_contract_address = c.RdString("common", "discovery_contract_address", "0x5f014DA6ea514405f641341e42aC0e61B8190653")
 	if RegistryAddress == "" {
-		s, err = c.String("common", "registry_contract_address")
-		if err != nil {
-			log.Println("Read error:", err)
-			return
-		}
-		param.registry_contract_address = s
+		param.registry_contract_address = c.RdString("common", "registry_contract_address", "0x069E5c8954b14c7638e8E6479402FDa6F9971036")
+
 	} else {
 		param.registry_contract_address = RegistryAddress
 	}
-	s, err = c.String("common", "password_file")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.password_file = s
-	s, err = c.String("common", "nat")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.nat = s
-	s, err = c.String("common", "eth_rpc_endpoint")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.eth_rpc_endpoint = s
-	s, err = c.String("common", "conditionquit")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.conditionquit = s
-	b, err := c.Bool("common", "debug")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.debug = b
+
+	param.password_file = c.RdString("common", "password_file", "")
+	param.nat = c.RdString("common", "nat", "none")
+	param.eth_rpc_endpoint = c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
+	param.conditionquit = c.RdString("common", "conditionquit", "{\"QuitEvent\":\"RefundTransferRecevieAckxx}")
+	param.debug = c.RdBool("common", "debug", true)
+
 	//本地注释：节点1
 	//NODE 1
-	s, err = c.String("NODE1", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
+	var NODE string
+	for i := 0; i < 6; i++ {
+		NODE = "NODE" + strconv.Itoa(i+1)
+		param.api_address = c.RdString(NODE, "api_address", "")
+		param.listen_address = c.RdString(NODE, "listen_address", "")
+		param.address = c.RdString(NODE, "address", "")
+		pstr = param.getParam()
+		//log.Println(pstr)
+		logfile := c.RdString(NODE, "log", "")
+		exepath := c.RdString(NODE, "raidenpath", "/project/bin/goraiden.exe")
+		go Exec_shell(exepath, pstr, logfile, false)
 	}
-	param.api_address = s
-	s, err = c.String("NODE1", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE1", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE1", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node1.log")
-	//本地注释：节点2
-	//NODE 2
-	s, err = c.String("NODE2", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.api_address = s
-	s, err = c.String("NODE2", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE2", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE2", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node2.log")
-	//本地注释：节点3
-	//NODE 3
-	s, err = c.String("NODE3", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.api_address = s
-	s, err = c.String("NODE3", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE3", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE3", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node3.log")
-	//本地注释：节点4
-	//NODE 4
-	s, err = c.String("NODE4", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.api_address = s
-	s, err = c.String("NODE4", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE4", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE4", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node4.log")
-	//本地注释：节点5
-	//NODE 5
-	s, err = c.String("NODE5", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.api_address = s
-	s, err = c.String("NODE5", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE5", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE5", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node5.log")
-	//本地注释：节点6
-	//NODE 6
-	s, err = c.String("NODE6", "api_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.api_address = s
-	s, err = c.String("NODE6", "listen_address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.listen_address = s
-	s, err = c.String("NODE6", "address")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	param.address = s
-	pstr = param.getParam()
-	//log.Println(pstr)
-	s, err = c.String("NODE6", "raidenpath")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	go Exec_shell(s, pstr, "./Node6.log")
+
 }

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/larspensjo/config"
 	"log"
+
+	"github.com/larspensjo/config"
 )
 
 //本地注释：详细测试交易
@@ -18,12 +19,12 @@ func TransferTest(NewTokenName string) (code int) {
 		return
 	}
 
-	Node1Url, err := c.String("NODE1", "api_address")
-	Node2Url, err := c.String("NODE2", "api_address")
-	Node3Url, err := c.String("NODE3", "api_address")
-	Node4Url, err := c.String("NODE4", "api_address")
-	Node5Url, err := c.String("NODE5", "api_address")
-	Node6Url, err := c.String("NODE6", "api_address")
+	Node1Url := c.RdString("NODE1", "api_address", "127.0.0.1:5001")
+	Node2Url := c.RdString("NODE2", "api_address", "127.0.0.1:5002")
+	Node3Url := c.RdString("NODE3", "api_address", "127.0.0.1:5003")
+	Node4Url := c.RdString("NODE4", "api_address", "127.0.0.1:5004")
+	Node5Url := c.RdString("NODE5", "api_address", "127.0.0.1:5005")
+	Node6Url := c.RdString("NODE6", "api_address", "127.0.0.1:5006")
 
 	Node1Url = "http://" + Node1Url
 	Node2Url = "http://" + Node2Url

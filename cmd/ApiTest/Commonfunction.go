@@ -4,9 +4,8 @@ package main
 import (
 	"log"
 	"math/big"
-	"time"
-	//"os"
 	"os"
+	"time"
 )
 
 const MaxTry int = 20
@@ -20,14 +19,16 @@ type NodeAddressPayload struct {
 
 //For QueryingNodeAllChannels  and QueryingNodeSpecificChannel  API  Response http body
 type NodeChannel struct {
-	ChannelAddress string `json:"channel_address"`
-	PartnerAddress string `json:"partner_address"`
-	Balance        int32  `json:"balance"`
-	PatnerBalance  int32  `json:"patner_balance"`
-	TokenAddress   string `json:"token_address"`
-	State          string `json:"state"`
-	SettleTimeout  int32  `json:"settle_timeout"`
-	RevealTimeout  int32  `json:"reveal_timeout"`
+	ChannelAddress      string `json:"channel_address"`
+	PartnerAddress      string `json:"partner_address"`
+	Balance             int32  `json:"balance"`
+	PatnerBalance       int32  `json:"patner_balance"`
+	TokenAddress        string `json:"token_address"`
+	State               string `json:"state"`
+	SettleTimeout       int32  `json:"settle_timeout"`
+	RevealTimeout       int32  `json:"reveal_timeout"`
+	LockedAmount        int32  `json:"locked_amount"`
+	PartnerLockedAmount int32  `json:"partner_locked_amount"`
 }
 
 //New QueryingNodeAllChannels  and  QueryingNodeSpecificChannel API  Response http body
@@ -146,6 +147,21 @@ type EventTransferSentSuccess struct {
 	Target      string `json:"target"`
 }
 
+type TransferCaseChannel struct {
+	Node1Url       string
+	Node2Url       string
+	Balance1       int32
+	Balance2       int32
+	LockedBalance1 int32
+	LockedBalance2 int32
+}
+
+type TransferCaseTransfer struct {
+	Node1Url string
+	Node2Url string
+	Balance  int32
+}
+
 //Get time string
 func GetTime() string {
 	timestamp := time.Now().Unix()
@@ -163,7 +179,8 @@ func ShowError(err error) {
 	if err != nil {
 		//log.SetFlags(log.Lshortfile | log.LstdFlags)
 		//log.Println(err)
-		log.Output(3, err.Error())
+		log.Output(4, err.Error())
+		log.Fatal("")
 		os.Exit(-1)
 	}
 }

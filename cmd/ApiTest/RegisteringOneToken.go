@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/larspensjo/config"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/larspensjo/config"
 )
 
 //本地注释：注册新Token
@@ -81,16 +82,9 @@ func RegisteringOneTokenTest(url string) {
 		return
 	}
 
-	EthRpcEndpoint, err := c.String("common", "eth_rpc_endpoint")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	KeyStorePath, err := c.String("common", "keystore_path")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
+	EthRpcEndpoint := c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
+
+	KeyStorePath := c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
 
 	NewTokenName, _, _ := CreateNewToken(EthRpcEndpoint, KeyStorePath)
 
