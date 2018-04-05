@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	//"github.com/labstack/gommon/log"
 	"io/ioutil"
 	"log"
@@ -47,9 +46,9 @@ func QueryingNodeAddressTest(url string) {
 	ShowQueryingNodeAddressMsgDetail(Status)
 	switch Status {
 	case "200 OK":
-		fmt.Printf("Test pass:Querying Node Address Success!Node Address=%s\n", Address.OurAddress)
+		log.Println("Test pass:Querying Node Address Success!Node Address=", Address.OurAddress)
 	default:
-		fmt.Printf("Test failed:Querying Node Address Failure! %s\n", Status)
+		log.Println("Test failed:Querying Node Address Failure!", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}

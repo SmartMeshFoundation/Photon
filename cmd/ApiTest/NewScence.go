@@ -19,12 +19,12 @@ func NewScene() (NewTokenName string) {
 		return
 	}
 
-	Node1Url, err := c.String("NODE1", "api_address")
-	Node2Url, err := c.String("NODE2", "api_address")
-	Node3Url, err := c.String("NODE3", "api_address")
-	Node4Url, err := c.String("NODE4", "api_address")
-	Node5Url, err := c.String("NODE5", "api_address")
-	Node6Url, err := c.String("NODE6", "api_address")
+	Node1Url := c.RdString("NODE1", "api_address", "127.0.0.1:5001")
+	Node2Url := c.RdString("NODE2", "api_address", "127.0.0.1:5002")
+	Node3Url := c.RdString("NODE3", "api_address", "127.0.0.1:5003")
+	Node4Url := c.RdString("NODE4", "api_address", "127.0.0.1:5004")
+	Node5Url := c.RdString("NODE5", "api_address", "127.0.0.1:5005")
+	Node6Url := c.RdString("NODE6", "api_address", "127.0.0.1:5006")
 
 	Node1Url = "http://" + Node1Url
 	Node2Url = "http://" + Node2Url
@@ -35,28 +35,21 @@ func NewScene() (NewTokenName string) {
 
 	//本地注释：创建新Token并向账户充值
 
-	EthRpcEndpoint, err := c.String("common", "eth_rpc_endpoint")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-	KeyStorePath, err := c.String("common", "keystore_path")
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
+	EthRpcEndpoint := c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
+
+	KeyStorePath := c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
 
 	NewTokenName, RegistryAddress, _ := CreateNewToken(EthRpcEndpoint, KeyStorePath)
-	//log.Println("New Token1=", NewTokenNames[0])
-	//log.Println("New Token2=", NewTokenNames[1])
-	//log.Println("registryAddress=", RegistryAddress.String())
+	log.Println("New Token=", NewTokenName)
+	log.Println("registryAddress=", RegistryAddress.String())
 
 	//本地注释：启动雷电客户端
 	Startraiden(RegistryAddress.String())
 
 	time.Sleep(10 * time.Second)
 
-	////本地注释：测试注册新Token到雷电网
+	//本地注释：测试注册新Token到雷电网
+	RegisteringOneToken(Node1Url, NewTokenName)
 	//Status, err := RegisteringOneToken(Node1Url, NewTokenName)
 	//ShowError(err)
 	////本地注释：显示错误详细信息

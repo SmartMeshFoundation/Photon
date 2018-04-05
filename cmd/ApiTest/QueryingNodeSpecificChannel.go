@@ -25,6 +25,7 @@ func QueryingNodeSpecificChannel(url string, channel string) (Channel NodeChanne
 	if resp != nil {
 		p, _ := ioutil.ReadAll(resp.Body)
 		err = json.Unmarshal(p, &Channel)
+		Status = resp.Status
 	}
 	defer func() {
 		if resp != nil {
@@ -48,8 +49,7 @@ func QueryingNodeSpecificChannelTest(url string) {
 			existedchannel = Channels[0].ChannelAddress
 		}
 	}
-	log.Printf("Existed Specific Channel:%s\n", existedchannel)
-	//如果确实没有channel，你这个岂不是把正确当成错误来处理了？
+	//fmt.Printf("Existed Specific Channel:%s\n", existedchannel)
 	_, Status, err := QueryingNodeSpecificChannel(url, existedchannel)
 	ShowError(err)
 	ShowQueryingNodeSpecificChannelMsgDetail(Status)
@@ -57,9 +57,10 @@ func QueryingNodeSpecificChannelTest(url string) {
 	case "200 OK":
 		log.Println("Test pass:querying node existed Specific channel Success!")
 	default:
-		log.Println("Test failed:querying node1 existed channels Failure:", Status)
+		log.Println("Test failed:querying node1 existed channels ", existedchannel, " Failure:", Status)
 		if HalfLife {
-			log.Fatal("HalfLife,exit")
+			//log.Fatal("HalfLife,exit")
+			time.Sleep(80 * time.Second)
 		}
 	}
 	log.Println("Start Querying Node  not existed Specific Channel")
