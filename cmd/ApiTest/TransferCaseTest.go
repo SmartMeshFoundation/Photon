@@ -2,11 +2,10 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"time"
 
-	"strconv"
-
-	"github.com/larspensjo/config"
+	"github.com/huamou/config"
 )
 
 func Transfer(NewTokenName string, IniFile string) {

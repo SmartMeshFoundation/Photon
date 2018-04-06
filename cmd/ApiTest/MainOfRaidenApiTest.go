@@ -10,7 +10,6 @@ func main() {
 	NewTokenName := NewScene()
 	//本地注释：测试交易
 	Transfer(NewTokenName, "./../../testdata/TransCase/case1.ini")
-	//TransferTestCase(NewTokenName)
 	//本地注释：Api逐项测试
 	//ApiTest()
 }

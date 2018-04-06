@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/larspensjo/config"
+	"github.com/huamou/config"
 )
 
 //本地注释：API测试和使用范例

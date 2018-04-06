@@ -4,7 +4,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/larspensjo/config"
+	"os"
+
+	"github.com/huamou/config"
 )
 
 //本地注释：布置新场景
@@ -44,6 +46,8 @@ func NewScene() (NewTokenName string) {
 	log.Println("registryAddress=", RegistryAddress.String())
 
 	//本地注释：启动雷电客户端
+	datadir := c.RdString("common", "datadir", "/smtwork/share/.goraiden")
+	os.RemoveAll(datadir)
 	Startraiden(RegistryAddress.String())
 
 	time.Sleep(10 * time.Second)

@@ -11,8 +11,8 @@ import (
 
 	"strconv"
 
+	"github.com/huamou/config"
 	"github.com/kataras/iris/utils"
-	"github.com/larspensjo/config"
 )
 
 func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) bool {
@@ -99,7 +99,7 @@ func Startraiden(RegistryAddress string) {
 	var pstr2 []string
 	//本地注释：杀死旧进程
 	pstr2 = append(pstr2, "goraiden")
-	Exec_shell("/usr/bin/killall", pstr2, "./ka.log", true)
+	Exec_shell("/usr/bin/killall", pstr2, "./../../testdata/log/ka.log", true)
 	//本地注释：杀死旧进程后等待释放端口
 	time.Sleep(10 * time.Second)
 

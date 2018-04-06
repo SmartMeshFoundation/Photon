@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/larspensjo/config"
+	"github.com/huamou/config"
 )
 
 //本地注释：注册新Token

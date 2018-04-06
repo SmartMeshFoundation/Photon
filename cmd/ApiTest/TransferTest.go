@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/larspensjo/config"
+	"github.com/huamou/config"
 )
 
 //本地注释：详细测试交易
