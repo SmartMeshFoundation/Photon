@@ -42,7 +42,8 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	rest.Error(w, "", http.StatusNoContent)
+	w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
+	w.(http.ResponseWriter).Write(nil)
 }
 
 //leave a token network
@@ -75,7 +76,8 @@ func LeaveTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		w.WriteJson(addrs)
 		return
 	} else {
-		rest.Error(w, "", http.StatusNoContent)
+		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
+		w.(http.ResponseWriter).Write(nil)
 	}
 
 }

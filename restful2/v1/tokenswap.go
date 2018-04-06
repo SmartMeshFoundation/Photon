@@ -62,6 +62,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
-		rest.Error(w, "", http.StatusCreated)
+		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
+		w.(http.ResponseWriter).Write(nil)
 	}
 }
