@@ -38,7 +38,7 @@ func Start() {
 		rest.Get("/api/1/channels/:channel", SpecifiedChannel),
 		rest.Get("/api/1/channels", GetChannelList),
 		rest.Put("/api/1/channels", OpenChannel),
-		rest.Patch("/api/1/channels", CloseSettleDepositChannel),
+		rest.Patch("/api/1/channels/:channel", CloseSettleDepositChannel),
 		/*
 			connections
 		*/
