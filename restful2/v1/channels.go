@@ -52,7 +52,7 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 
 //get  channel state
 func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
-	ch := r.PathParam(":channel")
+	ch := r.PathParam("channel")
 	chaddr := common.HexToAddress(ch)
 	c, err := RaidenApi.GetChannel(chaddr)
 	if err != nil {
@@ -111,7 +111,13 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 					log.Error(" RaidenApi.Deposit error : ", err)
 				}
 			}
-			w.WriteJson(d)
+			data,err:= w.EncodeJson(d)
+			if err!=nil{
+				log.Error(err.Error())
+				rest.Error(w,err.Error(),http.StatusConflict)
+				return
+			}
+			rest.Error(w,string(data),http.StatusCreated)
 			return
 		}
 	}
