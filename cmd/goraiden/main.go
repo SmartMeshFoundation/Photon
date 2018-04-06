@@ -26,7 +26,7 @@ import (
 	"github.com/SmartMeshFoundation/raiden-network/network/nat/gopjnath"
 	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
 	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/restful"
+	"github.com/SmartMeshFoundation/raiden-network/restful2"
 	"github.com/SmartMeshFoundation/raiden-network/utils"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -241,7 +241,7 @@ func Main(ctx *cli.Context) error {
 	}()
 	api := raiden_network.NewRaidenApi(raidenService)
 	regQuitHandler(api)
-	restful.Start(api, cfg)
+	restful2.Start(api, cfg)
 	return nil
 }
 func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocket, bcs *rpc.BlockChainService) (transport network.Transporter, discovery network.DiscoveryInterface) {
