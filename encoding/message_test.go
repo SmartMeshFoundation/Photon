@@ -231,7 +231,20 @@ func TestNewSecretRequest(t *testing.T) {
 		t.Error("not equal")
 	}
 }
-
+func TestNewRemoveExpiredHashlockTransfer(t *testing.T) {
+	s1 := NewRemoveExpiredHashlockTransfer(0, 40, utils.NewRandomAddress(), big.NewInt(50), utils.Sha3([]byte("oo")), utils.Sha3([]byte("xxx")))
+	s1.Sign(GetTestPrivKey(), s1)
+	data := s1.Pack()
+	s2 := new(RemoveExpiredHashlockTransfer)
+	err := s2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if !reflect.DeepEqual(s1, s2) {
+		t.Error("not equal")
+	}
+}
 func TestLock_AsBytes(t *testing.T) {
 	lock := &Lock{
 		Amount:     big.NewInt(34),

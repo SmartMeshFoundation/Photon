@@ -49,7 +49,7 @@ func (this *InvalidLocksRootError) Error() string {
 
 var errBalanceDecrease = errors.New("contract_balance cannot decrease")
 var errUnknownLock = errors.New("'unknown lock")
-
+var errTransferAmountMismatch=errors.New("transfer amount mismatch")
 /*
 Tracks the state of one of the participants in a channel
 */
@@ -267,7 +267,16 @@ func (this *ChannelEndState) RegisterDirectTransfer(directTransfer *encoding.Dir
 	this.BalanceProofState = balanceProof
 	return nil
 }
-
+func (this*ChannelEndState) RegisterRemoveExpiredHashlockTransfer(removeExpiredHashlockTransfer * encoding.RemoveExpiredHashlockTransfer) error{
+	balanceProof:=transfer.NewBalanceProofStateFromEnvelopMessage(removeExpiredHashlockTransfer)
+	if balanceProof.TransferAmount.Cmp(this.TransferAmount())!=0{
+		return errTransferAmountMismatch
+	}
+	this.BalanceProofState=balanceProof
+	delete(this.Lock2PendingLocks,removeExpiredHashlockTransfer.HashLock)
+	delete(this.Lock2UnclaimedLocks,removeExpiredHashlockTransfer.HashLock)
+	return nil
+}
 func (this *ChannelEndState) RegisterSecretMessage(secret *encoding.Secret) error {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(secret)
 	hashlock := utils.Sha3(secret.Secret[:])
@@ -302,15 +311,14 @@ func (this *ChannelEndState) RegisterSecretMessage(secret *encoding.Secret) erro
 }
 
 /*
-remove a hashlock which is expired. we assume that partner will remove this lock too,
-otherwise me and partner will have  mismatched locksroot.
+try to remomve a expired hashlock
 */
-func (this *ChannelEndState) RemoveExpiredHashLock(hashlock common.Hash, blockNumber int64) error {
+func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, blockNumber int64) (lock*encoding.Lock, newtree *transfer.Merkletree, newlocksroot common.Hash,err error) {
 	if !this.IsKnown(hashlock) {
-		return errors.New(fmt.Sprintf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock)))
+		err= errors.New(fmt.Sprintf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock)))
+		return
 	}
 	pendingLock, ok := this.Lock2PendingLocks[hashlock]
-	var lock *encoding.Lock
 	if ok {
 		lock = pendingLock.Lock
 	} else {
@@ -320,22 +328,18 @@ func (this *ChannelEndState) RemoveExpiredHashLock(hashlock common.Hash, blockNu
 		}
 	}
 	if lock.Expiration > blockNumber {
-		return fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
+		err= fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
+		return
 	}
-	newtree, newLocksroot, err := this.ComputeMerkleRootWithout(lock)
+	newtree, newlocksroot, err = this.ComputeMerkleRootWithout(lock)
 	if err != nil {
-		return err
+		return
 	}
 	if newtree == nil {
 		newtree, _ = transfer.NewMerkleTree(nil)
 	}
-	delete(this.Lock2PendingLocks, lock.HashLock)
-	delete(this.Lock2UnclaimedLocks, lock.HashLock)
-	this.TreeState = transfer.NewMerkleTreeState(newtree)
-	this.BalanceProofState.LocksRoot = newLocksroot
-	return nil
+	return
 }
-
 /*
 Register a secret so that it can be used in a balance proof.
 

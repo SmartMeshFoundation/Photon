@@ -1416,7 +1416,15 @@ func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
 		} else if sentMessageTag.EchoHash != utils.EmptyHash {
 			//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
 			this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-			this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
+			switch msg:=sentMessage.Message.(type){
+			case *encoding.RevealSecret:
+				this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
+			case *encoding.RemoveExpiredHashlockTransfer:
+				this.db.UpdateSentRemoveExpiredHashlockTransfer(sentMessageTag.EchoHash)
+			default:
+				log.Error(fmt.Sprintf("unknown message %s",utils.StringInterface(msg,7)))
+			}
+
 		} else {
 			panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
 		}

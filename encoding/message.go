@@ -31,6 +31,7 @@ const DIRECTTRANSFER_CMDID = 5
 const MEDIATEDTRANSFER_CMDID = 7
 const REFUNDTRANSFER_CMDID = 8
 const REVEALSECRET_CMDID = 11
+const REMOVEEXPIREDHASHLOCK_CMDID=13
 
 const SignatureLength = 65
 const TokenLength = 20
@@ -113,6 +114,8 @@ func (t MessageType) String() string {
 		return "RefundTransfer"
 	case REVEALSECRET_CMDID:
 		return "RevealSecret"
+	case REMOVEEXPIREDHASHLOCK_CMDID:
+		return "RemoveExpiredHashlock"
 	default:
 		return "<unknown>"
 	}
@@ -533,7 +536,80 @@ func (this *Secret) UnPack(data []byte) error {
 func (this *Secret) String() string {
 	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(this.Secret), this.EnvelopMessage.String())
 }
+/*
+message from sender to receiver, notify to remove a expired hashlock, provide new blance proof.
 
+Removes one lock that has expired. Used to trim the merkle tree and recover the locked capacity. This message is only valid if the corresponding lock expiration is lower than the latest block number for the corresponding blockchain.
+Fields
+Field Name 	     Field Type 	      Description
+secrethash 	    bytes32 	          The secrethash to remove
+balance_proof 	BalanceProof 	      The updated balance proof
+signature 	    bytes 	              Elliptic Curve 256k1 signature
+ */
+type RemoveExpiredHashlockTransfer struct {
+	EnvelopMessage
+	HashLock common.Hash
+}
+func NewRemoveExpiredHashlockTransfer(Identifier uint64, nonce int64, channel common.Address,
+	transferamount *big.Int, locksroot common.Hash, hashlock common.Hash) *RemoveExpiredHashlockTransfer {
+	p := &RemoveExpiredHashlockTransfer{
+		HashLock: hashlock,
+	}
+	if Identifier!=0{
+		panic("identifier is useless")
+	}
+	p.Identifier = Identifier
+	p.CmdId = REMOVEEXPIREDHASHLOCK_CMDID
+	p.Nonce = nonce
+	p.Channel = channel
+	p.TransferAmount = new(big.Int).Set(transferamount)
+	p.Locksroot = locksroot
+	return p
+}
+
+func (this *RemoveExpiredHashlockTransfer) Pack() []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.BigEndian, this.Identifier)
+	buf.Write(this.HashLock[:])
+	binary.Write(buf, binary.BigEndian, this.Nonce)
+	buf.Write(this.Channel[:])
+	buf.Write(utils.BigIntTo32Bytes(this.TransferAmount))
+	buf.Write(this.Locksroot[:])
+	buf.Write(this.Signature)
+	return buf.Bytes()
+}
+func (this *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
+	var t int32
+	this.CmdId = REMOVEEXPIREDHASHLOCK_CMDID
+	buf := bytes.NewBuffer(data)
+	binary.Read(buf, binary.LittleEndian, &t)
+	if t != this.CmdId {
+		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
+	}
+	binary.Read(buf, binary.BigEndian, &this.Identifier)
+	if this.Identifier!=0{
+		panic("identifier should be 0")
+	}
+	buf.Read(this.HashLock[:])
+
+	binary.Read(buf, binary.BigEndian, &this.Nonce)
+	buf.Read(this.Channel[:])
+	this.TransferAmount = readBigInt(buf)
+	buf.Read(this.Locksroot[:])
+	this.Signature = make([]byte, SignatureLength)
+	n, err := buf.Read(this.Signature)
+	if err != nil {
+		return err
+	}
+	if n != SignatureLength {
+		return errors.New("packet length error")
+	}
+	return this.EnvelopMessage.VerifySignature(data)
+}
+func (this *RemoveExpiredHashlockTransfer) String() string {
+	return fmt.Sprintf("Message{type=RemoveExpiredHashlockTransfer secret=%s,%s}", utils.HPex(this.HashLock), this.EnvelopMessage.String())
+}
 /*
 """ A direct token exchange, used when both participants have a previously
     opened channel.
@@ -623,6 +699,8 @@ func (this *DirectTransfer) UnPack(data []byte) error {
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
+
+
 
 type Lock struct {
 	Expiration int64 //expiration block number
@@ -817,6 +895,7 @@ var MessageMap = map[int]Messager{
 	REVEALSECRET_CMDID:     new(RevealSecret),
 	MEDIATEDTRANSFER_CMDID: new(MediatedTransfer),
 	REFUNDTRANSFER_CMDID:   new(RefundTransfer),
+	REMOVEEXPIREDHASHLOCK_CMDID:new(RemoveExpiredHashlockTransfer),
 }
 
 func init() {

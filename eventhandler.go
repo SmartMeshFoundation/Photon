@@ -146,16 +146,18 @@ func (this *StateMachineEventHandler) eventContractSendChannelClose(event *media
 	return
 }
 func (this *StateMachineEventHandler) eventWithdrawFailed(e2 *mediated_transfer.EventWithdrawFailed, manager *transfer.StateManager) (err error) {
-	if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
-		panic("EventWithdrawFailed can only comes from a target node or mediated node")
-	}
-	ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
-	if err != nil {
-		log.Error(fmt.Sprintf("payer's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
-		return
-	}
-	log.Info(fmt.Sprint("remove expired hashlock channel=%s,hashlock=%s", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
-	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
+	//wait from RemoveExpiredHashlockTransfer from partner.
+	return nil
+	//if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
+	//	panic("EventWithdrawFailed can only comes from a target node or mediated node")
+	//}
+	//ch, err := this.raiden.FindChannelByAddress(e2.ChannelAddress)
+	//if err != nil {
+	//	log.Error(fmt.Sprintf("payer's lock expired ,but cannot find channel %s, this may happen long later restart after a stop"))
+	//	return
+	//}
+	//log.Info(fmt.Sprint("remove expired hashlock channel=%s,hashlock=%s", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
+	//return ch.RemoveOurExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
 }
 func (this *StateMachineEventHandler) eventContractSendWithdraw(e2 *mediated_transfer.EventContractSendWithdraw, manager *transfer.StateManager) (err error) {
 	if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
@@ -175,7 +177,7 @@ func (this *StateMachineEventHandler) eventContractSendWithdraw(e2 *mediated_tra
 }
 
 /*
-the transfer I payed for a payee has expired.
+the transfer I payed for a payee has expired. give a new balanceproof which doesn't contain this hashlock
 */
 func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.EventUnlockFailed, manager *transfer.StateManager) (err error) {
 	if manager.Name != mediator.NameMediatorTransition && manager.Name != initiator.NameInitiatorTransition {
@@ -187,7 +189,26 @@ func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.Ev
 		return
 	}
 	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
-	return ch.RemoveExpiredHashlock(e2.Hashlock, this.raiden.GetBlockNumber())
+	tr,err:=ch.CreateRemoveExpiredHashLockTransfer(e2.Hashlock,this.raiden.GetBlockNumber())
+	if err!=nil{
+		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s",err))
+		return
+	}
+	tr.Sign(this.raiden.PrivateKey,tr)
+	err=ch.RegisterRemoveExpiredHashlockTransfer(tr,this.raiden.GetBlockNumber())
+	if err!=nil{
+		log.Error(fmt.Sprintf("register mine RegisterRemoveExpiredHashlockTransfer err %s",err))
+		return
+	}
+	/*
+	save new channel status and sent RemoveExpiredHashlockTransfer must be atomic.
+	 */
+	tx:=this.raiden.db.StartTx()
+	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch),tx)
+	this.raiden.db.NewSentRemoveExpiredHashlockTransfer(tr,ch.PartnerState.Address,tx)
+	tx.Commit()
+	err=this.raiden.SendAsync(ch.PartnerState.Address,tr)
+	return
 }
 func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	switch e2 := event.(type) {

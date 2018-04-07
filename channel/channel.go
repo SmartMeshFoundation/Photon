@@ -241,29 +241,94 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 }
 
 /*
-remove a expired hashlock
-todo need a new signature of balance proof to remove this invalid lock
-*/
-func (c *Channel) RemoveExpiredHashlock(hashlock common.Hash, blockNumber int64) error {
-	var err error
-	ourKnown := c.OurState.IsKnown(hashlock)
-	partenerKnown := c.PartnerState.IsKnown(hashlock)
-	if !ourKnown && !partenerKnown {
-		return fmt.Errorf("there is no such hashlock. hashlock %s token %s",
-			utils.Pex(hashlock[:]), utils.Pex(c.TokenAddress[:]))
+register transferfrom to need refactor.
+ */
+func (c*Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.EnvelopMessager) (fromState *ChannelEndState, toState *ChannelEndState,err error){
+	evMsg := tr.GetEnvelopMessage()
+	if evMsg.Channel != c.MyAddress {
+		err= fmt.Errorf("Channel address mismatch")
+		return
 	}
-	if ourKnown {
-		err = c.OurState.RemoveExpiredHashLock(hashlock, blockNumber)
+	if tr.GetSender()==c.OurState.Address{
+		fromState=c.OurState
+		toState=c.PartnerState
+	} else if tr.GetSender()==c.PartnerState.Address{
+		fromState=c.PartnerState
+		toState=c.OurState
+	}else{
+		err= fmt.Errorf("received transfer from unknown address =%s",utils.APex(tr.GetSender()))
+		return
 	}
-	if partenerKnown {
-		err = c.PartnerState.RemoveExpiredHashLock(hashlock, blockNumber)
+	/*
+			  nonce is changed only when a transfer is un/registered, if the test
+		         fails either we are out of sync, a message out of order, or it's a
+		         forged transfer
+	*/
+	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
+	//如果一个node数据损坏了,那么这个channel将不能工作了? 所以数据一定不能损坏
+	if isInvalidNonce {
+		//c may occur on normal operation
+		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
+			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
+			utils.Pex(toState.Address[:]), fromState.Nonce(), evMsg.Nonce))
+		err= rerr.InvalidNonce(utils.StringInterface(tr, 3))
+		return
 	}
+	//  transfer amount should never decrese.
+	if evMsg.TransferAmount.Cmp(fromState.TransferAmount()) < 0 {
+		log.Error(fmt.Sprintf("NEGATIVE TRANSFER node=%s,from=%s,to=%s,transfer=%s",
+			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
+			utils.StringInterface(tr, 3))) //for nest struct
+		err= fmt.Errorf("Negative transfer")
+		return
+	}
+	return
+}
+/*
+this channel received a request to remove a expired hashlock and this hashlock must be sent out from the sender.
+ */
+func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpiredHashlockTransfer, blockNumber int64) (err error ){
+	fromState,_,err:=c.PreCheckRecievedTransfer(blockNumber,tr)
+	if err!=nil{
+		return
+	}
+	/*
+	transfer amount should not change.
+	 */
+	if tr.TransferAmount.Cmp(fromState.TransferAmount())!=0{
+		err=errTransferAmountMismatch
+		return
+	}
+	_,newtree,newlocksroot,err:=fromState.TryRemoveExpiredHashLock(tr.HashLock,blockNumber)
+	if err!=nil{
+		return err
+	}
+	/*
+	only remove a expired hashlock
+	 */
+	if newlocksroot!=tr.Locksroot{
+		return &InvalidLocksRootError{ExpectedLocksroot:newlocksroot,GotLocksroot:tr.Locksroot}
+	}
+	fromState.TreeState=transfer.NewMerkleTreeState(newtree)
+	err=fromState.RegisterRemoveExpiredHashlockTransfer(tr)
 	if err == nil {
-		c.ExternState.db.RemoveLock(c.MyAddress, hashlock)
+		c.ExternState.db.RemoveLock(c.MyAddress,fromState.Address, tr.HashLock)
 	}
 	return err
 }
-
+/*
+create this transfer to notify my patner that this hashlock is expired and i want to remove it .
+ */
+func (c*Channel)CreateRemoveExpiredHashLockTransfer(hashlock common.Hash, blockNumber int64) (tr*encoding.RemoveExpiredHashlockTransfer,err error){
+	_,_,newlocksroot,err:=c.OurState.TryRemoveExpiredHashLock(hashlock,blockNumber)
+	if err!=nil{
+		return
+	}
+	nonce:=c.GetNextNonce()
+	transferAmount:=c.OurState.TransferAmount()
+	tr=encoding.NewRemoveExpiredHashlockTransfer(0,nonce,c.MyAddress,transferAmount,newlocksroot,hashlock)
+	return
+}
 //Register a signed transfer, updating the channel's state accordingly.
 func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessager) error {
 	var err error

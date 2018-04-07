@@ -39,11 +39,11 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 var GAS_LIMIT_HEX string
 
 //for private
-var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("Cf3C7400C227be86FcdB2c9Be7DEf5c671087620")
+var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("0x1BB1437d4e387Be1E8C04762536217B3240f2323")
 
 //private clean
 //var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("0x7F167440F1aB963ddbDe19F5B355e1889E9DA187")
-var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("5a93A5E5b754898f06F7A0f4abac419547600B25")
+var ROPSTEN_DISCOVERY_ADDRESS = common.HexToAddress("0x95A4e1251B87DCEf6B0cD18D3356CdA8cFB8f6CC")
 
 //for testnet
 //var ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("66eea3159a01d134dd64bfe36fde4be9ed9c1695")

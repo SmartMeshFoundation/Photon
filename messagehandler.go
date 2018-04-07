@@ -85,6 +85,8 @@ func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash co
 		err = this.MessageMediatedTransfer(m2)
 	case *encoding.RefundTransfer:
 		err = this.messageRefundTransfer(m2)
+	case *encoding.RemoveExpiredHashlockTransfer:
+		err=this.messageRemoveExpiredHashlockTransfer(m2)
 	default:
 		log.Error(fmt.Sprintf("RaidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
@@ -213,7 +215,23 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	*/
 	return nil
 }
-
+/*
+if there is any error, just ignore.
+ */
+func (this*RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg*encoding.RemoveExpiredHashlockTransfer)  error{
+	this.balanceProof(msg)
+	ch:=this.raiden.GetChannelWithAddr(msg.Channel)
+	if ch==nil{
+		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s",utils.StringInterface(msg,7))
+		return nil
+	}
+	err:=ch.RegisterRemoveExpiredHashlockTransfer(msg,this.raiden.GetBlockNumber())
+	if err!=nil{
+		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s",err)
+	}
+	this.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	return nil
+}
 func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransfer) (err error) {
 	this.balanceProof(msg)
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)

@@ -147,8 +147,8 @@ func TestEndState(t *testing.T) {
 func makeExternState() *ChannelExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x5BFC50667F097F44B881e2ce4dA2B5Ff4dAdF962"))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x93b84FF17268b6a2636D94Ecc58949527BB4ac9d"))
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, NewMockChannelDb())
 }
 func TestSenderCannotOverSpend(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
@@ -629,56 +629,93 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 	assert.Equal(t, err, nil)
 }
 
-func TestChannel_RemoveExpiredHashlock(t *testing.T) {
-	settleTimeout := 30
-	ch0, ch1 := makePairChannel()
-	balance0 := ch0.Balance()
-	balance1 := ch1.Balance()
-	var amount = big.NewInt(10)
-	var blockNumber int64 = 10
-	expiration := blockNumber + int64(settleTimeout) - 1
-	secret := utils.Sha3([]byte("secret"))
-	hashlock := utils.Sha3(secret[:])
-	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, 1, expiration, hashlock)
-	assert.Equal(t, err, nil)
-	transfer1.Sign(ch0.ExternState.bcs.PrivKey, transfer1)
-	err = ch0.RegisterTransfer(blockNumber, transfer1)
-	assert.Equal(t, err, nil)
-	err = ch1.RegisterTransfer(blockNumber, transfer1)
-	assert.Equal(t, err, nil)
-	assertSyncedChannels(ch0, balance0, nil,
-		ch1, balance1, []*encoding.Lock{transfer1.GetLock()}, t)
-	lock0 := ch0.Locked()
-	lock1 := ch1.Locked()
-	assert.Equal(t, lock0, amount)
-	assert.Equal(t, lock1, utils.BigInt0)
-	notExpiredBlockNumber := expiration - 1
-	err = ch0.RemoveExpiredHashlock(hashlock, notExpiredBlockNumber)
-	if err == nil {
-		t.Error("can not remove a not expired lock")
-		return
-	}
-	expiredBlockNumber := expiration
-	err = ch0.RemoveExpiredHashlock(utils.Sha3([]byte("not exists")), notExpiredBlockNumber)
-	if err == nil {
-		t.Error("remove a not exists hashlock")
-		return
-	}
-	err = ch0.RemoveExpiredHashlock(hashlock, expiredBlockNumber)
+func TestRemoveExpiredHashlock(t *testing.T) {
+	tokenAddress := utils.NewRandomAddress()
+	bcs := rpc.MakeTestBlockChainService()
+	privkey1, address1 := utils.MakePrivateKeyAddress()
+	privkey2, address2 := utils.MakePrivateKeyAddress()
+	var balance1 = big.NewInt(33)
+	var balance2 = big.NewInt(11)
+	revealTimeout := 7
+	settleTimeout := 11
+	var blockNumber int64 = 7
+	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
+	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	externState := makeExternState()
+	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
+	amount1 := balance2
+	expiration := blockNumber + int64(settleTimeout)
+	//smtr: the mediated transfer i sent out
+	smtr, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	smtr.Sign(privkey1, smtr)
+	err := testChannel.RegisterTransfer(blockNumber, smtr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = ch1.RemoveExpiredHashlock(hashlock, expiredBlockNumber)
-	if err != nil {
-		t.Error(err)
+	t.Log("after tr1 channel=", testChannel.String())
+	amount2 := balance2
+	lock2 := &encoding.Lock{expiration, amount2, utils.Sha3([]byte("lxllx"))}
+	tree2, _ := transfer.NewMerkleTree([]common.Hash{utils.Sha3(lock2.AsBytes())})
+	locksroot2 := tree2.MerkleRoot()
+	//rmtr the mediatedtransfer i receive
+	rmtr := encoding.NewMediatedTransfer(1, 1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address1, locksroot2, lock2, address1, address2, utils.BigInt0)
+	rmtr.Sign(privkey2, rmtr)
+	err=testChannel.RegisterTransfer(blockNumber, rmtr)
+	if err!= nil {
+		t.Error("RegisterTransfer error")
 		return
 	}
-	lock0 = ch0.Locked()
-	lock1 = ch1.Locked()
-	assert.Equal(t, lock0, utils.BigInt0)
-	assert.Equal(t, lock1, utils.BigInt0)
+	t.Log("after tr2 channel=", testChannel.String())
+	assert.Equal(t,testChannel.OurState.AmountLocked(),amount1)
+	assert.Equal(t,testChannel.PartnerState.AmountLocked(),amount2)
+	/*
+	try to remove hashlock now
+	 */
 
-	assertSyncedChannels(ch0, balance0, nil,
-		ch1, balance1, nil, t)
+	 //remove a not expired hashlock
+	_,err=testChannel.CreateRemoveExpiredHashLockTransfer(smtr.HashLock,blockNumber)
+	if err==nil{
+		t.Error("cannot remove a hashlock which is not expired.")
+		return
+	}
+	_,_,_,err=testChannel.PartnerState.TryRemoveExpiredHashLock(rmtr.HashLock,blockNumber)
+	if err==nil{
+		t.Error("cannot remove not expired hashlock")
+		return
+	}
+	_,_,locksroot,err:= testChannel.PartnerState.TryRemoveExpiredHashLock(rmtr.HashLock,expiration)
+	if err!=nil{
+		t.Error("can remove a expired hashlock")
+		return
+	}
+	removeTransferFromPartner:=encoding.NewRemoveExpiredHashlockTransfer(0, rmtr.Nonce+1, rmtr.Channel, rmtr.TransferAmount,locksroot,rmtr.HashLock)
+	removeTransferFromPartner.Sign(privkey2,removeTransferFromPartner)
+	err=testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner,blockNumber)
+	if err==nil{
+		t.Error("can not register")
+		return
+	}
+	err=testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner,expiration)
+	if err!=nil{
+		t.Error("must be  removed ",err)
+		return
+	}
+	removeTransferFromMe,err:=testChannel.CreateRemoveExpiredHashLockTransfer(smtr.HashLock,expiration)
+	if err!=nil{
+		t.Error("must be removed for a expired hashlock®")
+		return
+	}
+	removeTransferFromMe.Sign(privkey1,removeTransferFromMe)
+	err=testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe,expiration)
+	if err!=nil{
+		t.Errorf(" err register mine remove transfer ",err)
+		return
+	}
+	assert.Equal(t,testChannel.OurState.BalanceProofState.LocksRoot,utils.EmptyHash)
+	assert.Equal(t,testChannel.PartnerState.BalanceProofState.LocksRoot,utils.EmptyHash)
+	assert.Equal(t,testChannel.OurState.BalanceProofState.IsBalanceProofValid(),true)
+	assert.Equal(t,testChannel.PartnerState.BalanceProofState.IsBalanceProofValid(),true)
+	assert.Equal(t,testChannel.OurState.AmountLocked(),utils.BigInt0)
+	assert.Equal(t,testChannel.PartnerState.AmountLocked(),utils.BigInt0)
 }

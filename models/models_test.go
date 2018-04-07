@@ -260,3 +260,24 @@ func TestWithdraw(t *testing.T) {
 		return
 	}
 }
+
+func TestModelDB_IsThisLockRemoved(t *testing.T) {
+	model := setupDb(t)
+	defer func() {
+		model.CloseDB()
+	}()
+	channel := utils.NewRandomAddress()
+	secret := utils.Sha3(channel[:])
+	sender:=utils.NewRandomAddress()
+	r:=model.IsThisLockRemoved(channel,sender,secret)
+	if r {
+		t.Error("should be false")
+		return
+	}
+	model.RemoveLock(channel,sender,secret)
+	r=model.IsThisLockRemoved(channel,sender,secret)
+	if !r{
+		t.Error("should be true")
+		return
+	}
+}

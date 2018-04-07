@@ -165,11 +165,12 @@ const bucketExpiredHashlock = "expiredHashlock"
 /*
 	is a expired hashlock has been removed from channel status.
 */
-func (model *ModelDB) IsThisLockRemoved(channel common.Address, secret common.Hash) bool {
+func (model *ModelDB) IsThisLockRemoved(channel common.Address,sender common.Address, secret common.Hash) bool {
 	var result bool
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
 	key.Write(secret[:])
+	key.Write(sender[:])
 	err := model.db.Get(bucketExpiredHashlock, key.Bytes(), &result)
 	if err != nil {
 		return false
@@ -183,10 +184,11 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Address, secret common.Ha
 /*
 	remember this lock has been removed from channel status.
 */
-func (model *ModelDB) RemoveLock(channel common.Address, secret common.Hash) {
+func (model *ModelDB) RemoveLock(channel common.Address,sender common.Address, secret common.Hash) {
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
 	key.Write(secret[:])
+	key.Write(sender[:])
 	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("WithdrawThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))

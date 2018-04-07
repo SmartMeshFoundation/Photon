@@ -175,7 +175,7 @@ type EventWithdrawSuccess struct {
 
 /*
 上家没有在expiration之内给我balanceproof，我也没有在链上兑现（因为没有密码）。
-能想到的应对就是移除失效的lock
+必须等待上家的 RemoveExpiredHashlockTransfer, 然后移除.
 */
 //Event emitted when a lock withdraw failed.
 type EventWithdrawFailed struct {
