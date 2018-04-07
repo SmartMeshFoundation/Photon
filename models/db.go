@@ -141,7 +141,14 @@ func (model *ModelDB) CloseDB() {
 	model.db.Close()
 	model.lock.Unlock()
 }
-
+func (model*ModelDB) SaveRegistryAddress(registryAddress common.Address) {
+	model.db.Set(bucketMeta,"registry",registryAddress)
+}
+func (model*ModelDB) GetRegistryAddress() common.Address{
+	var registry common.Address
+	model.db.Get(bucketMeta,"registry",&registry)
+	return registry
+}
 //Log a state change and return its identifier
 func (model *ModelDB) LogStateChange(stateChange transfer.StateChange) (id int, err error) {
 	sc := &StateChange{
