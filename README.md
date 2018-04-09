@@ -84,19 +84,18 @@ VERSION: 0.1
                                                               address (this will likely cause connectivity issues)
                                                               "ice"- Use ice framework for nat punching
                                                               [default: ice] (default: "ice")
---debug   enable debug feature
---conditionquit value  quit at specified point for test
---turn-server value tur server for ice (default: 
-"182.254.155.208:3478")
---turn-user value turn username for turn server 
-(default: "bai")
---turn-pass value turn password for turn server 
-  (default: "bai")
---nonetwork disable network, for example ,when we 
-want to settle all channels
---fee  enable mediation fee
---help, -h  how help
---version,-v print the version
+--debug                                                       enable debug feature
+--conditionquit value                                        quit at specified point for test
+--turn-server value                                          turn server for ice (default: "182.254.155.208:3478")
+--turn-user value                                            turn username for turn server 
+                                                             (default: "bai")  
+--turn-pass value                                            turn password for turn server 
+                                                             (default: "bai")
+--nonetwork                                                  disable network, for example ,when we 
+                                                             want to settle all channels
+--fee                                                        enable mediation fee
+--help, -h                                                   how help
+--version,-v                                                 print the version
                                                                                                                                                                                                                                      
 ```
 
