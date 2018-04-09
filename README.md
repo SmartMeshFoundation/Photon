@@ -11,23 +11,23 @@
 Please refer to Installation section in raiden-network official docs the Usage in this doc for detailed instructions.
 ## Listing API
   Our Raiden API has the main functions of Raiden Network API, which includes：Querying Information About Channels and Tokens(Querying a specific channel,Querying all channels,Querying all registered Tokens),Registering a token,Channel Management(Open Channel,Close Channel, Settle Channel, Deposit to a Channel),Connection Management(Connecting to a token network, Leaving a token network）,Transfers（Initiating a Transfer）and Querying Events , Detailed function description please refer to Getting started with the Raiden API and Raiden’s API Documentation  in raiden-network official docs. Besides, Our Raiden also has some special function, that is, P2P communication under ICE framework, crash recovery and channel charging function. The primary API list and description are as follows：
-QueryingNodeAddress                    Query a node address
-QueryingNodeAllChannels                Query all channels of a node
-QueryingNodeSpecificChannel            Query a specified channel for a node
-QueryingRegisteredTokens               Query system registration Token
-QueryingAllPartnersForOneTokens        Query the Partner address in the channel of special Token
-RegisteringOneToken                    Registration of new Token to Raiden Network
-TokenSwaps                             Exchange the token
-OpenChannel                            Establish a channel
-CloseChannel                           Close the specified channel for the node
-SettleChannel                          Settle the specified channel for the node
-Deposit2Channel                        Deposit to the specified channel
-Connecting2TokenNetwork                Connect to a TokenNetwork
-LeavingTokenNetwork                    Leave the TokenNetwork
-QueryingConnectionsDetails             Query the details of the Token network connection 
-QueryingGeneralNetworkEvents           Query network events
-QueryingTokenNetworkEvents             Query Token network events
-QueryingChannelEvents                  Query channel event
+* QueryingNodeAddress                    Query a node address
+* QueryingNodeAllChannels                Query all channels of a node
+* QueryingNodeSpecificChannel            Query a specified channel for a node
+* QueryingRegisteredTokens               Query system registration Token
+* QueryingAllPartnersForOneTokens        Query the Partner address in the channel of special Token
+* RegisteringOneToken                    Registration of new Token to Raiden Network
+* TokenSwaps                             Exchange the token
+* OpenChannel                            Establish a channel
+* CloseChannel                           Close the specified channel for the node
+* SettleChannel                          Settle the specified channel for the node
+* Deposit2Channel                        Deposit to the specified channel
+* Connecting2TokenNetwork                Connect to a TokenNetwork
+* LeavingTokenNetwork                    Leave the TokenNetwork
+* QueryingConnectionsDetails             Query the details of the Token network connection 
+* QueryingGeneralNetworkEvents           Query network events
+* QueryingTokenNetworkEvents             Query Token network events
+* QueryingChannelEvents                  Query channel event
 ## Raiden Contract
 These are the currently deployed raiden contract addresses for the spectrum testnet:
 •	Netting Channel Library: 0xad5cb8fa8813f3106f3ab216176b6457ab08eb75
@@ -45,13 +45,13 @@ VERSION: 0.1
  GLOBAL OPTIONS:
  --address value                                            The ethereum address you would like raiden to use and for
                                                             which a keystore file exists in your local system.
- --keystore-path                                           "/Users/bai/Library/Ethereum/keystore"  If you have a 
+ --keystore-path                                           "/Users/your name/Library/Ethereum/keystore"  If you have a 
                                                             non-standard path for the ethereum keystore directory 
                                                             provide it using this argument.
 --eth-rpc-endpoint value                                   "host:port" address of ethereum JSON-RPC server.\n'
                                                            'Also accepts a protocol prefix (ws:// or ipc channel)
                                                             with optional port', (default: 
-                                                            "/Users/bai/Library/Ethereum/geth.ipc")
+                                                            "/Users/your name/Library/Ethereum/geth.ipc")
 --registry-contract-address value                           hex encoded address of the registry contract. (default:
                                                             "0x1BB1437d4e387Be1E8C04762536217B3240f2323")
 --discovery-contract-address value                          hex encoded address of the discovery contract. (default: 
