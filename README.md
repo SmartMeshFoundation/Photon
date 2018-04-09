@@ -30,10 +30,10 @@ Please refer to Installation section in raiden-network official docs the Usage i
 * QueryingChannelEvents                  Query channel event
 ## Raiden Contract
 These are the currently deployed raiden contract addresses for the spectrum testnet:
-•	Netting Channel Library: 0xad5cb8fa8813f3106f3ab216176b6457ab08eb75
-•	Channel Manager Library: 0xdb3a4dbae2b761ed2751f867ce197c531911382a
-•	Registry Contract: 0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828
-•	Discovery Contract: 0x1e3941d8c05fffa7466216480209240cc26ea577
+* Netting Channel Library: [0xad5cb8fa8813f3106f3ab216176b6457ab08eb75](https://ropsten.etherscan.io/address/0xad5cb8fa8813f3106f3ab216176b6457ab08eb75#code)
+* Channel Manager Library: [0xdb3a4dbae2b761ed2751f867ce197c531911382a](https://ropsten.etherscan.io/address/0xdb3a4dbae2b761ed2751f867ce197c531911382a#code)
+* Registry Contract: [0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828](https://ropsten.etherscan.io/address/0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828#code)
+* Discovery Contract: [0x1e3941d8c05fffa7466216480209240cc26ea577](https://ropsten.etherscan.io/address/0x1e3941d8c05fffa7466216480209240cc26ea577#code)
 
 ## Usage
 
