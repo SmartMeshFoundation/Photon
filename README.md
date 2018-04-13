@@ -1,33 +1,33 @@
-# Raiden-Network 
-   The Raiden Network is an off-chain scaling solution, enabling near-instant, low-fee and scalable payments. Our Raiden Network is a standard compliant implementation of the Raiden Network protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayment on smart mobile devices can be realized.
+# SmartRaiden 
+   The Raiden Network is an off-chain scaling solution, enabling near-instant, low-fee and scalable payments. SmartRaiden is a standard compliant implementation of the Raiden Network protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayment on smart mobile devices can be realized.
 
 ## Project Status 
    This implementation is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We do our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
 ## Getting Started
-   Raiden Network currently can works on Windows, Linux ,Android, iOS  etc, and requires a locally running "Raiden node" that is fully caught up with the network you're testing on.
+   SmartRaiden currently can works on Windows, Linux ,Android, iOS  etc, and requires a locally running "Raiden node" that is fully caught up with the network you're testing on.
 
 ## Build
-  go get github.com/SmartMeshFoundation/raiden-mobile/tree/master/cmd/goraiden
-Please refer to Installation section in raiden-network official docs the Usage in this doc for detailed instructions.
+  Go get github.com/SmartMeshFoundation/SmartRaiden/tree/master/cmd/goraiden
+Please refer to [Installation](http://raiden-network.readthedocs.io/en/stable/overview_and_guide.html) section in raiden-network official docs and the Usage in this doc for detailed instructions.
 ## Listing API
-  Our Raiden API has the main functions of Raiden Network API, which includes：Querying Information About Channels and Tokens(Querying a specific channel,Querying all channels,Querying all registered Tokens),Registering a token,Channel Management(Open Channel,Close Channel, Settle Channel, Deposit to a Channel),Connection Management(Connecting to a token network, Leaving a token network）,Transfers（Initiating a Transfer）and Querying Events , Detailed function description please refer to Getting started with the Raiden API and Raiden’s API Documentation  in raiden-network official docs. Besides, Our Raiden also has some special function, that is, P2P communication under ICE framework, crash recovery and channel charging function. The primary API list and description are as follows：
-* QueryingNodeAddress                    Query a node address
-* QueryingNodeAllChannels                Query all channels of a node
-* QueryingNodeSpecificChannel            Query a specified channel for a node
-* QueryingRegisteredTokens               Query system registration Token
-* QueryingAllPartnersForOneTokens        Query the Partner address in the channel of special Token
-* RegisteringOneToken                    Registration of new Token to Raiden Network
-* TokenSwaps                             Exchange the token
-* OpenChannel                            Establish a channel
-* CloseChannel                           Close the specified channel for the node
-* SettleChannel                          Settle the specified channel for the node
-* Deposit2Channel                        Deposit to the specified channel
-* Connecting2TokenNetwork                Connect to a TokenNetwork
-* LeavingTokenNetwork                    Leave the TokenNetwork
-* QueryingConnectionsDetails             Query the details of the Token network connection 
-* QueryingGeneralNetworkEvents           Query network events
-* QueryingTokenNetworkEvents             Query Token network events
-* QueryingChannelEvents                  Query channel event
+  SmartRaiden API has the main functions of Raiden Network API, which includes：Querying Information About Channels and Tokens(Querying a specific channel,Querying all channels,Querying all registered Tokens),Registering a token,Channel Management(Open Channel,Close Channel, Settle Channel, Deposit to a Channel),Connection Management(Connecting to a token network, Leaving a token network）,Transfers（Initiating a Transfer）and Querying Events.Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in raiden-network official docs. Besides, SmartRaiden also has some special function, that is, P2P communication under ICE framework, crash recovery and channel charging function. The primary API list and description are as follows：
+* QueryingNodeAddress　　　　　Query a node address
+* QueryingNodeAllChannels　　　　　Query all channels of a node
+* QueryingNodeSpecificChannel　　　　　Query a specified channel for a node
+* QueryingRegisteredTokens　　　　　Query system registration Token
+* QueryingAllPartnersForOneTokens　　　　　Query the Partner address in the channel of special Token
+* RegisteringOneToken　　　　　Registration of new Token to Raiden Network
+* TokenSwaps　　　　　Exchange the token
+* OpenChannel　　　　　Establish a channel
+* CloseChannel　　　　　Close the specified channel for the node
+* SettleChannel　　　　　Settle the specified channel for the node
+* Deposit2Channel　　　　　Deposit to the specified channel
+* Connecting2TokenNetwork　　　　　Connect to a TokenNetwork
+* LeavingTokenNetwork　　　　　Leave the TokenNetwork
+* QueryingConnectionsDetails　　　　　Query the details of the Token network connection 
+* QueryingGeneralNetworkEvents　　　　　Query network events
+* QueryingTokenNetworkEvents　　　　　Query Token network events
+* QueryingChannelEvents　　　　　Query channel event
 ## Raiden Contract
 These are the currently deployed raiden contract addresses for the spectrum testnet:
 * Netting Channel Library: [0xad5cb8fa8813f3106f3ab216176b6457ab08eb75](https://ropsten.etherscan.io/address/0xad5cb8fa8813f3106f3ab216176b6457ab08eb75#code)
