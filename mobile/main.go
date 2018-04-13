@@ -91,7 +91,7 @@ func setupLog() {
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
 }
 func mobileMain() (api *Api, err error) {
-	fmt.Printf("Welcom to GoRaiden,version %f\n", 0.1)
+	fmt.Printf("Welcom to smartraiden,version %f\n", 0.1)
 	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
 	setupLog()
 	/*
