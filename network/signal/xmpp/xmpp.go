@@ -174,10 +174,10 @@ func (x *XmppWrapper) sendSync(msg *xmpp.Chat) (response *xmpp.Chat, err error) 
 	uid := fmt.Sprintf("%s-%s", msg.Remote, msg.Subject)
 	wait := make(chan *xmpp.Chat)
 	err = x.addWaiter(uid, wait)
-	defer x.removeWaiter(uid)
 	if err != nil {
 		return nil, err
 	}
+	defer x.removeWaiter(uid)
 	err = x.send(msg)
 	if err != nil {
 		return nil, err

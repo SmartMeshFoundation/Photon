@@ -34,7 +34,7 @@ func (this *RaidenService) RestoreSnapshot() error {
  */
  registryAddr:=this.db.GetRegistryAddress()
  if registryAddr!=this.RegistryAddress && registryAddr!=utils.EmptyAddress{
- 	err:=errors.New(fmt.Sprintf("db registry address not match db=%s,mine=%s",registryAddr.String(),this.RegistryAddress))
+ 	err:=errors.New(fmt.Sprintf("db registry address not match db=%s,mine=%s",registryAddr.String(),this.RegistryAddress.String()))
  	log.Error(err.Error())
  	return err
  }

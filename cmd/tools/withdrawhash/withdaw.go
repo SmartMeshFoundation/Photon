@@ -92,6 +92,9 @@ type WithDraw struct {
 	ChannelAddress2Channel map[common.Address]*channel.Channel
 }
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 func Main(ctx *cli.Context) error {
 	var err error
 	w := &WithDraw{
