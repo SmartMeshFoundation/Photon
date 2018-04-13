@@ -7,26 +7,26 @@
    SmartRaiden currently can works on Windows, Linux ,Android, iOS  etc, and requires a locally running "Raiden node" that is fully caught up with the network you're testing on.
 
 ## Build
-  Go get github.com/SmartMeshFoundation/SmartRaiden/tree/master/cmd/goraiden
+  Go get github.com/SmartMeshFoundation/SmartRaiden/tree/master/cmd/smartraiden
 Please refer to [Installation](http://raiden-network.readthedocs.io/en/stable/overview_and_guide.html) section in raiden-network official docs and the Usage in this doc for detailed instructions.
 ## Listing API
   SmartRaiden API has the main functions of Raiden Network API, which includes：Querying Information About Channels and Tokens(Querying a specific channel,Querying all channels,Querying all registered Tokens),Registering a token,Channel Management(Open Channel,Close Channel, Settle Channel, Deposit to a Channel),Connection Management(Connecting to a token network, Leaving a token network）,Transfers（Initiating a Transfer）and Querying Events.Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in raiden-network official docs. Besides, SmartRaiden also has some special function, that is, P2P communication under ICE framework, crash recovery and channel charging function. The primary API list and description are as follows：
 * QueryingNodeAddress　　　　　　　　　　　　Query a node address
-* QueryingNodeAllChannels　　　　　　　　　　Query all channels of a node
-* QueryingNodeSpecificChannel　　　　　　　Query a specified channel for a node
-* QueryingRegisteredTokens　　　　　　　　　Query system registration Token
-* QueryingAllPartnersForOneTokens　　　　　Query the Partner address in the channel of special Token
+* QueryingNodeAllChannels　　　　　　　　　　　Query all channels of a node
+* QueryingNodeSpecificChannel　　　　　　　　　Query a specified channel for a node
+* QueryingRegisteredTokens　　　　　　　　　　　Query system registration Token
+* QueryingAllPartnersForOneTokens　　　　　　　　Query the Partner address in the channel of special Token
 * RegisteringOneToken　　　　　　　　　　　　Registration of new Token to Raiden Network
-* TokenSwaps　　　　　　　　　　　　　　　　　Exchange the token
-* OpenChannel　　　　　　　　　　　　　　　　　Establish a channel
+* TokenSwaps　　　　　　　　　　　　　　　　Exchange the token
+* OpenChannel　　　　　　　　　　　　　　　Establish a channel
 * CloseChannel　　　　　　　　　　　　　　　　Close the specified channel for the node
-* SettleChannel　　　　　　　　　　　　　　　Settle the specified channel for the node
+* SettleChannel　　　　　　　　　　　　　　　　Settle the specified channel for the node
 * Deposit2Channel　　　　　　　　　　　　　　Deposit to the specified channel
-* Connecting2TokenNetwork　　　　　　　　　Connect to a TokenNetwork
-* LeavingTokenNetwork　　　　　　　　　　　Leave the TokenNetwork
-* QueryingConnectionsDetails　　　　　　　Query the details of the Token network connection 
-* QueryingGeneralNetworkEvents　　　　　　Query network events
-* QueryingTokenNetworkEvents　　　　　　　Query Token network events
+* Connecting2TokenNetwork　　　　　　　　　　Connect to a TokenNetwork
+* LeavingTokenNetwork　　　　　　　　　　　　Leave the TokenNetwork
+* QueryingConnectionsDetails　　　　　　　　　Query the details of the Token network connection 
+* QueryingGeneralNetworkEvents　　　　　　　Query network events
+* QueryingTokenNetworkEvents　　　　　　　　Query Token network events
 * QueryingChannelEvents　　　　　　　　　　Query channel event
 ## Raiden Contract
 These are the currently deployed raiden contract addresses for the spectrum testnet:
@@ -38,7 +38,7 @@ These are the currently deployed raiden contract addresses for the spectrum test
 ## Usage
 
 ```                                                                                                                                                    
- goraiden [global options] command [command options] [arguments...]
+ smartraiden [global options] command [command options] [arguments...]
 VERSION: 0.1
  COMMANDS:
   help, h                                                   Shows a list of commands or help for one command
@@ -73,7 +73,7 @@ VERSION: 0.1
                                                               start the RPC server
 --api-address value                                          host:port" for the RPC server to listen on. (default: 
                                                              "0.0.0.0:5001")
---datadir "/Users/bai/Library/GoRaiden"                       Directory for storing raiden data.
+--datadir ~/.smartraiden                                     Directory for storing raiden data.
 --password-file value                                         Text file containing password for provided account
 --nat value                                                   [auto|upnp|stun|none] Manually specify method to use 
                                                               for determining public IP / NAT traversal.
