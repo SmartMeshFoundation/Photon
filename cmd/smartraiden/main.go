@@ -26,7 +26,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/gopjnath"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/restful2"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
+	"github.com/SmartMeshFoundation/SmartRaiden/restful"
 )
 
 func main() {
@@ -206,7 +206,7 @@ func setupLog(ctx *cli.Context) {
 func Main(ctx *cli.Context) error {
 	var pms *network.PortMappedSocket
 	var err error
-	fmt.Printf("Welcom to GoRaiden,version %s\n", ctx.App.Version)
+	fmt.Printf("Welcom to smartraiden,version %s\n", ctx.App.Version)
 	setupLog(ctx)
 	if ctx.String("nat") != "ice" {
 		host, port := network.SplitHostPort(ctx.String("listen-address"))
@@ -241,7 +241,7 @@ func Main(ctx *cli.Context) error {
 	}()
 	api := smartraiden.NewRaidenApi(raidenService)
 	regQuitHandler(api)
-	restful2.Start(api, cfg)
+	restful.Start(api, cfg)
 	return nil
 }
 func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocket, bcs *rpc.BlockChainService) (transport network.Transporter, discovery network.DiscoveryInterface) {
