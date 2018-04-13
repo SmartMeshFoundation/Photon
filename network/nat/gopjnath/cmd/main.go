@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/network/nat/gopjnath"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/gopjnath"
 	"github.com/labstack/gommon/log"
 )
 

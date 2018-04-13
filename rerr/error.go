@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )

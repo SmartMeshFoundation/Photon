@@ -14,7 +14,7 @@ import (
 
 	"sync"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/go-errors/errors"
 )

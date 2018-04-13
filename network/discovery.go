@@ -10,11 +10,11 @@ import (
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/blockchain"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/astaxie/beego/httplib"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

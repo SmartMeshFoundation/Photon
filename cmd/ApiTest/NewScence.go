@@ -46,7 +46,7 @@ func NewScene() (NewTokenName string) {
 	log.Println("registryAddress=", RegistryAddress.String())
 
 	//本地注释：启动雷电客户端
-	datadir := c.RdString("common", "datadir", "/smtwork/share/.goraiden")
+	datadir := c.RdString("common", "datadir", "/smtwork/share/.smartraiden")
 	os.RemoveAll(datadir)
 	Startraiden(RegistryAddress.String())
 

@@ -15,10 +15,10 @@ import (
 
 	"sync"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"

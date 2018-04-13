@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind/backends"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"

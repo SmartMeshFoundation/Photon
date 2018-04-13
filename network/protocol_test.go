@@ -17,10 +17,10 @@ import (
 
 	"sync"
 
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"

@@ -18,11 +18,11 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -82,7 +82,7 @@ func Main(ctx *cli.Context) error {
 	return nil
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		os.Exit(1)
@@ -163,7 +163,7 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 	//managerAddress, _ := registry.ChannelManagerByToken(nil, tokenAddress)
 	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
 	token, _ := rpc.NewToken(tokenAddress, conn)
-	am := raiden_network.NewAccountManager(keystorepath)
+	am := smartraiden.NewAccountManager(keystorepath)
 	var accounts []common.Address
 	var keys []*ecdsa.PrivateKey
 	for _, account := range am.Accounts {
@@ -409,7 +409,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	auth2 := bind.NewKeyedTransactor(key2)
 	auth2.GasLimit = uint64(params.GAS_LIMIT)
 	auth2.GasPrice = big.NewInt(params.GAS_PRICE)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(60000))
+	tx, err := manager.NewChannel(auth1, account2, big.NewInt(35))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return

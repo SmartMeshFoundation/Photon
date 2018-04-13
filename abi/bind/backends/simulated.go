@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"

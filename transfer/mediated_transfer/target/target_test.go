@@ -7,10 +7,10 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
-	"github.com/SmartMeshFoundation/raiden-network/utils/utest"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	assert2 "github.com/stretchr/testify/assert"

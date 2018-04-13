@@ -3,13 +3,13 @@ package v1
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/astaxie/beego"
 	"github.com/fatedier/frp/src/utils/log"
 )
 
-var RaidenApi *raiden_network.RaidenApi
+var RaidenApi *smartraiden.RaidenApi
 var Config *params.Config
 
 func Start() {

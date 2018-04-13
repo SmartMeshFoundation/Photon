@@ -1,10 +1,10 @@
-package raiden_network
+package smartraiden
 
 import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
 func TestDefaultKeyStoreDir(t *testing.T) {

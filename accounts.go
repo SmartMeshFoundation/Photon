@@ -1,4 +1,4 @@
-package raiden_network
+package smartraiden
 
 import (
 	"bytes"

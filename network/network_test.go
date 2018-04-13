@@ -6,7 +6,7 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/prestonTao/upnp"
 )
 

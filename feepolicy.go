@@ -1,9 +1,9 @@
-package raiden_network
+package smartraiden
 
 import (
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 

@@ -16,7 +16,7 @@ import (
 
 	"encoding/binary"
 
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	bolt "github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"

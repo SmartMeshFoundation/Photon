@@ -5,8 +5,8 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )

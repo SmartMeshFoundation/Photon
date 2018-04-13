@@ -1,4 +1,4 @@
-package raiden_network
+package smartraiden
 
 import (
 	"testing"
@@ -11,9 +11,9 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
 	assert2 "github.com/stretchr/testify/assert"

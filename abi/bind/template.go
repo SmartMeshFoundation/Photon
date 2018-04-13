@@ -16,7 +16,7 @@
 
 package bind
 
-import "github.com/SmartMeshFoundation/raiden-network/abi"
+import "github.com/SmartMeshFoundation/SmartRaiden/abi"
 
 // tmplData is the data structure required to fill the binding template.
 type tmplData struct {

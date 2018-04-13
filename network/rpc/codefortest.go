@@ -3,8 +3,8 @@ package rpc
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"

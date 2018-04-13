@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/SmartMeshFoundation/raiden-network/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/ethereum/go-ethereum/common"
 )
 

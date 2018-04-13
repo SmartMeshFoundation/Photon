@@ -1,4 +1,4 @@
-package raiden_network
+package smartraiden
 
 import (
 	"errors"
@@ -10,11 +10,11 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
 )

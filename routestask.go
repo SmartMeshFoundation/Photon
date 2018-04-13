@@ -1,12 +1,12 @@
-package raiden_network
+package smartraiden
 
 import (
 	"time"
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/ethereum/go-ethereum/log"
 )
 

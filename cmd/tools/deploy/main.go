@@ -12,11 +12,11 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -115,7 +115,7 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	//EndpointRegistryAddress=0xB85b8b57e2b701d5E918D7d9027A7330472a663a
 }
 func promptAccount(adviceAddress common.Address, keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		os.Exit(1)

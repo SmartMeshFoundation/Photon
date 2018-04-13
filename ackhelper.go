@@ -1,10 +1,10 @@
-package raiden_network
+package smartraiden
 
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )

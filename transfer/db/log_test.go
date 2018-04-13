@@ -8,7 +8,7 @@ import (
 
 	"path"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/log"
 )

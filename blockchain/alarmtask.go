@@ -11,7 +11,7 @@ import (
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )

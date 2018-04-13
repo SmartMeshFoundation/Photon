@@ -13,12 +13,12 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/network/dijkstra"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc/fee"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/dijkstra"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )

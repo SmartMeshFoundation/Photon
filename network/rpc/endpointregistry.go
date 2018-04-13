@@ -6,8 +6,8 @@ package rpc
 import (
 	"strings"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi"
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )

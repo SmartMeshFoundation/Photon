@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/abi/bind"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -36,7 +36,7 @@ func CreateNewToken(EthRpcEndpoint string, KeystorePath string) (TokenName strin
 	return
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		os.Exit(1)
@@ -108,7 +108,7 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 	TokenName = tokenAddress.Hex()
 	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
 	token, _ := rpc.NewToken(tokenAddress, conn)
-	am := raiden_network.NewAccountManager(keystorepath)
+	am := smartraiden.NewAccountManager(keystorepath)
 	var accounts []common.Address
 	var keys []*ecdsa.PrivateKey
 	for _, account := range am.Accounts {

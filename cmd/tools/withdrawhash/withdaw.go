@@ -13,15 +13,15 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
-	raiden_network "github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/models"
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -139,7 +139,7 @@ func Main(ctx *cli.Context) error {
 	return nil
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		utils.SystemExit(1)

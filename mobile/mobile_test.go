@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestMobile(t *testing.T) {

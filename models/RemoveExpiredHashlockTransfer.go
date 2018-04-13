@@ -1,8 +1,8 @@
 package models
 
 import (
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"fmt"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"

@@ -5,8 +5,8 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestNewBalanceProofStateFromEnvelopMessage(t *testing.T) {

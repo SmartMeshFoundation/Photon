@@ -1,4 +1,4 @@
-package raiden_network
+package smartraiden
 
 import (
 	"crypto/ecdsa"
@@ -26,21 +26,21 @@ import (
 
 	"runtime/debug"
 
-	"github.com/SmartMeshFoundation/raiden-network/blockchain"
-	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/models"
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc/fee"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/rerr"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/initiator"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/mediator"
-	"github.com/SmartMeshFoundation/raiden-network/transfer/mediated_transfer/target"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"

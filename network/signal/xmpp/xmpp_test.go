@@ -7,8 +7,8 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/raiden-network/network/signal/signalshare"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/signalshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"

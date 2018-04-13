@@ -17,12 +17,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -121,14 +121,14 @@ func mobileMain() (api *Api, err error) {
 	//discovery := network.NewHttpDiscovery()
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
-	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	//startup may take long time
 	raidenService.Start()
-	api = &Api{raiden_network.NewRaidenApi(raidenService)}
+	api = &Api{smartraiden.NewRaidenApi(raidenService)}
 	regQuitHandler(api.api)
 	return api, nil
 }
-func regQuitHandler(api *raiden_network.RaidenApi) {
+func regQuitHandler(api *smartraiden.RaidenApi) {
 	go func() {
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
@@ -139,7 +139,7 @@ func regQuitHandler(api *raiden_network.RaidenApi) {
 	}()
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		utils.SystemExit(1)
@@ -237,7 +237,7 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	}
 	dataDir := argDataDir
 	if len(dataDir) == 0 {
-		dataDir = path.Join(utils.GetHomePath(), ".goraiden")
+		dataDir = path.Join(utils.GetHomePath(), ".smartraiden")
 	}
 	log.Trace("start dir...")
 	config.DataDir = dataDir

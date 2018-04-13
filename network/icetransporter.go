@@ -13,12 +13,12 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/raiden-network/encoding"
-	"github.com/SmartMeshFoundation/raiden-network/network/nat/gopjnath"
-	"github.com/SmartMeshFoundation/raiden-network/network/signal/interface"
-	"github.com/SmartMeshFoundation/raiden-network/network/signal/signalshare"
-	"github.com/SmartMeshFoundation/raiden-network/network/signal/xmpp"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/gopjnath"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/interface"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/signalshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/xmpp"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"

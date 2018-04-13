@@ -20,14 +20,14 @@ import (
 
 	"encoding/json"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/network"
-	"github.com/SmartMeshFoundation/raiden-network/network/helper"
-	"github.com/SmartMeshFoundation/raiden-network/network/nat/gopjnath"
-	"github.com/SmartMeshFoundation/raiden-network/network/rpc"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/restful2"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/gopjnath"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/restful2"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -230,16 +230,16 @@ func Main(ctx *cli.Context) error {
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
 	transport, discovery := buildTransportAndDiscovery(cfg, pms, bcs)
-	raidenService := raiden_network.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	if cfg.EnableMediationFee {
 		//do nothing.
 	} else {
-		raidenService.SetFeePolicy(&raiden_network.NoFeePolicy{})
+		raidenService.SetFeePolicy(&smartraiden.NoFeePolicy{})
 	}
 	go func() {
 		raidenService.Start()
 	}()
-	api := raiden_network.NewRaidenApi(raidenService)
+	api := smartraiden.NewRaidenApi(raidenService)
 	regQuitHandler(api)
 	restful2.Start(api, cfg)
 	return nil
@@ -262,7 +262,7 @@ func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocke
 	}
 	return
 }
-func regQuitHandler(api *raiden_network.RaidenApi) {
+func regQuitHandler(api *smartraiden.RaidenApi) {
 	go func() {
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
@@ -273,7 +273,7 @@ func regQuitHandler(api *raiden_network.RaidenApi) {
 	}()
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
-	am := raiden_network.NewAccountManager(keystorePath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		utils.SystemExit(1)
@@ -370,7 +370,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	dataDir := ctx.String("datadir")
 	if len(dataDir) == 0 {
-		dataDir = path.Join(utils.GetHomePath(), ".goraiden")
+		dataDir = path.Join(utils.GetHomePath(), ".smartraiden")
 	}
 	config.DataDir = dataDir
 	if !utils.Exists(config.DataDir) {

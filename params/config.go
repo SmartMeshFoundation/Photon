@@ -113,11 +113,11 @@ func DefaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "GoRaiden")
+			return filepath.Join(home, "Library", "smartraiden")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "GoRaiden")
+			return filepath.Join(home, "AppData", "Roaming", "smartraiden")
 		} else {
-			return filepath.Join(home, ".GoRaiden")
+			return filepath.Join(home, ".smartraiden")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

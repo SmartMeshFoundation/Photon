@@ -6,7 +6,7 @@ import (
 
 	"bytes"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/stretchr/testify/assert"
 )
 

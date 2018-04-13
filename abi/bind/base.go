@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

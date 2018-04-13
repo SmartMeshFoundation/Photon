@@ -111,7 +111,7 @@ func Startraiden(RegistryAddress string) {
 		return
 	}
 
-	param.datadir = c.RdString("common", "datadir", "/smtwork/share/.goraiden")
+	param.datadir = c.RdString("common", "datadir", "/smtwork/share/.smartraiden")
 	param.keystore_path = c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
 	param.discovery_contract_address = c.RdString("common", "discovery_contract_address", "0x5f014DA6ea514405f641341e42aC0e61B8190653")
 	if RegistryAddress == "" {

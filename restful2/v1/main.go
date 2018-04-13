@@ -5,13 +5,13 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/params"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/log"
 )
 
-var RaidenApi *raiden_network.RaidenApi
+var RaidenApi *smartraiden.RaidenApi
 var Config *params.Config
 
 func Start() {

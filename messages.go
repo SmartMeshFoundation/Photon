@@ -1,1 +1,1 @@
-package raiden_network
+package smartraiden

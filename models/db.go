@@ -13,8 +13,8 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/raiden-network/channel"
-	"github.com/SmartMeshFoundation/raiden-network/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/asdine/storm"
 	gobcodec "github.com/asdine/storm/codec/gob"
 	bolt "github.com/coreos/bbolt"

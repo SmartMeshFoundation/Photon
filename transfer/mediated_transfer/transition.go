@@ -1,6 +1,6 @@
 package mediated_transfer
 
-import "github.com/SmartMeshFoundation/raiden-network/transfer"
+import "github.com/SmartMeshFoundation/SmartRaiden/transfer"
 
 func UpdateRoute(Routes *transfer.RoutesState, stateChange *transfer.ActionRouteChangeStateChange) {
 	newRoute := stateChange.Route

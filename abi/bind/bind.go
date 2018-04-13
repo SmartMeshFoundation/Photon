@@ -27,7 +27,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/SmartMeshFoundation/raiden-network/abi"
+	"github.com/SmartMeshFoundation/SmartRaiden/abi"
 	"golang.org/x/tools/imports"
 )
 

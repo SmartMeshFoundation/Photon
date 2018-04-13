@@ -11,15 +11,15 @@ import (
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/raiden-network"
-	"github.com/SmartMeshFoundation/raiden-network/params"
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 type Api struct {
-	api *raiden_network.RaidenApi
+	api *smartraiden.RaidenApi
 }
 
 func marshal(v interface{}) (s string, err error) {

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/SmartMeshFoundation/raiden-network/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestPromptAccount(t *testing.T) {
