@@ -120,8 +120,8 @@ const StateManager_TransferComplete = "ManagerTransferComplete"
 
 type MessageTag struct {
 	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
-	ReceiveProcessComplete bool          //收到消息是否处理完毕,
-	SendingMessageComplete bool          //发送的消息是否已经收到ack
+	ReceiveProcessComplete bool          //Whether the receipt of the message has been processed,
+	SendingMessageComplete bool          //Whether the message sent has received ACK
 	IsASendingMessage      bool          //this message is on sending or receiveing?
 	MessageId              string        //messageId for ping message
 	EchoHash               common.Hash
