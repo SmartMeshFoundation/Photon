@@ -119,10 +119,10 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 }
 
 /*
-第一步打开数据库
-第二步检测是否正常关闭 IsDbCrashedLastTime
-第三步 根据第二步的情况恢复数据
-第四步 标记数据库可以正常处理数据了. MarkDbOpenedStatus
+First step   open the database
+Second step detection for normal closure IsDbCrashedLastTime
+Third step  recovers the data according to the second step
+Fourth step mark the database for processing the data normally. MarkDbOpenedStatus
 */
 func (model *ModelDB) MarkDbOpenedStatus() {
 	model.db.Set(bucketMeta, "close", false)
