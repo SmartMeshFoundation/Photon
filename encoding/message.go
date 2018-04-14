@@ -250,7 +250,7 @@ func NewPing(nonce int64) *Ping {
 
 func (this *Ping) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte
 	binary.Write(buf, binary.BigEndian, this.Nonce)
 	buf.Write(this.Signature)
 	return buf.Bytes()
@@ -302,7 +302,7 @@ func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount *big.Int) 
 
 func (this *SecretRequest) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte..
 	binary.Write(buf, binary.BigEndian, this.Identifier)
 	buf.Write(this.HashLock[:])
 	buf.Write(utils.BigIntTo32Bytes(this.Amount))
@@ -377,7 +377,7 @@ func (this *RevealSecret) HashLock() common.Hash {
 }
 func (this *RevealSecret) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte.
 	buf.Write(this.Secret[:])
 	buf.Write(this.Signature)
 	return buf.Bytes()
@@ -410,7 +410,7 @@ type EnvelopMessage struct {
 	SignedMessage
 	Nonce          int64
 	Channel        common.Address
-	TransferAmount *big.Int //已经转给对方的数量(确认过了,随时可以到链上提现的)
+	TransferAmount *big.Int //The number has been transferred to the other party
 	Locksroot      common.Hash
 	Identifier     uint64
 }
@@ -498,7 +498,7 @@ func NewSecret(Identifier uint64, nonce int64, channel common.Address,
 
 func (this *Secret) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte.
 	binary.Write(buf, binary.BigEndian, this.Identifier)
 	buf.Write(this.Secret[:])
 	binary.Write(buf, binary.BigEndian, this.Nonce)
@@ -569,7 +569,7 @@ func NewRemoveExpiredHashlockTransfer(Identifier uint64, nonce int64, channel co
 
 func (this *RemoveExpiredHashlockTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte.
 	binary.Write(buf, binary.BigEndian, this.Identifier)
 	buf.Write(this.HashLock[:])
 	binary.Write(buf, binary.BigEndian, this.Nonce)
@@ -663,7 +663,7 @@ func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
 
 func (this *DirectTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //only one byte.
 	binary.Write(buf, binary.BigEndian, this.Nonce)
 	binary.Write(buf, binary.BigEndian, this.Identifier)
 	buf.Write(this.Token[:])
@@ -750,7 +750,7 @@ type MediatedTransfer struct {
 	Target     common.Address
 	Initiator  common.Address
 	HashLock   common.Hash
-	Amount     *big.Int //此次转给对方的数量
+	Amount     *big.Int //The number transferred to party
 	Fee        *big.Int
 }
 
@@ -773,7 +773,7 @@ func NewMediatedTransfer(identifier uint64, nonce int64, token common.Address,
 	p.Identifier = identifier
 	p.Nonce = nonce
 	p.TransferAmount = new(big.Int).Set(transferAmount)
-	p.Locksroot = locksroot //包含此次未完全完成交易的merkletree root
+	p.Locksroot = locksroot //Including the merkletree root of the incomplete  transaction
 	p.CmdId = MEDIATEDTRANSFER_CMDID
 	p.Channel = channel
 	p.Expiration = lock.Expiration
@@ -792,7 +792,7 @@ func (this *MediatedTransfer) GetLock() *Lock {
 
 func (this *MediatedTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, this.CmdId) //只有一个字节..
+	binary.Write(buf, binary.LittleEndian, this.CmdId) //one byte
 	binary.Write(buf, binary.BigEndian, this.Nonce)
 	binary.Write(buf, binary.BigEndian, this.Identifier)
 	binary.Write(buf, binary.BigEndian, this.Expiration)
