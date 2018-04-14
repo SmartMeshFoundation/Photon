@@ -46,11 +46,11 @@ var (
 )
 
 /*
-address :节点地址,比如0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
-keystorePath:存放私钥的目录地址 geth的keystore目录
-ethRpcEndPoint: 连接geth的url 比如:ws://10.0.0.2:8546
-dataDir:节点工作目录,存放数据用,要求必须可写
-passwordfile:一个只包含私钥密码的文本文件
+address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
+keystorePath:The address of the private key,  geth keystore directory
+ethRpcEndPoint:URL connected to geth ,such as:ws://10.0.0.2:8546
+dataDir:The working directory of a node,
+passwordfile: file to storage password
 */
 func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) (api *Api, err error) {
 	argAddress = address
