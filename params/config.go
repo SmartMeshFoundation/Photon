@@ -97,11 +97,11 @@ var DefaultConfig = Config{
 type ConditionQuit struct {
 	QuitEvent  string //name match
 	IsBefore   bool   //quit before event occur
-	RandomQuit bool   //随机退出
+	RandomQuit bool   //random exit
 }
 
 /*
-在中介节点发生refund的时候是否当成普通的mediatedtransfer来处理，也就是删除raidenservice中的HandleSecret
+When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete HandleSecret in raidenservice)?
 */
 var TreatRefundTransferAsNormalMediatedTransfer = true
 
