@@ -73,7 +73,7 @@ func TestGob(t *testing.T) {
 }
 
 /*
-使用gob对对象进行序列化存储以及反序列化
+Use gob to serialize storage and de serialization of objects.
 */
 func TestGobWithWrapper(t *testing.T) {
 	gob.Register(&struct1{})
