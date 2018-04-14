@@ -9,7 +9,7 @@ import (
 	"github.com/huamou/config"
 )
 
-//本地注释：布置新场景
+//deploy the new scence
 func NewScene() (NewTokenName string) {
 
 	log.Println("==============================================================================================")
@@ -35,7 +35,7 @@ func NewScene() (NewTokenName string) {
 	Node5Url = "http://" + Node5Url
 	Node6Url = "http://" + Node6Url
 
-	//本地注释：创建新Token并向账户充值
+	//create a new token and deposit to the account
 
 	EthRpcEndpoint := c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 
@@ -45,18 +45,18 @@ func NewScene() (NewTokenName string) {
 	log.Println("New Token=", NewTokenName)
 	log.Println("registryAddress=", RegistryAddress.String())
 
-	//本地注释：启动雷电客户端
+	//start the raiden client
 	datadir := c.RdString("common", "datadir", "/smtwork/share/.smartraiden")
 	os.RemoveAll(datadir)
 	Startraiden(RegistryAddress.String())
 
 	time.Sleep(10 * time.Second)
 
-	//本地注释：测试注册新Token到雷电网
+	//test for registering new token to raiden network
 	RegisteringOneToken(Node1Url, NewTokenName)
 	//Status, err := RegisteringOneToken(Node1Url, NewTokenName)
 	//ShowError(err)
-	////本地注释：显示错误详细信息
+	////display the details of the error
 	//ShowRegisteringOneTokenMsgDetail(Status)
 	//switch Status {
 	//case "201 Created":

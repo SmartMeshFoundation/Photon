@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释：向指定通道充值
+//deposit to the specified channel
 func Deposit2Channel(url string, Channel string, Balance int32) (Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -42,7 +42,7 @@ func Deposit2Channel(url string, Channel string, Balance int32) (Status string, 
 	return
 }
 
-//本地注释：测试向指定通道充值
+//test for depositing  to the specified channel
 func Deposit2ChannelTest(url string) {
 	var err error
 	var ChannelAddress string
@@ -54,11 +54,11 @@ func Deposit2ChannelTest(url string) {
 	log.Println("Start Deposit2Channel")
 	Balance = 100
 	log.Println("Deposit to a not exist Channel")
-	//本地注释：充值一个不存在的通道
+	//deposit to the channel that doesn't exist
 	ChannelAddress = "0xffffffffffffffffffffffffffffffffffffffff"
 	Status, err = Deposit2Channel(url, ChannelAddress, Balance)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowDeposit2ChannelMsgDetail(Status)
 	if Status == "409 Conflict" {
 		log.Println("Test pass:Deposit to a not exist Channel")
@@ -70,15 +70,15 @@ func Deposit2ChannelTest(url string) {
 	}
 
 	log.Println("Deposit to a opened Channel")
-	//本地注释：查询所有通道
+	//query all channels of the node
 	Channels, _, _ := QueryingNodeAllChannels(url)
-	//本地注释：充值open通道
+	//deposit to the opened channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "opened" {
 			ChannelAddress = Channels[i].ChannelAddress
 			Status, err = Deposit2Channel(url, ChannelAddress, Balance)
 			ShowError(err)
-			//本地注释：显示错误详细信息
+			//display the details of the error
 			ShowDeposit2ChannelMsgDetail(Status)
 			if Status == "200 OK" {
 				fmt.Printf("Test pass:Deposit to a open Channel:%s\n", ChannelAddress)
@@ -91,13 +91,13 @@ func Deposit2ChannelTest(url string) {
 		}
 	}
 	log.Println("Deposit to a closed Channel")
-	//本地注释：充值closed通道
+	// deposit the closed channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "closed" {
 			ChannelAddress = Channels[i].ChannelAddress
 			Status, err = Deposit2Channel(url, ChannelAddress, Balance)
 			ShowError(err)
-			//本地注释：显示错误详细信息
+			//display the details of the error
 			ShowDeposit2ChannelMsgDetail(Status)
 			if Status == "408 Request Timeout" {
 				fmt.Printf("Test pass:Deposit to a closed Channel:%s\n", ChannelAddress)
@@ -110,13 +110,13 @@ func Deposit2ChannelTest(url string) {
 		}
 	}
 	log.Println("Deposit to a settled Channel")
-	//本地注释：充值settled通道
+	// deposit the settled channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "settled" {
 			ChannelAddress = Channels[i].ChannelAddress
 			Status, err = Deposit2Channel(url, ChannelAddress, Balance)
 			ShowError(err)
-			//本地注释：显示错误详细信息
+			//display the details of the error
 			ShowDeposit2ChannelMsgDetail(Status)
 			if Status == "408 Request Timeout" {
 				fmt.Printf("Test pass:Deposit to a settled Channel:%s\n", ChannelAddress)
@@ -134,7 +134,7 @@ func Deposit2ChannelTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowDeposit2ChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

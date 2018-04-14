@@ -6,10 +6,10 @@ import (
 
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
-	//本地注释：布置新场景，注册新Token，注册新雷电网络，启动雷电测试节点
+	//deploy the new scence,register new token,register new raiden network,initiate raiden testing node
 	NewTokenName := NewScene()
-	//本地注释：测试交易
+	//test transfer
 	Transfer(NewTokenName, "./../../testdata/TransCase/case1.ini")
-	//本地注释：Api逐项测试
+	//test API item by item
 	//ApiTest()
 }

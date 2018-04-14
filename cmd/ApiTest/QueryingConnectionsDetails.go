@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释：查询Token网络连接详情
+//query the details of the Token network connection
 func QueryingConnectionsDetails(url string) (Infos map[string]*ConnectionsDetails, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -45,7 +45,7 @@ func QueryingConnectionsDetails(url string) (Infos map[string]*ConnectionsDetail
 	return
 }
 
-//本地注释：测试查询Token网络连接详情
+//test for querying the details of the Token network connection
 func QueryingConnectionsDetailsTest(url string) {
 	var err error
 	var Status string
@@ -55,7 +55,7 @@ func QueryingConnectionsDetailsTest(url string) {
 	log.Println("Start Querying Connecions Details")
 	Infos, Status, err = QueryingConnectionsDetails(url)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingConnectionsDetailsMsgDetail(Status)
 	if Infos != nil {
 		//for k, v := range Infos {
@@ -77,7 +77,7 @@ func QueryingConnectionsDetailsTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingConnectionsDetailsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

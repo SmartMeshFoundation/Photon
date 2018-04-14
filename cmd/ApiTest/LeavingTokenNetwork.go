@@ -49,10 +49,10 @@ func LeavingTokenNetworkTest(url string) {
 	log.Println("Start Leaving Token Network")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 
-	//本地注释：测试不存在的Token
+	//test the token which doesn't exist.
 	Status, err = LeavingTokenNetwork(url, "0x00000", true)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowLeavingTokenNetworkMsgDetail(Status)
 	if Status == "500 Internal Server Error" {
 		log.Println("Test pass:Leaving a not exist TokenNetwork")
@@ -62,11 +62,11 @@ func LeavingTokenNetworkTest(url string) {
 			log.Fatal("HalfLife,exit")
 		}
 	}
-	//本地注释：测试已经注册的Token
+	//test the token which has registered.
 	for i := 0; i < len(Tokens); i++ {
 		Status, err = LeavingTokenNetwork(url, Tokens[i], false)
 		ShowError(err)
-		//本地注释：显示错误详细信息
+		//display the details of the error
 		ShowLeavingTokenNetworkMsgDetail(Status)
 		if Status == "200 OK" {
 			fmt.Printf("Test pass:Leaving TokenNetwork [%s]\n", Tokens[i])
@@ -82,7 +82,7 @@ func LeavingTokenNetworkTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowLeavingTokenNetworkMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

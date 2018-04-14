@@ -52,7 +52,7 @@ func QueryingGeneralNetworkEventsTest(url string) {
 	log.Println("Start Querying General Network Events")
 	Events, Status, err := QueryingGeneralNetworkEvents(url)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingGeneralNetworkEventsMsgDetail(Status)
 	if Events != nil {
 		//for i := 0; i < len(Events); i++ {
@@ -65,7 +65,7 @@ func QueryingGeneralNetworkEventsTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingGeneralNetworkEventsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

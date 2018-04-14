@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释：查询节点指定Token有通道的伙伴地址
+//query the Partner address in the channel of special Token
 func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenPartnerPayload, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -43,7 +43,7 @@ func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenP
 	return
 }
 
-//本地注释：测试查询节点指定Token有通道的伙伴地址
+//test for querying the Partner address in the channel of special Token
 func QueryingAllPartnersForOneTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
@@ -55,7 +55,7 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 	} else {
 		_, Status, err := QueryingAllPartnersForOneToken(url, Tokens[0])
 		ShowError(err)
-		//本地注释：显示错误详细信息
+		//display the details of the error
 		ShowQueryingAllPartnersForOneTokenMsgDetail(Status)
 		switch Status {
 		case "200 OK":
@@ -71,7 +71,7 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 	log.Println("Start Querying All Partners For a Nonexistent Token")
 	_, Status, err := QueryingAllPartnersForOneToken(url, "0x0000")
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingAllPartnersForOneTokenMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
@@ -87,7 +87,7 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingAllPartnersForOneTokenMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

@@ -2,7 +2,6 @@ package main
 
 func KillAndRestartStartraiden() {
 	//	var pstr []string
-	//	//公共参数
 	//	//public parameter
 	//	param := new(RaidenParam)
 	//	param.datadir = "d:\\share\\goraiden"
@@ -16,7 +15,6 @@ func KillAndRestartStartraiden() {
 	//	param.debug = true
 	//
 	//	r := rand.Intn(3)
-	//	//节点1
 	//	//NODE 1
 	//	if r == 1 {
 	//		pstr = append(pstr, "/im")
@@ -31,7 +29,6 @@ func KillAndRestartStartraiden() {
 	//		//log.Println(pstr)
 	//		Exec_shell("goraiden1.exe", pstr)
 	//	}
-	//	//节点2
 	//	//NODE 2
 	//	if r == 2 {
 	//		pstr = append(pstr, "/im")
@@ -45,7 +42,6 @@ func KillAndRestartStartraiden() {
 	//		pstr = param.getParam()
 	//		Exec_shell("goraiden2.exe", pstr)
 	//	}
-	//	//节点3
 	//	//NODE 3
 	//	if r == 3 {
 	//		pstr = append(pstr, "/im")

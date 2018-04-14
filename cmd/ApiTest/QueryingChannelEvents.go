@@ -59,10 +59,10 @@ func QueryingChannelEventsTest(url string) {
 	log.Println("Start Querying Channel Events")
 	Channels, Status, err := QueryingNodeAllChannels(url)
 
-	//本地注释：测试不存在的Channel
+	//test the channel which doesn't exist.
 	_, Status, err = QueryingChannelEvents(url, "0xffffffffffffffffffffffffffffffffffffffff", 0)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingChannelEventsMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
@@ -77,7 +77,7 @@ func QueryingChannelEventsTest(url string) {
 	for i := 0; i < len(Channels); i++ {
 		_, Status, err = QueryingChannelEvents(url, Channels[i].ChannelAddress, 0)
 		ShowError(err)
-		//本地注释：显示错误详细信息
+		//display the details of the error
 		ShowQueryingChannelEventsMsgDetail(Status)
 		switch Status {
 		case "200 OK":
@@ -94,7 +94,7 @@ func QueryingChannelEventsTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingChannelEventsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

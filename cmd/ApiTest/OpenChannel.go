@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-//本地注释：建立Channel
+//establish the Channel
 func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance int32, SettleTimeout int32) (Channel NodeChannel, Status string, err error) {
 	var count int
 	var resp *http.Response
@@ -51,7 +51,7 @@ func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance
 	return
 }
 
-//本地注释：在节点1和节点2 建立Channel，Token为查询到的第一个注册Token
+//establish the channel between the node1 and node2
 func OpenChannelTest(url string, url2 string) {
 	start := time.Now()
 	ShowTime()
@@ -79,7 +79,7 @@ func OpenChannelTest(url string, url2 string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowOpenChannelMsgDetail(Status string) {
 	switch Status {
 	case "201 Created":

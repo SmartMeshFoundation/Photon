@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-//本地注释：有返回的交易，输入本节点url,Token地址，目标地址，交易数量，返回状态信息和error
+//a transaction which return values, input the url of the node,token address,target address,amount,return the status information and error
 func InitiatingTransfer(url string, Token string, TargetAddress string, Amount int32) (TransferResult TransferResponse, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -53,14 +53,14 @@ func InitiatingTransfer(url string, Token string, TargetAddress string, Amount i
 	return
 }
 
-//本地注释：有信息输出的交易，输入本节点url,Token地址，目标地址，交易数量，无返回值
+//a transaction which output information, input the url of the node,token address,target address,amount,no return value
 func InitiatingTransfer2Msg(url string, Token string, TargetAddress string, Amount int32) {
 	_, Status, err := InitiatingTransfer(url, Token, TargetAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
 }
 
-//本地注释：测试两个节点交易测试，输入两个交易节点的url地址
+//test the transfer between two nodes,input the urls of the two nodes
 func InitiatingTransferTest(url string, TargetUrl string) {
 	var Token string
 	var TargetAddress string
@@ -85,7 +85,7 @@ func InitiatingTransferTest(url string, TargetUrl string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：验证交易结果
+//verify the result of the transfer
 func ResultJudge(TransferResult TransferResponse, Status string, err error, InitiatorAddress string, TargetAddress string, TokenAddress string, Amount int32) {
 	if Status != "200 OK" {
 		log.Println("Transfer failed:", Status)
@@ -114,7 +114,7 @@ func ResultJudge(TransferResult TransferResponse, Status string, err error, Init
 	}
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowInitiatingTransferMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":
