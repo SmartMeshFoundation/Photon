@@ -469,7 +469,7 @@ Can keep doing transactions even if not all secrets have been released.
 */
 func TestInterwovenTransfers(t *testing.T) {
 	var err error
-	ArgNumberOfTransfers := 10 //要保证有钱可转
+	ArgNumberOfTransfers := 10 //To make sure if there is  money can be transferred
 	ch0, ch1 := makePairChannel()
 	contractBalance0 := ch0.ContractBalance()
 	contractBalance1 := ch1.ContractBalance()
