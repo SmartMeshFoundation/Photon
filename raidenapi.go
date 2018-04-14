@@ -74,7 +74,7 @@ func (this *RaidenApi) ManagerAddressIfTokenRegistered(tokenAddress common.Addre
 		return
 	}
 	/*
-		为什么无关自己的mgr也要注册呢?没必要啊 todo fix it
+todo fix it
 	*/
 	//if !this.Raiden.ChannelManagerIsRegistered(mgrAddr) {
 	//	this.Raiden.RegisterChannelManager(mgrAddr)
@@ -106,7 +106,7 @@ Instruct the ConnectionManager to establish and maintain a connection to the tok
     network.
 
     If the `token_address` is not already part of the raiden network, this will also register
-    the token. //十分不合理这一点,为什么api要设计成这样呢?
+    the token. //
 
     Args:
         token_address (bin): the ERC20 token network to connect to.

@@ -135,8 +135,8 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 
 	if msgTag.ReceiveProcessComplete != false {
 		/*
-			todo 必须要解决
-			作为中间节点进行tokenswap时,ReceiveProcessComplete明明应该为false的时候,却为真, 是因为event handler 中 receiveMessageTag.ReceiveProcessComplete = true
+			todo must be solved
+		When tokenswap is used as an intermediate node, ReceiveProcessComplete is true when it is supposed to be false. for event handler, receiveMessageTag.ReceiveProcessComplete = true
 		*/
 		//panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
 	}
@@ -154,7 +154,7 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	if mgr.Name == target.NameTargetTransition {
 		mgr.ManagerState = transfer.StateManager_TransferComplete
 	} else if mgr.Name == initiator.NameInitiatorTransition {
-		// initiator 不应该收到
+		// initiator should not receive
 	} else if mgr.Name == mediator.NameMediatorTransition {
 		/*
 			how to detect a mediator node is finish or not?

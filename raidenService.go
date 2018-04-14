@@ -130,7 +130,7 @@ type RaidenService struct {
 	Config             *params.Config
 	Protocol           *network.RaidenProtocol
 	NodeAddress        common.Address
-	Token2ChannelGraph map[common.Address]*network.ChannelGraph //多线程
+	Token2ChannelGraph map[common.Address]*network.ChannelGraph //Multithread
 	//Token2ConnectionsManager todo fix later
 	//swapkey_to_tokenswap
 	//swapkey_to_greenlettask
@@ -145,7 +145,7 @@ type RaidenService struct {
 		         channel should be removed from this list only when the Lock is
 		         released/withdrawn but not when the secret is registered.
 	*/
-	Token2Hashlock2Channels             map[common.Address]map[common.Hash][]*channel.Channel //多线程
+	Token2Hashlock2Channels             map[common.Address]map[common.Hash][]*channel.Channel //Multithread
 	MessageHandler                      *RaidenMessageHandler
 	StateMachineEventHandler            *StateMachineEventHandler
 	BlockChainEvents                    *blockchain.BlockChainEvents
@@ -284,7 +284,8 @@ func (this *RaidenService) Start() {
 				}
 				for {
 					/*
-						随机休眠不超过五秒,如果休眠毫秒数是素数,直接退出 ,此概率大概是13%
+						Random sleep is no more than five seconds. If the number of dormancy milliseconds is prime,
+					    it will exit directly. This probability is probably 13%.
 					*/
 					n := utils.NewRandomInt(5000)
 					time.Sleep(time.Duration(n) * time.Millisecond)
@@ -560,7 +561,7 @@ func (this *RaidenService) RegisterChannelForHashlock(tokenAddress common.Addres
 	channelsRegistered := this.Token2Hashlock2Channels[tokenAddress][hashlock]
 	found := false
 	for _, c := range channelsRegistered {
-		//判断两个channel对象是否相等,这里只是简单用了地址来判断,可能存在问题 todo
+		//To determine whether the two channel objects are equal, we simply use the address to identify.
 		if c.ExternState.ChannelAddress == netchannel.ExternState.ChannelAddress {
 			found = true
 			break
@@ -616,7 +617,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 	}
 	var messagesToSend []*MsgToSend
 	log.Trace(fmt.Sprintf("channelsList for %s =%#v", utils.HPex(hashlock), channelsList))
-	for _, ch := range channelsList { //处理在间接交易过程中重复使用的节点
+	for _, ch := range channelsList { //Dealing with reused nodes in indirect transactions.
 		//unlock a pending Lock
 		log.Trace(fmt.Sprintf("process channel %s-%s", utils.APex2(ch.OurState.Address), utils.APex2((ch.PartnerState.Address))))
 		if ch.OurState.IsKnown(hashlock) {
@@ -626,7 +627,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 				return err
 			}
 			secretMsg.Sign(this.PrivateKey, secretMsg)
-			//balance proof,完成本次交易,收到重复的revealsecret,但是只会发送一次secretmsg,节点故障了,这个channel就不能用了.
+			//balance proof,Complete this transaction and receive repeated revealsecret,But secretmsg will only be sent once.
 			err = ch.RegisterTransfer(this.GetBlockNumber(), secretMsg)
 			if err != nil {
 				return
@@ -665,10 +666,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 		} else {
 			/*
 				todo reimplement HandleSecret
-				HandleSecret 应该完全重写，很奇怪实现，
-				1.作为target，收到Secret Message，认为交易已经完成。
-				2. 中间节点，收到Secret Message，也认为交易已经完成，完全没必要再发送Reveal Secret了，
-			*/
+						*/
 			log.Warn("Channel is registered for a given Lock but the Lock is not contained in it. can be ignored when I'm a mediated node")
 		}
 

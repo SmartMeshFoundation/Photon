@@ -251,7 +251,7 @@ func TestTransfer(t *testing.T) {
 		values[r][chaddr] = ch.OurBalance
 		go func(r *RaidenApi, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
-			wgStart.Wait() //同时开始
+			wgStart.Wait() //start at the same time
 			err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, id, time.Minute*2)
 			if err != nil {
 				t.Error()
