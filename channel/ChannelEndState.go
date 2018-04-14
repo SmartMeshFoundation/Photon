@@ -229,7 +229,7 @@ func (this *ChannelEndState) ComputeMerkleRootWithout(without *encoding.Lock) (*
 
            ValueError: If the transfer contains a lock that was registered
            previously.
-//发送之前计算banlanceproof locksroot地方
+//Calculate the banlanceproof locksroot position before sending
 */
 func (this *ChannelEndState) RegisterLockedTransfer(lockedTransfer encoding.EnvelopMessager) error {
 	if !encoding.IsLockedTransfer(lockedTransfer) {
