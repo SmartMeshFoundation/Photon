@@ -25,7 +25,7 @@
 		single transport address; a media stream may require multiple
 		components, each of which has to work for the media stream as a
 		whole to work.  For media streams based on RTP, there are two
-		components per media stream -- one for RTP, and one for RTCP. 注释, 对于视频传输来说可能有两个component.
+		components per media stream -- one for RTP, and one for RTCP. There may be two component for video transmission
 		*/
 		unsigned    comp_cnt;
 		char*    ns;
@@ -59,9 +59,9 @@ typedef  struct IceInstance {
 	{
 		char		 ufrag[80];
 		char		 pwd[80];
-		unsigned	 comp_cnt; //ice component 个数
-		pj_sockaddr	 def_addr[PJ_ICE_MAX_COMP]; //remote 缺省地址 第一次通信地址
-		unsigned	 cand_cnt; //remote候选地址列表
+		unsigned	 comp_cnt; //ice component number
+		pj_sockaddr	 def_addr[PJ_ICE_MAX_COMP]; //remote default address, The first communication address
+		unsigned	 cand_cnt; //remote candidate address list
 		pj_ice_sess_cand cand[PJ_ICE_ST_MAX_CAND];
 	} rem;
 	pj_pool_t		* ipool; //pool for instance
