@@ -82,7 +82,7 @@ func (model *ModelDB) IsSentRevealSecretExist(echohash common.Hash) bool {
 }
 
 /*
-很有可能重复发送reveal secret,直接忽略即可,
+It is very likely to send reveal secret repeatedly, which can be ignored directly.
 */
 func (model *ModelDB) NewSentRevealSecret(secret *SentRevealSecret) {
 	log.Trace(fmt.Sprintf("NewSentRevealSecret %s", utils.HPex(secret.EchoHash)))
