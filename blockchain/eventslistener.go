@@ -72,8 +72,8 @@ func NewEventTokenAdded(el *types.Log) (e *EventTokenAdded, err error) {
 		log.Crit("NewEventTokenAdded with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.TokenAddress = common.BytesToAddress(el.Data[12:32])          //第一个32位是tokenaddress
-	e.ChannelManagerAddress = common.BytesToAddress(el.Data[44:64]) //第二个是channelManagerAddress
+	e.TokenAddress = common.BytesToAddress(el.Data[12:32])          // the first 32byte is tokenaddress
+	e.ChannelManagerAddress = common.BytesToAddress(el.Data[44:64]) //the second 32byte is channelManagerAddress
 	return
 }
 
@@ -101,8 +101,8 @@ func NewEventEventChannelNew(el *types.Log) (e *EventChannelNew, err error) {
 		log.Crit("NewEventEventChannelNew with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.NettingChannelAddress = common.BytesToAddress(el.Data[12:32]) //第一个32位是tokenaddress
-	e.Participant1 = common.BytesToAddress(el.Data[44:64])          //第二个是channelManagerAddress
+	e.NettingChannelAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
+	e.Participant1 = common.BytesToAddress(el.Data[44:64])          //the second 32byte is channelManagerAddress
 	e.Participant2 = common.BytesToAddress(el.Data[76:96])
 	t := new(big.Int)
 	t.SetBytes(el.Data[96:128])
@@ -132,8 +132,8 @@ func NewEventChannelDeleted(el *types.Log) (e *EventChannelDeleted, err error) {
 		log.Crit("NewEventEventChannelNew with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.CallerAddress = common.BytesToAddress(el.Data[12:32]) //第一个32位是tokenaddress
-	e.Partener = common.BytesToAddress(el.Data[44:64])      //第二个是channelManagerAddress
+	e.CallerAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
+	e.Partener = common.BytesToAddress(el.Data[44:64])      //the second 32byte is channelManagerAddress
 	return
 }
 
@@ -160,8 +160,8 @@ func NewEventChannelNewBalance(el *types.Log) (e *EventChannelNewBalance, err er
 		log.Crit("NewEventChannelNewBalance with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.TokenAddress = common.BytesToAddress(el.Data[12:32])       //第一个32位是tokenaddress
-	e.ParticipantAddress = common.BytesToAddress(el.Data[44:64]) //第二个是channelManagerAddress
+	e.TokenAddress = common.BytesToAddress(el.Data[12:32])       //the first 32byte is tokenaddress
+	e.ParticipantAddress = common.BytesToAddress(el.Data[44:64]) //the second 32byte is channelManagerAddress
 	t := new(big.Int)
 	t.SetBytes(el.Data[64:96])
 	e.Balance = t
@@ -190,7 +190,7 @@ func NewEventChannelClosed(el *types.Log) (e *EventChannelClosed, err error) {
 		log.Crit("NewEventChannelClosed with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.ClosingAddress = common.BytesToAddress(el.Data[12:32]) //第一个32位是tokenaddress
+	e.ClosingAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
 	return
 }
 
@@ -218,7 +218,7 @@ func NewEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error)
 		log.Crit("NewEventTransferUpdatedd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.NodeAddress = common.BytesToAddress(el.Data[12:32]) //第一个32位是tokenaddress
+	e.NodeAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
 	return
 }
 
@@ -266,7 +266,7 @@ func NewEventChannelSecretRevealed(el *types.Log) (e *EventChannelSecretRevealed
 		log.Crit("NewEventChannelSecretRevealedd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.Event)
-	e.Secret = common.BytesToHash(el.Data[:32]) //第一个32字节是secret,第二个是address
+	e.Secret = common.BytesToHash(el.Data[:32]) //the first 32byte is secret,the second is address
 	e.ReceiverAddress = common.BytesToAddress(el.Data[44:64])
 	return
 }
@@ -306,7 +306,7 @@ func NewEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err er
 	            00000050  30 31 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |01..............|
 	        },
 	*/
-	//data第一个32字节是空的,什么含义?
+	//the first 32 bytes in the data are empty,what does it mean?
 	t := new(big.Int)
 	t.SetBytes(el.Data[32:64])
 	if len(el.Data) < 64+int(t.Int64()) {
