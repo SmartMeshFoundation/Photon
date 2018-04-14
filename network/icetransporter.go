@@ -331,7 +331,7 @@ func (it *IceTransport) Receive(data []byte, host string, port int) error {
 	if it.protocol != nil {
 		log.Trace(fmt.Sprintf("%s message for protocol", it.name))
 		go func() {
-			//icestream 看起来收发用的是同一个线程,因此接收是一定不能堵塞的,否则会造成无法发送.(收发锁死的情况会出现)
+			// icestream  seems that the same thread is used for sending and receiving, so the reception must not be blocked. Otherwise, it will cause no transmission.
 			it.protocol.Receive(data, host, port)
 			log.Trace(fmt.Sprintf("%s message for protocol complete...", it.name))
 		}()

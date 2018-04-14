@@ -39,8 +39,8 @@ type ChannelGraph struct {
 	OurAddress              common.Address
 	TokenAddress            common.Address
 	ChannelManagerAddress   common.Address
-	PartenerAddress2Channel map[common.Address]*channel.Channel //多线程
-	ChannelAddress2Channel  map[common.Address]*channel.Channel //多线程
+	PartenerAddress2Channel map[common.Address]*channel.Channel //multithread
+	ChannelAddress2Channel  map[common.Address]*channel.Channel //multithread
 	address2index           map[common.Address]int
 	index2address           map[int]common.Address
 	Lock                    sync.Mutex
