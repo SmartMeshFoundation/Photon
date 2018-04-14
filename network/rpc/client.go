@@ -72,7 +72,7 @@ func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Addr
 		From:    bcs.NodeAddress,
 		Context: GetQueryConext(),
 	}
-	//需要设置,否则就算是合约revert也不会报错
+	//It needs to be set up, otherwise, even the contract revert will not report wrong.
 	bcs.Auth.GasLimit = uint64(params.GAS_LIMIT)
 	bcs.Auth.GasPrice = big.NewInt(params.GAS_PRICE)
 	return bcs
@@ -242,7 +242,7 @@ func (this *RegistryProxy) AddToken(tokenAddress common.Address) (mgrAddr common
 	//spew.Config.DisableMethods = true
 	//spew.Dump("receipt:", receipt)
 	//fmt.Printf("receipt=%s\n", receipt)
-	//智能合约返回值不能直接获取
+	//The return value of the contract can not be obtained directly
 	return this.registry.ChannelManagerByToken(this.bcs.QueryOpts(), tokenAddress)
 }
 
