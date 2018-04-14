@@ -7,7 +7,7 @@ import (
 	"github.com/huamou/config"
 )
 
-//本地注释：API测试和使用范例
+//API tests and use examples
 func ApiTest() {
 	c, err := config.ReadDefault("./ApiTest.INI")
 	if err != nil {
@@ -31,45 +31,45 @@ func ApiTest() {
 	log.Println("==============================================================================================")
 	log.Println("Start Test goRaiden Api")
 	start := time.Now()
-	//本地注释：测试查询某节点地址
+	//test for querying  a node address
 	QueryingNodeAddressTest(Node1Url)
-	//本地注释：测试查询某节点所有通道
+	//test for querying all channels for a node
 	QueryingNodeAllChannelsTest(Node1Url)
-	//本地注释：测试查询某节点指定通道
+	//test for querying a node specified channel
 	QueryingNodeSpecificChannelTest(Node1Url)
-	//本地注释：测试查询系统注册的Token
+	//test for querying registered Token
 	QueryingRegisteredTokensTest(Node1Url)
-	//本地注释：测试查询节点指定Token有通道的伙伴地址
+	//test for querying the Partner address in the channel of special Token
 	QueryingAllPartnersForOneTokensTest(Node1Url)
-	//本地注释：测试注册新Token到雷电网
+	//test for registering  new Token to Raiden Network
 	RegisteringOneTokenTest(Node1Url)
-	//本地注释：测试交换Token测试 节点1和节点2,Token 不定，数量2:1
+	//test for exchanging the token,token number in each node is indefinite,but the ratio 2:1.
 	TokenSwapsTest(Node1Url, Node2Url)
-	//本地注释：测试在节点1和节点2 建立Channel，Token为查询到的第一个注册Token
+	//test for establishing Channel between node 1 and node 2
 	OpenChannelTest(Node1Url, Node2Url)
-	//本地注释：测试关闭节点指定通道
+	//test for closing the specified channel for the node
 	CloseChannelTest(Node1Url)
-	//本地注释：测试Settle节点指定通道
+	//test for settling the specified channel for the node
 	SettleChannelTest(Node1Url)
-	//本地注释：测试向指定通道充值
+	//test for depositing  to the specified channel
 	Deposit2ChannelTest(Node1Url)
-	//本地注释：测试指定Token在雷电网最大限额？
+	//test for connecting to a TokenNetwork
 	Connecting2TokenNetworkTest(Node1Url, 2000)
-	//本地注释：测试离开指定Token,非常耗时
+	//test for leaving the TokenNetwork
 	LeavingTokenNetworkTest(Node1Url)
-	//本地注释：测试查询Token网络连接详情
+	//test for querying the details of the Token network connection
 	QueryingConnectionsDetailsTest(Node1Url)
-	//本地注释：测试在节点1和节点2尝试每个Token交易
+	//test for Token transaction between node 1 and other node
 	InitiatingTransferTest(Node1Url, Node2Url)
 	InitiatingTransferTest(Node1Url, Node3Url)
 	InitiatingTransferTest(Node1Url, Node4Url)
 	InitiatingTransferTest(Node1Url, Node5Url)
 	InitiatingTransferTest(Node1Url, Node6Url)
-	//本地注释：查询网络事件
+	//test for querying network events
 	QueryingGeneralNetworkEventsTest(Node1Url)
-	//本地注释：查询Token网络事件
+	//test for querying Token network events
 	QueryingTokenNetworkEventsTest(Node1Url)
-	//本地注释：查询通道事件
+	//test for querying channel event
 	QueryingChannelEventsTest(Node1Url)
 	duration := time.Since(start)
 	log.Println("Total time used:", duration.Seconds(), " seconds")

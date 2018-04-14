@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//本地注释：测试关闭节点指定通道
+//test for closing the specified channel for the node
 func CloseChannel(url string, Channel string) (Status string, err error) {
 	var resp *http.Response
 	var payload string
@@ -43,8 +43,8 @@ func CloseChannel(url string, Channel string) (Status string, err error) {
 	return
 }
 
-//本地注释：测试关闭节点指定通道
-//本地注释：分四种情况 一是不存在的通道 二是opened的通道 三是已经closed的通道，四是settled的的通道
+//test for closing the specified channel for the node
+//there are four kinds of situations. first, the channel  does not exist; second, the channel is opened;third, the channel has closed;fourth, the channel is settled.
 func CloseChannelTest(url string) {
 	var err error
 	var ChannelAddress string
@@ -54,7 +54,7 @@ func CloseChannelTest(url string) {
 	ShowTime()
 	log.Println("Start Close Channel")
 
-	//本地注释：关闭一个不存在的通道
+	//close the channel that does not exist
 	ChannelAddress = "0x00000"
 	Status, err = CloseChannel(url, ChannelAddress)
 	ShowError(err)
@@ -68,9 +68,9 @@ func CloseChannelTest(url string) {
 		}
 	}
 
-	//本地注释：关闭一个open通道
+	//close the channel which is opened
 	Channels, _, _ := QueryingNodeAllChannels(url)
-	//本地注释：查询第一个open通道
+	//query the first opened channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "opened" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -91,11 +91,11 @@ func CloseChannelTest(url string) {
 			log.Fatal("HalfLife,exit")
 		}
 	}
-	//本地注释：关闭一个closed通道 关闭一个settled通道 长时间没有响应，跳过
+	//close a channel which has closed,close a settled channel,if no reaction ,ignore it!
 	goto EndTest
 Testclosed:
-	//本地注释：关闭一个closed通道
-	//本地注释：查询第一个closed通道
+	//close a channel which has closed
+	//query the first closed channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "closed" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -117,8 +117,8 @@ Testclosed:
 		}
 	}
 Testsettled:
-	//本地注释：关闭一个settled通道
-	//本地注释：查询第一个settled通道
+	// close a settled channel
+	//query the first settled channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "settled" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -145,7 +145,7 @@ EndTest:
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowCloseChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

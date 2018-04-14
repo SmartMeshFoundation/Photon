@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释： 连接TokenNetwork
+//connect to the TokenNetwork
 func Connecting2TokenNetwork(url string, Token string, Funds int32) (Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -42,7 +42,7 @@ func Connecting2TokenNetwork(url string, Token string, Funds int32) (Status stri
 	return
 }
 
-//本地注释： 测试连接TokenNetwork
+//test for connecting to the TokenNetwork
 func Connecting2TokenNetworkTest(url string, Funds int32) {
 	var err error
 	var Status string
@@ -51,11 +51,11 @@ func Connecting2TokenNetworkTest(url string, Funds int32) {
 	log.Println("Start Connecting2TokenNetwork")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 
-	//本地注释：测试不存在的Token
+	//test for the token that doesn't exist.
 	log.Println("Start Connecting to a not exist TokenNetwork")
 	Status, err = Connecting2TokenNetwork(url, "0xffffffffffffffffffffffffffffffffffffffff", Funds)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowConnecting2TokenNetworkMsgDetail(Status)
 	if Status == "500 Internal Server Error" {
 		log.Println("Test pass:Connecting to a not exist TokenNetwork")
@@ -66,11 +66,11 @@ func Connecting2TokenNetworkTest(url string, Funds int32) {
 		}
 	}
 	log.Println("Start Connecting to a registered TokenNetwork")
-	//本地注释：测试已经注册的Token
+	//test for the token which has registered
 	for i := 0; i < len(Tokens); i++ {
 		Status, err = Connecting2TokenNetwork(url, Tokens[i], Funds)
 		ShowError(err)
-		//本地注释：显示错误详细信息
+		//display the details of the error
 		ShowConnecting2TokenNetworkMsgDetail(Status)
 		if Status == "204 No Content" {
 			fmt.Printf("Test pass:Connecting2TokenNetwork [%s]\n", Tokens[i])
@@ -87,7 +87,7 @@ func Connecting2TokenNetworkTest(url string, Funds int32) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowConnecting2TokenNetworkMsgDetail(Status string) {
 	switch Status {
 	case "204 No Content":
