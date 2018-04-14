@@ -17,7 +17,7 @@ func Transfer(NewTokenName string, IniFile string) {
 
 }
 
-//本地注释：测试交易
+//test transfer
 func TransferCase(NewTokenName string, SChannels []TransferCaseChannel, TransCase TransferCaseTransfer, DChannels []TransferCaseChannel, Result bool) (code int) {
 	c, err := config.ReadDefault("./../../testdata/TransCase/ApiTest.INI")
 	if err != nil {
@@ -39,7 +39,7 @@ func TransferCase(NewTokenName string, SChannels []TransferCaseChannel, TransCas
 	Node5Url = "http://" + Node5Url
 	Node6Url = "http://" + Node6Url
 
-	//本地注释：建立通道
+	//establish the channel
 	for i := 0; i < len(SChannels); i++ {
 
 		log.Println("Create Channels:", SChannels[i].Node1Url, "(", SChannels[i].Balance1, ")-", SChannels[i].Node2Url, "(", SChannels[i].Balance2, ")")
@@ -142,7 +142,7 @@ func TransferCase(NewTokenName string, SChannels []TransferCaseChannel, TransCas
 	return 0
 }
 
-//本地注释：读取交易参数
+//read transfer parameters
 func TransferParmReader(IniFile string) (SChannels []TransferCaseChannel, TransCase TransferCaseTransfer, DChannels []TransferCaseChannel, Result bool) {
 	c, err := config.ReadDefault(IniFile)
 	if err != nil {
@@ -200,7 +200,7 @@ func CheckChannel(DChannels []TransferCaseChannel) (checked bool) {
 	Node5Url = "http://" + Node5Url
 	Node6Url = "http://" + Node6Url
 
-	//本地注释：查询通道
+	//query the channel
 	for i := 0; i < len(DChannels); i++ {
 
 		switch DChannels[i].Node1Url {

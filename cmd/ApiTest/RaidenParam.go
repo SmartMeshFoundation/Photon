@@ -1,28 +1,28 @@
 package main
 
 type RaidenParam struct {
-	//本地注释:缓存文件夹
+	//Caching folder
 	datadir        string
-	//本地注释:API服务地址和端口
+	//API service address and port
 	api_address    string
 	listen_address string
-	//本地注释:账户地址
+	//Account address
 	address        string
-	//本地注释:账户密钥地址
+	//key address of the Account
 	keystore_path  string
-	//本地注释:节点发现地址
+	//Node discovery address
 	discovery_contract_address string
-	//本地注释:合约地址
+	//Contract address
 	registry_contract_address string
-	//本地注释:账户密钥密码文件
+	//The key and password file of the account
 	password_file             string
-	//本地注释:NAT类型
+	//NAT type
 	nat                       string
-	//本地注释:geth服务地址
+	//Geth service address
 	eth_rpc_endpoint string
-	//本地注释:退出事件
+	//Exiting event
 	conditionquit    string
-	//本地注释:调试标志
+	//Debug sign
 	debug            bool
 }
 

@@ -6,7 +6,7 @@ import (
 	"github.com/huamou/config"
 )
 
-//本地注释：详细测试交易
+//detail for testing transfer
 func TransferTest(NewTokenName string) (code int) {
 
 	log.Println("==============================================================================================")
@@ -33,9 +33,9 @@ func TransferTest(NewTokenName string) (code int) {
 	Node5Url = "http://" + Node5Url
 	Node6Url = "http://" + Node6Url
 
-	//本地注释：新Token账户充值
+	//deposit to new token account
 
-	//本地注释：获取节点地址
+	//get the node address
 	Node1Address, Status, err := QueryingNodeAddress(Node1Url)
 	Node2Address, Status, err := QueryingNodeAddress(Node2Url)
 	Node3Address, Status, err := QueryingNodeAddress(Node3Url)
@@ -44,25 +44,25 @@ func TransferTest(NewTokenName string) (code int) {
 	Node6Address, Status, err := QueryingNodeAddress(Node6Url)
 
 	log.Println("Create Channels:A(100)-B(50) A(100)-C(50) B(100)-D(50) C(100)-D(50) D(100)-E(50) E(100)-F(50)")
-	//本地注释：A-B建立通道
+	//A-B establish channel
 	Channel, Status, err := OpenChannel(Node1Url, Node2Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node2Url, Channel.ChannelAddress, 50)
-	//本地注释：A-C建立通道
+	//A-C establish channel
 	Channel, Status, err = OpenChannel(Node1Url, Node3Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node3Url, Channel.ChannelAddress, 50)
-	//本地注释：B-D建立通道
+	//B-D establish channel
 	Channel, Status, err = OpenChannel(Node2Url, Node4Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node4Url, Channel.ChannelAddress, 50)
-	//本地注释：C-D建立通道
+	//C-D establish channel
 	Channel, Status, err = OpenChannel(Node3Url, Node4Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node4Url, Channel.ChannelAddress, 50)
-	//本地注释：D-E建立通道
+	//D-E establish channel
 	Channel, Status, err = OpenChannel(Node4Url, Node5Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node5Url, Channel.ChannelAddress, 50)
-	//本地注释：E-F建立通道
+	//E-F establish channel
 	Channel, Status, err = OpenChannel(Node5Url, Node6Address.OurAddress, NewTokenName, 100, 1000)
 	Deposit2Channel(Node6Url, Channel.ChannelAddress, 50)
-	////本地注释：D-A建立通道
+	//D-A establish channel
 	//Channel, Status, err = OpenChannel(Node4Url, Node1Address.OurAddress, NewTokenNames[0], 100, 1000)
 	//Deposit2Channel(Node1Url, Channel.ChannelAddress, 50)
 
@@ -71,7 +71,7 @@ func TransferTest(NewTokenName string) (code int) {
 
 	Amount = 5
 	log.Println("Transfer ", Amount, " tokens from A to B")
-	//本地注释：A->F 5Token
+	//A->F 5Token
 	TransferResult, Status, err := InitiatingTransfer(Node1Url, NewTokenName, Node2Address.OurAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
@@ -79,7 +79,7 @@ func TransferTest(NewTokenName string) (code int) {
 
 	Amount = 6
 	log.Println("Transfer ", Amount, " tokens from A to C")
-	//本地注释：A->F 5Token
+	//A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node3Address.OurAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
@@ -87,7 +87,7 @@ func TransferTest(NewTokenName string) (code int) {
 
 	Amount = 7
 	log.Println("Transfer ", Amount, " tokens from A to D")
-	//本地注释：A->F 5Token
+	//A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node4Address.OurAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)
@@ -95,7 +95,7 @@ func TransferTest(NewTokenName string) (code int) {
 
 	Amount = 8
 	log.Println("Transfer ", Amount, " tokens from A to F")
-	//本地注释：A->F 5Token
+	//A->F 5Token
 	TransferResult, Status, err = InitiatingTransfer(Node1Url, NewTokenName, Node6Address.OurAddress, Amount)
 	ShowError(err)
 	ShowInitiatingTransferMsgDetail(Status)

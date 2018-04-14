@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释：查询某节点所有通道
+//query all channels for a node
 func QueryingNodeAllChannels(url string) (Channels []NodeChannel, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -46,14 +46,14 @@ func QueryingNodeAllChannels(url string) (Channels []NodeChannel, Status string,
 	return
 }
 
-//本地注释：测试查询某节点所有通道
+//test for querying all channels for a node
 func QueryingNodeAllChannelsTest(url string) (Channels []NodeChannel) {
 	start := time.Now()
 	ShowTime()
 	log.Println("Start Querying Node All Channels")
 	Channels, Status, err := QueryingNodeAllChannels(url)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingNodeAllChannelsMsgDetail(Status)
 	switch Status {
 	case "200 OK":
@@ -70,7 +70,7 @@ func QueryingNodeAllChannelsTest(url string) (Channels []NodeChannel) {
 	return
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingNodeAllChannelsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

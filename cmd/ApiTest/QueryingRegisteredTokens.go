@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//本地注释：查询系统注册的Token
+//query registered Token
 func QueryingRegisteredTokens(url string) (Tokens []string, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -35,14 +35,14 @@ func QueryingRegisteredTokens(url string) (Tokens []string, Status string, err e
 	return
 }
 
-//本地注释：测试查询系统注册的Token
+//test for querying registered Token
 func QueryingRegisteredTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
 	log.Println("Start Querying Registered Tokens")
 	_, Status, err := QueryingRegisteredTokens(url)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingRegisteredTokensMsgDetail(Status)
 	switch Status {
 	case "200 OK":
@@ -58,7 +58,7 @@ func QueryingRegisteredTokensTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingRegisteredTokensMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

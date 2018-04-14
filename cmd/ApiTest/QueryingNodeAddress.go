@@ -36,7 +36,7 @@ func QueryingNodeAddress(url string) (Address NodeAddressPayload, Status string,
 	return
 }
 
-//本地注释：测试查询某节点地址
+//test for querying  a node address
 func QueryingNodeAddressTest(url string) {
 	start := time.Now()
 	ShowTime()
@@ -58,7 +58,7 @@ func QueryingNodeAddressTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingNodeAddressMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

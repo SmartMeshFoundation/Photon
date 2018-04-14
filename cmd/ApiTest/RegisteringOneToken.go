@@ -8,7 +8,7 @@ import (
 	"github.com/huamou/config"
 )
 
-//本地注释：注册新Token
+//register new token to Raiden Network
 func RegisteringOneToken(url string, Token string) (Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -37,7 +37,7 @@ func RegisteringOneToken(url string, Token string) (Status string, err error) {
 	return
 }
 
-//本地注释：测试注册新Token
+//test for registering  new token to Raiden Network
 func RegisteringOneTokenTest(url string) {
 	start := time.Now()
 	ShowTime()
@@ -46,7 +46,7 @@ func RegisteringOneTokenTest(url string) {
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	Status, err := RegisteringOneToken(url, Tokens[0])
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowRegisteringOneTokenMsgDetail(Status)
 	switch Status {
 	case "409 Conflict":
@@ -62,7 +62,7 @@ func RegisteringOneTokenTest(url string) {
 	log.Println("Start Registering a nonexistent token")
 	Status, err = RegisteringOneToken(url, "0xffffffffffffffffffffffffffffffffffffffff")
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowRegisteringOneTokenMsgDetail(Status)
 	switch Status {
 	case "201 Created":
@@ -90,7 +90,7 @@ func RegisteringOneTokenTest(url string) {
 
 	Status, err = RegisteringOneToken(url, NewTokenName)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowRegisteringOneTokenMsgDetail(Status)
 	switch Status {
 	case "201 Created":
@@ -108,7 +108,7 @@ func RegisteringOneTokenTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowRegisteringOneTokenMsgDetail(Status string) {
 	switch Status {
 	case "201 Created":

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//本地注释：Settle节点指定通道
+//settle the specified channel for the node
 func SettleChannel(url string, Channel string) (Status string, err error) {
 	var resp *http.Response
 	var payload string
@@ -43,8 +43,8 @@ func SettleChannel(url string, Channel string) (Status string, err error) {
 	return
 }
 
-//本地注释：测试Settle节点指定通道
-//本地注释：分四种情况 一是不存在的通道 二是opened的通道 三是已经closed的通道，四是settled的的通道
+//test for settling the specified channel for the node
+//there are four kinds of situations. first, the channel  does not exist; second, the channel is opened;third, the channel has closed;fourth, the channel is settled.
 func SettleChannelTest(url string) {
 	var err error
 	var ChannelAddress string
@@ -54,11 +54,11 @@ func SettleChannelTest(url string) {
 	ShowTime()
 	log.Println("Start Settle Channel")
 
-	//本地注释：Settle一个不存在的通道
+	//Settle the channel that does not exist
 	ChannelAddress = "0x00000"
 	Status, err = CloseChannel(url, ChannelAddress)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowSettleChannelMsgDetail(Status)
 	if Status == "409 Conflict" {
 		log.Println("Test pass:Settle a not exist Channel")
@@ -69,9 +69,9 @@ func SettleChannelTest(url string) {
 		}
 	}
 
-	//本地注释：Settle一个open通道
+	//settle the channel which is opened
 	Channels, _, _ := QueryingNodeAllChannels(url)
-	//本地注释：查询第一个open通道
+	//query the first opened channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "opened" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -93,8 +93,8 @@ func SettleChannelTest(url string) {
 		}
 	}
 Testclosed:
-	//本地注释：Settle一个closed通道
-	//本地注释：查询第一个closed通道
+	//settle a channel which has closed
+	//query the first closed channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "closed" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -106,7 +106,7 @@ Testclosed:
 	}
 	Status, err = CloseChannel(url, ChannelAddress)
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowCloseChannelMsgDetail(Status)
 	if Status == "200 OK" {
 		log.Println("Test pass:Settle a closed Channel")
@@ -117,8 +117,8 @@ Testclosed:
 		}
 	}
 Testsettled:
-	//本地注释：Settle一个settled通道
-	//本地注释：查询第一个settled通道
+	//settle a settled channel
+	//query the first settled channel
 	for i = 0; i < len(Channels); i++ {
 		if Channels[i].State == "settled" {
 			ChannelAddress = Channels[i].ChannelAddress
@@ -145,7 +145,7 @@ EndTest:
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowSettleChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

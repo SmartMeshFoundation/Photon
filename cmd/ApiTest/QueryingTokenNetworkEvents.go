@@ -51,10 +51,10 @@ func QueryingTokenNetworkEventsTest(url string) {
 	ShowTime()
 	log.Println("Start Querying Token Network Events")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
-	//本地注释：测试不存在的Token
+	//test the token which doesn't exist.
 	_, Status, err = QueryingTokenNetworkEvents(url, "0xffffffffffffffffffffffffffffffffffffffff")
 	ShowError(err)
-	//本地注释：显示错误详细信息
+	//display the details of the error
 	ShowQueryingTokenNetworkEventsMsgDetail(Status)
 	switch Status {
 	case "404 Not Found":
@@ -69,7 +69,7 @@ func QueryingTokenNetworkEventsTest(url string) {
 	for i := 0; i < len(Tokens); i++ {
 		_, Status, err = QueryingTokenNetworkEvents(url, Tokens[i])
 		ShowError(err)
-		//本地注释：显示错误详细信息
+		//display the details of the error
 		ShowQueryingTokenNetworkEventsMsgDetail(Status)
 		switch Status {
 		case "200 OK":
@@ -86,7 +86,7 @@ func QueryingTokenNetworkEventsTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingTokenNetworkEventsMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

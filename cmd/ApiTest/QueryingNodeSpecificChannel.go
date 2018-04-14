@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//本地注释：查询某节点指定通道
+//query a node specified channel
 func QueryingNodeSpecificChannel(url string, channel string) (Channel NodeChannel, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -35,7 +35,7 @@ func QueryingNodeSpecificChannel(url string, channel string) (Channel NodeChanne
 	return
 }
 
-//本地注释：测试查询某节点指定通道
+//test for querying a node specified channel
 func QueryingNodeSpecificChannelTest(url string) {
 
 	var existedchannel string
@@ -81,7 +81,7 @@ func QueryingNodeSpecificChannelTest(url string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowQueryingNodeSpecificChannelMsgDetail(Status string) {
 	switch Status {
 	case "200 OK":

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-//本地注释：交换Token
+//exchange the token
 func TokenSwaps(url string, TargetAddress string, Role string, SendingAmount int32, SendingToken string, ReceivingToken string, ReceivingAmount int32, sn int64) (Status string, err error, id int64) {
 
 	var count int
@@ -62,7 +62,7 @@ func TokenSwaps(url string, TargetAddress string, Role string, SendingAmount int
 	return
 }
 
-//本地注释：测试交换Token测试 节点1和节点2,Token 不定，数量2:1
+//test for exchanging the token,token number in each node is indefinite,but the ratio 2:1.
 func TokenSwapsTest(url1 string, url2 string) {
 
 	var err error
@@ -97,7 +97,7 @@ func TokenSwapsTest(url1 string, url2 string) {
 	log.Println("time used:", duration.Nanoseconds()/1000000, " ms")
 }
 
-//本地注释：显示错误详细信息
+//display the details of the error
 func ShowTokenSwapsMsgDetail(Status string) {
 	switch Status {
 	case "201 Created":

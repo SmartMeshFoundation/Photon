@@ -48,8 +48,7 @@ func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) boo
 	}
 
 	debugLog := log.New(logFile, "[Debug]", log.Llongfile)
-	//本地注释：实时循环读取输出流中的一行内容
-	//A real-time loop reads a line in the output stream.
+		//A real-time loop reads a line in the output stream.
 	go func() {
 		for {
 			line, err := reader.ReadString('\n')
@@ -94,13 +93,12 @@ func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) boo
 
 func Startraiden(RegistryAddress string) {
 	var pstr []string
-	//本地注释：公共参数
-	//public parameter
+		//public parameter
 	var pstr2 []string
-	//本地注释：杀死旧进程
+	//kill the old process
 	pstr2 = append(pstr2, "goraiden")
 	Exec_shell("/usr/bin/killall", pstr2, "./../../testdata/log/ka.log", true)
-	//本地注释：杀死旧进程后等待释放端口
+	//kill the old process and wait for the release of the port
 	time.Sleep(10 * time.Second)
 
 	param := new(RaidenParam)
@@ -127,8 +125,7 @@ func Startraiden(RegistryAddress string) {
 	param.conditionquit = c.RdString("common", "conditionquit", "{\"QuitEvent\":\"RefundTransferRecevieAckxx}")
 	param.debug = c.RdBool("common", "debug", true)
 
-	//本地注释：节点1
-	//NODE 1
+		//NODE 1
 	var NODE string
 	for i := 0; i < 6; i++ {
 		NODE = "NODE" + strconv.Itoa(i+1)
