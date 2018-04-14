@@ -265,7 +265,7 @@ func (c*Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelop
 		         forged transfer
 	*/
 	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
-	//如果一个node数据损坏了,那么这个channel将不能工作了? 所以数据一定不能损坏
+	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
@@ -383,7 +383,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		         forged transfer
 	*/
 	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
-	//如果一个node数据损坏了,那么这个channel将不能工作了? 所以数据一定不能损坏
+	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
@@ -395,7 +395,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 				 if the locksroot is out-of-sync (because a transfer was created while
 			    a Secret was in traffic) the balance _will_ be wrong, so first check
 			    the locksroot and then the balance
-		在创建完这个transfer和register这个transfer之间,收到了一个secret.
+	During building this transfer and registering transfer, we receive a secret.
 	*/
 	if encoding.IsLockedTransfer(tr) {
 		mtr := encoding.GetMtrFromLockedTransfer(tr)
@@ -438,7 +438,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		endSettlePeriod := c.GetSettleExpiration(blockNumber)
 		expiresAfterSettle := mtr.Expiration > endSettlePeriod
 		isSender := mtr.Sender == c.OurState.Address
-		if isSender && expiresAfterSettle { //对方收到这个lock以后,可以到链上close或者updatetransfer,这样如果对方没有密码,自己仍然不能取到钱.
+		if isSender && expiresAfterSettle { //After receiving this lock, the party can close or updatetransfer on the chain, so that if the party does not have a password, he still can't get the money.
 			log.Error(fmt.Sprintf("Lock expires after the settlement period. node=%s,from=%s,to=%s,lockexpiration=%d,currentblock=%d,end_settle_period=%d",
 				utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 				mtr.Expiration, blockNumber, endSettlePeriod))
