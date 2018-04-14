@@ -266,7 +266,7 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 			params.NameChannelClosed,
 			params.NameChannelSettled,
 			params.NameChannelSecretRevealed,
-		可以通过字形判断事件名字,将四个查询合并成一个,具体就是获取Event Signature
+	Use the font to determine the event name and combine the four queries into one, which is to get the Event Signature
 	*/
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameChannelNewBalance, eventAbiMap[params.NameChannelNewBalance], this.client)
