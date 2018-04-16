@@ -1,10 +1,8 @@
 # SmartRaiden 
-  SmartRaiden is a standard compliant implementation of the[ Raiden Network ](http://raiden-network.readthedocs.io/en/stable/index.html)protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayment on smart mobile devices can be realized.
+  SmartRaiden is a standard compliant implementation of the[ Raiden Network ](http://raiden-network.readthedocs.io/en/stable/index.html)protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc.
 
 ## Project Status 
-   This implementation is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We do our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
-## Getting Started
-   SmartRaiden currently can works on Windows, Linux ,Android, iOS  etc, and requires a locally running "Raiden node" that is fully caught up with the network you're testing on.
+   This project is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We are doing our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
 
 ## Build
 
@@ -14,14 +12,14 @@ wget http://www.pjsip.org/release/2.7.2/pjproject-2.7.2.tar.bz2
 tar xjf pjproject-2.7.2.tar.bz2
 cd pjproject-2.7.2
 ./configure --disable-sound --disable-video --disable-ssl
-make dep && make install
+make dep && make && make install
 ```
 2. build smartraiden
 ```
   go get github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
 ```
 ## Listing API
-  SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in raiden-network official docs. The primary API list and description are as follows：
+  SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in the official documentation of Raiden Network. The primary API list and description are as follows：
 * QueryingNodeAddress　　　　　　　　　　　　Query a node address
 * QueryingNodeAllChannels　　　　　　　　　　　Query all channels of a node
 * QueryingNodeSpecificChannel　　　　　　　　　Query a specified channel for a node
@@ -40,7 +38,7 @@ make dep && make install
 * QueryingTokenNetworkEvents　　　　　　　　Query Token network events
 * QueryingChannelEvents　　　　　　　　　　Query channel event
 ## Raiden Contract
-These are the currently deployed raiden contract addresses for the spectrum testnet:
+These are the currently deployed raiden contract addresses for the ethereum testnet:
 * Netting Channel Library: [0xad5cb8fa8813f3106f3ab216176b6457ab08eb75](https://ropsten.etherscan.io/address/0xad5cb8fa8813f3106f3ab216176b6457ab08eb75#code)
 * Channel Manager Library: [0xdb3a4dbae2b761ed2751f867ce197c531911382a](https://ropsten.etherscan.io/address/0xdb3a4dbae2b761ed2751f867ce197c531911382a#code)
 * Registry Contract: [0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828](https://ropsten.etherscan.io/address/0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828#code)
