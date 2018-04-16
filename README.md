@@ -16,7 +16,7 @@ cd pjproject-2.7.2
 ./configure --disable-sound --disable-video --disable-ssl
 make dep && make install
 ```
-2. build smartraiden
+2. build smartraiden
 ```
   go get github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
 ```
