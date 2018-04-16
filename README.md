@@ -7,10 +7,21 @@
    SmartRaiden currently can works on Windows, Linux ,Android, iOS  etc, and requires a locally running "Raiden node" that is fully caught up with the network you're testing on.
 
 ## Build
-  Go get github.com/SmartMeshFoundation/SmartRaiden/tree/master/cmd/smartraiden
-Please refer to [Installation](http://raiden-network.readthedocs.io/en/stable/overview_and_guide.html) section in raiden-network official docs and the Usage in this doc for detailed instructions.
+
+1. install [pjsip](http://www.pjsip.org/)
+```
+wget http://www.pjsip.org/release/2.7.2/pjproject-2.7.2.tar.bz2
+tar xjf pjproject-2.7.2.tar.bz2
+cd pjproject-2.7.2
+./configure --disable-sound --disable-video --disable-ssl
+make dep && make install
+```
+2. build smartraiden
+```
+  go get github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
+```
 ## Listing API
-  SmartRaiden API has the main functions of Raiden Network API, which includes：Querying Information About Channels and Tokens(Querying a specific channel,Querying all channels,Querying all registered Tokens),Registering a token,Channel Management(Open Channel,Close Channel, Settle Channel, Deposit to a Channel),Connection Management(Connecting to a token network, Leaving a token network）,Transfers（Initiating a Transfer）and Querying Events.Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in raiden-network official docs. Besides, SmartRaiden also has some special function, that is, P2P communication under ICE framework, crash recovery and channel charging function. The primary API list and description are as follows：
+  SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in raiden-network official docs. The primary API list and description are as follows：
 * QueryingNodeAddress　　　　　　　　　　　　Query a node address
 * QueryingNodeAllChannels　　　　　　　　　　　Query all channels of a node
 * QueryingNodeSpecificChannel　　　　　　　　　Query a specified channel for a node
@@ -75,22 +86,20 @@ VERSION: 0.1
                                                              "0.0.0.0:5001")
 --datadir ~/.smartraiden                                     Directory for storing raiden data.
 --password-file value                                         Text file containing password for provided account
---nat value                                                   [auto|upnp|stun|none] Manually specify method to use 
+--nat value                                                   [auto|upnp|stun|ice|none] Manually specify method to use 
                                                               for determining public IP / NAT traversal.
-                                                             "auto" - Try UPnP, then STUN, fallback to none "upnp"
-                                                             - Try UPnP,fallback to none "stun" - Try STUN, fallback 
+                                                             "auto" - Try UPnP, then STUN, fallback to none. "upnp"
+                                                             - Try UPnP,fallback to none. "stun" - Try STUN, fallback 
                                                                 to none
                                                               "none" - Use the local interface
-                                                              address (this will likely cause connectivity issues)
+                                                              address (this will likely cause connectivity issues).
                                                               "ice"- Use ice framework for nat punching
                                                               [default: ice] (default: "ice")
 --debug                                                       enable debug feature
 --conditionquit value                                        quit at specified point for test
---turn-server value                                          turn server for ice (default: "182.254.155.208:3478")
---turn-user value                                            turn username for turn server 
-                                                             (default: "bai")  
+--turn-server value                                          turn server for ice 
+--turn-user value                                            turn username for turn server  
 --turn-pass value                                            turn password for turn server 
-                                                             (default: "bai")
 --nonetwork                                                  disable network, for example ,when we 
                                                              want to settle all channels
 --fee                                                        enable mediation fee
