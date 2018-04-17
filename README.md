@@ -1,11 +1,8 @@
 # SmartRaiden 
-  SmartRaiden is a standard compliant implementation of the[ Raiden Network ](http://raiden-network.readthedocs.io/en/stable/index.html)protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc.
-
+  SmartRaiden is a standard compliant implementation of the[ Raiden Network ](http://raiden-network.readthedocs.io/en/stable/index.html)protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc.  In order to better fit for the mobile network, SmartRaiden also has some special functions, they are P2P communication under ICE framework, crash recovery and channel charging function.
 ## Project Status 
    This project is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We are doing our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
-
 ## Build
-
 1. install [pjsip](http://www.pjsip.org/)
 ```
 wget http://www.pjsip.org/release/2.7.2/pjproject-2.7.2.tar.bz2
@@ -43,9 +40,7 @@ These are the currently deployed raiden contract addresses for the ethereum test
 * Channel Manager Library: [0xdb3a4dbae2b761ed2751f867ce197c531911382a](https://ropsten.etherscan.io/address/0xdb3a4dbae2b761ed2751f867ce197c531911382a#code)
 * Registry Contract: [0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828](https://ropsten.etherscan.io/address/0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828#code)
 * Discovery Contract: [0x1e3941d8c05fffa7466216480209240cc26ea577](https://ropsten.etherscan.io/address/0x1e3941d8c05fffa7466216480209240cc26ea577#code)
-
 ## Usage
-
 ```                                                                                                                                                    
  smartraiden [global options] command [command options] [arguments...]
 VERSION: 0.1
@@ -105,7 +100,5 @@ VERSION: 0.1
 --version,-v                                                 print the version
                                                                                                                                                                                                                                      
 ```
-
 ## Requirements
-
 geth >=1.7.3
