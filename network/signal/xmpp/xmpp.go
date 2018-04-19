@@ -36,7 +36,7 @@ const (
 			4. send it's own sdp back to offer
 		so how long should be better?
 	*/
-	DefaultTimeout   = 5 * time.Second
+	DefaultTimeout   = 15 * time.Second
 	DefaultReconnect = true
 	NameSuffix       = "@mobileraiden"
 )

@@ -60,7 +60,7 @@ const NETTINGCHANNEL_SETTLE_TIMEOUT_MIN = 6
 const NETTINGCHANNEL_SETTLE_TIMEOUT_MAX = 2700000
 
 const UDP_MAX_MESSAGE_SIZE = 1200
-const DefaultSignalServer = "119.28.43.121:5222"
+const DefaultSignalServer = "139.199.6.114:5222"
 
 func init() {
 	GAS_LIMIT_HEX = fmt.Sprintf("0x%x", GAS_LIMIT)

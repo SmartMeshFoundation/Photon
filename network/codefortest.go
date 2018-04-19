@@ -71,7 +71,7 @@ func MakeTestDiscardExpiredTransferRaidenProtocol() *RaidenProtocol {
 	return rp
 }
 func NewTestIceTransport(key *ecdsa.PrivateKey, name string) *IceTransport {
-	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "119.28.43.121:5222")
+	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "139.199.6.114:5222")
 	it := NewIceTransporter(key, name)
 	return it
 }
