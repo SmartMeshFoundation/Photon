@@ -1,0 +1,11 @@
+v=0
+o=- 3414953978 3414953978 IN IP4 localhost
+s=ice
+t=0 0
+a=ice-ufrag:7e87390c
+a=ice-pwd:0f3e0099
+m=audio 53866 RTP/AVP 0
+c=IN IP4 182.254.155.208
+a=candidate:Sc0a82b28 1 UDP 1694498815 14.108.27.205 55744 typ srflx
+a=candidate:Hc0a82b28 1 UDP 2130706431 192.168.43.40 64199 typ host
+a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 53866 typ relay
