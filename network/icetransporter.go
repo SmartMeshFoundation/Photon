@@ -51,7 +51,7 @@ var (
 var (
 	errHasStopped                   = errors.New("ice transporter has stopped")
 	errStoppedReceive               = errors.New("ice transporter has stopped receiving")
-	errIceStreamTransporterNotReady = errors.New("gopjnath.icestreamtransport not ready to send")
+	errIceStreamTransporterNotReady = errors.New("icestreamtransport not ready to send")
 )
 
 func InitIceTransporter(turnServer, turnUser, turnPassowrd, signalServerUrl string) {

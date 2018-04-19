@@ -23,7 +23,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/gopjnath"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -201,7 +200,6 @@ func setupLog(ctx *cli.Context) {
 	}
 	fmt.Println("loglevel:", lvl.String())
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
-	gopjnath.SetIceLogLevel(lvl)
 }
 func Main(ctx *cli.Context) error {
 	var pms *network.PortMappedSocket
