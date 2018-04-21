@@ -4,9 +4,10 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"github.com/nkbai/log"
 	"net"
 	"sort"
+
+	"github.com/nkbai/log"
 )
 
 const DefaultPreference = 0xffff
@@ -126,6 +127,11 @@ func (g defaultGatherer) Gather() ([]Addr, error) {
 	}
 	addrs := make([]Addr, 0, 10)
 	for _, iface := range interfaces {
+		log.Trace(fmt.Sprintf("%s flag=%s ", iface.Name, iface.Flags.String()))
+		if iface.Flags&net.FlagUp != net.FlagUp {
+			//skip invalid interface. shutdown now .
+			continue
+		}
 		iAddrs, err := iface.Addrs()
 		if err != nil {
 			return addrs, err
