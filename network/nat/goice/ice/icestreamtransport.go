@@ -9,8 +9,8 @@ import (
 
 	"errors"
 
-	"github.com/nkbai/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/sdp"
+	"github.com/nkbai/log"
 )
 
 type TransportOperation int
@@ -44,8 +44,8 @@ type StreamTransportCallbacker interface {
 
 type TransportConfig struct {
 	Server          string
-	StunSever       string            //maybe empty
-	TurnSever       string            //maybe empty
+	StunSever       string //maybe empty
+	TurnSever       string //maybe empty
 	TurnUserName    string
 	TurnPassword    string
 	ComponentNumber int //must be 1,right now
@@ -239,13 +239,19 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 	}
 	check := t.session.sessionComponent.nominatedCheck
 	srv := t.session.sessionComponent.nominatedServerSock
+	fromaddr := check.localCandidate.addr
 	if check == nil {
 		return errors.New("no check.")
 	}
 	if srv == nil {
 		return errors.New("no stun transport")
 	}
-	return srv.sendData(data, check.localCandidate.addr, check.remoteCandidate.addr)
+	log.Trace("send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
+	if check.localCandidate.Type == CandidateServerReflexive || check.localCandidate.Type == CandidatePeerReflexive {
+		fromaddr = check.localCandidate.baseAddr
+		log.Trace("accutally send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
+	}
+	return srv.sendData(data, fromaddr, check.remoteCandidate.addr)
 }
 func (t *IceStreamTransport) onIceComplete(result error) {
 
@@ -265,7 +271,7 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 		//t.Stop()
 		return
 	}
-	srv := t.session.getSenderServerSock(t.session.sessionComponent.nominatedCheck.localCandidate.addr)
+	srv, _ := t.session.getSenderServerSock(t.session.sessionComponent.nominatedCheck.localCandidate.addr)
 	t.session.sessionComponent.nominatedServerSock = srv
 	check := t.session.sessionComponent.nominatedCheck
 	if check.localCandidate.Type == CandidateRelay {
@@ -280,18 +286,28 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 	} else {
 		srv.FinishNegotiation(StunModeData)
 	}
+	t.State = TransportStateRunning
+}
+
+/*
+关闭除要使用的那个 serversock 以外其他所有的 sock, 因为只有一个是有效的,要使用的.
+*/
+func (t *IceStreamTransport) closeUselessServerSock() {
 	for k, srv2 := range t.session.serverSocks {
-		if srv != srv2 {
+		if t.session.sessionComponent.nominatedServerSock != srv2 {
 			delete(t.session.serverSocks, k)
 			srv2.Close()
 		}
 	}
-	if srv != t.session.turnServerSock {
+	if t.session.sessionComponent.nominatedServerSock != t.session.turnServerSock {
 		t.session.turnServerSock = nil
 	}
-	t.State = TransportStateRunning
 }
 func (t *IceStreamTransport) onRxData(data []byte, from string) {
+	/*
+		只有收到数据,才能知道对方 ice 协商完毕了,这时候可以放心的关闭不必要的 listen 了.
+	*/
+	t.closeUselessServerSock()
 	if t.cb != nil {
 		t.cb.OnReceiveData(data, addrToUdpAddr(from))
 	}
