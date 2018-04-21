@@ -159,7 +159,7 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 		return msg, fromaddr, toaddr
 	}
 	if fromaddr != ts.cfg.relayAddress {
-		panic("sendData from unkonw address..")
+		panic(fmt.Sprintf("sendData from unkonw address.. ts.s.Addr=%s,fromaddr=%s,relay=%s",ts.s.Addr,fromaddr,ts.cfg.relayAddress))
 	}
 	msg2 = new(stun.Message)
 	to := addrToUdpAddr(toaddr)

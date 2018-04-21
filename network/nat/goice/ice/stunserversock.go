@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nkbai/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
+	"github.com/nkbai/log"
 )
 
 var (
@@ -199,7 +199,7 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 //sendData packet to peer
 func (s *StunServerSock) sendData(data []byte, fromaddr, toaddr string) (err error) {
 	if s.Addr != fromaddr {
-		panic("each binding...")
+		panic(fmt.Sprintf("each binding..., me=%s,got=%s", s.Addr, fromaddr))
 	}
 	_, err = s.c.WriteTo(data, addrToUdpAddr(toaddr))
 	return
