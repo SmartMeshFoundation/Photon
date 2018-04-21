@@ -13,11 +13,11 @@ import (
 
 	"sync"
 
-	"github.com/kataras/iris/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice/attr"
-	"github.com/nkbai/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
+	"github.com/kataras/iris/utils"
+	"github.com/nkbai/log"
 )
 
 type SessionRole int
@@ -329,9 +329,8 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	if from != check.remoteCandidate.addr {
 		log.Info("%s check received stun message not from expected address,got:%s,check is %s", s.Name, from, check)
 	}
-	key := fmt.Sprintf("%s-%s", check.localCandidate.addr, check.remoteCandidate.addr)
 	if s.iceStreamTransport.State > TransportStateNegotiation {
-		log.Info("%s %s received checkresponse ,but check is already finished.", s.Name, key)
+		log.Info("%s %s received checkresponse ,but check is already finished.", s.Name, check)
 		return
 	}
 	if s.getMsgCheck(res.TransactionID) == nil {
@@ -342,7 +341,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		return
 	}
 	if res.Type.Class == stun.ClassErrorResponse {
-		log.Info("%s %s received error response %s", s.Name, key, res.Type)
+		log.Info("%s %s received error response %s", s.Name, check.key, res.Type)
 		var code stun.ErrorCodeAttribute
 		err := code.GetFrom(res)
 		if err != nil || code.Code != stun.CodeRoleConflict {
@@ -418,7 +417,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	var lcand *Candidate
 	for _, c := range s.localCandidates {
 		if xaddr.String() == c.addr && c.baseAddr == check.localCandidate.baseAddr {
-			lcand = c
+			lcand = c //在这里已经切换了 check. 根据实际会选择是 reflexive 的连接还是 host,还是 relay
 			break
 		}
 	}
@@ -491,6 +490,7 @@ func (s *IceSession) markValidAndNonimated(check *SessionCheck) {
 	}
 	if check.nominated {
 		if s.sessionComponent.nominatedCheck == nil || s.sessionComponent.nominatedCheck.priority < check.priority {
+			log.Trace("old nominatedcheck=%s\n,new nominated=%s", s.sessionComponent.nominatedCheck, check)
 			s.sessionComponent.nominatedCheck = check
 		}
 	}
@@ -580,7 +580,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 		only one component,so finish
 	*/
 	//todo notify ice success..
-	if s.sessionComponent.nominatedCheck != nil {
+	if s.sessionComponent.nominatedCheck != nil && check.err == nil { //todo 非 aggressive 模式下,会不会出问题呢?
 		s.iceComplete(nil)
 		return true
 	}
@@ -790,12 +790,22 @@ func (s *IceSession) buildBindingRequest(c *SessionCheck) (req *stun.Message) {
 	}
 	return
 }
-func (s *IceSession) getSenderServerSock(localAddr string) ServerSocker {
+func (s *IceSession) getSenderServerSock(localAddr string) (ss ServerSocker, err error) {
 	srv, ok := s.serverSocks[localAddr]
 	if ok {
-		return srv
+		return srv, nil
 	}
-	return s.turnServerSock
+	for _, c := range s.localCandidates {
+		if c.addr == localAddr && c.Type == CandidateRelay {
+			return s.turnServerSock, nil
+		} else if c.addr == localAddr && c.Type == CandidateServerReflexive {
+			ss = s.serverSocks[c.baseAddr]
+			return
+		}
+	}
+	err = fmt.Errorf("%s localadr=%s,cannot found in maps=%#v", s.Name, localAddr, s.serverSocks)
+	log.Error(err.Error())
+	return nil, err
 }
 func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominate bool) {
 	var (
@@ -805,7 +815,7 @@ func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominat
 		serversock ServerSocker
 	)
 	log.Trace("%s start check %s", s.Name, c.key)
-	serversock = s.getSenderServerSock(c.localCandidate.addr)
+	serversock, _ = s.getSenderServerSock(c.localCandidate.addr)
 	if nominate {
 		c.nominated = true
 	}
@@ -818,9 +828,7 @@ lblRestart:
 		s.addMsgCheck(req.TransactionID, c)
 		err = serversock.sendStunMessageAsync(req, c.localCandidate.addr, c.remoteCandidate.addr)
 		if err != nil {
-			//goto lblErr
-			time.Sleep(sleep)
-			continue
+			log.Debug("%s send binding request from %s to %s ,err %s", s.Name, c.localCandidate.addr, c.remoteCandidate.addr, err)
 		}
 		select {
 		case <-time.After(sleep):
@@ -851,7 +859,14 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 		fromUdpAddr *net.UDPAddr
 	)
 	fromUdpAddr = addrToUdpAddr(fromAddr)
-	sc := s.getSenderServerSock(localAddr)
+	sc, err := s.getSenderServerSock(localAddr)
+	if err != nil {
+		/*
+			ignore
+			partner should have negotiation complete,
+		*/
+		return
+	}
 	if code == 0 {
 		err = res.Build(
 			stun.NewTransactionIDSetter(req.TransactionID),
