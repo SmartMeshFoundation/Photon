@@ -8,10 +8,11 @@ import (
 
 	"time"
 
-	"github.com/kataras/go-errors"
-	"github.com/nkbai/log"
+	"errors"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
+	"github.com/nkbai/log"
 )
 
 const StunKeepAliveInterval = time.Second * 20
@@ -77,14 +78,19 @@ func (ts *TurnServerSock) RecieveStunMessage(localAddr, remoteAddr string, msg *
 		}
 		res := new(stun.Message)
 		_, err = res.Write([]byte(data))
-		if err != nil {
-			panic("data indication must carry bind response")
+		if err != nil || res.Type.Method == stun.MethodChannelData {
+			//有可能我认为协商没完成,但是对方认为已经完成了,所以直接发送了数据过来.但是我还没有进行 channel binding. 所以还是要处理数据的.
+			if ts.cb != nil {
+				ts.cb.ReceiveData(localAddr, peer.String(), []byte(data))
+			}
+		} else {
+			log.Trace("%s actual message:%s", ts.Name, res)
+			if res.Type == stun.BindingSuccess || res.Type != stun.BindingError || res.Type != stun.BindingRequest {
+				ts.s.stunMessageReceived(ts.cfg.relayAddress, peer.String(), res)
+			} else {
+				panic("data indication must carry bind response")
+			}
 		}
-		log.Trace("%s actual message:%s", ts.Name, res)
-		if res.Type != stun.BindingSuccess && res.Type != stun.BindingError && res.Type != stun.BindingRequest {
-			panic("must binding response..")
-		}
-		ts.s.stunMessageReceived(ts.cfg.relayAddress, peer.String(), res)
 		return
 	}
 	if ts.cb != nil {
@@ -159,7 +165,7 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 		return msg, fromaddr, toaddr
 	}
 	if fromaddr != ts.cfg.relayAddress {
-		panic(fmt.Sprintf("sendData from unkonw address.. ts.s.Addr=%s,fromaddr=%s,relay=%s",ts.s.Addr,fromaddr,ts.cfg.relayAddress))
+		panic(fmt.Sprintf("sendData from unkonw address.. ts.s.Addr=%s,fromaddr=%s,relay=%s", ts.s.Addr, fromaddr, ts.cfg.relayAddress))
 	}
 	msg2 = new(stun.Message)
 	to := addrToUdpAddr(toaddr)
