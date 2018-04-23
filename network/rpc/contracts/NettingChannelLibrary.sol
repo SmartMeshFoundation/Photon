@@ -88,7 +88,7 @@ library NettingChannelLibrary {
 
         return (false, 0);
     }
- //只能调用一次
+ //only call once
     /// @notice Close a channel between two parties that was used bidirectionally
     function close(
         Data storage self,
@@ -140,7 +140,7 @@ library NettingChannelLibrary {
             counterparty.transferred_amount = transferred_amount;
         }
     }
-    //只能调用一次
+    //only call once
     /// @notice Updates counter party transfer after closing.
     function updateTransfer(
         Data storage self,
@@ -214,7 +214,7 @@ library NettingChannelLibrary {
         return ecrecover(signed_hash, v, r, s);
     }
 
-//可以调用多次
+//can be called many times
     /// @notice Unlock a locked transfer
     /// @dev Unlock a locked transfer
     /// @param locked_encoded The lock
