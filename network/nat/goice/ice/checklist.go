@@ -101,7 +101,7 @@ type SessionCheck struct {
 	localCandidate  *Candidate
 	remoteCandidate *Candidate
 	key             string //简单与其他 check 区分,更多用于调试.
-	priority        int64
+	priority        uint64
 	state           SessionCheckState
 	/**
 	 * Flag to indicate whether this check is nominated. A nominated check
@@ -115,7 +115,7 @@ type SessionCheck struct {
 }
 
 func (s *SessionCheck) String() string {
-	return fmt.Sprintf("{l=%s,r=%s,priorit=%d,state=%s,nominated=%v,err=%s}",
+	return fmt.Sprintf("{l=%s,r=%s,priorit=%x,state=%s,nominated=%v,err=%s}",
 		s.localCandidate.addr, s.remoteCandidate.addr, s.priority, s.state, s.nominated, s.err)
 }
 

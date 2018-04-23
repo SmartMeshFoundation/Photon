@@ -13,6 +13,8 @@ import (
 
 	"sync"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice/attr"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
@@ -108,10 +110,19 @@ type IceSession struct {
 	/*
 		收到的stun message, 不要堵塞发送接收routine
 	*/
-	msgChan    chan *stunMessageWrapper
-	dataChan   chan *stunDataWrapper
-	hasStopped bool //停止销毁相关资源时,标记.
+	msgChan        chan *stunMessageWrapper
+	dataChan       chan *stunDataWrapper
+	hasStopped     bool                  //停止销毁相关资源时,标记.
+	completeResult sessionCompleteResult //0,not complete ,1 complete success, 2 complete failure
 }
+type sessionCompleteResult int
+
+const (
+	SessionNotComplete sessionCompleteResult = iota
+	SessionCompleteSuccess
+	SessionAllCompleteSuccess //所有的 check 都 finish 了.
+	SessionCompleteFailure
+)
 
 type checkResponse struct {
 	res   *stun.Message
@@ -729,6 +740,7 @@ func (s *IceSession) changeCheckState(check *SessionCheck, newState SessionCheck
 //启动完毕以后立即返回,结果要从 ice complete中获取.
 func (s *IceSession) allcheck(checks []*SessionCheck) {
 	const checkInterval = time.Millisecond * 20
+	fmap := make(map[int]bool)
 	for _, c := range checks {
 		key := fmt.Sprintf("%s-%s", c.localCandidate.addr, c.remoteCandidate.addr)
 		ch := make(chan error, 1)
@@ -738,7 +750,11 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 		only one compondent, all waiting...
 	*/
 	for _, c := range checks {
-		s.changeCheckState(c, CheckStateWaiting, nil)
+		if !fmap[c.localCandidate.Foundation] {
+			fmap[c.localCandidate.Foundation] = true
+			s.changeCheckState(c, CheckStateWaiting, nil)
+		}
+
 	}
 	for _, rc := range s.earlyCheckList {
 		/*
@@ -751,6 +767,18 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 		ch := s.checkMap[c.key]
 		//有可能还没有启动,其他 check 已经完毕,这个就没有必要了.
 		if c.state == CheckStateWaiting {
+			s.changeCheckState(c, CheckStateInProgress, nil)
+			go s.onecheck(c, ch, s.isNominating)
+			time.Sleep(checkInterval)
+		}
+	}
+	/* If we don't have anything in Waiting state, perform check to
+	 * highest priority pair that is in Frozen state.
+	 */
+	for _, c := range checks {
+		ch := s.checkMap[c.key]
+		//有可能还没有启动,其他 check 已经完毕,这个就没有必要了.
+		if c.state == CheckStateFrozen {
 			s.changeCheckState(c, CheckStateInProgress, nil)
 			go s.onecheck(c, ch, s.isNominating)
 			time.Sleep(checkInterval)
@@ -801,30 +829,44 @@ func (s *IceSession) getSenderServerSock(localAddr string) (ss ServerSocker, err
 		} else if c.addr == localAddr && c.Type == CandidateServerReflexive {
 			ss = s.serverSocks[c.baseAddr]
 			return
+		} else if c.addr == localAddr && c.Type == CandidatePeerReflexive {
+			ss = s.serverSocks[c.baseAddr]
+			return
 		}
 	}
 	err = fmt.Errorf("%s localadr=%s,cannot found in maps=%#v", s.Name, localAddr, s.serverSocks)
 	log.Error(err.Error())
 	return nil, err
 }
+
+func calcRetransmitTimeout(count int, lastsleep time.Duration) time.Duration {
+	if count == 0 {
+		return DefaultRTOValue
+	} else if count < MaxRetryBindingRequest-1 {
+		return lastsleep * 2
+	} else {
+		return StunTimeoutValue
+	}
+
+}
 func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominate bool) {
 	var (
 		err        error
 		req        *stun.Message
-		sleep      time.Duration = time.Millisecond * 100
+		sleep      time.Duration = DefaultRTOValue
 		serversock ServerSocker
 	)
 	log.Trace("%s start check %s", s.Name, c.key)
 	serversock, _ = s.getSenderServerSock(c.localCandidate.addr)
-	if nominate {
+	if nominate && s.role == SessionRoleControlling {
 		c.nominated = true
 	}
 	//build req message
 lblRestart:
 	req = s.buildBindingRequest(c)
-	for i := 0; i < 7; i++ {
+	for i := 0; i < MaxRetryBindingRequest; i++ {
 		log.Trace("%s %s sendData %d times", s.Name, c.key, i+1)
-		req.NewTransactionID()
+		sleep = calcRetransmitTimeout(i, sleep)
 		s.addMsgCheck(req.TransactionID, c)
 		err = serversock.sendStunMessageAsync(req, c.localCandidate.addr, c.remoteCandidate.addr)
 		if err != nil {
@@ -832,7 +874,6 @@ lblRestart:
 		}
 		select {
 		case <-time.After(sleep):
-			sleep += time.Millisecond * 100
 			continue
 		case err = <-chCheckResult:
 			if err == errCheckRetry {
@@ -918,7 +959,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 		priority    attr.Priority
 	)
 	var userName stun.Username
-	log.Trace("%s received binding request  %s<----------%s", s.Name, localAddr, fromAddr)
+	log.Trace("%s received binding request  %s<----------%s %s", s.Name, localAddr, fromAddr, hex.EncodeToString(req.TransactionID[:]))
 	err = priority.GetFrom(req)
 	if err != nil {
 		log.Info("stun bind request has no priority,ingored.")
@@ -1016,7 +1057,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
  * SDP answer is received and we have received early checks.
  */
 
-func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
+func (s *IceSession) handleIncomingCheckhandleIncomingCheck(rcheck *RxCheck) {
 	var (
 		lcand *Candidate
 		rcand *Candidate
@@ -1128,11 +1169,15 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 			localCandidate:  lcand,
 			remoteCandidate: rcand,
 			priority:        calcPairPriority(s.role, lcand, rcand),
-			state:           CheckStateWaiting,
+			state:           CheckStateInProgress,
 			nominated:       rcheck.userCandidate,
 			key:             fmt.Sprintf("%s-%s", lcand.addr, rcand.addr),
 		}
 		s.checkList.checks = append(s.checkList.checks, c)
+		ch := make(chan error, 1)
+		s.checkMap[c.key] = ch
+		nominated := c.nominated || s.isNominating
+		go s.onecheck(c, ch, nominated)
 		log.Trace("%s New triggered check added:%s", s.Name, c.key)
 	}
 }
@@ -1182,6 +1227,8 @@ type stunDataWrapper struct {
 
 func (s *IceSession) loop() {
 	for {
+		r := utils.RandomString(20)
+		log.Trace("loop %s start @%s", r, time.Now().Format("15:04:05.999"))
 		select {
 		case msg, ok := <-s.msgChan:
 			if ok {
@@ -1196,6 +1243,7 @@ func (s *IceSession) loop() {
 				return
 			}
 		}
+		log.Trace("loop %s end @%s", r, time.Now().Format("15:04:05.999"))
 	}
 }
 func (s *IceSession) processStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
@@ -1255,15 +1303,15 @@ func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 /*
 pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
 */
-func calcPairPriority(role SessionRole, l, r *Candidate) int64 {
-	var o, a int32
-	var min, max int32
+func calcPairPriority(role SessionRole, l, r *Candidate) uint64 {
+	var o, a uint32
+	var min, max uint32
 	if role == SessionRoleControlling {
-		o = int32(l.Priority)
-		a = int32(r.Priority)
+		o = uint32(l.Priority)
+		a = uint32(r.Priority)
 	} else {
-		o = int32(r.Priority)
-		a = int32(l.Priority)
+		o = uint32(r.Priority)
+		a = uint32(l.Priority)
 	}
 	if o > a {
 		min = a
@@ -1272,10 +1320,10 @@ func calcPairPriority(role SessionRole, l, r *Candidate) int64 {
 		min = o
 		max = a
 	}
-	var p int64
-	p = int64(min) << 32
+	var p uint64
+	p = uint64(min) << 32
 	max = max << 1
-	p += int64(32)
+	p += uint64(max)
 	if o > a {
 		p += 1
 	}
