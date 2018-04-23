@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"runtime/debug"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 	"github.com/nkbai/log"
@@ -74,7 +76,14 @@ Server 可能收到以下消息
 除了上面的1,4,5,还有就是
 用 SendIndication 封装的由 turn server relay的 BindRequest.
 */
-
+type cachedResponse struct {
+	cacheTime time.Time
+	msg       *stun.Message //todo need store a full copy  or a pointer?
+}
+type sendreq struct {
+	data []byte
+	to   net.Addr
+}
 type StunServerSock struct {
 	Addr                  string //address listening on
 	mode                  serverSockMode
@@ -84,9 +93,12 @@ type StunServerSock struct {
 	channelNumber2Address map[int]string // channel number-> address
 	address2ChannelNumber map[string]int
 	waiters               map[stun.TransactionID]chan *serverSockResponse
-	waitersMutex          sync.RWMutex
+	lock                  sync.RWMutex
 	syncMessageTimeout    time.Duration //default 10 seconds?
 	Name                  string
+	cachedResponse        map[stun.TransactionID]*cachedResponse //重复的 bindingrequest, 就不要提交给上层了.
+	sendchan              chan *sendreq
+	stoped                bool
 }
 type serverSockResponse struct {
 	res  *stun.Message
@@ -153,6 +165,10 @@ func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
 }
 func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
 	log.Trace("%s --receive stun message %s<----%s  --\n%s\n", s.Name, localaddr, from, msg)
+	if msg.Type.Method == stun.MethodChannelData {
+		log.Trace("\n%s", hex.Dump(msg.Raw))
+		debug.PrintStack()
+	}
 	var err error
 	/*
 		收到 channeldata 要特殊处理,如果是 turn server 模式下,
@@ -190,10 +206,32 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 		close(ch)
 		return
 	}
+	if s.checkCachedResponse(msg, from) {
+		return
+	}
 	//需要报告给上层的其他消息
 	if s.cb != nil {
 		s.cb.RecieveStunMessage(localaddr, from, msg)
 	}
+}
+
+//如果对应的消息应答,已经缓存了,直接发送即可.
+func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	now := time.Now()
+	for id, c := range s.cachedResponse {
+		if c.cacheTime.Add(StunResponseCacheDuration).Before(now) {
+			delete(s.cachedResponse, id)
+		}
+	}
+	for _, c := range s.cachedResponse {
+		if c.msg.Type.Method == req.Type.Method && c.msg.TransactionID == req.TransactionID {
+			s.sendData(c.msg.Raw, s.Addr, from)
+			return true
+		}
+	}
+	return false
 }
 
 //sendData packet to peer
@@ -201,12 +239,20 @@ func (s *StunServerSock) sendData(data []byte, fromaddr, toaddr string) (err err
 	if s.Addr != fromaddr {
 		panic(fmt.Sprintf("each binding..., me=%s,got=%s", s.Addr, fromaddr))
 	}
-	_, err = s.c.WriteTo(data, addrToUdpAddr(toaddr))
+	if s.stoped {
+		return
+	}
+	s.sendchan <- &sendreq{data, addrToUdpAddr(toaddr)}
 	return
 }
 
 func (s *StunServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
 	log.Trace("%s ---sendData stun message %s-->%s ---\n%s\n", s.Name, s.Addr, toaddr, msg)
+	if msg.Type.Class == stun.ClassSuccessResponse || msg.Type.Class == stun.ClassErrorResponse {
+		s.lock.Lock()
+		s.cachedResponse[msg.TransactionID] = &cachedResponse{time.Now(), msg}
+		s.lock.Unlock()
+	}
 	return s.sendData(msg.Raw, fromaddr, toaddr)
 }
 
@@ -240,8 +286,8 @@ func (s *StunServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr
 	return s.wait(wait)
 }
 func (s *StunServerSock) addWaiter(key stun.TransactionID, ch chan *serverSockResponse) error {
-	s.waitersMutex.Lock()
-	defer s.waitersMutex.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	if _, ok := s.waiters[key]; ok {
 		return ErrDuplicateWaiter
 	}
@@ -249,10 +295,12 @@ func (s *StunServerSock) addWaiter(key stun.TransactionID, ch chan *serverSockRe
 	return nil
 }
 func (s *StunServerSock) getAndRemoveWaiter(key stun.TransactionID) (ch chan *serverSockResponse, exists bool) {
-	s.waitersMutex.Lock()
-	defer s.waitersMutex.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	ch, exists = s.waiters[key]
-	delete(s.waiters, key)
+	if exists {
+		delete(s.waiters, key)
+	}
 	return
 }
 func (s *StunServerSock) wait(ch chan *serverSockResponse) (res *stun.Message, err error) {
@@ -282,6 +330,18 @@ func (s *StunServerSock) FinishNegotiation(mode serverSockMode) {
 
 // Serve reads packets from connections and responds to BINDING requests.
 func (s *StunServerSock) Serve(c net.PacketConn) error {
+	go func() {
+		//writeto 是阻塞函数,不要阻塞 sendasync
+		for {
+			select {
+			case r, ok := <-s.sendchan:
+				if !ok {
+					return
+				}
+				s.c.WriteTo(r.data, r.to)
+			}
+		}
+	}()
 	for {
 		req := new(stun.Message)
 		if err := s.serveConn(c, req); err != nil {
@@ -291,6 +351,8 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 	}
 }
 func (s *StunServerSock) Close() {
+	log.Trace("%s closed", s.Addr)
+	s.stoped = true
 	s.c.Close()
 	for key, ch := range s.waiters {
 		s.getAndRemoveWaiter(key)
@@ -318,6 +380,8 @@ func NewStunServerSock(bindAddr string, cb ServerSockCallbacker, name string) (s
 		Name:               name,
 		channelNumber2Address: make(map[int]string),
 		address2ChannelNumber: make(map[string]int),
+		cachedResponse:        make(map[stun.TransactionID]*cachedResponse),
+		sendchan:              make(chan *sendreq, 10),
 	}
 	go func() {
 		s.Serve(s.c)
