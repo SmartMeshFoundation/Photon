@@ -261,22 +261,42 @@ func (ts *TurnServerSock) StartRefresh() {
 
 }
 func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
-	var err error
 	if fromaddr == ts.cfg.relayAddress {
+		/*
+			分成两个阶段,第一阶段协商完毕可以发送数据,但是 check 仍在继续,发送链接随时可能变化.
+			第二阶段: 协商完毕,我这边的已经稳定下来了,那么这时候就应该通过 channel 来发送数据.
+		*/
 		number := ts.s.address2ChannelNumber[toaddr]
 		if number >= turn.MinChannelNumber && number <= turn.MaxChannelNumber {
-			wdata := turn.ChannelData{
+			wdata := &turn.ChannelData{
 				ChannelNumber: uint16(number),
 				Data:          data,
 			}
-			r := new(stun.Message)
-			wdata.AddTo(r)
-			ts.s.sendData(r.Raw, ts.s.Addr, ts.cfg.relayAddress)
+			r, _ := stun.Build(turn.ChannelDataRequest)
+			err := wdata.AddTo(r)
+			if err != nil {
+				panic("turn.channeldata error")
+			}
+			log.Trace("%s send  channel data %d, %s---->%s", ts.Name, len(r.Raw), ts.s.Addr, ts.cfg.serverAddr)
+			ts.s.sendData(r.Raw, ts.s.Addr, ts.cfg.serverAddr)
 		} else {
-			err = fmt.Errorf("%s send data to %s,but has no related channel number", ts.Name, toaddr)
-			return err
+			if ts.s.mode == TurnModeData {
+				log.Warn("should not happen only if channel binding fail")
+			}
+			to := addrToUdpAddr(toaddr)
+			peer := turn.PeerAddress{
+				IP:   to.IP,
+				Port: to.Port,
+			}
+			r, err := stun.Build(stun.TransactionIDSetter, turn.SendIndication, turn.Data(data), peer, stun.Fingerprint)
+			if err != nil {
+				panic("build error")
+			}
+			log.Trace("%s send data use send indication %s--->%s  message:%s\n", ts.Name, ts.s.Addr, ts.cfg.serverAddr, r)
+			ts.s.sendStunMessageAsync(r, ts.s.Addr, ts.cfg.serverAddr)
 		}
 	} else {
+		log.Trace("%s send directly data %d   %s----->%s", ts.Name, len(data), fromaddr, toaddr)
 		return ts.s.sendData(data, fromaddr, toaddr)
 	}
 	return nil
