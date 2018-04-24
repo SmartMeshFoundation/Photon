@@ -384,11 +384,19 @@ func (m *Message) Decode() error {
 	buf := m.Raw
 	firstByte := m.Raw[0]
 	//log.Trace("receive data: \n%s", hex.Dump(m.Raw))
-	if firstByte&0x40 == 0x40 { //start with 01, is a channel data
-		m.Type.Method = MethodChannelData
-		m.Type.Class = ClassSuccessResponse
-		//不需要解码,直接返回.
-		return nil
+	if firstByte&0x40 == 0x40 { //start with 01, maybe a channel data
+		/*
+				how to distinguish data and channel data?
+			maybe let channel number to 0x4000 only. for our app ,it's ok
+		*/
+		length := bin.Uint16(buf[2:4])
+		if int(length+4) == len(buf) {
+			m.Type.Method = MethodChannelData
+			m.Type.Class = ClassSuccessResponse
+			//不需要解码,直接返回.
+			return nil
+		}
+		return ErrFormatError
 	}
 	if firstByte&0xC0 != 0 { //first 2 bits must be 00
 		return ErrFormatError
