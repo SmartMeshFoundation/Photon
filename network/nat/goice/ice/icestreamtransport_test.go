@@ -119,7 +119,7 @@ a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 52628 typ relay
 }
 
 func TestIceStreamTransport_StartNegotiation(t *testing.T) {
-	s1, s2, err := setupTestIceStreamTransport(typTurn)
+	s1, s2, err := setupTestIceStreamTransport(typHost)
 	if err != nil {
 		t.Error(err)
 		return
@@ -138,35 +138,29 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	lsdp, err := s1.EncodeSession()
+	log.Trace("lsdp=%s", lsdp)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	rsdp, err := s2.EncodeSession()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = s1.StartNegotiation(rsdp)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	lsdp, err := s1.EncodeSession()
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	log.Trace("rsdp=%s", rsdp)
+
 	err = s2.StartNegotiation(lsdp)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	select {
-	case <-time.After(10 * time.Second):
-		t.Error("s1 negotiation timeout")
+
+	err = s1.StartNegotiation(rsdp)
+	if err != nil {
+		t.Error(err)
 		return
-	case err = <-cb1.iceresult:
-		if err != nil {
-			t.Error("s1 negotiation failed ", err)
-			return
-		}
 	}
 	select {
 	case <-time.After(10 * time.Second):
@@ -175,6 +169,17 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 	case err = <-cb2.iceresult:
 		if err != nil {
 			t.Error("s2 negotiation failed", err)
+			return
+		}
+	}
+	//return
+	select {
+	case <-time.After(10 * time.Second):
+		t.Error("s1 negotiation timeout")
+		return
+	case err = <-cb1.iceresult:
+		if err != nil {
+			t.Error("s1 negotiation failed ", err)
 			return
 		}
 	}

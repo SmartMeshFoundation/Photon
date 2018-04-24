@@ -271,21 +271,6 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 		//t.Stop()
 		return
 	}
-	srv, _ := t.session.getSenderServerSock(t.session.sessionComponent.nominatedCheck.localCandidate.addr)
-	t.session.sessionComponent.nominatedServerSock = srv
-	check := t.session.sessionComponent.nominatedCheck
-	if check.localCandidate.Type == CandidateRelay {
-		result = t.session.turnServerSock.channelBind(check.remoteCandidate.addr)
-		if result != nil {
-			log.Error("%s channel bind err:%s", t.Name, result)
-			t.State = TransportStateFailed
-			//t.Stop()
-			return
-		}
-		srv.FinishNegotiation(TurnModeData)
-	} else {
-		srv.FinishNegotiation(StunModeData)
-	}
 	t.State = TransportStateRunning
 }
 
@@ -307,7 +292,7 @@ func (t *IceStreamTransport) onRxData(data []byte, from string) {
 	/*
 		只有收到数据,才能知道对方 ice 协商完毕了,这时候可以放心的关闭不必要的 listen 了.
 	*/
-	t.closeUselessServerSock()
+	//t.closeUselessServerSock()
 	if t.cb != nil {
 		t.cb.OnReceiveData(data, addrToUdpAddr(from))
 	}

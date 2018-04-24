@@ -340,8 +340,9 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	if from != check.remoteCandidate.addr {
 		log.Info("%s check received stun message not from expected address,got:%s,check is %s", s.Name, from, check)
 	}
-	if s.iceStreamTransport.State > TransportStateNegotiation {
-		log.Info("%s %s received checkresponse ,but check is already finished.", s.Name, check)
+	if s.completeResult >= SessionAllCompleteSuccess {
+		//不应该出现,因为response已经 cache 了
+		log.Error("%s %s received checkresponse ,but check is already finished.", s.Name, check)
 		return
 	}
 	if s.getMsgCheck(res.TransactionID) == nil {
@@ -560,7 +561,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				log.Trace("%s check %s to be failed because higher priority check finished.", s.Name, c.key)
 				s.cancelOneCheck(c)
 				//s.changeCheckState(c, CheckStateFailed, errors.New("canceled"))
-			} else if c.state == CheckStateInProgress /* && c.priority < check.priority*/ {
+			} else if c.state == CheckStateInProgress && c.priority < check.priority {
 				/*
 					这种策略会尽快结束,但是存在问题,如果低优先级的先完成
 					1. 对方可能会收到高优先级的 request, 进而以高优先级为准,如果只有一个 ip 地址,那没什么问题
@@ -590,11 +591,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	/*
 		only one component,so finish
 	*/
-	//todo notify ice success..
-	if s.sessionComponent.nominatedCheck != nil && check.err == nil { //todo 非 aggressive 模式下,会不会出问题呢?
-		s.iceComplete(nil)
-		return true
-	}
+
 	/* Note: this is the stuffs that we don't do in 7.1.2.2.2, since our
 	 *       ICE session only supports one media stream for now:
 	 *
@@ -629,6 +626,11 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 			break
 		}
 	}
+	//todo notify ice success..
+	if s.sessionComponent.nominatedCheck != nil { //todo 非 aggressive 模式下,会不会出问题呢?
+		s.iceComplete(nil, !hasNotFinished)
+		return true
+	}
 	if !hasNotFinished {
 		/* All checks have completed, but we don't have nominated pair.
 		 * If agent's role is controlled, check if all components have
@@ -639,7 +641,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 		if s.role == SessionRoleControlled {
 			if s.sessionComponent.validCheck == nil {
 				//todo notify ice failed.
-				s.iceComplete(errors.New("no valid check"))
+				s.iceComplete(errors.New("no valid check"), true)
 				return true
 			} else {
 				log.Trace("%s all checks completed. controlled agent now waits for nomination..", s.Name)
@@ -647,13 +649,13 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 					//start a timer,failed if there is no nomiated
 					time.Sleep(time.Second * 10) // time from pjnath
 					if s.sessionComponent.nominatedCheck == nil {
-						s.iceComplete(errors.New("no nonimated"))
+						s.iceComplete(errors.New("no nonimated"), true)
 					}
 				}()
 				return false
 			}
 		} else if s.isNominating { //如果我是 controlling, 那么总是采用 aggressive策略.
-			s.iceComplete(fmt.Errorf("%s controlling no nominated ", s.Name))
+			s.iceComplete(fmt.Errorf("%s controlling no nominated ", s.Name), true)
 			return true
 		} else {
 			/*
@@ -671,20 +673,68 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	//目前只有一个 component, 另外只支持 aggressive 模式.
 	return false
 }
-func (s *IceSession) iceComplete(result error) {
+func (s *IceSession) iceComplete(result error, allcomplete bool) {
 	//通知调用者,完毕, 但是这个可能不是最终的选项?
 	//if len(s.checkMap) != 0 {
 	//	panic("all check should finished")
 	//}
 	//应该继续允许处理 BindingRequest, 因为对方可能还没有结束.
 	log.Debug("icesseion %s complete ,err:%s", s.Name, result)
+	old := s.completeResult
 	if result != nil {
-
+		s.completeResult = SessionCompleteFailure
 	} else {
+		if allcomplete {
+			/*
+				8.1.1.2. Aggressive Nomination
+				With aggressive nomination, the controlling agent includes the USECANDIDATE attribute in every check it sends.
+				Once the first check for a component succeeds, it will be added to the valid list and have its
+				nominated flag set. When all components have a nominated pair in the valid list, media can begin
+				to flow using the highest priority nominated pair. However, because the agent included the USECANDIDATE
+				attribute in all of its checks, another check may yet complete, causing another valid pair to have its
+				nominated flag set. ICE always selects the highest-priority nominated candidate pair from the valid list
+				as the one used for media.
+			*/
+			/*
+				 Consequently, the selected pair may actually change briefly as ICE checks
+				complete, resulting in a set of transient selections until it stabilizes.
+			*/
+			/*
+				到这里协商才算真正完毕,后续的 request 请求继续响应,但是我不再发送 request了
+			*/
+			s.completeResult = SessionAllCompleteSuccess
+			log.Debug("icesession %s allcomplete", s.Name)
+		} else {
+			s.completeResult = SessionCompleteSuccess
+		}
 		log.Trace("valid check=%s\n nominated=%s\n", s.sessionComponent.validCheck, s.sessionComponent.nominatedCheck)
+		srv, _ := s.getSenderServerSock(s.sessionComponent.nominatedCheck.localCandidate.addr)
+		s.sessionComponent.nominatedServerSock = srv
+		if allcomplete {
+			check := s.sessionComponent.nominatedCheck
+			if check.localCandidate.Type == CandidateRelay {
+				result = s.turnServerSock.channelBind(check.remoteCandidate.addr)
+				if result != nil {
+					/*
+						失败了,不妨碍我继续使用sendIndication 来传输数据,继续这么做吧.
+					*/
+					log.Error("%s channel bind err:%s", s.Name, result)
+					//s.iceStreamTransport.State = TransportStateFailed
+					//t.Stop()
+					srv.FinishNegotiation(TurnModeData)
+					return
+				} else {
+					srv.FinishNegotiation(TurnModeData)
+				}
 
+			} else {
+				srv.FinishNegotiation(StunModeData)
+			}
+		}
 	}
-	s.iceStreamTransport.onIceComplete(result)
+	if old == SessionNotComplete { //只通知上层一次,但是可能完成多次,不断更新状态.
+		s.iceStreamTransport.onIceComplete(result)
+	}
 }
 
 /*
@@ -808,7 +858,7 @@ func (s *IceSession) buildBindingRequest(c *SessionCheck) (req *stun.Message) {
 		stun.Username(s.txUserName),
 		s.txCrendientials,
 		stun.Fingerprint}
-	if c.nominated {
+	if c.nominated && s.role == SessionRoleControlling {
 		//useCandidate 不能放在最后,
 		setters = append([]stun.Setter{attr.UseCandidate}, setters...)
 	}
@@ -1016,11 +1066,11 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 		如果是 earlycheck, 那么发送过去的 response 中 username 应该是错的,所以我们不能认为 username 不对就是错的.
 	*/
 	s.sendResponse(localAddr, fromAddr, req, 0)
-	if s.iceStreamTransport.State >= TransportStateRunning {
+	if s.completeResult >= SessionAllCompleteSuccess {
 		return // 不应该继续处理了,因为negotiation 已经完成了.
 	}
 	//early check received.
-	if s.txCrendientials == nil {
+	if len(s.checkMap) <= 0 {
 		s.rxUserName = string(userName)
 		log.Info("%s received early check from %s, username=%s", s.Name, fromAddr, s.rxUserName)
 	}
@@ -1040,7 +1090,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 	rcheck.componentId = 1
 	rcheck.remoteAddress = fromAddr
 	rcheck.localAddress = localAddr
-	if s.txCrendientials == nil {
+	if len(s.checkMap) <= 0 { //checkmap 没有初始化,表明我还没有开始协商
 		/*
 			We don't have answer yet, so keep this request for later
 		*/
@@ -1057,7 +1107,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
  * SDP answer is received and we have received early checks.
  */
 
-func (s *IceSession) handleIncomingCheckhandleIncomingCheck(rcheck *RxCheck) {
+func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 	var (
 		lcand *Candidate
 		rcand *Candidate
@@ -1295,6 +1345,7 @@ func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 	if s.hasStopped {
 		return
 	}
+	log.Trace("%s recevied data %s<-----%s data:\n%s", s.Name, localAddr, peerAddr, hex.Dump(data))
 	s.dataChan <- &stunDataWrapper{localAddr, peerAddr, data}
 	return
 

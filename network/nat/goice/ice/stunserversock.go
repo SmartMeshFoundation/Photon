@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"runtime/debug"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 	"github.com/nkbai/log"
@@ -133,15 +131,15 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 	}
 	raw := buf[:n]
 	if _, err = req.Write(raw); err != nil {
-		if s.mode == StunModeData {
-			//误把数据当成 channel data 了.
-			s.dataReceived(udpAddrToAddr(addr), raw)
-			return nil
-		} else {
-			err = fmt.Errorf("recevied unkown message:\n%s", hex.Dump(raw))
-			log.Error(err.Error())
-			return err
-		}
+		///if s.mode == StunModeData {
+		//误把数据当成 channel data 了.
+		s.dataReceived(udpAddrToAddr(addr), raw)
+		return nil
+		//} else {
+		//	err = fmt.Errorf("recevied unkown message:\n%s", hex.Dump(raw))
+		//	log.Error(err.Error())
+		//	return err
+		//}
 	}
 	if req.Type == stun.BindingIndication || req.Type == turn.SendIndication {
 		return nil //ignore indication ,只是为了保持心跳而已.
@@ -167,7 +165,7 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 	log.Trace("%s --receive stun message %s<----%s  --\n%s\n", s.Name, localaddr, from, msg)
 	if msg.Type.Method == stun.MethodChannelData {
 		log.Trace("\n%s", hex.Dump(msg.Raw))
-		debug.PrintStack()
+		//debug.PrintStack()
 	}
 	var err error
 	/*
@@ -178,6 +176,10 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 	if msg.Type.Method == stun.MethodChannelData {
 		if s.mode == StageNegotiation {
 			log.Error("receive data error when negiotiation")
+			/*
+				在 channel binding success 和 changemode 之间接收到了数据怎么办?直接丢弃,反正对方会重传.
+			*/
+			//s.dataReceived(from, msg.Raw)
 			return
 		} else if s.mode == StunModeData {
 			/*
@@ -217,6 +219,9 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 
 //如果对应的消息应答,已经缓存了,直接发送即可.
 func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) bool {
+	if len(s.cachedResponse) <= 0 {
+		return false
+	}
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	now := time.Now()
@@ -227,6 +232,7 @@ func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) boo
 	}
 	for _, c := range s.cachedResponse {
 		if c.msg.Type.Method == req.Type.Method && c.msg.TransactionID == req.TransactionID {
+			log.Trace("%s id %s duplicated", s.Name, hex.EncodeToString(req.TransactionID[:]))
 			s.sendData(c.msg.Raw, s.Addr, from)
 			return true
 		}
