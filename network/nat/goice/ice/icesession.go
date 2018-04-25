@@ -118,9 +118,10 @@ type IceSession struct {
 type sessionCompleteResult int
 
 const (
-	SessionNotComplete sessionCompleteResult = iota
-	SessionCompleteSuccess
-	SessionAllCompleteSuccess //所有的 check 都 finish 了.
+	SessionNotComplete        sessionCompleteResult = iota
+	SessionCheckComplete                            //wait for nomination.
+	SessionCompleteSuccess                          //at least have one nomination
+	SessionAllCompleteSuccess                       //所有的 check 都 finish 了.
 	SessionCompleteFailure
 )
 
@@ -645,6 +646,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				return true
 			} else {
 				log.Trace("%s all checks completed. controlled agent now waits for nomination..", s.Name)
+				s.completeResult = SessionCheckComplete
 				go func() {
 					//start a timer,failed if there is no nomiated
 					time.Sleep(time.Second * 10) // time from pjnath
@@ -679,7 +681,7 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 	//	panic("all check should finished")
 	//}
 	//应该继续允许处理 BindingRequest, 因为对方可能还没有结束.
-	log.Debug("icesseion %s complete ,err:%s", s.Name, result)
+	log.Debug("icesseion %s complete ,err:%s,allcomplete=%v", s.Name, result, allcomplete)
 	old := s.completeResult
 	if result != nil {
 		s.completeResult = SessionCompleteFailure
@@ -732,7 +734,7 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 			}
 		}
 	}
-	if old == SessionNotComplete { //只通知上层一次,但是可能完成多次,不断更新状态.
+	if old <= SessionCompleteSuccess { //只通知上层一次,但是可能完成多次,不断更新状态.
 		s.iceStreamTransport.onIceComplete(result)
 	}
 }
@@ -915,9 +917,10 @@ func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominat
 lblRestart:
 	req = s.buildBindingRequest(c)
 	for i := 0; i < MaxRetryBindingRequest; i++ {
-		log.Trace("%s %s sendData %d times", s.Name, c.key, i+1)
+		log.Trace("%s %s sendData %d times,bindingrequestlength=%d", s.Name, c.key, i+1, len(req.Raw))
 		sleep = calcRetransmitTimeout(i, sleep)
 		s.addMsgCheck(req.TransactionID, c)
+
 		err = serversock.sendStunMessageAsync(req, c.localCandidate.addr, c.remoteCandidate.addr)
 		if err != nil {
 			log.Debug("%s send binding request from %s to %s ,err %s", s.Name, c.localCandidate.addr, c.remoteCandidate.addr, err)
@@ -1070,7 +1073,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 		return // 不应该继续处理了,因为negotiation 已经完成了.
 	}
 	//early check received.
-	if len(s.checkMap) <= 0 {
+	if len(s.checkMap) <= 0 && s.completeResult == SessionNotComplete {
 		s.rxUserName = string(userName)
 		log.Info("%s received early check from %s, username=%s", s.Name, fromAddr, s.rxUserName)
 	}
@@ -1090,7 +1093,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 	rcheck.componentId = 1
 	rcheck.remoteAddress = fromAddr
 	rcheck.localAddress = localAddr
-	if len(s.checkMap) <= 0 { //checkmap 没有初始化,表明我还没有开始协商
+	if len(s.checkMap) <= 0 && s.completeResult == SessionNotComplete { //checkmap为空表示我还没开始协商,当然也可能是我已经把所有的 check 都检查完了.
 		/*
 			We don't have answer yet, so keep this request for later
 		*/
