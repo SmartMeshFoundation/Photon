@@ -15,7 +15,7 @@ import (
 const PasswordFormat = "2006-01-02"
 
 func CreatePassword(privKey *ecdsa.PrivateKey) (sig string, err error) {
-	t := time.Now()
+	t := time.Now().UTC()
 	data := []byte(t.Format(PasswordFormat))
 	hash := crypto.Keccak256Hash(data)
 	signature, err := crypto.Sign(hash[:], privKey)
@@ -26,7 +26,7 @@ func CreatePassword(privKey *ecdsa.PrivateKey) (sig string, err error) {
 }
 
 func VerifySignature(addr, signature string) (err error) {
-	t := time.Now()
+	t := time.Now().UTC()
 	data := []byte(t.Format(PasswordFormat))
 	sig, err := hex.DecodeString(signature)
 	if err != nil {
