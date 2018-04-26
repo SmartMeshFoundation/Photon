@@ -17,23 +17,24 @@ make dep && make && make install
 ```
 ## Listing API
   SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in the official documentation of Raiden Network. The primary API list and description are as follows：
-* QueryingNodeAddress　　　　　　　　　　　　Query a node address
-* QueryingNodeAllChannels　　　　　　　　　　　Query all channels of a node
-* QueryingNodeSpecificChannel　　　　　　　　　Query a specified channel for a node
-* QueryingRegisteredTokens　　　　　　　　　　　Query system registration Token
-* QueryingAllPartnersForOneTokens　　　　　　　　Query the Partner address in the channel of special Token
-* RegisteringOneToken　　　　　　　　　　　　Registration of new Token to Raiden Network
-* TokenSwaps　　　　　　　　　　　　　　　　Exchange the token
-* OpenChannel　　　　　　　　　　　　　　　Establish a channel
-* CloseChannel　　　　　　　　　　　　　　　　Close the specified channel for the node
-* SettleChannel　　　　　　　　　　　　　　　　Settle the specified channel for the node
-* Deposit2Channel　　　　　　　　　　　　　　Deposit to the specified channel
-* Connecting2TokenNetwork　　　　　　　　　　Connect to a TokenNetwork
-* LeavingTokenNetwork　　　　　　　　　　　　Leave the TokenNetwork
-* QueryingConnectionsDetails　　　　　　　　　Query the details of the Token network connection 
-* QueryingGeneralNetworkEvents　　　　　　　Query network events
-* QueryingTokenNetworkEvents　　　　　　　　Query Token network events
-* QueryingChannelEvents　　　　　　　　　　Query channel event
+
+* QueryingNodeAddress 　　　　　　 　Query a node address 
+* QueryingNodeAllChannels　　　　　　Query all channels of a node
+* QueryingNodeSpecificChannel　　　&ensp;&ensp;Query a specified channel for a node
+* QueryingRegisteredTokens　　　　　&ensp;Query system registration Token
+* QueryingAllPartnersForOneTokens　　Query the Partner address in the channel of special Token
+* RegisteringOneToken　　　　　　　　Registration of new Token to Raiden Network
+* TokenSwaps　　　　　　　　　　　　Exchange the token
+* OpenChannel　　　　　　　　　　　&ensp;Establish a channel
+* CloseChannel　　　　　　　　　　　&ensp;Close the specified channel for the node
+* SettleChannel　　　　　　　　　　　&ensp;Settle the specified channel for the node
+* Deposit2Channel　　　　　　　　　　Deposit to the specified channel
+* Connecting2TokenNetwork　　　　　&ensp;Connect to a TokenNetwork
+* LeavingTokenNetwork　　　　　　　&ensp;Leave the TokenNetwork
+* QueryingConnectionsDetails　　　　&ensp;Query the details of the Token network connection 
+* QueryingGeneralNetworkEvents　　　Query network events
+* QueryingTokenNetworkEvents　　　　Query Token network events
+* QueryingChannelEvents　　　　　　&ensp;Query channel event
 ## Raiden Contract
 These are the currently deployed raiden contract addresses for the ethereum testnet:
 * Netting Channel Library: [0xad5cb8fa8813f3106f3ab216176b6457ab08eb75](https://ropsten.etherscan.io/address/0xad5cb8fa8813f3106f3ab216176b6457ab08eb75#code)
