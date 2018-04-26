@@ -144,6 +144,7 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	log.Trace("sdp length=%s", len(lsdp))
 	rsdp, err := s2.EncodeSession()
 	if err != nil {
 		t.Error(err)
@@ -163,7 +164,7 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		return
 	}
 	select {
-	case <-time.After(10 * time.Second):
+	case <-time.After(20 * time.Second):
 		t.Error("s2 negotiation timeout")
 		return
 	case err = <-cb2.iceresult:
@@ -174,7 +175,7 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 	}
 	//return
 	select {
-	case <-time.After(10 * time.Second):
+	case <-time.After(20 * time.Second):
 		t.Error("s1 negotiation timeout")
 		return
 	case err = <-cb1.iceresult:
@@ -352,4 +353,186 @@ func TestIceStreamTransport_StartNegotiationNoHost(t *testing.T) {
 	}
 	log.Info("s2 negotiation success")
 
+}
+
+func BenchmarkIceStreamTransport_StartNegotiation(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		s1, s2, err := setupTestIceStreamTransport(typTurn)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		cb1 := Newicecb("s1")
+		cb2 := Newicecb("s2")
+		s1.cb = cb1
+		s2.cb = cb2
+		err = s1.InitIce(SessionRoleControlling)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		err = s2.InitIce(SessionRoleControlled)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		lsdp := encodeSessionExclude(s1, CandidateHost)
+		err = s2.StartNegotiation(lsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		log.Trace("s2 StartNegotiation returned")
+		rsdp := encodeSessionExclude(s2, CandidateHost)
+		err = s1.StartNegotiation(rsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		log.Trace("s1 StartNegotiation returned")
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s1 negotiation timeout")
+			return
+		case err = <-cb1.iceresult:
+			if err != nil {
+				log.Error("s1 negotiation failed ", err)
+				return
+			}
+		}
+		log.Info("s1 negotiation success.")
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s2 negotiation timeout")
+			return
+		case err = <-cb2.iceresult:
+			if err != nil {
+				log.Error("s2 negotiation failed", err)
+				return
+			}
+		}
+		log.Info("s2 negotiation success")
+	}
+
+}
+
+func BenchmarkIceStreamTransport_StartNegotiationOnlyRelay(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+
+		s1, s2, err := setupTestIceStreamTransport(typTurn)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		cb1 := Newicecb("s1")
+		cb2 := Newicecb("s2")
+		s1.cb = cb1
+		s2.cb = cb2
+		err = s1.InitIce(SessionRoleControlling)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		err = s2.InitIce(SessionRoleControlled)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		rsdp := encodeSessionExclude(s2, CandidateHost, CandidateServerReflexive)
+		err = s1.StartNegotiation(rsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		lsdp := encodeSessionExclude(s1, CandidateHost, CandidateServerReflexive)
+		err = s2.StartNegotiation(lsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s1 negotiation timeout")
+			return
+		case err = <-cb1.iceresult:
+			if err != nil {
+				log.Error("s1 negotiation failed ", err)
+				//return
+			}
+		}
+		log.Info("s1 negotiation success.")
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s2 negotiation timeout")
+			return
+		case err = <-cb2.iceresult:
+			if err != nil {
+				log.Error("s2 negotiation failed", err)
+				return
+			}
+		}
+		log.Info("s2 negotiation success")
+	}
+
+}
+
+func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+
+		s1, s2, err := setupTestIceStreamTransport(typTurn)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		cb1 := Newicecb("s1")
+		cb2 := Newicecb("s2")
+		s1.cb = cb1
+		s2.cb = cb2
+		err = s1.InitIce(SessionRoleControlling)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		err = s2.InitIce(SessionRoleControlled)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		lsdp := encodeSessionExclude(s1, CandidateHost)
+		err = s2.StartNegotiation(lsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		log.Trace("s2 StartNegotiation returned")
+		rsdp := encodeSessionExclude(s2, CandidateHost)
+		err = s1.StartNegotiation(rsdp)
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+		log.Trace("s1 StartNegotiation returned")
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s1 negotiation timeout")
+			return
+		case err = <-cb1.iceresult:
+			if err != nil {
+				log.Error("s1 negotiation failed ", err)
+				return
+			}
+		}
+		log.Info("s1 negotiation success.")
+		select {
+		case <-time.After(50 * time.Second):
+			log.Error("s2 negotiation timeout")
+			return
+		case err = <-cb2.iceresult:
+			if err != nil {
+				log.Error("s2 negotiation failed", err)
+				return
+			}
+		}
+		log.Info("s2 negotiation success")
+	}
 }
