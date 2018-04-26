@@ -1,11 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"fmt"
-
-	"strings"
+	"os"
 
 	"io/ioutil"
 
@@ -21,18 +18,19 @@ import (
 	"encoding/json"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/restful"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
-	"github.com/SmartMeshFoundation/SmartRaiden/restful"
 )
 
 func main() {
@@ -75,16 +73,6 @@ func main() {
 				(localhost enabled by default)`,
 			Value: "http://localhost:* /*",
 		},
-		cli.StringFlag{
-			Name:  "logging",
-			Usage: `ethereum.slogging config-string{trace,debug,info,warn,error,critical `,
-			Value: "trace",
-		},
-		cli.StringFlag{
-			Name:  "logfile",
-			Usage: "file path for logging to file",
-			Value: "",
-		},
 		cli.IntFlag{Name: "max-unresponsive-time",
 			Usage: `Max time in seconds for which an address can send no packets and
 	               still be considered healthy.`,
@@ -116,7 +104,7 @@ func main() {
 		cli.StringFlag{
 			Name: "nat",
 			Usage: `
-[auto|upnp|stun|none]
+				[auto|upnp|stun|none]
 				Manually specify method to use for
 				determining public IP / NAT traversal.
 				Available methods:
@@ -134,8 +122,8 @@ func main() {
 			Value: "ice",
 		},
 		cli.BoolFlag{
-			Name:  "debug",
-			Usage: "enable debug feature",
+			Name:  "debugcrash",
+			Usage: "enable debug crash feature",
 		},
 		cli.StringFlag{
 			Name:  "conditionquit",
@@ -166,46 +154,27 @@ func main() {
 			Usage: "enable mediation fee",
 		},
 	}
+	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = Main
-	app.Name = "raiden"
-	app.Version = "0.1"
-	app.Run(os.Args)
-}
-func setupLog(ctx *cli.Context) {
-	loglevel := strings.ToLower(ctx.String("logging"))
-	writer := os.Stderr
-	lvl := log.LvlTrace
-	switch loglevel {
-	case "trace":
-		lvl = log.LvlTrace
-	case "debug":
-		lvl = log.LvlDebug
-	case "info":
-		lvl = log.LvlInfo
-	case "warn":
-		lvl = log.LvlWarn
-	case "error":
-		lvl = log.LvlError
-	case "critical":
-		lvl = log.LvlCrit
-	}
-	logfilename := ctx.String("logfile")
-	if len(logfilename) > 0 {
-		file, err := os.Create(logfilename)
-		if err != nil {
-			fmt.Printf("open logfile %s error:%s\n", logfilename, err)
-			utils.SystemExit(1)
+	app.Name = "smartraiden"
+	app.Version = "0.2"
+	app.Before = func(ctx *cli.Context) error {
+		if err := debug.Setup(ctx); err != nil {
+			return err
 		}
-		writer = file
+		return nil
 	}
-	fmt.Println("loglevel:", lvl.String())
-	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
+
+	app.After = func(ctx *cli.Context) error {
+		debug.Exit()
+		return nil
+	}
+	app.Run(os.Args)
 }
 func Main(ctx *cli.Context) error {
 	var pms *network.PortMappedSocket
 	var err error
 	fmt.Printf("Welcom to smartraiden,version %s\n", ctx.App.Version)
-	setupLog(ctx)
 	if ctx.String("nat") != "ice" {
 		host, port := network.SplitHostPort(ctx.String("listen-address"))
 		pms, err = network.SocketFactory(host, port, ctx.String("nat"))
@@ -390,7 +359,7 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	databasePath := filepath.Join(userDbPath, "log.db")
 	config.DataBasePath = databasePath
-	if ctx.Bool("debug") {
+	if ctx.Bool("debugcrash") {
 		config.Debug = true
 		conditionquit := ctx.String("conditionquit")
 		json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)

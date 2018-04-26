@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kataras/go-errors"
-	"github.com/nkbai/log"
+	"errors"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )

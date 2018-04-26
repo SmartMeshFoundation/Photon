@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type DataMap map[string]interface{}
@@ -30,16 +30,16 @@ type partnersData struct {
 func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 	tokenAddr := common.HexToAddress(r.PathParam("token"))
 	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s", utils.APex(tokenAddr)))
-	tokens:= RaidenApi.GetTokenList()
-	found:=false
-	for _,t:=range tokens{
-		if t==tokenAddr{
-			found=true
+	tokens := RaidenApi.GetTokenList()
+	found := false
+	for _, t := range tokens {
+		if t == tokenAddr {
+			found = true
 			break
 		}
 	}
-	if !found{
-		rest.Error(w,"token doesn't exist",http.StatusNotFound)
+	if !found {
+		rest.Error(w, "token doesn't exist", http.StatusNotFound)
 		return
 	}
 	chs, err := RaidenApi.GetChannelList(tokenAddr, utils.EmptyAddress)

@@ -16,6 +16,7 @@ import (
 	"net"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/interface"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/signalshare"
@@ -23,7 +24,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type IceStatus int

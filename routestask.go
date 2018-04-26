@@ -5,9 +5,9 @@ import (
 
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 /*

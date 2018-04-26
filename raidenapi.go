@@ -13,13 +13,13 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type RaidenApi struct {
@@ -74,7 +74,7 @@ func (this *RaidenApi) ManagerAddressIfTokenRegistered(tokenAddress common.Addre
 		return
 	}
 	/*
-todo fix it
+		todo fix it
 	*/
 	//if !this.Raiden.ChannelManagerIsRegistered(mgrAddr) {
 	//	this.Raiden.RegisterChannelManager(mgrAddr)

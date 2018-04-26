@@ -29,6 +29,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -43,7 +44,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/theckman/go-flock"
 )
 
@@ -284,8 +284,8 @@ func (this *RaidenService) Start() {
 				}
 				for {
 					/*
-						Random sleep is no more than five seconds. If the number of dormancy milliseconds is prime,
-					    it will exit directly. This probability is probably 13%.
+							Random sleep is no more than five seconds. If the number of dormancy milliseconds is prime,
+						    it will exit directly. This probability is probably 13%.
 					*/
 					n := utils.NewRandomInt(5000)
 					time.Sleep(time.Duration(n) * time.Millisecond)
@@ -666,7 +666,7 @@ func (this *RaidenService) HandleSecret(identifier uint64, tokenAddress common.A
 		} else {
 			/*
 				todo reimplement HandleSecret
-						*/
+			*/
 			log.Warn("Channel is registered for a given Lock but the Lock is not contained in it. can be ignored when I'm a mediated node")
 		}
 
@@ -1414,13 +1414,13 @@ func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
 		} else if sentMessageTag.EchoHash != utils.EmptyHash {
 			//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
 			this.ConditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-			switch msg:=sentMessage.Message.(type){
+			switch msg := sentMessage.Message.(type) {
 			case *encoding.RevealSecret:
 				this.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
 			case *encoding.RemoveExpiredHashlockTransfer:
 				this.db.UpdateSentRemoveExpiredHashlockTransfer(sentMessageTag.EchoHash)
 			default:
-				log.Error(fmt.Sprintf("unknown message %s",utils.StringInterface(msg,7)))
+				log.Error(fmt.Sprintf("unknown message %s", utils.StringInterface(msg, 7)))
 			}
 
 		} else {

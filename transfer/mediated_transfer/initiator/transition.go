@@ -5,11 +5,11 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	mt "github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const NameInitiatorTransition = "InitiatorTransition"
@@ -177,7 +177,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 	if state.BlockNumber > state.Transfer.Expiration {
-		if !state.Db.IsThisLockRemoved(state.Route.ChannelAddress,state.OurAddress, state.Transfer.Hashlock) {
+		if !state.Db.IsThisLockRemoved(state.Route.ChannelAddress, state.OurAddress, state.Transfer.Hashlock) {
 			unlockFailed := &mt.EventUnlockFailed{
 				Identifier:     state.Transfer.Identifier,
 				Hashlock:       state.Transfer.Hashlock,
@@ -189,7 +189,7 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 	}
 	for i, tr := range state.CanceledTransfers {
 		route := state.Routes.CanceledRoutes[i]
-		if state.BlockNumber > tr.Expiration && !state.Db.IsThisLockRemoved(route.ChannelAddress,state.OurAddress, tr.HashLock) {
+		if state.BlockNumber > tr.Expiration && !state.Db.IsThisLockRemoved(route.ChannelAddress, state.OurAddress, tr.HashLock) {
 			unlockFailed := &mt.EventUnlockFailed{
 				Identifier:     tr.Identifier,
 				Hashlock:       tr.HashLock,
@@ -282,11 +282,11 @@ Send a balance proof to the next hop with the current mediated transfer
 */
 func HandleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
 	/*
-	考虑到崩溃恢复情形,可能崩溃了很久. 如果这时候交易还继续进行,显然不合理.
-	 */
-	 if state.BlockNumber>= state.Transfer.Expiration {
-	 	return &transfer.TransitionResult{state, nil}
-	 }
+		考虑到崩溃恢复情形,可能崩溃了很久. 如果这时候交易还继续进行,显然不合理.
+	*/
+	if state.BlockNumber >= state.Transfer.Expiration {
+		return &transfer.TransitionResult{state, nil}
+	}
 	if st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
 		/*
 					   next hop learned the secret, unlock the token locally and send the

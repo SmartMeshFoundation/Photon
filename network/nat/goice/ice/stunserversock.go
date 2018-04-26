@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
-	"github.com/nkbai/log"
 )
 
 var (

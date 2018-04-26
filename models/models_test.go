@@ -16,11 +16,11 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func init() {
@@ -268,15 +268,15 @@ func TestModelDB_IsThisLockRemoved(t *testing.T) {
 	}()
 	channel := utils.NewRandomAddress()
 	secret := utils.Sha3(channel[:])
-	sender:=utils.NewRandomAddress()
-	r:=model.IsThisLockRemoved(channel,sender,secret)
+	sender := utils.NewRandomAddress()
+	r := model.IsThisLockRemoved(channel, sender, secret)
 	if r {
 		t.Error("should be false")
 		return
 	}
-	model.RemoveLock(channel,sender,secret)
-	r=model.IsThisLockRemoved(channel,sender,secret)
-	if !r{
+	model.RemoveLock(channel, sender, secret)
+	r = model.IsThisLockRemoved(channel, sender, secret)
+	if !r {
 		t.Error("should be true")
 		return
 	}

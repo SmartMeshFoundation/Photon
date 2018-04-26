@@ -3,7 +3,8 @@ package utils
 import "io"
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 func MyCallerFuncHandler(h log.Handler) log.Handler {

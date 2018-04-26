@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
@@ -19,7 +20,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 /*
@@ -86,7 +86,7 @@ func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash co
 	case *encoding.RefundTransfer:
 		err = this.messageRefundTransfer(m2)
 	case *encoding.RemoveExpiredHashlockTransfer:
-		err=this.messageRemoveExpiredHashlockTransfer(m2)
+		err = this.messageRemoveExpiredHashlockTransfer(m2)
 	default:
 		log.Error(fmt.Sprintf("RaidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
@@ -135,8 +135,8 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 
 	if msgTag.ReceiveProcessComplete != false {
 		/*
-			todo must be solved
-		When tokenswap is used as an intermediate node, ReceiveProcessComplete is true when it is supposed to be false. for event handler, receiveMessageTag.ReceiveProcessComplete = true
+				todo must be solved
+			When tokenswap is used as an intermediate node, ReceiveProcessComplete is true when it is supposed to be false. for event handler, receiveMessageTag.ReceiveProcessComplete = true
 		*/
 		//panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
 	}
@@ -215,19 +215,20 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	*/
 	return nil
 }
+
 /*
 if there is any error, just ignore.
- */
-func (this*RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg*encoding.RemoveExpiredHashlockTransfer)  error{
+*/
+func (this *RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
 	this.balanceProof(msg)
-	ch:=this.raiden.GetChannelWithAddr(msg.Channel)
-	if ch==nil{
-		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s",utils.StringInterface(msg,7))
+	ch := this.raiden.GetChannelWithAddr(msg.Channel)
+	if ch == nil {
+		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 		return nil
 	}
-	err:=ch.RegisterRemoveExpiredHashlockTransfer(msg,this.raiden.GetBlockNumber())
-	if err!=nil{
-		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s",err)
+	err := ch.RegisterRemoveExpiredHashlockTransfer(msg, this.raiden.GetBlockNumber())
+	if err != nil {
+		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s", err)
 	}
 	this.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	return nil

@@ -3,9 +3,9 @@ package models
 import (
 	"fmt"
 
+	log "github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	log "github.com/ethereum/go-ethereum/log"
 )
 
 type AddressMap map[common.Address]common.Address

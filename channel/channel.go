@@ -10,13 +10,13 @@ import (
 	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type Channel struct {
@@ -242,21 +242,21 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 
 /*
 register transferfrom to need refactor.
- */
-func (c*Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.EnvelopMessager) (fromState *ChannelEndState, toState *ChannelEndState,err error){
+*/
+func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.EnvelopMessager) (fromState *ChannelEndState, toState *ChannelEndState, err error) {
 	evMsg := tr.GetEnvelopMessage()
 	if evMsg.Channel != c.MyAddress {
-		err= fmt.Errorf("Channel address mismatch")
+		err = fmt.Errorf("Channel address mismatch")
 		return
 	}
-	if tr.GetSender()==c.OurState.Address{
-		fromState=c.OurState
-		toState=c.PartnerState
-	} else if tr.GetSender()==c.PartnerState.Address{
-		fromState=c.PartnerState
-		toState=c.OurState
-	}else{
-		err= fmt.Errorf("received transfer from unknown address =%s",utils.APex(tr.GetSender()))
+	if tr.GetSender() == c.OurState.Address {
+		fromState = c.OurState
+		toState = c.PartnerState
+	} else if tr.GetSender() == c.PartnerState.Address {
+		fromState = c.PartnerState
+		toState = c.OurState
+	} else {
+		err = fmt.Errorf("received transfer from unknown address =%s", utils.APex(tr.GetSender()))
 		return
 	}
 	/*
@@ -271,7 +271,7 @@ func (c*Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelop
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
 			utils.Pex(toState.Address[:]), fromState.Nonce(), evMsg.Nonce))
-		err= rerr.InvalidNonce(utils.StringInterface(tr, 3))
+		err = rerr.InvalidNonce(utils.StringInterface(tr, 3))
 		return
 	}
 	//  transfer amount should never decrese.
@@ -279,56 +279,59 @@ func (c*Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelop
 		log.Error(fmt.Sprintf("NEGATIVE TRANSFER node=%s,from=%s,to=%s,transfer=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 			utils.StringInterface(tr, 3))) //for nest struct
-		err= fmt.Errorf("Negative transfer")
+		err = fmt.Errorf("Negative transfer")
 		return
 	}
 	return
 }
+
 /*
 this channel received a request to remove a expired hashlock and this hashlock must be sent out from the sender.
- */
-func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpiredHashlockTransfer, blockNumber int64) (err error ){
-	fromState,_,err:=c.PreCheckRecievedTransfer(blockNumber,tr)
-	if err!=nil{
+*/
+func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpiredHashlockTransfer, blockNumber int64) (err error) {
+	fromState, _, err := c.PreCheckRecievedTransfer(blockNumber, tr)
+	if err != nil {
 		return
 	}
 	/*
-	transfer amount should not change.
-	 */
-	if tr.TransferAmount.Cmp(fromState.TransferAmount())!=0{
-		err=errTransferAmountMismatch
+		transfer amount should not change.
+	*/
+	if tr.TransferAmount.Cmp(fromState.TransferAmount()) != 0 {
+		err = errTransferAmountMismatch
 		return
 	}
-	_,newtree,newlocksroot,err:=fromState.TryRemoveExpiredHashLock(tr.HashLock,blockNumber)
-	if err!=nil{
+	_, newtree, newlocksroot, err := fromState.TryRemoveExpiredHashLock(tr.HashLock, blockNumber)
+	if err != nil {
 		return err
 	}
 	/*
-	only remove a expired hashlock
-	 */
-	if newlocksroot!=tr.Locksroot{
-		return &InvalidLocksRootError{ExpectedLocksroot:newlocksroot,GotLocksroot:tr.Locksroot}
+		only remove a expired hashlock
+	*/
+	if newlocksroot != tr.Locksroot {
+		return &InvalidLocksRootError{ExpectedLocksroot: newlocksroot, GotLocksroot: tr.Locksroot}
 	}
-	fromState.TreeState=transfer.NewMerkleTreeState(newtree)
-	err=fromState.RegisterRemoveExpiredHashlockTransfer(tr)
+	fromState.TreeState = transfer.NewMerkleTreeState(newtree)
+	err = fromState.RegisterRemoveExpiredHashlockTransfer(tr)
 	if err == nil {
-		c.ExternState.db.RemoveLock(c.MyAddress,fromState.Address, tr.HashLock)
+		c.ExternState.db.RemoveLock(c.MyAddress, fromState.Address, tr.HashLock)
 	}
 	return err
 }
+
 /*
 create this transfer to notify my patner that this hashlock is expired and i want to remove it .
- */
-func (c*Channel)CreateRemoveExpiredHashLockTransfer(hashlock common.Hash, blockNumber int64) (tr*encoding.RemoveExpiredHashlockTransfer,err error){
-	_,_,newlocksroot,err:=c.OurState.TryRemoveExpiredHashLock(hashlock,blockNumber)
-	if err!=nil{
+*/
+func (c *Channel) CreateRemoveExpiredHashLockTransfer(hashlock common.Hash, blockNumber int64) (tr *encoding.RemoveExpiredHashlockTransfer, err error) {
+	_, _, newlocksroot, err := c.OurState.TryRemoveExpiredHashLock(hashlock, blockNumber)
+	if err != nil {
 		return
 	}
-	nonce:=c.GetNextNonce()
-	transferAmount:=c.OurState.TransferAmount()
-	tr=encoding.NewRemoveExpiredHashlockTransfer(0,nonce,c.MyAddress,transferAmount,newlocksroot,hashlock)
+	nonce := c.GetNextNonce()
+	transferAmount := c.OurState.TransferAmount()
+	tr = encoding.NewRemoveExpiredHashlockTransfer(0, nonce, c.MyAddress, transferAmount, newlocksroot, hashlock)
 	return
 }
+
 //Register a signed transfer, updating the channel's state accordingly.
 func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessager) error {
 	var err error
@@ -392,10 +395,10 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		return rerr.InvalidNonce(utils.StringInterface(tr, 3))
 	}
 	/*
-				 if the locksroot is out-of-sync (because a transfer was created while
-			    a Secret was in traffic) the balance _will_ be wrong, so first check
-			    the locksroot and then the balance
-	During building this transfer and registering transfer, we receive a secret.
+					 if the locksroot is out-of-sync (because a transfer was created while
+				    a Secret was in traffic) the balance _will_ be wrong, so first check
+				    the locksroot and then the balance
+		During building this transfer and registering transfer, we receive a secret.
 	*/
 	if encoding.IsLockedTransfer(tr) {
 		mtr := encoding.GetMtrFromLockedTransfer(tr)

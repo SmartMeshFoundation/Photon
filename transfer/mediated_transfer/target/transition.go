@@ -3,11 +3,11 @@ package target
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const NameTargetTransition = "TargetTransition"

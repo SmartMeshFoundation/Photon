@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -13,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -262,11 +262,11 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 		ToBlockNumber = ethrpc.LatestBlockNumber
 	}
 	/*
-			params.NameChannelNewBalance,
-			params.NameChannelClosed,
-			params.NameChannelSettled,
-			params.NameChannelSecretRevealed,
-	Use the font to determine the event name and combine the four queries into one, which is to get the Event Signature
+				params.NameChannelNewBalance,
+				params.NameChannelClosed,
+				params.NameChannelSettled,
+				params.NameChannelSecretRevealed,
+		Use the font to determine the event name and combine the four queries into one, which is to get the Event Signature
 	*/
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
 		params.NameChannelNewBalance, eventAbiMap[params.NameChannelNewBalance], this.client)

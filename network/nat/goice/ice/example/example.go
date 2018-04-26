@@ -1,12 +1,14 @@
 package main
 
 import (
-	"time"
 	"bytes"
 	"net"
+	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
-	"github.com/nkbai/log"
 )
+
 const (
 	typHost = 1
 	typStun = 2
@@ -55,7 +57,7 @@ func setupIcePair(typ int) (s1, s2 *ice.IceStreamTransport, err error) {
 	log.Trace("-----------------------------------------")
 	return
 }
-func main(){
+func main() {
 	s1, s2, err := setupIcePair(typTurn)
 	if err != nil {
 		log.Crit(err.Error())

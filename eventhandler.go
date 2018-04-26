@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
@@ -14,7 +15,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 var errSentFailed = errors.New("sent failed")
@@ -189,25 +189,25 @@ func (this *StateMachineEventHandler) eventUnlockFailed(e2 *mediated_transfer.Ev
 		return
 	}
 	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.APex(e2.ChannelAddress), utils.HPex(e2.Hashlock)))
-	tr,err:=ch.CreateRemoveExpiredHashLockTransfer(e2.Hashlock,this.raiden.GetBlockNumber())
-	if err!=nil{
-		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s",err))
+	tr, err := ch.CreateRemoveExpiredHashLockTransfer(e2.Hashlock, this.raiden.GetBlockNumber())
+	if err != nil {
+		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s", err))
 		return
 	}
-	tr.Sign(this.raiden.PrivateKey,tr)
-	err=ch.RegisterRemoveExpiredHashlockTransfer(tr,this.raiden.GetBlockNumber())
-	if err!=nil{
-		log.Error(fmt.Sprintf("register mine RegisterRemoveExpiredHashlockTransfer err %s",err))
+	tr.Sign(this.raiden.PrivateKey, tr)
+	err = ch.RegisterRemoveExpiredHashlockTransfer(tr, this.raiden.GetBlockNumber())
+	if err != nil {
+		log.Error(fmt.Sprintf("register mine RegisterRemoveExpiredHashlockTransfer err %s", err))
 		return
 	}
 	/*
-	save new channel status and sent RemoveExpiredHashlockTransfer must be atomic.
-	 */
-	tx:=this.raiden.db.StartTx()
-	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch),tx)
-	this.raiden.db.NewSentRemoveExpiredHashlockTransfer(tr,ch.PartnerState.Address,tx)
+		save new channel status and sent RemoveExpiredHashlockTransfer must be atomic.
+	*/
+	tx := this.raiden.db.StartTx()
+	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	this.raiden.db.NewSentRemoveExpiredHashlockTransfer(tr, ch.PartnerState.Address, tx)
 	tx.Commit()
-	err=this.raiden.SendAsync(ch.PartnerState.Address,tr)
+	err = this.raiden.SendAsync(ch.PartnerState.Address, tr)
 	return
 }
 func (this *StateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {

@@ -1,12 +1,13 @@
 package models
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type SentRemoveExpiredHashlockTransfer struct {
@@ -22,9 +23,9 @@ func (model *ModelDB) IsSentRemoveExpiredHashlockTransferExist(echohash common.H
 	err := model.db.One("EchoHashString", echohash.String(), &rss)
 	return err == nil
 }
-func (model *ModelDB) NewSentRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer, receiver common.Address,tx storm.Node) {
+func (model *ModelDB) NewSentRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer, receiver common.Address, tx storm.Node) {
 	echohash := utils.Sha3(msg.Pack(), receiver[:])
-	tr:= &SentRemoveExpiredHashlockTransfer{
+	tr := &SentRemoveExpiredHashlockTransfer{
 		EchoHash:       echohash,
 		EchoHashString: echohash.String(),
 		Message:        msg,
@@ -59,4 +60,3 @@ func (model *ModelDB) GetAllUncompleteSentRemoveExpiredHashlockTransfer() []*Sen
 	log.Trace(fmt.Sprintf("GetAllUncompleteSentRemoveExpiredHashlockTransfer=%s", utils.StringInterface(msgs, 7)))
 	return msgs
 }
-

@@ -14,12 +14,12 @@ import (
 	"os"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/asdine/storm"
 	gobcodec "github.com/asdine/storm/codec/gob"
 	bolt "github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 //export thread safe model
@@ -141,14 +141,15 @@ func (model *ModelDB) CloseDB() {
 	model.db.Close()
 	model.lock.Unlock()
 }
-func (model*ModelDB) SaveRegistryAddress(registryAddress common.Address) {
-	model.db.Set(bucketMeta,"registry",registryAddress)
+func (model *ModelDB) SaveRegistryAddress(registryAddress common.Address) {
+	model.db.Set(bucketMeta, "registry", registryAddress)
 }
-func (model*ModelDB) GetRegistryAddress() common.Address{
+func (model *ModelDB) GetRegistryAddress() common.Address {
 	var registry common.Address
-	model.db.Get(bucketMeta,"registry",&registry)
+	model.db.Get(bucketMeta, "registry", &registry)
 	return registry
 }
+
 //Log a state change and return its identifier
 func (model *ModelDB) LogStateChange(stateChange transfer.StateChange) (id int, err error) {
 	sc := &StateChange{

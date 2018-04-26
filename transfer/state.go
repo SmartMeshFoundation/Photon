@@ -7,12 +7,13 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -106,7 +107,7 @@ func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *Balan
 		msgHash, envmsg.Signature)
 }
 
-func (b*BalanceProofState) IsBalanceProofValid() bool {
+func (b *BalanceProofState) IsBalanceProofValid() bool {
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.BigEndian, b.Nonce)
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
@@ -117,12 +118,13 @@ func (b*BalanceProofState) IsBalanceProofValid() bool {
 
 	hash := utils.Sha3(dataToSign)
 	signature := make([]byte, len(b.Signature))
-	copy(signature,b.Signature)
+	copy(signature, b.Signature)
 	signature[len(signature)-1] -= 27 //why?
 	pubkey, err := crypto.Ecrecover(hash[:], signature)
 	//log.Trace(fmt.Sprintf("signer =%s",utils.APex(utils.PubkeyToAddress(pubkey))))
-	return err == nil && utils.PubkeyToAddress(pubkey)!=utils.EmptyAddress
+	return err == nil && utils.PubkeyToAddress(pubkey) != utils.EmptyAddress
 }
+
 //func (this *BalanceProofState) String() string {
 //	return utils.StringInterface(this, 1)
 //}

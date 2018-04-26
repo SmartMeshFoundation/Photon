@@ -3,7 +3,7 @@ package ice
 import (
 	"testing"
 
-	"github.com/nkbai/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 

@@ -16,10 +16,10 @@ import (
 
 	"encoding/binary"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	bolt "github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 var bucketEvents = []byte("events")

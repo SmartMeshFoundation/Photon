@@ -7,11 +7,11 @@ import (
 
 	"crypto/ecdsa"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/signalshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func init() {
@@ -87,8 +87,8 @@ func TestNewXmppError(t *testing.T) {
 }
 
 func BenchmarkNewXmpp(b *testing.B) {
-	b.N=10
-	for i:=0;i<b.N;i++{
+	b.N = 10
+	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
 		addr1 := crypto.PubkeyToAddress(key1.PublicKey)
 		x1, err := NewXmpp("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")

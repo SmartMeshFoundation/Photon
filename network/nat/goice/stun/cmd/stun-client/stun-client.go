@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nkbai/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 

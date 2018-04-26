@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const key1 = "9be657694d9b460fad0b00d798ecd4b9a1b2a034bc2e6567262d1f426e8d31c2"

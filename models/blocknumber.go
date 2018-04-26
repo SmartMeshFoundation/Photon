@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 const bucketBlockNumber = "bucketBlockNumber"

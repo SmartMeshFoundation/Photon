@@ -9,7 +9,7 @@ import (
 
 	"errors"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	stun "github.com/nkbai/go-stun/stun"
 	"github.com/prestonTao/upnp"
 )

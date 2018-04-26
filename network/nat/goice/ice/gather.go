@@ -7,7 +7,7 @@ import (
 	"net"
 	"sort"
 
-	"github.com/nkbai/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 const DefaultPreference = 0xffff

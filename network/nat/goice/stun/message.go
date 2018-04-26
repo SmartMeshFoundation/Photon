@@ -9,7 +9,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/nkbai/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 const (

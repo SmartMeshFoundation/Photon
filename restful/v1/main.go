@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ant0ine/go-json-rest/rest"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 var RaidenApi *smartraiden.RaidenApi

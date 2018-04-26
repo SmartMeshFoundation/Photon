@@ -10,9 +10,9 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
-	"github.com/nkbai/log"
 )
 
 const StunKeepAliveInterval = time.Second * 20

@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func (model *ModelDB) NewChannel(c *channel.ChannelSerialization) error {
@@ -165,7 +165,7 @@ const bucketExpiredHashlock = "expiredHashlock"
 /*
 	is a expired hashlock has been removed from channel status.
 */
-func (model *ModelDB) IsThisLockRemoved(channel common.Address,sender common.Address, secret common.Hash) bool {
+func (model *ModelDB) IsThisLockRemoved(channel common.Address, sender common.Address, secret common.Hash) bool {
 	var result bool
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
@@ -184,7 +184,7 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Address,sender common.Add
 /*
 	remember this lock has been removed from channel status.
 */
-func (model *ModelDB) RemoveLock(channel common.Address,sender common.Address, secret common.Hash) {
+func (model *ModelDB) RemoveLock(channel common.Address, sender common.Address, secret common.Hash) {
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
 	key.Write(secret[:])

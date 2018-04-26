@@ -15,11 +15,11 @@ import (
 
 	"encoding/hex"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice/attr"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 	"github.com/kataras/iris/utils"
-	"github.com/nkbai/log"
 )
 
 type SessionRole int

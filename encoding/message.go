@@ -15,10 +15,10 @@ import (
 
 	"encoding/gob"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type MessageType int
@@ -31,7 +31,7 @@ const DIRECTTRANSFER_CMDID = 5
 const MEDIATEDTRANSFER_CMDID = 7
 const REFUNDTRANSFER_CMDID = 8
 const REVEALSECRET_CMDID = 11
-const REMOVEEXPIREDHASHLOCK_CMDID=13
+const REMOVEEXPIREDHASHLOCK_CMDID = 13
 
 const SignatureLength = 65
 const TokenLength = 20
@@ -536,6 +536,7 @@ func (this *Secret) UnPack(data []byte) error {
 func (this *Secret) String() string {
 	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(this.Secret), this.EnvelopMessage.String())
 }
+
 /*
 message from sender to receiver, notify to remove a expired hashlock, provide new blance proof.
 
@@ -545,17 +546,18 @@ Field Name 	     Field Type 	      Description
 secrethash 	    bytes32 	          The secrethash to remove
 balance_proof 	BalanceProof 	      The updated balance proof
 signature 	    bytes 	              Elliptic Curve 256k1 signature
- */
+*/
 type RemoveExpiredHashlockTransfer struct {
 	EnvelopMessage
 	HashLock common.Hash
 }
+
 func NewRemoveExpiredHashlockTransfer(Identifier uint64, nonce int64, channel common.Address,
 	transferamount *big.Int, locksroot common.Hash, hashlock common.Hash) *RemoveExpiredHashlockTransfer {
 	p := &RemoveExpiredHashlockTransfer{
 		HashLock: hashlock,
 	}
-	if Identifier!=0{
+	if Identifier != 0 {
 		panic("identifier is useless")
 	}
 	p.Identifier = Identifier
@@ -588,7 +590,7 @@ func (this *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
 		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
 	}
 	binary.Read(buf, binary.BigEndian, &this.Identifier)
-	if this.Identifier!=0{
+	if this.Identifier != 0 {
 		panic("identifier should be 0")
 	}
 	buf.Read(this.HashLock[:])
@@ -610,6 +612,7 @@ func (this *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
 func (this *RemoveExpiredHashlockTransfer) String() string {
 	return fmt.Sprintf("Message{type=RemoveExpiredHashlockTransfer secret=%s,%s}", utils.HPex(this.HashLock), this.EnvelopMessage.String())
 }
+
 /*
 """ A direct token exchange, used when both participants have a previously
     opened channel.
@@ -699,8 +702,6 @@ func (this *DirectTransfer) UnPack(data []byte) error {
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
-
-
 
 type Lock struct {
 	Expiration int64 //expiration block number
@@ -887,15 +888,15 @@ func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
 }
 
 var MessageMap = map[int]Messager{
-	PING_CMDID:             new(Ping),
-	ACK_CMDID:              new(Ack),
-	SECRETREQUEST_CMDID:    new(SecretRequest),
-	SECRET_CMDID:           new(Secret),
-	DIRECTTRANSFER_CMDID:   new(DirectTransfer),
-	REVEALSECRET_CMDID:     new(RevealSecret),
-	MEDIATEDTRANSFER_CMDID: new(MediatedTransfer),
-	REFUNDTRANSFER_CMDID:   new(RefundTransfer),
-	REMOVEEXPIREDHASHLOCK_CMDID:new(RemoveExpiredHashlockTransfer),
+	PING_CMDID:                  new(Ping),
+	ACK_CMDID:                   new(Ack),
+	SECRETREQUEST_CMDID:         new(SecretRequest),
+	SECRET_CMDID:                new(Secret),
+	DIRECTTRANSFER_CMDID:        new(DirectTransfer),
+	REVEALSECRET_CMDID:          new(RevealSecret),
+	MEDIATEDTRANSFER_CMDID:      new(MediatedTransfer),
+	REFUNDTRANSFER_CMDID:        new(RefundTransfer),
+	REMOVEEXPIREDHASHLOCK_CMDID: new(RemoveExpiredHashlockTransfer),
 }
 
 func init() {

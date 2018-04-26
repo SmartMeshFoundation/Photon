@@ -3,8 +3,11 @@ package smartraiden
 import (
 	"fmt"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
@@ -12,8 +15,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
-	"github.com/ethereum/go-ethereum/log"
-	"errors"
 )
 
 //save state ,call many times is ok
@@ -29,15 +30,15 @@ func (this *RaidenService) RestoreSnapshot() error {
 		this.db.MarkDbOpenedStatus()
 		this.db.SaveRegistryAddress(this.RegistryAddress)
 	}()
-/*
-When debugging, the registry address may change constantly, Testing is to avoid unnecessary mistakes.
- */
- registryAddr:=this.db.GetRegistryAddress()
- if registryAddr!=this.RegistryAddress && registryAddr!=utils.EmptyAddress{
- 	err:=errors.New(fmt.Sprintf("db registry address not match db=%s,mine=%s",registryAddr.String(),this.RegistryAddress.String()))
- 	log.Error(err.Error())
- 	return err
- }
+	/*
+	   When debugging, the registry address may change constantly, Testing is to avoid unnecessary mistakes.
+	*/
+	registryAddr := this.db.GetRegistryAddress()
+	if registryAddr != this.RegistryAddress && registryAddr != utils.EmptyAddress {
+		err := errors.New(fmt.Sprintf("db registry address not match db=%s,mine=%s", registryAddr.String(), this.RegistryAddress.String()))
+		log.Error(err.Error())
+		return err
+	}
 	//never save before
 	/*
 		The first step    restore the channel state
@@ -98,21 +99,22 @@ func (this *RaidenService) restoreChannel(isCrashed bool) error {
 	return nil
 }
 
-func (this*RaidenService) restoreDbPointer(state transfer.State) {
-	if state==nil{
+func (this *RaidenService) restoreDbPointer(state transfer.State) {
+	if state == nil {
 		return
 	}
-	switch st2:=state.(type){
+	switch st2 := state.(type) {
 	case *mediated_transfer.InitiatorState:
-		st2.Db=this.db
+		st2.Db = this.db
 	case *mediated_transfer.TargetState:
-		st2.Db=this.db
+		st2.Db = this.db
 	case *mediated_transfer.MediatorState:
-		st2.Db=this.db
+		st2.Db = this.db
 	default:
-		panic(fmt.Sprintf("unkown state %s",utils.StringInterface(st2,3)))
+		panic(fmt.Sprintf("unkown state %s", utils.StringInterface(st2, 3)))
 	}
 }
+
 //function pointer save and restore
 func (this *RaidenService) restoreStateManager(isCrashed bool) {
 	log.Info(fmt.Sprintf("restore statemanager ,last close correct=%s", !isCrashed))
@@ -157,9 +159,9 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 				fallthrough
 			case transfer.StateManager_SendMessage:
 				/*
-				todo fix It should be detected whether it is out of date,
-				such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
-				 */
+					todo fix It should be detected whether it is out of date,
+					such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
+				*/
 				tag = mgr.LastSendMessage.Tag()
 				if tag == nil {
 					panic(fmt.Sprintf("statemanage state error, lastsendmessage has no tag :%s", utils.StringInterface(mgr, 5)))
@@ -179,8 +181,8 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 }
 func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 	/*
-	todo fix tokenswap's randomSecretGenerator
-	 */
+		todo fix tokenswap's randomSecretGenerator
+	*/
 	switch mgr.Name {
 	case initiator.NameInitiatorTransition:
 		mgr.FuncStateTransition = initiator.StateTransition
