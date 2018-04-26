@@ -112,6 +112,7 @@ type IceSession struct {
 	*/
 	msgChan        chan *stunMessageWrapper
 	dataChan       chan *stunDataWrapper
+	tryFailChan    chan *checkFailedWrapper
 	hasStopped     bool                  //停止销毁相关资源时,标记.
 	completeResult sessionCompleteResult //0,not complete ,1 complete success, 2 complete failure
 }
@@ -150,6 +151,50 @@ type SessionComponet struct {
 	nominatedServerSock ServerSocker
 }
 
+/**
+ * This structure represents an incoming check (an incoming Binding
+ * request message), and is mainly used to keep early checks in the
+ * list in the ICE session. An early check is a request received
+ * from remote when we haven't received SDP answer yet, therefore we
+ * can't perform triggered check. For such cases, keep the incoming
+ * request in a list, and we'll do triggered checks (simultaneously)
+ * as soon as we receive answer.
+ */
+type RxCheck struct {
+	componentId   int
+	remoteAddress string
+	localAddress  string
+	userCandidate bool
+	priority      int
+	role          SessionRole
+}
+
+type stunMessageWrapper struct {
+	localAddr  string
+	remoteAddr string
+	msg        *stun.Message
+}
+type stunDataWrapper struct {
+	localAddr  string
+	remoteAddr string
+	data       []byte
+}
+
+/*
+尝试多次失败以后,需要结束这次 check,
+*/
+type checkFailedWrapper struct {
+	c   *SessionCheck
+	err error
+}
+
+/*
+ice session运行着四种协程
+1.来自上层的调用
+2.来自下层 socket 的消息协程
+3.自身的 loop 协程
+4.check 时候的大量协程,
+*/
 func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, transporter StunTranporter, ice *IceStreamTransport) *IceSession {
 	s := &IceSession{
 		Name:               name,
@@ -169,6 +214,7 @@ func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 		msg2Check:          make(map[stun.TransactionID]*SessionCheck),
 		msgChan:            make(chan *stunMessageWrapper, 10),
 		dataChan:           make(chan *stunDataWrapper, 10),
+		tryFailChan:        make(chan *checkFailedWrapper, 10),
 	}
 	s.rxCrendientials = stun.NewShortTermIntegrity(s.rxPassword)
 	//make sure the first candidates is used to communicate with stun/turn server
@@ -197,6 +243,9 @@ func (s *IceSession) Stop() {
 		close(c)
 	}
 	close(s.checkResponse)
+	close(s.tryFailChan)
+	close(s.msgChan)
+	close(s.dataChan)
 }
 func (s *IceSession) createCheckList(sd *sessionDescription) error {
 	if len(sd.candidates) > MaxCandidates {
@@ -498,6 +547,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	s.tryCompleteCheck(check)
 }
 func (s *IceSession) markValidAndNonimated(check *SessionCheck) {
+	s.mlock.Lock()
 	if s.sessionComponent.validCheck == nil || s.sessionComponent.validCheck.priority < check.priority {
 		s.sessionComponent.validCheck = check
 	}
@@ -507,6 +557,7 @@ func (s *IceSession) markValidAndNonimated(check *SessionCheck) {
 			s.sessionComponent.nominatedCheck = check
 		}
 	}
+	s.mlock.Unlock()
 }
 
 /*
@@ -646,7 +697,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				return true
 			} else {
 				log.Trace("%s all checks completed. controlled agent now waits for nomination..", s.Name)
-				s.completeResult = SessionCheckComplete
+				s.changeCompleteResult(SessionCheckComplete)
 				go func() {
 					//start a timer,failed if there is no nomiated
 					time.Sleep(time.Second * 10) // time from pjnath
@@ -675,16 +726,36 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	//目前只有一个 component, 另外只支持 aggressive 模式.
 	return false
 }
+func (s *IceSession) changeCompleteResult(r sessionCompleteResult) {
+	if r <= s.completeResult {
+		panic(fmt.Sprintf("%s  complete result must increase only, old=%d,new=%d", s.Name, s.completeResult, r))
+		return
+	}
+	log.Trace("%s change complete result from %d to %d", s.Name, s.completeResult, r)
+	s.completeResult = r
+	return
+}
+
+/*
+关闭除要使用的那个 serversock 以外其他所有的 sock, 因为只有一个是有效的,要使用的.
+*/
+func (s *IceSession) closeUselessServerSock() {
+	for k, srv2 := range s.serverSocks {
+		if s.sessionComponent.nominatedServerSock != srv2 {
+			delete(s.serverSocks, k)
+			srv2.Close()
+		}
+	}
+	if s.sessionComponent.nominatedServerSock != s.turnServerSock {
+		s.turnServerSock = nil
+	}
+}
 func (s *IceSession) iceComplete(result error, allcomplete bool) {
-	//通知调用者,完毕, 但是这个可能不是最终的选项?
-	//if len(s.checkMap) != 0 {
-	//	panic("all check should finished")
-	//}
 	//应该继续允许处理 BindingRequest, 因为对方可能还没有结束.
 	log.Debug("icesseion %s complete ,err:%s,allcomplete=%v", s.Name, result, allcomplete)
 	old := s.completeResult
 	if result != nil {
-		s.completeResult = SessionCompleteFailure
+		s.changeCompleteResult(SessionCompleteFailure)
 	} else {
 		if allcomplete {
 			/*
@@ -704,15 +775,23 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 			/*
 				到这里协商才算真正完毕,后续的 request 请求继续响应,但是我不再发送 request了
 			*/
-			s.completeResult = SessionAllCompleteSuccess
+			s.changeCompleteResult(SessionAllCompleteSuccess)
 			log.Debug("icesession %s allcomplete", s.Name)
+			if len(s.checkMap) != 0 {
+				panic("all check should finished")
+			}
 		} else {
-			s.completeResult = SessionCompleteSuccess
+			if s.completeResult < SessionCompleteSuccess {
+				s.changeCompleteResult(SessionCompleteSuccess)
+			}
 		}
 		log.Trace("valid check=%s\n nominated=%s\n", s.sessionComponent.validCheck, s.sessionComponent.nominatedCheck)
 		srv, _ := s.getSenderServerSock(s.sessionComponent.nominatedCheck.localCandidate.addr)
+		s.mlock.Lock()
 		s.sessionComponent.nominatedServerSock = srv
 		if allcomplete {
+			s.closeUselessServerSock()
+			s.mlock.Unlock()
 			check := s.sessionComponent.nominatedCheck
 			if check.localCandidate.Type == CandidateRelay {
 				result = s.turnServerSock.channelBind(check.remoteCandidate.addr)
@@ -732,9 +811,11 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 			} else {
 				srv.FinishNegotiation(StunModeData)
 			}
+		} else {
+			s.mlock.Unlock()
 		}
 	}
-	if old <= SessionCompleteSuccess { //只通知上层一次,但是可能完成多次,不断更新状态.
+	if old < SessionCompleteSuccess { //只通知上层一次,但是可能完成多次,不断更新状态.
 		s.iceStreamTransport.onIceComplete(result)
 	}
 }
@@ -936,9 +1017,7 @@ lblRestart:
 		}
 	}
 	//探测了七次,没有任何结果,失败.
-	err = errTriedTooManyTimes
-	s.changeCheckState(c, CheckStateFailed, err)
-	s.tryCompleteCheck(c)
+	s.tryFailChan <- &checkFailedWrapper{c, errTriedTooManyTimes}
 	return
 }
 
@@ -1235,24 +1314,6 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 	}
 }
 
-/**
- * This structure represents an incoming check (an incoming Binding
- * request message), and is mainly used to keep early checks in the
- * list in the ICE session. An early check is a request received
- * from remote when we haven't received SDP answer yet, therefore we
- * can't perform triggered check. For such cases, keep the incoming
- * request in a list, and we'll do triggered checks (simultaneously)
- * as soon as we receive answer.
- */
-type RxCheck struct {
-	componentId   int
-	remoteAddress string
-	localAddress  string
-	userCandidate bool
-	priority      int
-	role          SessionRole
-}
-
 func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *stun.Message) {
 	id := msg.TransactionID
 	check := s.getMsgCheck(id)
@@ -1264,18 +1325,11 @@ func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *s
 		log.Warn("%s received bind response ,but local addr err ,expect %s,got %s", s.Name, check.localCandidate.addr, localAddr)
 		return
 	}
+	if check.state >= CheckStateSucced {
+		log.Info("%s check %s has been finished", s.Name, check.key)
+		return
+	}
 	s.handleCheckResponse(check, remoteAddr, msg)
-}
-
-type stunMessageWrapper struct {
-	localAddr  string
-	remoteAddr string
-	msg        *stun.Message
-}
-type stunDataWrapper struct {
-	localAddr  string
-	remoteAddr string
-	data       []byte
 }
 
 func (s *IceSession) loop() {
@@ -1295,6 +1349,16 @@ func (s *IceSession) loop() {
 			} else {
 				return
 			}
+		case c, ok := <-s.tryFailChan:
+			if ok {
+				if c.c.state < CheckStateSucced {
+					//可能已经成功了,
+					s.changeCheckState(c.c, CheckStateFailed, c.err)
+					s.tryCompleteCheck(c.c)
+				}
+			} else {
+				return
+			}
 		}
 		log.Trace("loop %s end @%s", r, time.Now().Format("15:04:05.999"))
 	}
@@ -1310,20 +1374,6 @@ func (s *IceSession) processStunMessage(localAddr, remoteAddr string, msg *stun.
 		return
 	}
 	log.Warn("%s %s receive unexpected stun message from  %s, msg:%s", s.Name, localAddr, remoteAddr, msg.Type)
-	////if s.iceStreamTransport.State == TransportStateNegotiation {
-	//res := new(stun.Message)
-	//if msg.Type != stun.BindingSuccess && msg.Type != stun.BindingError {
-	//	err := res.Build(stun.NewTransactionIDSetter(msg.TransactionID),
-	//		stun.BindingError,
-	//		stun.CodeBadRequest,
-	//		stun.Fingerprint,
-	//	)
-	//	if err != nil {
-	//		panic("error")
-	//	}
-	//	s.getSenderServerSock(localAddr).sendStunMessageAsync(res, localAddr, remoteAddr)
-	//	return
-	//}
 }
 
 /*
@@ -1352,6 +1402,26 @@ func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 	s.dataChan <- &stunDataWrapper{localAddr, peerAddr, data}
 	return
 
+}
+func (s *IceSession) SendData(data []byte) error {
+	s.mlock.Lock()
+	//nominiatedcheck可能会在可以发送数据以后变化.
+	check := s.sessionComponent.nominatedCheck
+	srv := s.sessionComponent.nominatedServerSock
+	fromaddr := check.localCandidate.addr
+	s.mlock.Unlock()
+	if check == nil {
+		return errors.New("no check.")
+	}
+	if srv == nil {
+		return errors.New("no stun transport")
+	}
+	log.Trace("send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
+	if check.localCandidate.Type == CandidateServerReflexive || check.localCandidate.Type == CandidatePeerReflexive {
+		fromaddr = check.localCandidate.baseAddr
+		log.Trace("accutally send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
+	}
+	return srv.sendData(data, fromaddr, check.remoteCandidate.addr)
 }
 
 /*

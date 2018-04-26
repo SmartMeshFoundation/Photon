@@ -13,22 +13,6 @@ import (
 	"github.com/nkbai/log"
 )
 
-type TransportOperation int
-
-const (
-	/** Initialization (candidate gathering) */
-	ICE_TRANSPORT_OP_INIT TransportOperation = iota
-	/** Negotiation */
-	ICE_TRANSPORT_OP_NEGOTIATION
-	/** This operation is used to report failure in keep-alive operation.
-	*  Currently it is only used to report TURN Refresh failure.
-	 */
-	ICE_TRANSPORT_OP_KEEP_ALIVE
-	/** IP address change notification from STUN keep-alive operation.
-	 */
-	ICE_TRANSPORT_OP_ADDR_CHANGE
-)
-
 type StreamTransportCallbacker interface {
 	/*
 			This callback will be called when the ICE transport receives
@@ -49,6 +33,31 @@ type TransportConfig struct {
 	TurnUserName    string
 	TurnPassword    string
 	ComponentNumber int //must be 1,right now
+}
+type IceStreamTransport struct {
+	Name        string //debug info
+	cfg         *TransportConfig
+	transporter StunTranporter
+	component   *TransportComponent
+	State       TransportState
+	session     *IceSession
+	cb          StreamTransportCallbacker
+}
+
+type sessionDescription struct {
+	user            string
+	password        string
+	defaultPort     int
+	defaultIp       string
+	candidates      []*Candidate
+	defautCandidate *Candidate
+}
+type TransportComponent struct {
+	Name             string
+	componentId      int
+	candidates       []*Candidate
+	defaultCandidate *Candidate
+	candidateGetter  CandidateGetter
 }
 
 func NewTransportConfigHostonly() *TransportConfig {
@@ -118,16 +127,6 @@ func (s TransportState) String() string {
 		return "stopped"
 	}
 	return "unkown"
-}
-
-type IceStreamTransport struct {
-	Name        string //debug info
-	cfg         *TransportConfig
-	transporter StunTranporter
-	component   *TransportComponent
-	State       TransportState
-	session     *IceSession
-	cb          StreamTransportCallbacker
 }
 
 func NewIceStreamTransport(cfg *TransportConfig, name string) (it *IceStreamTransport, err error) {
@@ -237,27 +236,13 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 	if t.State != TransportStateRunning {
 		return errors.New("transport not running.")
 	}
-	check := t.session.sessionComponent.nominatedCheck
-	srv := t.session.sessionComponent.nominatedServerSock
-	fromaddr := check.localCandidate.addr
-	if check == nil {
-		return errors.New("no check.")
-	}
-	if srv == nil {
-		return errors.New("no stun transport")
-	}
-	log.Trace("send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
-	if check.localCandidate.Type == CandidateServerReflexive || check.localCandidate.Type == CandidatePeerReflexive {
-		fromaddr = check.localCandidate.baseAddr
-		log.Trace("accutally send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data))
-	}
-	return srv.sendData(data, fromaddr, check.remoteCandidate.addr)
+	return t.session.SendData(data)
 }
 func (t *IceStreamTransport) onIceComplete(result error) {
 
 	if t.State != TransportStateNegotiation {
 		log.Error("%s finish reulst %s", t.Name, result)
-		panic("only finish once")
+		panic(fmt.Sprintf("%s only finish once", t.Name))
 	}
 	defer func() {
 		if t.cb != nil {
@@ -268,26 +253,11 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 	if result != nil {
 		log.Info("%s ice negotiation failed", t.Name)
 		t.State = TransportStateFailed
-		//t.Stop()
 		return
 	}
 	t.State = TransportStateRunning
 }
 
-/*
-关闭除要使用的那个 serversock 以外其他所有的 sock, 因为只有一个是有效的,要使用的.
-*/
-func (t *IceStreamTransport) closeUselessServerSock() {
-	for k, srv2 := range t.session.serverSocks {
-		if t.session.sessionComponent.nominatedServerSock != srv2 {
-			delete(t.session.serverSocks, k)
-			srv2.Close()
-		}
-	}
-	if t.session.sessionComponent.nominatedServerSock != t.session.turnServerSock {
-		t.session.turnServerSock = nil
-	}
-}
 func (t *IceStreamTransport) onRxData(data []byte, from string) {
 	/*
 		只有收到数据,才能知道对方 ice 协商完毕了,这时候可以放心的关闭不必要的 listen 了.
@@ -353,22 +323,6 @@ func DecodeSession(str string) (session *sessionDescription, err error) {
 		err = fmt.Errorf("no default candidate found %s", s2)
 	}
 	return
-}
-
-type sessionDescription struct {
-	user            string
-	password        string
-	defaultPort     int
-	defaultIp       string
-	candidates      []*Candidate
-	defautCandidate *Candidate
-}
-type TransportComponent struct {
-	Name             string
-	componentId      int
-	candidates       []*Candidate
-	defaultCandidate *Candidate
-	candidateGetter  CandidateGetter
 }
 
 func NewTransportComponent(candidateGetter CandidateGetter, id int) *TransportComponent {
