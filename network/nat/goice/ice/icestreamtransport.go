@@ -150,7 +150,7 @@ func NewIceStreamTransport(cfg *TransportConfig, name string) (it *IceStreamTran
 	if err != nil {
 		return
 	}
-	log.Trace("candidates=%s", log.StringInterface(it.component.candidates, 3))
+	log.Trace("candidates=%#v", it.component.candidates)
 	return
 }
 func (t *IceStreamTransport) InitIce(role SessionRole) error {

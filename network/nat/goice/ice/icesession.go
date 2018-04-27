@@ -169,6 +169,10 @@ type RxCheck struct {
 	role          SessionRole
 }
 
+func (r *RxCheck) String() string {
+	return fmt.Sprintf("{remote=%s,local=%s,userCandidate=%v,priorit=%d,role=%d}", r.remoteAddress, r.localAddress, r.userCandidate, r.priority, r.role)
+}
+
 type stunMessageWrapper struct {
 	localAddr  string
 	remoteAddr string
@@ -893,7 +897,7 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 		/*
 			优先处理收到的请求,可能已经可以成功了.
 		*/
-		log.Trace("%s process early check list %s", s.Name, log.StringInterface(rc, 3))
+		log.Trace("%s process early check list %s", s.Name, rc)
 		s.handleIncomingCheck(rc)
 	}
 	for _, c := range checks {
