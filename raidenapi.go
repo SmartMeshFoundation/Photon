@@ -73,12 +73,6 @@ func (this *RaidenApi) ManagerAddressIfTokenRegistered(tokenAddress common.Addre
 	if err != nil {
 		return
 	}
-	/*
-		todo fix it
-	*/
-	//if !this.Raiden.ChannelManagerIsRegistered(mgrAddr) {
-	//	this.Raiden.RegisterChannelManager(mgrAddr)
-	//}
 	return
 }
 
@@ -93,7 +87,7 @@ func (this *RaidenApi) RegisterToken(tokenAddress common.Address) (mgrAddr commo
 		return
 	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
-	if err != nil && err.Error() == "abi: unmarshalling empty output" {
+	if err == rerr.NoTokenManager {
 		return this.Raiden.Registry.AddToken(tokenAddress)
 	} else {
 		return

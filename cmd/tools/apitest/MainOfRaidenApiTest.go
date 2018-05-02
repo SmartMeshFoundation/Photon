@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-var dofast = flag.Bool("fast", false, "skip create token and channels")
+var dofast = flag.Bool("fast", true, "skip create token and channels")
 
 func init() {
 	flag.Parse()

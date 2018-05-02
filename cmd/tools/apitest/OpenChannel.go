@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 //establish the Channel
 func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance int32, SettleTimeout int32) (Channel NodeChannel, Status string, err error) {
 	var count int
-	var resp *http.Response
 	var newchannel OpenChannelPayload
 	newchannel.PartnerAddress = PartnerAddress
 	newchannel.TokenAddress = TokenAddress
@@ -21,18 +21,14 @@ func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance
 	newchannel.SettleTimeout = SettleTimeout
 	p, _ := json.Marshal(newchannel)
 	for count = 0; count < MaxTry; count = count + 1 {
+		var body []byte
 		client := &http.Client{}
 		req, _ := http.NewRequest(http.MethodPut, url+"/api/1/channels", bytes.NewReader(p))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
-		resp, err = client.Do(req)
-		//body, err := ioutil.ReadAll(resp.Body)
+		Status, body, err = DoRequest(client, req)
 		if err == nil {
-			//io.Copy(os.Stdout, resp.Body)
-			if resp != nil {
-				p, _ := ioutil.ReadAll(resp.Body)
-				err = json.Unmarshal(p, &Channel)
-			}
+			err = json.Unmarshal(body, &Channel)
 			break
 		}
 		time.Sleep(time.Second)
@@ -40,25 +36,18 @@ func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance
 
 	if count >= MaxTry {
 		Status = "504 TimeOut"
-	} else {
-		Status = resp.Status
 	}
-	defer func() {
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}()
 	return
 }
 
 //establish the channel between the node1 and node2
-func OpenChannelTest(url string, url2 string) {
+func OpenChannelTest(url string) {
 	start := time.Now()
 	ShowTime()
 	log.Println("Start Open Channel")
-	Address, _, _ := QueryingNodeAddress(url2)
-	PartnerAddress := Address.OurAddress
+	PartnerAddress := utils.NewRandomAddress().String()
 	Tokens, _, _ := QueryingRegisteredTokens(url)
+	log.Printf("all tokens =%#v\n", Tokens)
 	TokenAddress := Tokens[0]
 	Balance := int32(100)
 	SettleTimeout := int32(800)

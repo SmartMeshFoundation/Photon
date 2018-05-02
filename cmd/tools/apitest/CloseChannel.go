@@ -10,7 +10,6 @@ import (
 
 //test for closing the specified channel for the node
 func CloseChannel(url string, Channel string) (Status string, err error) {
-	var resp *http.Response
 	var payload string
 	var count int
 	payload = "{\"state\":\"closed\"}"
@@ -20,26 +19,16 @@ func CloseChannel(url string, Channel string) (Status string, err error) {
 		req, _ := http.NewRequest("PATCH", fullurl, strings.NewReader(payload))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
-		resp, err = client.Do(req)
+		Status, _, err = DoRequest(client, req)
 		//body, err := ioutil.ReadAll(resp.Body)
 		if err == nil {
 			break
 		}
 		time.Sleep(time.Second)
 	}
-	if resp != nil {
-		Status = resp.Status
-	} else {
-		Status = "null"
-	}
 	if count >= MaxTry {
 		Status = "504 TimeOut"
 	}
-	defer func() {
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}()
 	return
 }
 

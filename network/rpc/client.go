@@ -19,6 +19,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -205,7 +206,11 @@ type RegistryProxy struct {
 /// @param token_address The address of the given token
 /// @return Address of channel manager
 func (this *RegistryProxy) ChannelManagerByToken(tokenAddress common.Address) (mgr common.Address, err error) {
-	return this.registry.ChannelManagerByToken(this.bcs.QueryOpts(), tokenAddress)
+	mgr, err = this.registry.ChannelManagerByToken(this.bcs.QueryOpts(), tokenAddress)
+	if err != nil && err.Error() == "abi: unmarshalling empty output" {
+		err = rerr.NoTokenManager
+	}
+	return
 }
 
 /// @notice Get all registered tokens

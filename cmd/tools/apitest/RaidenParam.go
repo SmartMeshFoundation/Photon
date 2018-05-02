@@ -2,28 +2,28 @@ package main
 
 type RaidenParam struct {
 	//Caching folder
-	datadir        string
+	datadir string
 	//API service address and port
 	api_address    string
 	listen_address string
 	//Account address
-	address        string
+	address string
 	//key address of the Account
-	keystore_path  string
+	keystore_path string
 	//Node discovery address
 	discovery_contract_address string
 	//Contract address
 	registry_contract_address string
 	//The key and password file of the account
-	password_file             string
+	password_file string
 	//NAT type
-	nat                       string
+	nat string
 	//Geth service address
 	eth_rpc_endpoint string
 	//Exiting event
-	conditionquit    string
+	conditionquit string
 	//Debug sign
-	debug            bool
+	debug bool
 }
 
 func (rp *RaidenParam) getParam() []string {
@@ -40,7 +40,7 @@ func (rp *RaidenParam) getParam() []string {
 	param = append(param, "--nat="+rp.nat)
 	param = append(param, "--eth-rpc-endpoint="+rp.eth_rpc_endpoint)
 	param = append(param, "--conditionquit="+rp.conditionquit)
-
+	param = append(param, "--verbosity=5")
 	if rp.debug == true {
 		param = append(param, "--debug")
 	}

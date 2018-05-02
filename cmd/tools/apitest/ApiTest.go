@@ -46,7 +46,7 @@ func ApiTest() {
 	//test for exchanging the token,token number in each node is indefinite,but the ratio 2:1.
 	TokenSwapsTest(Node1Url, Node2Url)
 	//test for establishing Channel between node 1 and node 2
-	OpenChannelTest(Node1Url, Node2Url)
+	OpenChannelTest(Node1Url)
 	//test for closing the specified channel for the node
 	CloseChannelTest(Node1Url)
 	//test for settling the specified channel for the node
