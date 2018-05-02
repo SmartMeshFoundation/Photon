@@ -32,8 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -553,61 +551,62 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
 func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.Context, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+	return nil,errors.New("no engine")
 	// Assemble the structured logger or the JavaScript tracer
-	var (
-		tracer vm.Tracer
-		err    error
-	)
-	switch {
-	case config != nil && config.Tracer != nil:
-		// Define a meaningful timeout of a single transaction trace
-		timeout := defaultTraceTimeout
-		if config.Timeout != nil {
-			if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
-				return nil, err
-			}
-		}
-		// Constuct the JavaScript tracer to execute with
-		if tracer, err = tracers.New(*config.Tracer); err != nil {
-			return nil, err
-		}
-		// Handle timeouts and RPC cancellations
-		deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
-		go func() {
-			<-deadlineCtx.Done()
-			tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
-		}()
-		defer cancel()
-
-	case config == nil:
-		tracer = vm.NewStructLogger(nil)
-
-	default:
-		tracer = vm.NewStructLogger(config.LogConfig)
-	}
-	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, statedb, api.config, vm.Config{Debug: true, Tracer: tracer})
-
-	ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
-	if err != nil {
-		return nil, fmt.Errorf("tracing failed: %v", err)
-	}
-	// Depending on the tracer type, format and return the output
-	switch tracer := tracer.(type) {
-	case *vm.StructLogger:
-		return &ethapi.ExecutionResult{
-			Gas:         gas,
-			Failed:      failed,
-			ReturnValue: fmt.Sprintf("%x", ret),
-			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
-		}, nil
-
-	case *tracers.Tracer:
-		return tracer.GetResult()
-
-	default:
-		panic(fmt.Sprintf("bad tracer type %T", tracer))
-	}
+	//var (
+	//	tracer vm.Tracer
+	//	err    error
+	//)
+	//switch {
+	//case config != nil && config.Tracer != nil:
+	//	// Define a meaningful timeout of a single transaction trace
+	//	timeout := defaultTraceTimeout
+	//	if config.Timeout != nil {
+	//		if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+	//			return nil, err
+	//		}
+	//	}
+	//	// Constuct the JavaScript tracer to execute with
+	//	if tracer, err = tracers.New(*config.Tracer); err != nil {
+	//		return nil, err
+	//	}
+	//	// Handle timeouts and RPC cancellations
+	//	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+	//	go func() {
+	//		<-deadlineCtx.Done()
+	//		tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
+	//	}()
+	//	defer cancel()
+	//
+	//case config == nil:
+	//	tracer = vm.NewStructLogger(nil)
+	//
+	//default:
+	//	tracer = vm.NewStructLogger(config.LogConfig)
+	//}
+	//// Run the transaction with tracing enabled.
+	//vmenv := vm.NewEVM(vmctx, statedb, api.config, vm.Config{Debug: true, Tracer: tracer})
+	//
+	//ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
+	//if err != nil {
+	//	return nil, fmt.Errorf("tracing failed: %v", err)
+	//}
+	//// Depending on the tracer type, format and return the output
+	//switch tracer := tracer.(type) {
+	//case *vm.StructLogger:
+	//	return &ethapi.ExecutionResult{
+	//		Gas:         gas,
+	//		Failed:      failed,
+	//		ReturnValue: fmt.Sprintf("%x", ret),
+	//		StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
+	//	}, nil
+	//
+	//case *tracers.Tracer:
+	//	return tracer.GetResult()
+	//
+	//default:
+	//	panic(fmt.Sprintf("bad tracer type %T", tracer))
+	//}
 }
 
 // computeTxEnv returns the execution environment of a certain transaction.

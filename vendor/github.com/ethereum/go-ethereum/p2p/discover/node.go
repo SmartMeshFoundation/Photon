@@ -33,7 +33,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 const NodeIDBits = 512
@@ -331,7 +330,7 @@ func (id NodeID) Pubkey() (*ecdsa.PublicKey, error) {
 // recoverNodeID computes the public key used to sign the
 // given hash from the signature.
 func recoverNodeID(hash, sig []byte) (id NodeID, err error) {
-	pubkey, err := secp256k1.RecoverPubkey(hash, sig)
+	pubkey, err := crypto.Ecrecover(hash, sig)  //secp256k1.RecoverPubkey(hash, sig)
 	if err != nil {
 		return id, err
 	}
