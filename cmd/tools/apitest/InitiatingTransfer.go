@@ -25,7 +25,7 @@ func InitiatingTransfer(url string, Token string, TargetAddress string, Amount i
 		client := &http.Client{}
 		fullurl := url + "/api/1/transfers/" + Token + "/" + TargetAddress
 		req, _ := http.NewRequest(http.MethodPost, fullurl, bytes.NewReader(p))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		if err == nil {

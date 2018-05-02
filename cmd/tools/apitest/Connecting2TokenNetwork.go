@@ -20,7 +20,7 @@ func Connecting2TokenNetwork(url string, Token string, Funds int32) (Status stri
 		client := &http.Client{}
 		fullurl := url + "/api/1/connections/" + Token
 		req, _ := http.NewRequest(http.MethodPut, fullurl, bytes.NewReader(p))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		//body, err := ioutil.ReadAll(resp.Body)

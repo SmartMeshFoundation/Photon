@@ -23,7 +23,7 @@ func OpenChannel(url string, PartnerAddress string, TokenAddress string, Balance
 	for count = 0; count < MaxTry; count = count + 1 {
 		client := &http.Client{}
 		req, _ := http.NewRequest(http.MethodPut, url+"/api/1/channels", bytes.NewReader(p))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		//body, err := ioutil.ReadAll(resp.Body)
@@ -66,6 +66,8 @@ func OpenChannelTest(url string, url2 string) {
 	ShowError(err)
 	ShowOpenChannelMsgDetail(Status)
 	switch Status {
+	case "200 OK":
+		fallthrough
 	case "201 Created":
 		log.Println("Test pass: successful Creation channels")
 	default:
@@ -82,6 +84,8 @@ func OpenChannelTest(url string, url2 string) {
 //display the details of the error
 func ShowOpenChannelMsgDetail(Status string) {
 	switch Status {
+	case "200 OK":
+		fallthrough
 	case "201 Created":
 		log.Println("Successful Creation channels")
 	case "400 Bad Request":

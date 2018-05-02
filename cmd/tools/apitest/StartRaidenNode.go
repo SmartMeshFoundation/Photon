@@ -16,11 +16,6 @@ import (
 )
 
 func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) bool {
-	if !utils.Exists(cmdstr) {
-		log.Println(cmdstr+" is not exist", param)
-		os.Exit(-1)
-		return false
-	}
 	cmd := exec.Command(cmdstr, param...)
 
 	stdout, _ := cmd.StdoutPipe()
@@ -97,12 +92,12 @@ func Startraiden(RegistryAddress string) {
 	var pstr2 []string
 	//kill the old process
 	pstr2 = append(pstr2, "smartraiden")
-	Exec_shell("/usr/bin/killall", pstr2, "./../../testdata/log/ka.log", true)
+	Exec_shell("killall", pstr2, ".ka.log", true)
 	//kill the old process and wait for the release of the port
 	time.Sleep(1 * time.Second)
 
 	param := new(RaidenParam)
-	c, err := config.ReadDefault("./ApiTest.INI")
+	c, err := config.ReadDefault("./apitest.INI")
 
 	if err != nil {
 		log.Println("Read error:", err)
@@ -135,7 +130,7 @@ func Startraiden(RegistryAddress string) {
 		pstr = param.getParam()
 		//log.Println(pstr)
 		logfile := c.RdString(NODE, "log", "")
-		exepath := c.RdString(NODE, "raidenpath", "/project/bin/goraiden.exe")
+		exepath := c.RdString(NODE, "raidenpath", "")
 		go Exec_shell(exepath, pstr, logfile, false)
 	}
 

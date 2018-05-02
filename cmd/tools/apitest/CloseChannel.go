@@ -18,7 +18,7 @@ func CloseChannel(url string, Channel string) (Status string, err error) {
 		client := &http.Client{}
 		fullurl := url + "/api/1/channels/" + Channel
 		req, _ := http.NewRequest("PATCH", fullurl, strings.NewReader(payload))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		//body, err := ioutil.ReadAll(resp.Body)

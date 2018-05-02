@@ -17,7 +17,7 @@ func RegisteringOneToken(url string, Token string) (Status string, err error) {
 	for count = 0; count < MaxTry; count = count + 1 {
 		client := &http.Client{}
 		req, _ := http.NewRequest(http.MethodPut, url+"/api/1/tokens/"+Token, nil)
-		//req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		//req.Header.Set("Content-Type", "application/json")
 		//req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		if err == nil {
@@ -73,7 +73,7 @@ func RegisteringOneTokenTest(url string) {
 		log.Println("Test success:Registering new Token:", Status)
 	}
 	log.Println("Start Registering a new token")
-	c, err := config.ReadDefault("./ApiTest.INI")
+	c, err := config.ReadDefault("./apitest.ini")
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)
 		return

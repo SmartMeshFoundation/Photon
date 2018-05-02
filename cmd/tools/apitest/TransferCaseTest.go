@@ -19,7 +19,7 @@ func Transfer(NewTokenName string, IniFile string) {
 
 //test transfer
 func TransferCase(NewTokenName string, SChannels []TransferCaseChannel, TransCase TransferCaseTransfer, DChannels []TransferCaseChannel, Result bool) (code int) {
-	c, err := config.ReadDefault("./../../testdata/TransCase/ApiTest.INI")
+	c, err := config.ReadDefault("./../../testdata/TransCase/apitest.ini")
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)
 		return
@@ -180,7 +180,7 @@ func TransferParmReader(IniFile string) (SChannels []TransferCaseChannel, TransC
 func CheckChannel(DChannels []TransferCaseChannel) (checked bool) {
 
 	checked = false
-	c, err := config.ReadDefault("./../../testdata/TransCase/ApiTest.INI")
+	c, err := config.ReadDefault("./../../testdata/TransCase/apitest.ini")
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)
 		return

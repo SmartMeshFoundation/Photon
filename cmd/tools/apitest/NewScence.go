@@ -14,7 +14,7 @@ func NewScene() (NewTokenName string) {
 
 	log.Println("==============================================================================================")
 	log.Println("Start NewScene")
-	c, err := config.ReadDefault("./ApiTest.INI")
+	c, err := config.ReadDefault("./apitest.ini")
 
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)

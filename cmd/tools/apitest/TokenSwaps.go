@@ -36,7 +36,7 @@ func TokenSwaps(url string, TargetAddress string, Role string, SendingAmount int
 		fullurl := url + "/api/1/token_swaps/" + TargetAddress + "/" + strconv.FormatInt(sn, 10)
 
 		req, _ := http.NewRequest("PUT", fullurl, bytes.NewReader(p))
-		//req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		//req.Header.Set("Content-Type", "application/json")
 		//req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		//body, err := ioutil.ReadAll(resp.Body)
@@ -82,7 +82,7 @@ func TokenSwapsTest(url1 string, url2 string) {
 
 	ShowError(err)
 	ShowTokenSwapsMsgDetail(Status)
-	if Status != "201 Created" {
+	if Status != "201 Created" && Status != "200 OK" {
 		return
 	}
 
@@ -100,6 +100,8 @@ func TokenSwapsTest(url1 string, url2 string) {
 //display the details of the error
 func ShowTokenSwapsMsgDetail(Status string) {
 	switch Status {
+	case "200 OK":
+		fallthrough
 	case "201 Created":
 		log.Println("Successful Creation!")
 	case "400 Bad Request":

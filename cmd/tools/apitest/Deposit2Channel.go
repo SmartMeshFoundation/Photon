@@ -20,7 +20,7 @@ func Deposit2Channel(url string, Channel string, Balance int32) (Status string, 
 		client := &http.Client{}
 		fullurl := url + "/api/1/channels/" + Channel
 		req, _ := http.NewRequest(http.MethodPatch, fullurl, bytes.NewReader(p))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", "name=anny")
 		resp, err = client.Do(req)
 		//body, err := ioutil.ReadAll(resp.Body)

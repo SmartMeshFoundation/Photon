@@ -12,7 +12,7 @@ func TransferTest(NewTokenName string) (code int) {
 	log.Println("==============================================================================================")
 	log.Println("Start TransferTest")
 
-	c, err := config.ReadDefault("./ApiTest.INI")
+	c, err := config.ReadDefault("./apitest.ini")
 
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)
