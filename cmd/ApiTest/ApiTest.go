@@ -32,19 +32,19 @@ func ApiTest() {
 	log.Println("Start Test goRaiden Api")
 	start := time.Now()
 	//test for querying  a node address
-	QueryingNodeAddressTest(Node1Url)
+	//QueryingNodeAddressTest(Node1Url)
 	//test for querying all channels for a node
-	QueryingNodeAllChannelsTest(Node1Url)
+	//QueryingNodeAllChannelsTest(Node1Url)
 	//test for querying a node specified channel
-	QueryingNodeSpecificChannelTest(Node1Url)
+	//QueryingNodeSpecificChannelTest(Node1Url)
 	//test for querying registered Token
-	QueryingRegisteredTokensTest(Node1Url)
+	//QueryingRegisteredTokensTest(Node1Url)
 	//test for querying the Partner address in the channel of special Token
-	QueryingAllPartnersForOneTokensTest(Node1Url)
+	//QueryingAllPartnersForOneTokensTest(Node1Url)
 	//test for registering  new Token to Raiden Network
-	RegisteringOneTokenTest(Node1Url)
+	//RegisteringOneTokenTest(Node1Url)
 	//test for exchanging the token,token number in each node is indefinite,but the ratio 2:1.
-	TokenSwapsTest(Node1Url, Node2Url)
+	//TokenSwapsTest(Node1Url, Node2Url)
 	//test for establishing Channel between node 1 and node 2
 	OpenChannelTest(Node1Url, Node2Url)
 	//test for closing the specified channel for the node

@@ -4,6 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"log"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/abi/bind"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -11,104 +16,46 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/slonzok/getpass"
-	"log"
-	"math/big"
-	"os"
-	"strings"
-	"sync"
-	"time"
 )
 
 var globalPassword string = "123"
 
-func CreateNewToken(EthRpcEndpoint string, KeystorePath string) (TokenName string, registryAddress common.Address, err error) {
-	// Create an IPC based RPC connection to a remote node and an authorized transactor
-	conn, err := ethclient.Dial(EthRpcEndpoint)
-	if err != nil {
-		log.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
-	}
-	_, key := promptAccount(KeystorePath)
-	//log.Println("start to deploy ...")
-	registryAddress = DeployContract(key, conn)
-	registry, _ := rpc.NewRegistry(registryAddress, conn)
-	TokenName = createTokenAndChannels(key, conn, registry, KeystorePath, false)
-	return
-}
-func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
+func getDeployKey(keystorePath string) (key *ecdsa.PrivateKey) {
 	am := smartraiden.NewAccountManager(keystorePath)
-	if len(am.Accounts) == 0 {
-		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
-		os.Exit(1)
+	if len(am.Accounts) <= 0 {
+		log.Fatalf("no accounts @%s", keystorePath)
 	}
-	addr = am.Accounts[0].Address
-	for i := 0; i < 3; i++ {
-		//retries three times
-		if len(globalPassword) <= 0 {
-			globalPassword = getpass.Prompt("Enter the password to unlock")
-		}
-		//fmt.Printf("\npassword is %s\n", password)
-		keybin, err := am.GetPrivateKey(addr, globalPassword)
-		if err != nil && i == 3 {
-			log.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-			os.Exit(1)
-		}
-		if err != nil {
-			log.Println(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
-			continue
-		}
-		key, _ = crypto.ToECDSA(keybin)
-		break
+	keybin, err := am.GetPrivateKey(am.Accounts[0].Address, globalPassword)
+	if err != nil {
+		log.Fatalf("get first private key error %s", err)
+		return
 	}
+	key, _ = crypto.ToECDSA(keybin)
 	return
 }
-func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddress common.Address) {
+func DeployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr common.Address) {
+	key := getDeployKey(keystorePath)
 	auth := bind.NewKeyedTransactor(key)
-	//DeployNettingChannelLibrary
-	NettingChannelLibraryAddress, tx, _, err := rpc.DeployNettingChannelLibrary(auth, conn)
+	tokenAddr, tx, _, err := rpc.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
 	if err != nil {
-		log.Fatalf("Failed to DeployNettingChannelLibrary: %v", err)
+		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	//fmt.Printf("DeployNettingChannelLibrary complete...\n")
-	//DeployChannelManagerLibrary link nettingchannle library before deploy
-	rpc.ChannelManagerLibraryBin = strings.Replace(rpc.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
-	ChannelManagerLibraryAddress, tx, _, err := rpc.DeployChannelManagerLibrary(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	//fmt.Printf("DeployChannelManagerLibrary complete...\n")
-	//DeployRegistry link channelmanagerlibrary before deploy
-	rpc.RegistryBin = strings.Replace(rpc.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
-	RegistryAddress, tx, _, err = rpc.DeployRegistry(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	//fmt.Printf("DeployRegistry complete...\n")
-
-	//fmt.Printf("RegistryAddress=%s\n", RegistryAddress.String())
 	return
 }
-func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry, keystorepath string, createchannel bool) (TokenName string) {
+
+func CreateTokenAndChannels(keystorePath string, conn *ethclient.Client, registryAddress common.Address, createchannel bool) (TokenName string) {
+	key := getDeployKey(keystorePath)
+	registry, _ := rpc.NewRegistry(registryAddress, conn)
 	managerAddress, tokenAddress := NewToken(key, conn, registry)
-	TokenName = tokenAddress.Hex()
+	TokenName = tokenAddress.String()
 	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
 	token, _ := rpc.NewToken(tokenAddress, conn)
-	am := smartraiden.NewAccountManager(keystorepath)
+	am := smartraiden.NewAccountManager(keystorePath)
 	var accounts []common.Address
 	var keys []*ecdsa.PrivateKey
 	for _, account := range am.Accounts {

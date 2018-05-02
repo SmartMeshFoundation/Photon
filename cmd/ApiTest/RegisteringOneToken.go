@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
 )
 
@@ -65,18 +66,14 @@ func RegisteringOneTokenTest(url string) {
 	//display the details of the error
 	ShowRegisteringOneTokenMsgDetail(Status)
 	switch Status {
-	case "201 Created":
-		log.Println("Test pass:Success Registering a new token")
+	case "200 OK":
+		log.Fatalf("Test failed:register a nonexistent token")
 
 	default:
-		log.Println("Test failed:Registering new Token:", Status)
-		if HalfLife {
-			log.Fatal("HalfLife,exit")
-		}
+		log.Println("Test success:Registering new Token:", Status)
 	}
 	log.Println("Start Registering a new token")
 	c, err := config.ReadDefault("./ApiTest.INI")
-
 	if err != nil {
 		log.Println("config.ReadDefault error:", err)
 		return
@@ -85,15 +82,19 @@ func RegisteringOneTokenTest(url string) {
 	EthRpcEndpoint := c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 
 	KeyStorePath := c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
-
-	NewTokenName, _, _ := CreateNewToken(EthRpcEndpoint, KeyStorePath)
+	conn, err := ethclient.Dial(EthRpcEndpoint)
+	if err != nil {
+		log.Fatalf("connect to eth rpc error %s", err)
+		return
+	}
+	NewTokenName := DeployOneToken(KeyStorePath, conn).String()
 
 	Status, err = RegisteringOneToken(url, NewTokenName)
 	ShowError(err)
 	//display the details of the error
 	ShowRegisteringOneTokenMsgDetail(Status)
 	switch Status {
-	case "201 Created":
+	case "200 OK":
 		log.Println("Test pass:Success Registering a new token")
 
 	default:
@@ -111,6 +112,8 @@ func RegisteringOneTokenTest(url string) {
 //display the details of the error
 func ShowRegisteringOneTokenMsgDetail(Status string) {
 	switch Status {
+	case "200 OK":
+		fallthrough
 	case "201 Created":
 		log.Println("Success registering token")
 	case "409 Conflict":

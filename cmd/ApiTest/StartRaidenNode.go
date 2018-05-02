@@ -47,8 +47,8 @@ func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) boo
 		log.Fatalln("Create log file error !", logfile)
 	}
 
-	debugLog := log.New(logFile, "[Debug]", log.Llongfile)
-		//A real-time loop reads a line in the output stream.
+	debugLog := log.New(logFile, "[Debug]", 0)
+	//A real-time loop reads a line in the output stream.
 	go func() {
 		for {
 			line, err := reader.ReadString('\n')
@@ -93,13 +93,13 @@ func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) boo
 
 func Startraiden(RegistryAddress string) {
 	var pstr []string
-		//public parameter
+	//public parameter
 	var pstr2 []string
 	//kill the old process
-	pstr2 = append(pstr2, "goraiden")
+	pstr2 = append(pstr2, "smartraiden")
 	Exec_shell("/usr/bin/killall", pstr2, "./../../testdata/log/ka.log", true)
 	//kill the old process and wait for the release of the port
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	param := new(RaidenParam)
 	c, err := config.ReadDefault("./ApiTest.INI")
@@ -125,7 +125,7 @@ func Startraiden(RegistryAddress string) {
 	param.conditionquit = c.RdString("common", "conditionquit", "{\"QuitEvent\":\"RefundTransferRecevieAckxx}")
 	param.debug = c.RdBool("common", "debug", true)
 
-		//NODE 1
+	//NODE 1
 	var NODE string
 	for i := 0; i < 6; i++ {
 		NODE = "NODE" + strconv.Itoa(i+1)

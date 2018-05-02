@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
-	"time"
-
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
 )
 
@@ -40,17 +40,20 @@ func NewScene() (NewTokenName string) {
 	EthRpcEndpoint := c.RdString("common", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 
 	KeyStorePath := c.RdString("common", "keystore_path", "/smtwork/privnet3/data/keystore")
-
-	NewTokenName, RegistryAddress, _ := CreateNewToken(EthRpcEndpoint, KeyStorePath)
+	conn, err := ethclient.Dial(EthRpcEndpoint)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	registryAddress := c.RdString("common", "registry_contract_address", "")
+	NewTokenName = CreateTokenAndChannels(KeyStorePath, conn, common.HexToAddress(registryAddress), true)
 	log.Println("New Token=", NewTokenName)
-	log.Println("registryAddress=", RegistryAddress.String())
 
 	//start the raiden client
 	datadir := c.RdString("common", "datadir", "/smtwork/share/.smartraiden")
 	os.RemoveAll(datadir)
-	Startraiden(RegistryAddress.String())
 
-	time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
 
 	//test for registering new token to raiden network
 	RegisteringOneToken(Node1Url, NewTokenName)
