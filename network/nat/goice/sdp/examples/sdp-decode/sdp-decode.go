@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/nkbai/sdp"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/sdp"
 )
 
 func main() {

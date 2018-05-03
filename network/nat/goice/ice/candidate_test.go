@@ -6,8 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/sdp"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func loadData(tb testing.TB, name string) []byte {
@@ -42,7 +45,7 @@ func TestConnectionAddress(t *testing.T) {
 		if err = p.parse(); err != nil {
 			t.Fatal(err)
 		}
-		log.Trace("c= %s", log.StringInterface(p.c, 3))
+		log.Trace(fmt.Sprintf("c= %s", utils.StringInterface(p.c, 3)))
 	}
 
 	// a=candidate:3862931549 1 udp 2113937151 192.168.220.128 56032

@@ -150,16 +150,16 @@ func NewIceStreamTransport(cfg *TransportConfig, name string) (it *IceStreamTran
 	if err != nil {
 		return
 	}
-	log.Trace("candidates=%#v", it.component.candidates)
+	log.Trace(fmt.Sprintf("candidates=%#v", it.component.candidates))
 	return
 }
 func (t *IceStreamTransport) InitIce(role SessionRole) error {
 	s := NewIceSession(t.Name, role, t.component.candidates, t.transporter, t)
 	t.session = s
 	for i, c := range s.localCandidates {
-		log.Trace("%s Candidate %d added componentId=%d type=%s foundation=%d,addr=%s,base=%s,priority=%d",
+		log.Trace(fmt.Sprintf("%s Candidate %d added componentId=%d type=%s foundation=%d,addr=%s,base=%s,priority=%d",
 			t.Name, i, c.ComponentID, c.Type, c.Foundation, c.addr, c.baseAddr, c.Priority,
-		)
+		))
 	}
 	err := t.session.StartServer()
 	if err != nil {
@@ -181,7 +181,7 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) error {
 	//		t.session.Stop()
 	//	}
 	//}()
-	log.Trace("%s received sdp \n%s\n", t.Name, remoteSDP)
+	log.Trace(fmt.Sprintf("%s received sdp \n%s\n", t.Name, remoteSDP))
 	sd, err := DecodeSession(remoteSDP)
 	if err != nil {
 		return err
@@ -190,12 +190,12 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) error {
 	if err != nil {
 		return err
 	}
-	log.Trace("%s checklist created\n%s", t.Name, t.session.checkList)
+	log.Trace(fmt.Sprintf("%s checklist created\n%s", t.Name, t.session.checkList))
 	err = t.session.createTurnPermissionIfNeeded()
 	if err != nil {
 		return err
 	}
-	log.Trace("create permission success for all remote address")
+	log.Trace(fmt.Sprintf("create permission success for all remote address"))
 	t.State = TransportStateNegotiation
 	err = t.session.startCheck()
 	if err != nil {
@@ -224,7 +224,7 @@ func (t *IceStreamTransport) EncodeSession() (s string, err error) {
 //不支持复用,只能完全重新构建.
 func (t *IceStreamTransport) Stop() {
 	if t.State == TransportStateStopped {
-		log.Error("%s has already stopped", t.Name)
+		log.Error(fmt.Sprintf("%s has already stopped", t.Name))
 		return
 	}
 	t.State = TransportStateFailed
@@ -241,17 +241,17 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 func (t *IceStreamTransport) onIceComplete(result error) {
 
 	if t.State != TransportStateNegotiation {
-		log.Error("%s finish reulst %s", t.Name, result)
+		log.Error(fmt.Sprintf("%s finish reulst %s", t.Name, result))
 		panic(fmt.Sprintf("%s only finish once", t.Name))
 	}
 	defer func() {
 		if t.cb != nil {
 			t.cb.OnIceComplete(result)
 		}
-		log.Debug("%s ice negotiation finished ,new state is %s", t.Name, t.State.String())
+		log.Debug(fmt.Sprintf("%s ice negotiation finished ,new state is %s", t.Name, t.State.String()))
 	}()
 	if result != nil {
-		log.Info("%s ice negotiation failed", t.Name)
+		log.Info(fmt.Sprintf("%s ice negotiation failed", t.Name))
 		t.State = TransportStateFailed
 		return
 	}

@@ -1,11 +1,13 @@
 package ice
 
 import (
-	"log"
 	"net"
 	"sync"
 	"time"
 
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 
@@ -27,7 +29,7 @@ func NewStunSocket(serverAddr string) (s *StunSocket, err error) {
 	}
 	conn, err := net.Dial("udp", serverAddr)
 	if err != nil {
-		log.Fatalln("failed to dial:", err)
+		log.Crit(fmt.Sprintf("failed to dial:%s", err))
 	}
 	client, err := stun.NewClient(stun.ClientOptions{
 		Connection: conn,

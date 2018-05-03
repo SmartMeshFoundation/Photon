@@ -84,7 +84,7 @@ func (ts *TurnServerSock) RecieveStunMessage(localAddr, remoteAddr string, msg *
 				ts.cb.ReceiveData(localAddr, peer.String(), []byte(data))
 			}
 		} else {
-			log.Trace("%s actual message:%s", ts.Name, res)
+			log.Trace(fmt.Sprintf("%s actual message:%s", ts.Name, res))
 			if res.Type == stun.BindingSuccess || res.Type != stun.BindingError || res.Type != stun.BindingRequest {
 				ts.s.stunMessageReceived(ts.cfg.relayAddress, peer.String(), res)
 			} else {
@@ -122,7 +122,7 @@ func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *
 		host, port, err := net.SplitHostPort(c.addr)
 		if err != nil {
 			//panic?
-			log.Error("split error for %s,err:%s", c.addr, err)
+			log.Error(fmt.Sprintf("split error for %s,err:%s", c.addr, err))
 			continue
 		}
 		peer := turn.PeerAddress{
@@ -137,21 +137,21 @@ func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *
 		stun.Username(ts.cfg.user),
 	)
 	if err != nil {
-		log.Error("build err %s", err)
+		log.Error(fmt.Sprintf("build err %s", err))
 	}
 	for _, p := range peers {
 		err = p.AddTo(req)
 		if err != nil {
-			log.Error("build err %s", err)
+			log.Error(fmt.Sprintf("build err %s", err))
 		}
 	}
 	err = ts.cfg.credentials.AddTo(req)
 	if err != nil {
-		log.Error("build err %s", err)
+		log.Error(fmt.Sprintf("build err %s", err))
 	}
 	err = stun.Fingerprint.AddTo(req)
 	if err != nil {
-		log.Error("build err %s", err)
+		log.Error(fmt.Sprintf("build err %s", err))
 	}
 	res, err = ts.s.sendStunMessageSync(req, ts.s.Addr, ts.cfg.serverAddr)
 	return
@@ -180,10 +180,10 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 	return msg2, ts.s.Addr, ts.cfg.serverAddr
 }
 func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
-	log.Trace("%s ---sendData stun message %s-->%s ---\n%s\n", ts.Name, fromaddr, toaddr, msg)
+	log.Trace(fmt.Sprintf("%s ---sendData stun message %s-->%s ---\n%s\n", ts.Name, fromaddr, toaddr, msg))
 	msg2, fromaddr2, toaddr2 := ts.wrapperStunMessage(fromaddr, toaddr, msg)
 	if fromaddr2 != fromaddr {
-		log.Trace("%s message actually from %s to %s", ts.Name, fromaddr2, toaddr2)
+		log.Trace(fmt.Sprintf("%s message actually from %s to %s", ts.Name, fromaddr2, toaddr2))
 	}
 	return ts.s.sendData(msg2.Raw, fromaddr2, toaddr2)
 }
@@ -255,7 +255,7 @@ func (ts *TurnServerSock) StartRefresh() {
 		}()
 	} else {
 		//stop turn's allocate right now
-		log.Debug("%s release turn allocated .", ts.Name)
+		log.Debug(fmt.Sprintf("%s release turn allocated .", ts.Name))
 		ts.refreshRequest(turn.Lifetime{})
 	}
 
@@ -277,11 +277,11 @@ func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
 			if err != nil {
 				panic("turn.channeldata error")
 			}
-			log.Trace("%s send  channel data %d, %s---->%s", ts.Name, len(r.Raw), ts.s.Addr, ts.cfg.serverAddr)
+			log.Trace(fmt.Sprintf("%s send  channel data %d, %s---->%s", ts.Name, len(r.Raw), ts.s.Addr, ts.cfg.serverAddr))
 			ts.s.sendData(r.Raw, ts.s.Addr, ts.cfg.serverAddr)
 		} else {
 			if ts.s.mode == TurnModeData {
-				log.Warn("should not happen only if channel binding fail")
+				log.Warn(fmt.Sprintf("should not happen only if channel binding fail"))
 			}
 			to := addrToUdpAddr(toaddr)
 			peer := turn.PeerAddress{
@@ -292,11 +292,11 @@ func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
 			if err != nil {
 				panic("build error")
 			}
-			log.Trace("%s send data use send indication %s--->%s  message:%s\n", ts.Name, ts.s.Addr, ts.cfg.serverAddr, r)
+			log.Trace(fmt.Sprintf("%s send data use send indication %s--->%s  message:%s\n", ts.Name, ts.s.Addr, ts.cfg.serverAddr, r))
 			ts.s.sendStunMessageAsync(r, ts.s.Addr, ts.cfg.serverAddr)
 		}
 	} else {
-		log.Trace("%s send directly data %d   %s----->%s", ts.Name, len(data), fromaddr, toaddr)
+		log.Trace(fmt.Sprintf("%s send directly data %d   %s----->%s", ts.Name, len(data), fromaddr, toaddr))
 		return ts.s.sendData(data, fromaddr, toaddr)
 	}
 	return nil
@@ -328,7 +328,7 @@ func (ts *TurnServerSock) channelBind(addr string) error {
 		return err
 	}
 	if res.Type.Method != stun.MethodChannelBind && res.Type.Class != stun.ClassSuccessResponse {
-		log.Error("%s channel bind response :%s", ts.Name, res)
+		log.Error(fmt.Sprintf("%s channel bind response :%s", ts.Name, res))
 		return errors.New("channel bind error")
 	}
 	ts.s.SetChannelNumber(turn.MinChannelNumber, addr)
@@ -339,7 +339,7 @@ func (ts *TurnServerSock) channelBind(addr string) error {
 我这边认为协商成功了,但是对方可能还灭与偶成功,所以仍然可能收到 stun message 消息,也就是通过 channel data 收到的还有可能是 stun 消息而不是真实的数据
 */
 func (ts *TurnServerSock) FinishNegotiation(mode serverSockMode) {
-	log.Trace("%s change mode from %d to %d", ts.Name, ts.s.mode, mode)
+	log.Trace(fmt.Sprintf("%s change mode from %d to %d", ts.Name, ts.s.mode, mode))
 	ts.s.mode = mode
 	ts.StartRefresh()
 }
@@ -357,7 +357,7 @@ func (ts *TurnServerSock) refreshRequest(lifetime turn.Lifetime) {
 	}
 	res, err := ts.s.sendStunMessageSync(req, ts.s.Addr, ts.cfg.serverAddr)
 	if err != nil {
-		log.Error("refresh request error %s", err)
+		log.Error(fmt.Sprintf("refresh request error %s", err))
 		return
 	}
 	if res.Type != turn.RefreshResponse {
@@ -367,11 +367,11 @@ func (ts *TurnServerSock) refreshRequest(lifetime turn.Lifetime) {
 		if err != nil {
 			log.Error("i don't know why?..")
 		}
-		log.Error("%s channel refresh response  err:%s", ts.Name, code)
+		log.Error(fmt.Sprintf("%s channel refresh response  err:%s", ts.Name, code))
 	} else {
 		err = lifetime.GetFrom(res)
 		if err != nil {
-			log.Error("unexpected err :%s", err)
+			log.Error(fmt.Sprintf("unexpected err :%s", err))
 		} else {
 			ts.cfg.lifetime = lifetime
 		}

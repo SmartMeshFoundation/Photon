@@ -20,7 +20,7 @@ func (m *mockcb) RecieveStunMessage(localAddr, remoteAddr string, req *stun.Mess
 	if req.Type != stun.BindingRequest {
 		return
 	}
-	log.Info("recevied binding request %s<----%s", localAddr, remoteAddr)
+	log.Info(fmt.Sprintf("recevied binding request %s<----%s", localAddr, remoteAddr))
 	var res *stun.Message = new(stun.Message)
 	from := addrToUdpAddr(remoteAddr)
 
@@ -65,11 +65,11 @@ func setupTestServerSock() (s1, s2 *StunServerSock) {
 	m2 := new(mockcb)
 	s1, err = NewStunServerSock(mybindaddr, m1, "s1")
 	if err != nil {
-		log.Crit("create new sock error %s %s", mybindaddr, err)
+		log.Crit(fmt.Sprintf("create new sock error %s %s", mybindaddr, err))
 	}
 	s2, err = NewStunServerSock(peerbindaddr, m2, "s2")
 	if err != nil {
-		log.Crit("creat new sock error %s %s", peerbindaddr, err)
+		log.Crit(fmt.Sprintf("creat new sock error %s %s", peerbindaddr, err))
 	}
 	m1.s = s1
 	m2.s = s2
@@ -87,6 +87,6 @@ func TestNewServerSock(t *testing.T) {
 		t.Error("should success")
 		return
 	}
-	log.Trace("s1 received :%s", res.String())
+	log.Trace(fmt.Sprintf("s1 received :%s", res.String()))
 
 }

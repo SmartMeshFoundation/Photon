@@ -194,7 +194,7 @@ func GetLocalCandidates(primaryAddress string) (candidates []*Candidate, err err
 			}
 		}
 		if duplicate {
-			log.Trace("host %s:%s is duplicate", c.addr, c.baseAddr)
+			log.Trace(fmt.Sprintf("host %s:%s is duplicate", c.addr, c.baseAddr))
 			continue
 		}
 		if c.addr == primaryAddress {
@@ -215,7 +215,7 @@ func GetLocalCandidates(primaryAddress string) (candidates []*Candidate, err err
 
 	}
 	if !primaryFound {
-		log.Error("primaryaddress not found %s", primaryAddress)
+		log.Error(fmt.Sprintf("primaryaddress not found %s", primaryAddress))
 	}
 	if len(candidates) > MaxCandidates-1 {
 		candidates = candidates[:MaxCandidates-1]

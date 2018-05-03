@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
 	"log"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
 )
 
 func main() {
 	addrs, err := ice.DefaultGatherer.Gather()
 	if err != nil {
-		log.Fatal("failed to gather: ", err)
+		log.Fatal(fmt.Sprintf("failed to gather: %s", err))
 	}
 	for _, a := range addrs {
 		fmt.Printf("%s\n", a)

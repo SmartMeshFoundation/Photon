@@ -338,9 +338,9 @@ func (m *Message) Encode() {
 // call result.
 func (m *Message) WriteTo(w io.Writer) (int64, error) {
 	if u, ok := w.(*net.UDPConn); ok {
-		log.Trace("%s --> %s", u.LocalAddr().String(), u.RemoteAddr().String())
+		log.Trace(fmt.Sprintf("%s --> %s", u.LocalAddr().String(), u.RemoteAddr().String()))
 	}
-	log.Trace("---send stun message ---\n%s\n", m)
+	log.Trace(fmt.Sprintf("---send stun message ---\n%s\n", m))
 	n, err := w.Write(m.Raw)
 	return int64(n), err
 }
@@ -362,13 +362,13 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 	m.Raw = tBuf[:n]
 	err = m.Decode()
 	if u, ok := r.(*net.UDPConn); ok {
-		log.Trace("%s<--%s", u.LocalAddr(), u.RemoteAddr())
+		log.Trace(fmt.Sprintf("%s<--%s", u.LocalAddr(), u.RemoteAddr()))
 	}
 
 	if err != nil {
-		log.Debug("receive stun message error")
+		log.Debug(fmt.Sprintf("receive stun message error %s", err))
 	} else {
-		log.Trace("---recieve stun message---\n%s", m)
+		log.Trace(fmt.Sprintf("---recieve stun message---\n%s", m))
 	}
 	return int64(n), err
 }
@@ -383,7 +383,7 @@ func (m *Message) Decode() error {
 	// decoding message header
 	buf := m.Raw
 	firstByte := m.Raw[0]
-	//log.Trace("receive data: \n%s", hex.Dump(m.Raw))
+	//log.Trace(fmt.Sprintf("receive data: \n%s", hex.Dump(m.Raw)))
 	if firstByte&0x40 == 0x40 { //start with 01, maybe a channel data
 		/*
 				how to distinguish data and channel data?

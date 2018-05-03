@@ -5,6 +5,8 @@ import (
 	"net"
 	"time"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
 )
@@ -37,7 +39,7 @@ func (c *icecb) OnReceiveData(data []byte, from net.Addr) {
 */
 func (c *icecb) OnIceComplete(result error) {
 	c.iceresult <- result
-	log.Trace("%s negotiation complete", c.name)
+	log.Trace(fmt.Sprintf("%s negotiation complete", c.name))
 }
 func setupIcePair(typ int) (s1, s2 *ice.IceStreamTransport, err error) {
 	var cfg *ice.TransportConfig
@@ -103,7 +105,7 @@ func main() {
 		return
 	case err = <-cb1.iceresult:
 		if err != nil {
-			log.Error("s1 negotiation failed ", err)
+			log.Error(fmt.Sprintf("s1 negotiation failed %s", err))
 			return
 		}
 	}
@@ -113,7 +115,7 @@ func main() {
 		return
 	case err = <-cb2.iceresult:
 		if err != nil {
-			log.Error("s2 negotiation failed", err)
+			log.Error(fmt.Sprintf("s2 negotiation failed %s", err))
 			return
 		}
 	}
@@ -135,7 +137,7 @@ func main() {
 		return
 	case data := <-cb2.data:
 		if !bytes.Equal(data, s1data) {
-			log.Error("s2 recevied error ,got ", string(data))
+			log.Error(fmt.Sprintf("s2 recevied error ,got %s", string(data)))
 			return
 		}
 	}
@@ -145,7 +147,7 @@ func main() {
 		return
 	case data := <-cb1.data:
 		if !bytes.Equal(data, s2data) {
-			log.Error("s1 recevied error ,got ", string(data))
+			log.Error(fmt.Sprintf("s1 recevied error ,got %s", string(data)))
 			return
 		}
 	}

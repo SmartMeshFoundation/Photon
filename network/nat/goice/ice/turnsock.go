@@ -60,7 +60,7 @@ func (t *TurnSock) allocateAddress() error {
 			return
 		}
 		if code.Code != stun.CodeUnauthorised {
-			log.Error("turn first allocate should faile, but code is %s", code)
+			log.Error(fmt.Sprintf("turn first allocate should faile, but code is %s", code))
 			err = fmt.Errorf("unexpected turn code of error :%s", code)
 			return
 		}
@@ -72,7 +72,7 @@ func (t *TurnSock) allocateAddress() error {
 		if err != nil {
 			return
 		}
-		log.Trace("get credentials nonce:%s,realm:%s,lieftime:%s", nonce, realm, t.lifetime.Duration)
+		log.Trace(fmt.Sprintf("get credentials nonce:%s,realm:%s,lieftime:%s", nonce, realm, t.lifetime.Duration))
 		t.nonce = nonce.String()
 		t.realm = realm.String()
 		t.credentials = stun.NewLongTermIntegrity(t.user, t.realm, t.password)
@@ -117,7 +117,7 @@ func (t *TurnSock) allocateAddress() error {
 	if err != nil {
 		return err
 	}
-	log.Trace("mappedaddr=%s,relay=%s", t.mapAddress, t.relayAddress)
+	log.Trace(fmt.Sprintf("mappedaddr=%s,relay=%s", t.mapAddress, t.relayAddress))
 	if len(t.mapAddress) == 0 || len(t.relayAddress) == 0 {
 		return errors.New("can not get relay address")
 	}

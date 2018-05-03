@@ -12,6 +12,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 const (
@@ -42,7 +43,7 @@ func (c *icecb) OnReceiveData(data []byte, from net.Addr) {
 */
 func (c *icecb) OnIceComplete(result error) {
 	c.iceresult <- result
-	log.Trace("%s negotiation complete", c.name)
+	log.Trace(fmt.Sprintf("%s negotiation complete", c.name))
 }
 func setupTestIceStreamTransport(typ int) (s1, s2 *IceStreamTransport, err error) {
 	var cfg *TransportConfig
@@ -69,21 +70,21 @@ func TestNewIceStreamTransport(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Log("candidates host only:", log.StringInterface(trans.component.candidates, 3))
+	t.Log("candidates host only:", utils.StringInterface(trans.component.candidates, 3))
 	cfg = NewTransportConfigWithStun("182.254.155.208:3478")
 	trans, err = NewIceStreamTransport(cfg, "stun")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("candidates stun: ", log.StringInterface(trans.component.candidates, 3))
+	t.Log("candidates stun: ", utils.StringInterface(trans.component.candidates, 3))
 	cfg = NewTransportConfigWithTurn("182.254.155.208:3478", "bai", "bai")
 	trans, err = NewIceStreamTransport(cfg, "turn")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("candidates turn:", log.StringInterface(trans.component.candidates, 3))
+	t.Log("candidates turn:", utils.StringInterface(trans.component.candidates, 3))
 	trans.InitIce(SessionRoleControlling)
 	s, err := trans.EncodeSession()
 	if err != nil {
@@ -115,7 +116,7 @@ a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 52628 typ relay
 		t.Error(err)
 		return
 	}
-	t.Log("session=%s", log.StringInterface(session, 3))
+	t.Log("session=%s", utils.StringInterface(session, 3))
 }
 
 func TestIceStreamTransport_StartNegotiation(t *testing.T) {
@@ -139,18 +140,18 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		return
 	}
 	lsdp, err := s1.EncodeSession()
-	log.Trace("lsdp=%s", lsdp)
+	log.Trace(fmt.Sprintf("lsdp=%s", lsdp))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	log.Trace("sdp length=%s", len(lsdp))
+	log.Trace(fmt.Sprintf("sdp length=%s", len(lsdp)))
 	rsdp, err := s2.EncodeSession()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	log.Trace("rsdp=%s", rsdp)
+	log.Trace(fmt.Sprintf("rsdp=%s", rsdp))
 
 	err = s2.StartNegotiation(lsdp)
 	if err != nil {
@@ -396,7 +397,7 @@ func BenchmarkIceStreamTransport_StartNegotiation(b *testing.B) {
 			return
 		case err = <-cb1.iceresult:
 			if err != nil {
-				log.Error("s1 negotiation failed ", err)
+				log.Error(fmt.Sprintf("s1 negotiation failed %s", err))
 				return
 			}
 		}
@@ -407,7 +408,7 @@ func BenchmarkIceStreamTransport_StartNegotiation(b *testing.B) {
 			return
 		case err = <-cb2.iceresult:
 			if err != nil {
-				log.Error("s2 negotiation failed", err)
+				log.Error(fmt.Sprintf("s2 negotiation failed %s", err))
 				return
 			}
 		}
@@ -456,7 +457,7 @@ func BenchmarkIceStreamTransport_StartNegotiationOnlyRelay(b *testing.B) {
 			return
 		case err = <-cb1.iceresult:
 			if err != nil {
-				log.Error("s1 negotiation failed ", err)
+				log.Error(fmt.Sprintf("s1 negotiation failed %s", err))
 				//return
 			}
 		}
@@ -467,7 +468,7 @@ func BenchmarkIceStreamTransport_StartNegotiationOnlyRelay(b *testing.B) {
 			return
 		case err = <-cb2.iceresult:
 			if err != nil {
-				log.Error("s2 negotiation failed", err)
+				log.Error(fmt.Sprintf("s2 negotiation failed  %s", err))
 				return
 			}
 		}
@@ -518,7 +519,7 @@ func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
 			return
 		case err = <-cb1.iceresult:
 			if err != nil {
-				log.Error("s1 negotiation failed ", err)
+				log.Error(fmt.Sprintf("s1 negotiation failed %s", err))
 				return
 			}
 		}
@@ -529,7 +530,7 @@ func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
 			return
 		case err = <-cb2.iceresult:
 			if err != nil {
-				log.Error("s2 negotiation failed", err)
+				log.Error(fmt.Sprintf("s2 negotiation failed %s", err))
 				return
 			}
 		}
