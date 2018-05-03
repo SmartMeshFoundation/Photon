@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -13,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type channelData struct {
+type ChannelData struct {
 	ChannelAddress      string   `json:"channel_address"`
 	PartnerAddrses      string   `json:"partner_address"`
 	Balance             *big.Int `json:"balance"`
@@ -26,14 +27,45 @@ type channelData struct {
 	RevealTimeout       int      `json:"reveal_timeout"`
 }
 
+/*
+for third party service
+*/
+type ChannelDataWithLockAndSignature struct {
+	ChannelAddress      string   `json:"channel_address"`
+	PartnerAddrses      string   `json:"partner_address"`
+	Balance             *big.Int `json:"balance"`
+	PartnerBalance      *big.Int `json:"patner_balance"`
+	LockedAmount        *big.Int `json:"locked_amount"`
+	PartnerLockedAmount *big.Int `json:"partner_locked_amount"`
+	TokenAddress        string   `json:"token_address"`
+	State               string   `json:"state"`
+	SettleTimeout       int      `json:"settle_timeout"`
+	RevealTimeout       int      `json:"reveal_timeout"`
+
+	/*
+		extended
+	*/
+	ClosedBlock              int64
+	SettledBlock             int64
+	OurUnkownSecretLocks     map[common.Hash]channel.PendingLock
+	OurKnownSecretLocks      map[common.Hash]channel.UnlockPartialProof
+	PartnerUnkownSecretLocks map[common.Hash]channel.PendingLock
+	PartnerKnownSecretLocks  map[common.Hash]channel.UnlockPartialProof
+	OurLeaves                []common.Hash
+	PartnerLeaves            []common.Hash
+	OurBalanceProof          *transfer.BalanceProofState
+	PartnerBalanceProof      *transfer.BalanceProofState
+	Signature                []byte //my signature of PartnerBalanceProof
+}
+
 func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 	chs, err := RaidenApi.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	var datas []*channelData
+	var datas []*ChannelData
 	for _, c := range chs {
-		d := &channelData{
+		d := &ChannelData{
 			ChannelAddress:      c.ChannelAddress.String(),
 			PartnerAddrses:      c.PartnerAddress.String(),
 			Balance:             c.OurBalance,
@@ -59,23 +91,33 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	d := &channelData{
-		ChannelAddress:      c.ChannelAddress.String(),
-		PartnerAddrses:      c.PartnerAddress.String(),
-		Balance:             c.OurBalance,
-		PartnerBalance:      c.PartnerBalance,
-		State:               c.State,
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
-		LockedAmount:        c.OurAmountLocked,
-		PartnerLockedAmount: c.PartnerAmountLocked,
+	d := &ChannelDataWithLockAndSignature{
+		ChannelAddress:           c.ChannelAddress.String(),
+		PartnerAddrses:           c.PartnerAddress.String(),
+		Balance:                  c.OurBalance,
+		PartnerBalance:           c.PartnerBalance,
+		State:                    c.State,
+		SettleTimeout:            c.SettleTimeout,
+		TokenAddress:             c.TokenAddress.String(),
+		LockedAmount:             c.OurAmountLocked,
+		PartnerLockedAmount:      c.PartnerAmountLocked,
+		ClosedBlock:              c.ClosedBlock,
+		SettledBlock:             c.SettledBlock,
+		OurLeaves:                c.OurLeaves,
+		PartnerLeaves:            c.PartnerLeaves,
+		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks,
+		OurUnkownSecretLocks:     c.OurLock2PendingLocks,
+		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks,
+		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks,
+		OurBalanceProof:          c.OurBalanceProof,
+		PartnerBalanceProof:      c.PartnerBalanceProof,
 	}
 	w.WriteJson(d)
 }
 
 //put request
 func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
-	req := &channelData{}
+	req := &ChannelData{}
 	err := r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
@@ -91,7 +133,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 			rest.Error(w, err.Error(), http.StatusConflict)
 			return
 		} else {
-			d := &channelData{
+			d := &ChannelData{
 				ChannelAddress:      c.ChannelAddress.String(),
 				PartnerAddrses:      c.PartnerAddress.String(),
 				Balance:             c.OurBalance,
@@ -171,7 +213,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 	}
 	//reload new data from database
 	c, _ = RaidenApi.GetChannel(c.ChannelAddress)
-	d := &channelData{
+	d := &ChannelData{
 		ChannelAddress:      c.ChannelAddress.String(),
 		PartnerAddrses:      c.PartnerAddress.String(),
 		Balance:             c.OurBalance,
