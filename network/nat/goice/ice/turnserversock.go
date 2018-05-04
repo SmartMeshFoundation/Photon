@@ -187,7 +187,7 @@ func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toad
 	if fromaddr2 != fromaddr {
 		ts.log.Trace(fmt.Sprintf("message actually from %s to %s", fromaddr2, toaddr2))
 	}
-	return ts.s.sendData(msg2.Raw, fromaddr2, toaddr2)
+	return ts.s.sendStunMessageAsync(msg2, fromaddr2, toaddr2) // sendData(msg2.Raw, fromaddr2, toaddr2)
 }
 
 /*
