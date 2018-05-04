@@ -15,6 +15,8 @@ import (
 
 	"net"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
@@ -67,17 +69,31 @@ func newpassword(key *ecdsa.PrivateKey) xmpp.GetCurrentPasswordFunc {
 	return f1
 }
 
-type IceStream struct {
-	ist            *ice.IceStreamTransport
-	Status         IceStatus
-	Role           ice.SessionRole
-	CanExchangeSdp bool
+/*
+send data to receiver.
+*/
+type iceSend struct {
+	receiver common.Address
+	data     []byte
+}
+
+/*
+receive data from `from`, and related iceStreamTranspoter is stored in `ic`
+*/
+type iceReceive struct {
+	from net.Addr
+	data []byte
+	ic   *IceCallback
+}
+type iceFail struct {
+	receiver common.Address
+	err      error
 }
 type IceTransport struct {
 	key                  *ecdsa.PrivateKey
 	Addr                 common.Address
-	Address2IceStreamMap map[common.Address]*IceStream
-	Icestream2AddressMap map[*IceStream]common.Address
+	Address2IceStreamMap map[common.Address]*IceCallback
+	Icestream2AddressMap map[*IceCallback]common.Address
 	lock                 sync.Mutex
 	receiveStatus        int32
 	sendStatus           int32
@@ -87,19 +103,27 @@ type IceTransport struct {
 	connLastReceiveMap   map[common.Address]time.Time
 	checkInterval        time.Duration
 	stopChan             chan struct{}
+	sendChan             chan *iceSend
+	receiveChan          chan *iceReceive
+	iceFailChan          chan *iceFail
+	log                  log.Logger
 }
 
 func NewIceTransporter(key *ecdsa.PrivateKey, name string) *IceTransport {
 	it := &IceTransport{
 		key:                  key,
 		receiveStatus:        StatusStopReceive,
-		Address2IceStreamMap: make(map[common.Address]*IceStream),
-		Icestream2AddressMap: make(map[*IceStream]common.Address),
+		Address2IceStreamMap: make(map[common.Address]*IceCallback),
+		Icestream2AddressMap: make(map[*IceCallback]common.Address),
 		connLastReceiveMap:   make(map[common.Address]time.Time),
 		stopChan:             make(chan struct{}),
+		sendChan:             make(chan *iceSend, 100),
+		receiveChan:          make(chan *iceReceive, 100),
+		iceFailChan:          make(chan *iceFail, 10),
 		checkInterval:        time.Minute,
 		Addr:                 crypto.PubkeyToAddress(key.PublicKey),
 		name:                 name,
+		log:                  log.New("name", fmt.Sprintf("%s-IceTransport", name)),
 	}
 	sp, err := xmpp.NewXmpp(signalServer, it.Addr, newpassword(it.key), func(from common.Address, sdp string) (mysdp string, err error) {
 		return it.handleSdpArrived(from, sdp)
@@ -108,10 +132,56 @@ func NewIceTransporter(key *ecdsa.PrivateKey, name string) *IceTransport {
 		panic(fmt.Sprintf("create ice transpoter error %s", err))
 	}
 	it.signal = sp
+	go it.loop()
 	return it
 }
 func (it *IceTransport) Register(protcol ProtocolReceiver) {
 	it.protocol = protcol
+}
+func (it *IceTransport) loop() {
+	var ok bool
+	var s *iceSend
+	var r *iceReceive
+	var f *iceFail
+	var err error
+	for {
+		id := utils.RandomString(10)
+		it.log.Trace(fmt.Sprintf("loop %s start", id))
+		select {
+		case s, ok = <-it.sendChan:
+			if !ok {
+				return
+			}
+			it.log.Trace(fmt.Sprintf("start send to %s, data:\n%s", utils.APex(s.receiver), hex.Dump(s.data)))
+			err = it.sendInternal(s.receiver, s.data)
+			if err != nil {
+				it.log.Info(fmt.Sprintf("send to %s, error:%s", utils.APex(s.receiver), err))
+			}
+		case r, ok = <-it.receiveChan:
+			if !ok {
+				return
+			}
+			it.log.Trace(fmt.Sprintf("received data from %s", r.from))
+			addr := r.from.(*net.UDPAddr)
+			it.receiveData(r.ic, r.data, addr.IP.String(), addr.Port)
+		case f, ok = <-it.iceFailChan:
+			if !ok {
+				return
+			}
+			it.log.Trace(fmt.Sprintf("ice %s failed,because of %s", utils.APex(f.receiver), err))
+			it.removeIceStreamTransport(f.receiver)
+		case <-time.After(it.checkInterval):
+			if len(it.connLastReceiveMap) > 0 {
+				it.removeExpiredConnection()
+			} else {
+				return
+			}
+		case <-it.stopChan:
+			return
+		}
+		it.log.Trace(fmt.Sprintf("loop %s end", id))
+
+	}
 }
 
 /*
@@ -120,18 +190,18 @@ for connections in use but may be invalid because of network, remove too.
 this function should be protected by lock
 */
 func (it *IceTransport) removeExpiredConnection() {
-	it.lock.Lock()
-	defer it.lock.Unlock()
 	now := time.Now()
 	for r, t := range it.connLastReceiveMap {
 		if now.Sub(t) > 2*it.checkInterval {
-			is, ok := it.Address2IceStreamMap[r]
+			it.lock.Lock()
+			ic, ok := it.Address2IceStreamMap[r]
 			if ok {
-				log.Trace(fmt.Sprintf("%s %s connection has been removed", it.name, utils.APex(r)))
+				it.log.Trace(fmt.Sprintf("%s connection has been removed", utils.APex(r)))
 				delete(it.Address2IceStreamMap, r)
-				delete(it.Icestream2AddressMap, is)
-				is.ist.Stop()
+				delete(it.Icestream2AddressMap, ic)
+				ic.ist.Stop()
 			}
+			it.lock.Unlock()
 		}
 	}
 }
@@ -144,78 +214,88 @@ for send one message:
 4. if no connection,  try to setup a p2p connection use ice.
 */
 func (it *IceTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	it.lock.Lock()
-	defer it.lock.Unlock()
 	/*
 		ice transport will  occupy at least one ice.IceStreamTransport whenever use or not.
 		need a goroutine to check and remove .
 	*/
-	log.Trace(fmt.Sprintf("%s send to %s , message=%s,hash=%s\n", it.name, utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
-	var err error
+	it.log.Trace(fmt.Sprintf("send to %s , message=%s,hash=%s\n", utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
+
 	if it.sendStatus != StatusCanSend {
 		return errHasStopped
 	}
-	is, ok := it.Address2IceStreamMap[receiver]
+	it.sendChan <- &iceSend{receiver, data}
+	return nil
+}
+func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error {
+	var err error
+	it.lock.Lock()
+	defer it.lock.Unlock()
+	ic, ok := it.Address2IceStreamMap[receiver]
 	if ok {
-		if is.Status != IceTransporterStateNegotiateComplete {
+		if ic.Status != IceTransporterStateNegotiateComplete {
 			return errIceStreamTransporterNotReady
 		}
-		err = is.ist.SendData(data)
+		err = ic.ist.SendData(data)
 		return err
 	} else { //start new p2p
-		err := it.signal.TryReach(receiver)
-		if err != nil {
-			return err
-		}
-		is := &IceStream{
-			Status: IceTransporterStateInit,
-			Role:   ice.SessionRoleControlling,
-		}
-		is.ist, err = ice.NewIceStreamTransport(cfg, it.name)
-		if err != nil {
-			log.Trace(fmt.Sprintf("%s NewIceStreamTransport err %s", it.name, err))
-			return err
-		}
-		ic := &IceCallback{
+		ic = &IceCallback{
 			it:         it,
-			is:         is,
 			partner:    receiver,
 			datatosend: data,
+			Status:     IceTransporterStateInit,
 		}
-		is.ist.SetCallBack(ic)
-		it.Address2IceStreamMap[receiver] = is
-		it.Icestream2AddressMap[is] = receiver
-		it.addCheck(receiver)
-		is.CanExchangeSdp = true
-		it.startIce(is, receiver)
+		it.Address2IceStreamMap[receiver] = ic
+		it.Icestream2AddressMap[ic] = receiver
+		go func() {
+			/*
+				其他节点之间的 ice, 不能影响已经协商完毕的连接.
+			*/
+			err := it.signal.TryReach(receiver)
+			if err != nil {
+				it.iceFailChan <- &iceFail{receiver, err}
+				return
+			}
+			ic.ist, err = ice.NewIceStreamTransport(cfg, it.name)
+			if err != nil {
+				it.log.Trace(fmt.Sprintf("NewIceStreamTransport err %s", err))
+				it.iceFailChan <- &iceFail{receiver, err}
+				return
+			}
+			ic.ist.SetCallBack(ic)
+			it.addCheck(receiver)
+			err = it.startIce(ic, receiver)
+			if err != nil {
+				it.iceFailChan <- &iceFail{receiver, err}
+				return
+			}
+		}()
 	}
 	return nil
 }
 
-type sdpresult struct {
-	sdp string
-	err error
-}
 type IceCallback struct {
 	it         *IceTransport
 	partner    common.Address
-	is         *IceStream
 	datatosend []byte
+	ist        *ice.IceStreamTransport
+	Status     IceStatus
 }
 
 func (ic *IceCallback) OnReceiveData(data []byte, from net.Addr) {
-	addr := from.(*net.UDPAddr)
-	ic.it.receiveData(ic.is, data, addr.IP.String(), addr.Port)
+	if ic.it.receiveStatus == StatusStopReceive {
+		ic.it.log.Info(fmt.Sprintf("receivie data from %s, but ice transport has stopped", from))
+	}
+	ic.it.receiveChan <- &iceReceive{from, data, ic}
 }
 func (ic *IceCallback) OnIceComplete(result error) {
 	if result != nil {
-		log.Error(fmt.Sprintf("%s ice complete callback error err=%s", ic.it.name, result))
+		ic.it.log.Error(fmt.Sprintf("ice complete callback error err=%s", result))
 		ic.it.removeIceStreamTransport((ic.partner))
-		ic.is.Status = IceTransporterStateClosed
+		ic.Status = IceTransporterStateClosed
 	} else {
-		ic.is.Status = IceTransporterStateNegotiateComplete
+		ic.Status = IceTransporterStateNegotiateComplete
 		if len(ic.datatosend) > 0 {
-			ic.is.ist.SendData(ic.datatosend)
+			ic.it.sendChan <- &iceSend{ic.partner, ic.datatosend}
 		}
 	}
 }
@@ -226,131 +306,100 @@ func (it *IceTransport) handleSdpArrived(partner common.Address, sdp string) (my
 		err = errStoppedReceive
 		return
 	}
-	log.Trace(fmt.Sprintf("%s handleSdpArrived from %s", it.name, utils.APex2(partner)))
-	is, ok := it.Address2IceStreamMap[partner]
+	it.log.Trace(fmt.Sprintf("handleSdpArrived from %s, sdp=%s", utils.APex2(partner), sdp))
+	ic, ok := it.Address2IceStreamMap[partner]
 	if ok { //already have a connection, why remote create new connection,  maybe they are trying to send data each  other at the same time.
 		err = errors.New(fmt.Sprintf("%s trying to send each other at the same time?", it.name))
 		return
 	}
-	is = &IceStream{
-		Status:         IceTransporterStateInit,
-		Role:           ice.SessionRoleControlled,
-		CanExchangeSdp: true,
+	ic = &IceCallback{
+		partner: partner,
+		it:      it,
+		Status:  IceTransporterStateInit,
 	}
-
-	is.ist, err = ice.NewIceStreamTransport(cfg, it.name)
+	ic.ist, err = ice.NewIceStreamTransport(cfg, it.name)
 	if err != nil {
 		return
 	}
-	ic := &IceCallback{
-		partner: partner,
-		it:      it,
-		is:      is,
-	}
-	is.ist.SetCallBack(ic)
-	it.Address2IceStreamMap[partner] = is
-	it.Icestream2AddressMap[is] = partner
+	ic.ist.SetCallBack(ic)
+	it.Address2IceStreamMap[partner] = ic
+	it.Icestream2AddressMap[ic] = partner
 	it.addCheck(partner)
-	sdpresult, err := it.startIceWithSdp(is, sdp)
-	log.Debug(fmt.Sprintf("%s get sdp:%s err:%s", it.name, sdpresult, err))
+	sdpresult, err := it.startIceWithSdp(ic, sdp)
+	it.log.Debug(fmt.Sprintf("get sdp:%s err:%s", sdpresult, err))
 	return sdpresult, err
 
 }
-func (it *IceTransport) startIceWithSdp(is *IceStream, rsdp string) (sdpresult string, err error) {
-	err = is.ist.InitIce(ice.SessionRoleControlled)
+func (it *IceTransport) startIceWithSdp(ic *IceCallback, rsdp string) (sdpresult string, err error) {
+	err = ic.ist.InitIce(ice.SessionRoleControlled)
 	if err != nil {
 		return
 	}
-	sdpresult, err = is.ist.EncodeSession()
+	sdpresult, err = ic.ist.EncodeSession()
 	if err != nil {
 		return
 	}
-	err = is.ist.StartNegotiation(rsdp)
+	err = ic.ist.StartNegotiation(rsdp)
 	return
 }
 func (it *IceTransport) removeIceStreamTransport(receiver common.Address) {
 	it.lock.Lock()
 	defer it.lock.Unlock()
-	is, ok := it.Address2IceStreamMap[receiver]
+	ic, ok := it.Address2IceStreamMap[receiver]
 	if !ok {
 		return
 	}
-	log.Info(fmt.Sprintf("%s removeIceStreamTransport %s", it.name, utils.APex2(receiver)))
+	it.log.Info(fmt.Sprintf("removeIceStreamTransport %s", utils.APex2(receiver)))
 	delete(it.Address2IceStreamMap, receiver)
-	delete(it.Icestream2AddressMap, is)
-	is.ist.Stop()
+	delete(it.Icestream2AddressMap, ic)
+	if ic.ist != nil {
+		ic.ist.Stop()
+	}
 }
-func (it *IceTransport) startIce(is *IceStream, receiver common.Address) {
-	var err error
-	defer func() {
-		if err != nil {
-			it.removeIceStreamTransport(receiver)
-		}
-	}()
-	err = is.ist.InitIce(ice.SessionRoleControlling)
+func (it *IceTransport) startIce(ic *IceCallback, receiver common.Address) (err error) {
+	err = ic.ist.InitIce(ice.SessionRoleControlling)
 	if err != nil {
-		log.Error(fmt.Sprintf("%s %s InitIceSession err ", it.name, utils.APex(receiver), err))
-
+		it.log.Error(fmt.Sprintf("%s %s InitIceSession err ", utils.APex(receiver), err))
 		return
 	}
-	sdp, err := is.ist.EncodeSession()
+	sdp, err := ic.ist.EncodeSession()
 	if err != nil {
-		log.Error(fmt.Sprintf("%s get sdp error %s", it.name, err))
+		it.log.Error(fmt.Sprintf("get sdp error %s", err))
 		return
 	}
 	partnersdp, err := it.signal.ExchangeSdp(receiver, sdp)
 	if err != nil {
-		log.Error(fmt.Sprintf("%s exchange sdp error %s", it.name, err))
+		it.log.Error(fmt.Sprintf("exchange sdp error %s", err))
 		return
 	}
-	err = is.ist.StartNegotiation(partnersdp)
+	err = ic.ist.StartNegotiation(partnersdp)
 	if err != nil {
-		log.Error(fmt.Sprintf("%s %s StartIce error %s", it.name, utils.APex(receiver), err))
+		it.log.Error(fmt.Sprintf("%s StartIce error %s", utils.APex(receiver), err))
 		return
 	}
+	return nil
 }
-func (it *IceTransport) receiveData(is *IceStream, data []byte, host string, port int) error {
-	if it.receiveStatus == StatusStopReceive {
-		return errStoppedReceive
-	}
+func (it *IceTransport) receiveData(ic *IceCallback, data []byte, host string, port int) error {
+
 	it.lock.Lock()
 	defer it.lock.Unlock()
-	addr, ok := it.Icestream2AddressMap[is]
+	addr, ok := it.Icestream2AddressMap[ic]
 	if !ok {
-		log.Error("recevie data from unkown icestream, it must be a error")
+		it.log.Error("recevie data from unkown icestream, it must be a error")
 		return nil
 	}
 	it.connLastReceiveMap[addr] = time.Now()
 	return it.Receive(data, host, port)
 }
 func (it *IceTransport) addCheck(addr common.Address) {
-	if len(it.connLastReceiveMap) == 0 {
-		go func() { //start check
-			for {
-				select {
-				case <-time.After(it.checkInterval):
-					if len(it.connLastReceiveMap) > 0 {
-						it.removeExpiredConnection()
-					} else {
-						return
-					}
-				case <-it.stopChan:
-					return
-				}
-			}
-		}()
-	}
 	it.connLastReceiveMap[addr] = time.Now()
 }
 func (it *IceTransport) Receive(data []byte, host string, port int) error {
-	log.Trace(fmt.Sprintf("%s receive message,message=%s,hash=%s\n", it.name, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data))))
+	it.log.Trace(fmt.Sprintf("receive message,message=%s,hash=%s\n", encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data))))
 	if it.protocol != nil {
-		log.Trace(fmt.Sprintf("%s message for protocol", it.name))
-		go func() {
-			// icestream  seems that the same thread is used for sending and receiving, so the reception must not be blocked. Otherwise, it will cause no transmission.
-			it.protocol.Receive(data, host, port)
-			log.Trace(fmt.Sprintf("%s message for protocol complete...", it.name))
-		}()
+		it.log.Trace(fmt.Sprintf("message for protocol"))
+		it.protocol.Receive(data, host, port)
+		it.log.Trace(fmt.Sprintf("message for protocol complete..."))
 
 	}
 	return nil
@@ -361,8 +410,12 @@ func (it *IceTransport) Start() {
 func (it *IceTransport) Stop() {
 	it.StopAccepting()
 	atomic.SwapInt32(&it.sendStatus, StatusStopSend)
-	log.Trace("%s stopped", it.name)
+	close(it.stopChan)
+	it.log.Trace("stopped")
 	it.signal.Close()
+	close(it.sendChan)
+	close(it.iceFailChan)
+	close(it.receiveChan)
 	it.lock.Lock()
 	for a, i := range it.Address2IceStreamMap {
 		delete(it.Address2IceStreamMap, a)

@@ -240,6 +240,11 @@ func (s *IceSession) getMsgCheck(id stun.TransactionID) *SessionCheck {
 	defer s.mlock.Unlock()
 	return s.msg2Check[id]
 }
+func (s *IceSession) deleteMsgCheck(id stun.TransactionID) {
+	s.mlock.Lock()
+	delete(s.msg2Check, id)
+	s.mlock.Unlock()
+}
 func (s *IceSession) Stop() {
 	s.hasStopped = true
 	for _, srv := range s.serverSocks {
@@ -619,7 +624,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				s.log.Trace(fmt.Sprintf("check %s to be failed because higher priority check finished.", c.key))
 				s.cancelOneCheck(c)
 				//s.changeCheckState(c, CheckStateFailed, errors.New("canceled"))
-			} else if c.state == CheckStateInProgress && c.priority < check.priority {
+			} else if c.state == CheckStateInProgress && c.priority <= check.priority {
 				/*
 					这种策略会尽快结束,但是存在问题,如果低优先级的先完成
 					1. 对方可能会收到高优先级的 request, 进而以高优先级为准,如果只有一个 ip 地址,那没什么问题
@@ -970,7 +975,6 @@ func (s *IceSession) getSenderServerSock(localAddr string) (ss ServerSocker, err
 		}
 	}
 	err = fmt.Errorf("%s localadr=%s,cannot found in maps=%#v", s.Name, localAddr, s.serverSocks)
-	s.log.Error(err.Error())
 	return nil, err
 }
 
@@ -992,7 +996,17 @@ func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominat
 		serversock ServerSocker
 	)
 	s.log.Trace(fmt.Sprintf("start check %s", c.key))
-	serversock, _ = s.getSenderServerSock(c.localCandidate.addr)
+	defer func() {
+		s.log.Trace(fmt.Sprintf("check complete %s", c.key))
+		if req != nil {
+			s.deleteMsgCheck(req.TransactionID)
+		}
+	}()
+	serversock, err = s.getSenderServerSock(c.localCandidate.addr)
+	if err != nil && s.completeResult < SessionAllCompleteSuccess {
+		s.log.Error(err.Error())
+		return
+	}
 	if nominate && s.role == SessionRoleControlling {
 		c.nominated = true
 	}
@@ -1040,6 +1054,9 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 			ignore
 			partner should have negotiation complete,
 		*/
+		if s.completeResult < SessionAllCompleteSuccess {
+			s.log.Error(err.Error())
+		}
 		return
 	}
 	if code == 0 {
@@ -1418,7 +1435,7 @@ func (s *IceSession) SendData(data []byte) error {
 	if srv == nil {
 		return errors.New("no stun transport")
 	}
-	s.log.Trace(fmt.Sprintf("send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data)))
+	s.log.Trace(fmt.Sprintf("send data from %s to %s datalen=%d,data=\n%s", fromaddr, check.remoteCandidate.addr, len(data), hex.Dump(data)))
 	if check.localCandidate.Type == CandidateServerReflexive || check.localCandidate.Type == CandidatePeerReflexive {
 		fromaddr = check.localCandidate.baseAddr
 		s.log.Trace(fmt.Sprintf("accutally send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data)))

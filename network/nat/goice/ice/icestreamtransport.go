@@ -178,12 +178,8 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) error {
 	if t.session == nil || t.State != TransportStateSessionReady {
 		return errors.New("no session")
 	}
-	//defer func() {
-	//	if err != nil {
-	//		t.session.Stop()
-	//	}
-	//}()
 	t.log.Trace(fmt.Sprintf("%s received sdp \n%s\n", t.Name, remoteSDP))
+	t.State = TransportStateNegotiation
 	sd, err := DecodeSession(remoteSDP)
 	if err != nil {
 		return err
@@ -192,18 +188,17 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) error {
 	if err != nil {
 		return err
 	}
-	t.log.Trace(fmt.Sprintf("%s checklist created\n%s", t.Name, t.session.checkList))
+	t.log.Trace(fmt.Sprintf("%s checklist created\n%s", t.session.checkList))
 	err = t.session.createTurnPermissionIfNeeded()
 	if err != nil {
 		return err
 	}
 	t.log.Trace(fmt.Sprintf("create permission success for all remote address"))
-	t.State = TransportStateNegotiation
+
 	err = t.session.startCheck()
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 func (t *IceStreamTransport) EncodeSession() (s string, err error) {
