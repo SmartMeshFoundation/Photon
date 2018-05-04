@@ -312,15 +312,14 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
-	/*
-			 TODO: add a separate message for token swaps to simplify message
-		     handling (issue #487)
-	*/
 	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
 		this.messageTokenSwap(msg, tokenswap)
 		//return nil
 	}
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
+	if graph == nil {
+		return errors.New(fmt.Sprintf("received transfer on unkown token :%s", msg.Token.String()))
+	}
 	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
 		return rerr.ChannelNotFound(fmt.Sprintf("mediated transfer from node without an existing channel %s", msg.Sender))
 	}
@@ -351,6 +350,7 @@ func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfe
 		log.Info("receive a mediated transfer, not match tokenswap condition")
 		return
 	}
+	log.Trace(fmt.Sprintf("begin token swap for %s", msg))
 	var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
 		if !hasReceiveRevealSecret {
 			/*
