@@ -17,6 +17,11 @@ import (
 
 	"fmt"
 
+	rand2 "crypto/rand"
+	"io"
+
+	"encoding/base64"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -52,29 +57,26 @@ const (
 
 var RandSrc = rand.NewSource(time.Now().UnixNano())
 
+func readFullOrPanic(r io.Reader, v []byte) int {
+	n, err := io.ReadFull(r, v)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
+
 // Random takes a parameter (int) and returns random slice of byte
 // ex: var randomstrbytes []byte; randomstrbytes = utils.Random(32)
 func Random(n int) []byte {
-	b := make([]byte, n)
-	// A RandSrc.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, RandSrc.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = RandSrc.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-
-	return b
+	v := make([]byte, n)
+	readFullOrPanic(rand2.Reader, v)
+	return v
 }
 
 // RandomString accepts a number(10 for example) and returns a random string using simple but fairly safe random algorithm
 func RandomString(n int) string {
-	return string(Random(n))
+	s := base64.StdEncoding.EncodeToString(Random(n))
+	return s[:n]
 }
 func NewRandomInt(n int) int {
 	return rand.New(RandSrc).Intn(n)
