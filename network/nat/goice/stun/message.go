@@ -337,10 +337,10 @@ func (m *Message) Encode() {
 // WriteTo implements WriterTo via calling Write(m.Raw) on w and returning
 // call result.
 func (m *Message) WriteTo(w io.Writer) (int64, error) {
-	if u, ok := w.(*net.UDPConn); ok {
-		log.Trace(fmt.Sprintf("%s --> %s", u.LocalAddr().String(), u.RemoteAddr().String()))
+	if _, ok := w.(*net.UDPConn); ok {
+		//log.Trace(fmt.Sprintf("%s --> %s", u.LocalAddr().String(), u.RemoteAddr().String()))
 	}
-	log.Trace(fmt.Sprintf("---send stun message ---\n%s\n", m))
+	//log.Trace(fmt.Sprintf("---send stun message ---\n%s\n", m))
 	n, err := w.Write(m.Raw)
 	return int64(n), err
 }
@@ -361,14 +361,14 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 	}
 	m.Raw = tBuf[:n]
 	err = m.Decode()
-	if u, ok := r.(*net.UDPConn); ok {
-		log.Trace(fmt.Sprintf("%s<--%s", u.LocalAddr(), u.RemoteAddr()))
+	if _, ok := r.(*net.UDPConn); ok {
+		//log.Trace(fmt.Sprintf("%s<--%s", u.LocalAddr(), u.RemoteAddr()))
 	}
 
 	if err != nil {
 		log.Debug(fmt.Sprintf("receive stun message error %s", err))
 	} else {
-		log.Trace(fmt.Sprintf("---recieve stun message---\n%s", m))
+		//log.Trace(fmt.Sprintf("---recieve stun message---\n%s", m))
 	}
 	return int64(n), err
 }

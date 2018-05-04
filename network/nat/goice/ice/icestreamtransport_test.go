@@ -11,6 +11,8 @@ import (
 
 	"fmt"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
@@ -27,6 +29,9 @@ type icecb struct {
 	name      string
 }
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stdout)))
+}
 func Newicecb(name string) *icecb {
 	return &icecb{
 		name:      name,

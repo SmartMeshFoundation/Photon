@@ -97,6 +97,7 @@ type StunServerSock struct {
 	cachedResponse        map[stun.TransactionID]*cachedResponse //重复的 bindingrequest, 就不要提交给上层了.
 	sendchan              chan *sendreq
 	stoped                bool
+	log                   log.Logger
 }
 type serverSockResponse struct {
 	res  *stun.Message
@@ -126,7 +127,7 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 	buf := make([]byte, 1024)
 	n, addr, err := c.ReadFrom(buf)
 	if err != nil {
-		log.Trace(fmt.Sprintf("ReadFrom: %v", err))
+		s.log.Trace(fmt.Sprintf("ReadFrom: %v", err))
 		return err
 	}
 	raw := buf[:n]
@@ -137,7 +138,7 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 		return nil
 		//} else {
 		//	err = fmt.Errorf("recevied unkown message:\n%s", hex.Dump(raw))
-		//	log.Error(err.Error())
+		//	s.log.Error(err.Error())
 		//	return err
 		//}
 	}
@@ -156,15 +157,15 @@ turn 模式下: from 是 turnserver 的地址
 peerAddr 才是真正的通信节点地址
 */
 func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
-	log.Trace(fmt.Sprintf("%s recevied data from %s,len=%d", s.Name, peerAddr, len(data)))
+	s.log.Trace(fmt.Sprintf("recevied data from %s,len=%d", peerAddr, len(data)))
 	if s.cb != nil {
 		s.cb.ReceiveData(s.Addr, peerAddr, data)
 	}
 }
 func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
-	log.Trace(fmt.Sprintf("%s --receive stun message %s<----%s  --\n%s\n", s.Name, localaddr, from, msg))
+	s.log.Trace(fmt.Sprintf("--receive stun message %s<----%s  --\n%s\n", localaddr, from, msg))
 	if msg.Type.Method == stun.MethodChannelData {
-		log.Trace(fmt.Sprintf("\n%s", hex.Dump(msg.Raw)))
+		s.log.Trace(fmt.Sprintf("\n%s", hex.Dump(msg.Raw)))
 		//debug.PrintStack()
 	}
 	var err error
@@ -175,7 +176,7 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 	*/
 	if msg.Type.Method == stun.MethodChannelData {
 		if s.mode == StageNegotiation {
-			log.Error(fmt.Sprintf("receive data error when negiotiation"))
+			s.log.Error(fmt.Sprintf("receive data error when negiotiation"))
 			/*
 				在 channel binding success 和 changemode 之间接收到了数据怎么办?直接丢弃,反正对方会重传.
 			*/
@@ -191,12 +192,12 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 			var data turn.ChannelData
 			err = data.GetFrom(msg)
 			if err != nil {
-				log.Error(fmt.Sprintf("received channel data,but Channel Data err:%s", err))
+				s.log.Error(fmt.Sprintf("received channel data,but Channel Data err:%s", err))
 				return
 			}
 			peer, ok := s.channelNumber2Address[int(data.ChannelNumber)]
 			if !ok {
-				log.Info(fmt.Sprintf("received data ,but wrong channel number got %d  ", data.ChannelNumber))
+				s.log.Info(fmt.Sprintf("received data ,but wrong channel number got %d  ", data.ChannelNumber))
 				return
 			}
 			s.dataReceived(peer, data.Data)
@@ -232,7 +233,7 @@ func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) boo
 	}
 	for _, c := range s.cachedResponse {
 		if c.msg.Type.Method == req.Type.Method && c.msg.TransactionID == req.TransactionID {
-			log.Trace(fmt.Sprintf("%s id %s duplicated", s.Name, hex.EncodeToString(req.TransactionID[:])))
+			s.log.Trace(fmt.Sprintf("id %s duplicated", hex.EncodeToString(req.TransactionID[:])))
 			s.sendData(c.msg.Raw, s.Addr, from)
 			return true
 		}
@@ -253,7 +254,7 @@ func (s *StunServerSock) sendData(data []byte, fromaddr, toaddr string) (err err
 }
 
 func (s *StunServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
-	log.Trace(fmt.Sprintf("%s ---sendData stun message %s-->%s ---\n%s\n", s.Name, s.Addr, toaddr, msg))
+	s.log.Trace(fmt.Sprintf("---sendData stun message %s-->%s ---\n%s\n", s.Addr, toaddr, msg))
 	if msg.Type.Class == stun.ClassSuccessResponse || msg.Type.Class == stun.ClassErrorResponse {
 		s.lock.Lock()
 		s.cachedResponse[msg.TransactionID] = &cachedResponse{time.Now(), msg}
@@ -330,7 +331,7 @@ func (s *StunServerSock) SetChannelNumber(channelNumber int, addr string) {
 	s.address2ChannelNumber[addr] = channelNumber
 }
 func (s *StunServerSock) FinishNegotiation(mode serverSockMode) {
-	log.Trace(fmt.Sprintf("%s change mode from %d to %d", s.Name, s.mode, mode))
+	s.log.Trace(fmt.Sprintf("change mode from %d to %d", s.mode, mode))
 	s.mode = mode
 }
 
@@ -351,13 +352,13 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 	for {
 		req := new(stun.Message)
 		if err := s.serveConn(c, req); err != nil {
-			log.Trace(fmt.Sprintf("serve: %v", err))
+			s.log.Trace(fmt.Sprintf("serve: %v", err))
 			return err
 		}
 	}
 }
 func (s *StunServerSock) Close() {
-	log.Trace(fmt.Sprintf("%s closed", s.Addr))
+	s.log.Trace(fmt.Sprintf("%s closed", s.Addr))
 	s.stoped = true
 	s.c.Close()
 	for key, ch := range s.waiters {
@@ -388,6 +389,7 @@ func NewStunServerSock(bindAddr string, cb ServerSockCallbacker, name string) (s
 		address2ChannelNumber: make(map[string]int),
 		cachedResponse:        make(map[stun.TransactionID]*cachedResponse),
 		sendchan:              make(chan *sendreq, 10),
+		log:                   log.New("name", fmt.Sprintf("%s-StunServerSock", name)),
 	}
 	go func() {
 		s.Serve(s.c)
