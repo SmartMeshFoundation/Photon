@@ -153,6 +153,11 @@ func main() {
 			Name:  "fee",
 			Usage: "enable mediation fee",
 		},
+		cli.StringFlag{
+			Name:  "signal-server",
+			Usage: "use another signal server ",
+			Value: params.DefaultSignalServer,
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = Main
@@ -378,6 +383,8 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	if ctx.Bool("fee") {
 		config.EnableMediationFee = true
 	}
+	config.Ice.SignalServer = ctx.String("signal-server")
+	log.Trace(fmt.Sprintf("signal server=%s", config.Ice.SignalServer))
 	return &config
 }
 func init() {
