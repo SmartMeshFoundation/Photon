@@ -3,17 +3,10 @@
 ## Project Status 
    This project is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We are doing our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
 ## Build
-1. install [pjsip](http://www.pjsip.org/)
 ```
-wget http://www.pjsip.org/release/2.7.2/pjproject-2.7.2.tar.bz2
-tar xjf pjproject-2.7.2.tar.bz2
-cd pjproject-2.7.2
-./configure --disable-sound --disable-video --disable-ssl
-make dep && make && make install
-```
-2. build smartraiden
-```
-  go get github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
+  go get github.com/SmartMeshFoundation/SmartRaiden/
+  cd cmd/smartraiden
+  go install
 ```
 ## Listing API
   SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in the official documentation of Raiden Network. The primary API list and description are as follows：
