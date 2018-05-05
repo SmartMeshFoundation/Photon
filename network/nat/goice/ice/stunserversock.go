@@ -132,15 +132,8 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 	}
 	raw := buf[:n]
 	if _, err = req.Write(raw); err != nil {
-		///if s.mode == StunModeData {
-		//误把数据当成 channel data 了.
 		s.dataReceived(udpAddrToAddr(addr), raw)
 		return nil
-		//} else {
-		//	err = fmt.Errorf("recevied unkown message:\n%s", hex.Dump(raw))
-		//	s.log.Error(err.Error())
-		//	return err
-		//}
 	}
 	if req.Type == stun.BindingIndication || req.Type == turn.SendIndication {
 		return nil //ignore indication ,只是为了保持心跳而已.
@@ -157,7 +150,7 @@ turn 模式下: from 是 turnserver 的地址
 peerAddr 才是真正的通信节点地址
 */
 func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
-	s.log.Trace(fmt.Sprintf("recevied data from %s,len=%d", peerAddr, len(data)))
+	s.log.Trace(fmt.Sprintf("---- recevied data from %s,len=%d -----", peerAddr, len(data)))
 	if s.cb != nil {
 		s.cb.ReceiveData(s.Addr, peerAddr, data)
 	}
@@ -352,7 +345,7 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 	for {
 		req := new(stun.Message)
 		if err := s.serveConn(c, req); err != nil {
-			s.log.Trace(fmt.Sprintf("serve: %v", err))
+			s.log.Info(fmt.Sprintf("serve: %v", err))
 			return err
 		}
 	}

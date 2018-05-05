@@ -20,7 +20,7 @@ import (
 	rand2 "crypto/rand"
 	"io"
 
-	"encoding/base64"
+	"encoding/base32"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -75,7 +75,7 @@ func Random(n int) []byte {
 
 // RandomString accepts a number(10 for example) and returns a random string using simple but fairly safe random algorithm
 func RandomString(n int) string {
-	s := base64.StdEncoding.EncodeToString(Random(n))
+	s := base32.StdEncoding.EncodeToString(Random(n))
 	return s[:n]
 }
 func NewRandomInt(n int) int {

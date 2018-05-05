@@ -180,7 +180,7 @@ func (it *IceTransport) loop() {
 		case <-it.stopChan:
 			return
 		}
-		it.log.Trace(fmt.Sprintf("loop %s end", id))
+		it.log.Trace(fmt.Sprintf("IceTransport  loop %s end", id))
 
 	}
 }
@@ -340,7 +340,7 @@ func (it *IceTransport) startIceWithSdp(ic *IceCallback, rsdp string) (sdpresult
 	if err != nil {
 		return
 	}
-	err = ic.ist.StartNegotiation(rsdp)
+	go ic.ist.StartNegotiation(rsdp)
 	return
 }
 func (it *IceTransport) removeIceStreamTransport(receiver common.Address) {
