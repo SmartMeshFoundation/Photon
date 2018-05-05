@@ -144,9 +144,12 @@ func (it *IceTransport) loop() {
 	var r *iceReceive
 	var f *iceFail
 	var err error
+	defer func() {
+		it.log.Info(fmt.Sprintf("IceTransport quit loop"))
+	}()
 	for {
 		id := utils.RandomString(10)
-		it.log.Trace(fmt.Sprintf("loop %s start", id))
+		it.log.Trace(fmt.Sprintf("IceTransport loop %s start", id))
 		select {
 		case s, ok = <-it.sendChan:
 			if !ok {
@@ -173,8 +176,6 @@ func (it *IceTransport) loop() {
 		case <-time.After(it.checkInterval):
 			if len(it.connLastReceiveMap) > 0 {
 				it.removeExpiredConnection()
-			} else {
-				return
 			}
 		case <-it.stopChan:
 			return

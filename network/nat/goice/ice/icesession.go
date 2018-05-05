@@ -1354,7 +1354,7 @@ func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *s
 func (s *IceSession) loop() {
 	for {
 		r := utils.RandomString(20)
-		s.log.Trace(fmt.Sprintf("loop %s start @%s", r, time.Now().Format("15:04:05.999")))
+		s.log.Trace(fmt.Sprintf("IceSession loop %s start @%s", r, time.Now().Format("15:04:05.999")))
 		select {
 		case msg, ok := <-s.msgChan:
 			if ok {
