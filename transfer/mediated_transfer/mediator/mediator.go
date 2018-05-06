@@ -293,7 +293,12 @@ func nextTransferPair(payerRoute *transfer.RouteState, payerTransfer *mediated_t
 		if payeeRoute.RevealTimeout >= timeoutBlocks {
 			panic("payeeRoute.RevealTimeout>=timeoutBlocks")
 		}
-
+		/*
+			有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.
+		*/
+		if timeoutBlocks >= payeeRoute.SettleTimeout {
+			timeoutBlocks = payeeRoute.SettleTimeout
+		}
 		lockTimeout := timeoutBlocks - payeeRoute.RevealTimeout
 		lockExpiration := int64(lockTimeout) + blockNumber
 		payeeTransfer := &mediated_transfer.LockedTransferState{
