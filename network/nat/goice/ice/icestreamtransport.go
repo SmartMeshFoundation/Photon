@@ -173,31 +173,36 @@ func (t *IceStreamTransport) InitIce(role SessionRole) error {
 func (t *IceStreamTransport) SetCallBack(cb StreamTransportCallbacker) {
 	t.cb = cb
 }
-func (t *IceStreamTransport) StartNegotiation(remoteSDP string) error {
-	var err error
+func (t *IceStreamTransport) StartNegotiation(remoteSDP string) (err error) {
+	defer func() {
+		if err != nil {
+			t.log.Error(fmt.Sprintf("StartNegotiation with remotesdp err =%s", err))
+		}
+	}()
 	if t.session == nil || t.State != TransportStateSessionReady {
-		return errors.New("no session")
+		err = errors.New("no session")
+		return
 	}
 	t.log.Trace(fmt.Sprintf("%s received sdp \n%s\n", t.Name, remoteSDP))
 	t.State = TransportStateNegotiation
 	sd, err := DecodeSession(remoteSDP)
 	if err != nil {
-		return err
+		return
 	}
 	err = t.session.createCheckList(sd)
 	if err != nil {
-		return err
+		return
 	}
 	t.log.Trace(fmt.Sprintf("%s checklist created\n%s", t.session.checkList))
 	err = t.session.createTurnPermissionIfNeeded()
 	if err != nil {
-		return err
+		return
 	}
 	t.log.Trace(fmt.Sprintf("create permission success for all remote address"))
 
 	err = t.session.startCheck()
 	if err != nil {
-		return err
+		return
 	}
 	return nil
 }
