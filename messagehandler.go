@@ -313,7 +313,7 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 		return rerr.TransferUnwanted
 	}
 	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
-		this.messageTokenSwap(msg, tokenswap)
+		this.messageTokenSwapTaker(msg, tokenswap)
 		//return nil
 	}
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
@@ -342,7 +342,7 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 /*
 taker process token swap
 */
-func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) {
+func (this *RaidenMessageHandler) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) {
 	var hashlock common.Hash = msg.HashLock
 	var hasReceiveRevealSecret bool
 	var stateManager *transfer.StateManager
@@ -379,8 +379,12 @@ func (this *RaidenMessageHandler) messageTokenSwap(msg *encoding.MediatedTransfe
 		delete(this.raiden.SecretRequestPredictorMap, hashlock)
 		return true
 	}
-
-	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, msg.Expiration)
+	/*
+		taker's Expiration must be smaller than maker's ,
+		taker and maker may have direct channels on these two tokens.
+	*/
+	takerExpiration := msg.Expiration - params.DEFAULT_REVEAL_TIMEOUT
+	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, takerExpiration)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return

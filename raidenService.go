@@ -1300,9 +1300,9 @@ func (this *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network
 				we assume that :
 				taker have two independent queue for secret request and mediated transfer
 			*/
-			delete(this.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
 			return true
 		}
+		delete(this.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
 		return false
 	}
 	sentMtrHook = func(mtr *encoding.MediatedTransfer) (remove bool) {
