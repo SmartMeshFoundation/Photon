@@ -258,7 +258,7 @@ func (ts *TurnServerSock) StartRefresh() {
 	} else {
 		//stop turn's allocate right now
 		ts.log.Debug(fmt.Sprintf("release turn allocated ."))
-		ts.refreshRequest(turn.Lifetime{})
+		go ts.refreshRequest(turn.Lifetime{})
 	}
 
 }
