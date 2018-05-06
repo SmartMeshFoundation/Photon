@@ -127,9 +127,10 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 	buf := make([]byte, 1024)
 	n, addr, err := c.ReadFrom(buf)
 	if err != nil {
-		s.log.Trace(fmt.Sprintf("ReadFrom: %v", err))
+		s.log.Info(fmt.Sprintf("ReadFrom: %v", err))
 		return err
 	}
+	s.log.Trace(fmt.Sprintf("StunServerSockreceive from %s len=%d", addr.String(), n))
 	raw := buf[:n]
 	if _, err = req.Write(raw); err != nil {
 		s.dataReceived(udpAddrToAddr(addr), raw)
@@ -157,10 +158,10 @@ func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
 }
 func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
 	s.log.Trace(fmt.Sprintf("--receive stun message %s<----%s  --\n%s\n", localaddr, from, msg))
-	if msg.Type.Method == stun.MethodChannelData {
-		s.log.Trace(fmt.Sprintf("\n%s", hex.Dump(msg.Raw)))
-		//debug.PrintStack()
-	}
+	//if msg.Type.Method == stun.MethodChannelData {
+	//	s.log.Trace(fmt.Sprintf("\n%s", hex.Dump(msg.Raw)))
+	//	//debug.PrintStack()
+	//}
 	var err error
 	/*
 		收到 channeldata 要特殊处理,如果是 turn server 模式下,
@@ -240,6 +241,7 @@ func (s *StunServerSock) sendData(data []byte, fromaddr, toaddr string) (err err
 		panic(fmt.Sprintf("each binding..., me=%s,got=%s", s.Addr, fromaddr))
 	}
 	if s.stoped {
+		s.log.Debug(fmt.Sprintf("sendData from % to %s ,len=%d, but serversock has stoped", fromaddr, toaddr, len(data)))
 		return
 	}
 	s.sendchan <- &sendreq{data, addrToUdpAddr(toaddr)}
@@ -338,7 +340,11 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 				if !ok {
 					return
 				}
-				s.c.WriteTo(r.data, r.to)
+				s.log.Trace(fmt.Sprintf("%s write to %s, len=%d", s.Addr, r.to.String(), len(r.data)))
+				n, err := s.c.WriteTo(r.data, r.to)
+				if err != nil || n != len(r.data) {
+					s.log.Info(fmt.Sprintf("%s write to %s err %s", s.Addr, r.to.String(), len(r.data)))
+				}
 			}
 		}
 	}()
@@ -354,6 +360,7 @@ func (s *StunServerSock) Close() {
 	s.log.Trace(fmt.Sprintf("%s closed", s.Addr))
 	s.stoped = true
 	s.c.Close()
+	close(s.sendchan)
 	for key, ch := range s.waiters {
 		s.getAndRemoveWaiter(key)
 		close(ch)
@@ -375,7 +382,7 @@ func NewStunServerSock(bindAddr string, cb ServerSockCallbacker, name string) (s
 		mode:               StageNegotiation,
 		c:                  c,
 		waiters:            make(map[stun.TransactionID]chan *serverSockResponse),
-		syncMessageTimeout: time.Second * 30,
+		syncMessageTimeout: time.Second * 5,
 		cb:                 cb,
 		Name:               name,
 		channelNumber2Address: make(map[int]string),

@@ -15,8 +15,6 @@ import (
 
 	"net"
 
-	"encoding/hex"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
@@ -155,7 +153,7 @@ func (it *IceTransport) loop() {
 			if !ok {
 				return
 			}
-			it.log.Trace(fmt.Sprintf("start send to %s, data:\n%s", utils.APex(s.receiver), hex.Dump(s.data)))
+			it.log.Trace(fmt.Sprintf("start send to %s, l=%d", utils.APex(s.receiver), len(s.data)))
 			err = it.sendInternal(s.receiver, s.data)
 			if err != nil {
 				it.log.Info(fmt.Sprintf("send to %s, error:%s", utils.APex(s.receiver), err))
@@ -283,12 +281,15 @@ type IceCallback struct {
 }
 
 func (ic *IceCallback) OnReceiveData(data []byte, from net.Addr) {
+	ic.it.log.Trace(fmt.Sprintf("icecallback receive data from %s, l=%d", from.String(), len(data)))
 	if ic.it.receiveStatus == StatusStopReceive {
-		ic.it.log.Info(fmt.Sprintf("receivie data from %s, but ice transport has stopped", from))
+		ic.it.log.Debug(fmt.Sprintf("receivie data from %s, but ice transport has stopped", from))
+		return
 	}
 	ic.it.receiveChan <- &iceReceive{from, data, ic}
 }
 func (ic *IceCallback) OnIceComplete(result error) {
+	ic.it.log.Trace("icecallback complete result=%v,partner=%s", result, utils.APex(ic.partner))
 	if result != nil {
 		ic.it.log.Error(fmt.Sprintf("ice complete callback error err=%s", result))
 		ic.it.removeIceStreamTransport((ic.partner))
@@ -334,10 +335,12 @@ func (it *IceTransport) handleSdpArrived(partner common.Address, sdp string) (my
 func (it *IceTransport) startIceWithSdp(ic *IceCallback, rsdp string) (sdpresult string, err error) {
 	err = ic.ist.InitIce(ice.SessionRoleControlled)
 	if err != nil {
+		it.log.Trace(fmt.Sprintf("startIceWithSdp init ice err %s", err))
 		return
 	}
 	sdpresult, err = ic.ist.EncodeSession()
 	if err != nil {
+		it.log.Trace(fmt.Sprintf("EncodeSession err %s", err))
 		return
 	}
 	go ic.ist.StartNegotiation(rsdp)

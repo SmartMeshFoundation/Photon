@@ -19,7 +19,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice/attr"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
-	"github.com/kataras/iris/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 type SessionRole int
@@ -753,6 +753,8 @@ func (s *IceSession) changeCompleteResult(r sessionCompleteResult) {
 func (s *IceSession) closeUselessServerSock() {
 	for k, srv2 := range s.serverSocks {
 		if s.sessionComponent.nominatedServerSock != srv2 {
+			s.log.Trace(fmt.Sprintf("nominatedServerSock=%s\n,srv2=%s",
+				utils.StringInterface(s.sessionComponent.nominatedServerSock, 1), utils.StringInterface(srv2, 1)))
 			delete(s.serverSocks, k)
 			srv2.Close()
 		}
@@ -763,7 +765,7 @@ func (s *IceSession) closeUselessServerSock() {
 }
 func (s *IceSession) iceComplete(result error, allcomplete bool) {
 	//应该继续允许处理 BindingRequest, 因为对方可能还没有结束.
-	s.log.Debug(fmt.Sprintf("icesseion complete ,err:%s,allcomplete=%v", result, allcomplete))
+	s.log.Debug(fmt.Sprintf("icesseion complete ,err:%v,allcomplete=%v", result, allcomplete))
 	old := s.completeResult
 	if result != nil {
 		s.changeCompleteResult(SessionCompleteFailure)
@@ -797,7 +799,10 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 			}
 		}
 		s.log.Trace(fmt.Sprintf("valid check=%s\n nominated=%s\n", s.sessionComponent.validCheck, s.sessionComponent.nominatedCheck))
-		srv, _ := s.getSenderServerSock(s.sessionComponent.nominatedCheck.localCandidate.addr)
+		srv, err := s.getSenderServerSock(s.sessionComponent.nominatedCheck.localCandidate.addr)
+		if err != nil {
+			panic(fmt.Sprintf("cannot found nominatedcheck corresponding serversock %s", err))
+		}
 		s.mlock.Lock()
 		s.sessionComponent.nominatedServerSock = srv
 		if allcomplete {
@@ -1417,7 +1422,7 @@ func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 	if s.hasStopped {
 		return
 	}
-	s.log.Trace(fmt.Sprintf("recevied data %s<-----%s data:\n%s", localAddr, peerAddr, hex.Dump(data)))
+	s.log.Trace(fmt.Sprintf("recevied data %s<-----%s l=%d", localAddr, peerAddr, len(data)))
 	s.dataChan <- &stunDataWrapper{localAddr, peerAddr, data}
 	return
 
@@ -1435,7 +1440,7 @@ func (s *IceSession) SendData(data []byte) error {
 	if srv == nil {
 		return errors.New("no stun transport")
 	}
-	s.log.Trace(fmt.Sprintf("send data from %s to %s datalen=%d,data=\n%s", fromaddr, check.remoteCandidate.addr, len(data), hex.Dump(data)))
+	s.log.Trace(fmt.Sprintf("send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data)))
 	if check.localCandidate.Type == CandidateServerReflexive || check.localCandidate.Type == CandidatePeerReflexive {
 		fromaddr = check.localCandidate.baseAddr
 		s.log.Trace(fmt.Sprintf("accutally send data from %s to %s datalen=%d", fromaddr, check.remoteCandidate.addr, len(data)))
