@@ -118,7 +118,7 @@ func NewIceTransporter(key *ecdsa.PrivateKey, name string) *IceTransport {
 		sendChan:             make(chan *iceSend, 100),
 		receiveChan:          make(chan *iceReceive, 100),
 		iceFailChan:          make(chan *iceFail, 10),
-		checkInterval:        time.Minute,
+		checkInterval:        time.Second * 180,
 		Addr:                 crypto.PubkeyToAddress(key.PublicKey),
 		name:                 name,
 		log:                  log.New("name", fmt.Sprintf("%s-IceTransport", name)),
@@ -162,7 +162,7 @@ func (it *IceTransport) loop() {
 			if !ok {
 				return
 			}
-			it.log.Trace(fmt.Sprintf("received data from %s", r.from))
+			it.log.Trace(fmt.Sprintf("received data from %s,addr=%s", r.from, utils.APex(r.ic.partner)))
 			addr := r.from.(*net.UDPAddr)
 			it.receiveData(r.ic, r.data, addr.IP.String(), addr.Port)
 		case f, ok = <-it.iceFailChan:
@@ -213,13 +213,9 @@ for send one message:
 4. if no connection,  try to setup a p2p connection use ice.
 */
 func (it *IceTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	/*
-		ice transport will  occupy at least one ice.IceStreamTransport whenever use or not.
-		need a goroutine to check and remove .
-	*/
 	it.log.Trace(fmt.Sprintf("send to %s , message=%s,hash=%s\n", utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
-
 	if it.sendStatus != StatusCanSend {
+		it.log.Info(fmt.Sprintf("send data to %s, but icetransport has been stopped", utils.APex(receiver)))
 		return errHasStopped
 	}
 	it.sendChan <- &iceSend{receiver, data}
@@ -254,7 +250,7 @@ func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error
 				it.iceFailChan <- &iceFail{receiver, err}
 				return
 			}
-			ic.ist, err = ice.NewIceStreamTransport(cfg, it.name)
+			ic.ist, err = ice.NewIceStreamTransport(cfg, utils.APex2(receiver))
 			if err != nil {
 				it.log.Trace(fmt.Sprintf("NewIceStreamTransport err %s", err))
 				it.iceFailChan <- &iceFail{receiver, err}
@@ -310,16 +306,25 @@ func (it *IceTransport) handleSdpArrived(partner common.Address, sdp string) (my
 	}
 	it.log.Trace(fmt.Sprintf("handleSdpArrived from %s, sdp=%s", utils.APex2(partner), sdp))
 	ic, ok := it.Address2IceStreamMap[partner]
-	if ok { //already have a connection, why remote create new connection,  maybe they are trying to send data each  other at the same time.
-		err = errors.New(fmt.Sprintf("%s trying to send each other at the same time?", it.name))
-		return
+	if ok {
+		/*
+			already have a connection, why remote create new connection, reasons:
+			1. they are trying to send data each  other at the same time. The probability of this is very low
+			2. partner thinks the connection is invalid,and drops this connection. but I think this connection is valid.
+		*/
+		err = errors.New(fmt.Sprintf("%s trying to send each other at the same time?", utils.APex(partner)))
+		it.log.Error(fmt.Sprintf("handleSdpArrived from %s,but my ice connection is ok", utils.APex2(partner)))
+		it.lock.Unlock()
+		//if partner think this connection is valid,this is invalid.
+		it.removeIceStreamTransport(partner)
+		it.lock.Lock()
 	}
 	ic = &IceCallback{
 		partner: partner,
 		it:      it,
 		Status:  IceTransporterStateInit,
 	}
-	ic.ist, err = ice.NewIceStreamTransport(cfg, it.name)
+	ic.ist, err = ice.NewIceStreamTransport(cfg, utils.APex2(partner))
 	if err != nil {
 		return
 	}
@@ -328,19 +333,21 @@ func (it *IceTransport) handleSdpArrived(partner common.Address, sdp string) (my
 	it.Icestream2AddressMap[ic] = partner
 	it.addCheck(partner)
 	sdpresult, err := it.startIceWithSdp(ic, sdp)
-	it.log.Debug(fmt.Sprintf("get sdp:%s err:%s", sdpresult, err))
+	if err != nil {
+		it.log.Error(fmt.Sprintf("startIceWithSdp:%s err:%s", utils.APex(partner), err))
+	}
 	return sdpresult, err
 
 }
 func (it *IceTransport) startIceWithSdp(ic *IceCallback, rsdp string) (sdpresult string, err error) {
 	err = ic.ist.InitIce(ice.SessionRoleControlled)
 	if err != nil {
-		it.log.Trace(fmt.Sprintf("startIceWithSdp init ice err %s", err))
+		it.log.Trace(fmt.Sprintf("startIceWithSdp init ice err %s with %s", err, ic.ist.Name))
 		return
 	}
 	sdpresult, err = ic.ist.EncodeSession()
 	if err != nil {
-		it.log.Trace(fmt.Sprintf("EncodeSession err %s", err))
+		it.log.Trace(fmt.Sprintf("%s EncodeSession err %s", ic.ist.Name, err))
 		return
 	}
 	go ic.ist.StartNegotiation(rsdp)
@@ -368,12 +375,12 @@ func (it *IceTransport) startIce(ic *IceCallback, receiver common.Address) (err 
 	}
 	sdp, err := ic.ist.EncodeSession()
 	if err != nil {
-		it.log.Error(fmt.Sprintf("get sdp error %s", err))
+		it.log.Error(fmt.Sprintf("get sdp error %s for %s", err, utils.APex(receiver)))
 		return
 	}
 	partnersdp, err := it.signal.ExchangeSdp(receiver, sdp)
 	if err != nil {
-		it.log.Error(fmt.Sprintf("exchange sdp error %s", err))
+		it.log.Error(fmt.Sprintf("exchange sdp error %s for %s", err, utils.APex(receiver)))
 		return
 	}
 	err = ic.ist.StartNegotiation(partnersdp)
