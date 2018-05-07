@@ -201,7 +201,8 @@ func (o Options) NewClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	c.(*net.TCPConn).SetKeepAlive(true)
+	c.(*net.TCPConn).SetKeepAlivePeriod(time.Second*30)
 	if strings.LastIndex(o.Host, ":") > 0 {
 		host = host[:strings.LastIndex(o.Host, ":")]
 	}
