@@ -145,25 +145,29 @@ type RaidenService struct {
 		         channel should be removed from this list only when the Lock is
 		         released/withdrawn but not when the secret is registered.
 	*/
-	Token2Hashlock2Channels             map[common.Address]map[common.Hash][]*channel.Channel //Multithread
-	MessageHandler                      *RaidenMessageHandler
-	StateMachineEventHandler            *StateMachineEventHandler
-	BlockChainEvents                    *blockchain.BlockChainEvents
-	AlarmTask                           *blockchain.AlarmTask
-	db                                  *models.ModelDB
-	FileLocker                          *flock.Flock
-	SnapshortDir                        string
-	SerializationFile                   string
-	BlockNumber                         *atomic.Value
-	BlockNumberChan                     chan int64
-	Lock                                sync.RWMutex
-	TransferReqChan                     chan *ApiReq
-	TransferResponseChan                map[string]chan *network.AsyncResult
-	ProtocolMessageSendComplete         chan *ProtocolMessage
-	RoutesTask                          *RoutesTask
-	FeePolicy                           fee.FeeCharger                             //Mediation fee
-	SecretRequestPredictorMap           map[common.Hash]SecretRequestPredictor     //for tokenswap
-	RevealSecretListenerMap             map[common.Hash]RevealSecretListener       //for tokenswap
+	Token2Hashlock2Channels     map[common.Address]map[common.Hash][]*channel.Channel //Multithread
+	MessageHandler              *RaidenMessageHandler
+	StateMachineEventHandler    *StateMachineEventHandler
+	BlockChainEvents            *blockchain.BlockChainEvents
+	AlarmTask                   *blockchain.AlarmTask
+	db                          *models.ModelDB
+	FileLocker                  *flock.Flock
+	SnapshortDir                string
+	SerializationFile           string
+	BlockNumber                 *atomic.Value
+	BlockNumberChan             chan int64
+	Lock                        sync.RWMutex
+	TransferReqChan             chan *ApiReq
+	TransferResponseChan        map[string]chan *network.AsyncResult
+	ProtocolMessageSendComplete chan *ProtocolMessage
+	RoutesTask                  *RoutesTask
+	FeePolicy                   fee.FeeCharger                         //Mediation fee
+	SecretRequestPredictorMap   map[common.Hash]SecretRequestPredictor //for tokenswap
+	RevealSecretListenerMap     map[common.Hash]RevealSecretListener   //for tokenswap
+	/*
+		important!:
+			we must valid the mediated transfer is valid or not first, then to test  if this mediated transfer matchs any token swap.
+	*/
 	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
 	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
 }
@@ -1332,6 +1336,63 @@ func (this *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network
 	result = this.StartMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.Identifier)
 	return
 }
+
+/*
+taker process token swap
+
+*/
+func (this *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) (remove bool) {
+	var hashlock common.Hash = msg.HashLock
+	var hasReceiveRevealSecret bool
+	var stateManager *transfer.StateManager
+	if msg.Identifier != tokenswap.Identifier || msg.Amount.Cmp(tokenswap.FromAmount) != 0 || msg.Initiator != tokenswap.FromNodeAddress || msg.Token != tokenswap.FromToken || msg.Target != tokenswap.ToNodeAddress {
+		log.Info("receive a mediated transfer, not match tokenswap condition")
+		return false
+	}
+	log.Trace(fmt.Sprintf("begin token swap for %s", msg))
+	var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
+		if !hasReceiveRevealSecret {
+			/*
+				ignore secret request until recieve a valid reveal secret.
+				we assume that :
+				maker first send a valid reveal secret and then send secret request, otherwis may deadlock but  taker willnot lose tokens.
+			*/
+			return true
+		}
+		return false
+	}
+	var receiveRevealSecretHook RevealSecretListener = func(msg *encoding.RevealSecret) (remove bool) {
+		if msg.HashLock() != hashlock {
+			return false
+		}
+		state := stateManager.CurrentState
+		initState, ok := state.(*mediated_transfer.InitiatorState)
+		if !ok {
+			panic(fmt.Sprintf("must be a InitiatorState"))
+		}
+		if initState.Transfer.Hashlock != msg.HashLock() {
+			panic(fmt.Sprintf("hashlock must be same , state lock=%s,msg lock=%s", utils.HPex(initState.Transfer.Hashlock), utils.HPex(msg.HashLock())))
+		}
+		initState.Transfer.Secret = msg.Secret
+		hasReceiveRevealSecret = true
+		delete(this.SecretRequestPredictorMap, hashlock)
+		return true
+	}
+	/*
+		taker's Expiration must be smaller than maker's ,
+		taker and maker may have direct channels on these two tokens.
+	*/
+	takerExpiration := msg.Expiration - params.DEFAULT_REVEAL_TIMEOUT
+	result, stateManager := this.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, takerExpiration)
+	if stateManager == nil {
+		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
+		return false
+	}
+	this.SecretRequestPredictorMap[hashlock] = secretRequestHook
+	this.RevealSecretListenerMap[hashlock] = receiveRevealSecretHook
+	return true
+}
+
 func (this *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
 	result = network.NewAsyncResult()
 	result.Result <- nil

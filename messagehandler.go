@@ -76,13 +76,15 @@ func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash co
 	case *encoding.DirectTransfer:
 		err = this.messageDirectTransfer(m2)
 	case *encoding.MediatedTransfer:
-		for f, _ := range this.raiden.ReceivedMediatedTrasnferListenerMap {
-			remove := (*f)(m2)
-			if remove {
-				delete(this.raiden.ReceivedMediatedTrasnferListenerMap, f)
+		err = this.MessageMediatedTransfer(m2)
+		if err == nil {
+			for f, _ := range this.raiden.ReceivedMediatedTrasnferListenerMap {
+				remove := (*f)(m2)
+				if remove {
+					delete(this.raiden.ReceivedMediatedTrasnferListenerMap, f)
+				}
 			}
 		}
-		err = this.MessageMediatedTransfer(m2)
 	case *encoding.RefundTransfer:
 		err = this.messageRefundTransfer(m2)
 	case *encoding.RemoveExpiredHashlockTransfer:
@@ -308,13 +310,8 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	this.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// this is a downstream bug and the transfer is going in cycles (issue #490)
-	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.String()}
 	if _, ok := this.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
-	}
-	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
-		this.messageTokenSwapTaker(msg, tokenswap)
-		//return nil
 	}
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
 	if graph == nil {
@@ -336,59 +333,16 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	} else {
 		this.raiden.MediateMediatedTransfer(msg)
 	}
-	return nil
-}
-
-/*
-taker process token swap
-*/
-func (this *RaidenMessageHandler) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) {
-	var hashlock common.Hash = msg.HashLock
-	var hasReceiveRevealSecret bool
-	var stateManager *transfer.StateManager
-	if msg.Identifier != tokenswap.Identifier || msg.Amount.Cmp(tokenswap.FromAmount) != 0 || msg.Initiator != tokenswap.FromNodeAddress || msg.Token != tokenswap.FromToken || msg.Target != tokenswap.ToNodeAddress {
-		log.Info("receive a mediated transfer, not match tokenswap condition")
-		return
-	}
-	log.Trace(fmt.Sprintf("begin token swap for %s", msg))
-	var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
-		if !hasReceiveRevealSecret {
-			/*
-				ignore secret request until recieve a valid reveal secret.
-				we assume that :
-				maker first send a valid reveal secret and then send secret request, otherwis may deadlock but  taker willnot lose tokens.
-			*/
-			return true
-		}
-		return false
-	}
-	var receiveRevealSecretHook RevealSecretListener = func(msg *encoding.RevealSecret) (remove bool) {
-		if msg.HashLock() != hashlock {
-			return false
-		}
-		state := stateManager.CurrentState
-		initState, ok := state.(*mediated_transfer.InitiatorState)
-		if !ok {
-			panic(fmt.Sprintf("must be a InitiatorState"))
-		}
-		if initState.Transfer.Hashlock != msg.HashLock() {
-			panic(fmt.Sprintf("hashlock must be same , state lock=%s,msg lock=%s", utils.HPex(initState.Transfer.Hashlock), utils.HPex(msg.HashLock())))
-		}
-		initState.Transfer.Secret = msg.Secret
-		hasReceiveRevealSecret = true
-		delete(this.raiden.SecretRequestPredictorMap, hashlock)
-		return true
-	}
 	/*
-		taker's Expiration must be smaller than maker's ,
-		taker and maker may have direct channels on these two tokens.
+		start  taker's tokenswap ,only if receive a valid mediated transfer
 	*/
-	takerExpiration := msg.Expiration - params.DEFAULT_REVEAL_TIMEOUT
-	result, stateManager := this.raiden.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, takerExpiration)
-	if stateManager == nil {
-		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
-		return
+	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.String()}
+	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
+		remove := this.raiden.messageTokenSwapTaker(msg, tokenswap)
+		if remove { //once the swap start,remove this key immediately. otherwise,maker may repeat this tokenswap operation.
+			delete(this.raiden.SwapKey2TokenSwap, key)
+		}
+		//return nil
 	}
-	this.raiden.SecretRequestPredictorMap[hashlock] = secretRequestHook
-	this.raiden.RevealSecretListenerMap[hashlock] = receiveRevealSecretHook
+	return nil
 }
