@@ -410,7 +410,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	auth2 := bind.NewKeyedTransactor(key2)
 	auth2.GasLimit = uint64(params.GAS_LIMIT)
 	auth2.GasPrice = big.NewInt(params.GAS_PRICE)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(35))
+	tx, err := manager.NewChannel(auth1, account2, big.NewInt(600))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
