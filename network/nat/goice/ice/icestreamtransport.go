@@ -193,7 +193,7 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) (err error) {
 	if err != nil {
 		return
 	}
-	t.log.Trace(fmt.Sprintf("%s checklist created\n%s", t.session.checkList))
+	t.log.Trace(fmt.Sprintf("checklist created\n%s", t.session.checkList))
 	err = t.session.createTurnPermissionIfNeeded()
 	if err != nil {
 		return

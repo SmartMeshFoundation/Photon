@@ -753,8 +753,6 @@ func (s *IceSession) changeCompleteResult(r sessionCompleteResult) {
 func (s *IceSession) closeUselessServerSock() {
 	for k, srv2 := range s.serverSocks {
 		if s.sessionComponent.nominatedServerSock != srv2 {
-			s.log.Trace(fmt.Sprintf("nominatedServerSock=%s\n,srv2=%s",
-				utils.StringInterface(s.sessionComponent.nominatedServerSock, 1), utils.StringInterface(srv2, 1)))
 			delete(s.serverSocks, k)
 			srv2.Close()
 		}
@@ -871,7 +869,7 @@ func (s *IceSession) startCheck() error {
 func (s *IceSession) changeCheckState(check *SessionCheck, newState SessionCheckState, err error) {
 	s.log.Trace(fmt.Sprintf("check %s: state changed from %s to %s err:%s", check.key, check.state, newState, err))
 	if check.state >= newState {
-		s.log.Error(fmt.Sprintf("check state only can increase. newstate=%s check=%s", newState, check))
+		s.log.Error(fmt.Sprintf("check state only can increase. newstate=%s,oldState=%s, check=%s", newState, check.state, check))
 		return
 	}
 	check.state = newState
