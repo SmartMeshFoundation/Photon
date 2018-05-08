@@ -15,6 +15,8 @@ import (
 
 	"net"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/ice"
@@ -230,6 +232,7 @@ func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error
 		if ic.Status != IceTransporterStateNegotiateComplete {
 			return errIceStreamTransporterNotReady
 		}
+		it.log.Trace("send to %s, data=\n%s", utils.APex2(receiver), hex.Dump(data))
 		err = ic.ist.SendData(data)
 		return err
 	} else { //start new p2p

@@ -388,9 +388,27 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 				events = append(events, withdrawFailed)
 			}
 		} else if blockNumber > pair.PayeeTransfer.Expiration {
-			if StateTransferPaidMap[pair.PayeeState] {
-				panic("pair.payee_state should not in STATE_TRANSFER_PAID")
-			}
+			/*
+			   For safety, the correct behavior is:
+
+			   - If the payee has been paid, then the payer must pay too.
+
+			     And the corollary:
+
+			   - If the payer transfer has expired, then the payee transfer must
+			     have expired too.
+
+			   The problem is that this corollary cannot be asserted. If a user
+			   is running Raiden without a monitoring service, then it may go
+			   offline after having paid a transfer to a payee, but without
+			   getting a balance proof of the payer, and once it comes back
+			   online the transfer may have expired.
+
+			   assert pair.payee_state == 'payee_expired'
+			*/
+			//if StateTransferPaidMap[pair.PayeeState] {
+			//	panic("pair.payee_state should not in STATE_TRANSFER_PAID")
+			//}
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 			}
