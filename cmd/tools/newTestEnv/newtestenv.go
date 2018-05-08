@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/slonzok/getpass"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -51,11 +50,11 @@ func main() {
 			Name: "eth-rpc-endpoint",
 			Usage: `"host:port" address of ethereum JSON-RPC server.\n'
 	           'Also accepts a protocol prefix (ws:// or ipc channel) with optional port',`,
-			Value: fmt.Sprintf("ws://%s", node.DefaultWSEndpoint()),
+			Value: fmt.Sprintf("http://127.0.0.1:8545"), //, node.DefaultWSEndpoint()),
 		},
-		cli.BoolTFlag{
-			Name:  "create-channel",
-			Usage: "create channels between node for test.",
+		cli.BoolFlag{
+			Name:  "not-create-channel",
+			Usage: "not-create channels between node for test.",
 		},
 	}
 	app.Action = Main
@@ -65,7 +64,8 @@ func main() {
 }
 
 func Main(ctx *cli.Context) error {
-	fmt.Printf("eth-rpc-endpoint:%s", ctx.String("eth-rpc-endpoint"))
+	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
+	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
@@ -77,8 +77,8 @@ func Main(ctx *cli.Context) error {
 	registryAddress := DeployContract(key, conn)
 	//registryAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
 	registry, _ := rpc.NewRegistry(registryAddress, conn)
-	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
-	//createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), ctx.Bool("create-channel"))
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
 	return nil
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
@@ -187,6 +187,7 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Regis
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
+	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
@@ -414,6 +415,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
 	}
+	log.Printf("create channel gas %s:%d\n", tx.Hash().String(), tx.Gas())
 	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
@@ -436,6 +438,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
+		log.Printf("approve gas %s:%d\n", tx.Hash().String(), tx.Gas())
 		ctx = context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
@@ -446,6 +449,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			log.Fatalf("Failed to Deposit: %v", err)
 		}
+		log.Printf("deposit gas %s:%d\n", tx.Hash().String(), tx.Gas())
 		ctx = context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
