@@ -1285,7 +1285,6 @@ func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, o
 			err = c.ExternState.Settle()
 		}
 		result.Result <- err
-		close(result.Result)
 	}()
 	return
 }

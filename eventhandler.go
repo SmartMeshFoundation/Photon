@@ -375,12 +375,13 @@ func (this *StateMachineEventHandler) handleClosed(st *mediated_transfer.Contrac
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
-	return nil
+	err = this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	return err
 }
 
 func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.ContractReceiveSettledStateChange) error {
 	//todo remove channel st.channelAddress ,because this channel is already settled
+	log.Trace(fmt.Sprintf("%s settled event handle", st.ChannelAddress.String()))
 	ch, err := this.raiden.FindChannelByAddress(st.ChannelAddress)
 	if err != nil {
 		return err
@@ -389,8 +390,8 @@ func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.Contra
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
-	return nil
+	err = this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	return err
 }
 func (this *StateMachineEventHandler) handleWithdraw(st *mediated_transfer.ContractReceiveWithdrawStateChange) error {
 	this.raiden.RegisterSecret(st.Secret)
@@ -405,7 +406,7 @@ func (this *StateMachineEventHandler) ChannelStateTransition(c *channel.Channel,
 			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
 			if st2.BlockNumber > settlementEnd {
 				//should not block todo fix it
-				err = c.ExternState.Settle()
+				//err = c.ExternState.Settle()
 			}
 		}
 	case *mediated_transfer.ContractReceiveClosedStateChange:
