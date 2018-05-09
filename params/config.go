@@ -22,32 +22,53 @@ type protocolConfig struct {
 	NatKeepAliveRetries  int
 	NatKeepAliveTimeout  int64
 }
+type NetworkMode int
+
+const (
+	/*
+		节点不对外暴露网络接口,仅供测试使用
+	*/
+	NoNetwork = iota + 1
+	/*
+		通过udp ip 端口对外暴露服务,可以使用 stun,upnp 等方式,依赖节点发现合约或者直接告知其他节点 ip 端口
+	*/
+	UDPOnly
+	/*
+		通过信令服务器协助,建立连接.
+	*/
+	ICEOnly
+	/*
+		适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
+	*/
+	MixUDPICE
+)
+
 type Config struct {
-	Host               string
-	Port               int
-	ExternIp           string
-	ExternPort         int
-	PrivateKeyHex      string
-	PrivateKey         *ecdsa.PrivateKey
-	RevealTimeout      int
-	SettleTimeout      int
-	DataBasePath       string
-	MsgTimeout         time.Duration
-	Protocol           protocolConfig
-	UseRpc             bool
-	UseConsole         bool
-	ApiHost            string
-	ApiPort            int
-	RegistryAddress    common.Address
-	DiscoveryAddress   common.Address
-	DataDir            string
-	MyAddress          common.Address
-	Debug              bool
-	ConditionQuit      ConditionQuit
-	Ice                iceConfig
-	UseIce             bool
-	NoNetwork          bool
-	EnableMediationFee bool //default false. which means no fee at all.
+	Host                      string
+	Port                      int
+	ExternIp                  string
+	ExternPort                int
+	PrivateKeyHex             string
+	PrivateKey                *ecdsa.PrivateKey
+	RevealTimeout             int
+	SettleTimeout             int
+	DataBasePath              string
+	MsgTimeout                time.Duration
+	Protocol                  protocolConfig
+	UseRpc                    bool
+	UseConsole                bool
+	ApiHost                   string
+	ApiPort                   int
+	RegistryAddress           common.Address
+	DiscoveryAddress          common.Address
+	DataDir                   string
+	MyAddress                 common.Address
+	DebugCrash                bool
+	ConditionQuit             ConditionQuit
+	Ice                       iceConfig
+	NetworkMode               NetworkMode
+	EnableMediationFee        bool //default false. which means no fee at all.
+	IgnoreMediatedNodeRequest bool // true: this node will ignore any mediated transfer who's target is not me.
 }
 type iceConfig struct {
 	/*
@@ -87,8 +108,6 @@ var DefaultConfig = Config{
 	RegistryAddress:  ROPSTEN_REGISTRY_ADDRESS,
 	DiscoveryAddress: ROPSTEN_DISCOVERY_ADDRESS,
 	MsgTimeout:       100 * time.Second,
-	Debug:            false,
-	UseIce:           false, //use ice for p2p communication
 	Ice: iceConfig{
 		SignalServer: DefaultSignalServer,
 	},

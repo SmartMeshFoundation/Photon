@@ -307,6 +307,9 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 }
 
 func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.MediatedTransfer) error {
+	if this.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != this.raiden.NodeAddress {
+		return fmt.Errorf("ignored this mediated transfer, because i don't want to route ")
+	}
 	this.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// this is a downstream bug and the transfer is going in cycles (issue #490)

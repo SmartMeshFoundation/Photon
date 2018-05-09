@@ -19,6 +19,7 @@ type RoutesTask struct {
 	TaskResult        chan *RoutesToDetect
 	PingSender        network.PingSender
 	NodesStatusGetter network.NodesStatusGetter
+	enabled           bool
 }
 
 type RoutesToDetect struct {
@@ -33,6 +34,7 @@ func NewRoutesTask(sender network.PingSender, statusGetter network.NodesStatusGe
 		TaskResult:        make(chan *RoutesToDetect, 10),
 		PingSender:        sender,
 		NodesStatusGetter: statusGetter,
+		//enabled:           true, //每个节点都要进行探测,尤其是在 ice 模式下,很耗费资源,并且效果不佳,暂时禁用.
 	}
 }
 
@@ -54,43 +56,47 @@ func (this *RoutesTask) loop() {
 }
 
 func (this *RoutesTask) startTask(task *RoutesToDetect) {
-	var availables []*transfer.RouteState
-	var needWait bool = true
-	pingcnt := 0
-	const MaxPingOneTime = 10
-	for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
-		status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
-		if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
-			if i == 0 {
-				needWait = false
-			}
-			continue //just detect seconds ago
-		}
-		err := this.PingSender.SendPing(task.RoutesState.AvailableRoutes[i].HopNode)
-		if err != nil {
-			log.Error(fmt.Sprintf("sendping to %s err:%s", task.RoutesState.AvailableRoutes[i].HopNode.String(), err))
-		}
-		pingcnt++
-		if pingcnt >= MaxPingOneTime {
-			break
-		}
-	}
-	//wait ack 5 seconds, long or short?
-	needWait = false //for test only,shoulde be removed.
-	if needWait {
-		time.Sleep(5 * time.Second)
+	if this.enabled {
+		var availables []*transfer.RouteState
+		var needWait bool = true
+		pingcnt := 0
+		const MaxPingOneTime = 10
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
 			status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
 			if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
-				availables = append(availables, task.RoutesState.AvailableRoutes[i])
-			} else {
-				task.RoutesState.IgnoredRoutes = append(task.RoutesState.IgnoredRoutes, task.RoutesState.AvailableRoutes[i])
+				if i == 0 {
+					needWait = false
+				}
+				continue //just detect seconds ago
+			}
+			err := this.PingSender.SendPing(task.RoutesState.AvailableRoutes[i].HopNode)
+			if err != nil {
+				log.Error(fmt.Sprintf("sendping to %s err:%s", task.RoutesState.AvailableRoutes[i].HopNode.String(), err))
+			}
+			pingcnt++
+			if pingcnt >= MaxPingOneTime {
+				break
 			}
 		}
-	} else {
-		availables = task.RoutesState.AvailableRoutes
-	}
+		//wait ack 5 seconds, long or short?
+		needWait = false //for test only,shoulde be removed.
+		if needWait {
+			time.Sleep(5 * time.Second)
+			for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
+				status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
+				if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
+					availables = append(availables, task.RoutesState.AvailableRoutes[i])
+				} else {
+					task.RoutesState.IgnoredRoutes = append(task.RoutesState.IgnoredRoutes, task.RoutesState.AvailableRoutes[i])
+				}
+			}
+		} else {
+			availables = task.RoutesState.AvailableRoutes
+		}
 
-	task.RoutesState.AvailableRoutes = availables
-	this.TaskResult <- task
+		task.RoutesState.AvailableRoutes = availables
+		this.TaskResult <- task
+	} else {
+		this.TaskResult <- task
+	}
 }
