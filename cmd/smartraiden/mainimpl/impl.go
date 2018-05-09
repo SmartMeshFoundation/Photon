@@ -397,7 +397,10 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	if ctx.Bool("debugcrash") {
 		config.DebugCrash = true
 		conditionquit := ctx.String("conditionquit")
-		json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
+		err := json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
+		if err != nil {
+			panic(fmt.Sprintf("conditioquit parse error %s", err))
+		}
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
 	}
 	config.Ice.StunServer = ctx.String("turn-server")
