@@ -32,6 +32,7 @@ func Start() {
 			test
 		*/
 		rest.Get("/api/1/stop", Stop),
+		rest.Post("/api/1/switch", SwitchToMesh),
 		/*
 			channels
 		*/

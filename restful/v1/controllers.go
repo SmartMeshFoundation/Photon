@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -29,5 +30,23 @@ func Stop(w rest.ResponseWriter, r *rest.Request) {
 	//test only
 	RaidenApi.Stop()
 	w.Header().Set("Content-Type", "text/plain")
+	w.(http.ResponseWriter).Write([]byte("ok"))
+}
+func SwitchToMesh(w rest.ResponseWriter, r *rest.Request) {
+	var nodes []*network.NodeInfo
+	err := r.DecodeJsonPayload(&nodes)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(nodes) <= 0 {
+		rest.Error(w, "no nodes", http.StatusBadRequest)
+		return
+	}
+	err = RaidenApi.Raiden.Protocol.SwitchTransporterToMeshNetwork(nodes)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.(http.ResponseWriter).Write([]byte("ok"))
 }

@@ -137,14 +137,7 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 		BlockNumberGetter:            blockNumberGetter,
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
-	tr, ok := transport.(*UDPTransport)
-	if ok {
-		tr.Register(rp)
-	}
-	tr2, ok := transport.(*IceTransport)
-	if ok {
-		tr2.Register(rp)
-	}
+	transport.RegisterProtocol(rp)
 	return rp
 }
 
@@ -508,4 +501,30 @@ func (this *RaidenProtocol) StopAndWait() {
 
 func (this *RaidenProtocol) Start() {
 	this.Transport.Start()
+}
+
+type NodeInfo struct {
+	Address string `json:"address"`
+	IpPort  string `json:"ip_port"`
+}
+
+func (this *RaidenProtocol) SwitchTransporterToMeshNetwork(nodes []*NodeInfo) error {
+	log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
+	m, ok := this.Transport.(*MixTransporter)
+	if !ok {
+		return fmt.Errorf("raiden not start with mixTransporter")
+	}
+	if m.switchToUdp() {
+
+	} else {
+		return fmt.Errorf("cannot switch to mesh network,maybe it's already on mesh network")
+	}
+	this.discovery.(*MixDiscovery).switchToUdp()
+	for _, n := range nodes {
+		addr := common.HexToAddress(n.Address)
+		host, port := SplitHostPort(n.IpPort)
+		this.discovery.Register(addr, host, port)
+	}
+	this.discovery.(*MixDiscovery).printNodes()
+	return nil
 }
