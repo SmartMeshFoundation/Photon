@@ -91,7 +91,7 @@ func StartMain() {
 		cli.StringFlag{
 			Name:  "api-address",
 			Usage: `host:port" for the RPC server to listen on.`,
-			Value: "0.0.0.0:5001",
+			Value: "127.0.0.1:5001",
 		},
 		ethutils.DirectoryFlag{
 			Name:  "datadir",

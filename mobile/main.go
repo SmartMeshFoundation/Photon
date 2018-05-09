@@ -58,6 +58,15 @@ func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile 
 	argEthRpcEndpoint = ethRpcEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
+	os.Args = make([]string, 8, 20)
+	os.Args[0] = "smartraidenmobile"
+	os.Args[1] = fmt.Sprintf("--address=%s", address)
+	os.Args[2] = fmt.Sprintf("--keystore-path=%s", keystorePath)
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", ethRpcEndPoint)
+	os.Args[4] = fmt.Sprintf("--datadir=%s", dataDir)
+	os.Args[5] = fmt.Sprintf("--password-file=%s", passwordfile)
+	os.Args[6] = fmt.Sprintf("--nat=ice")
+	os.Args[7] = fmt.Sprintf("--ignore-mediatednode-request")
 	mainimpl.StartMain()
 }
 func setupLog() {
