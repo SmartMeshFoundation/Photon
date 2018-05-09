@@ -11,6 +11,9 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )
 
+/*
+用于有 turn server 的情形下,收集本地候选地址列表.
+*/
 type TurnSock struct {
 	Client       *stun.Client
 	s            *StunSocket
@@ -124,6 +127,10 @@ func (t *TurnSock) allocateAddress() error {
 	//keep alive todo
 	return nil
 }
+
+/*
+第一个候选地址,必须是连接 turn server 的那个.
+*/
 func (t *TurnSock) GetCandidates() (candidates []*Candidate, err error) {
 	err = t.allocateAddress()
 	if err != nil {

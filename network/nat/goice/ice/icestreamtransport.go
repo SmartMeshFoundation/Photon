@@ -170,6 +170,8 @@ func (t *IceStreamTransport) InitIce(role SessionRole) error {
 	t.State = TransportStateSessionReady
 	return nil
 }
+
+//TODO should move set to NewIceStreamTransport
 func (t *IceStreamTransport) SetCallBack(cb StreamTransportCallbacker) {
 	t.cb = cb
 }
@@ -240,6 +242,11 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 	}
 	return t.session.SendData(data)
 }
+
+/*
+保证只会被调用一次,表示已经找到了至少一个有效连接,可以发送数据了,
+但是这个连接未必是最后确定的,可能会发生变化.
+*/
 func (t *IceStreamTransport) onIceComplete(result error) {
 
 	if t.State != TransportStateNegotiation {
@@ -260,11 +267,10 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 	t.State = TransportStateRunning
 }
 
+/*
+收到数据,并不表示协商已经完毕,而是对方找到了一条有效连接.
+*/
 func (t *IceStreamTransport) onRxData(data []byte, from string) {
-	/*
-		只有收到数据,才能知道对方 ice 协商完毕了,这时候可以放心的关闭不必要的 listen 了.
-	*/
-	//t.closeUselessServerSock()
 	if t.cb != nil {
 		t.cb.OnReceiveData(data, addrToUdpAddr(from))
 	}

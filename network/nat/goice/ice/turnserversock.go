@@ -15,8 +15,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )
 
-const StunKeepAliveInterval = time.Second * 20
-
 type TurnServerSockConfig struct {
 	user         string //turn server user
 	password     string //turn server password
@@ -117,6 +115,10 @@ func (ts *TurnServerSock) ReceiveData(localAddr, peerAddr string, data []byte) {
 	}
 }
 
+/*
+发送CreatePermissionRequest
+这样对方发送到我的 relay 地址的消息,turn server 才会给我中转.
+*/
 func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *stun.Message, err error) {
 	var req *stun.Message
 	var peers []stun.Setter
@@ -159,9 +161,10 @@ func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *
 	return
 }
 
-func (ts *TurnServerSock) wrapperData(fromaddr string, toaddr string, data []byte) (outdata []byte, toaddr2 string) {
-	return nil, ""
-}
+/*
+当 fromaddr 不是本机地址的时候,必然是 turn server relay 地址,
+那么需要将消息封装为数据,通过SendIndication发送给 turn server, 请求 turn server 转发.
+*/
 func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg *stun.Message) (msg2 *stun.Message, fromaddr2, toaddr2 string) {
 	if fromaddr == ts.s.Addr {
 		return msg, fromaddr, toaddr
@@ -181,6 +184,10 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 	)
 	return msg2, ts.s.Addr, ts.cfg.serverAddr
 }
+
+/*
+需要特别处理中转情形.
+*/
 func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
 	ts.log.Trace(fmt.Sprintf("---sendData stun message %s-->%s ---\n%s\n", fromaddr, toaddr, msg))
 	msg2, fromaddr2, toaddr2 := ts.wrapperStunMessage(fromaddr, toaddr, msg)
@@ -191,7 +198,7 @@ func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toad
 }
 
 /*
-create channel etc...
+暂时不用
 */
 func (ts *TurnServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error) {
 	wait := make(chan *serverSockResponse)
@@ -206,6 +213,10 @@ func (ts *TurnServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr,
 	ch = ts.s.waiters[msg.TransactionID]
 	return
 }
+
+/*
+和异步发送一样需要考虑中转消息的封装.
+*/
 func (ts *TurnServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error) {
 	wait := make(chan *serverSockResponse)
 	err = ts.s.addWaiter(msg.TransactionID, wait)
@@ -236,7 +247,7 @@ func (ts *TurnServerSock) StartRefresh() {
 		for {
 			ts.keepAlive()
 			select {
-			case <-time.After(StunKeepAliveInterval):
+			case <-time.After(TurnKeepAliveSeconds):
 				continue
 			case <-ts.stopchan:
 				return
@@ -387,14 +398,4 @@ keep the allocate address valid ,should call refersh request.
 func (ts *TurnServerSock) keepAlive() {
 	req, _ := stun.Build(stun.TransactionIDSetter, stun.BindingIndication)
 	ts.s.sendStunMessageAsync(req, ts.s.Addr, ts.cfg.serverAddr)
-}
-
-type ServerSocker interface {
-	sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error)
-	sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error)
-	sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error
-	sendData(data []byte, fromaddr, toaddr string) error
-	Close()
-	FinishNegotiation(mode serverSockMode)
-	//StartRefresh()
 }

@@ -33,6 +33,7 @@ var (
 type serverSockMode int
 
 const (
+	//todo 这三个的定义含义有一定模糊,需要梳理
 	/*
 		服务器启动以后进入的是等待ice 协商阶段,这时收到的数据全部都是 stun.Message
 	*/
@@ -46,15 +47,6 @@ const (
 	*/
 	TurnModeData
 )
-const (
-	MinChannelNumber = 0x4000
-	MaxChannelNUmber = 0x7fff
-)
-
-type sendRequest struct {
-	data   []byte
-	toaddr net.Addr
-}
 
 /*
 StunServerSock 是用来 ICE 协商以及协商成功以后节点之间直接发送数据需要的.
@@ -85,7 +77,6 @@ type sendreq struct {
 type StunServerSock struct {
 	Addr                  string //address listening on
 	mode                  serverSockMode
-	LogAllErrors          bool
 	cb                    ServerSockCallbacker
 	c                     net.PacketConn
 	channelNumber2Address map[int]string // channel number-> address
@@ -144,7 +135,6 @@ func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 }
 
 /*
-from: address sendData this message directly.
 peerAddr: address who really sendData this message.
 在 stun 模式下,两者完全一致,只有在 turn 中转情况下,两者才不一致,
 turn 模式下: from 是 turnserver 的地址
@@ -156,12 +146,13 @@ func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
 		s.cb.ReceiveData(s.Addr, peerAddr, data)
 	}
 }
+
+/*
+在 localaddr 上收到了 stun message
+localaddr 有可能是 turn server 的 relay 地址.
+*/
 func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
 	s.log.Trace(fmt.Sprintf("--receive stun message %s<----%s  --\n%s\n", localaddr, from, msg))
-	//if msg.Type.Method == stun.MethodChannelData {
-	//	s.log.Trace(fmt.Sprintf("\n%s", hex.Dump(msg.Raw)))
-	//	//debug.PrintStack()
-	//}
 	var err error
 	/*
 		收到 channeldata 要特殊处理,如果是 turn server 模式下,
@@ -325,6 +316,11 @@ func (s *StunServerSock) SetChannelNumber(channelNumber int, addr string) {
 	s.channelNumber2Address[channelNumber] = addr
 	s.address2ChannelNumber[addr] = channelNumber
 }
+
+/*
+如何 keep alive 呢? 目前认为总是有 turn server,这个没有测试到.
+//todo 如果我有真实的公网 ip 地址呢? 应该是不需要 keep alive 的
+*/
 func (s *StunServerSock) FinishNegotiation(mode serverSockMode) {
 	s.log.Trace(fmt.Sprintf("change mode from %d to %d", s.mode, mode))
 	s.mode = mode

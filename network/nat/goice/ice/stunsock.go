@@ -13,6 +13,9 @@ import (
 
 const DefaultReadDeadLine = time.Second * 10
 
+/*
+用于在没有 turn server 而只有 stun server 的情形下,收集本机候选地址.
+*/
 type StunSocket struct {
 	ServerAddr   string
 	MappedAddr   net.UDPAddr

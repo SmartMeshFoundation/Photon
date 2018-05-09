@@ -54,15 +54,6 @@ type IceSession struct {
 	aggresive bool
 
 	/**
-	 * For controlling agent if it uses regular nomination, specify the delay
-	 * to perform nominated check (connectivity check with USE-CANDIDATE
-	 * attribute) after all components have a valid pair.
-	 *
-	 * Default value is PJ_ICE_NOMINATED_CHECK_DELAY.
-	 */
-	//nominated_check_delay int
-
-	/**
 	 * For a controlled agent, specify how long it wants to wait (in
 	 * milliseconds) for the controlling agent to complete sending
 	 * connectivity check with nominated flag set to true for all components
@@ -74,9 +65,8 @@ type IceSession struct {
 	 * ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT. Specify -1 to disable
 	 * this timer.
 	 */
-	controlled_agent_want_nom_timeout int
+	controlledAgentWaitNomiatedTimeout time.Duration
 	/* STUN credentials */
-	txUserFrag       string /**< Remote ufrag.	    */
 	txUserName       string /**< Uname for TX.	TxUserFrag:RxUserFrag    */
 	txPassword       string /**< Remote password.   */
 	rxUserFrag       string /**< Local ufrag.	    */
@@ -89,16 +79,23 @@ type IceSession struct {
 	remoteCandidates []*Candidate
 	checkList        *SessionCheckList
 	validCheckList   *SessionCheckList // check has been verified and is valid.
-	transporter      StunTranporter
-	serverSocks      map[string]ServerSocker
-	turnServerSock   *TurnServerSock
+	transporter      StunTranporter    //获取 candidates 用的 stunclient, 可能只指定了一个 stun 服务器,而没有 turn 服务器,也可能两者都没有.
+	/*
+		探测的过程中,按照协议要求,必须从指定的 ip 地址和端口发送探测数据,因此,如果本机有多个 ip 地址,那么就会有多个 ServerSocker
+	*/
+	serverSocks map[string]ServerSocker
+	/*
+			按照现在的实现,连接到 stun/turn 服务器的那个需要特殊处理,
+			只有他发送数据的时候,可能需要经过 turn server 中转.
+		当然如果真的没有 turnserver, 也不影响,它会是 nil, 也不会从服务器发送中转数据
+	*/
+	turnServerSock *TurnServerSock
 
 	isNominating bool /* Nominating stage   */
 	//write this chan to finish one check.
 	checkMap map[string]chan error
 	//todo refer state, etc.
 	iceStreamTransport *IceStreamTransport
-	checkResponse      chan *checkResponse
 	/*
 	   用于角色冲突的时候,自行进行角色切换 ICEROLECONTROLLING <--->ICEROLECONTROLLED
 	*/
@@ -127,11 +124,6 @@ const (
 	SessionCompleteFailure
 )
 
-type checkResponse struct {
-	res   *stun.Message
-	from  string //this message comes from which address
-	check *SessionCheck
-}
 type SessionComponet struct {
 	/**
 	 * Pointer to ICE check with highest priority which connectivity check
@@ -211,7 +203,6 @@ func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 		transporter:        transporter,
 		checkMap:           make(map[string]chan error),
 		iceStreamTransport: ice,
-		checkResponse:      make(chan *checkResponse, 10),
 		checkList:          new(SessionCheckList),
 		validCheckList:     new(SessionCheckList),
 		tieBreaker:         attr.RandUint64(),
@@ -221,6 +212,7 @@ func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 		dataChan:           make(chan *stunDataWrapper, 10),
 		tryFailChan:        make(chan *checkFailedWrapper, 10),
 		log:                log.New("name", fmt.Sprintf("%s-icesession", name)),
+		controlledAgentWaitNomiatedTimeout: time.Second * 10,
 	}
 	s.rxCrendientials = stun.NewShortTermIntegrity(s.rxPassword)
 	//make sure the first candidates is used to communicate with stun/turn server
@@ -253,7 +245,6 @@ func (s *IceSession) Stop() {
 	for _, c := range s.checkMap {
 		close(c)
 	}
-	close(s.checkResponse)
 	close(s.tryFailChan)
 	close(s.msgChan)
 	close(s.dataChan)
@@ -370,7 +361,9 @@ func (s *IceSession) StartServer() (err error) {
 }
 
 /*
-如果需要,发送 create permission 到 turn server, 保证后续经过 turn server 发送的消息发送的出去.
+创建checklist 以后,如果本地有 relay 的候选地址,
+那么需要在turn server 上专门设置,对方发送到 turn server 的数据才会中转给我.
+否则会被 turn server 丢弃.
 */
 func (s *IceSession) createTurnPermissionIfNeeded() (err error) {
 	var res *stun.Message
@@ -383,17 +376,12 @@ func (s *IceSession) createTurnPermissionIfNeeded() (err error) {
 			return errors.New("Create permission error")
 		}
 	}
-	/*
-			1. to keep alive .
-			2. refresh permission... turn.lifetime...
-		todo
-	*/
 	return nil
 }
 
 /*
 check stage:
-one check received a valid response .and response.
+one check received a valid response
 */
 func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *stun.Message) {
 	var err error
@@ -402,8 +390,10 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		s.log.Info(fmt.Sprintf("check received stun message not from expected address,got:%s,check is %s", from, check))
 	}
 	if s.completeResult >= SessionAllCompleteSuccess {
-		//不应该出现,因为response已经 cache 了
-		s.log.Error(fmt.Sprintf("%s received checkresponse ,but check is already finished.", check))
+		/*
+			收到前期bindingRequest 的 response, 但是已经协商完毕了,忽略即可.
+		*/
+		s.log.Info(fmt.Sprintf("%s received checkresponse ,but check is already finished.", check))
 		return
 	}
 	if s.getMsgCheck(res.TransactionID) == nil {
@@ -435,7 +425,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		 * the ICE-CONTROLLING or ICE-CONTROLLED attribute reflecting
 		 * its new role.
 		 */
-		var newrole SessionRole = SessionRoleUnkown
+		var newrole = SessionRoleUnkown
 		_, err = res.Get(stun.AttrICEControlled)
 		if err == nil {
 			newrole = SessionRoleControlling
@@ -449,15 +439,34 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		s.retryOneCheck(check)
 		return
 	}
+	/*
+			我作为 controlled 的时候,对方有可能先收到 binding request,然后才收到信令服务器过来的sdp, 从而导致
+			对方发送的 bingding response 中的 Message Integrity是错的,我们不能把它当成错误处理.
+		todo 当我作为 controlled 时候一旦收到对方的 bindingRequest ,应该明确知道以后的 response Message Integrity 必须是对的.
+	*/
+	if err := s.rxCrendientials.Check(res); err != nil {
+		if s.role == SessionRoleControlling {
+			err = fmt.Errorf("receive check response,but crendientials check failed %s", err)
+			s.log.Error(err.Error())
+			s.changeCheckState(check, CheckStateFailed, err)
+			s.tryCompleteCheck(check) //is this the last check?
+		} else {
+			s.log.Warn(fmt.Sprintf("receive check response,but crendientials check failed %s", err))
+		}
+
+	}
 	/* 7.1.2.1.  Failure Cases
 	 *
 	 * The agent MUST check that the source IP address and port of the
 	 * response equals the destination IP address and port that the Binding
 	 * Request was sent to, and that the destination IP address and port of
 	 * the response match the source IP address and port that the Binding
-	 * Request was sent from.  如何发现peer reflex address? bai
+	 * Request was sent from.
 	 */
 	if check.remoteCandidate.addr != from {
+		/*
+			remote peer reflexive 只能从 binding request 中发现,那里有认证, response 是没有认证的.防止攻击
+		*/
 		err = fmt.Errorf("check %s got message from unkown address %s", check.key, from)
 		s.log.Error(fmt.Sprintf("connectivity check failed,  check:%s remote address mismatch,err:%s", check, err))
 		s.changeCheckState(check, CheckStateFailed, err)
@@ -541,7 +550,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 			key:             fmt.Sprintf("%s-%s", lcand.addr, check.remoteCandidate.addr),
 		}
 		s.validCheckList.checks = append(s.validCheckList.checks, newcheck)
-		sort.Sort(s.validCheckList)
+		sort.Sort(s.validCheckList) //todo 为什么要排序呢?看不出来有任何必要
 	}
 	//find valid check and nominated check
 	s.markValidAndNonimated(newcheck)
@@ -623,12 +632,12 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				//just fail frozen/waiting check
 				s.log.Trace(fmt.Sprintf("check %s to be failed because higher priority check finished.", c.key))
 				s.cancelOneCheck(c)
-				//s.changeCheckState(c, CheckStateFailed, errors.New("canceled"))
 			} else if c.state == CheckStateInProgress && c.priority <= check.priority {
 				/*
-					这种策略会尽快结束,但是存在问题,如果低优先级的先完成
-					1. 对方可能会收到高优先级的 request, 进而以高优先级为准,如果只有一个 ip 地址,那没什么问题
-					2. 应该被采用的高优先级被放弃.
+					c.priority<check.priority or <= todo if any error,change to <
+						这种策略会尽快结束,但是存在问题,如果低优先级的先完成
+						1. 对方可能会收到高优先级的 request, 进而以高优先级为准,如果只有一个 ip 地址,那没什么问题
+						2. 应该被采用的高优先级被放弃.
 				*/
 				/* State is IN_PROGRESS, cancel transaction */
 				s.cancelOneCheck(c)
@@ -689,7 +698,6 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 			break
 		}
 	}
-	//todo notify ice success..
 	if s.sessionComponent.nominatedCheck != nil { //todo 非 aggressive 模式下,会不会出问题呢?
 		s.iceComplete(nil, !hasNotFinished)
 		return true
@@ -711,7 +719,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				s.changeCompleteResult(SessionCheckComplete)
 				go func() {
 					//start a timer,failed if there is no nomiated
-					time.Sleep(time.Second * 10) // time from pjnath
+					time.Sleep(s.controlledAgentWaitNomiatedTimeout) // time from pjnath
 					if s.sessionComponent.nominatedCheck == nil {
 						s.iceComplete(errors.New("no nonimated"), true)
 					}
@@ -1047,7 +1055,7 @@ func (s *IceSession) changeRole(newrole SessionRole) {
 func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message, code stun.ErrorCode) {
 	var (
 		err         error
-		res         *stun.Message = new(stun.Message)
+		res         = new(stun.Message)
 		fromUdpAddr *net.UDPAddr
 	)
 	fromUdpAddr = addrToUdpAddr(fromAddr)
@@ -1108,8 +1116,8 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun.Message) {
 	var (
 		err         error
-		hasControll          = false
-		rcheck      *RxCheck = new(RxCheck)
+		hasControll = false
+		rcheck      = new(RxCheck)
 		priority    attr.Priority
 	)
 	var userName stun.Username
@@ -1122,7 +1130,24 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 	rcheck.priority = int(priority)
 	err = userName.GetFrom(req)
 	if err != nil {
-		s.log.Info(fmt.Sprintf("%s received bind request  with no username %s", localAddr, err))
+		s.log.Warn(fmt.Sprintf("%s received bind request  with no username %s", localAddr, err))
+		s.sendResponse(localAddr, fromAddr, req, stun.CodeUnauthorised)
+		return
+	}
+	if len(s.rxUserName) > 0 {
+		if userName.String() != s.rxUserName {
+			s.log.Warn(fmt.Sprintf("%s received bind request ,but user name not match expect=%s,got=%s", localAddr, s.rxUserName, userName.String()))
+			s.sendResponse(localAddr, fromAddr, req, stun.CodeUnauthorised)
+			return
+		}
+
+	}
+	/*
+		必须进行权限检查,以防止收到错误的消息
+	*/
+	err = s.rxCrendientials.Check(req)
+	if err != nil {
+		s.log.Warn(fmt.Sprintf("%s received bind request ,crendientials check failed %s", localAddr, err))
 		s.sendResponse(localAddr, fromAddr, req, stun.CodeUnauthorised)
 		return
 	}
@@ -1336,6 +1361,11 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 	}
 }
 
+/*
+在localAddr 收到了来自remoteAddr 的 stun binding response
+注意这里的 localAddr 并不是代表本机地址,
+代表的是SessionCheck 中的 localCandidate
+*/
 func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *stun.Message) {
 	id := msg.TransactionID
 	check := s.getMsgCheck(id)
@@ -1354,6 +1384,14 @@ func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *s
 	s.handleCheckResponse(check, remoteAddr, msg)
 }
 
+/*
+ice 协商的核心就是处理
+1. 收到的 binding Request msgChan
+2. 收到的 binding response  msgChan
+3. 自己不断的发送binding Request 发送完毕对应的 tryFailChan
+4. 协商找到可用连接以后,收发数据. 收数据用dataChan
+
+*/
 func (s *IceSession) loop() {
 	for {
 		r := utils.RandomString(20)
@@ -1385,6 +1423,11 @@ func (s *IceSession) loop() {
 		s.log.Trace(fmt.Sprintf("loop %s end @%s", r, time.Now().Format("15:04:05.999")))
 	}
 }
+
+/*
+ice 协商只应该收到 binding response 和 bindingRequest
+其他消息都应该是某种错误,或者恶意攻击.
+*/
 func (s *IceSession) processStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
 	if msg.Type == stun.BindingRequest {
 		s.processBindingRequest(localAddr, remoteAddr, msg)
@@ -1413,8 +1456,8 @@ func (s *IceSession) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.
 }
 
 /*
-	ICE 协商建立连接以后,收到了对方发过来的数据,可能是经过 turn server 中转的 channel data( 不接受 sendData data request),也可能直接是数据.
-	如果是经过 turn server 中转的, channelNumber 一定介于0x4000-0x7fff 之间.否则一定为0
+1. 在协商未完全结束之前就有可能收到数据,只要有一个可用的连接,对方就会发送数据,
+2. 随着协商的完成,最终双方会确认一个一致的 check, 如果这时候是走的 relay, 那么才会启用 turn channel 模式.
 */
 func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 	if s.hasStopped {

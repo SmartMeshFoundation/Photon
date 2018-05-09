@@ -542,3 +542,16 @@ func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
 		log.Info("s2 negotiation success")
 	}
 }
+
+func TestStunServerSock(t *testing.T) {
+	t1 := new(TurnServerSock)
+	var s1 ServerSocker = t1
+	s2 := s1
+	if s1 != s2 {
+		t.Error("not equal 1")
+	}
+	s3 := t1
+	if s3 != s1 {
+		t.Error("not equal 2")
+	}
+}
