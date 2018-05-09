@@ -18,13 +18,13 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/slonzok/getpass"
@@ -47,18 +47,18 @@ var (
 
 /*
 address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
-keystorePath:The address of the private key,  geth keystore directory
+keystorePath:The address of the private key,  geth keystore directory . eg ~/.geth/keystore
 ethRpcEndPoint:URL connected to geth ,such as:ws://10.0.0.2:8546
-dataDir:The working directory of a node,
-passwordfile: file to storage password
+dataDir:The working directory of a node, such as ~/.smartraiden
+passwordfile: file to storage password eg ~/.geth/pass.txt
 */
-func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) (api *Api, err error) {
+func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) {
 	argAddress = address
 	argKeyStorePath = keystorePath
 	argEthRpcEndpoint = ethRpcEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
-	return mobileMain()
+	mainimpl.StartMain()
 }
 func setupLog() {
 	loglevel := argLogging
@@ -92,7 +92,6 @@ func setupLog() {
 }
 func mobileMain() (api *Api, err error) {
 	fmt.Printf("Welcom to smartraiden,version %f\n", 0.1)
-	//promptAccount(utils.EmptyAddress, `D:\privnet\keystore\`, "")
 	setupLog()
 	/*
 	  TODO:
@@ -107,7 +106,7 @@ func mobileMain() (api *Api, err error) {
 		utils.SystemExit(1)
 	}
 	cfg := config(pms)
-	log.Trace(fmt.Sprintf("cfg=", spew.Sdump(cfg)))
+	//log.Trace(fmt.Sprintf("cfg=", spew.Sdump(cfg)))
 	//spew.Dump("Config:", cfg)
 	ethEndpoint := argEthRpcEndpoint
 	client, err := helper.NewSafeClient(ethEndpoint)
@@ -115,10 +114,9 @@ func mobileMain() (api *Api, err error) {
 		log.Error(fmt.Sprintf("cannot connect to geth :%s err=%s", ethEndpoint, err))
 		utils.SystemExit(1)
 	}
+	return
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
-	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
 	discovery := network.NewContractDiscovery(bcs.NodeAddress, common.HexToAddress(argDiscoveryContractAddress), bcs.Client, bcs.Auth)
-	//discovery := network.NewHttpDiscovery()
 	policy := network.NewTokenBucket(10, 1, time.Now)
 	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
 	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
