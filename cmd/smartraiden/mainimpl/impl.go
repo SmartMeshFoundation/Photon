@@ -307,8 +307,11 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	if len(passwordfile) > 0 {
 		data, err := ioutil.ReadFile(passwordfile)
 		if err != nil {
-			log.Error(fmt.Sprintf("password_file error:%s", err))
-			utils.SystemExit(1)
+			pass, err := utils.PasswordDecrypt(passwordfile)
+			if err != nil {
+				panic("decrypt pass err " + err.Error())
+			}
+			data = []byte(pass)
 		}
 		password = string(data)
 		log.Trace(fmt.Sprintf("password is %s", password))
