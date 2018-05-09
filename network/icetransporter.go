@@ -56,10 +56,13 @@ var (
 	errStoppedReceive               = errors.New("ice transporter has stopped receiving")
 	errIceStreamTransporterNotReady = errors.New("icestreamtransport not ready to send")
 )
+var once sync.Once
 
 func InitIceTransporter(turnServer, turnUser, turnPassowrd, signalServerUrl string) {
-	signalServer = signalServerUrl
-	cfg = ice.NewTransportConfigWithTurn(turnServer, turnUser, turnPassowrd)
+	once.Do(func() {
+		signalServer = signalServerUrl
+		cfg = ice.NewTransportConfigWithTurn(turnServer, turnUser, turnPassowrd)
+	})
 }
 func newpassword(key *ecdsa.PrivateKey) xmpp.GetCurrentPasswordFunc {
 	f1 := func() string {
@@ -109,8 +112,8 @@ type IceTransport struct {
 	log                  log.Logger
 }
 
-func NewIceTransporter(key *ecdsa.PrivateKey, name string) *IceTransport {
-	it := &IceTransport{
+func NewIceTransporter(key *ecdsa.PrivateKey, name string) (it *IceTransport, err error) {
+	it = &IceTransport{
 		key:                  key,
 		receiveStatus:        StatusStopReceive,
 		Address2IceStreamMap: make(map[common.Address]*IceCallback),
@@ -129,13 +132,14 @@ func NewIceTransporter(key *ecdsa.PrivateKey, name string) *IceTransport {
 		return it.handleSdpArrived(from, sdp)
 	}, name)
 	if err != nil {
-		panic(fmt.Sprintf("create ice transpoter error %s", err))
+		err = fmt.Errorf("create ice transpoter error %s", err)
+		return
 	}
 	it.signal = sp
 	go it.loop()
-	return it
+	return
 }
-func (it *IceTransport) Register(protcol ProtocolReceiver) {
+func (it *IceTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	it.protocol = protcol
 }
 func (it *IceTransport) loop() {
@@ -232,7 +236,7 @@ func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error
 		if ic.Status != IceTransporterStateNegotiateComplete {
 			return errIceStreamTransporterNotReady
 		}
-		it.log.Trace("send to %s, data=\n%s", utils.APex2(receiver), hex.Dump(data))
+		it.log.Trace(fmt.Sprintf("send to %s, data=\n%s", utils.APex2(receiver), hex.Dump(data)))
 		err = ic.ist.SendData(data)
 		return err
 	} else { //start new p2p
@@ -288,7 +292,7 @@ func (ic *IceCallback) OnReceiveData(data []byte, from net.Addr) {
 	ic.it.receiveChan <- &iceReceive{from, data, ic}
 }
 func (ic *IceCallback) OnIceComplete(result error) {
-	ic.it.log.Trace("icecallback complete result=%v,partner=%s", result, utils.APex(ic.partner))
+	ic.it.log.Trace(fmt.Sprintf("icecallback complete result=%v,partner=%s", result, utils.APex(ic.partner)))
 	if result != nil {
 		ic.it.log.Error(fmt.Sprintf("ice complete callback error err=%s", result))
 		ic.it.removeIceStreamTransport((ic.partner))

@@ -26,7 +26,8 @@ type Transporter interface {
 	Receive(data []byte, host string, port int) error
 	Start()
 	Stop()
-	StopAccepting() //stop receiving data
+	StopAccepting()                            //stop receiving data
+	RegisterProtocol(protcol ProtocolReceiver) //register transporter to protocol
 }
 type MessageCallBack func(sender common.Address, hostport string, msg []byte)
 
@@ -245,7 +246,7 @@ func (this *UDPTransport) Send(receiver common.Address, host string, port int, d
 	return nil
 }
 
-func (this *UDPTransport) Register(proto ProtocolReceiver) {
+func (this *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 	this.protocol = proto
 }
 func (this *UDPTransport) Stop() {
@@ -282,6 +283,9 @@ func (this *DummyTransport) Receive(data []byte, host string, port int) error {
 	dummyNetwork.TrackReceive(common.Address{}, host, port, data)
 	this.protocol.Receive(data, host, port)
 	return nil
+}
+func (this *DummyTransport) RegisterProtocol(protcol ProtocolReceiver) {
+	this.protocol = protcol
 }
 func (this *DummyTransport) Start() {
 

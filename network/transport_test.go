@@ -29,8 +29,8 @@ func TestUDPTransport(t *testing.T) {
 	udp1 := MakeTestUDPTransport(40000)
 	udp2 := MakeTestUDPTransport(40001)
 	registercallback()
-	udp1.Register(new(DummyProtocol))
-	udp2.Register(new(DummyProtocol))
+	udp1.RegisterProtocol(new(DummyProtocol))
+	udp2.RegisterProtocol(new(DummyProtocol))
 	err := udp1.Send(utils.EmptyAddress, udp2.Host, udp2.Port, []byte("abcdefg"))
 	if err != nil {
 		t.Error(err)
