@@ -463,6 +463,15 @@ func (this *EnvelopMessage) VerifySignature(data []byte) error {
 	return nil
 
 }
+func (this *EnvelopMessage) checkValid() error {
+	if this.Nonce <= 0 {
+		return errors.New(fmt.Sprintf("nonce must be positive %d", this.Nonce))
+	}
+	if !utils.IsValidUint256(this.TransferAmount) {
+		return errors.New(fmt.Sprintf("transfer amount must not be negative %s", this.TransferAmount))
+	}
+	return nil
+}
 func (this *EnvelopMessage) GetEnvelopMessage() *EnvelopMessage {
 	return this
 }
@@ -530,6 +539,9 @@ func (this *Secret) UnPack(data []byte) error {
 	}
 	if n != SignatureLength {
 		return errors.New("packet length error")
+	}
+	if err := this.checkValid(); err != nil {
+		return err
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
@@ -606,6 +618,9 @@ func (this *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
 	}
 	if n != SignatureLength {
 		return errors.New("packet length error")
+	}
+	if err := this.checkValid(); err != nil {
+		return err
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
@@ -699,6 +714,9 @@ func (this *DirectTransfer) UnPack(data []byte) error {
 	}
 	if n != SignatureLength {
 		return errPacketLength
+	}
+	if err := this.checkValid(); err != nil {
+		return err
 	}
 	return this.EnvelopMessage.VerifySignature(data)
 }
@@ -839,6 +857,15 @@ func (this *MediatedTransfer) UnPack(data []byte) error {
 	}
 	if n != SignatureLength {
 		return errPacketLength
+	}
+	if err := this.checkValid(); err != nil {
+		return err
+	}
+	if this.Expiration <= 0 {
+		return errors.New(fmt.Sprintf("expiration must be positive %d", this.Expiration))
+	}
+	if !utils.IsValidPositiveInt256(this.Amount) {
+		return errors.New(fmt.Sprintf("amount must be positive %s", this.Amount))
 	}
 	return this.VerifySignature(data)
 }
