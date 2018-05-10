@@ -205,7 +205,7 @@ func MainCtx(ctx *cli.Context) error {
 		utils.SystemExit(1)
 	}
 	cfg := config(ctx, pms)
-	log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
+	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
@@ -307,11 +307,12 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	if len(passwordfile) > 0 {
 		data, err := ioutil.ReadFile(passwordfile)
 		if err != nil {
-			pass, err := utils.PasswordDecrypt(passwordfile)
-			if err != nil {
-				panic("decrypt pass err " + err.Error())
-			}
-			data = []byte(pass)
+			//pass, err := utils.PasswordDecrypt(passwordfile)
+			//if err != nil {
+			//	panic("decrypt pass err " + err.Error())
+			//}
+			//data = []byte(pass)
+			data = []byte(passwordfile)
 		}
 		password = string(data)
 		log.Trace(fmt.Sprintf("password is %s", password))
