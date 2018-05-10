@@ -360,7 +360,7 @@ func TestPairTransfer(t *testing.T) {
 func TestSpecifedTransfer(t *testing.T) {
 	ra := newTestRaidenApi()
 	target := common.HexToAddress("0x33Df901ABc22DcB7F33c2a77aD43CC98FbFa0790")
-	c := ra.Raiden.GetChannel(common.HexToAddress("0xb1Bd4Ad117BD467101fDB9e35cFCf86945b3CF75"), target)
+	c := ra.Raiden.getChannel(common.HexToAddress("0xb1Bd4Ad117BD467101fDB9e35cFCf86945b3CF75"), target)
 	amoney := c.Balance()
 	wg := sync.WaitGroup{}
 	fmt.Printf("start transfer...\n")

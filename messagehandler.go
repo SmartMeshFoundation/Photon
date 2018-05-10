@@ -23,6 +23,9 @@ import (
 )
 
 /*
+来自其他节点的消息并不可信,目前的实现可以保证对方不能拿走额外的钱,但是也要预防 DoS 攻击.
+*/
+/*
  Class responsible to handle the protocol messages.
 
     Note:
@@ -175,7 +178,10 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	if mgr.ChannelAddress != msg.Channel {
 		log.Info(fmt.Sprintf("this is a secret message from refunded node %s", msg))
 	}
-	ch := this.raiden.GetChannelWithAddr(msg.Channel)
+	ch, err := this.raiden.FindChannelByAddress(msg.Channel)
+	if err != nil {
+		panic(fmt.Sprintf("channel %s must exists", utils.APex(msg.Channel)))
+	}
 	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 	tx.Commit()
 	this.raiden.ConditionQuit("SecretSendAck")
@@ -204,17 +210,6 @@ func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	}
 	//mark balanceproof complete
 	this.markSecretComplete(msg)
-	/*
-		the following seems useless , remove it ,todo fix ,remove
-	*/
-	/*
-		stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
-			Secret:  secret,
-			Sender:  msg.Sender,
-			Message: nil, //
-		}
-		this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(identifer, stateChange)
-	*/
 	return nil
 }
 
@@ -223,12 +218,12 @@ if there is any error, just ignore.
 */
 func (this *RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
 	this.balanceProof(msg)
-	ch := this.raiden.GetChannelWithAddr(msg.Channel)
-	if ch == nil {
+	ch, err := this.raiden.FindChannelByAddress(msg.Channel)
+	if err != nil {
 		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 		return nil
 	}
-	err := ch.RegisterRemoveExpiredHashlockTransfer(msg, this.raiden.GetBlockNumber())
+	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, this.raiden.GetBlockNumber())
 	if err != nil {
 		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s", err)
 	}
@@ -238,11 +233,17 @@ func (this *RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *enco
 func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransfer) (err error) {
 	this.balanceProof(msg)
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
-	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
+	if graph == nil {
+		return rerr.UnknownTokenAddress(msg.Token.String())
+	}
+	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
 		err = fmt.Errorf("Direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
+	}
 	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		return
@@ -276,10 +277,13 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		return rerr.TransferUnwanted
 	}
 	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
-	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
 		return rerr.UnknownAddress(fmt.Sprintf("Direct transfer from node without an existing channel partner %s  ", msg.Sender))
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
+	}
 	if ch.State() != transfer.CHANNEL_STATE_OPENED {
 		return rerr.TransferWhenClosed(ch.MyAddress.String())
 	}
@@ -296,7 +300,11 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 	if err != nil {
 		return err
 	}
-	ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+	if err != nil {
+		log.Error("RegisterTransfer error %s\n", msg)
+		return err
+	}
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{
 		Identifier: msg.Identifier,
 		Amount:     amount,
@@ -320,10 +328,13 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	if graph == nil {
 		return errors.New(fmt.Sprintf("received transfer on unkown token :%s", msg.Token.String()))
 	}
-	if !graph.HashChannel(this.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
 		return rerr.ChannelNotFound(fmt.Sprintf("mediated transfer from node without an existing channel %s", msg.Sender))
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
+	}
 	if ch.State() != transfer.CHANNEL_STATE_OPENED {
 		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is closed %s", ch.MyAddress))
 	}

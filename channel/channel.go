@@ -227,7 +227,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
 			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
-		c.OurState.RegisterSecret(secret)
+		return c.OurState.RegisterSecret(secret)
 	}
 	if partenerKnown {
 		lock := c.PartnerState.GetLockByHashlock(hashlock)
@@ -235,7 +235,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
-		c.PartnerState.RegisterSecret(secret)
+		return c.PartnerState.RegisterSecret(secret)
 	}
 	return nil
 }

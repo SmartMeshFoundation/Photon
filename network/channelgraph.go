@@ -9,8 +9,6 @@ import (
 
 	"strings"
 
-	"sync"
-
 	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
@@ -43,7 +41,6 @@ type ChannelGraph struct {
 	ChannelAddress2Channel  map[common.Address]*channel.Channel //multithread
 	address2index           map[common.Address]int
 	index2address           map[int]common.Address
-	Lock                    sync.Mutex
 }
 
 func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Address, edgeList []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
@@ -169,11 +166,9 @@ func (this *ChannelGraph) AddChannel(details *ChannelDetails) error {
 		if err != nil {
 			return err
 		}
-		this.Lock.Lock()
 		this.PartenerAddress2Channel[details.PartenerState.Address] = ch
 		this.ChannelAddress2Channel[channelAddress] = ch
-		this.Lock.Unlock()
-		this.AddPath(details.OurState.Address, details.PartenerState.Address) //no need to do this? or makegraph is useless?
+		this.AddPath(details.OurState.Address, details.PartenerState.Address)
 	}
 	return nil
 }
@@ -216,9 +211,7 @@ func (this *ChannelGraph) GetShortestPaths(source, target common.Address) (paths
 //func (this *ChannelGraph) HasPath(source, target common.Address) bool {
 //	return this.ShortestPath(source, target) != utils.MaxInt
 //}
-func (this *ChannelGraph) HashChannel(source, target common.Address) bool {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
+func (this *ChannelGraph) HasChannel(source, target common.Address) bool {
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		return false
@@ -242,8 +235,6 @@ var errAddressNotFoundInGraph = errors.New("address not found in channelgraph")
 make sure only be called in one thread.
 */
 func (this *ChannelGraph) ShortestPath(source, target common.Address, amount *big.Int, feeCharger fee.FeeCharger) (totalWeight int64, err error) {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		err = errAddressNotFoundInGraph
@@ -278,8 +269,6 @@ func (this *ChannelGraph) ShortestPath(source, target common.Address, amount *bi
 
 //Remove an edge from the network.  this edge may  not exist
 func (this *ChannelGraph) RemovePath(source, target common.Address) {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
 	sourceIndex, ok := this.address2index[source]
 	if !ok {
 		return
@@ -302,8 +291,6 @@ func (this *ChannelGraph) ChannelCanTransfer(partenerAddress common.Address) boo
 
 //Get all neighbours adjacent to self.our_address. g is not thread safe
 func (this *ChannelGraph) GetNeighbours() []common.Address {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
 	neighboursIndex, err := this.g.GetAllNeighbors(this.address2index[this.OurAddress])
 	if err != nil {
 		return nil
@@ -416,14 +403,13 @@ func (this *ChannelGraph) AllNodes() (nodes []common.Address) {
 	return nodes
 }
 func (this *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *channel.Channel) {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
 	c = this.PartenerAddress2Channel[address]
+	if c == nil {
+		log.Error(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(this.TokenAddress)))
+	}
 	return
 }
 func (this *ChannelGraph) GetChannelAddress2Channel(address common.Address) (c *channel.Channel) {
-	this.Lock.Lock()
-	defer this.Lock.Unlock()
 	c = this.ChannelAddress2Channel[address]
 	return
 }

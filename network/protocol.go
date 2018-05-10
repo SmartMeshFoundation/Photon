@@ -103,38 +103,44 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 }
 
 type RaidenProtocol struct {
-	Transport                    Transporter
-	discovery                    DiscoveryInterface
-	privKey                      *ecdsa.PrivateKey
-	nodeAddr                     common.Address
-	SentHashesToChannel          map[common.Hash]*SentMessageState
-	retryTimes                   int
-	retryInterval                time.Duration
-	mapLock                      sync.Mutex
-	address2NetworkStatus        map[common.Address]*NetworkStatus
-	statusLock                   sync.RWMutex
-	ReceivedMessageChannel       chan *MessageToRaiden
-	ReceivedMessageResultChannel chan error
-	sendingQueueMap              map[string]chan *SentMessageState //write to this channel to send a message
-	quitWaitGroup                sync.WaitGroup                    //wait before quit
-	receivedMessageSaver         ReceivedMessageSaver
-	BlockNumberGetter            BlockNumberGetter
-	onStop                       bool //flag for stop
+	Transport             Transporter
+	discovery             DiscoveryInterface
+	privKey               *ecdsa.PrivateKey
+	nodeAddr              common.Address
+	SentHashesToChannel   map[common.Hash]*SentMessageState
+	retryTimes            int
+	retryInterval         time.Duration
+	mapLock               sync.Mutex
+	address2NetworkStatus map[common.Address]*NetworkStatus
+	statusLock            sync.RWMutex
+	/*
+		message from other nodes
+	*/
+	ReceivedMessageChan chan *MessageToRaiden
+	/*
+		this is a synchronized chan,reading  process message result from raiden
+	*/
+	ReceivedMessageResultChan chan error
+	sendingQueueMap           map[string]chan *SentMessageState //write to this channel to send a message
+	quitWaitGroup             sync.WaitGroup                    //wait before quit
+	receivedMessageSaver      ReceivedMessageSaver
+	BlockNumberGetter         BlockNumberGetter
+	onStop                    bool //flag for stop
 }
 
 func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
-		Transport:                    transport,
-		discovery:                    discovery,
-		privKey:                      privKey,
-		retryTimes:                   10,
-		retryInterval:                time.Millisecond * 6000,
-		SentHashesToChannel:          make(map[common.Hash]*SentMessageState),
-		address2NetworkStatus:        make(map[common.Address]*NetworkStatus),
-		ReceivedMessageChannel:       make(chan *MessageToRaiden),
-		ReceivedMessageResultChannel: make(chan error),
-		sendingQueueMap:              make(map[string]chan *SentMessageState),
-		BlockNumberGetter:            blockNumberGetter,
+		Transport:                 transport,
+		discovery:                 discovery,
+		privKey:                   privKey,
+		retryTimes:                10,
+		retryInterval:             time.Millisecond * 6000,
+		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
+		address2NetworkStatus:     make(map[common.Address]*NetworkStatus),
+		ReceivedMessageChan:       make(chan *MessageToRaiden),
+		ReceivedMessageResultChan: make(chan error),
+		sendingQueueMap:           make(map[string]chan *SentMessageState),
+		BlockNumberGetter:         blockNumberGetter,
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -456,8 +462,8 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 		} else {
 			//send message to raiden ,and wait result
 			log.Trace(fmt.Sprintf("protocol send message to raiden... %s", signedMessager))
-			this.ReceivedMessageChannel <- &MessageToRaiden{signedMessager, echohash}
-			err, ok = <-this.ReceivedMessageResultChannel
+			this.ReceivedMessageChan <- &MessageToRaiden{signedMessager, echohash}
+			err, ok = <-this.ReceivedMessageResultChan
 			log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%s", ok, err))
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
@@ -493,8 +499,8 @@ func (this *RaidenProtocol) StopAndWait() {
 	this.mapLock.Unlock()
 	//what about the outgoing packets, maybe lost
 	this.Transport.Stop()
-	close(this.ReceivedMessageResultChannel)
-	close(this.ReceivedMessageChannel)
+	close(this.ReceivedMessageResultChan)
+	close(this.ReceivedMessageChan)
 	this.quitWaitGroup.Wait()
 	log.Info("raiden protocol stop ok...")
 }

@@ -474,7 +474,6 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 		return false
 	}
 	found := false
-	this.raiden.Lock.RLock()
 	for _, g := range this.raiden.Token2ChannelGraph {
 		ch := g.GetChannelAddress2Channel(channelAddress)
 		if ch != nil {
@@ -482,7 +481,6 @@ func (this *StateMachineEventHandler) filterStateChange(st transfer.StateChange)
 			break
 		}
 	}
-	this.raiden.Lock.RUnlock()
 	return found
 }
 func (this *StateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
@@ -616,17 +614,26 @@ func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver commo
 	if mgr.ChannelAddress == utils.EmptyAddress {
 		panic("channel address must not be empty")
 	}
-	ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddress)
+	ch, err := this.raiden.FindChannelByAddress(mgr.ChannelAddress)
+	if err != nil {
+		panic(fmt.Sprintf("channel %s must exist", utils.APex(mgr.ChannelAddress)))
+	}
 	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 	if mgr.ChannelAddressTo != utils.EmptyAddress { //for mediated transfer
-		ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddressTo)
+		ch, err := this.raiden.FindChannelByAddress(mgr.ChannelAddressTo)
+		if err != nil {
+			panic(fmt.Sprintf("channel %s must exist", utils.APex(mgr.ChannelAddressTo)))
+		}
 		this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 	}
 	if mgr.ChannelAddresRefund != utils.EmptyAddress { //for mediated transfer and initiator
 		_, isrefund := mgr.LastReceivedMessage.(*encoding.RefundTransfer)
 		islocktransfer := encoding.IsLockedTransfer(mgr.LastSendMessage) //when receive refund transfer, next message must be a refund transfer or mediated transfer.
 		if isrefund && islocktransfer {
-			ch := this.raiden.GetChannelWithAddr(mgr.ChannelAddresRefund)
+			ch, err := this.raiden.FindChannelByAddress(mgr.ChannelAddresRefund)
+			if err != nil {
+				panic(fmt.Sprintf("channel %s must exist", mgr.ChannelAddresRefund))
+			}
 			this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 			mgr.ChannelAddresRefund = utils.EmptyAddress
 		} else {

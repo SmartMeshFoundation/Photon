@@ -11,7 +11,7 @@ import (
 )
 
 /*
-send ping to detect target is online or not
+send ping to detect neighbours is online or not
 */
 
 type RoutesTask struct {

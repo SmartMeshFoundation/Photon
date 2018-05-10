@@ -14,3 +14,24 @@ const (
 )
 
 var BigInt0 = big.NewInt(0)
+var MaxBigUInt256, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 0)
+
+func IsValidPositiveInt256(i *big.Int) bool {
+	if i.Cmp(BigInt0) <= 0 {
+		return false
+	}
+	if i.Cmp(MaxBigUInt256) > 0 {
+		return false
+	}
+	return true
+}
+
+func IsValidUint256(i *big.Int) bool {
+	if i.Cmp(BigInt0) < 0 {
+		return false
+	}
+	if i.Cmp(MaxBigUInt256) > 0 {
+		return false
+	}
+	return true
+}
