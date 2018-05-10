@@ -144,10 +144,10 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
-		m := <-p2.ReceivedMessageChannel
+		m := <-p2.ReceivedMessageChan
 		t.Logf("received msg :%#v", m)
 		msg = m.Msg
-		p2.ReceivedMessageResultChannel <- nil
+		p2.ReceivedMessageResultChan <- nil
 	}()
 	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
 	if err != nil {
@@ -186,10 +186,10 @@ func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
-		m := <-p2.ReceivedMessageChannel
+		m := <-p2.ReceivedMessageChan
 		t.Logf("client2 received msg :%#v", m)
 		msg = m.Msg
-		p2.ReceivedMessageResultChannel <- nil
+		p2.ReceivedMessageResultChan <- nil
 		secretRequest := encoding.NewSecretRequest(33, utils.EmptyHash, big.NewInt(12))
 		secretRequest.Sign(p2.privKey, secretRequest)
 		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Minute)
@@ -198,9 +198,9 @@ func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 		}
 	}()
 	go func() {
-		m := <-p1.ReceivedMessageChannel
+		m := <-p1.ReceivedMessageChan
 		t.Logf("client1 received msg:%#v", m)
-		p1.ReceivedMessageResultChannel <- nil
+		p1.ReceivedMessageResultChan <- nil
 		time.Sleep(time.Millisecond * 10)
 		wg.Done()
 	}()

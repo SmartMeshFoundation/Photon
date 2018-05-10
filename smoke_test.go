@@ -117,8 +117,8 @@ func TestSmoke(t *testing.T) {
 	//let rb finish transfer
 	time.Sleep(time.Second * 5)
 	//channel a-b of tokenaddr
-	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
-	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
+	assert(t, ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
+	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 3 transfer from A to C")
 	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
@@ -128,11 +128,11 @@ func TestSmoke(t *testing.T) {
 	}
 	time.Sleep(time.Second * 5) //let rb,rc to update
 	//channel a-b of tokenaddr
-	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount).Sub(x, tAmount))
-	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount).Add(x, tAmount))
+	assert(t, ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount).Sub(x, tAmount))
+	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount).Add(x, tAmount))
 	//channel b-c of tokenaddr
-	assert(t, rb.Raiden.GetChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
-	assert(t, rc.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
+	assert(t, rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
+	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 4 D connect to this token network")
 	if false {
@@ -143,8 +143,8 @@ func TestSmoke(t *testing.T) {
 		}
 	}
 	log.Info(" step 5 make a token swap between A and B")
-	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.GetChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
-	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.GetChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
+	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
+	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
 	err = rb.ExpectTokenSwap(32, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
@@ -159,12 +159,12 @@ func TestSmoke(t *testing.T) {
 	time.Sleep(time.Second * 12) //let ra,rb udpate data ,short time will error
 
 	//channel a-b of tokenaddr a-amount b+amount
-	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(3))))
-	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(3))))
+	assert(t, ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(3))))
+	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(3))))
 
 	//channel a-b of tokenadd4 a+amount*2 b-amount*2
-	assert(t, ra.Raiden.GetChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
-	assert(t, rb.Raiden.GetChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 
 	log.Info(" step 6 make a token swap between A and c through b")
 	err = rc.ExpectTokenSwap(33, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
@@ -181,18 +181,18 @@ func TestSmoke(t *testing.T) {
 	time.Sleep(time.Second * 12) //let ra,rb ,rcudpate data ,short time will error
 
 	//channel a-b of tokenaddr a-amount b+amount
-	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(4))))
-	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(4))))
+	assert(t, ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(4))))
+	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(4))))
 	//channel b-c of tokenaddr b-amount c+amount
-	assert(t, rb.Raiden.GetChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
-	assert(t, rc.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 
 	//channel a-b of tokenaddr2 a+2*amount b-2*amount
-	assert(t, ra.Raiden.GetChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(4))))
-	assert(t, rb.Raiden.GetChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(4))))
+	assert(t, ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(4))))
+	assert(t, rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(4))))
 	//channel b-c of tokenaddr2 b+2amount c-2*amount
-	assert(t, rb.Raiden.GetChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
-	assert(t, rc.Raiden.GetChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, rb.Raiden.getChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
+	assert(t, rc.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 	log.Info(" step 8 test leave network take a long long time")
 	if false {
 		_, err = rd.LeaveTokenNetwork(tokenAddr, true)
@@ -232,11 +232,11 @@ func TestFeeCharger(t *testing.T) {
 	time.Sleep(time.Second * 3)
 	abAmount := new(big.Int).Add(tAmount, policy.GetNodeChargeFee(rb.Raiden.NodeAddress, tokenAddr, tAmount))
 	//channel a-b of tokenaddr
-	assert(t, ra.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, abAmount))
-	assert(t, rb.Raiden.GetChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, abAmount))
+	assert(t, ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, abAmount))
+	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, abAmount))
 	bcAmount := tAmount
-	assert(t, rb.Raiden.GetChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, bcAmount))
-	assert(t, rc.Raiden.GetChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, bcAmount))
+	assert(t, rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, bcAmount))
+	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, bcAmount))
 
 	//specifed a  wrong fee,
 	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)

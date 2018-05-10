@@ -5,8 +5,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/node"
 )
 
@@ -34,7 +34,7 @@ const key = `
 }
 `
 
-var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = params.ROPSTEN_REGISTRY_ADDRESS
+var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("0x254365bF6CAd664000B1D0A7B08f892666bbA96D") // params.ROPSTEN_REGISTRY_ADDRESS
 var TestRpcEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
 
 //var TestRpcEndpoint = "ws://10.0.0.2:8546"
