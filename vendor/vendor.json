@@ -120,20 +120,6 @@
 			"revisionTime": "2018-02-23T17:02:51Z"
 		},
 		{
-			"checksumSHA1": "EpEgor0XJWB9fcdxFlWV56h9wlo=",
-			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/elastic/gosigar",
-			"path": "github.com/elastic/gosigar",
-			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
-			"revisionTime": "2018-02-23T17:02:51Z"
-		},
-		{
-			"checksumSHA1": "DeOcEad1nURXi56n1WY2JQkKWCY=",
-			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/elastic/gosigar/sys/windows",
-			"path": "github.com/elastic/gosigar/sys/windows",
-			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
-			"revisionTime": "2018-02-23T17:02:51Z"
-		},
-		{
 			"checksumSHA1": "O3ryMVZ4y6HVqsSAN1FBWqKj1JM=",
 			"path": "github.com/ethereum/go-ethereum",
 			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
@@ -144,6 +130,13 @@
 			"path": "github.com/ethereum/go-ethereum/accounts",
 			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
 			"revisionTime": "2018-02-23T17:02:51Z"
+		},
+		{
+			"checksumSHA1": "b5b2v02n2KQGmbvn8/k0Hg2vTM0=",
+			"path": "github.com/ethereum/go-ethereum/accounts/abi",
+			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
+			"revisionTime": "2018-02-23T17:02:51Z",
+			"tree": true
 		},
 		{
 			"checksumSHA1": "8ehOhQjdvil9HSldQsZuueRVxGc=",
