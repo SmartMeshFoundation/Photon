@@ -249,15 +249,16 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 		return
 	}
 	transferState := &mediated_transfer.LockedTransferState{
-		Identifier: msg.Identifier,
-		Amount:     new(big.Int).Set(msg.Amount),
-		Token:      msg.Token,
-		Initiator:  msg.Initiator,
-		Target:     msg.Target,
-		Expiration: msg.Expiration,
-		Hashlock:   msg.HashLock,
-		Secret:     utils.EmptyHash,
-		Fee:        msg.Fee,
+		Identifier:   msg.Identifier,
+		TargetAmount: big.NewInt(0).Sub(msg.Amount, msg.Fee),
+		Amount:       new(big.Int).Set(msg.Amount),
+		Token:        msg.Token,
+		Initiator:    msg.Initiator,
+		Target:       msg.Target,
+		Expiration:   msg.Expiration,
+		Hashlock:     msg.HashLock,
+		Secret:       utils.EmptyHash,
+		Fee:          msg.Fee,
 	}
 	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{
 		Sender:   msg.Sender,
