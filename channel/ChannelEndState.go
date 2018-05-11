@@ -10,6 +10,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,7 +50,8 @@ func (this *InvalidLocksRootError) Error() string {
 
 var errBalanceDecrease = errors.New("contract_balance cannot decrease")
 var errUnknownLock = errors.New("'unknown lock")
-var errTransferAmountMismatch=errors.New("transfer amount mismatch")
+var errTransferAmountMismatch = errors.New("transfer amount mismatch")
+
 /*
 Tracks the state of one of the participants in a channel
 */
@@ -162,7 +164,10 @@ func (this *ChannelEndState) ComputeMerkleRootWith(include *encoding.Lock) (tree
 		copy(leaves, this.TreeState.Tree.Layers[transfer.LayerLeaves])
 		includeHash := utils.Sha3(include.AsBytes())
 		leaves = append(leaves, includeHash)
-		tree, _ := transfer.NewMerkleTree(leaves)
+		tree, err := transfer.NewMerkleTree(leaves)
+		if err != nil {
+			log.Error(fmt.Sprintf("NewMerkleTree err %s", err))
+		}
 		return tree, tree.MerkleRoot()
 	} else {
 		return nil, this.TreeState.Tree.MerkleRoot()
@@ -267,14 +272,14 @@ func (this *ChannelEndState) RegisterDirectTransfer(directTransfer *encoding.Dir
 	this.BalanceProofState = balanceProof
 	return nil
 }
-func (this*ChannelEndState) RegisterRemoveExpiredHashlockTransfer(removeExpiredHashlockTransfer * encoding.RemoveExpiredHashlockTransfer) error{
-	balanceProof:=transfer.NewBalanceProofStateFromEnvelopMessage(removeExpiredHashlockTransfer)
-	if balanceProof.TransferAmount.Cmp(this.TransferAmount())!=0{
+func (this *ChannelEndState) RegisterRemoveExpiredHashlockTransfer(removeExpiredHashlockTransfer *encoding.RemoveExpiredHashlockTransfer) error {
+	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(removeExpiredHashlockTransfer)
+	if balanceProof.TransferAmount.Cmp(this.TransferAmount()) != 0 {
 		return errTransferAmountMismatch
 	}
-	this.BalanceProofState=balanceProof
-	delete(this.Lock2PendingLocks,removeExpiredHashlockTransfer.HashLock)
-	delete(this.Lock2UnclaimedLocks,removeExpiredHashlockTransfer.HashLock)
+	this.BalanceProofState = balanceProof
+	delete(this.Lock2PendingLocks, removeExpiredHashlockTransfer.HashLock)
+	delete(this.Lock2UnclaimedLocks, removeExpiredHashlockTransfer.HashLock)
 	return nil
 }
 func (this *ChannelEndState) RegisterSecretMessage(secret *encoding.Secret) error {
@@ -298,7 +303,10 @@ func (this *ChannelEndState) RegisterSecretMessage(secret *encoding.Secret) erro
 		return err
 	}
 	if newtree == nil {
-		newtree, _ = transfer.NewMerkleTree(nil)
+		newtree, err = transfer.NewMerkleTree(nil)
+		if err != nil {
+			return err
+		}
 	}
 	if balanceProof.LocksRoot != newLocksroot {
 		return &InvalidLocksRootError{newLocksroot, balanceProof.LocksRoot}
@@ -313,9 +321,9 @@ func (this *ChannelEndState) RegisterSecretMessage(secret *encoding.Secret) erro
 /*
 try to remomve a expired hashlock
 */
-func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, blockNumber int64) (lock*encoding.Lock, newtree *transfer.Merkletree, newlocksroot common.Hash,err error) {
+func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, blockNumber int64) (lock *encoding.Lock, newtree *transfer.Merkletree, newlocksroot common.Hash, err error) {
 	if !this.IsKnown(hashlock) {
-		err= errors.New(fmt.Sprintf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock)))
+		err = errors.New(fmt.Sprintf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock)))
 		return
 	}
 	pendingLock, ok := this.Lock2PendingLocks[hashlock]
@@ -328,7 +336,7 @@ func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, bloc
 		}
 	}
 	if lock.Expiration > blockNumber {
-		err= fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
+		err = fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
 		return
 	}
 	newtree, newlocksroot, err = this.ComputeMerkleRootWithout(lock)
@@ -336,10 +344,14 @@ func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, bloc
 		return
 	}
 	if newtree == nil {
-		newtree, _ = transfer.NewMerkleTree(nil)
+		newtree, err = transfer.NewMerkleTree(nil)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
+
 /*
 Register a secret so that it can be used in a balance proof.
 

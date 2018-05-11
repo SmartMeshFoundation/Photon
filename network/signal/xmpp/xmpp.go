@@ -236,7 +236,10 @@ func init() {
 	var cmd = XmppCommand{
 		Command: CommandTryReach,
 	}
-	data, _ := json.Marshal(&cmd)
+	data, err := json.Marshal(&cmd)
+	if err != nil {
+		log.Error(fmt.Sprintf("json marshal cmd err %s", err))
+	}
 	reachok = string(data)
 }
 
@@ -262,7 +265,10 @@ func (x *XmppWrapper) HandleNewCommand(from, subject string, cmd *XmppCommand) {
 		} else {
 			cmd2.OtherInfo = r
 		}
-		data, _ := json.Marshal(cmd2)
+		data, err := json.Marshal(cmd2)
+		if err != nil {
+			log.Error(fmt.Sprintf("json marshal cmd error %s", err))
+		}
 		x.send(&xmpp.Chat{
 			Type:    "chat",
 			Remote:  from,

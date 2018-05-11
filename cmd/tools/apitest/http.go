@@ -11,7 +11,10 @@ func DoRequest(c *http.Client, req *http.Request) (Status string, body []byte, e
 	var buf [4096]byte
 	var n = 0
 	if req.Body != nil {
-		n, _ = req.Body.Read(buf[:])
+		n, err = req.Body.Read(buf[:])
+		if err != nil {
+			log.Printf("req %s body err %s", req.URL.String(), err)
+		}
 		req.Body = ioutil.NopCloser(bytes.NewReader(buf[:n]))
 	}
 	if n > 0 {
@@ -24,7 +27,10 @@ func DoRequest(c *http.Client, req *http.Request) (Status string, body []byte, e
 		return
 	}
 	Status = resp.Status
-	n, _ = resp.Body.Read(buf[:])
+	n, err = resp.Body.Read(buf[:])
+	if err != nil {
+		log.Printf("req % read err %s", req.URL.String(), err)
+	}
 	body = buf[:n]
 	if len(body) > 0 {
 		log.Printf("receive <- :\n%s\n", string(body))

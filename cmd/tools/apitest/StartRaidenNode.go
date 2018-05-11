@@ -16,6 +16,7 @@ import (
 )
 
 func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) bool {
+	/* #nosec */
 	cmd := exec.Command(cmdstr, param...)
 
 	stdout, _ := cmd.StdoutPipe()
@@ -33,7 +34,7 @@ func Exec_shell(cmdstr string, param []string, logfile string, canquit bool) boo
 
 	logPath := filepath.Dir(logfile)
 	if !utils.Exists(logPath) {
-		os.Mkdir(logPath, 0777)
+		os.Mkdir(logPath, 0700)
 	}
 
 	logFile, err := os.Create(logfile)

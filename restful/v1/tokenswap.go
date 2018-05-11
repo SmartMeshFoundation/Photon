@@ -37,8 +37,8 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	target = common.HexToAddress(targetstr)
-	id, _ = strconv.Atoi(idstr)
-	if id <= 0 {
+	id, err := strconv.Atoi(idstr)
+	if id <= 0 || err != nil {
 		rest.Error(w, "must provide a valid id ", http.StatusBadRequest)
 		return
 	}

@@ -42,7 +42,10 @@ type channelData struct {
 
 //GET /api/1/channels
 func (this *Api) GetChannelList() (channels string, err error) {
-	chs, _ := this.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, err := this.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	if err != nil {
+		return
+	}
 	var datas []*channelData
 	for _, c := range chs {
 		d := &channelData{
@@ -221,7 +224,10 @@ func (this *Api) Address() (addr string) {
 
 //GET /api/1/tokens
 func (this *Api) Tokens() (tokens string) {
-	tokens, _ = marshal(this.api.Tokens())
+	tokens, err := marshal(this.api.Tokens())
+	if err != nil {
+		log.Error(fmt.Sprint("marshal tokens error %s", err))
+	}
 	return
 }
 
@@ -233,7 +239,10 @@ type partnersData struct {
 //GET /api/1/tokens/0x61bb630d3b2e8eda0fc1d50f9f958ec02e3969f6/partners
 func (this *Api) TokenPartners(tokenAddress string) (channels string, err error) {
 	tokenAddr := common.HexToAddress(tokenAddress)
-	chs, _ := this.api.GetChannelList(tokenAddr, utils.EmptyAddress)
+	chs, err := this.api.GetChannelList(tokenAddr, utils.EmptyAddress)
+	if err != nil {
+		return
+	}
 	var datas []*partnersData
 	for _, c := range chs {
 		d := &partnersData{
@@ -349,7 +358,10 @@ GET /api/<version>/connections
 */
 func (this *Api) QueryingConnections() string {
 	connections := this.api.GetConnectionManagersInfo()
-	s, _ := marshal(connections)
+	s, err := marshal(connections)
+	if err != nil {
+		log.Error(fmt.Sprintf("marshal connections error %s", err))
+	}
 	return s
 }
 

@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/slonzok/getpass"
 	"github.com/urfave/cli"
 )
 
@@ -187,7 +188,7 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	} else {
 		for i := 0; i < 3; i++ {
 			//retries three times
-			password = "123" //getpass.Prompt("Enter the password to unlock:")
+			password = getpass.Prompt("Enter the password to unlock:")
 			keybin, err = am.GetPrivateKey(addr, password)
 			if err != nil && i == 3 {
 				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
@@ -204,7 +205,10 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 }
 
 func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
-	addr1, b1, addr2, b2, _ := proxy.AddressAndBalance()
+	addr1, b1, addr2, b2, err := proxy.AddressAndBalance()
+	if err != nil {
+		log.Error(fmt.Sprintf("AddressAndBalance err %s", err))
+	}
 	var ourAddr, partnerAddr common.Address
 	var ourBalance, partnerBalance *big.Int
 	if addr1 == this.Address {
@@ -233,7 +237,10 @@ func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *
 		BlockChainService: this.bcs,
 		RevealTimeout:     params.DEFAULT_REVEAL_TIMEOUT,
 	}
-	channelDetail.SettleTimeout, _ = externState.NettingChannel.SettleTimeout()
+	channelDetail.SettleTimeout, err = externState.NettingChannel.SettleTimeout()
+	if err != nil {
+		log.Error(fmt.Sprintf("SettleTimeout query err %s", err))
+	}
 	return channelDetail
 }
 

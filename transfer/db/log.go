@@ -161,7 +161,10 @@ func u64tob(v uint64) []byte {
 func (sb *StateChangeLogBoltBackend) WriteStateChange(data []byte) (id int, err error) {
 	err = sb.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketStateChange)
-		id2, _ := b.NextSequence()
+		id2, err := b.NextSequence()
+		if err != nil {
+			return err
+		}
 		id = int(id2)
 		return b.Put(itob(id), data)
 	})
@@ -202,10 +205,13 @@ func (sb *StateChangeLogBoltBackend) WriteStateEvents(stateChangeId int, events 
 		b := tx.Bucket(bucketEvents)
 		b2 := tx.Bucket(bucketEventsBlock)
 		for _, e := range events {
-			id, _ := b.NextSequence()
+			id, err := b.NextSequence()
+			if err != nil {
+				return err
+			}
 			e.Identifier = int(id)
 			e.StateChangeId = stateChangeId
-			err := b.Put(u64tob(id), sb.Serializer.Serialize(e))
+			err = b.Put(u64tob(id), sb.Serializer.Serialize(e))
 			if err != nil {
 				return err
 			}

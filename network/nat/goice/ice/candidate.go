@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/nkbai/log"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 )
@@ -185,11 +186,17 @@ a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 55019 typ relay
 
 */
 func (c *Candidate) String() string {
-	host, port, _ := net.SplitHostPort(c.addr)
+	host, port, err := net.SplitHostPort(c.addr)
+	if err != nil {
+		log.Error(fmt.Sprintf("SplitHostPort %s err %s", c.addr, err))
+	}
 	s := fmt.Sprintf("a=candidate:%d %d %s %d %s %s typ %s",
 		c.Foundation, c.ComponentID, c.transport, c.Priority, host, port, c.Type)
 	if c.Type == CandidateServerReflexive {
-		rhost, rport, _ := net.SplitHostPort(c.baseAddr)
+		rhost, rport, err := net.SplitHostPort(c.baseAddr)
+		if err != nil {
+			log.Error(fmt.Sprintf("SplitHostPort %s err %s", c.baseAddr, err))
+		}
 		s = fmt.Sprintf("%s raddr %s rport %s", s, rhost, rport)
 	}
 	return s

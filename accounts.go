@@ -65,7 +65,10 @@ func (this *AccountManager) GetPrivateKey(addr common.Address, password string) 
 	if err != nil {
 		return
 	}
-	keyjson, _ := ioutil.ReadFile(files[0])
+	keyjson, err := ioutil.ReadFile(files[0])
+	if err != nil {
+		return
+	}
 	key, err := keystore.DecryptKey(keyjson, password)
 	if err != nil {
 		return

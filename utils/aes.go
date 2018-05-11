@@ -14,7 +14,10 @@ import (
 const passkey = "838e2Bf510eC7Ff49CC607b718Ce8401"
 
 func PasswordEncrypt(pass string) (encstr string, err error) {
-	key, _ := hex.DecodeString(passkey)
+	key, err := hex.DecodeString(passkey)
+	if err != nil {
+		return
+	}
 	encdata, err := Encrypt([]byte(pass), key)
 	if err != nil {
 		return
@@ -23,7 +26,10 @@ func PasswordEncrypt(pass string) (encstr string, err error) {
 	return
 }
 func PasswordDecrypt(encpass string) (pass string, err error) {
-	key, _ := hex.DecodeString(passkey)
+	key, err := hex.DecodeString(passkey)
+	if err != nil {
+		return
+	}
 	decdata, err := base64.RawStdEncoding.DecodeString(encpass)
 	if err != nil {
 		return

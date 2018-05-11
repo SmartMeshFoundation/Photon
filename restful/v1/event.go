@@ -16,10 +16,16 @@ func getFromTo(r *rest.Request) (fromBlock, toBlock int64) {
 	fromBlock = -1
 	toBlock = -1
 	if _, err := strconv.Atoi(fromBlockStr); err == nil {
-		fromBlock, _ = strconv.ParseInt(fromBlockStr, 10, 64)
+		fromBlock, err = strconv.ParseInt(fromBlockStr, 10, 64)
+		if err != nil {
+			log.Error(fmt.Sprintf("fromBlock %s parse err %s", fromBlockStr, err))
+		}
 	}
 	if _, err := strconv.Atoi(toBlockStr); err == nil {
-		toBlock, _ = strconv.ParseInt(toBlockStr, 10, 64)
+		toBlock, err = strconv.ParseInt(toBlockStr, 10, 64)
+		if err != nil {
+			log.Error(fmt.Sprintf("toBlock %s parse err %s", toBlockStr, err))
+		}
 	}
 	return fromBlock, toBlock
 }

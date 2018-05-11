@@ -35,10 +35,10 @@ func main() {
 	var err error
 	var mykey *ecdsa.PrivateKey
 	var myaddr, partneraddr common.Address
-	key1bin, _ := hex.DecodeString(key1)
-	key2bin, _ := hex.DecodeString(key2)
-	privkey1, _ := crypto.ToECDSA(key1bin)
-	privkey2, _ := crypto.ToECDSA(key2bin)
+	key1bin, err := hex.DecodeString(key1)
+	key2bin, err := hex.DecodeString(key2)
+	privkey1, err := crypto.ToECDSA(key1bin)
+	privkey2, err := crypto.ToECDSA(key2bin)
 	addr1 := crypto.PubkeyToAddress(privkey1.PublicKey)
 	addr2 := crypto.PubkeyToAddress(privkey2.PublicKey)
 	log.Info(fmt.Sprintf("addr1=%s\naddr2=%s\n", addr1.String(), addr2.String()))
@@ -54,7 +54,7 @@ func main() {
 		partneraddr = addr2
 	}
 	log.Info(fmt.Sprintf("myaddr=%s,partneraddr=%s\n", myaddr.String(), partneraddr.String()))
-	it, _ := network.NewIceTransporter(mykey, "client1")
+	it, err := network.NewIceTransporter(mykey, "client1")
 	it.Start()
 	it.RegisterProtocol(new(testreceiver))
 	for {

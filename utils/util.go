@@ -32,8 +32,10 @@ import (
 // BUT it is not safe to use anywhere because it points
 // this helps on 0 memory allocations
 func BytesToString(b []byte) string {
+	/* #nosec */
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	sh := reflect.StringHeader{bh.Data, bh.Len}
+	/* #nosec */
 	return *(*string)(unsafe.Pointer(&sh))
 }
 
@@ -42,8 +44,10 @@ func BytesToString(b []byte) string {
 // BUT it is not safe to use anywhere because it points
 // this helps on 0 memory allocations
 func StringToBytes(s string) []byte {
+	/* #nosec */
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
 	bh := reflect.SliceHeader{sh.Data, sh.Len, 0}
+	/* #nosec */
 	return *(*[]byte)(unsafe.Pointer(&bh))
 }
 

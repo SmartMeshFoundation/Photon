@@ -1,6 +1,7 @@
 package ice
 
 import (
+	/* #nosec */
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
@@ -224,6 +225,7 @@ func GetLocalCandidates(primaryAddress string) (candidates []*Candidate, err err
 }
 
 func calcFoundation(baseAddr string) int {
+	/* #nosec */
 	hash := md5.Sum([]byte(baseAddr))
 	tmp := binary.BigEndian.Uint32(hash[:4])
 	return int(tmp)

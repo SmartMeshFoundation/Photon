@@ -22,5 +22,6 @@ func (h *swapHandler) Get() Handler {
 }
 
 func (h *swapHandler) Swap(newHandler Handler) {
+	/* #nosec */
 	atomic.StorePointer(&h.handler, unsafe.Pointer(&newHandler))
 }
