@@ -54,7 +54,7 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	}
 }
 
-func testRaidenApi_GetNetworkEvents(t *testing.T, api *RaidenApi) {
+func testRaidenApiGetNetworkEvents(t *testing.T, api *RaidenApi) {
 	events, err := api.GetNetworkEvents(-1, -1)
 	if err != nil {
 		t.Error(err)
@@ -77,7 +77,7 @@ func testRaidenApi_GetNetworkEvents(t *testing.T, api *RaidenApi) {
 	wg.Wait()
 }
 
-func testRaidenApi_GetChannelEvents(t *testing.T, api *RaidenApi) {
+func testRaidenApiGetChannelEvents(t *testing.T, api *RaidenApi) {
 	addr := getAChannel(api)
 	events, err := api.GetChannelEvents(addr, -1, -1)
 	if err != nil {
@@ -128,11 +128,11 @@ func TestEvents(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() {
-		testRaidenApi_GetChannelEvents(t, api)
+		testRaidenApiGetChannelEvents(t, api)
 		wg.Done()
 	}()
 	go func() {
-		testRaidenApi_GetNetworkEvents(t, api)
+		testRaidenApiGetNetworkEvents(t, api)
 		wg.Done()
 	}()
 	go func() {
@@ -142,7 +142,7 @@ func TestEvents(t *testing.T) {
 	wg.Wait()
 }
 
-func testRaidenApi_Close(t *testing.T, api *RaidenApi, ch *channel.Channel) {
+func testRaidenApiClose(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	tokenAddr := ch.TokenAddress
 	partnerAddr := ch.PartnerState.Address
 	wg := sync.WaitGroup{}
@@ -155,7 +155,7 @@ func testRaidenApi_Close(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	}
 	wg.Wait()
 }
-func testRaidenApi_Settle(t *testing.T, api *RaidenApi, ch *channel.Channel) {
+func raidenApiSettle(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	tokenAddr := ch.TokenAddress
 	partnerAddr := ch.PartnerState.Address
 	wg := sync.WaitGroup{}
@@ -169,17 +169,17 @@ func testRaidenApi_Settle(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	}
 	wg.Wait()
 }
-func TestRaidenApi_CloseAndSettle(t *testing.T) {
+func TestRaidenApiCloseAndSettle(t *testing.T) {
 	api := newTestRaidenApi()
 	ch := api.Raiden.GetChannelWithAddr(getAChannel(api))
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		testRaidenApi_Close(t, api, ch)
+		testRaidenApiClose(t, api, ch)
 		wg.Done()
 	}()
 	go func() {
-		testRaidenApi_Settle(t, api, ch)
+		raidenApiSettle(t, api, ch)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -188,7 +188,7 @@ func TestRaidenApi_CloseAndSettle(t *testing.T) {
 func findAValidChannel(ra, rb *RaidenApi) (addr common.Address, money *big.Int) {
 	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
 		c := g.GetPartenerAddress2Channel(rb.Raiden.NodeAddress)
-		if c != nil && c.Balance().Cmp(big.NewInt(10)) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED {
+		if c != nil && c.Balance().Cmp(big.NewInt(10)) > 0 && c.State() == transfer.ChannelStateOpened {
 			return c.MyAddress, c.Balance()
 		}
 	}
@@ -207,7 +207,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 	m := make(map[common.Address]common.Address)
 	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
 		for addr, c := range g.ChannelAddress2Channel {
-			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED && allAddresses[c.PartnerState.Address] {
+			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.ChannelStateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = ra.Raiden.NodeAddress
 				}
@@ -216,7 +216,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 	}
 	for _, g := range rb.Raiden.CloneToken2ChannelGraph() {
 		for addr, c := range g.ChannelAddress2Channel {
-			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.CHANNEL_STATE_OPENED && allAddresses[c.PartnerState.Address] {
+			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.ChannelStateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = rb.Raiden.NodeAddress
 				}

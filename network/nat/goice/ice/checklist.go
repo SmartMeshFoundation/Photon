@@ -59,37 +59,6 @@ func (s SessionCheckState) String() string {
 	return "unknown"
 }
 
-type SessionCheckListState int
-
-const (
-	/**
-	* The checklist is not yet running.
-	 */
-	CHECKLIST_STATE_IDLE SessionCheckListState = iota
-	/**
-	 * In this state, ICE checks are still in progress for this
-	 * media stream.
-	 */
-	CHECKLIST_STATE_RUNNING
-	/**
-	 * In this state, ICE checks have completed for this media stream,
-	 * either successfully or with failure.
-	 */
-	CHECKLIST_STATE_COMPLETED
-)
-
-func (s SessionCheckListState) String() string {
-	switch s {
-	case CHECKLIST_STATE_IDLE:
-		return "idle"
-	case CHECKLIST_STATE_RUNNING:
-		return "running"
-	case CHECKLIST_STATE_COMPLETED:
-		return "completed"
-	}
-	return "unkown"
-}
-
 /**
  * This structure describes an ICE connectivity check. An ICE check
  * contains a candidate pair, and will involve sending STUN Binding
@@ -120,14 +89,12 @@ func (s *SessionCheck) String() string {
 }
 
 type SessionCheckList struct {
-	state  SessionCheckListState
 	checks []*SessionCheck
 }
 
-func (s *SessionCheckList) String() string {
+func (sc *SessionCheckList) String() string {
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "{\nstate=%s\n", s.state)
-	for i, v := range s.checks {
+	for i, v := range sc.checks {
 		fmt.Fprintf(w, "\t [%d]=%s\n", i, v)
 	}
 	fmt.Fprintf(w, "}")

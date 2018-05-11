@@ -127,35 +127,34 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 	partnerAddr := common.HexToAddress(req.PartnerAddrses)
 	tokenAddr := common.HexToAddress(req.TokenAddress)
 	if req.State == "" { //open channel
-		c, err := RaidenApi.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DEFAULT_REVEAL_TIMEOUT)
+		c, err := RaidenApi.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DefaultRevealTimeout)
 		if err != nil {
 			log.Error(err.Error())
 			rest.Error(w, err.Error(), http.StatusConflict)
 			return
-		} else {
-			d := &ChannelData{
-				ChannelAddress:      c.ChannelAddress.String(),
-				PartnerAddrses:      c.PartnerAddress.String(),
-				Balance:             c.OurBalance,
-				PartnerBalance:      c.PartnerBalance,
-				State:               c.State,
-				SettleTimeout:       c.SettleTimeout,
-				TokenAddress:        c.TokenAddress.String(),
-				LockedAmount:        c.OurAmountLocked,
-				PartnerLockedAmount: c.PartnerAmountLocked,
-			}
-			if req.Balance.Cmp(utils.BigInt0) > 0 {
-				err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DEFAULT_POLL_TIMEOUT)
-				if err == nil {
-					c, _ := RaidenApi.GetChannel(c.ChannelAddress)
-					d.Balance = c.OurBalance
-				} else {
-					log.Error(" RaidenApi.Deposit error : ", err)
-				}
-			}
-			w.WriteJson(d)
-			return
 		}
+		d := &ChannelData{
+			ChannelAddress:      c.ChannelAddress.String(),
+			PartnerAddrses:      c.PartnerAddress.String(),
+			Balance:             c.OurBalance,
+			PartnerBalance:      c.PartnerBalance,
+			State:               c.State,
+			SettleTimeout:       c.SettleTimeout,
+			TokenAddress:        c.TokenAddress.String(),
+			LockedAmount:        c.OurAmountLocked,
+			PartnerLockedAmount: c.PartnerAmountLocked,
+		}
+		if req.Balance.Cmp(utils.BigInt0) > 0 {
+			err = RaidenApi.Deposit(tokenAddr, partnerAddr, req.Balance, params.DefaultPollTimeout)
+			if err == nil {
+				c, _ := RaidenApi.GetChannel(c.ChannelAddress)
+				d.Balance = c.OurBalance
+			} else {
+				log.Error(" RaidenApi.Deposit error : ", err)
+			}
+		}
+		w.WriteJson(d)
+		return
 	}
 	rest.Error(w, "argument error", http.StatusBadRequest)
 	return
@@ -184,18 +183,18 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Balance != nil && req.Balance.Cmp(utils.BigInt0) > 0 { //deposit
-		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerAddress, req.Balance, params.DEFAULT_POLL_TIMEOUT)
+		err = RaidenApi.Deposit(c.TokenAddress, c.PartnerAddress, req.Balance, params.DefaultPollTimeout)
 		if err != nil {
 			rest.Error(w, err.Error(), http.StatusRequestTimeout)
 			return
 		}
 	} else {
 		//close or settle
-		if req.State != transfer.CHANNEL_STATE_CLOSED && req.State != transfer.CHANNEL_STATE_SETTLED {
+		if req.State != transfer.ChannelStateClosed && req.State != transfer.ChannelStateSettled {
 			rest.Error(w, "argument error", http.StatusBadRequest)
 			return
 		}
-		if req.State == transfer.CHANNEL_STATE_CLOSED {
+		if req.State == transfer.ChannelStateClosed {
 			c, err = RaidenApi.Close(c.TokenAddress, c.PartnerAddress)
 			if err != nil {
 				log.Error(err.Error())

@@ -169,9 +169,8 @@ func (this *ChannelEndState) ComputeMerkleRootWith(include *encoding.Lock) (tree
 			log.Error(fmt.Sprintf("NewMerkleTree err %s", err))
 		}
 		return tree, tree.MerkleRoot()
-	} else {
-		return nil, this.TreeState.Tree.MerkleRoot()
 	}
+	return nil, this.TreeState.Tree.MerkleRoot()
 }
 
 func removeHash(leaves []common.Hash, hash common.Hash) []common.Hash {
@@ -323,7 +322,7 @@ try to remomve a expired hashlock
 */
 func (this *ChannelEndState) TryRemoveExpiredHashLock(hashlock common.Hash, blockNumber int64) (lock *encoding.Lock, newtree *transfer.Merkletree, newlocksroot common.Hash, err error) {
 	if !this.IsKnown(hashlock) {
-		err = errors.New(fmt.Sprintf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock)))
+		err = fmt.Errorf("channel %s donesn't know hashlock %s, cannot remove", utils.APex(this.Address), utils.HPex(hashlock))
 		return
 	}
 	pendingLock, ok := this.Lock2PendingLocks[hashlock]

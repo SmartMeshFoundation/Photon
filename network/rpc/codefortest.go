@@ -34,7 +34,7 @@ const key = `
 }
 `
 
-var PRIVATE_ROPSTEN_REGISTRY_ADDRESS = common.HexToAddress("0x254365bF6CAd664000B1D0A7B08f892666bbA96D") // params.ROPSTEN_REGISTRY_ADDRESS
+var PrivateRopstenRegistryAddress = common.HexToAddress("0x254365bF6CAd664000B1D0A7B08f892666bbA96D") // params.ROPSTEN_REGISTRY_ADDRESS
 var TestRpcEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
 
 //var TestRpcEndpoint = "ws://10.0.0.2:8546"
@@ -48,5 +48,5 @@ func MakeTestBlockChainService() *BlockChainService {
 	if err != nil {
 		log.Crit("Failed to create authorized transactor: ", err)
 	}
-	return NewBlockChainService(privkey.PrivateKey, PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
+	return NewBlockChainService(privkey.PrivateKey, PrivateRopstenRegistryAddress, conn)
 }

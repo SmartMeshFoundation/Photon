@@ -89,10 +89,8 @@ func (this *RaidenApi) RegisterToken(tokenAddress common.Address) (mgrAddr commo
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
 	if err == rerr.NoTokenManager {
 		return this.Raiden.Registry.AddToken(tokenAddress)
-	} else {
-		return
 	}
-
+	return
 }
 
 /*
@@ -423,7 +421,7 @@ func (this *RaidenApi) Close(tokenAddress, partnerAddress common.Address) (c *ch
 //Settle a closed channel with `partner_address` for the given `token_address`.return when state has been updated to database
 func (this *RaidenApi) Settle(tokenAddress, partnerAddress common.Address) (ch *channel.ChannelSerialization, err error) {
 	c, err := this.Raiden.db.GetChannel(tokenAddress, partnerAddress)
-	if c.State == transfer.CHANNEL_STATE_OPENED {
+	if c.State == transfer.ChannelStateOpened {
 		err = rerr.InvalidState("channel is still open")
 		return
 	}

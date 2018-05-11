@@ -28,33 +28,33 @@ const NameMediatorTransition = "MediatorTransition"
 const TRANSIT_BLOCKS = 2 // TODO: make this a configuration variable
 
 var StateSecretKnownMap = map[string]bool{
-	mediated_transfer.STATE_PAYEE_SECRET_REVEALED:   true,
-	mediated_transfer.STATE_PAYEE_REFUND_WITHDRAW:   true,
-	mediated_transfer.STATE_PAYEE_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYEE_BALANCE_PROOF:     true,
+	mediated_transfer.StatePayeeSecretRevealed:   true,
+	mediated_transfer.StatePayeeRefundWithdraw:   true,
+	mediated_transfer.StatePayeeContractWithdraw: true,
+	mediated_transfer.StatePayeeBalanceProof:     true,
 
-	mediated_transfer.STATE_PAYER_SECRET_REVEALED:   true,
-	mediated_transfer.STATE_PAYER_WAITING_CLOSE:     true,
-	mediated_transfer.STATE_PAYER_WAITING_WITHDRAW:  true,
-	mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYER_BALANCE_PROOF:     true,
+	mediated_transfer.StatePayerSecretRevealed:   true,
+	mediated_transfer.StatePayerWaitingClose:     true,
+	mediated_transfer.StatePayerWaitingWithdraw:  true,
+	mediated_transfer.StatePayerContractWithdraw: true,
+	mediated_transfer.StatePayerBalanceProof:     true,
 }
 var StateTransferPaidMap = map[string]bool{
-	mediated_transfer.STATE_PAYEE_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYEE_BALANCE_PROOF:     true,
-	mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYER_BALANCE_PROOF:     true,
+	mediated_transfer.StatePayeeContractWithdraw: true,
+	mediated_transfer.StatePayeeBalanceProof:     true,
+	mediated_transfer.StatePayerContractWithdraw: true,
+	mediated_transfer.StatePayerBalanceProof:     true,
 }
 
 //TODO: fix expired state, it is not final
 var StateTransferFinalMap = map[string]bool{
-	mediated_transfer.STATE_PAYEE_EXPIRED:           true,
-	mediated_transfer.STATE_PAYEE_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYEE_BALANCE_PROOF:     true,
+	mediated_transfer.StatePayeeExpired:          true,
+	mediated_transfer.StatePayeeContractWithdraw: true,
+	mediated_transfer.StatePayeeBalanceProof:     true,
 
-	mediated_transfer.STATE_PAYER_EXPIRED:           true,
-	mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW: true,
-	mediated_transfer.STATE_PAYER_BALANCE_PROOF:     true,
+	mediated_transfer.StatePayerExpired:          true,
+	mediated_transfer.StatePayerContractWithdraw: true,
+	mediated_transfer.StatePayerBalanceProof:     true,
 }
 
 //True if the lock has not expired.
@@ -102,8 +102,8 @@ True if this node needs to close the channel to withdraw on-chain.
 func isChannelCloseNeeded(tr *mediated_transfer.MediationPairState, blockNumber int64) bool {
 	payeeReceived := StateTransferPaidMap[tr.PayeeState]
 	payerPayed := StateTransferPaidMap[tr.PayerState]
-	payerChannelOpen := tr.PayerRoute.State == transfer.CHANNEL_STATE_OPENED
-	AlreadyClosing := tr.PayerState == mediated_transfer.STATE_PAYER_WAITING_CLOSE
+	payerChannelOpen := tr.PayerRoute.State == transfer.ChannelStateOpened
+	AlreadyClosing := tr.PayerState == mediated_transfer.StatePayerWaitingClose
 	safeToWait := IsSafeToWait(tr.PayerTransfer, tr.PayerRoute.RevealTimeout, blockNumber)
 
 	return payeeReceived && !payerPayed && payerChannelOpen && !AlreadyClosing && !safeToWait
@@ -369,16 +369,16 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 	pendingTransfersPairs := getPendingTransferPairs(transfersPairs)
 	for _, pair := range pendingTransfersPairs {
 		if blockNumber > pair.PayerTransfer.Expiration {
-			if pair.PayeeState != mediated_transfer.STATE_PAYEE_EXPIRED {
-				log.Error("PayeeState!=mediated_transfer.STATE_PAYEE_EXPIRED")
+			if pair.PayeeState != mediated_transfer.StatePayeeExpired {
+				log.Error("PayeeState!=mediated_transfer.StatePayeeExpired")
 				return
 			}
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
 				log.Error("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 				return
 			}
-			if pair.PayerState != mediated_transfer.STATE_PAYER_EXPIRED {
-				pair.PayerState = mediated_transfer.STATE_PAYER_EXPIRED
+			if pair.PayerState != mediated_transfer.StatePayerExpired {
+				pair.PayerState = mediated_transfer.StatePayerExpired
 				withdrawFailed := &mediated_transfer.EventWithdrawFailed{
 					Identifier:     pair.PayerTransfer.Identifier,
 					Hashlock:       pair.PayerTransfer.Hashlock,
@@ -412,8 +412,8 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 			}
-			if pair.PayeeState != mediated_transfer.STATE_PAYEE_EXPIRED {
-				pair.PayeeState = mediated_transfer.STATE_PAYEE_EXPIRED
+			if pair.PayeeState != mediated_transfer.StatePayeeExpired {
+				pair.PayeeState = mediated_transfer.StatePayeeExpired
 				unlockFailed := &mediated_transfer.EventUnlockFailed{
 					Identifier:     pair.PayeeTransfer.Identifier,
 					Hashlock:       pair.PayeeTransfer.Hashlock,
@@ -506,7 +506,7 @@ func EventsForRevealSecret(transfersPair []*mediated_transfer.MediationPairState
 		isPayeeSecretKnown := StateSecretKnownMap[pair.PayeeState]
 		isPayerSecretKnown := StateSecretKnownMap[pair.PayerState]
 		if isPayeeSecretKnown && !isPayerSecretKnown { //todo 如果我在发送reveal secret过程中崩溃了，这个消息payer没有收到，payee也没有收到ack，payee会重发revealsecret消息，我的内部状态一定不能变。目前好像是这么做的。
-			pair.PayerState = mediated_transfer.STATE_PAYER_SECRET_REVEALED
+			pair.PayerState = mediated_transfer.StatePayerSecretRevealed
 			tr := pair.PayerTransfer
 			revealSecret := &mediated_transfer.EventSendRevealSecret{
 				Identifier: tr.Identifier,
@@ -527,7 +527,7 @@ func eventsForBalanceProof(transfersPair []*mediated_transfer.MediationPairState
 		pair := transfersPair[j]
 		payeeKnowsSecret := StateSecretKnownMap[pair.PayeeState]
 		payeePayed := StateTransferPaidMap[pair.PayeeState]
-		payeeChannelOpen := pair.PayeeRoute.State == transfer.CHANNEL_STATE_OPENED
+		payeeChannelOpen := pair.PayeeRoute.State == transfer.ChannelStateOpened
 
 		/*
 					  todo: All nodes must close the channel and withdraw on-chain if the
@@ -538,7 +538,7 @@ func eventsForBalanceProof(transfersPair []*mediated_transfer.MediationPairState
 		*/
 		lockValid := IsLockValid(pair.PayeeTransfer, blockNumber)
 		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid {
-			pair.PayeeState = mediated_transfer.STATE_PAYEE_BALANCE_PROOF
+			pair.PayeeState = mediated_transfer.StatePayeeBalanceProof
 			tr := pair.PayeeTransfer
 			balanceProof := &mediated_transfer.EventSendBalanceProof{
 				Identifier:     tr.Identifier,
@@ -566,7 +566,7 @@ func eventsForClose(transfersPair []*mediated_transfer.MediationPairState, block
 	for j := len(pendings) - 1; j >= 0; j-- {
 		pair := pendings[j]
 		if isChannelCloseNeeded(pair, blockNumber) {
-			pair.PayerState = mediated_transfer.STATE_PAYER_WAITING_CLOSE
+			pair.PayerState = mediated_transfer.StatePayerWaitingClose
 			channelClose := &mediated_transfer.EventContractSendChannelClose{
 				ChannelAddress: pair.PayerRoute.ChannelAddress,
 				Token:          pair.PayerTransfer.Token,
@@ -594,10 +594,10 @@ Withdraw on any payer channel that is closed and the secret is known.
         B will withdraw on channel(A, B) before C's confirmation.
         A may learn the secret faster than other nodes.
 */
-func eventsForWithdraw(transfersPair []*mediated_transfer.MediationPairState, db channel.ChannelDb) (events []transfer.Event) {
+func eventsForWithdraw(transfersPair []*mediated_transfer.MediationPairState, db channel.Db) (events []transfer.Event) {
 	pendings := getPendingTransferPairs(transfersPair)
 	for _, pair := range pendings {
-		payerChannelOpen := pair.PayerRoute.State == transfer.CHANNEL_STATE_OPENED
+		payerChannelOpen := pair.PayerRoute.State == transfer.ChannelStateOpened
 		secretKnown := pair.PayerTransfer.Secret != utils.EmptyHash
 		/*
 				todo 这个消息应该会反复触发多次，加上限制，只触发一次就好了。。
@@ -615,11 +615,11 @@ func eventsForWithdraw(transfersPair []*mediated_transfer.MediationPairState, db
 			if db != nil {
 				//避免无限制重发EventContractSendWithdraw
 				if db.IsThisLockHasWithdraw(pair.PayerRoute.ChannelAddress, pair.PayerTransfer.Secret) {
-					pair.PayerState = mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW
+					pair.PayerState = mediated_transfer.StatePayerContractWithdraw
 					continue
 				}
 			}
-			pair.PayerState = mediated_transfer.STATE_PAYER_WAITING_WITHDRAW
+			pair.PayerState = mediated_transfer.StatePayerWaitingWithdraw
 			withdraw := &mediated_transfer.EventContractSendWithdraw{
 				Transfer:       pair.PayerTransfer,
 				ChannelAddress: pair.PayerRoute.ChannelAddress,
@@ -658,7 +658,7 @@ func secretLearned(state *mediated_transfer.MediatorState, secret common.Hash, p
 /*
 update all routes state from db
 */
-func updateAvaiableRoutesFromDb(db channel.ChannelDb, routes *transfer.RoutesState) {
+func updateAvaiableRoutesFromDb(db channel.Db, routes *transfer.RoutesState) {
 	for _, r := range routes.AvailableRoutes {
 		ch, err := db.GetChannelByAddress(r.ChannelAddress)
 		if err != nil {
@@ -815,7 +815,7 @@ Validate and handle a ReceiveSecretReveal state change.
 func handleSecretReveal(state *mediated_transfer.MediatorState, st *mediated_transfer.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
 	secret := st.Secret
 	if utils.Sha3(secret[:]) == state.Hashlock {
-		return secretLearned(state, secret, st.Sender, mediated_transfer.STATE_PAYEE_SECRET_REVEALED)
+		return secretLearned(state, secret, st.Sender, mediated_transfer.StatePayeeSecretRevealed)
 	} else {
 		//  TODO: event for byzantine behavior,所有的reveal secret，是否与自己有关，都会到这里，是正常现象。
 		return &transfer.TransitionResult{state, nil}
@@ -842,7 +842,7 @@ func handleContractWithDraw(state *mediated_transfer.MediatorState, st *mediated
 									  always set the contract_withdraw regardless of the previous
 					                 state (even expired)
 				*/
-				pair.PayerState = mediated_transfer.STATE_PAYER_CONTRACT_WITHDRAW
+				pair.PayerState = mediated_transfer.StatePayerContractWithdraw
 				withdraw := &mediated_transfer.EventWithdrawSuccess{
 					Identifier: pair.PayerTransfer.Identifier,
 					Hashlock:   pair.PayerTransfer.Hashlock,
@@ -855,7 +855,7 @@ func handleContractWithDraw(state *mediated_transfer.MediatorState, st *mediated
 				if pos > 0 {
 					previousPair := state.TransfersPair[pos-1]
 					if !StateTransferFinalMap[previousPair.PayeeState] {
-						previousPair.PayeeState = mediated_transfer.STATE_PAYEE_REFUND_WITHDRAW
+						previousPair.PayeeState = mediated_transfer.StatePayeeRefundWithdraw
 					}
 				}
 			}
@@ -869,11 +869,11 @@ func handleContractWithDraw(state *mediated_transfer.MediatorState, st *mediated
 					Hashlock:   pair.PayeeTransfer.Hashlock,
 				}
 				events = append(events, unlock)
-				pair.PayeeState = mediated_transfer.STATE_PAYEE_CONTRACT_WITHDRAW
+				pair.PayeeState = mediated_transfer.StatePayeeContractWithdraw
 			}
 		}
 	}
-	tr := secretLearned(state, st.Secret, st.Receiver, mediated_transfer.STATE_PAYEE_CONTRACT_WITHDRAW)
+	tr := secretLearned(state, st.Secret, st.Receiver, mediated_transfer.StatePayeeContractWithdraw)
 	tr.Events = append(tr.Events, events...)
 	return tr
 }
@@ -885,7 +885,7 @@ func handleBalanceProof(state *mediated_transfer.MediatorState, st *mediated_tra
 		if pair.PayerRoute.HopNode == st.NodeAddress {
 			withdraw := &mediated_transfer.EventWithdrawSuccess{pair.PayeeTransfer.Identifier, pair.PayeeTransfer.Hashlock}
 			events = append(events, withdraw)
-			pair.PayerState = mediated_transfer.STATE_PAYER_BALANCE_PROOF
+			pair.PayerState = mediated_transfer.StatePayerBalanceProof
 		}
 	}
 	return &transfer.TransitionResult{state, events}

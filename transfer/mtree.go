@@ -98,12 +98,12 @@ func (this *Merkletree) MakeProof(element common.Hash) []common.Hash {
 	}
 	var proof []common.Hash
 	for _, layer := range this.Layers {
-		pair_idx := idx - 1
+		pairidx := idx - 1
 		if idx%2 == 0 {
-			pair_idx = idx + 1
+			pairidx = idx + 1
 		}
-		if pair_idx < len(layer) {
-			proof = append(proof, layer[pair_idx])
+		if pairidx < len(layer) {
+			proof = append(proof, layer[pairidx])
 		}
 		idx = idx / 2
 	}

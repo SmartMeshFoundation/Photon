@@ -34,11 +34,11 @@ type ChannelExternalState struct {
 	ChanSettled                    chan struct{}
 	ChannelAddress                 common.Address
 	lock                           sync.Mutex
-	db                             ChannelDb
+	db                             Db
 }
 
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
-	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService, db ChannelDb) *ChannelExternalState {
+	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService, db Db) *ChannelExternalState {
 	var err error
 	cs := &ChannelExternalState{
 		funcRegisterChannelForHashlock: fun,
@@ -82,12 +82,12 @@ func (this *ChannelExternalState) SetSettled(blocknumber int64) bool {
 func (this *ChannelExternalState) Close(balanceProof *transfer.BalanceProofState) error {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	var Nonce int64 = 0
+	var Nonce int64
 	TransferAmount := utils.BigInt0
 	var LocksRoot common.Hash = utils.EmptyHash
 	//var ChannelAddress common.Address = utils.EmptyAddress
 	var MessageHash common.Hash = utils.EmptyHash
-	var Signature []byte = nil
+	var Signature []byte
 	if balanceProof != nil {
 		Nonce = balanceProof.Nonce
 		TransferAmount = balanceProof.TransferAmount
@@ -130,9 +130,8 @@ func (this *ChannelExternalState) UpdateTransfer(bp *transfer.BalanceProofState)
 		if receipt.Status != types.ReceiptStatusSuccessful {
 			log.Info(fmt.Sprintf("updatetransfer failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 			return errors.New("tx execution failed")
-		} else {
-			log.Info(fmt.Sprintf("updatetransfer success %s,balanceproof=%s", utils.APex(this.ChannelAddress), utils.StringInterface1(bp)))
 		}
+		log.Info(fmt.Sprintf("updatetransfer success %s,balanceproof=%s", utils.APex(this.ChannelAddress), utils.StringInterface1(bp)))
 	}
 	return nil
 }
@@ -197,9 +196,8 @@ func (this *ChannelExternalState) Settle() error {
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("settle failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 		return errors.New("settle execution failed ,maybe reverted?")
-	} else {
-		log.Info(fmt.Sprintf("settle success %s", utils.APex(this.ChannelAddress)))
 	}
+	log.Info(fmt.Sprintf("settle success %s", utils.APex(this.ChannelAddress)))
 	return nil
 }
 
@@ -221,8 +219,7 @@ func (this *ChannelExternalState) Deposit(amount *big.Int) error {
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("Deposit failed %s,receipt=%s", utils.APex(this.ChannelAddress), receipt))
 		return errors.New("Deposit execution failed ,maybe reverted?")
-	} else {
-		log.Info(fmt.Sprintf("Deposit success %s", utils.APex(this.ChannelAddress)))
 	}
+	log.Info(fmt.Sprintf("Deposit success %s", utils.APex(this.ChannelAddress)))
 	return nil
 }

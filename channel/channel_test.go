@@ -62,10 +62,10 @@ func TestEndState(t *testing.T) {
 		recipient common.Address, locksroot common.Hash, lock *Lock,
 		target common.Address, initiator common.Address, fee int64
 	*/
-	mediated_transfer := encoding.NewMediatedTransfer(1, 1, tokenAddress, channelAddress, transferedAmount, state2.Address, locksroot,
+	mtr := encoding.NewMediatedTransfer(1, 1, tokenAddress, channelAddress, transferedAmount, state2.Address, locksroot,
 		lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
-	mediated_transfer.Sign(bcs.PrivKey, mediated_transfer)
-	state1.RegisterLockedTransfer(mediated_transfer)
+	mtr.Sign(bcs.PrivKey, mtr)
+	state1.RegisterLockedTransfer(mtr)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
 	assert.EqualValues(t, state1.Balance(state2), balance1)

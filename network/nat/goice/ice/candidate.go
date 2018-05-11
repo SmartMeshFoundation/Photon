@@ -333,7 +333,7 @@ const (
 func parseInt(v []byte) (int, error) {
 	var i int
 	//跳过开始的非数字,为了和 pjnath 兼容.
-	for i, _ = range v {
+	for i = range v {
 		if v[i] < '0' || v[i] > '9' {
 			continue
 		}

@@ -26,13 +26,12 @@ type TurnServerSockConfig struct {
 	serverAddr   string
 }
 type TurnServerSock struct {
-	s           *StunServerSock
-	cfg         *TurnServerSockConfig
-	cb          ServerSockCallbacker
-	allowedPeer []turn.PeerAddress
-	Name        string
-	stopchan    chan struct{} //for stop refresh.
-	log         log.Logger
+	s        *StunServerSock
+	cfg      *TurnServerSockConfig
+	cb       ServerSockCallbacker
+	Name     string
+	stopchan chan struct{} //for stop refresh.
+	log      log.Logger
 }
 
 func NewTurnServerSockWrapper(bindAddr, name string, cb ServerSockCallbacker, cfg *TurnServerSockConfig) (ts *TurnServerSock, err error) {

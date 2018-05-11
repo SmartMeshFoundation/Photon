@@ -13,6 +13,10 @@ import (
 // key for test
 const passkey = "838e2Bf510eC7Ff49CC607b718Ce8401"
 
+/*
+PasswordEncrypt encrypt accounts password to base64 encoding
+for arguments --password-file use
+*/
 func PasswordEncrypt(pass string) (encstr string, err error) {
 	key, err := hex.DecodeString(passkey)
 	if err != nil {
@@ -25,6 +29,11 @@ func PasswordEncrypt(pass string) (encstr string, err error) {
 	encstr = base64.RawStdEncoding.EncodeToString(encdata)
 	return
 }
+
+/*
+PasswordDecrypt decrypt arguments --password-file
+for arguments --password-file usage
+*/
 func PasswordDecrypt(encpass string) (pass string, err error) {
 	key, err := hex.DecodeString(passkey)
 	if err != nil {
@@ -42,7 +51,9 @@ func PasswordDecrypt(encpass string) (pass string, err error) {
 	return
 }
 
-// AES加密
+/*
+Encrypt use ase,cfb encrypt
+*/
 func Encrypt(src, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -61,7 +72,7 @@ func Encrypt(src, key []byte) ([]byte, error) {
 
 }
 
-// AES解密
+// Decrypt use aes,cfb to decrypt
 func Decrypt(src, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {

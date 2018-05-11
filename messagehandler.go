@@ -146,7 +146,7 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 		//panic(fmt.Sprintf("ReceiveProcessComplete must be false, %s", utils.StringInterface(msg, 6)))
 	}
 
-	mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
+	mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
 	log.Trace(fmt.Sprintf("markSecretComplete set message %s ReceiveProcessComplete", msgTag.MessageId))
 	msgTag.ReceiveProcessComplete = true
 	ack := this.raiden.Protocol.CreateAck(msgTag.EchoHash)
@@ -157,7 +157,7 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	}
 	mgr.IsBalanceProofReceived = true
 	if mgr.Name == target.NameTargetTransition {
-		mgr.ManagerState = transfer.StateManager_TransferComplete
+		mgr.ManagerState = transfer.StateManagerTransferComplete
 	} else if mgr.Name == initiator.NameInitiatorTransition {
 		// initiator should not receive
 	} else if mgr.Name == mediator.NameMediatorTransition {
@@ -168,7 +168,7 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 			//todo when refund?
 		*/
 		if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
-			mgr.ManagerState = transfer.StateManager_TransferComplete
+			mgr.ManagerState = transfer.StateManagerTransferComplete
 		}
 	}
 	this.raiden.db.UpdateStateManaer(mgr, tx)
@@ -285,7 +285,7 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 	if ch == nil {
 		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
 	}
-	if ch.State() != transfer.CHANNEL_STATE_OPENED {
+	if ch.State() != transfer.ChannelStateOpened {
 		return rerr.TransferWhenClosed(ch.MyAddress.String())
 	}
 	var amount = new(big.Int)
@@ -336,7 +336,7 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	if ch == nil {
 		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
 	}
-	if ch.State() != transfer.CHANNEL_STATE_OPENED {
+	if ch.State() != transfer.ChannelStateOpened {
 		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is closed %s", ch.MyAddress))
 	}
 	err := ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)

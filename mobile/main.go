@@ -34,8 +34,8 @@ var (
 	argAddress                  string
 	argKeyStorePath             string
 	argEthRpcEndpoint           string
-	argRegistryContractAddress  string = params.ROPSTEN_REGISTRY_ADDRESS.String()
-	argDiscoveryContractAddress string = params.ROPSTEN_DISCOVERY_ADDRESS.String()
+	argRegistryContractAddress  string = params.RopstenRegistryAddress.String()
+	argDiscoveryContractAddress string = params.RopstenDiscoveryAddress.String()
 	argListenAddress            string = "0.0.0.0:40001"
 	argApiAddress               string = "0.0.0.0:5001"
 	argDataDir                  string
@@ -223,7 +223,7 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
 	max_unresponsive_time := int64(time.Minute)
-	config.Protocol.NatKeepAliveTimeout = max_unresponsive_time / params.DEFAULT_NAT_KEEPALIVE_RETRIES
+	config.Protocol.NatKeepAliveTimeout = max_unresponsive_time / params.DefaultKeepAliveReties
 	address := common.HexToAddress(argAddress)
 	address, privkeyBin := promptAccount(address, argKeyStorePath, argPasswordFile)
 	config.PrivateKeyHex = hex.EncodeToString(privkeyBin)

@@ -57,17 +57,17 @@ func StartMain() {
 		cli.StringFlag{
 			Name:  "registry-contract-address",
 			Usage: `hex encoded address of the registry contract.`,
-			Value: params.ROPSTEN_REGISTRY_ADDRESS.String(),
+			Value: params.RopstenRegistryAddress.String(),
 		},
 		cli.StringFlag{
 			Name:  "discovery-contract-address",
 			Usage: `hex encoded address of the discovery contract.`,
-			Value: params.ROPSTEN_DISCOVERY_ADDRESS.String(),
+			Value: params.RopstenDiscoveryAddress.String(),
 		},
 		cli.StringFlag{
 			Name:  "listen-address",
 			Usage: `"host:port" for the raiden service to listen on.`,
-			Value: fmt.Sprintf("0.0.0.0:%d", params.INITIAL_PORT),
+			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
 		},
 		cli.StringFlag{
 			Name: "rpccorsdomain",
@@ -353,8 +353,8 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	config.ApiPort = apiport
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
-	max_unresponsive_time := ctx.Int64("max-unresponsive-time")
-	config.Protocol.NatKeepAliveTimeout = max_unresponsive_time / params.DEFAULT_NAT_KEEPALIVE_RETRIES
+	maxUnresponsiveTime := ctx.Int64("max-unresponsive-time")
+	config.Protocol.NatKeepAliveTimeout = maxUnresponsiveTime / params.DefaultKeepAliveReties
 	address := common.HexToAddress(ctx.String("address"))
 	address, privkeyBin := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
 	config.PrivateKeyHex = hex.EncodeToString(privkeyBin)

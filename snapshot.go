@@ -121,7 +121,7 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 	mgrs := this.db.GetAllStateManager()
 	for _, mgr := range mgrs {
 		//log.Trace(fmt.Sprintf("unfinish manager %s", utils.StringInterface(mgr, 7)))
-		if mgr.ManagerState == transfer.StateManager_State_Init || mgr.ManagerState == transfer.StateManager_TransferComplete {
+		if mgr.ManagerState == transfer.StateManagerStateInit || mgr.ManagerState == transfer.StateManagerTransferComplete {
 			continue
 		}
 		setStateManagerFuncPointer(mgr)
@@ -137,9 +137,9 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 			var tag interface{}
 			var messageTag *transfer.MessageTag
 			switch mgr.ManagerState {
-			case transfer.StateManager_TransferComplete:
+			case transfer.StateManagerTransferComplete:
 				//ignore
-			case transfer.StateManager_ReceivedMessage:
+			case transfer.StateManagerReceivedMessage:
 				st, ok := mgr.LastReceivedMessage.(mediated_transfer.ActionInitInitiatorStateChange)
 				if ok {
 					st.Db = this.db
@@ -152,12 +152,12 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 					break
 				}
 				fallthrough
-			case transfer.StateManager_ReceivedMessageProcessComplete: //there may be message waiting for send
+			case transfer.StateManagerReceivedMessageProcessComplete: //there may be message waiting for send
 				if mgr.LastSendMessage == nil {
 					break
 				}
 				fallthrough
-			case transfer.StateManager_SendMessage:
+			case transfer.StateManagerSendMessage:
 				/*
 					todo fix It should be detected whether it is out of date,
 					such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
@@ -172,7 +172,7 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 				}
 				messageTag.SetStateManager(mgr) //statemanager doesn't save
 				this.SendAsync(messageTag.Receiver, mgr.LastSendMessage.(encoding.SignedMessager))
-			case transfer.StateManager_SendMessageSuccesss:
+			case transfer.StateManagerSendMessageSuccesss:
 				//do nothing right now.
 			}
 		}
@@ -215,16 +215,16 @@ func (this *RaidenService) RestoreToken2Hash2Channels() {
 	log.Trace("RestoreToken2Hash2Channels...")
 	for token, g := range this.Token2ChannelGraph {
 		for _, c := range g.ChannelAddress2Channel {
-			for lock, _ := range c.OurState.Lock2PendingLocks {
+			for lock := range c.OurState.Lock2PendingLocks {
 				this.RegisterChannelForHashlock(token, c, lock)
 			}
-			for lock, _ := range c.PartnerState.Lock2PendingLocks {
+			for lock := range c.PartnerState.Lock2PendingLocks {
 				this.RegisterChannelForHashlock(token, c, lock)
 			}
-			for lock, _ := range c.OurState.Lock2UnclaimedLocks {
+			for lock := range c.OurState.Lock2UnclaimedLocks {
 				this.RegisterChannelForHashlock(token, c, lock)
 			}
-			for lock, _ := range c.PartnerState.Lock2UnclaimedLocks {
+			for lock := range c.PartnerState.Lock2UnclaimedLocks {
 				this.RegisterChannelForHashlock(token, c, lock)
 			}
 		}

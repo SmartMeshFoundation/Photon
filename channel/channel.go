@@ -78,12 +78,12 @@ func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelEx
 
 func (c *Channel) State() string {
 	if c.ExternState.SettledBlock != 0 {
-		return transfer.CHANNEL_STATE_SETTLED
+		return transfer.ChannelStateSettled
 	}
 	if c.ExternState.ClosedBlock != 0 {
-		return transfer.CHANNEL_STATE_CLOSED
+		return transfer.ChannelStateClosed
 	}
-	return transfer.CHANNEL_STATE_OPENED
+	return transfer.ChannelStateOpened
 }
 
 /*
@@ -94,7 +94,7 @@ func (c *Channel) Distributable() *big.Int {
 	return c.OurState.Distributable(c.PartnerState)
 }
 func (c *Channel) CanTransfer() bool {
-	return c.State() == transfer.CHANNEL_STATE_OPENED && c.Distributable().Cmp(utils.BigInt0) > 0
+	return c.State() == transfer.ChannelStateOpened && c.Distributable().Cmp(utils.BigInt0) > 0
 }
 
 //Return the total amount of token we deposited in the channel
@@ -155,9 +155,8 @@ func (c *Channel) GetSettleExpiration(blocknumer int64) int64 {
 	ClosedBlock := c.ExternState.ClosedBlock
 	if ClosedBlock != 0 {
 		return ClosedBlock + int64(c.SettleTimeout)
-	} else {
-		return blocknumer + int64(c.SettleTimeout)
 	}
+	return blocknumer + int64(c.SettleTimeout)
 }
 
 func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address) {
@@ -457,7 +456,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	}
 	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
 	distributable := fromState.Distributable(toState)
-	if tr.Cmd() == encoding.DIRECTTRANSFER_CMDID {
+	if tr.Cmd() == encoding.DirectTransferCmdId {
 		if amount.Cmp(distributable) > 0 {
 			return rerr.InsufficientBalance
 		}
@@ -466,7 +465,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		if new(big.Int).Add(amount, mtr.Amount).Cmp(distributable) > 0 {
 			return rerr.InsufficientBalance
 		}
-	} else if tr.Cmd() == encoding.SECRET_CMDID {
+	} else if tr.Cmd() == encoding.SecretCmdId {
 		sec := tr.(*encoding.Secret)
 		hashlock := utils.Sha3(sec.Secret[:])
 		lock := fromState.GetLockByHashlock(hashlock)
@@ -502,13 +501,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		*/
 		c.ExternState.funcRegisterChannelForHashlock(c, mtr.HashLock)
 	}
-	if tr.Cmd() == encoding.DIRECTTRANSFER_CMDID {
+	if tr.Cmd() == encoding.DirectTransferCmdId {
 		err = fromState.RegisterDirectTransfer(tr.(*encoding.DirectTransfer))
 		if err != nil {
 			return err
 		}
 	}
-	if tr.Cmd() == encoding.SECRET_CMDID {
+	if tr.Cmd() == encoding.SecretCmdId {
 		err = fromState.RegisterSecretMessage(tr.(*encoding.Secret))
 		if err != nil {
 			return err
@@ -567,7 +566,7 @@ Return a MediatedTransfer message.
             expiration (int): The maximum block number until the transfer
                 message can be received.
 */
-func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
+func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
 		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
 	}
@@ -586,7 +585,7 @@ func (c *Channel) CreateMediatedTransfer(transfer_initiator, transfer_target com
 	transferAmount := from.TransferAmount()
 	nonce := c.GetNextNonce()
 	tr = encoding.NewMediatedTransfer(identifier, nonce, c.TokenAddress, c.MyAddress,
-		transferAmount, to.Address, updatedLocksroot, lock, transfer_target, transfer_initiator, fee)
+		transferAmount, to.Address, updatedLocksroot, lock, target, initiator, fee)
 	return
 }
 

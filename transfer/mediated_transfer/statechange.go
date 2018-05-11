@@ -22,7 +22,7 @@ type ActionInitInitiatorStateChange struct {
 	Routes          *transfer.RoutesState //The current available routes.
 	RandomGenerator utils.SecretGenerator //A generator for secrets.
 	BlockNumber     int64                 //The current block number.
-	Db              channel.ChannelDb     //get the latest channel state
+	Db              channel.Db            //get the latest channel state
 }
 
 // Initial state for a new mediator.
@@ -33,7 +33,7 @@ type ActionInitMediatorStateChange struct {
 	FromRoute   *transfer.RouteState       //The route from which the MediatedTransfer was received.
 	BlockNumber int64                      //The current block number.
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channel.ChannelDb          //get the latest channel state
+	Db          channel.Db                 //get the latest channel state
 }
 
 //Initial state for a new target.
@@ -43,7 +43,7 @@ type ActionInitTargetStateChange struct {
 	FromRoute   *transfer.RouteState //The route from which the MediatedTransfer was received.
 	BlockNumber int64
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channel.ChannelDb          //get the latest channel state
+	Db          channel.Db                 //get the latest channel state
 }
 
 /*

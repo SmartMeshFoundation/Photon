@@ -187,7 +187,7 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) (err error) {
 	}
 	t.log.Trace(fmt.Sprintf("%s received sdp \n%s\n", t.Name, remoteSDP))
 	t.State = TransportStateNegotiation
-	sd, err := DecodeSession(remoteSDP)
+	sd, err := decodeSession(remoteSDP)
 	if err != nil {
 		return
 	}
@@ -238,7 +238,7 @@ func (t *IceStreamTransport) Stop() {
 }
 func (t *IceStreamTransport) SendData(data []byte) error {
 	if t.State != TransportStateRunning {
-		return errors.New("transport not running.")
+		return errors.New("transport not running")
 	}
 	return t.session.SendData(data)
 }
@@ -275,7 +275,7 @@ func (t *IceStreamTransport) onRxData(data []byte, from string) {
 		t.cb.OnReceiveData(data, addrToUdpAddr(from))
 	}
 }
-func DecodeSession(str string) (session *sessionDescription, err error) {
+func decodeSession(str string) (session *sessionDescription, err error) {
 	var s sdp.Session
 	s, err = sdp.DecodeSession([]byte(str), s)
 	if err != nil {

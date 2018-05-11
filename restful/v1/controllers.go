@@ -15,13 +15,13 @@ func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
 	tokenAddr := common.HexToAddress(token)
 	mgr, err := RaidenApi.RegisterToken(tokenAddr)
 	type Ret struct {
-		Channel_manager_address string
+		ChannelManagerAddress string `json:"channel_manager_address"`
 	}
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterToken %s err:%s", tokenAddr.String(), err))
 		rest.Error(w, err.Error(), http.StatusConflict)
 	} else {
-		ret := &Ret{Channel_manager_address: mgr.String()}
+		ret := &Ret{ChannelManagerAddress: mgr.String()}
 		w.WriteJson(ret)
 	}
 }

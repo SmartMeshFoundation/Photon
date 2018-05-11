@@ -30,7 +30,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var globalPassword string = "123"
+var globalPassword = "123"
 
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
@@ -76,7 +76,10 @@ func Main(ctx *cli.Context) error {
 	fmt.Println("start to deploy ...")
 	registryAddress := DeployContract(key, conn)
 	//registryAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
-	registry, _ := rpc.NewRegistry(registryAddress, conn)
+	registry, err := rpc.NewRegistry(registryAddress, conn)
+	if err != nil {
+		return err
+	}
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
 	return nil
@@ -103,7 +106,10 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 			log.Println(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
 			continue
 		}
-		key, _ = crypto.ToECDSA(keybin)
+		key, err = crypto.ToECDSA(keybin)
+		if err != nil {
+			log.Println(fmt.Sprintf("private key to bytes err %s", err))
+		}
 		break
 	}
 	return
@@ -161,8 +167,16 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 	managerAddress, tokenAddress := NewToken(key, conn, registry)
 	//tokenAddress := common.HexToAddress("0xD29A9Cbf2Ca88981D0794ce94e68495c4bC16F28")
 	//managerAddress, _ := registry.ChannelManagerByToken(nil, tokenAddress)
-	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
-	token, _ := rpc.NewToken(tokenAddress, conn)
+	manager, err := rpc.NewChannelManagerContract(managerAddress, conn)
+	if err != nil {
+		log.Fatalf("err for NewChannelManagerContract %s", err)
+		return
+	}
+	token, err := rpc.NewToken(tokenAddress, conn)
+	if err != nil {
+		log.Fatalf("err for newtoken err %s", err)
+		return
+	}
 	am := smartraiden.NewAccountManager(keystorepath)
 	var accounts []common.Address
 	var keys []*ecdsa.PrivateKey
@@ -172,7 +186,10 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 		if err != nil {
 			log.Fatalf("password error for %s", account.Address.String())
 		}
-		keytemp, _ := crypto.ToECDSA(keybin)
+		keytemp, err := crypto.ToECDSA(keybin)
+		if err != nil {
+			log.Fatalf("toecdsa err %s", err)
+		}
 		keys = append(keys, keytemp)
 	}
 	fmt.Sprintf("key=%s", key)
@@ -272,7 +289,7 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 
 }
 
-func CreateChannels_2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func CreateChannels2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -302,7 +319,7 @@ func CreateChannels_2(conn *ethclient.Client, accounts []common.Address, keys []
 registry address :0x0C31cF985eA2F2932c2EDF05f36aBC7b24B17d40 test poa net networkid :8888
 you find this topology at the above address
 */
-func CreateChannels_3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func CreateChannels3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -329,7 +346,7 @@ func CreateChannels_3(conn *ethclient.Client, accounts []common.Address, keys []
 	creatAChannelAndDeposit(AccountF, AccountD, keyF, keyD, 60, manager, token, conn)
 
 }
-func CreateChannels_fun1(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func CreateChannels4(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -400,16 +417,16 @@ func CreateChannels_fun1(conn *ethclient.Client, accounts []common.Address, keys
 func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *rpc.ChannelManagerContract, token *rpc.Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
-	auth1.GasLimit = uint64(params.GAS_LIMIT)
-	auth1.GasPrice = big.NewInt(params.GAS_PRICE)
+	auth1.GasLimit = uint64(params.GasLimit)
+	auth1.GasPrice = big.NewInt(params.GasPrice)
 	callAuth1 := &bind.CallOpts{
 		Pending: false,
 		From:    account1,
 		Context: context.Background(),
 	}
 	auth2 := bind.NewKeyedTransactor(key2)
-	auth2.GasLimit = uint64(params.GAS_LIMIT)
-	auth2.GasPrice = big.NewInt(params.GAS_PRICE)
+	auth2.GasLimit = uint64(params.GasLimit)
+	auth2.GasPrice = big.NewInt(params.GasPrice)
 	tx, err := manager.NewChannel(auth1, account2, big.NewInt(600))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())

@@ -19,7 +19,7 @@ func UpdateRoute(Routes *transfer.RoutesState, stateChange *transfer.ActionRoute
 	}
 	//如果为空一定能找到?
 	// TODO: what if the route that changed is the current route?
-	if newRoute.State != transfer.CHANNEL_STATE_OPENED {
+	if newRoute.State != transfer.ChannelStateOpened {
 		//如果没有找到就替换最后一个?为什么呢
 		availableRoutes = append(availableRoutes[0:idx], availableRoutes[idx+1:]...)
 	} else {

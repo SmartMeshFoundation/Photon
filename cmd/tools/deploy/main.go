@@ -159,7 +159,11 @@ func promptAccount(adviceAddress common.Address, keystorePath string) (addr comm
 			log.Println(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
 			continue
 		}
-		key, _ = crypto.ToECDSA(keybin)
+		key, err = crypto.ToECDSA(keybin)
+		if err != nil {
+			log.Fatalf("private key to bytes err %s", err)
+			os.Exit(1)
+		}
 		break
 	}
 	return

@@ -95,7 +95,7 @@ func TestEventGetChannelNew(t *testing.T) {
 
 func TestEventAddressRegistered(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	logs, err := EventGetInternal(context.Background(), params.ROPSTEN_DISCOVERY_ADDRESS, rpc.EarliestBlockNumber,
+	logs, err := EventGetInternal(context.Background(), params.RopstenDiscoveryAddress, rpc.EarliestBlockNumber,
 		rpc.LatestBlockNumber, params.NameAddressRegistered, EndpointRegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
@@ -108,7 +108,7 @@ func TestCodeAt(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	addrKilled := common.HexToAddress("0xad65d5b1210a80e8664aa58185bcd492184a43fa")
 	addrNotExist := common.HexToAddress("0x0000000000000000000000000000000000000000")
-	addrHasContract := params.ROPSTEN_REGISTRY_ADDRESS
+	addrHasContract := params.RopstenRegistryAddress
 	//
 	code, err := bcs.Client.CodeAt(context.Background(), addrKilled, nil)
 	if err != nil {

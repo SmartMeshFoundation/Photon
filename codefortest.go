@@ -77,7 +77,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Error("Failed to create authorized transactor: ", err)
 	}
-	return rpc.NewBlockChainService(privkey, rpc.PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
+	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
 func makeTestRaidens() (r1, r2, r3 *RaidenService) {

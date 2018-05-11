@@ -14,7 +14,7 @@ import (
 	"github.com/fatedier/frp/src/utils/log"
 )
 
-//how to recover from a restart of geth
+//SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
 	*ethclient.Client
 	lock      sync.Mutex

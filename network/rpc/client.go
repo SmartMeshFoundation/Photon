@@ -28,13 +28,13 @@ import (
 
 //context for tx
 func GetCallContext() context.Context {
-	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(params.Default_Tx_Timeout))
+	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(params.DefaultTxTimeout))
 	return ctx
 }
 
 //context for query on chain
 func GetQueryConext() context.Context {
-	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(params.DEFAULT_POLL_TIMEOUT))
+	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(params.DefaultPollTimeout))
 	return ctx
 }
 
@@ -60,7 +60,7 @@ func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Addr
 		NodeAddress:           crypto.PubkeyToAddress(privKey.PublicKey),
 		RegistryAddress:       registryAddress,
 		Client:                client,
-		PollTimeOut:           params.DEFAULT_POLL_TIMEOUT,
+		PollTimeOut:           params.DefaultPollTimeout,
 		AddressToken:          make(map[common.Address]*TokenProxy),
 		AddressDiscovery:      make(map[common.Address]*EndpointRegistryProxy),
 		AddressChannelManager: make(map[common.Address]*ChannelManagerContractProxy),
@@ -74,8 +74,8 @@ func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Addr
 		Context: GetQueryConext(),
 	}
 	//It needs to be set up, otherwise, even the contract revert will not report wrong.
-	bcs.Auth.GasLimit = uint64(params.GAS_LIMIT)
-	bcs.Auth.GasPrice = big.NewInt(params.GAS_PRICE)
+	bcs.Auth.GasLimit = uint64(params.GasLimit)
+	bcs.Auth.GasPrice = big.NewInt(params.GasPrice)
 	return bcs
 }
 func (this *BlockChainService) QueryOpts() *bind.CallOpts {
@@ -243,11 +243,6 @@ func (this *RegistryProxy) AddToken(tokenAddress common.Address) (mgrAddr common
 	} else {
 		log.Info(fmt.Sprintf("AddToken success %s,token=%s", utils.APex(this.Address), tokenAddress.String()))
 	}
-	//receipt.Logs[0].Data
-	//spew.Config.DisableMethods = true
-	//spew.Dump("receipt:", receipt)
-	//fmt.Printf("receipt=%s\n", receipt)
-	//The return value of the contract can not be obtained directly
 	return this.registry.ChannelManagerByToken(this.bcs.QueryOpts(), tokenAddress)
 }
 
@@ -297,11 +292,11 @@ func (this *ChannelManagerContractProxy) GetChannelWith(partenerAddress common.A
 /// @notice Get all channels that an address participates in.
 /// @param node_address The address of the node
 /// @return The channel's addresses that node_address participates in.
-func (this *ChannelManagerContractProxy) NettingContractsByAddress(node_address common.Address) (channels []common.Address, err error) {
-	return this.mgr.NettingContractsByAddress(this.bcs.QueryOpts(), node_address)
+func (this *ChannelManagerContractProxy) NettingContractsByAddress(nodeAddress common.Address) (channels []common.Address, err error) {
+	return this.mgr.NettingContractsByAddress(this.bcs.QueryOpts(), nodeAddress)
 }
-func (this *ChannelManagerContractProxy) NettingChannelByAddress(node_address common.Address) (channels []*NettingChannelContractProxy, err error) {
-	addrs, err := this.mgr.NettingContractsByAddress(this.bcs.QueryOpts(), node_address)
+func (this *ChannelManagerContractProxy) NettingChannelByAddress(nodeAddress common.Address) (channels []*NettingChannelContractProxy, err error) {
+	addrs, err := this.mgr.NettingContractsByAddress(this.bcs.QueryOpts(), nodeAddress)
 	if err != nil {
 		return
 	}
@@ -339,9 +334,8 @@ func (this *ChannelManagerContractProxy) NewChannel(partnerAddress common.Addres
 		log.Info(fmt.Sprintf("NewChannel failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		err = errors.New("NewChannel tx execution failed")
 		return
-	} else {
-		log.Info(fmt.Sprintf("NewChannel success %s, partnerAddress=%s", utils.APex(this.Address), utils.APex(partnerAddress)))
 	}
+	log.Info(fmt.Sprintf("NewChannel success %s, partnerAddress=%s", utils.APex(this.Address), utils.APex(partnerAddress)))
 	return this.GetChannelWith(partnerAddress)
 }
 
@@ -450,9 +444,8 @@ func (this *EndpointRegistryProxy) RegisterEndpoint(socket string) (err error) {
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("registerEndpoint failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("RegisterEndpoint tx execution failed")
-	} else {
-		log.Info(fmt.Sprint("RegisterEndpoint success %s,socket=%s", utils.APex(this.Address), socket))
 	}
+	log.Info(fmt.Sprint("RegisterEndpoint success %s,socket=%s", utils.APex(this.Address), socket))
 	return nil
 }
 
@@ -507,9 +500,8 @@ func (this *TokenProxy) Approve(spender common.Address, value *big.Int) (err err
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(this.Address), receipt))
 		return errors.New("Approve tx execution failed")
-	} else {
-		log.Info(fmt.Sprint("Approve success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
 	}
+	log.Info(fmt.Sprint("Approve success %s,spender=%s,value=%d", utils.APex(this.Address), utils.APex(spender), value))
 	return nil
 }
 

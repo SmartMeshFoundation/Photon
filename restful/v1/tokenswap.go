@@ -43,7 +43,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	req := &Req{}
-	err := r.DecodeJsonPayload(req)
+	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)

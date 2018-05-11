@@ -25,7 +25,7 @@ func eventsForClose(state *mediated_transfer.TargetState) (events []transfer.Eve
 	safeToWait := mediator.IsSafeToWait(fromTransfer, fromRoute.RevealTimeout, state.BlockNumber)
 	secretKnown := fromTransfer.Secret != utils.EmptyHash
 	if !safeToWait && secretKnown {
-		state.State = mediated_transfer.STATE_WAITING_CLOSE
+		state.State = mediated_transfer.StateWaitingClose
 		channelClose := &mediated_transfer.EventContractSendChannelClose{
 			ChannelAddress: fromRoute.ChannelAddress,
 			Token:          fromTransfer.Token,
@@ -48,7 +48,7 @@ func eventsForWithdraw(state *mediated_transfer.TargetState, fromRoute *transfer
 	} else {
 		log.Error(" db is nil can only be ignored when you are run testing...")
 	}
-	isChannelOpen := fromRoute.State == transfer.CHANNEL_STATE_OPENED
+	isChannelOpen := fromRoute.State == transfer.ChannelStateOpened
 	if !isChannelOpen && fromTransfer.Secret != utils.EmptyHash { //重复发送，直到取现成功？或者expired？
 		if state.Db != nil {
 			if state.Db.IsThisLockHasWithdraw(fromRoute.ChannelAddress, fromTransfer.Secret) {
@@ -102,7 +102,7 @@ func handleSecretReveal(state *mediated_transfer.TargetState, st *mediated_trans
 	if validSecret {
 		tr := state.FromTransfer
 		route := state.FromRoute
-		state.State = mediated_transfer.STATE_REVEAL_SECRET
+		state.State = mediated_transfer.StateRevealSecret
 		tr.Secret = st.Secret
 		reveal := &mediated_transfer.EventSendRevealSecret{
 			Identifier: tr.Identifier,
@@ -123,7 +123,7 @@ func handleBalanceProof(state *mediated_transfer.TargetState, st *mediated_trans
 	it = &transfer.TransitionResult{state, nil}
 	//TODO: byzantine behavior event when the sender doesn't match
 	if st.NodeAddress == state.FromRoute.HopNode {
-		state.State = mediated_transfer.STATE_BALANCE_PROOF
+		state.State = mediated_transfer.StateBalanceProof
 	}
 	return
 }
@@ -141,7 +141,7 @@ func handleBlock(state *mediated_transfer.TargetState, st *transfer.BlockStateCh
 
 	*/
 	var events []transfer.Event
-	if state.State != mediated_transfer.STATE_WAITING_CLOSE {
+	if state.State != mediated_transfer.StateWaitingClose {
 		events = eventsForClose(state)
 	}
 	events2 := eventsForWithdraw(state, state.FromRoute)
@@ -181,7 +181,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			Reason:         "lock expired",
 		}
 		it = &transfer.TransitionResult{nil, []transfer.Event{failed}}
-	} else if state.State == mediated_transfer.STATE_BALANCE_PROOF {
+	} else if state.State == mediated_transfer.StateBalanceProof {
 		//这些事件对应的处理都没有
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
 			Identifier: state.FromTransfer.Identifier,

@@ -23,15 +23,15 @@ import (
 
 type MessageType int
 
-const ACK_CMDID = 0
-const PING_CMDID = 1
-const SECRETREQUEST_CMDID = 3
-const SECRET_CMDID = 4
-const DIRECTTRANSFER_CMDID = 5
-const MEDIATEDTRANSFER_CMDID = 7
-const REFUNDTRANSFER_CMDID = 8
-const REVEALSECRET_CMDID = 11
-const REMOVEEXPIREDHASHLOCK_CMDID = 13
+const AckCmdId = 0
+const PingCmdId = 1
+const SecretRequestCmdId = 3
+const SecretCmdId = 4
+const DirectTransferCmdId = 5
+const MediatedTransferCmdId = 7
+const RefundTransferCmdId = 8
+const RevealSecretCmdId = 11
+const RemoveExpiredHashLockCmdId = 13
 
 const SignatureLength = 65
 const TokenLength = 20
@@ -98,23 +98,23 @@ type EnvelopMessager interface {
 // String return the string representation of message type.
 func (t MessageType) String() string {
 	switch t {
-	case ACK_CMDID:
+	case AckCmdId:
 		return "Ack"
-	case PING_CMDID:
+	case PingCmdId:
 		return "Ping"
-	case SECRETREQUEST_CMDID:
+	case SecretRequestCmdId:
 		return "SecretRequest"
-	case SECRET_CMDID:
+	case SecretCmdId:
 		return "Secret"
-	case DIRECTTRANSFER_CMDID:
+	case DirectTransferCmdId:
 		return "DirectTransfer"
-	case MEDIATEDTRANSFER_CMDID:
+	case MediatedTransferCmdId:
 		return "MediatedTransfer"
-	case REFUNDTRANSFER_CMDID:
+	case RefundTransferCmdId:
 		return "RefundTransfer"
-	case REVEALSECRET_CMDID:
+	case RevealSecretCmdId:
 		return "RevealSecret"
-	case REMOVEEXPIREDHASHLOCK_CMDID:
+	case RemoveExpiredHashLockCmdId:
 		return "RemoveExpiredHashlock"
 	default:
 		return "<unknown>"
@@ -135,7 +135,7 @@ type Ack struct {
 
 func NewAck(sender common.Address, echo common.Hash) *Ack {
 	return &Ack{
-		CmdStruct: CmdStruct{CmdId: ACK_CMDID},
+		CmdStruct: CmdStruct{CmdId: AckCmdId},
 		Sender:    sender,
 		Echo:      echo,
 	}
@@ -151,7 +151,7 @@ func (this *Ack) Pack() []byte {
 
 func (this *Ack) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = ACK_CMDID
+	this.CmdId = AckCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -241,10 +241,10 @@ type Ping struct {
 
 func NewPing(nonce int64) *Ping {
 	p := &Ping{
-		//SignedMessage:SignedMessage{CmdStruct: CmdStruct{CmdId: PING_CMDID}},
+		//SignedMessage:SignedMessage{CmdStruct: CmdStruct{CmdId: PingCmdId}},
 		Nonce: nonce,
 	}
-	p.CmdId = PING_CMDID
+	p.CmdId = PingCmdId
 	return p
 }
 
@@ -258,7 +258,7 @@ func (this *Ping) Pack() []byte {
 
 func (this *Ping) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = PING_CMDID
+	this.CmdId = PingCmdId
 	if len(data) != 77 { //stun response here
 		return errPacketLength
 	}
@@ -296,7 +296,7 @@ func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount *big.Int) 
 		HashLock:   hashLock,
 		Amount:     new(big.Int).Set(amount),
 	}
-	p.CmdId = SECRETREQUEST_CMDID
+	p.CmdId = SecretRequestCmdId
 	return p
 }
 
@@ -318,7 +318,7 @@ func readBigInt(reader io.Reader) *big.Int {
 }
 func (this *SecretRequest) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = SECRETREQUEST_CMDID
+	this.CmdId = SecretRequestCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -362,7 +362,7 @@ func NewRevealSecret(secret common.Hash) *RevealSecret {
 	p := &RevealSecret{
 		Secret: secret,
 	}
-	p.CmdId = REVEALSECRET_CMDID
+	p.CmdId = RevealSecretCmdId
 	return p
 }
 func CloneRevealSecret(rs *RevealSecret) *RevealSecret {
@@ -384,7 +384,7 @@ func (this *RevealSecret) Pack() []byte {
 }
 func (this *RevealSecret) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = REVEALSECRET_CMDID
+	this.CmdId = RevealSecretCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -497,7 +497,7 @@ func NewSecret(Identifier uint64, nonce int64, channel common.Address,
 		Secret: secret,
 	}
 	p.Identifier = Identifier
-	p.CmdId = SECRET_CMDID
+	p.CmdId = SecretCmdId
 	p.Nonce = nonce
 	p.Channel = channel
 	p.TransferAmount = new(big.Int).Set(transferamount)
@@ -519,7 +519,7 @@ func (this *Secret) Pack() []byte {
 }
 func (this *Secret) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = SECRET_CMDID
+	this.CmdId = SecretCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -573,7 +573,7 @@ func NewRemoveExpiredHashlockTransfer(Identifier uint64, nonce int64, channel co
 		panic("identifier is useless")
 	}
 	p.Identifier = Identifier
-	p.CmdId = REMOVEEXPIREDHASHLOCK_CMDID
+	p.CmdId = RemoveExpiredHashLockCmdId
 	p.Nonce = nonce
 	p.Channel = channel
 	p.TransferAmount = new(big.Int).Set(transferamount)
@@ -595,7 +595,7 @@ func (this *RemoveExpiredHashlockTransfer) Pack() []byte {
 }
 func (this *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = REMOVEEXPIREDHASHLOCK_CMDID
+	this.CmdId = RemoveExpiredHashLockCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -671,7 +671,7 @@ func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
 		Recipient: recipient,
 	}
 	p.Identifier = identifier
-	p.CmdId = DIRECTTRANSFER_CMDID
+	p.CmdId = DirectTransferCmdId
 	p.Nonce = nonce
 	p.Channel = channel
 	p.TransferAmount = new(big.Int).Set(transferAmount)
@@ -694,7 +694,7 @@ func (this *DirectTransfer) Pack() []byte {
 }
 func (this *DirectTransfer) UnPack(data []byte) error {
 	var t int32
-	this.CmdId = DIRECTTRANSFER_CMDID
+	this.CmdId = DirectTransferCmdId
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	if t != this.CmdId {
@@ -793,7 +793,7 @@ func NewMediatedTransfer(identifier uint64, nonce int64, token common.Address,
 	p.Nonce = nonce
 	p.TransferAmount = new(big.Int).Set(transferAmount)
 	p.Locksroot = locksroot //Including the merkletree root of the incomplete  transaction
-	p.CmdId = MEDIATEDTRANSFER_CMDID
+	p.CmdId = MediatedTransferCmdId
 	p.Channel = channel
 	p.Expiration = lock.Expiration
 	p.HashLock = lock.HashLock
@@ -834,7 +834,7 @@ func (this *MediatedTransfer) UnPack(data []byte) error {
 	buf := bytes.NewBuffer(data)
 	binary.Read(buf, binary.LittleEndian, &t)
 	this.CmdId = t
-	if this.CmdId != MEDIATEDTRANSFER_CMDID && this.CmdId != REFUNDTRANSFER_CMDID {
+	if this.CmdId != MediatedTransferCmdId && this.CmdId != RefundTransferCmdId {
 		return errors.New("MediatedTransfer unpack cmd error")
 	}
 	binary.Read(buf, binary.BigEndian, &this.Nonce)
@@ -886,17 +886,17 @@ func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
 	p := &RefundTransfer{}
 	p.MediatedTransfer = *(NewMediatedTransfer(identifier, nonce, token, channel, transferAmount, recipient,
 		locksroot, lock, target, initiator, fee))
-	p.CmdId = REFUNDTRANSFER_CMDID
+	p.CmdId = RefundTransferCmdId
 	return p
 }
 func NewRefundTransferFromMediatedTransfer(mtr *MediatedTransfer) *RefundTransfer {
 	p := &RefundTransfer{}
 	p.MediatedTransfer = *mtr
-	p.CmdId = REFUNDTRANSFER_CMDID
+	p.CmdId = RefundTransferCmdId
 	return p
 }
 func IsLockedTransfer(msg Messager) bool {
-	return msg.Cmd() == REFUNDTRANSFER_CMDID || msg.Cmd() == MEDIATEDTRANSFER_CMDID
+	return msg.Cmd() == RefundTransferCmdId || msg.Cmd() == MediatedTransferCmdId
 }
 
 //make sure tr is locked transfer
@@ -915,15 +915,15 @@ func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
 }
 
 var MessageMap = map[int]Messager{
-	PING_CMDID:                  new(Ping),
-	ACK_CMDID:                   new(Ack),
-	SECRETREQUEST_CMDID:         new(SecretRequest),
-	SECRET_CMDID:                new(Secret),
-	DIRECTTRANSFER_CMDID:        new(DirectTransfer),
-	REVEALSECRET_CMDID:          new(RevealSecret),
-	MEDIATEDTRANSFER_CMDID:      new(MediatedTransfer),
-	REFUNDTRANSFER_CMDID:        new(RefundTransfer),
-	REMOVEEXPIREDHASHLOCK_CMDID: new(RemoveExpiredHashlockTransfer),
+	PingCmdId:                  new(Ping),
+	AckCmdId:                   new(Ack),
+	SecretRequestCmdId:         new(SecretRequest),
+	SecretCmdId:                new(Secret),
+	DirectTransferCmdId:        new(DirectTransfer),
+	RevealSecretCmdId:          new(RevealSecret),
+	MediatedTransferCmdId:      new(MediatedTransfer),
+	RefundTransferCmdId:        new(RefundTransfer),
+	RemoveExpiredHashLockCmdId: new(RemoveExpiredHashlockTransfer),
 }
 
 func init() {

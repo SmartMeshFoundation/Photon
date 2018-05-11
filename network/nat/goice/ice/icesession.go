@@ -714,18 +714,17 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				//todo notify ice failed.
 				s.iceComplete(errors.New("no valid check"), true)
 				return true
-			} else {
-				s.log.Trace(fmt.Sprintf("all checks completed. controlled agent now waits for nomination.."))
-				s.changeCompleteResult(SessionCheckComplete)
-				go func() {
-					//start a timer,failed if there is no nomiated
-					time.Sleep(s.controlledAgentWaitNomiatedTimeout) // time from pjnath
-					if s.sessionComponent.nominatedCheck == nil {
-						s.iceComplete(errors.New("no nonimated"), true)
-					}
-				}()
-				return false
 			}
+			s.log.Trace(fmt.Sprintf("all checks completed. controlled agent now waits for nomination.."))
+			s.changeCompleteResult(SessionCheckComplete)
+			go func() {
+				//start a timer,failed if there is no nomiated
+				time.Sleep(s.controlledAgentWaitNomiatedTimeout) // time from pjnath
+				if s.sessionComponent.nominatedCheck == nil {
+					s.iceComplete(errors.New("no nonimated"), true)
+				}
+			}()
+			return false
 		} else if s.isNominating { //如果我是 controlling, 那么总是采用 aggressive策略.
 			s.iceComplete(fmt.Errorf("%s controlling no nominated ", s.Name), true)
 			return true
@@ -826,10 +825,8 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 					//t.Stop()
 					srv.FinishNegotiation(TurnModeData)
 					return
-				} else {
-					srv.FinishNegotiation(TurnModeData)
 				}
-
+				srv.FinishNegotiation(TurnModeData)
 			} else {
 				srv.FinishNegotiation(StunModeData)
 			}

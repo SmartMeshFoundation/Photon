@@ -63,7 +63,7 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 		const MaxPingOneTime = 10
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
 			status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
-			if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
+			if status == network.NodeNetworkReachable && lastAckTime.Add(time.Minute).After(time.Now()) {
 				if i == 0 {
 					needWait = false
 				}
@@ -84,7 +84,7 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 			time.Sleep(5 * time.Second)
 			for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
 				status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
-				if status == network.NODE_NETWORK_REACHABLE && lastAckTime.Add(time.Minute).After(time.Now()) {
+				if status == network.NodeNetworkReachable && lastAckTime.Add(time.Minute).After(time.Now()) {
 					availables = append(availables, task.RoutesState.AvailableRoutes[i])
 				} else {
 					task.RoutesState.IgnoredRoutes = append(task.RoutesState.IgnoredRoutes, task.RoutesState.AvailableRoutes[i])

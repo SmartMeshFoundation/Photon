@@ -1,14 +1,11 @@
 package ice
 
 import (
+	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
-
-	_ "net/http/pprof"
-
-	"encoding/hex"
-	"errors"
 	"sync"
 	"time"
 

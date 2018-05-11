@@ -204,7 +204,7 @@ func TestChannelTwice(t *testing.T) {
 	TestChannel(t)
 }
 func TestGob(t *testing.T) {
-	s1 := params.ROPSTEN_REGISTRY_ADDRESS
+	s1 := params.RopstenRegistryAddress
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(s1)

@@ -22,7 +22,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Crit("Failed to create authorized transactor: ", err)
 	}
-	return rpc.NewBlockChainService(privkey, rpc.PRIVATE_ROPSTEN_REGISTRY_ADDRESS, conn)
+	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
 func makeTestExternState() *ChannelExternalState {

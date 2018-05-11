@@ -98,24 +98,23 @@ func (this *AlarmTask) waitNewBlock() error {
 			if !ok {
 				//client broke?
 				return errors.New("SubscribeNewHead channel closed unexpected")
-			} else {
-				if currentBlock != -1 && h.Number.Int64() != currentBlock+1 {
-					log.Warn(fmt.Sprintf("alarm missed %d blocks", h.Number.Int64()-currentBlock))
+			}
+			if currentBlock != -1 && h.Number.Int64() != currentBlock+1 {
+				log.Warn(fmt.Sprintf("alarm missed %d blocks", h.Number.Int64()-currentBlock))
+			}
+			currentBlock = h.Number.Int64()
+			if currentBlock%10 == 0 {
+				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
+			}
+			var removes []AlarmCallback
+			for _, cb := range this.callback {
+				err := cb(currentBlock)
+				if err != nil {
+					removes = append(removes, cb)
 				}
-				currentBlock = h.Number.Int64()
-				if currentBlock%10 == 0 {
-					log.Trace(fmt.Sprintf("new block :%d", currentBlock))
-				}
-				var removes []AlarmCallback
-				for _, cb := range this.callback {
-					err := cb(currentBlock)
-					if err != nil {
-						removes = append(removes, cb)
-					}
-				}
-				for _, cb := range removes {
-					this.RemoveCallback(cb)
-				}
+			}
+			for _, cb := range removes {
+				this.RemoveCallback(cb)
 			}
 		case <-this.shouldStop:
 			sub.Unsubscribe()
@@ -128,7 +127,7 @@ func (this *AlarmTask) waitNewBlock() error {
 			//if eof try to reconnect
 			if err != nil {
 				this.client.RecoverDisconnect()
-				return errors.New("broken connection..")
+				return errors.New("broken connection")
 			}
 		}
 

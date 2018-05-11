@@ -111,12 +111,12 @@ type StateManager struct {
 	IsBalanceProofReceived bool              //mediatedtransfer must both true for finish
 }
 
-const StateManager_State_Init = "ManagerInit"
-const StateManager_ReceivedMessage = "ManagerReceivedOneMessage"
-const StateManager_SendMessage = "ManagerSendMessage" //may sending several message, for example reveal secret
-const StateManager_ReceivedMessageProcessComplete = "ManagerReceivedMessageComplete"
-const StateManager_SendMessageSuccesss = "ManagerSendMessageSuccess"
-const StateManager_TransferComplete = "ManagerTransferComplete"
+const StateManagerStateInit = "ManagerInit"
+const StateManagerReceivedMessage = "ManagerReceivedOneMessage"
+const StateManagerSendMessage = "ManagerSendMessage" //may sending several message, for example reveal secret
+const StateManagerReceivedMessageProcessComplete = "ManagerReceivedMessageComplete"
+const StateManagerSendMessageSuccesss = "ManagerSendMessageSuccess"
+const StateManagerTransferComplete = "ManagerTransferComplete"
 
 type MessageTag struct {
 	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
@@ -139,7 +139,7 @@ func NewStateManager(stateTransition FuncStateTransition, currentState State, na
 		FuncStateTransition: stateTransition,
 		CurrentState:        currentState,
 		Name:                name,
-		ManagerState:        StateManager_State_Init,
+		ManagerState:        StateManagerStateInit,
 		LastActive:          time.Now(),
 		Identifier:          identifier,
 		TokenAddress:        tokenAddress,

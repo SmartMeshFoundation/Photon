@@ -22,9 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const NODE_NETWORK_UNKNOWN = "unknown"
-const NODE_NETWORK_UNREACHABLE = "unreachable"
-const NODE_NETWORK_REACHABLE = "reachable"
+const NodeNetworkUnkown = "unknown"
+const NodeNetworkUnreachable = "unreachable"
+const NodeNetworkReachable = "reachable"
 
 var errTimeout = errors.New("wait timeout")
 var errExpired = errors.New("message expired")
@@ -88,7 +88,7 @@ Timeouts generator with an exponential backoff strategy.
 func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duration) timeoutGenerator {
 	tries := 1
 	return func() time.Duration {
-		tries += 1
+		tries++
 		if tries < retries {
 			return timeout
 		}
@@ -187,7 +187,7 @@ func (this *RaidenProtocol) SendPing(receiver common.Address) error {
 message mediatedTransfer and refundTransfer can safely be discarded when expired.
 */
 func (this *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
-	var expired int64 = 0
+	var expired int64
 	switch msg2 := msg.(type) {
 	case *encoding.MediatedTransfer:
 		expired = msg2.Expiration
@@ -353,11 +353,11 @@ func (this *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Me
 	select {
 	case err = <-result.Result:
 		if err == nil {
-			this.updateNetworkStatus(receiver, NODE_NETWORK_REACHABLE)
+			this.updateNetworkStatus(receiver, NodeNetworkReachable)
 		}
 	case <-timeoutCh:
 		err = errTimeout
-		this.updateNetworkStatus(receiver, NODE_NETWORK_UNREACHABLE)
+		this.updateNetworkStatus(receiver, NodeNetworkUnreachable)
 	}
 	return err
 }
@@ -373,7 +373,7 @@ func (this *RaidenProtocol) updateNetworkStatus(addr common.Address, status stri
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
 		s = &NetworkStatus{
-			time.Now(), NODE_NETWORK_UNKNOWN,
+			time.Now(), NodeNetworkUnkown,
 		}
 		this.address2NetworkStatus[addr] = s
 	}
@@ -385,7 +385,7 @@ func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
 	defer this.statusLock.Unlock()
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
-		return NODE_NETWORK_UNKNOWN
+		return NodeNetworkUnkown
 	}
 	return s.Status
 }
@@ -394,12 +394,12 @@ func (this *RaidenProtocol) GetNetworkStatusAndLastAckTime(addr common.Address) 
 	defer this.statusLock.Unlock()
 	s, ok := this.address2NetworkStatus[addr]
 	if !ok {
-		return NODE_NETWORK_UNKNOWN, time.Now()
+		return NodeNetworkUnkown, time.Now()
 	}
 	return s.Status, s.LastAckTime
 }
 func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
-	if len(data) > params.UDP_MAX_MESSAGE_SIZE {
+	if len(data) > params.UDPMaxMessageSize {
 		log.Error("receive packet larger than maximum size :", len(data))
 		return
 	}
@@ -430,10 +430,10 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 		log.Warn(fmt.Sprintf("message unpack error : %s", err))
 		return
 	}
-	if messager.Cmd() == encoding.ACK_CMDID { //some one may be waiting this ack
+	if messager.Cmd() == encoding.AckCmdId { //some one may be waiting this ack
 		ackMsg := messager.(*encoding.Ack)
 		log.Debug(fmt.Sprintf("receive ack ,hash=%s", utils.HPex(ackMsg.Echo)))
-		this.updateNetworkStatus(ackMsg.Sender, NODE_NETWORK_REACHABLE)
+		this.updateNetworkStatus(ackMsg.Sender, NodeNetworkReachable)
 		this.mapLock.Lock()
 		msgState, ok := this.SentHashesToChannel[ackMsg.Echo]
 		if ok && msgState.Success == false {
@@ -456,8 +456,8 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 			log.Warn(fmt.Sprint("verify message  signature error,length:%d, from %s:%d ", len(data), host, port))
 			return
 		}
-		this.updateNetworkStatus(signedMessager.GetSender(), NODE_NETWORK_REACHABLE)
-		if messager.Cmd() == encoding.PING_CMDID { //send ack
+		this.updateNetworkStatus(signedMessager.GetSender(), NodeNetworkReachable)
+		if messager.Cmd() == encoding.PingCmdId { //send ack
 			this.sendAck(signedMessager.GetSender(), this.CreateAck(echohash))
 		} else {
 			//send message to raiden ,and wait result

@@ -84,7 +84,7 @@ type InitiatorState struct {
 	SecretRequest     *encoding.SecretRequest
 	RevealSecret      *EventSendRevealSecret
 	CanceledTransfers []*EventSendMediatedTransfer
-	Db                channel.ChannelDb
+	Db                channel.Db
 }
 
 /*
@@ -108,7 +108,7 @@ type MediatorState struct {
 	*/
 	TransfersPair []*MediationPairState
 	HasRefunded   bool //此节点已经发生了refund，肯定不能再用了。
-	Db            channel.ChannelDb
+	Db            channel.Db
 }
 
 /*
@@ -125,10 +125,10 @@ func (this *MediatorState) SetSecret(secret common.Hash) {
 	}
 }
 
-const STATE_SECRET_REQUEST = "secret_request"
-const STATE_REVEAL_SECRET = "reveal_secret"
-const STATE_BALANCE_PROOF = "balance_proof"
-const STATE_WAITING_CLOSE = "waiting_close"
+const StateSecretRequest = "secret_request"
+const StateRevealSecret = "reveal_secret"
+const StateBalanceProof = "balance_proof"
+const StateWaitingClose = "waiting_close"
 
 //State of mediated transfer target.
 type TargetState struct {
@@ -138,7 +138,7 @@ type TargetState struct {
 	BlockNumber  int64
 	Secret       common.Hash
 	State        string // default secret_request
-	Db           channel.ChannelDb
+	Db           channel.Db
 }
 
 /*
@@ -159,10 +159,10 @@ type MediationPairState struct {
 
 //all payee's valid state
 // Initial state.
-const STATE_PAYEE_PENDING = "payee_pending"
+const StatePayeePending = "payee_pending"
 
 //The payee is following the raiden protocol and has sent a SecretReveal.
-const STATE_PAYEE_SECRET_REVEALED = "payee_secret_revealed"
+const StatePayeeSecretRevealed = "payee_secret_revealed"
 
 /*
    The corresponding refund transfer was withdrawn on-chain, the payee has
@@ -172,62 +172,62 @@ const STATE_PAYEE_SECRET_REVEALED = "payee_secret_revealed"
        is represented by a different MediationPairState, and the refund
        transfer is at 'payer_contract_withdraw'.
 */
-const STATE_PAYEE_REFUND_WITHDRAW = "payee_refund_withdraw"
+const StatePayeeRefundWithdraw = "payee_refund_withdraw"
 
 /*
  The payee received the token on-chain. A transition to this state is
 valid from all but the `payee_expired` state.
 */
-const STATE_PAYEE_CONTRACT_WITHDRAW = "payee_contract_withdraw"
+const StatePayeeContractWithdraw = "payee_contract_withdraw"
 
 /*
    This node has sent a SendBalanceProof to the payee with the balance
     updated.
 */
-const STATE_PAYEE_BALANCE_PROOF = "payee_balance_proof"
+const StatePayeeBalanceProof = "payee_balance_proof"
 
 //The lock has expired.
-const STATE_PAYEE_EXPIRED = "payee_expired"
+const StatePayeeExpired = "payee_expired"
 
 var ValidPayeeStateMap = map[string]bool{
-	STATE_PAYEE_PENDING:           true,
-	STATE_PAYEE_SECRET_REVEALED:   true,
-	STATE_PAYEE_REFUND_WITHDRAW:   true,
-	STATE_PAYEE_CONTRACT_WITHDRAW: true,
-	STATE_PAYEE_BALANCE_PROOF:     true,
-	STATE_PAYEE_EXPIRED:           true,
+	StatePayeePending:          true,
+	StatePayeeSecretRevealed:   true,
+	StatePayeeRefundWithdraw:   true,
+	StatePayeeContractWithdraw: true,
+	StatePayeeBalanceProof:     true,
+	StatePayeeExpired:          true,
 }
 
 var ValidPayerStateMap = map[string]bool{
-	STATE_PAYER_PENDING:           true,
-	STATE_PAYER_SECRET_REVEALED:   true,
-	STATE_PAYER_WAITING_CLOSE:     true,
-	STATE_PAYER_WAITING_WITHDRAW:  true,
-	STATE_PAYER_CONTRACT_WITHDRAW: true,
-	STATE_PAYER_BALANCE_PROOF:     true,
-	STATE_PAYER_EXPIRED:           true,
+	StatePayerPending:          true,
+	StatePayerSecretRevealed:   true,
+	StatePayerWaitingClose:     true,
+	StatePayerWaitingWithdraw:  true,
+	StatePayerContractWithdraw: true,
+	StatePayerBalanceProof:     true,
+	StatePayerExpired:          true,
 }
 
 //payer's state
-const STATE_PAYER_PENDING = "payer_pending"
+const StatePayerPending = "payer_pending"
 
 //SendRevealSecret was sent
-const STATE_PAYER_SECRET_REVEALED = "payer_secret_revealed"
+const StatePayerSecretRevealed = "payer_secret_revealed"
 
 //ContractSendChannelClose was sent
-const STATE_PAYER_WAITING_CLOSE = "payer_waiting_close"
+const StatePayerWaitingClose = "payer_waiting_close"
 
 //ContractSendWithdraw was sent
-const STATE_PAYER_WAITING_WITHDRAW = "payer_waiting_withdraw"
+const StatePayerWaitingWithdraw = "payer_waiting_withdraw"
 
 // ContractReceiveWithdraw for the above send received
-const STATE_PAYER_CONTRACT_WITHDRAW = "payer_contract_withdraw"
+const StatePayerContractWithdraw = "payer_contract_withdraw"
 
 // ReceiveBalanceProof was received
-const STATE_PAYER_BALANCE_PROOF = "payer_balance_proof"
+const StatePayerBalanceProof = "payer_balance_proof"
 
 //None of the above happened and the lock expired
-const STATE_PAYER_EXPIRED = "payer_expired"
+const StatePayerExpired = "payer_expired"
 
 /*
   Args:
@@ -243,10 +243,10 @@ func NewMediationPairState(payerRoute, payeeRoute *transfer.RouteState, payerTra
 	return &MediationPairState{
 		PayerRoute:    payerRoute,
 		PayerTransfer: payerTransfer,
-		PayerState:    STATE_PAYER_PENDING,
+		PayerState:    StatePayerPending,
 		PayeeRoute:    payeeRoute,
 		PayeeTransfer: payeeTransfer,
-		PayeeState:    STATE_PAYEE_PENDING,
+		PayeeState:    StatePayeePending,
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var noSuchAddress = errors.New("can not found this address")
+var errNoSuchAddress = errors.New("can not found this address")
 
 /*
 List All Accounts in directory KeyPath
@@ -55,7 +55,7 @@ Find the keystore file for an account, unlock it and get the private key
 */
 func (this *AccountManager) GetPrivateKey(addr common.Address, password string) (privKeyBin []byte, err error) {
 	if !this.AddressInKeyStore(addr) {
-		err = noSuchAddress
+		err = errNoSuchAddress
 		return
 	}
 	addrhex := strings.ToLower(addr.Hex())

@@ -17,7 +17,10 @@ import (
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
-type BlockChainEvents struct {
+/*
+
+ */
+type Events struct {
 	client             *helper.SafeEthClient
 	lock               sync.RWMutex
 	LogChannelMap      map[string]chan types.Log
@@ -26,8 +29,8 @@ type BlockChainEvents struct {
 	StateChangeChannel chan transfer.StateChange
 }
 
-func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *BlockChainEvents {
-	be := &BlockChainEvents{client: client,
+func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *Events {
+	be := &Events{client: client,
 		LogChannelMap:   make(map[string]chan types.Log),
 		Subscribes:      make(map[string]ethereum.Subscription),
 		RegistryAddress: registryAddress,
@@ -54,7 +57,7 @@ var eventAbiMap = map[string]string{
 	params.NameChannelSecretRevealed: rpc.NettingChannelContractABI,
 }
 
-func (this *BlockChainEvents) InstallEventListener() (err error) {
+func (this *Events) InstallEventListener() (err error) {
 	var sub ethereum.Subscription
 	defer func() {
 		//event listener create error,must exit
@@ -62,14 +65,12 @@ func (this *BlockChainEvents) InstallEventListener() (err error) {
 			this.UninstallEventListener()
 		} else {
 			//if ethclient reconnect
-			c := this.client.RegisterReConnectNotify("BlockChainEvents")
+			c := this.client.RegisterReConnectNotify("Events")
 			go func() {
-				select {
-				case _, ok := <-c:
-					if ok {
-						//eventlistener need reinstall
-						this.InstallEventListener()
-					}
+				_, ok := <-c
+				if ok {
+					//eventlistener need reinstall
+					this.InstallEventListener()
 				}
 			}()
 		}
@@ -90,13 +91,13 @@ func (this *BlockChainEvents) InstallEventListener() (err error) {
 	this.startListenEvent()
 	return err
 }
-func (this *BlockChainEvents) UninstallEventListener() (err error) {
+func (this *Events) UninstallEventListener() (err error) {
 	for _, sub := range this.Subscribes {
 		sub.Unsubscribe()
 	}
 	return nil
 }
-func (this *BlockChainEvents) startListenEvent() {
+func (this *Events) startListenEvent() {
 	for _, name := range eventNames {
 		go func(name string) {
 			ch := this.LogChannelMap[name]
@@ -108,6 +109,7 @@ func (this *BlockChainEvents) startListenEvent() {
 						//channel closed
 						return
 					}
+					debugPrintLog(&l)
 					switch name {
 					case params.NameTokenAdded:
 						ev, err := NewEventTokenAdded(&l)
@@ -185,8 +187,8 @@ func (this *BlockChainEvents) startListenEvent() {
 		}(name)
 	}
 }
-func (this *BlockChainEvents) Stop() {
-	log.Info("BlockChainEvents stop...")
+func (this *Events) Stop() {
+	log.Info("Events stop...")
 	close(this.StateChangeChannel)
 	//channel close by ethclient
 	//for _, ch := range this.LogChannelMap {
@@ -195,12 +197,12 @@ func (this *BlockChainEvents) Stop() {
 	for _, sub := range this.Subscribes {
 		sub.Unsubscribe()
 	}
-	log.Info("BlockChainEvents stop ok...")
+	log.Info("Events stop ok...")
 }
-func (this *BlockChainEvents) sendStateChange(st transfer.StateChange) {
+func (this *Events) sendStateChange(st transfer.StateChange) {
 	this.StateChangeChannel <- st
 }
-func (this *BlockChainEvents) GetAllRegistryEvents(registryAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+func (this *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -228,7 +230,7 @@ func (this *BlockChainEvents) GetAllRegistryEvents(registryAddress common.Addres
  These helpers have a better descriptive name and provide the translator for
  the caller.
 */
-func (this *BlockChainEvents) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+func (this *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -252,7 +254,7 @@ func (this *BlockChainEvents) GetAllChannelManagerEvents(mgrAddress common.Addre
 	return
 
 }
-func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+func (this *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -334,7 +336,7 @@ func (this *BlockChainEvents) GetAllNettingChannelEvents(chAddr common.Address, 
 /*
 events ChannelClosed and ChannelSecretRevealed must be sent to channels's Channel
 */
-func (this *BlockChainEvents) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
+func (this *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -383,7 +385,7 @@ events send to  channel can duplicate but cannot lose.
 1. first resend events may lost (duplicat is ok)
 2. listen new events on blockchain
 */
-func (this *BlockChainEvents) Start(LastBlockNumber int64) error {
+func (this *Events) Start(LastBlockNumber int64) error {
 	stateChanges := this.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
 	this.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
 	for _, st := range stateChanges {

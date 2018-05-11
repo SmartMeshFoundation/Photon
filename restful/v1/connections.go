@@ -37,7 +37,7 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenApi.ConnectTokenNetwork(token, req.Funds, params.DEFAULT_INITIAL_CHANNEL_TARGET, params.DEFAULT_JOINABLE_FUNDS_TARGET)
+	err = RaidenApi.ConnectTokenNetwork(token, req.Funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

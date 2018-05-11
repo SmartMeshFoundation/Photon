@@ -235,7 +235,7 @@ func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *
 		PartenerState:     partenerState,
 		ExternState:       externState,
 		BlockChainService: this.bcs,
-		RevealTimeout:     params.DEFAULT_REVEAL_TIMEOUT,
+		RevealTimeout:     params.DefaultRevealTimeout,
 	}
 	channelDetail.SettleTimeout, err = externState.NettingChannel.SettleTimeout()
 	if err != nil {

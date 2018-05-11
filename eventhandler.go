@@ -324,7 +324,7 @@ func (this *StateMachineEventHandler) handleChannelNew(st *mediated_transfer.Con
 		return err
 	}
 	isParticipant := this.raiden.NodeAddress == participant2 || this.raiden.NodeAddress == participant1
-	isBootstrap := connectionManager.BOOTSTRAP_ADDR == participant1 || connectionManager.BOOTSTRAP_ADDR == participant2
+	isBootstrap := connectionManager.BootstrapAddr == participant1 || connectionManager.BootstrapAddr == participant2
 	if isParticipant {
 		this.raiden.RegisterNettingChannel(tokenAddress, ChannelAddres)
 		if !isBootstrap {
@@ -402,7 +402,7 @@ func (this *StateMachineEventHandler) handleWithdraw(st *mediated_transfer.Contr
 func (this *StateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
-		if c.State() == transfer.CHANNEL_STATE_CLOSED {
+		if c.State() == transfer.ChannelStateClosed {
 			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
 			if st2.BlockNumber > settlementEnd {
 				//should not block todo fix it
@@ -547,7 +547,7 @@ func (this *StateMachineEventHandler) updateStateManagerFromReceivedMessageOrUse
 		//reveal secret 需要单独处理
 	}
 	if msg != nil {
-		mgr.ManagerState = transfer.StateManager_ReceivedMessage
+		mgr.ManagerState = transfer.StateManagerReceivedMessage
 		mgr.LastReceivedMessage = msg
 		tag := msg.Tag().(*transfer.MessageTag)
 		tag.SetStateManager(mgr)
@@ -590,7 +590,7 @@ func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver commo
 	tag.SetStateManager(mgr)
 	msgtoSend.SetTag(tag)
 	tx := this.raiden.db.StartTx()
-	mgr.ManagerState = transfer.StateManager_SendMessage
+	mgr.ManagerState = transfer.StateManagerSendMessage
 	mgr.LastSendMessage = msgtoSend
 	msg3, ok := mgr.LastReceivedMessage.(encoding.Messager) //maybe  ActionInitInitiatorStateChange
 	if ok {
@@ -600,7 +600,7 @@ func (this *StateMachineEventHandler) updateStateManagerFromEvent(receiver commo
 		}
 		receiveMessageTag := receiveTag.(*transfer.MessageTag)
 		if receiveMessageTag.ReceiveProcessComplete == false {
-			mgr.ManagerState = transfer.StateManager_ReceivedMessageProcessComplete
+			mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
 			log.Trace(fmt.Sprintf("set message %s ReceiveProcessComplete", receiveMessageTag.MessageId))
 			receiveMessageTag.ReceiveProcessComplete = true
 			ack := this.raiden.Protocol.CreateAck(receiveMessageTag.EchoHash)

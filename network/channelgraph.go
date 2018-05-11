@@ -369,7 +369,7 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddres
 		if nw.neighbor == previousAddress {
 			continue
 		}
-		if c.State() != transfer.CHANNEL_STATE_OPENED {
+		if c.State() != transfer.ChannelStateOpened {
 			log.Debug(fmt.Sprintf("channel %s-%s is not opened ,ignoring ..", utils.APex(ourAddress), utils.APex(nw.neighbor)))
 			continue
 		}
@@ -378,7 +378,7 @@ func (this *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddres
 			continue
 		}
 		status := nodesStatus.GetNetworkStatus(nw.neighbor)
-		if status == NODE_NETWORK_UNREACHABLE {
+		if status == NodeNetworkUnreachable {
 			log.Debug(fmt.Sprintf("partener %s network ignored.. for:%s", utils.APex(nw.neighbor), status))
 			continue
 		}
@@ -397,7 +397,7 @@ func (this *ChannelGraph) HaveNodes() bool {
 	return len(this.g.Verticies) > 0
 }
 func (this *ChannelGraph) AllNodes() (nodes []common.Address) {
-	for n, _ := range this.address2index {
+	for n := range this.address2index {
 		nodes = append(nodes, n)
 	}
 	return nodes

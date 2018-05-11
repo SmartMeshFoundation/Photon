@@ -17,11 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const CHANNEL_STATE_CLOSED = "closed"
-const CHANNEL_STATE_CLOSING = "waiting_for_close"
-const CHANNEL_STATE_OPENED = "opened"
-const CHANNEL_STATE_SETTLED = "settled"
-const CHANNEL_STATE_SETTLING = "waiting_for_settle"
+const ChannelStateClosed = "closed"
+const ChannelStateClosing = "waiting_for_close"
+const ChannelStateOpened = "opened"
+const ChannelStateSettled = "settled"
+const ChannelStateSetting = "waiting_for_settle"
 
 //nothing
 //type Stater interface {

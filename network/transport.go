@@ -310,9 +310,8 @@ func (this *UnreliableTransport) Send(sender common.Address, host string, port i
 	drop := dummyNetwork.Counter%this.DropRate == 0
 	if !drop {
 		return dummyNetwork.Send(sender, host, port, data)
-	} else {
-		dummyNetwork.TrackSend(sender, host, port, data)
-		log.Debug("dropped packet ", dummyNetwork.Counter, utils.Pex(data))
 	}
+	dummyNetwork.TrackSend(sender, host, port, data)
+	log.Debug("dropped packet ", dummyNetwork.Counter, utils.Pex(data))
 	return nil
 }

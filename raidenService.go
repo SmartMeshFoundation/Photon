@@ -98,7 +98,7 @@ type RaidenService struct {
 	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel //Multithread
 	MessageHandler           *RaidenMessageHandler
 	StateMachineEventHandler *StateMachineEventHandler
-	BlockChainEvents         *blockchain.BlockChainEvents
+	BlockChainEvents         *blockchain.Events
 	AlarmTask                *blockchain.AlarmTask
 	db                       *models.ModelDB
 	FileLocker               *flock.Flock
@@ -132,9 +132,9 @@ type RaidenService struct {
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
 	discover network.DiscoveryInterface, config *params.Config) (srv *RaidenService) {
-	if config.SettleTimeout < params.NETTINGCHANNEL_SETTLE_TIMEOUT_MIN || config.SettleTimeout > params.NETTINGCHANNEL_SETTLE_TIMEOUT_MAX {
+	if config.SettleTimeout < params.NettingChannelSettleTimeoutMin || config.SettleTimeout > params.NettingChannelSettleTimeoutMax {
 		log.Error(fmt.Sprintf("settle timeout must be in range %d-%d",
-			params.NETTINGCHANNEL_SETTLE_TIMEOUT_MIN, params.NETTINGCHANNEL_SETTLE_TIMEOUT_MAX))
+			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax))
 		utils.SystemExit(1)
 	}
 	srv = &RaidenService{
@@ -211,7 +211,7 @@ func (this *RaidenService) Start() {
 	*/
 	err := this.BlockChainEvents.Start(lastHandledBlockNumber)
 	if err != nil {
-		log.Error(fmt.Sprintf("BlockChainEvents listener error %v", err))
+		log.Error(fmt.Sprintf("Events listener error %v", err))
 		utils.SystemExit(1)
 	}
 	/*
@@ -313,7 +313,7 @@ func (this *RaidenService) loop() {
 					log.Error("StateMachineEventHandler.OnBlockchainStateChange", err)
 				}
 			} else {
-				log.Info("BlockChainEvents.StateChangeChannel closed")
+				log.Info("Events.StateChangeChannel closed")
 				return
 			}
 			// new block event, it's the timer of raiden
@@ -420,7 +420,7 @@ func (this *RaidenService) handleBlockNumber(blocknumber int64) error {
 	this.BlockNumber.Store(blocknumber)
 	/*
 		todo when to remove statemanager ?
-			when currentState==nil && StateManager.ManagerState!=StateManager_State_Init ,should delete this statemanager.
+			when currentState==nil && StateManager.ManagerState!=StateManagerStateInit ,should delete this statemanager.
 	*/
 	this.StateMachineEventHandler.LogAndDispatchToAllTasks(statechange)
 	for _, cg := range this.CloneToken2ChannelGraph() {
@@ -824,7 +824,7 @@ func (this *RaidenService) CloseAndSettle() {
 			waitBlocksLeft := blocksToWait()
 			notSettled := 0
 			for _, c := range AllChannels {
-				if c.State() != transfer.CHANNEL_STATE_SETTLED {
+				if c.State() != transfer.ChannelStateSettled {
 					notSettled++
 				}
 			}
@@ -842,7 +842,7 @@ func (this *RaidenService) CloseAndSettle() {
 		}
 	}
 	for _, c := range AllChannels {
-		if c.State() != transfer.CHANNEL_STATE_SETTLED {
+		if c.State() != transfer.ChannelStateSettled {
 			log.Error("channels were not settled:", utils.APex(c.MyAddress))
 		}
 	}
@@ -876,31 +876,30 @@ func (this *RaidenService) DirectTransferAsync(tokenAddress, target common.Addre
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- errors.New("no available direct channel")
 		return
-	} else {
-		tr, err := directChannel.CreateDirectTransfer(amount, identifier)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		tr.Sign(this.PrivateKey, tr)
-		directChannel.RegisterTransfer(this.GetBlockNumber(), tr)
-		directTransferStateChange := &transfer.ActionTransferDirectStateChange{
-			Identifier:   identifier,
-			Amount:       amount,
-			TokenAddress: tokenAddress,
-			NodeAddress:  directChannel.PartnerState.Address,
-		}
-		// TODO: add the transfer sent event
-		stateChangeId, _ := this.db.LogStateChange(directTransferStateChange)
-		//This should be set once the direct transfer is acknowledged
-		transferSuccess := transfer.EventTransferSentSuccess{
-			Identifier: identifier,
-			Amount:     amount,
-			Target:     target,
-		}
-		this.db.LogEvents(stateChangeId, []transfer.Event{transferSuccess}, this.GetBlockNumber())
-		result = this.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 	}
+	tr, err := directChannel.CreateDirectTransfer(amount, identifier)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	tr.Sign(this.PrivateKey, tr)
+	directChannel.RegisterTransfer(this.GetBlockNumber(), tr)
+	directTransferStateChange := &transfer.ActionTransferDirectStateChange{
+		Identifier:   identifier,
+		Amount:       amount,
+		TokenAddress: tokenAddress,
+		NodeAddress:  directChannel.PartnerState.Address,
+	}
+	// TODO: add the transfer sent event
+	stateChangeId, _ := this.db.LogStateChange(directTransferStateChange)
+	//This should be set once the direct transfer is acknowledged
+	transferSuccess := transfer.EventTransferSentSuccess{
+		Identifier: identifier,
+		Amount:     amount,
+		Target:     target,
+	}
+	this.db.LogEvents(stateChangeId, []transfer.Event{transferSuccess}, this.GetBlockNumber())
+	result = this.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 	return
 }
 
@@ -1281,7 +1280,7 @@ func (this *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer,
 		taker's Expiration must be smaller than maker's ,
 		taker and maker may have direct channels on these two tokens.
 	*/
-	takerExpiration := msg.Expiration - params.DEFAULT_REVEAL_TIMEOUT
+	takerExpiration := msg.Expiration - params.DefaultRevealTimeout
 	result, stateManager := this.StartTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, takerExpiration)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
@@ -1347,14 +1346,14 @@ func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
 		sentMessageTag := sentMessage.Message.Tag().(*transfer.MessageTag)
 		if sentMessageTag.GetStateManager() != nil {
 			mgr := sentMessageTag.GetStateManager()
-			mgr.ManagerState = transfer.StateManager_SendMessageSuccesss
+			mgr.ManagerState = transfer.StateManagerSendMessageSuccesss
 			sentMessageTag.SendingMessageComplete = true
 			tx := this.db.StartTx()
 			_, ok := sentMessage.Message.(*encoding.Secret)
 			if ok {
 				mgr.IsBalanceProofSent = true
 				if mgr.Name == initiator.NameInitiatorTransition {
-					mgr.ManagerState = transfer.StateManager_TransferComplete
+					mgr.ManagerState = transfer.StateManagerTransferComplete
 				} else if mgr.Name == target.NameTargetTransition {
 
 				} else if mgr.Name == mediator.NameMediatorTransition {
@@ -1365,7 +1364,7 @@ func (this *RaidenService) handleSentMessage(sentMessage *ProtocolMessage) {
 						//todo when refund?
 					*/
 					if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
-						mgr.ManagerState = transfer.StateManager_TransferComplete
+						mgr.ManagerState = transfer.StateManagerTransferComplete
 					}
 
 				}

@@ -30,7 +30,11 @@ func getDeployKey(keystorePath string) (key *ecdsa.PrivateKey) {
 		log.Fatalf("get first private key error %s", err)
 		return
 	}
-	key, _ = crypto.ToECDSA(keybin)
+	key, err = crypto.ToECDSA(keybin)
+	if err != nil {
+		log.Fatalf("private key to bytes err  %s", err)
+		return
+	}
 	return
 }
 func DeployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr common.Address) {
@@ -50,11 +54,20 @@ func DeployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr comm
 
 func CreateTokenAndChannels(keystorePath string, conn *ethclient.Client, registryAddress common.Address, createchannel bool) (TokenName string) {
 	key := getDeployKey(keystorePath)
-	registry, _ := rpc.NewRegistry(registryAddress, conn)
+	registry, err := rpc.NewRegistry(registryAddress, conn)
+	if err != nil {
+		log.Fatal(err)
+	}
 	managerAddress, tokenAddress := NewToken(key, conn, registry)
 	TokenName = tokenAddress.String()
-	manager, _ := rpc.NewChannelManagerContract(managerAddress, conn)
-	token, _ := rpc.NewToken(tokenAddress, conn)
+	manager, err := rpc.NewChannelManagerContract(managerAddress, conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	token, err := rpc.NewToken(tokenAddress, conn)
+	if err != nil {
+		log.Fatal(err)
+	}
 	am := smartraiden.NewAccountManager(keystorePath)
 	var accounts []common.Address
 	var keys []*ecdsa.PrivateKey
@@ -64,7 +77,10 @@ func CreateTokenAndChannels(keystorePath string, conn *ethclient.Client, registr
 		if err != nil {
 			log.Fatalf("password error for %s", account.Address.String())
 		}
-		keytemp, _ := crypto.ToECDSA(keybin)
+		keytemp, err := crypto.ToECDSA(keybin)
+		if err != nil {
+			log.Fatal(err)
+		}
 		keys = append(keys, keytemp)
 	}
 	fmt.Sprintf("key=%s", key)
@@ -196,16 +212,16 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 }
 func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *rpc.ChannelManagerContract, token *rpc.Token, conn *ethclient.Client) {
 	auth1 := bind.NewKeyedTransactor(key1)
-	auth1.GasLimit = uint64(params.GAS_LIMIT)
-	auth1.GasPrice = big.NewInt(params.GAS_PRICE)
+	auth1.GasLimit = uint64(params.GasLimit)
+	auth1.GasPrice = big.NewInt(params.GasPrice)
 	callAuth1 := &bind.CallOpts{
 		Pending: false,
 		From:    account1,
 		Context: context.Background(),
 	}
 	auth2 := bind.NewKeyedTransactor(key2)
-	auth2.GasLimit = uint64(params.GAS_LIMIT)
-	auth2.GasPrice = big.NewInt(params.GAS_PRICE)
+	auth2.GasLimit = uint64(params.GasLimit)
+	auth2.GasPrice = big.NewInt(params.GasPrice)
 	tx, err := manager.NewChannel(auth1, account2, big.NewInt(600))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())

@@ -23,7 +23,7 @@ type icecb struct {
 	name      string
 }
 
-func Newicecb(name string) *icecb {
+func newicecb(name string) *icecb {
 	return &icecb{
 		name:      name,
 		data:      make(chan []byte, 1),
@@ -65,8 +65,8 @@ func main() {
 		log.Crit(err.Error())
 		return
 	}
-	cb1 := Newicecb("s1")
-	cb2 := Newicecb("s2")
+	cb1 := newicecb("s1")
+	cb2 := newicecb("s2")
 	s1.SetCallBack(cb1)
 	s2.SetCallBack(cb2)
 	err = s1.InitIce(ice.SessionRoleControlling)

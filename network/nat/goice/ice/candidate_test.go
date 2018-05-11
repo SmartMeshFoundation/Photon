@@ -59,7 +59,7 @@ func TestConnectionAddress(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	//data := loadData(t, "candidates_ex1.sdp")
-	//s, err := sdp.DecodeSession(data, nil)
+	//s, err := sdp.decodeSession(data, nil)
 	//if err != nil {
 	//	t.Fatal(err)
 	//}

@@ -87,7 +87,7 @@ func (this *Api) OpenChannel(partnerAddress, tokenAddress string, settleTimeout 
 	partnerAddr := common.HexToAddress(partnerAddress)
 	tokenAddr := common.HexToAddress(tokenAddress)
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := this.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DEFAULT_REVEAL_TIMEOUT)
+	c, err := this.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout)
 	if err != nil {
 		return
 	} else {
@@ -100,7 +100,7 @@ func (this *Api) OpenChannel(partnerAddress, tokenAddress string, settleTimeout 
 			TokenAddress:   c.TokenAddress.String(),
 		}
 		if balance.Cmp(utils.BigInt0) > 0 {
-			err = this.api.Deposit(tokenAddr, partnerAddr, balance, params.DEFAULT_POLL_TIMEOUT)
+			err = this.api.Deposit(tokenAddr, partnerAddr, balance, params.DefaultPollTimeout)
 			if err == nil {
 				d.Balance = c.OurBalance
 			} else {
@@ -168,7 +168,7 @@ func (this *Api) DepositChannel(channelAddres string, balanceStr string) (channe
 		log.Error(err.Error())
 		return
 	}
-	err = this.api.Deposit(c.TokenAddress, c.PartnerAddress, balance, params.DEFAULT_POLL_TIMEOUT)
+	err = this.api.Deposit(c.TokenAddress, c.PartnerAddress, balance, params.DefaultPollTimeout)
 	if err != nil {
 		return
 	}
@@ -377,7 +377,7 @@ func (this *Api) ConnectToTokenNetwork(tokenAddress string, fundsStr string) (er
 		err = errors.New("funds <=0")
 		return
 	}
-	err = this.api.ConnectTokenNetwork(token, funds, params.DEFAULT_INITIAL_CHANNEL_TARGET, params.DEFAULT_JOINABLE_FUNDS_TARGET)
+	err = this.api.ConnectTokenNetwork(token, funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
 	return
 }
 

@@ -239,39 +239,39 @@ func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error
 		it.log.Trace(fmt.Sprintf("send to %s, data=\n%s", utils.APex2(receiver), hex.Dump(data)))
 		err = ic.ist.SendData(data)
 		return err
-	} else { //start new p2p
-		ic = &IceCallback{
-			it:         it,
-			partner:    receiver,
-			datatosend: data,
-			Status:     IceTransporterStateInit,
-		}
-		it.Address2IceStreamMap[receiver] = ic
-		it.Icestream2AddressMap[ic] = receiver
-		go func() {
-			/*
-				其他节点之间的 ice, 不能影响已经协商完毕的连接.
-			*/
-			err := it.signal.TryReach(receiver)
-			if err != nil {
-				it.iceFailChan <- &iceFail{receiver, err}
-				return
-			}
-			ic.ist, err = ice.NewIceStreamTransport(cfg, utils.APex2(receiver))
-			if err != nil {
-				it.log.Trace(fmt.Sprintf("NewIceStreamTransport err %s", err))
-				it.iceFailChan <- &iceFail{receiver, err}
-				return
-			}
-			ic.ist.SetCallBack(ic)
-			it.addCheck(receiver)
-			err = it.startIce(ic, receiver)
-			if err != nil {
-				it.iceFailChan <- &iceFail{receiver, err}
-				return
-			}
-		}()
 	}
+	//start new p2p
+	ic = &IceCallback{
+		it:         it,
+		partner:    receiver,
+		datatosend: data,
+		Status:     IceTransporterStateInit,
+	}
+	it.Address2IceStreamMap[receiver] = ic
+	it.Icestream2AddressMap[ic] = receiver
+	go func() {
+		/*
+			其他节点之间的 ice, 不能影响已经协商完毕的连接.
+		*/
+		err := it.signal.TryReach(receiver)
+		if err != nil {
+			it.iceFailChan <- &iceFail{receiver, err}
+			return
+		}
+		ic.ist, err = ice.NewIceStreamTransport(cfg, utils.APex2(receiver))
+		if err != nil {
+			it.log.Trace(fmt.Sprintf("NewIceStreamTransport err %s", err))
+			it.iceFailChan <- &iceFail{receiver, err}
+			return
+		}
+		ic.ist.SetCallBack(ic)
+		it.addCheck(receiver)
+		err = it.startIce(ic, receiver)
+		if err != nil {
+			it.iceFailChan <- &iceFail{receiver, err}
+			return
+		}
+	}()
 	return nil
 }
 

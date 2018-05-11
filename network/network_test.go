@@ -32,7 +32,7 @@ func TestUpnp(t *testing.T) {
 }
 
 func TestStun(t *testing.T) {
-	pms, err := StunMapping("0.0.0.0", params.INITIAL_PORT)
+	pms, err := StunMapping("0.0.0.0", params.InitialPort)
 	if err != nil { //stunmap should always work
 		t.Error(err)
 	}
@@ -41,7 +41,7 @@ func TestStun(t *testing.T) {
 }
 
 func TestSocketFactory(t *testing.T) {
-	pms, err := SocketFactory("0.0.0.0", params.INITIAL_PORT, "stun")
+	pms, err := SocketFactory("0.0.0.0", params.InitialPort, "stun")
 	if err != nil {
 		t.Error(err)
 		return

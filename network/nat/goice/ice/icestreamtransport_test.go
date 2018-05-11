@@ -32,7 +32,7 @@ type icecb struct {
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stdout)))
 }
-func Newicecb(name string) *icecb {
+func newicecb(name string) *icecb {
 	return &icecb{
 		name:      name,
 		data:      make(chan []byte, 1),
@@ -116,7 +116,7 @@ a=candidate:Had33702 1 UDP 2130706431 10.211.55.2 59951 typ host
 a=candidate:Ha258102 1 UDP 2130706431 10.37.129.2 59951 typ host
 a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 52628 typ relay
 `
-	session, err := DecodeSession(s)
+	session, err := decodeSession(s)
 	if err != nil {
 		t.Error(err)
 		return
@@ -130,8 +130,8 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cb1 := Newicecb("s1")
-	cb2 := Newicecb("s2")
+	cb1 := newicecb("s1")
+	cb2 := newicecb("s2")
 	s1.cb = cb1
 	s2.cb = cb2
 	err = s1.InitIce(SessionRoleControlling)
@@ -251,8 +251,8 @@ func TestIceStreamTransport_StartNegotiationOnlyRelay(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cb1 := Newicecb("s1")
-	cb2 := Newicecb("s2")
+	cb1 := newicecb("s1")
+	cb2 := newicecb("s2")
 	s1.cb = cb1
 	s2.cb = cb2
 	err = s1.InitIce(SessionRoleControlling)
@@ -308,8 +308,8 @@ func TestIceStreamTransport_StartNegotiationNoHost(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cb1 := Newicecb("s1")
-	cb2 := Newicecb("s2")
+	cb1 := newicecb("s1")
+	cb2 := newicecb("s2")
 	s1.cb = cb1
 	s2.cb = cb2
 	err = s1.InitIce(SessionRoleControlling)
@@ -368,8 +368,8 @@ func BenchmarkIceStreamTransport_StartNegotiation(b *testing.B) {
 			log.Error(err.Error())
 			return
 		}
-		cb1 := Newicecb("s1")
-		cb2 := Newicecb("s2")
+		cb1 := newicecb("s1")
+		cb2 := newicecb("s2")
 		s1.cb = cb1
 		s2.cb = cb2
 		err = s1.InitIce(SessionRoleControlling)
@@ -430,8 +430,8 @@ func BenchmarkIceStreamTransport_StartNegotiationOnlyRelay(b *testing.B) {
 			log.Error(err.Error())
 			return
 		}
-		cb1 := Newicecb("s1")
-		cb2 := Newicecb("s2")
+		cb1 := newicecb("s1")
+		cb2 := newicecb("s2")
 		s1.cb = cb1
 		s2.cb = cb2
 		err = s1.InitIce(SessionRoleControlling)
@@ -490,8 +490,8 @@ func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
 			log.Error(err.Error())
 			return
 		}
-		cb1 := Newicecb("s1")
-		cb2 := Newicecb("s2")
+		cb1 := newicecb("s1")
+		cb2 := newicecb("s2")
 		s1.cb = cb1
 		s2.cb = cb2
 		err = s1.InitIce(SessionRoleControlling)

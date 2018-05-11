@@ -20,7 +20,7 @@ import (
 )
 
 type ConnectionManager struct {
-	BOOTSTRAP_ADDR      common.Address //class member
+	BootstrapAddr       common.Address //class member
 	raiden              *RaidenService
 	api                 *RaidenApi
 	lock                sync.Mutex
@@ -42,7 +42,7 @@ func NewConnectionManager(raiden *RaidenService, tokenAddress common.Address) *C
 		initChannelTarget:   3,
 		joinableFundsTarget: 0.4,
 	}
-	cm.BOOTSTRAP_ADDR = common.HexToAddress("0x0202020202020202020202020202020202020202")
+	cm.BootstrapAddr = common.HexToAddress("0x0202020202020202020202020202020202020202")
 	return cm
 }
 
@@ -85,9 +85,9 @@ func (this *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int6
 	if len(chs) == 0 {
 		log.Debug("bootstrapping token network.")
 		this.lock.Lock()
-		_, err := this.api.Open(this.tokenAddress, this.BOOTSTRAP_ADDR, this.raiden.Config.SettleTimeout, this.raiden.Config.RevealTimeout)
+		_, err := this.api.Open(this.tokenAddress, this.BootstrapAddr, this.raiden.Config.SettleTimeout, this.raiden.Config.RevealTimeout)
 		if err != nil {
-			log.Error(fmt.Sprint("open channel between %s and %s error:%s", utils.APex(this.tokenAddress), utils.APex(this.BOOTSTRAP_ADDR), err))
+			log.Error(fmt.Sprint("open channel between %s and %s error:%s", utils.APex(this.tokenAddress), utils.APex(this.BootstrapAddr), err))
 		}
 		this.lock.Unlock()
 	}
@@ -101,7 +101,7 @@ func (this *ConnectionManager) openChannels() []*channel.ChannelSerialization {
 	chs, _ := this.api.GetChannelList(this.tokenAddress, utils.EmptyAddress)
 	var chs2 []*channel.ChannelSerialization
 	for _, c := range chs {
-		if c.State == transfer.CHANNEL_STATE_OPENED {
+		if c.State == transfer.ChannelStateOpened {
 			chs2 = append(chs2, c)
 		}
 	}
@@ -170,12 +170,12 @@ func (this *ConnectionManager) minSettleBlocks() int64 {
 	currentBlock := this.raiden.GetBlockNumber()
 	for _, c := range chs {
 		var sinceClosed int64
-		if c.State == transfer.CHANNEL_STATE_CLOSED {
+		if c.State == transfer.ChannelStateClosed {
 			//todo fix this!
 			log.Info(fmt.Sprintf("calc minSettleBlocks need fix:%d", currentBlock))
 			// sinceClosed = currentBlock - c.ExternState.ClosedBlock
 			sinceClosed = int64(c.SettleTimeout)
-		} else if c.State == transfer.CHANNEL_STATE_OPENED {
+		} else if c.State == transfer.ChannelStateOpened {
 			sinceClosed = -1
 		} else {
 			sinceClosed = 0
@@ -255,7 +255,7 @@ func (this *ConnectionManager) WaitForSettle(closedChannels []*channel.ChannelSe
 	for {
 		found = false
 		for _, c := range closedChannels {
-			if c.State != transfer.CHANNEL_STATE_SETTLED {
+			if c.State != transfer.ChannelStateSettled {
 				found = true
 				break
 			}
@@ -288,13 +288,12 @@ func (this *ConnectionManager) openAndDeposit(partner common.Address, fundingAmo
 		err = fmt.Errorf("Opening new channel failed; channel already opened,  but partner not in channelgraph ,partner=%s,tokenaddress=%s", utils.APex(partner), utils.APex(this.tokenAddress))
 		log.Error(err.Error())
 		return err
-	} else {
-		err = this.api.Deposit(this.tokenAddress, partner, fundingAmount, params.DEFAULT_POLL_TIMEOUT)
-		if err != nil {
-			log.Error(err.Error())
-		}
-		return err
 	}
+	err = this.api.Deposit(this.tokenAddress, partner, fundingAmount, params.DefaultPollTimeout)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	return err
 }
 
 /*
@@ -371,7 +370,7 @@ func (this *ConnectionManager) JoinChannel(partnerAddress common.Address, partne
 	if joiningFunds.Cmp(utils.BigInt0) <= 0 {
 		return
 	}
-	err := this.api.Deposit(this.tokenAddress, partnerAddress, joiningFunds, params.DEFAULT_POLL_TIMEOUT)
+	err := this.api.Deposit(this.tokenAddress, partnerAddress, joiningFunds, params.DefaultPollTimeout)
 	log.Debug("joined a channel funds=%d,me=%s,partner=%s err=%s", joiningFunds, utils.APex(this.raiden.NodeAddress), utils.APex(partnerAddress), err)
 	return
 }
@@ -387,7 +386,7 @@ func (this *ConnectionManager) findNewPartners(number int) []common.Address {
 	for _, c := range this.openChannels() {
 		known[c.PartnerAddress] = true
 	}
-	known[this.BOOTSTRAP_ADDR] = true
+	known[this.BootstrapAddr] = true
 	known[this.raiden.NodeAddress] = true
 	channelAddresses := this.raiden.db.GetTokenNodes(this.tokenAddress)
 	var availables []common.Address
@@ -399,8 +398,6 @@ func (this *ConnectionManager) findNewPartners(number int) []common.Address {
 	log.Debug(fmt.Sprintf("found %d partners", len(availables)))
 	if number < len(availables) {
 		return availables[:number]
-	} else {
-		return availables
 	}
-
+	return availables
 }

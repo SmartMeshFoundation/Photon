@@ -33,7 +33,7 @@ func init() {
 //need a valid account on blockchain and it needs gas
 func TestDiscovery(t *testing.T) {
 	bcs := rpc.MakeTestBlockChainService()
-	discover := NewContractDiscovery(bcs.NodeAddress, params.ROPSTEN_DISCOVERY_ADDRESS, bcs.Client, bcs.Auth)
+	discover := NewContractDiscovery(bcs.NodeAddress, params.RopstenDiscoveryAddress, bcs.Client, bcs.Auth)
 	host, port, err := discover.Get(bcs.NodeAddress)
 	if err != nil {
 		t.Error(err)
@@ -165,7 +165,7 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	msger := encoding.MessageMap[encoding.SECRET_CMDID]
+	msger := encoding.MessageMap[encoding.SecretCmdId]
 	msg := New(msger)
 	spew.Dump(msg)
 	switch m2 := msg.(type) {
