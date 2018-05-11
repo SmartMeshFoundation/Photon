@@ -51,14 +51,15 @@ keystorePath:The address of the private key,  geth keystore directory . eg ~/.ge
 ethRpcEndPoint:URL connected to geth ,such as:ws://10.0.0.2:8546
 dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
+apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile string) {
+func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile, apiAddr string) {
 	argAddress = address
 	argKeyStorePath = keystorePath
 	argEthRpcEndpoint = ethRpcEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
-	os.Args = make([]string, 8, 20)
+	os.Args = make([]string, 11, 20)
 	os.Args[0] = "smartraidenmobile"
 	os.Args[1] = fmt.Sprintf("--address=%s", address)
 	os.Args[2] = fmt.Sprintf("--keystore-path=%s", keystorePath)
@@ -67,6 +68,9 @@ func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile 
 	os.Args[5] = fmt.Sprintf("--password-file=%s", passwordfile)
 	os.Args[6] = fmt.Sprintf("--nat=ice")
 	os.Args[7] = fmt.Sprintf("--ignore-mediatednode-request")
+	os.Args[8] = fmt.Sprintf("--api-address=%s", apiAddr)
+	os.Args[9] = fmt.Sprintf("--verbosity 5")
+	os.Args[10] = fmt.Sprintf("--debug")
 	mainimpl.StartMain()
 }
 func setupLog() {
