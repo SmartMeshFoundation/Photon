@@ -401,6 +401,8 @@ func (this *RaidenApi) Close(tokenAddress, partnerAddress common.Address) (c *ch
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	this.Raiden.db.RegisterChannelStateCallback(func(c2 *channel.ChannelSerialization) (remove bool) {
+		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
+			utils.APex2(c.ChannelAddress), utils.APex2(c2.ChannelAddress)))
 		if c2.ChannelAddress == c.ChannelAddress {
 			wg.Done()
 			return true
@@ -439,6 +441,7 @@ func (this *RaidenApi) Settle(tokenAddress, partnerAddress common.Address) (ch *
 	//send settle request
 	result := this.Raiden.SettleChannelClient(c.ChannelAddress)
 	err = <-result.Result
+	log.Trace(fmt.Sprintf("%s settled finish , err %v", utils.APex(c.ChannelAddress), err))
 	if err != nil {
 		return
 	}

@@ -1171,6 +1171,7 @@ func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, o
 		result.Result <- errors.New("channel not exist")
 		return
 	}
+	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.APex(channelAddress)))
 	go func() {
 		var err error
 		c2, _ := this.db.GetChannelByAddress(c.MyAddress)
@@ -1180,6 +1181,7 @@ func (this *RaidenService) closeOrSettleChannel(channelAddress common.Address, o
 		} else {
 			err = c.ExternState.Settle()
 		}
+		log.Trace(fmt.Sprintf("%s channel finished err %v", op, err))
 		result.Result <- err
 	}()
 	return

@@ -381,7 +381,7 @@ func (this *StateMachineEventHandler) handleClosed(st *mediated_transfer.Contrac
 
 func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.ContractReceiveSettledStateChange) error {
 	//todo remove channel st.channelAddress ,because this channel is already settled
-	log.Trace(fmt.Sprintf("%s settled event handle", st.ChannelAddress.String()))
+	log.Trace(fmt.Sprintf("%s settled event handle", utils.APex(st.ChannelAddress)))
 	ch, err := this.raiden.FindChannelByAddress(st.ChannelAddress)
 	if err != nil {
 		return err
@@ -389,6 +389,7 @@ func (this *StateMachineEventHandler) handleSettled(st *mediated_transfer.Contra
 	err = this.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+		return err
 	}
 	err = this.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
