@@ -69,7 +69,7 @@ func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile,
 	os.Args[6] = fmt.Sprintf("--nat=ice")
 	os.Args[7] = fmt.Sprintf("--ignore-mediatednode-request")
 	os.Args[8] = fmt.Sprintf("--api-address=%s", apiAddr)
-	os.Args[9] = fmt.Sprintf("--verbosity 5")
+	os.Args[9] = fmt.Sprintf("--verbosity=5")
 	os.Args[10] = fmt.Sprintf("--debug")
 	mainimpl.StartMain()
 }
