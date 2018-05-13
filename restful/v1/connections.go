@@ -5,6 +5,9 @@ import (
 
 	"math/big"
 
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
@@ -33,8 +36,9 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.Funds.Cmp(utils.BigInt0) <= 0 {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+	log.Trace(fmt.Sprintf("req=%#v", req))
+	if req.Funds == nil || req.Funds.Cmp(utils.BigInt0) <= 0 {
+		rest.Error(w, "funds error", http.StatusBadRequest)
 		return
 	}
 	err = RaidenApi.ConnectTokenNetwork(token, req.Funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
