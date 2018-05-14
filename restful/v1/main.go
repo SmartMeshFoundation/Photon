@@ -53,6 +53,11 @@ func Start() {
 		rest.Get("/api/1/events/network", EventNetwork),
 		rest.Get("/api/1/events/tokens/:token", EventTokens),
 		rest.Get("/api/1/events/channels/:channel", EventChannels),
+		/*
+			for debug only
+		*/
+		rest.Get("/api/1/debug/balance/:token/:addr", Balance),
+		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))
