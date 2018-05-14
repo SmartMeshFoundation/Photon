@@ -1,22 +1,17 @@
 package v1
 
 import (
+	"math/big"
+	"net/http"
+
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
-	"net/http"
-	"math/big"
-)
-
-impithub.com/ant0ine/go-json-rest/rest"
-	"github.com/ethereum/go-ethereum/common"
-	"net/http"
-	"math/big"
 )
 
 /*
 Balance for test only
 query `addr`'s balance on `token`
- */
+*/
 func Balance(w rest.ResponseWriter, r *rest.Request) {
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")
@@ -30,10 +25,11 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 	}
 	w.(http.ResponseWriter).Write([]byte(v.String()))
 }
+
 /*
 TransferToken for test only
 Transfer from this node to `addr` `value` tokens on token `token`
- */
+*/
 func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")

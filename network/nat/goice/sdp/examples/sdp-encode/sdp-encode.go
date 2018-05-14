@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/nkbai/sdp"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/sdp"
 )
 
 func main() {
