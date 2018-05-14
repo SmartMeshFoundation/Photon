@@ -222,9 +222,7 @@ func MainCtx(ctx *cli.Context) error {
 	} else {
 		raidenService.SetFeePolicy(&smartraiden.NoFeePolicy{})
 	}
-	go func() {
-		raidenService.Start()
-	}()
+	raidenService.Start()
 	api := smartraiden.NewRaidenApi(raidenService)
 	regQuitHandler(api)
 	restful.Start(api, cfg)
