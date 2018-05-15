@@ -17,6 +17,8 @@ import (
 	"runtime"
 	"time"
 
+	"runtime/debug"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -45,6 +47,15 @@ var (
 	argLogfile                  string = ""
 )
 
+func init() {
+	debug.SetTraceback("crash")
+}
+
+func panicOnNullValue() {
+	var c []int
+	c[0] = 0
+}
+
 /*
 address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
 keystorePath:The address of the private key,  geth keystore directory . eg ~/.geth/keystore
@@ -71,6 +82,7 @@ func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile,
 	os.Args[8] = fmt.Sprintf("--api-address=%s", apiAddr)
 	os.Args[9] = fmt.Sprintf("--verbosity=5")
 	os.Args[10] = fmt.Sprintf("--debug")
+	//panicOnNullValue()
 	mainimpl.StartMain()
 }
 func setupLog() {

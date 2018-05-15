@@ -12,10 +12,10 @@ import (
 
 	"path/filepath"
 
-	"os/signal"
-	"time"
-
 	"encoding/json"
+	"os/signal"
+	debug2 "runtime/debug"
+	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
@@ -33,6 +33,15 @@ import (
 	"github.com/slonzok/getpass"
 	"gopkg.in/urfave/cli.v1"
 )
+
+func init() {
+	debug2.SetTraceback("crash")
+}
+
+func panicOnNullValue() {
+	var c []int
+	c[0] = 0
+}
 
 func StartMain() {
 	os.Args[0] = "smartraiden"
