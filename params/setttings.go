@@ -22,7 +22,7 @@ const DefaultProtocolRhrottleCapacity = 10.
 const DefaultProtocolThrottleFillRate = 10.
 const DefaultprotocolRetryInterval = 1.
 
-const DefaultRevealTimeout = 10
+const DefaultRevealTimeout = 3
 const DefaultSettleTimeout = DefaultRevealTimeout * 9
 const DefaultPollTimeout = 180 * time.Second
 const DefaultJoinableFundsTarget = 0.4

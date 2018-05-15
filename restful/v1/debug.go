@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"net/http"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -47,6 +48,14 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.(http.ResponseWriter).Write([]byte("ok"))
+	w.WriteJson("ok")
+}
 
+func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
+	c := RaidenApi.Raiden.Chain
+	if c != nil && c.Client.Status == helper.ConnectionOk {
+		w.WriteJson("ok")
+	} else {
+		rest.Error(w, "connection failed", http.StatusInternalServerError)
+	}
 }

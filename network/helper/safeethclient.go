@@ -14,12 +14,20 @@ import (
 	"github.com/fatedier/frp/src/utils/log"
 )
 
+type ConnectionStatus int
+
+const (
+	ConnectionOk     ConnectionStatus = 0
+	ConnectionFailed ConnectionStatus = 1
+)
+
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
 	*ethclient.Client
 	lock      sync.Mutex
 	url       string
 	ReConnect map[string]chan struct{}
+	Status    ConnectionStatus
 }
 
 func NewSafeClient(rawurl string) (*SafeEthClient, error) {
@@ -28,6 +36,11 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	c.url = rawurl
 	var err error
 	c.Client, err = ethclient.Dial(rawurl)
+	if err == nil {
+		c.Status = ConnectionOk
+	} else {
+		c.Status = ConnectionFailed
+	}
 	return c, err
 }
 func (this *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} {
@@ -47,6 +60,7 @@ func (this *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} 
 func (this *SafeEthClient) RecoverDisconnect() {
 	var err error
 	var client *ethclient.Client
+	this.Status = ConnectionFailed
 	for {
 		log.Info("tyring to reconnect geth ...")
 		client, err = ethclient.Dial(this.url)
@@ -54,6 +68,7 @@ func (this *SafeEthClient) RecoverDisconnect() {
 			log.Info("reconnect to geth error:", err)
 		} else {
 			//reconnect ok
+			this.Status = ConnectionOk
 			this.lock.Lock()
 			this.Client = client
 			var keys []string
