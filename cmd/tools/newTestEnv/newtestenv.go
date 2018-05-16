@@ -228,7 +228,11 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
 	auth := bind.NewKeyedTransactor(key)
-	nonce, _ := conn.PendingNonceAt(context.Background(), auth.From)
+	nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
+	if err != nil {
+		log.Fatalf("pending nonce err %s", err)
+		return
+	}
 	for index, account := range accounts {
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
@@ -250,7 +254,10 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 	}
 	wg.Wait()
 	for _, account := range accounts {
-		b, _ := token.BalanceOf(nil, account)
+		b, err := token.BalanceOf(nil, account)
+		if err != nil {
+			log.Fatalf("balance of err %s", err)
+		}
 		log.Printf("account %s has token %s\n", utils.APex(account), b)
 	}
 }
@@ -427,7 +434,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	auth2 := bind.NewKeyedTransactor(key2)
 	auth2.GasLimit = uint64(params.GasLimit)
 	auth2.GasPrice = big.NewInt(params.GasPrice)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(600))
+	tx, err := manager.NewChannel(auth1, account2, big.NewInt(20))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
@@ -446,7 +453,10 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		log.Fatalf("failed to get channel %s", err)
 		return
 	}
-	channel, _ := rpc.NewNettingChannelContract(channelAddress, conn)
+	channel, err := rpc.NewNettingChannelContract(channelAddress, conn)
+	if err != nil {
+		log.Fatalf("NewNettingChannelContract err%s", err)
+	}
 	wg2 := sync.WaitGroup{}
 	go func() {
 		wg2.Add(1)
