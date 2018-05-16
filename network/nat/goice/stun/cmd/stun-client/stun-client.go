@@ -21,7 +21,7 @@ func main() {
 	addr := flag.Arg(0)
 	if len(addr) == 0 {
 		//addr = "stun.l.google.com:19302"
-		addr = "182.254.155.208:3478"
+		addr = "193.112.248.133:3478"
 	}
 	c, err := stun.Dial("udp", addr)
 	if err != nil {

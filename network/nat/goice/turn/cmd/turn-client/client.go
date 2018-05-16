@@ -11,25 +11,29 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 var (
 	server = flag.String("server",
-		fmt.Sprintf("182.254.155.208:3478"),
+		fmt.Sprintf("193.112.248.133:3478"),
 		"turn server address",
 	)
 	peer = flag.String("peer",
 		"182.254.155.208:3333", //test echo server
 		"peer addres",
 	)
-	username = flag.String("username", "bai", "username")
-	password = flag.String("password", "bai", "password")
+	username = flag.String("username", "smartraiden", "username")
+	password = flag.String("password", "smartraiden", "password")
 )
 
 const (
 	udp = "udp"
 )
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 func isErr(m *stun.Message) bool {
 	return m.Type.Class == stun.ClassErrorResponse
 }
