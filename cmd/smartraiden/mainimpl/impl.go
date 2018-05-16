@@ -149,12 +149,12 @@ func StartMain() {
 		cli.StringFlag{
 			Name:  "turn-user",
 			Usage: "turn username for turn server",
-			Value: "bai",
+			Value: params.DefaultTurnUserName,
 		},
 		cli.StringFlag{
 			Name:  "turn-pass",
 			Usage: "turn password for turn server",
-			Value: "bai",
+			Value: params.DefaultTurnPassword,
 		},
 		cli.BoolFlag{
 			Name:  "nonetwork",

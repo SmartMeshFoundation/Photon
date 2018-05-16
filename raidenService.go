@@ -1090,7 +1090,7 @@ func (this *RaidenService) StartHealthCheckFor(address common.Address) {
 		for {
 			err := this.Protocol.SendPing(address)
 			if err != nil {
-				log.Info("health check ping %s err %s", utils.APex(address), err)
+				log.Info(fmt.Sprintf("health check ping %s err %s", utils.APex(address), err))
 			}
 			time.Sleep(time.Second * 10)
 		}

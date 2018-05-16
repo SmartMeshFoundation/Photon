@@ -51,8 +51,10 @@ const NettingChannelSettleTimeoutMin = 6
 const NettingChannelSettleTimeoutMax = 2700000
 
 const UDPMaxMessageSize = 1200
-const DefaultSignalServer = "139.199.6.114:5222"
-const DefaultTurnServer = "182.254.155.208:3478"
+const DefaultSignalServer = "193.112.248.133:5222"
+const DefaultTurnServer = "193.112.248.133:3478"
+const DefaultTurnUserName = "smartraiden"
+const DefaultTurnPassword = "smartraiden"
 
 func init() {
 	GasLimitHex = fmt.Sprintf("0x%x", GasLimit)
