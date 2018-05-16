@@ -49,7 +49,12 @@ func (t *MixTransporter) Receive(data []byte, host string, port int) error {
 	panic("useless")
 }
 func (t *MixTransporter) Start() {
-	t.getTranspoter().Start()
+	if t.udp != nil {
+		t.udp.Start()
+	}
+	if t.ice != nil {
+		t.ice.Start()
+	}
 }
 func (t *MixTransporter) Stop() {
 	if t.ice != nil {
@@ -60,7 +65,12 @@ func (t *MixTransporter) Stop() {
 	}
 }
 func (t *MixTransporter) StopAccepting() {
-	t.getTranspoter().StopAccepting()
+	if t.ice != nil {
+		t.ice.StopAccepting()
+	}
+	if t.udp != nil {
+		t.udp.StopAccepting()
+	}
 } //stop receiving data
 func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 	if t.ice != nil {
@@ -80,8 +90,6 @@ func (t *MixTransporter) switchToUdp() bool {
 	}
 	u = t.udp
 	t.t.Store(&u)
-	t.ice.StopAccepting()
-	t.udp.Start()
 	return true
 }
 func (t *MixTransporter) switchToIce() bool {
@@ -97,8 +105,6 @@ func (t *MixTransporter) switchToIce() bool {
 	}
 	i = t.ice
 	t.t.Store(&i)
-	t.udp.StopAccepting()
-	t.ice.Start()
 	return true
 }
 func NewMixDiscovery(useIce bool) *MixDiscovery {

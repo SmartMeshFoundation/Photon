@@ -520,10 +520,16 @@ func (this *RaidenProtocol) SwitchTransporterToMeshNetwork(nodes []*NodeInfo) er
 	if !ok {
 		return fmt.Errorf("raiden not start with mixTransporter")
 	}
+	if len(nodes) <= 0 {
+		log.Info(fmt.Sprintf("switch back to ice "))
+		m.switchToIce()
+		this.discovery.(*MixDiscovery).switchToIce()
+		return nil
+	}
 	if m.switchToUdp() {
 
 	} else {
-		return fmt.Errorf("cannot switch to mesh network,maybe it's already on mesh network")
+		log.Error(fmt.Sprintf("cannot switch to mesh network,maybe it's already on mesh network"))
 	}
 	this.discovery.(*MixDiscovery).switchToUdp()
 	for _, n := range nodes {
