@@ -175,7 +175,7 @@ func (it *IceTransport) loop() {
 			if !ok {
 				return
 			}
-			it.log.Trace(fmt.Sprintf("ice %s failed,because of %s", utils.APex(f.receiver), err))
+			it.log.Trace(fmt.Sprintf("ice %s failed,because of %v", utils.APex(f.receiver), f.err))
 			it.removeIceStreamTransport(f.receiver)
 		case <-time.After(it.checkInterval):
 			if len(it.connLastReceiveMap) > 0 {
@@ -432,13 +432,15 @@ func (it *IceTransport) Stop() {
 	it.log.Trace("stopped")
 	it.signal.Close()
 	close(it.sendChan)
-	close(it.iceFailChan)
+	//close(it.iceFailChan) //avoid crash, sendChan will make loop  quit.
 	close(it.receiveChan)
 	it.lock.Lock()
 	for a, i := range it.Address2IceStreamMap {
 		delete(it.Address2IceStreamMap, a)
 		delete(it.Icestream2AddressMap, i)
-		i.ist.Stop()
+		if i.ist != nil {
+			i.ist.Stop()
+		}
 	}
 	it.lock.Unlock()
 }
