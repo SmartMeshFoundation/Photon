@@ -69,6 +69,7 @@ type Config struct {
 	NetworkMode               NetworkMode
 	EnableMediationFee        bool //default false. which means no fee at all.
 	IgnoreMediatedNodeRequest bool // true: this node will ignore any mediated transfer who's target is not me.
+	EnableHealthCheck         bool //send ping periodically?
 }
 type iceConfig struct {
 	/*
@@ -111,6 +112,7 @@ var DefaultConfig = Config{
 	Ice: iceConfig{
 		SignalServer: DefaultSignalServer,
 	},
+	EnableHealthCheck: true,
 }
 
 type ConditionQuit struct {

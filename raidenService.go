@@ -128,6 +128,7 @@ type RaidenService struct {
 	*/
 	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
 	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
+	HealthCheckMap                      map[common.Address]bool
 }
 
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
@@ -162,6 +163,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		ReceivedMediatedTrasnferListenerMap: make(map[*ReceivedMediatedTrasnferListener]bool),
 		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
 		FeePolicy:                           &ConstantFeePolicy{},
+		HealthCheckMap:                      make(map[common.Address]bool),
 	}
 	var err error
 	srv.MessageHandler = NewRaidenMessageHandler(srv)
@@ -226,6 +228,7 @@ func (this *RaidenService) Start() {
 		utils.SystemExit(1)
 	}
 	this.Protocol.Start()
+	this.StartNeighboursHealthCheck()
 	go func() {
 		if this.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -1074,11 +1077,32 @@ func (this *RaidenService) TargetMediatedTransfer(msg *encoding.MediatedTransfer
 }
 
 func (this *RaidenService) StartHealthCheckFor(address common.Address) {
-
+	if !this.Config.EnableHealthCheck {
+		return
+	}
+	if this.HealthCheckMap[address] {
+		log.Info(fmt.Sprintf("addr %s check already start.", utils.APex(address)))
+		return
+	}
+	this.HealthCheckMap[address] = true
+	go func() {
+		log.Trace(fmt.Sprintf("health check for %s started", utils.APex(address)))
+		for {
+			err := this.Protocol.SendPing(address)
+			if err != nil {
+				log.Info("health check ping %s err %s", utils.APex(address), err)
+			}
+			time.Sleep(time.Second * 10)
+		}
+	}()
 }
 
 func (this *RaidenService) StartNeighboursHealthCheck() {
-
+	for _, g := range this.Token2ChannelGraph {
+		for addr := range g.PartenerAddress2Channel {
+			this.StartHealthCheckFor(addr)
+		}
+	}
 }
 
 func (this *RaidenService) GetToken2ChannelGraph(tokenAddress common.Address) (cg *network.ChannelGraph) {
