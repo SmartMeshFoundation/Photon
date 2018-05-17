@@ -724,12 +724,6 @@
 			"revisionTime": "2018-02-23T17:02:51Z"
 		},
 		{
-			"checksumSHA1": "wswe/6L9Bx2dqlxjV9CcT+u8YNE=",
-			"path": "github.com/slonzok/getpass",
-			"revision": "6d86ecc93d0767caefd940fe24ee9542765fbaaa",
-			"revisionTime": "2017-04-24T16:12:23Z"
-		},
-		{
 			"checksumSHA1": "6RKpV2fKzhXl7aay5lelpiPljCY=",
 			"path": "github.com/stretchr/testify/assert",
 			"revision": "976c720a22c8eb4eb6a0b4348ad85ad12491a506",

@@ -70,18 +70,19 @@ func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile,
 	argEthRpcEndpoint = ethRpcEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
-	os.Args = make([]string, 11, 20)
-	os.Args[0] = "smartraidenmobile"
-	os.Args[1] = fmt.Sprintf("--address=%s", address)
-	os.Args[2] = fmt.Sprintf("--keystore-path=%s", keystorePath)
-	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", ethRpcEndPoint)
-	os.Args[4] = fmt.Sprintf("--datadir=%s", dataDir)
-	os.Args[5] = fmt.Sprintf("--password-file=%s", passwordfile)
-	os.Args[6] = fmt.Sprintf("--nat=ice")
-	os.Args[7] = fmt.Sprintf("--ignore-mediatednode-request")
-	os.Args[8] = fmt.Sprintf("--api-address=%s", apiAddr)
-	os.Args[9] = fmt.Sprintf("--verbosity=5")
-	os.Args[10] = fmt.Sprintf("--debug")
+	os.Args = make([]string, 0, 20)
+	os.Args = append(os.Args, "smartraidenmobile")
+	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
+	os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", keystorePath))
+	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRpcEndPoint))
+	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
+	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
+	os.Args = append(os.Args, fmt.Sprintf("--nat=ice"))
+	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
+	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", apiAddr))
+	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
+	os.Args = append(os.Args, fmt.Sprintf("--debug"))
+	os.Args = append(os.Args, fmt.Sprintf("--enable-health-check"))
 	//panicOnNullValue()
 	mainimpl.StartMain()
 }

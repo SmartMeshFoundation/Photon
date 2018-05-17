@@ -112,7 +112,7 @@ var DefaultConfig = Config{
 	Ice: iceConfig{
 		SignalServer: DefaultSignalServer,
 	},
-	EnableHealthCheck: true,
+	EnableHealthCheck: false,
 }
 
 type ConditionQuit struct {

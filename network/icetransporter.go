@@ -236,7 +236,7 @@ func (it *IceTransport) sendInternal(receiver common.Address, data []byte) error
 		if ic.Status != IceTransporterStateNegotiateComplete {
 			return errIceStreamTransporterNotReady
 		}
-		it.log.Trace(fmt.Sprintf("send to %s, data=\n%s", utils.APex2(receiver), hex.Dump(data)))
+		it.log.Trace(fmt.Sprintf("send to %s,msg=%s,data=\n%s", utils.APex2(receiver), encoding.MessageType(data[0]), hex.Dump(data)))
 		err = ic.ist.SendData(data)
 		return err
 	}

@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/slonzok/getpass"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -173,6 +172,10 @@ func StartMain() {
 			Name:  "ignore-mediatednode-request",
 			Usage: "this node doesn't work as a mediated node, only work as sender or receiver",
 		},
+		cli.BoolFlag{
+			Name:  "enable-health-check",
+			Usage: "enable health check ",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = MainCtx
@@ -310,8 +313,6 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	} else {
 		addr = adviceAddress
 	}
-	var password string
-	var err error
 	if len(passwordfile) > 0 {
 		data, err := ioutil.ReadFile(passwordfile)
 		if err != nil {
@@ -322,7 +323,7 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			//data = []byte(pass)
 			data = []byte(passwordfile)
 		}
-		password = string(data)
+		password := string(data)
 		log.Trace(fmt.Sprintf("password is %s", password))
 		keybin, err = am.GetPrivateKey(addr, password)
 		if err != nil {
@@ -330,20 +331,21 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			utils.SystemExit(1)
 		}
 	} else {
-		for i := 0; i < 3; i++ {
-			//retries three times
-			password = getpass.Prompt("Enter the password to unlock:")
-			keybin, err = am.GetPrivateKey(addr, password)
-			if err != nil && i == 3 {
-				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-				utils.SystemExit(1)
-			}
-			if err != nil {
-				log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
-				continue
-			}
-			break
-		}
+		//for i := 0; i < 3; i++ {
+		//	//retries three times
+		//	password = getpass.Prompt("Enter the password to unlock:")
+		//	keybin, err = am.GetPrivateKey(addr, password)
+		//	if err != nil && i == 3 {
+		//		log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
+		//		utils.SystemExit(1)
+		//	}
+		//	if err != nil {
+		//		log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
+		//		continue
+		//	}
+		//	break
+		//}
+		panic("must specified password")
 	}
 	return
 }
@@ -429,6 +431,9 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	}
 	config.Ice.SignalServer = ctx.String("signal-server")
 	log.Trace(fmt.Sprintf("signal server=%s", config.Ice.SignalServer))
+	if ctx.Bool("enable-health-check") {
+		config.EnableHealthCheck = true
+	}
 	return &config
 }
 func init() {
