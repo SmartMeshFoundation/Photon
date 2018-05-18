@@ -250,7 +250,7 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 func (t *IceStreamTransport) onIceComplete(result error) {
 
 	if t.State != TransportStateNegotiation {
-		t.log.Error(fmt.Sprintf("%s finish reulst %s", t.Name, result))
+		t.log.Error(fmt.Sprintf("%s finish reulst %s,t.State=%d", t.Name, result, t.State))
 		panic(fmt.Sprintf("%s only finish once", t.Name))
 	}
 	defer func() {

@@ -720,7 +720,8 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 			go func() {
 				//start a timer,failed if there is no nomiated
 				time.Sleep(s.controlledAgentWaitNomiatedTimeout) // time from pjnath
-				if s.sessionComponent.nominatedCheck == nil {
+				//有可能这个连接已经因为其他原因已经被用户关闭了,要考虑这种可能性.
+				if s.sessionComponent.nominatedCheck == nil && !s.hasStopped {
 					s.iceComplete(errors.New("no nonimated"), true)
 				}
 			}()
