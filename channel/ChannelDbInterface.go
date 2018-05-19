@@ -6,6 +6,9 @@ import (
 	"github.com/go-errors/errors"
 )
 
+/*
+Db is the interface of Database operations about channel
+*/
 type Db interface {
 	/*
 		is secret has withdrawed on channel?
@@ -26,16 +29,16 @@ type Db interface {
 	/*
 		get the latest channel status
 	*/
-	GetChannelByAddress(channelAddress common.Address) (c *ChannelSerialization, err error)
+	GetChannelByAddress(channelAddress common.Address) (c *Serialization, err error)
 }
 
 //for test only
-type MockChannelDb struct {
+type mockChannelDb struct {
 	Keys map[common.Hash]bool
 }
 
-func NewMockChannelDb() *MockChannelDb {
-	return &MockChannelDb{
+func newMockChannelDb() *mockChannelDb {
+	return &mockChannelDb{
 		Keys: make(map[common.Hash]bool),
 	}
 }
@@ -43,7 +46,7 @@ func NewMockChannelDb() *MockChannelDb {
 /*
 	is secret has withdrawed on channel?
 */
-func (f *MockChannelDb) IsThisLockHasWithdraw(channel common.Address, secret common.Hash) bool {
+func (f *mockChannelDb) IsThisLockHasWithdraw(channel common.Address, secret common.Hash) bool {
 	hash := utils.Sha3(channel[:], secret[:])
 	return f.Keys[hash]
 }
@@ -51,7 +54,7 @@ func (f *MockChannelDb) IsThisLockHasWithdraw(channel common.Address, secret com
 /*
  I have withdrawed this secret on channel.
 */
-func (f *MockChannelDb) WithdrawThisLock(channel common.Address, secret common.Hash) {
+func (f *mockChannelDb) WithdrawThisLock(channel common.Address, secret common.Hash) {
 	hash := utils.Sha3(channel[:], secret[:])
 	f.Keys[hash] = true
 }
@@ -59,7 +62,7 @@ func (f *MockChannelDb) WithdrawThisLock(channel common.Address, secret common.H
 /*
 	is a expired hashlock has been removed from channel status.
 */
-func (f *MockChannelDb) IsThisLockRemoved(channel common.Address, sender common.Address, secret common.Hash) bool {
+func (f *mockChannelDb) IsThisLockRemoved(channel common.Address, sender common.Address, secret common.Hash) bool {
 	hash := utils.Sha3(channel[:], sender[:], secret[:])
 	return f.Keys[hash]
 }
@@ -67,7 +70,7 @@ func (f *MockChannelDb) IsThisLockRemoved(channel common.Address, sender common.
 /*
 	remember this lock has been removed from channel status.
 */
-func (f *MockChannelDb) RemoveLock(channel common.Address, sender common.Address, secret common.Hash) {
+func (f *mockChannelDb) RemoveLock(channel common.Address, sender common.Address, secret common.Hash) {
 	hash := utils.Sha3(channel[:], sender[:], secret[:])
 	f.Keys[hash] = true
 }
@@ -75,6 +78,6 @@ func (f *MockChannelDb) RemoveLock(channel common.Address, sender common.Address
 /*
 	get the latest channel status
 */
-func (f *MockChannelDb) GetChannelByAddress(channelAddress common.Address) (c *ChannelSerialization, err error) {
+func (f *mockChannelDb) GetChannelByAddress(channelAddress common.Address) (c *Serialization, err error) {
 	return nil, errors.New("not found")
 }

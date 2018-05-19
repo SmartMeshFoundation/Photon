@@ -43,19 +43,23 @@ func TestEndState(t *testing.T) {
 	state2 := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.Balance(state2), balance1)
-	assert.EqualValues(t, state2.Balance(state1), balance2)
-	assert.Equal(t, state1.IsLocked(lockHashlock), false)
-	assert.Equal(t, state2.IsLocked(lockHashlock), false)
+	assert.EqualValues(t, state1.balance(state2), balance1)
+	assert.EqualValues(t, state2.balance(state1), balance2)
+	assert.Equal(t, state1.isLocked(lockHashlock), false)
+	assert.Equal(t, state2.isLocked(lockHashlock), false)
 
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
-	assert.EqualValues(t, state1.Nonce(), 0)
-	assert.EqualValues(t, state2.Nonce(), 0)
-	lock := &encoding.Lock{lockExpiration, lockAmount, lockHashlock}
+	assert.EqualValues(t, state1.nonce(), 0)
+	assert.EqualValues(t, state2.nonce(), 0)
+	lock := &encoding.Lock{
+		Expiration: lockExpiration,
+		Amount:     lockAmount,
+		HashLock:   lockHashlock,
+	}
 	lockHash := utils.Sha3(lock.AsBytes())
 	var transferedAmount = utils.BigInt0
-	_, locksroot := state2.ComputeMerkleRootWith(lock)
+	_, locksroot := state2.computeMerkleRootWith(lock)
 	/*
 		identifier uint64, nonce int64, token common.Address,
 		channel common.Address, transferAmount *big.Int,
@@ -65,90 +69,90 @@ func TestEndState(t *testing.T) {
 	mtr := encoding.NewMediatedTransfer(1, 1, tokenAddress, channelAddress, transferedAmount, state2.Address, locksroot,
 		lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(bcs.PrivKey, mtr)
-	state1.RegisterLockedTransfer(mtr)
+	state1.registerLockedTransfer(mtr)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.Balance(state2), balance1)
-	assert.EqualValues(t, state2.Balance(state1), balance2)
+	assert.EqualValues(t, state1.balance(state2), balance1)
+	assert.EqualValues(t, state2.balance(state1), balance2)
 
-	assert.EqualValues(t, state1.Distributable(state2), new(big.Int).Sub(balance1, lockAmount))
-	assert.EqualValues(t, state2.Distributable(state1), balance2)
+	assert.EqualValues(t, state1.distributable(state2), new(big.Int).Sub(balance1, lockAmount))
+	assert.EqualValues(t, state2.distributable(state1), balance2)
 
-	assert.EqualValues(t, state1.AmountLocked(), lockAmount)
-	assert.EqualValues(t, state2.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, state1.amountLocked(), lockAmount)
+	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.IsLocked(lockHashlock), true)
-	assert.Equal(t, state2.IsLocked(lockHashlock), false)
+	assert.Equal(t, state1.isLocked(lockHashlock), true)
+	assert.Equal(t, state2.isLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
-	assert.EqualValues(t, state1.Nonce(), 1)
-	assert.EqualValues(t, state2.Nonce(), 0)
+	assert.EqualValues(t, state1.nonce(), 1)
+	assert.EqualValues(t, state2.nonce(), 0)
 	if state1.UpdateContractBalance(new(big.Int).Sub(balance1, big10)) != errBalanceDecrease {
 		t.Error(errBalanceDecrease)
 	}
 	assert.Equal(t, state1.UpdateContractBalance(new(big.Int).Add(balance1, big10)), nil)
 	assert.EqualValues(t, state1.ContractBalance, new(big.Int).Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.Balance(state2), new(big.Int).Add(balance1, big10))
-	assert.EqualValues(t, state2.Balance(state1), balance2)
-	x := new(big.Int).Sub(balance1, lockAmount)
-	assert.EqualValues(t, state1.Distributable(state2), x.Add(x, big10))
-	assert.EqualValues(t, state1.AmountLocked(), lockAmount)
-	assert.EqualValues(t, state2.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, state1.balance(state2), new(big.Int).Add(balance1, big10))
+	assert.EqualValues(t, state2.balance(state1), balance2)
+	x = new(big.Int).Sub(balance1, lockAmount)
+	assert.EqualValues(t, state1.distributable(state2), x.Add(x, big10))
+	assert.EqualValues(t, state1.amountLocked(), lockAmount)
+	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.IsLocked(lockHashlock), true)
-	assert.Equal(t, state2.IsLocked(lockHashlock), false)
+	assert.Equal(t, state1.isLocked(lockHashlock), true)
+	assert.Equal(t, state2.isLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
-	assert.EqualValues(t, state1.Nonce(), 1)
-	assert.EqualValues(t, state2.Nonce(), 0)
+	assert.EqualValues(t, state1.nonce(), 1)
+	assert.EqualValues(t, state2.nonce(), 0)
 
 	state1.RegisterSecret(lockSecret)
 	assert.EqualValues(t, state1.ContractBalance, x.Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.Balance(state2), x.Add(balance1, big10))
-	assert.EqualValues(t, state2.Balance(state1), balance2)
+	assert.EqualValues(t, state1.balance(state2), x.Add(balance1, big10))
+	assert.EqualValues(t, state2.balance(state1), balance2)
 
-	assert.EqualValues(t, state1.Distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
-	assert.EqualValues(t, state1.AmountLocked(), lockAmount)
-	assert.EqualValues(t, state2.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, state1.distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
+	assert.EqualValues(t, state1.amountLocked(), lockAmount)
+	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.IsLocked(lockHashlock), false)
-	assert.Equal(t, state2.IsLocked(lockHashlock), false)
+	assert.Equal(t, state1.isLocked(lockHashlock), false)
+	assert.Equal(t, state2.isLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
-	assert.EqualValues(t, state1.Nonce(), 1)
-	assert.EqualValues(t, state2.Nonce(), 0)
+	assert.EqualValues(t, state1.nonce(), 1)
+	assert.EqualValues(t, state2.nonce(), 0)
 	secretMessage := encoding.NewSecret(1, 2, channelAddress, x.Add(transferedAmount, lockAmount), utils.EmptyHash, lockSecret)
 	secretMessage.Sign(bcs.PrivKey, secretMessage)
-	state1.RegisterSecretMessage(secretMessage)
+	state1.registerSecretMessage(secretMessage)
 
 	assert.EqualValues(t, state1.ContractBalance, x.Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.Balance(state2), x.Add(balance1, big10).Sub(x, lockAmount))
-	assert.EqualValues(t, state2.Balance(state1), x.Add(balance2, lockAmount))
+	assert.EqualValues(t, state1.balance(state2), x.Add(balance1, big10).Sub(x, lockAmount))
+	assert.EqualValues(t, state2.balance(state1), x.Add(balance2, lockAmount))
 
-	assert.EqualValues(t, state1.Distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
-	assert.EqualValues(t, state2.Distributable(state1), x.Add(balance2, lockAmount))
-	assert.EqualValues(t, state1.AmountLocked(), utils.BigInt0)
-	assert.EqualValues(t, state2.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, state1.distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
+	assert.EqualValues(t, state2.distributable(state1), x.Add(balance2, lockAmount))
+	assert.EqualValues(t, state1.amountLocked(), utils.BigInt0)
+	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.IsLocked(lockHashlock), false)
-	assert.Equal(t, state2.IsLocked(lockHashlock), false)
+	assert.Equal(t, state1.isLocked(lockHashlock), false)
+	assert.Equal(t, state2.isLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
-	assert.EqualValues(t, state1.Nonce(), 2)
-	assert.EqualValues(t, state2.Nonce(), 0)
+	assert.EqualValues(t, state1.nonce(), 2)
+	assert.EqualValues(t, state2.nonce(), 0)
 }
-func makeExternState() *ChannelExternalState {
+func makeExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
 	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x93b84FF17268b6a2636D94Ecc58949527BB4ac9d"))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, NewMockChannelDb())
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, newMockChannelDb())
 }
 func TestSenderCannotOverSpend(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
@@ -167,16 +171,20 @@ func TestSenderCannotOverSpend(t *testing.T) {
 	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
 	amount := balance1
 	expiration := blockNumber + int64(settleTimeout)
-	sent_mediated_transfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
-	sent_mediated_transfer0.Sign(privkey1, sent_mediated_transfer0)
-	testChannel.RegisterTransfer(blockNumber, sent_mediated_transfer0)
-	lock2 := &encoding.Lock{expiration, amount, utils.Sha3([]byte("test_locked_amount_cannot_be_spent2"))}
-	leaves := []common.Hash{utils.Sha3(sent_mediated_transfer0.GetLock().AsBytes()), utils.Sha3(lock2.AsBytes())}
+	sentMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	sentMediatedTransfer0.Sign(privkey1, sentMediatedTransfer0)
+	testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer0)
+	lock2 := &encoding.Lock{
+		Expiration: expiration,
+		Amount:     amount,
+		HashLock:   utils.Sha3([]byte("test_locked_amount_cannot_be_spent2")),
+	}
+	leaves := []common.Hash{utils.Sha3(sentMediatedTransfer0.GetLock().AsBytes()), utils.Sha3(lock2.AsBytes())}
 	tree2, _ := transfer.NewMerkleTree(leaves)
 	locksroot2 := tree2.MerkleRoot()
-	sent_mediated_transfer1 := encoding.NewMediatedTransfer(2, sent_mediated_transfer0.Nonce+1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
-	sent_mediated_transfer1.Sign(privkey1, sent_mediated_transfer1)
-	err := testChannel.RegisterTransfer(blockNumber, sent_mediated_transfer1)
+	sentMediatedTransfer1 := encoding.NewMediatedTransfer(2, sentMediatedTransfer0.Nonce+1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
+	sentMediatedTransfer1.Sign(privkey1, sentMediatedTransfer1)
+	err := testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer1)
 	if err != rerr.InsufficientBalance {
 		t.Error(err)
 	}
@@ -205,7 +213,11 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	}
 	t.Log("after tr1 channel=", testChannel.String())
 	amount2 := x.Add(balance1, big.NewInt(1))
-	lock2 := &encoding.Lock{expiration, amount2, utils.Sha3([]byte("lxllx"))}
+	lock2 := &encoding.Lock{
+		Expiration: expiration,
+		Amount:     amount2,
+		HashLock:   utils.Sha3([]byte("lxllx")),
+	}
 	tree2, _ := transfer.NewMerkleTree([]common.Hash{utils.Sha3(lock2.AsBytes())})
 	locksroot2 := tree2.MerkleRoot()
 	sendMediatedTransfer0 := encoding.NewMediatedTransfer(1, 1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
@@ -268,8 +280,8 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.Distributable(), x.Sub(balance1, amount1))
 	assert.EqualValues(t, testchannel.Outstanding(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.Locked(), utils.BigInt0)
-	assert.EqualValues(t, testchannel.OurState.AmountLocked(), utils.BigInt0)
-	assert.EqualValues(t, testchannel.PartnerState.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.OurState.amountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 2)
 
 	secret := utils.Sha3([]byte("test_channel"))
@@ -287,8 +299,8 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.Distributable(), x.Sub(balance1, amount1).Sub(x, amount2))
 	assert.EqualValues(t, testchannel.Outstanding(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.Locked(), amount2)
-	assert.EqualValues(t, testchannel.OurState.AmountLocked(), amount2)
-	assert.EqualValues(t, testchannel.PartnerState.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.OurState.amountLocked(), amount2)
+	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 3)
 
 	secretMessage, _ := testchannel.CreateSecret(identifier, secret)
@@ -306,9 +318,9 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.Distributable(), x.Sub(balance1, amount1).Sub(x, amount2))
 	assert.EqualValues(t, testchannel.Outstanding(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.Locked(), utils.BigInt0)
-	assert.EqualValues(t, testchannel.OurState.AmountLocked(), utils.BigInt0)
-	assert.EqualValues(t, testchannel.OurState.AmountLocked(), utils.BigInt0)
-	assert.EqualValues(t, testchannel.PartnerState.AmountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.OurState.amountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.OurState.amountLocked(), utils.BigInt0)
+	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 4)
 
 }
@@ -371,27 +383,27 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 	unclaimed1 := ch1.PartnerState.TreeState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
-	assert.EqualValues(t, ch0.OurState.AmountLocked(), ch1.PartnerState.AmountLocked())
+	assert.EqualValues(t, ch0.OurState.amountLocked(), ch1.PartnerState.amountLocked())
 	assert.EqualValues(t, ch0.TransferAmount(), ch1.PartnerState.TransferAmount())
-	balance0 := ch0.OurState.Balance(ch0.PartnerState)
-	balance1 := ch1.PartnerState.Balance(ch1.OurState)
+	balance0 := ch0.OurState.balance(ch0.PartnerState)
+	balance1 := ch1.PartnerState.balance(ch1.OurState)
 	assert.EqualValues(t, balance0, balance1)
 
-	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.Distributable(ch0.PartnerState))
-	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.Distributable(ch1.OurState))
+	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.distributable(ch0.PartnerState))
+	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.distributable(ch1.OurState))
 
 	unclaimed0 = ch1.OurState.TreeState.Tree.MerkleRoot()
 	unclaimed1 = ch0.PartnerState.TreeState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
-	assert.EqualValues(t, ch1.OurState.AmountLocked(), ch0.PartnerState.AmountLocked())
+	assert.EqualValues(t, ch1.OurState.amountLocked(), ch0.PartnerState.amountLocked())
 	assert.EqualValues(t, ch1.TransferAmount(), ch0.PartnerState.TransferAmount())
-	balance0 = ch1.OurState.Balance(ch1.PartnerState)
-	balance1 = ch0.PartnerState.Balance(ch0.OurState)
+	balance0 = ch1.OurState.balance(ch1.PartnerState)
+	balance1 = ch0.PartnerState.balance(ch0.OurState)
 	assert.EqualValues(t, balance0, balance1)
 
-	assert.EqualValues(t, ch1.Distributable(), ch1.OurState.Distributable(ch1.PartnerState))
-	assert.EqualValues(t, ch1.Distributable(), ch0.PartnerState.Distributable(ch0.OurState))
+	assert.EqualValues(t, ch1.Distributable(), ch1.OurState.distributable(ch1.PartnerState))
+	assert.EqualValues(t, ch1.Distributable(), ch0.PartnerState.distributable(ch0.OurState))
 }
 
 //Assert the locks created from `from_channel`.
@@ -411,9 +423,9 @@ func assertLocked(ch *Channel, pendingLocks []*encoding.Lock, t *testing.T) {
 	for _, lock := range pendingLocks {
 		sum.Add(sum, lock.Amount)
 	}
-	assert.EqualValues(t, ch.OurState.AmountLocked(), sum)
+	assert.EqualValues(t, ch.OurState.amountLocked(), sum)
 	for _, lock := range pendingLocks {
-		assert.Equal(t, ch.OurState.IsLocked(lock.HashLock), true)
+		assert.Equal(t, ch.OurState.isLocked(lock.HashLock), true)
 	}
 }
 
@@ -426,8 +438,8 @@ func assertBalance(ch *Channel, balance, outstanding, distributable *big.Int, t 
 			     the amount of token locked in the partner end of the from_channel is equal to how much
 		     we have outstanding
 	*/
-	assert.EqualValues(t, ch.PartnerState.AmountLocked(), outstanding)
-	assert.EqualValues(t, ch.Balance(), ch.OurState.Balance(ch.PartnerState))
+	assert.EqualValues(t, ch.PartnerState.amountLocked(), outstanding)
+	assert.EqualValues(t, ch.Balance(), ch.OurState.balance(ch.PartnerState))
 	assert.EqualValues(t, ch.Balance().Cmp(utils.BigInt0) >= 0, true)
 	assert.EqualValues(t, ch.Distributable().Cmp(utils.BigInt0) >= 0, true)
 	assert.EqualValues(t, ch.Locked().Cmp(utils.BigInt0) >= 0, true)
@@ -622,7 +634,10 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
 	externState := makeExternState()
 	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
-	lock := &encoding.Lock{blockNumber + int64(settleTimeout), big.NewInt(1), utils.EmptyHash}
+	lock := &encoding.Lock{Expiration: blockNumber + int64(settleTimeout),
+		Amount:   big.NewInt(1),
+		HashLock: utils.EmptyHash,
+	}
 	transfer := encoding.NewMediatedTransfer(1, testChannel.GetNextNonce(), testChannel.TokenAddress, testChannel.MyAddress, big.NewInt(1), address1, utils.Sha3(lock.AsBytes()), lock, utils.EmptyAddress, utils.EmptyAddress, utils.BigInt0)
 	transfer.Sign(privkey2, transfer)
 	err := testChannel.RegisterTransfer(blockNumber+int64(settleTimeout)+1, transfer)
@@ -655,7 +670,11 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	}
 	t.Log("after tr1 channel=", testChannel.String())
 	amount2 := balance2
-	lock2 := &encoding.Lock{expiration, amount2, utils.Sha3([]byte("lxllx"))}
+	lock2 := &encoding.Lock{
+		Expiration: expiration,
+		Amount:     amount2,
+		HashLock:   utils.Sha3([]byte("lxllx")),
+	}
 	tree2, _ := transfer.NewMerkleTree([]common.Hash{utils.Sha3(lock2.AsBytes())})
 	locksroot2 := tree2.MerkleRoot()
 	//rmtr the mediatedtransfer i receive
@@ -667,8 +686,8 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		return
 	}
 	t.Log("after tr2 channel=", testChannel.String())
-	assert.Equal(t, testChannel.OurState.AmountLocked(), amount1)
-	assert.Equal(t, testChannel.PartnerState.AmountLocked(), amount2)
+	assert.Equal(t, testChannel.OurState.amountLocked(), amount1)
+	assert.Equal(t, testChannel.PartnerState.amountLocked(), amount2)
 	/*
 		try to remove hashlock now
 	*/
@@ -709,13 +728,13 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	removeTransferFromMe.Sign(privkey1, removeTransferFromMe)
 	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe, expiration)
 	if err != nil {
-		t.Errorf(" err register mine remove transfer ", err)
+		t.Errorf(" err register mine remove transfer %s", err)
 		return
 	}
 	assert.Equal(t, testChannel.OurState.BalanceProofState.LocksRoot, utils.EmptyHash)
 	assert.Equal(t, testChannel.PartnerState.BalanceProofState.LocksRoot, utils.EmptyHash)
 	assert.Equal(t, testChannel.OurState.BalanceProofState.IsBalanceProofValid(), true)
 	assert.Equal(t, testChannel.PartnerState.BalanceProofState.IsBalanceProofValid(), true)
-	assert.Equal(t, testChannel.OurState.AmountLocked(), utils.BigInt0)
-	assert.Equal(t, testChannel.PartnerState.AmountLocked(), utils.BigInt0)
+	assert.Equal(t, testChannel.OurState.amountLocked(), utils.BigInt0)
+	assert.Equal(t, testChannel.PartnerState.amountLocked(), utils.BigInt0)
 }

@@ -25,13 +25,13 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
-func makeTestExternState() *ChannelExternalState {
+func makeTestExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
 	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x5BFC50667F097F44B881e2ce4dA2B5Ff4dAdF962"))
 	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
 }
-func MakeTestPairChannel() (*Channel, *Channel) {
+func makeTestPairChannel() (*Channel, *Channel) {
 	tokenAddress := utils.NewRandomAddress()
 	externState1 := makeTestExternState()
 	externState2 := makeTestExternState()

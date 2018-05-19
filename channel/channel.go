@@ -19,10 +19,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+/*
+Channel is the living representation of  channel on blockchain.
+it contains all the transfers between two participants.
+*/
 type Channel struct {
-	OurState             *ChannelEndState
-	PartnerState         *ChannelEndState
-	ExternState          *ChannelExternalState
+	OurState             *EndState
+	PartnerState         *EndState
+	ExternState          *ExternalState
 	TokenAddress         common.Address
 	MyAddress            common.Address //this channel
 	RevealTimeout        int
@@ -33,7 +37,12 @@ type Channel struct {
 	feeCharger           fee.FeeCharger //calc fee for each transfer?
 }
 
-func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelExternalState,
+/*
+NewChannel returns the living channel.
+channelAddress must be a valid contract adress
+settleTimeout must be valid, it cannot too small.
+*/
+func NewChannel(ourState, partenerState *EndState, externState *ExternalState,
 	tokenAddress, channelAddress common.Address, bcs *rpc.BlockChainService,
 	revealTimeout, settleTimeout int) (c *Channel, err error) {
 	if settleTimeout <= revealTimeout {
@@ -76,6 +85,7 @@ func NewChannel(ourState, partenerState *ChannelEndState, externState *ChannelEx
 	return
 }
 
+//State returns the state of this channel
 func (c *Channel) State() string {
 	if c.ExternState.SettledBlock != 0 {
 		return transfer.ChannelStateSettled
@@ -87,31 +97,39 @@ func (c *Channel) State() string {
 }
 
 /*
- Return the available amount of the token that our end of the
-        channel can transfer to the partner.
+Distributable return the available amount of the token that our end of the channel can transfer to the partner.
 */
 func (c *Channel) Distributable() *big.Int {
-	return c.OurState.Distributable(c.PartnerState)
+	return c.OurState.distributable(c.PartnerState)
 }
+
+/*
+CanTransfer  a closed channel and has no balance channel cannot
+transfer tokens to partner.
+*/
 func (c *Channel) CanTransfer() bool {
 	return c.State() == transfer.ChannelStateOpened && c.Distributable().Cmp(utils.BigInt0) > 0
 }
 
-//Return the total amount of token we deposited in the channel
+/*
+ContractBalance Return the total amount of token we deposited in the channel
+*/
 func (c *Channel) ContractBalance() *big.Int {
 	return c.OurState.ContractBalance
 }
 
-//Return how much we transferred to partner.
+/*
+TransferAmount Return how much we transferred to partner.
+*/
 func (c *Channel) TransferAmount() *big.Int {
 	return c.OurState.TransferAmount()
 }
 
 /*
-		Return our current balance.
+Balance Return our current balance.
 
-        OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
-        were both `receive_amount` and `sent_amount` are unlocked.
+OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
+were both `receive_amount` and `sent_amount` are unlocked.
 */
 func (c *Channel) Balance() *big.Int {
 	x := new(big.Int)
@@ -121,10 +139,9 @@ func (c *Channel) Balance() *big.Int {
 }
 
 /*
-		Return partner current balance.
-
-        OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
-        were both `receive_amount` and `sent_amount` are unlocked.
+PartnerBalance return partner current balance.
+OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
+were both `receive_amount` and `sent_amount` are unlocked.
 */
 func (c *Channel) PartnerBalance() *big.Int {
 	x := new(big.Int)
@@ -134,23 +151,26 @@ func (c *Channel) PartnerBalance() *big.Int {
 }
 
 /*
-Return the current amount of our token that is locked waiting for a
+Locked return the current amount of our token that is locked waiting for a
         secret.
 
-        The locked value is equal to locked transfers that have been
-        initialized but their secret has not being revealed.
+The locked value is equal to locked transfers that have been
+initialized but their secret has not being revealed.
 */
 func (c *Channel) Locked() *big.Int {
-	return c.OurState.AmountLocked()
+	return c.OurState.amountLocked()
 }
 
 /*
-token on road...
+Outstanding is the tokens on road...
 */
 func (c *Channel) Outstanding() *big.Int {
-	return c.PartnerState.AmountLocked()
+	return c.PartnerState.amountLocked()
 }
 
+/*
+GetSettleExpiration returns how many blocks have to wait before settle.
+*/
 func (c *Channel) GetSettleExpiration(blocknumer int64) int64 {
 	ClosedBlock := c.ExternState.ClosedBlock
 	if ClosedBlock != 0 {
@@ -159,6 +179,9 @@ func (c *Channel) GetSettleExpiration(blocknumer int64) int64 {
 	return blocknumer + int64(c.SettleTimeout)
 }
 
+/*
+HandleClosed handles this channel was closed on blockchain
+*/
 func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address) {
 	balanceProof := c.PartnerState.BalanceProofState
 	//the channel was closed, update our half of the state if we need to
@@ -168,17 +191,23 @@ func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address)
 	unlockProofs := c.PartnerState.GetKnownUnlocks()
 	err := c.ExternState.WithDraw(unlockProofs)
 	if err != nil {
-		log.Error(fmt.Sprintf("withdraw on % failed, channel is gone, error:%s", utils.APex(c.MyAddress), err))
+		log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", utils.APex(c.MyAddress), err))
 	}
 	c.IsCloseEventComplete = true
 }
 
-//there is nothing tod rightnow
+/*
+HandleSettled handles this channel was settled on blockchain
+there is nothing tod rightnow
+*/
 func (c *Channel) HandleSettled(blockNumber int64) {
 
 }
 
-func (c *Channel) GetStateFor(nodeAddress common.Address) (*ChannelEndState, error) {
+/*
+GetStateFor returns the latest status of one participant
+*/
+func (c *Channel) GetStateFor(nodeAddress common.Address) (*EndState, error) {
 	if c.OurState.Address == nodeAddress {
 		return c.OurState, nil
 	}
@@ -189,7 +218,7 @@ func (c *Channel) GetStateFor(nodeAddress common.Address) (*ChannelEndState, err
 }
 
 /*
-Register a secret.
+RegisterSecret Register a secret to this channel
 
         This wont claim the lock (update the transferred_amount), it will only
         save the secret in case that a proof needs to be created. This method
@@ -221,7 +250,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(hashlock[:]), utils.Pex(c.TokenAddress[:]))
 	}
 	if ourKnown {
-		lock := c.OurState.GetLockByHashlock(hashlock)
+		lock := c.OurState.getLockByHashlock(hashlock)
 		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
 			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
@@ -229,7 +258,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 		return c.OurState.RegisterSecret(secret)
 	}
 	if partenerKnown {
-		lock := c.PartnerState.GetLockByHashlock(hashlock)
+		lock := c.PartnerState.getLockByHashlock(hashlock)
 		log.Debug(fmt.Sprintf("secret registered node=%s,from=%s,to=%s,token=%s,hashlock=%s,amount=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
@@ -240,9 +269,9 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 }
 
 /*
-register transferfrom to need refactor.
+PreCheckRecievedTransfer pre check received message(directtransfer,mediatedtransfer,refundtransfer) is valid or not
 */
-func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.EnvelopMessager) (fromState *ChannelEndState, toState *ChannelEndState, err error) {
+func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.EnvelopMessager) (fromState *EndState, toState *EndState, err error) {
 	evMsg := tr.GetEnvelopMessage()
 	if evMsg.Channel != c.MyAddress {
 		err = fmt.Errorf("Channel address mismatch")
@@ -263,13 +292,13 @@ func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelo
 		         fails either we are out of sync, a message out of order, or it's a
 		         forged transfer
 	*/
-	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
+	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.nonce() != 0 && evMsg.Nonce != fromState.nonce()+1))
 	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
-			utils.Pex(toState.Address[:]), fromState.Nonce(), evMsg.Nonce))
+			utils.Pex(toState.Address[:]), fromState.nonce(), evMsg.Nonce))
 		err = rerr.InvalidNonce(utils.StringInterface(tr, 3))
 		return
 	}
@@ -285,7 +314,7 @@ func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelo
 }
 
 /*
-this channel received a request to remove a expired hashlock and this hashlock must be sent out from the sender.
+RegisterRemoveExpiredHashlockTransfer register a request to remove a expired hashlock and this hashlock must be sent out from the sender.
 */
 func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpiredHashlockTransfer, blockNumber int64) (err error) {
 	fromState, _, err := c.PreCheckRecievedTransfer(blockNumber, tr)
@@ -310,7 +339,7 @@ func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpir
 		return &InvalidLocksRootError{ExpectedLocksroot: newlocksroot, GotLocksroot: tr.Locksroot}
 	}
 	fromState.TreeState = transfer.NewMerkleTreeState(newtree)
-	err = fromState.RegisterRemoveExpiredHashlockTransfer(tr)
+	err = fromState.registerRemoveExpiredHashlockTransfer(tr)
 	if err == nil {
 		c.ExternState.db.RemoveLock(c.MyAddress, fromState.Address, tr.HashLock)
 	}
@@ -318,7 +347,7 @@ func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpir
 }
 
 /*
-create this transfer to notify my patner that this hashlock is expired and i want to remove it .
+CreateRemoveExpiredHashLockTransfer create this transfer to notify my patner that this hashlock is expired and i want to remove it .
 */
 func (c *Channel) CreateRemoveExpiredHashLockTransfer(hashlock common.Hash, blockNumber int64) (tr *encoding.RemoveExpiredHashlockTransfer, err error) {
 	_, _, newlocksroot, err := c.OurState.TryRemoveExpiredHashLock(hashlock, blockNumber)
@@ -331,7 +360,7 @@ func (c *Channel) CreateRemoveExpiredHashLockTransfer(hashlock common.Hash, bloc
 	return
 }
 
-//Register a signed transfer, updating the channel's state accordingly.
+//RegisterTransfer register a signed transfer, updating the channel's state accordingly.
 func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessager) error {
 	var err error
 	if tr.GetSender() == c.OurState.Address {
@@ -356,7 +385,7 @@ func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessage
 }
 
 /*
-Validates and register a signed transfer, updating the channel's state accordingly.
+RegisterTransferFromTo Validates and register a signed transfer, updating the channel's state accordingly.
 Note:
             The transfer must be registered before it is sent, not on
             acknowledgement. That is necessary for two reasons:
@@ -370,7 +399,7 @@ Note:
             InvalidNonce: If the expected nonce does not match.
             ValueError: If there is an address mismatch (token or node address).
 */
-func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopMessager, fromState *ChannelEndState, toState *ChannelEndState) error {
+func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopMessager, fromState *EndState, toState *EndState) error {
 	var err error
 	evMsg := tr.GetEnvelopMessage()
 	if evMsg.Channel != c.MyAddress {
@@ -384,13 +413,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		         fails either we are out of sync, a message out of order, or it's a
 		         forged transfer
 	*/
-	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.Nonce() != 0 && evMsg.Nonce != fromState.Nonce()+1))
+	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.nonce() != 0 && evMsg.Nonce != fromState.nonce()+1))
 	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
-			utils.Pex(toState.Address[:]), fromState.Nonce(), evMsg.Nonce))
+			utils.Pex(toState.Address[:]), fromState.nonce(), evMsg.Nonce))
 		return rerr.InvalidNonce(utils.StringInterface(tr, 3))
 	}
 	/*
@@ -415,7 +444,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			            the locksroot, if any hashlock is missing there is no way to
 			            claim it while the channel is closing
 		*/
-		_, expectedLocksroot := fromState.ComputeMerkleRootWith(mtr.GetLock())
+		_, expectedLocksroot := fromState.computeMerkleRootWith(mtr.GetLock())
 		if expectedLocksroot != mtr.Locksroot {
 			//c should not happen
 			log.Warn(fmt.Sprintf("locksroot mismatch node=%s,from=%s,to=%s,hashlock=%s,expectedlocksroot=%s,receivedlocksroot=%s",
@@ -455,7 +484,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		return fmt.Errorf("Negative transfer")
 	}
 	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
-	distributable := fromState.Distributable(toState)
+	distributable := fromState.distributable(toState)
 	if tr.Cmd() == encoding.DirectTransferCmdId {
 		if amount.Cmp(distributable) > 0 {
 			return rerr.InsufficientBalance
@@ -468,7 +497,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	} else if tr.Cmd() == encoding.SecretCmdId {
 		sec := tr.(*encoding.Secret)
 		hashlock := utils.Sha3(sec.Secret[:])
-		lock := fromState.GetLockByHashlock(hashlock)
+		lock := fromState.getLockByHashlock(hashlock)
 		transferAmount := new(big.Int).Add(fromState.TransferAmount(), lock.Amount)
 		/*
 			 tr.transferred_amount could be larger than the previous
@@ -477,7 +506,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		*/
 		if sec.TransferAmount.Cmp(transferAmount) != 0 {
 			return fmt.Errorf("invalid transferred_amount, expected: %s got: %s",
-				transferAmount, sec.TransferAmount.Int64())
+				transferAmount, sec.TransferAmount)
 		}
 	}
 	/*
@@ -491,7 +520,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		log.Debug(fmt.Sprintf("REGISTERED LOCK node=%s,from=%s,to=%s,currentlocksroot=%s,lockamouont=%s,lock_expiration=%d,lock_hashlock=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 			utils.Pex(mroot[:]), mtr.Amount, mtr.Expiration, mtr.HashLock.String()))
-		err = fromState.RegisterLockedTransfer(tr)
+		err = fromState.registerLockedTransfer(tr)
 		if err != nil {
 			return err
 		}
@@ -502,13 +531,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		c.ExternState.funcRegisterChannelForHashlock(c, mtr.HashLock)
 	}
 	if tr.Cmd() == encoding.DirectTransferCmdId {
-		err = fromState.RegisterDirectTransfer(tr.(*encoding.DirectTransfer))
+		err = fromState.registerDirectTransfer(tr.(*encoding.DirectTransfer))
 		if err != nil {
 			return err
 		}
 	}
 	if tr.Cmd() == encoding.SecretCmdId {
-		err = fromState.RegisterSecretMessage(tr.(*encoding.Secret))
+		err = fromState.registerSecretMessage(tr.(*encoding.Secret))
 		if err != nil {
 			return err
 		}
@@ -516,24 +545,24 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	mroot := fromState.TreeState.Tree.MerkleRoot()
 	log.Debug(fmt.Sprintf("'REGISTERED TRANSFER node=%s,from=%s,to=%s,transfer_amount=%s,nonce=%d,current_locksroot=%s,\ntransfer=%s",
 		utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
-		fromState.TransferAmount(), fromState.Nonce(), utils.Pex(mroot[:]), utils.StringInterface(tr, 3)))
+		fromState.TransferAmount(), fromState.nonce(), utils.Pex(mroot[:]), utils.StringInterface(tr, 3)))
 	return nil
 }
 
-//change nonce  means banlance proof state changed
+//GetNextNonce change nonce  means banlance proof state changed
 func (c *Channel) GetNextNonce() int64 {
-	if c.OurState.Nonce() != 0 {
-		return c.OurState.Nonce() + 1
+	if c.OurState.nonce() != 0 {
+		return c.OurState.nonce() + 1
 	}
 	// 0 must not be used since in the netting contract it represents null.
 	return 1
 }
 
 /*
- Return a DirectTransfer message.
+CreateDirectTransfer return a DirectTransfer message.
 
-        This message needs to be signed and registered with the channel before
-        sent.
+This message needs to be signed and registered with the channel before
+sent.
 */
 func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *encoding.DirectTransfer, err error) {
 	if !c.CanTransfer() {
@@ -541,7 +570,7 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *
 	}
 	from := c.OurState
 	to := c.PartnerState
-	distributable := from.Distributable(to)
+	distributable := from.distributable(to)
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(distributable) > 0 {
 		log.Debug(fmt.Sprintf("Insufficient funds : amount=%s, distributable=%s", amount, distributable))
 		return nil, rerr.InsufficientFunds
@@ -554,17 +583,17 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *
 }
 
 /*
-Return a MediatedTransfer message.
+CreateMediatedTransfer return a MediatedTransfer message.
 
-        This message needs to be signed and registered with the channel before
-        sent.
+This message needs to be signed and registered with the channel before
+sent.
 
-        Args:
-            transfer_initiator (address): The node that requested the transfer.
-            transfer_target (address): The final destination node of the transfer
-            amount (float): How much of a token is being transferred.
-            expiration (int): The maximum block number until the transfer
-                message can be received.
+Args:
+    transfer_initiator (address): The node that requested the transfer.
+    transfer_target (address): The final destination node of the transfer
+    amount (float): How much of a token is being transferred.
+    expiration (int): The maximum block number until the transfer
+        message can be received.
 */
 func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
@@ -581,7 +610,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 		Expiration: expiration,
 		HashLock:   hashlock,
 	}
-	_, updatedLocksroot := from.ComputeMerkleRootWith(lock)
+	_, updatedLocksroot := from.computeMerkleRootWith(lock)
 	transferAmount := from.TransferAmount()
 	nonce := c.GetNextNonce()
 	tr = encoding.NewMediatedTransfer(identifier, nonce, c.TokenAddress, c.MyAddress,
@@ -590,10 +619,10 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 }
 
 /*
-similar as CreateMediatedTransfer
+CreateRefundTransfer is similar as CreateMediatedTransfer
 */
-func (c *Channel) CreateRefundTransfer(transfer_initiator, transfer_target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.RefundTransfer, err error) {
-	mtr, err := c.CreateMediatedTransfer(transfer_initiator, transfer_target, fee, amount, identifier, expiration, hashlock)
+func (c *Channel) CreateRefundTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.RefundTransfer, err error) {
+	mtr, err := c.CreateMediatedTransfer(initiator, target, fee, amount, identifier, expiration, hashlock)
 	if err != nil {
 		return
 	}
@@ -601,14 +630,15 @@ func (c *Channel) CreateRefundTransfer(transfer_initiator, transfer_target commo
 	return
 }
 
+//CreateSecret creates  a secret message
 func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encoding.Secret, err error) {
 	hashlock := utils.Sha3(secret[:])
 	from := c.OurState
-	lock := from.GetLockByHashlock(hashlock)
+	lock := from.getLockByHashlock(hashlock)
 	if lock == nil {
 		return nil, fmt.Errorf("no such lock for secret:%s", utils.HPex(secret))
 	}
-	_, locksrootWithPendingLockRemoved, err := from.ComputeMerkleRootWithout(lock)
+	_, locksrootWithPendingLockRemoved, err := from.computeMerkleRootWithout(lock)
 	if err != nil {
 		return
 	}
@@ -618,12 +648,14 @@ func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encodi
 	return
 }
 
+// String fmt.Stringer
 func (c *Channel) String() string {
-	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
+	return fmt.Sprintf("{ContractBalance=%s,balance=%s,distributable=%s,locked=%s,transferAmount=%s}",
 		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
 }
 
-type ChannelSerialization struct {
+// Serialization is the living channel in the database
+type Serialization struct {
 	ChannelAddress             common.Address
 	ChannelAddressString       string `storm:"id"` //only for storm, because of save bug
 	TokenAddress               common.Address
@@ -652,8 +684,9 @@ type ChannelSerialization struct {
 	SettleTimeout              int
 }
 
-func NewChannelSerialization(c *Channel) *ChannelSerialization {
-	s := &ChannelSerialization{
+// NewChannelSerialization serialize the channel to save to database
+func NewChannelSerialization(c *Channel) *Serialization {
+	s := &Serialization{
 		ChannelAddress:             c.MyAddress,
 		ChannelAddressString:       c.MyAddress.String(),
 		TokenAddress:               c.TokenAddress,
@@ -676,16 +709,13 @@ func NewChannelSerialization(c *Channel) *ChannelSerialization {
 		SettleTimeout:          c.SettleTimeout,
 		OurContractBalance:     c.ContractBalance(),
 		PartnerContractBalance: c.PartnerState.ContractBalance,
-		OurAmountLocked:        c.OurState.AmountLocked(),
-		PartnerAmountLocked:    c.PartnerState.AmountLocked(),
+		OurAmountLocked:        c.OurState.amountLocked(),
+		PartnerAmountLocked:    c.PartnerState.amountLocked(),
 		ClosedBlock:            c.ExternState.ClosedBlock,
 		SettledBlock:           c.ExternState.SettledBlock,
 	}
 	return s
 }
 func init() {
-	gob.Register(&ChannelSerialization{})
-	//gob.Register(&Channel{})
-	//gob.Register(&ChannelEndState{})
-	//gob.Register(&ChannelExternalState{})
+	gob.Register(&Serialization{})
 }
