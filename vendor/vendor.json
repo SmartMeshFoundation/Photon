@@ -838,6 +838,12 @@
 			"revisionTime": "2016-08-17T18:16:52Z"
 		},
 		{
+			"checksumSHA1": "pofUe8b7U3NO7pr3VRGFImacECI=",
+			"path": "github.com/valyala/fasthttp",
+			"revision": "07f692d02d618489bb3e3d7984caaa82af91b133",
+			"revisionTime": "2016-10-05T09:44:51Z"
+		},
+		{
 			"checksumSHA1": "UHztphFBVZKyLNbrMDVPM0VdJ60=",
 			"path": "github.com/valyala/fasttemplate",
 			"revision": "dcecefd839c4193db0d35b88ec65b4c12d360ab0",
