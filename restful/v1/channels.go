@@ -18,7 +18,7 @@ type ChannelData struct {
 	ChannelAddress      string   `json:"channel_address"`
 	PartnerAddrses      string   `json:"partner_address"`
 	Balance             *big.Int `json:"balance"`
-	PartnerBalance      *big.Int `json:"patner_balance"`
+	PartnerBalance      *big.Int `json:"partner_balance"`
 	LockedAmount        *big.Int `json:"locked_amount"`
 	PartnerLockedAmount *big.Int `json:"partner_locked_amount"`
 	TokenAddress        string   `json:"token_address"`
