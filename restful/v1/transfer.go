@@ -23,6 +23,9 @@ type transferData struct {
 	Fee        *big.Int `json:"fee"`
 }
 
+/*
+Transfers is the api of /transfer/:token/:partner
+*/
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	token := r.PathParam("token")
 	tokenAddr := common.HexToAddress(token)
@@ -49,12 +52,12 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenApi.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout)
+	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	req.Initiator = RaidenApi.Raiden.NodeAddress.String()
+	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
 	req.Target = target
 	req.Token = token
 	w.WriteJson(req)

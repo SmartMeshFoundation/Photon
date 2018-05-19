@@ -11,9 +11,21 @@ import (
 	"github.com/ant0ine/go-json-rest/rest"
 )
 
-var RaidenApi *smartraiden.RaidenApi
+/*
+RaidenAPI is the interface of raiden network
+should be set before start restful server
+*/
+var RaidenAPI *smartraiden.RaidenApi
+
+/*
+Config is the configuration of raiden network
+should be set before start restful server
+*/
 var Config *params.Config
 
+/*
+Start the restful server
+*/
 func Start() {
 
 	api := rest.NewApi()

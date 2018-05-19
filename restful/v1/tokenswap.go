@@ -11,6 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+/*
+TokenSwap is the api of /api/1/tokenswap/:id
+:id must be a unique identifier.
+*/
 func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	/*
 	   {
@@ -50,11 +54,11 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Role == "maker" {
-		err = RaidenApi.TokenSwapAndWait(uint64(id), common.HexToAddress(req.SendingToken), common.HexToAddress(req.ReceivingToken),
-			RaidenApi.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount)
+		err = RaidenAPI.TokenSwapAndWait(uint64(id), common.HexToAddress(req.SendingToken), common.HexToAddress(req.ReceivingToken),
+			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount)
 	} else if req.Role == "taker" {
-		err = RaidenApi.ExpectTokenSwap(uint64(id), common.HexToAddress(req.ReceivingToken), common.HexToAddress(req.SendingToken),
-			target, RaidenApi.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
+		err = RaidenAPI.ExpectTokenSwap(uint64(id), common.HexToAddress(req.ReceivingToken), common.HexToAddress(req.SendingToken),
+			target, RaidenAPI.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)
 	}

@@ -14,11 +14,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+/*
+GetConnections Get a dict whose keys are token addresses and whose values are
+open channels, funds of last request, sum of deposits and number of channels
+*/
 func GetConnections(w rest.ResponseWriter, r *rest.Request) {
-	w.WriteJson(RaidenApi.GetConnectionManagersInfo())
+	w.WriteJson(RaidenAPI.GetConnectionManagersInfo())
 }
 
-//Connecting to a token network
+/*
+ConnectTokenNetwork open channels with existing addresses on this token network.
+and deposit to the new  opened channel
+*/
 func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 	type Req struct {
 		Funds *big.Int `json:"funds"`
@@ -41,7 +48,7 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "funds error", http.StatusBadRequest)
 		return
 	}
-	err = RaidenApi.ConnectTokenNetwork(token, req.Funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
+	err = RaidenAPI.ConnectTokenNetwork(token, req.Funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -50,7 +57,12 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 	w.(http.ResponseWriter).Write(nil)
 }
 
-//leave a token network
+/*
+LeaveTokenNetwork may take very long time.
+1.close all the channels on this token network
+2. waiting for the settle time
+3. settle all the channel.
+*/
 func LeaveTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 	type Req struct {
 		OnlyReceivingChannels bool `json:"only_receiving_channels"`
@@ -68,7 +80,7 @@ func LeaveTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	chs, err := RaidenApi.LeaveTokenNetwork(token, req.OnlyReceivingChannels)
+	chs, err := RaidenAPI.LeaveTokenNetwork(token, req.OnlyReceivingChannels)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

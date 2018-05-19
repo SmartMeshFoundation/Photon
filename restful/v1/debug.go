@@ -18,7 +18,7 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 	addrstr := r.PathParam("addr")
 	token := common.HexToAddress(tokenstr)
 	addr := common.HexToAddress(addrstr)
-	t := RaidenApi.Raiden.Chain.Token(token)
+	t := RaidenAPI.Raiden.Chain.Token(token)
 	v, err := t.BalanceOf(addr)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -42,7 +42,7 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "arg error ", http.StatusBadRequest)
 		return
 	}
-	t := RaidenApi.Raiden.Chain.Token(token)
+	t := RaidenAPI.Raiden.Chain.Token(token)
 	err := t.Transfer(addr, v)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -51,8 +51,11 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson("ok")
 }
 
+/*
+EthereumStatus  query the status between raiden and ethereum
+*/
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
-	c := RaidenApi.Raiden.Chain
+	c := RaidenAPI.Raiden.Chain
 	if c != nil && c.Client.Status == helper.ConnectionOk {
 		w.WriteJson("ok")
 	} else {

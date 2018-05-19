@@ -29,9 +29,13 @@ func getFromTo(r *rest.Request) (fromBlock, toBlock int64) {
 	}
 	return fromBlock, toBlock
 }
+
+/*
+EventNetwork returns all events related to raiden network
+*/
 func EventNetwork(w rest.ResponseWriter, r *rest.Request) {
 	fromBlock, toBlock := getFromTo(r)
-	events, err := RaidenApi.GetNetworkEvents(fromBlock, toBlock)
+	events, err := RaidenAPI.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -39,6 +43,10 @@ func EventNetwork(w rest.ResponseWriter, r *rest.Request) {
 	}
 	w.WriteJson(events)
 }
+
+/*
+EventTokens returns all events about the token specified
+*/
 func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 	fromBlock, toBlock := getFromTo(r)
 	var token common.Address
@@ -49,7 +57,7 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	token = common.HexToAddress(tokenstr)
-	events, err := RaidenApi.GetTokenNetworkEvents(token, fromBlock, toBlock)
+	events, err := RaidenAPI.GetTokenNetworkEvents(token, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -57,6 +65,10 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 	}
 	w.WriteJson(events)
 }
+
+/*
+EventChannels returns all events about the channel specified
+*/
 func EventChannels(w rest.ResponseWriter, r *rest.Request) {
 	fromBlock, toBlock := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,toblock=%d", fromBlock, toBlock))
@@ -68,7 +80,7 @@ func EventChannels(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	channel = common.HexToAddress(channelstr)
-	events, err := RaidenApi.GetChannelEvents(channel, fromBlock, toBlock)
+	events, err := RaidenAPI.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
