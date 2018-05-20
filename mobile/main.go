@@ -35,16 +35,16 @@ import (
 var (
 	argAddress                  string
 	argKeyStorePath             string
-	argEthRpcEndpoint           string
-	argRegistryContractAddress  string = params.RopstenRegistryAddress.String()
-	argDiscoveryContractAddress string = params.RopstenDiscoveryAddress.String()
-	argListenAddress            string = "0.0.0.0:40001"
-	argApiAddress               string = "0.0.0.0:5001"
+	argEthRPCEndpoint           string
+	argRegistryContractAddress  = params.RopstenRegistryAddress.String()
+	argDiscoveryContractAddress = params.RopstenDiscoveryAddress.String()
+	argListenAddress            = "0.0.0.0:40001"
+	argAPIAddress               = "0.0.0.0:5001"
 	argDataDir                  string
 	argPasswordFile             string
-	argNat                      string = "stun"
-	argLogging                  string = "trace"
-	argLogfile                  string = ""
+	argNat                      = "stun"
+	argLogging                  = "trace"
+	argLogfile                  = ""
 )
 
 func init() {
@@ -57,6 +57,7 @@ func panicOnNullValue() {
 }
 
 /*
+StartUp is entry point for mobile raiden
 address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
 keystorePath:The address of the private key,  geth keystore directory . eg ~/.geth/keystore
 ethRpcEndPoint:URL connected to geth ,such as:ws://10.0.0.2:8546
@@ -64,17 +65,17 @@ dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func MobileStartUp(address, keystorePath, ethRpcEndPoint, dataDir, passwordfile, apiAddr string) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr string) {
 	argAddress = address
 	argKeyStorePath = keystorePath
-	argEthRpcEndpoint = ethRpcEndPoint
+	argEthRPCEndpoint = ethRPCEndPoint
 	argDataDir = dataDir
 	argPasswordFile = passwordfile
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "smartraidenmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
 	os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", keystorePath))
-	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRpcEndPoint))
+	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
 	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
 	os.Args = append(os.Args, fmt.Sprintf("--nat=ice"))
@@ -116,7 +117,7 @@ func setupLog() {
 	fmt.Println("loglevel:", lvl.String())
 	log.Root().SetHandler(log.LvlFilterHandler(lvl, utils.MyStreamHandler(writer)))
 }
-func mobileMain() (api *Api, err error) {
+func mobileMain() (api *API, err error) {
 	fmt.Printf("Welcom to smartraiden,version %f\n", 0.1)
 	setupLog()
 	/*
@@ -134,13 +135,12 @@ func mobileMain() (api *Api, err error) {
 	cfg := config(pms)
 	//log.Trace(fmt.Sprintf("cfg=", spew.Sdump(cfg)))
 	//spew.Dump("Config:", cfg)
-	ethEndpoint := argEthRpcEndpoint
+	ethEndpoint := argEthRPCEndpoint
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
 		log.Error(fmt.Sprintf("cannot connect to geth :%s err=%s", ethEndpoint, err))
 		utils.SystemExit(1)
 	}
-	return
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	discovery := network.NewContractDiscovery(bcs.NodeAddress, common.HexToAddress(argDiscoveryContractAddress), bcs.Client, bcs.Auth)
 	policy := network.NewTokenBucket(10, 1, time.Now)
@@ -148,7 +148,7 @@ func mobileMain() (api *Api, err error) {
 	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	//startup may take long time
 	raidenService.Start()
-	api = &Api{smartraiden.NewRaidenApi(raidenService)}
+	api = &API{smartraiden.NewRaidenApi(raidenService)}
 	regQuitHandler(api.api)
 	return api, nil
 }
@@ -196,7 +196,8 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	var password string
 	var err error
 	if len(passwordfile) > 0 {
-		data, err := ioutil.ReadFile(passwordfile)
+		var data []byte
+		data, err = ioutil.ReadFile(passwordfile)
 		if err != nil {
 			log.Error(fmt.Sprintf("password_file error:%s", err))
 			utils.SystemExit(1)
@@ -230,7 +231,7 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	var err error
 	config := params.DefaultConfig
 	listenhost, listenport := network.SplitHostPort(argListenAddress)
-	apihost, apiport := network.SplitHostPort(argApiAddress)
+	apihost, apiport := network.SplitHostPort(argAPIAddress)
 	config.Host = listenhost
 	config.Port = listenport
 	config.UseConsole = false
@@ -239,8 +240,8 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	config.ApiPort = apiport
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
-	max_unresponsive_time := int64(time.Minute)
-	config.Protocol.NatKeepAliveTimeout = max_unresponsive_time / params.DefaultKeepAliveReties
+	maxUnresponsiveTime := int64(time.Minute)
+	config.Protocol.NatKeepAliveTimeout = maxUnresponsiveTime / params.DefaultKeepAliveReties
 	address := common.HexToAddress(argAddress)
 	address, privkeyBin := promptAccount(address, argKeyStorePath, argPasswordFile)
 	config.PrivateKeyHex = hex.EncodeToString(privkeyBin)
