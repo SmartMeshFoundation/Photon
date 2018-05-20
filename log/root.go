@@ -5,8 +5,10 @@ import (
 )
 
 var (
-	root          = &logger{[]interface{}{}, new(swapHandler)}
+	root = &logger{[]interface{}{}, new(swapHandler)}
+	//StdoutHandler output log to os.Stdout
 	StdoutHandler = StreamHandler(os.Stdout, LogfmtFormat())
+	//StderrHandler output log to os.Stderr
 	StderrHandler = StreamHandler(os.Stderr, LogfmtFormat())
 )
 

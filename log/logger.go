@@ -13,18 +13,25 @@ const lvlKey = "lvl"
 const msgKey = "msg"
 const errorKey = "LOG15_ERROR"
 
+//Lvl level of logger to output
 type Lvl int
 
 const (
+	//LvlCrit Level Critical
 	LvlCrit Lvl = iota
+	//LvlError Level Error
 	LvlError
+	//LvlWarn Level Warning
 	LvlWarn
+	//LvlInfo Level Information
 	LvlInfo
+	//LvlDebug Level Debug
 	LvlDebug
+	//LvlTrace Level Trace
 	LvlTrace
 )
 
-// Aligned returns a 5-character string containing the name of a Lvl.
+// AlignedString returns a 5-character string containing the name of a Lvl.
 func (l Lvl) AlignedString() string {
 	switch l {
 	case LvlTrace:
@@ -64,7 +71,7 @@ func (l Lvl) String() string {
 	}
 }
 
-// Returns the appropriate Lvl from a string name.
+// LvlFromString Returns the appropriate Lvl from a string name.
 // Useful for parsing command line args and configuration files.
 func LvlFromString(lvlString string) (Lvl, error) {
 	switch lvlString {
@@ -95,6 +102,7 @@ type Record struct {
 	KeyNames RecordKeyNames
 }
 
+//RecordKeyNames key of a record
 type RecordKeyNames struct {
 	Time string
 	Msg  string
