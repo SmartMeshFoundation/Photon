@@ -14,9 +14,9 @@ import (
 /*
 用于有 turn server 的情形下,收集本地候选地址列表.
 */
-type TurnSock struct {
+type turnSock struct {
 	Client       *stun.Client
-	s            *StunSocket
+	s            *stunSocket
 	user         string
 	password     string
 	nonce        string
@@ -29,13 +29,13 @@ type TurnSock struct {
 	serverAddr   string
 }
 
-func NewTurnSock(serverAddr, user, password string) (t *TurnSock, err error) {
-	var s *StunSocket
-	s, err = NewStunSocket(serverAddr)
+func newTurnSock(serverAddr, user, password string) (t *turnSock, err error) {
+	var s *stunSocket
+	s, err = newStunSocket(serverAddr)
 	if err != nil {
 		return
 	}
-	t = &TurnSock{
+	t = &turnSock{
 		Client:     s.Client,
 		s:          s,
 		user:       user,
@@ -45,7 +45,7 @@ func NewTurnSock(serverAddr, user, password string) (t *TurnSock, err error) {
 	return
 }
 
-func (t *TurnSock) allocateAddress() error {
+func (t *turnSock) allocateAddress() error {
 	deadline := time.Now().Add(t.s.ReadDeadline)
 	var err error
 	t.s.Client.Do(stun.MustBuild(stun.TransactionIDSetter, turn.AllocateRequest, turn.RequestedTransportUDP), deadline, func(res stun.Event) {
@@ -131,7 +131,7 @@ func (t *TurnSock) allocateAddress() error {
 /*
 第一个候选地址,必须是连接 turn server 的那个.
 */
-func (t *TurnSock) GetCandidates() (candidates []*Candidate, err error) {
+func (t *turnSock) GetCandidates() (candidates []*Candidate, err error) {
 	err = t.allocateAddress()
 	if err != nil {
 		return
@@ -146,7 +146,7 @@ func (t *TurnSock) GetCandidates() (candidates []*Candidate, err error) {
 	c2.baseAddr = t.relayAddress
 	c2.addr = t.relayAddress
 	c2.Foundation = calcFoundation(c2.baseAddr)
-	candidates, err = GetLocalCandidates(c.baseAddr)
+	candidates, err = getLocalCandidates(c.baseAddr)
 	if err != nil {
 		return
 	}
@@ -161,13 +161,13 @@ func (t *TurnSock) GetCandidates() (candidates []*Candidate, err error) {
 	}
 	return
 }
-func (t *TurnSock) Close() {
+func (t *turnSock) Close() {
 	t.s.Close()
 }
 
 /*
 address need to listen for input stun binding request...
 */
-func (t *TurnSock) GetListenCandidiates() []string {
+func (t *turnSock) getListenCandidiates() []string {
 	return t.localAddrs
 }

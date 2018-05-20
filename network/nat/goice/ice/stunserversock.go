@@ -20,11 +20,11 @@ var (
 	profile = flag.Bool("profile", false, "profile")
 )
 var (
-	ErrTimeout            = errors.New("timed out")
-	ErrInvalidMessage     = errors.New("invalid message")
-	ErrDuplicateWaiter    = errors.New("waiter with uid already exists")
-	ErrWaiterClosed       = errors.New("waiter closed")
-	ErrClientDisconnected = errors.New("client disconnected")
+	errTimeout            = errors.New("timed out")
+	errInvalidMessage     = errors.New("invalid message")
+	errDuplicateWaiter    = errors.New("waiter with uid already exists")
+	errWaiterClosed       = errors.New("waiter closed")
+	errClientDisconnected = errors.New("client disconnected")
 )
 
 type serverSockMode int
@@ -34,19 +34,19 @@ const (
 	/*
 		服务器启动以后进入的是等待ice 协商阶段,这时收到的数据全部都是 stun.Message
 	*/
-	StageNegotiation serverSockMode = iota
+	stageNegotiation serverSockMode = iota
 	/*
 		ICE 协商完毕,建立了通道,我这里没有经过turn Server 中转来接收数据. 所以这里面是不包含 channel data 的,如果不是 stun.message, 那就是直接交付给用户的数据
 	*/
-	StunModeData
+	stunModeData
 	/*
 		我发送接收数据都要经过 TurnServer 中转,所有的 data 都是 channel 通道,这种情况下数据全都解析为 stun message 或者 channel data
 	*/
-	TurnModeData
+	turnModeData
 )
 
 /*
-StunServerSock 是用来 ICE 协商以及协商成功以后节点之间直接发送数据需要的.
+stunServerSock 是用来 ICE 协商以及协商成功以后节点之间直接发送数据需要的.
 ICE 协商时需要从指定的 ip 地址上发送stun message.
 ICE 协商完毕以后,节点之间互相发送数据也需要 Server 保持在线,因为需要接收来自对方的 SendIndication/BindIndication 来保持连接有效性.
 如果是 turn server 中转,还需要 ChannelNumber 信息.
@@ -71,10 +71,10 @@ type sendreq struct {
 	data []byte
 	to   net.Addr
 }
-type StunServerSock struct {
+type stunServerSock struct {
 	Addr                  string //address listening on
 	mode                  serverSockMode
-	cb                    ServerSockCallbacker
+	cb                    serverSockCallbacker
 	c                     net.PacketConn
 	channelNumber2Address map[int]string // channel number-> address
 	address2ChannelNumber map[string]int
@@ -91,7 +91,7 @@ type serverSockResponse struct {
 	res  *stun.Message
 	from string
 }
-type ServerSockCallbacker interface {
+type serverSockCallbacker interface {
 	/*
 	 收到一个 stun.Message, 可能是 Bind Request/Bind Response 等等.
 	*/
@@ -108,7 +108,7 @@ var (
 	errNotSTUNMessage = errors.New("not stun message")
 )
 
-func (s *StunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
+func (s *stunServerSock) serveConn(c net.PacketConn, req *stun.Message) error {
 	if c == nil {
 		return nil
 	}
@@ -137,7 +137,7 @@ peerAddr: address who really sendData this message.
 turn 模式下: from 是 turnserver 的地址
 peerAddr 才是真正的通信节点地址
 */
-func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
+func (s *stunServerSock) dataReceived(peerAddr string, data []byte) {
 	s.log.Trace(fmt.Sprintf("---- recevied data from %s,len=%d -----", peerAddr, len(data)))
 	if s.cb != nil {
 		s.cb.ReceiveData(s.Addr, peerAddr, data)
@@ -148,7 +148,7 @@ func (s *StunServerSock) dataReceived(peerAddr string, data []byte) {
 在 localaddr 上收到了 stun message
 localaddr 有可能是 turn server 的 relay 地址.
 */
-func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
+func (s *stunServerSock) stunMessageReceived(localaddr, from string, msg *stun.Message) {
 	s.log.Trace(fmt.Sprintf("--receive stun message %s<----%s  --\n%s\n", localaddr, from, msg))
 	var err error
 	/*
@@ -157,20 +157,20 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 		如果是 stunmode, 说明解析错了,把普通的 data 解析成了 channeldata 了
 	*/
 	if msg.Type.Method == stun.MethodChannelData {
-		if s.mode == StageNegotiation {
+		if s.mode == stageNegotiation {
 			s.log.Error(fmt.Sprintf("receive data error when negiotiation"))
 			/*
 				在 channel binding success 和 changemode 之间接收到了数据怎么办?直接丢弃,反正对方会重传.
 			*/
 			//s.dataReceived(from, msg.Raw)
 			return
-		} else if s.mode == StunModeData {
+		} else if s.mode == stunModeData {
 			/*
 				收到了普通的数据,但是被误判为 channelData, 直接纠正即可.
 			*/
 			s.dataReceived(from, msg.Raw)
 			return
-		} else if s.mode == TurnModeData {
+		} else if s.mode == turnModeData {
 			var data turn.ChannelData
 			err = data.GetFrom(msg)
 			if err != nil {
@@ -201,7 +201,7 @@ func (s *StunServerSock) stunMessageReceived(localaddr, from string, msg *stun.M
 }
 
 //如果对应的消息应答,已经缓存了,直接发送即可.
-func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) bool {
+func (s *stunServerSock) checkCachedResponse(req *stun.Message, from string) bool {
 	if len(s.cachedResponse) <= 0 {
 		return false
 	}
@@ -209,7 +209,7 @@ func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) boo
 	defer s.lock.Unlock()
 	now := time.Now()
 	for id, c := range s.cachedResponse {
-		if c.cacheTime.Add(StunResponseCacheDuration).Before(now) {
+		if c.cacheTime.Add(stunResponseCacheDuration).Before(now) {
 			delete(s.cachedResponse, id)
 		}
 	}
@@ -224,19 +224,19 @@ func (s *StunServerSock) checkCachedResponse(req *stun.Message, from string) boo
 }
 
 //sendData packet to peer
-func (s *StunServerSock) sendData(data []byte, fromaddr, toaddr string) (err error) {
+func (s *stunServerSock) sendData(data []byte, fromaddr, toaddr string) (err error) {
 	if s.Addr != fromaddr {
 		panic(fmt.Sprintf("each binding..., me=%s,got=%s", s.Addr, fromaddr))
 	}
 	if s.stoped {
-		s.log.Debug(fmt.Sprintf("sendData from % to %s ,len=%d, but serversock has stoped", fromaddr, toaddr, len(data)))
+		s.log.Debug(fmt.Sprintf("sendData from %s to %s ,len=%d, but serversock has stoped", fromaddr, toaddr, len(data)))
 		return
 	}
-	s.sendchan <- &sendreq{data, addrToUdpAddr(toaddr)}
+	s.sendchan <- &sendreq{data, addrToUDPAddr(toaddr)}
 	return
 }
 
-func (s *StunServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
+func (s *stunServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
 	s.log.Trace(fmt.Sprintf("---sendData stun message %s-->%s ---\n%s\n", s.Addr, toaddr, msg))
 	if msg.Type.Class == stun.ClassSuccessResponse || msg.Type.Class == stun.ClassErrorResponse {
 		s.lock.Lock()
@@ -249,7 +249,7 @@ func (s *StunServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toadd
 /*
 create channel etc...
 */
-func (s *StunServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error) {
+func (s *stunServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error) {
 	wait := make(chan *serverSockResponse)
 	err = s.addWaiter(msg.TransactionID, wait)
 	if err != nil {
@@ -262,7 +262,7 @@ func (s *StunServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, 
 	ch = s.waiters[msg.TransactionID]
 	return
 }
-func (s *StunServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error) {
+func (s *stunServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error) {
 	wait := make(chan *serverSockResponse)
 	err = s.addWaiter(msg.TransactionID, wait)
 	if err != nil {
@@ -275,16 +275,16 @@ func (s *StunServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr
 	}
 	return s.wait(wait)
 }
-func (s *StunServerSock) addWaiter(key stun.TransactionID, ch chan *serverSockResponse) error {
+func (s *stunServerSock) addWaiter(key stun.TransactionID, ch chan *serverSockResponse) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, ok := s.waiters[key]; ok {
-		return ErrDuplicateWaiter
+		return errDuplicateWaiter
 	}
 	s.waiters[key] = ch
 	return nil
 }
-func (s *StunServerSock) getAndRemoveWaiter(key stun.TransactionID) (ch chan *serverSockResponse, exists bool) {
+func (s *stunServerSock) getAndRemoveWaiter(key stun.TransactionID) (ch chan *serverSockResponse, exists bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	ch, exists = s.waiters[key]
@@ -293,22 +293,22 @@ func (s *StunServerSock) getAndRemoveWaiter(key stun.TransactionID) (ch chan *se
 	}
 	return
 }
-func (s *StunServerSock) wait(ch chan *serverSockResponse) (res *stun.Message, err error) {
+func (s *stunServerSock) wait(ch chan *serverSockResponse) (res *stun.Message, err error) {
 	select {
 	case res, ok := <-ch:
 		if !ok {
-			return nil, ErrWaiterClosed
+			return nil, errWaiterClosed
 		}
 		return res.res, nil
 	case <-time.After(s.syncMessageTimeout):
-		return nil, ErrTimeout
+		return nil, errTimeout
 	}
 }
 
 /*
 根据需要发生了 channel binding 以后,需要指定 channel number, 这样才知道收到了来自哪里的消息.
 */
-func (s *StunServerSock) SetChannelNumber(channelNumber int, addr string) {
+func (s *stunServerSock) SetChannelNumber(channelNumber int, addr string) {
 	//todo fixit ,need a lock?
 	s.channelNumber2Address[channelNumber] = addr
 	s.address2ChannelNumber[addr] = channelNumber
@@ -318,13 +318,13 @@ func (s *StunServerSock) SetChannelNumber(channelNumber int, addr string) {
 如何 keep alive 呢? 目前认为总是有 turn server,这个没有测试到.
 //todo 如果我有真实的公网 ip 地址呢? 应该是不需要 keep alive 的
 */
-func (s *StunServerSock) FinishNegotiation(mode serverSockMode) {
+func (s *stunServerSock) FinishNegotiation(mode serverSockMode) {
 	s.log.Trace(fmt.Sprintf("change mode from %d to %d", s.mode, mode))
 	s.mode = mode
 }
 
 // Serve reads packets from connections and responds to BINDING requests.
-func (s *StunServerSock) Serve(c net.PacketConn) error {
+func (s *stunServerSock) Serve(c net.PacketConn) error {
 	go func() {
 		//writeto 是阻塞函数,不要阻塞 sendasync
 		for {
@@ -336,7 +336,7 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 				s.log.Trace(fmt.Sprintf("%s write to %s, len=%d", s.Addr, r.to.String(), len(r.data)))
 				n, err := s.c.WriteTo(r.data, r.to)
 				if err != nil || n != len(r.data) {
-					s.log.Info(fmt.Sprintf("%s write to %s err %s", s.Addr, r.to.String(), len(r.data)))
+					s.log.Info(fmt.Sprintf("%s write to %s err %s", s.Addr, r.to.String(), err))
 				}
 			}
 		}
@@ -349,7 +349,7 @@ func (s *StunServerSock) Serve(c net.PacketConn) error {
 		}
 	}
 }
-func (s *StunServerSock) Close() {
+func (s *stunServerSock) Close() {
 	s.log.Trace(fmt.Sprintf("%s closed", s.Addr))
 	s.stoped = true
 	s.c.Close()
@@ -365,14 +365,14 @@ func (s *StunServerSock) Close() {
 监听指定的地址 bindAddr,
 同时指定相关的用户密码密码等信息.
 */
-func NewStunServerSock(bindAddr string, cb ServerSockCallbacker, name string) (s *StunServerSock, err error) {
+func newStunServerSock(bindAddr string, cb serverSockCallbacker, name string) (s *stunServerSock, err error) {
 	c, err := net.ListenPacket("udp", bindAddr)
 	if err != nil {
 		return
 	}
-	s = &StunServerSock{
+	s = &stunServerSock{
 		Addr:               bindAddr,
-		mode:               StageNegotiation,
+		mode:               stageNegotiation,
 		c:                  c,
 		waiters:            make(map[stun.TransactionID]chan *serverSockResponse),
 		syncMessageTimeout: time.Second * 5,
@@ -382,7 +382,7 @@ func NewStunServerSock(bindAddr string, cb ServerSockCallbacker, name string) (s
 		address2ChannelNumber: make(map[string]int),
 		cachedResponse:        make(map[stun.TransactionID]*cachedResponse),
 		sendchan:              make(chan *sendreq, 10),
-		log:                   log.New("name", fmt.Sprintf("%s-StunServerSock", name)),
+		log:                   log.New("name", fmt.Sprintf("%s-stunServerSock", name)),
 	}
 	go func() {
 		s.Serve(s.c)

@@ -7,7 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 
-func setupTurnServerSock() (s1, s2 *TurnServerSock) {
+func setupTurnServerSock() (s1, s2 *turnServerSock) {
 	t1 := newTestTurnSock()
 	t2 := newTestTurnSock()
 	err := t1.allocateAddress()
@@ -20,7 +20,7 @@ func setupTurnServerSock() (s1, s2 *TurnServerSock) {
 	}
 	t1.Close()
 	t2.Close()
-	cfg1 := &TurnServerSockConfig{
+	cfg1 := &turnServerSockConfig{
 		user:         t1.user,
 		password:     t1.password,
 		nonce:        t1.nonce,
@@ -30,7 +30,7 @@ func setupTurnServerSock() (s1, s2 *TurnServerSock) {
 		serverAddr:   t1.serverAddr,
 		relayAddress: t1.relayAddress,
 	}
-	cfg2 := &TurnServerSockConfig{
+	cfg2 := &turnServerSockConfig{
 		user:         t2.user,
 		password:     t2.password,
 		nonce:        t2.nonce,
@@ -42,11 +42,11 @@ func setupTurnServerSock() (s1, s2 *TurnServerSock) {
 	}
 	m1 := new(mockcb)
 	m2 := new(mockcb)
-	s1, err = NewTurnServerSockWrapper(t1.s.LocalAddr, "s1", m1, cfg1)
+	s1, err = newTurnServerSockWrapper(t1.s.LocalAddr, "s1", m1, cfg1)
 	if err != nil {
 		panic(err)
 	}
-	s2, err = NewTurnServerSockWrapper(t2.s.LocalAddr, "s2", m2, cfg2)
+	s2, err = newTurnServerSockWrapper(t2.s.LocalAddr, "s2", m2, cfg2)
 	if err != nil {
 		panic(err)
 	}

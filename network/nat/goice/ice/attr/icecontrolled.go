@@ -8,15 +8,16 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )
 
+// IceControlled role of ice
 type IceControlled uint64
 
 func (n IceControlled) String() string { return strconv.Itoa(int(n)) }
 
-const IceControlledSize = 8
+const iceControlledSize = 8
 
 // AddTo adds ICE-CONTROLLED  to message.
 func (n IceControlled) AddTo(m *stun.Message) error {
-	v := make([]byte, IceControlledSize)
+	v := make([]byte, iceControlledSize)
 	binary.BigEndian.PutUint64(v, uint64(n))
 	m.Add(stun.AttrICEControlled, v)
 	return nil
@@ -28,11 +29,11 @@ func (n *IceControlled) GetFrom(m *stun.Message) error {
 	if err != nil {
 		return err
 	}
-	if len(v) != IceControlledSize {
+	if len(v) != iceControlledSize {
 		return &turn.BadAttrLength{
 			Attr:     stun.AttrICEControlled,
 			Got:      len(v),
-			Expected: IceControlledSize,
+			Expected: iceControlledSize,
 		}
 	}
 	*n = IceControlled(binary.BigEndian.Uint64(v))

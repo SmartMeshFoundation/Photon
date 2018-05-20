@@ -4,11 +4,12 @@ import (
 	"strconv"
 
 	"encoding/binary"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )
 
-// https://trac.tools.ietf.org/html/rfc5245#section-19.1
+//Priority  https://trac.tools.ietf.org/html/rfc5245#section-19.1
 type Priority uint32 // encoded as uint16
 
 func (n Priority) String() string { return strconv.Itoa(int(n)) }

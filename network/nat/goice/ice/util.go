@@ -8,7 +8,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
-func addrToUdpAddr(addr string) *net.UDPAddr {
+func addrToUDPAddr(addr string) *net.UDPAddr {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		log.Error(fmt.Sprintf("SplitHostPort %s err %s", addr, err))

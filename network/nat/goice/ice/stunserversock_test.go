@@ -10,7 +10,7 @@ import (
 )
 
 type mockcb struct {
-	s ServerSocker
+	s serverSocker
 }
 
 /*
@@ -22,7 +22,7 @@ func (m *mockcb) RecieveStunMessage(localAddr, remoteAddr string, req *stun.Mess
 	}
 	log.Info(fmt.Sprintf("recevied binding request %s<----%s", localAddr, remoteAddr))
 	var res *stun.Message = new(stun.Message)
-	from := addrToUdpAddr(remoteAddr)
+	from := addrToUDPAddr(remoteAddr)
 
 	err := res.Build(
 		stun.NewTransactionIDSetter(req.TransactionID),
@@ -50,24 +50,24 @@ func (m *mockcb) ReceiveData(localAddr, peerAddr string, data []byte) {
 }
 
 //binding request 和普通的 stun message 一样处理.
-//func (s *StunServerSock) processBindingRequest(from net.Addr, req *stun.Message) {
+//func (s *stunServerSock) processBindingRequest(from net.Addr, req *stun.Message) {
 
 //notauthrized:
 //	res.Build(stun.NewTransactionIDSetter(req.TransactionID), stun.BindingError,
 //		stun.CodeUnauthorised, software, stun.Fingerprint)
 //	s.sendStunMessageAsync(res, from)
 //}
-func setupTestServerSock() (s1, s2 *StunServerSock) {
+func setupTestServerSock() (s1, s2 *stunServerSock) {
 	var err error
 	mybindaddr := "127.0.0.1:8700"
 	peerbindaddr := "127.0.0.1:8800"
 	m1 := new(mockcb)
 	m2 := new(mockcb)
-	s1, err = NewStunServerSock(mybindaddr, m1, "s1")
+	s1, err = newStunServerSock(mybindaddr, m1, "s1")
 	if err != nil {
 		log.Crit(fmt.Sprintf("create new sock error %s %s", mybindaddr, err))
 	}
-	s2, err = NewStunServerSock(peerbindaddr, m2, "s2")
+	s2, err = newStunServerSock(peerbindaddr, m2, "s2")
 	if err != nil {
 		log.Crit(fmt.Sprintf("creat new sock error %s %s", peerbindaddr, err))
 	}

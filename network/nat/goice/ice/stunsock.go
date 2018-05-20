@@ -11,12 +11,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 
-const DefaultReadDeadLine = time.Second * 10
+const defaultReadDeadLine = time.Second * 10
 
 /*
 用于在没有 turn server 而只有 stun server 的情形下,收集本机候选地址.
 */
-type StunSocket struct {
+type stunSocket struct {
 	ServerAddr   string
 	MappedAddr   net.UDPAddr
 	LocalAddr    string // local addr used to  connect server
@@ -25,10 +25,10 @@ type StunSocket struct {
 	localAddrs   []string //for listen
 }
 
-func NewStunSocket(serverAddr string) (s *StunSocket, err error) {
-	s = &StunSocket{
+func newStunSocket(serverAddr string) (s *stunSocket, err error) {
+	s = &stunSocket{
 		ServerAddr:   serverAddr,
-		ReadDeadline: DefaultReadDeadLine,
+		ReadDeadline: defaultReadDeadLine,
 	}
 	conn, err := net.Dial("udp", serverAddr)
 	if err != nil {
@@ -46,7 +46,7 @@ func NewStunSocket(serverAddr string) (s *StunSocket, err error) {
 }
 
 //get mapped address from server
-func (s *StunSocket) mapAddress() error {
+func (s *stunSocket) mapAddress() error {
 	deadline := time.Now().Add(s.ReadDeadline)
 	var err error
 	wg := sync.WaitGroup{}
@@ -77,7 +77,7 @@ func (s *StunSocket) mapAddress() error {
 /*
 获取有一部分信息的candidiate.第一个是本机主要地址,最后一个是缺省 Candidate
 */
-func (s *StunSocket) GetCandidates() (candidates []*Candidate, err error) {
+func (s *stunSocket) GetCandidates() (candidates []*Candidate, err error) {
 	err = s.mapAddress()
 	if err != nil {
 		return
@@ -87,7 +87,7 @@ func (s *StunSocket) GetCandidates() (candidates []*Candidate, err error) {
 	c.Type = CandidateServerReflexive
 	c.addr = s.MappedAddr.String()
 	c.Foundation = calcFoundation(c.baseAddr)
-	candidates, err = GetLocalCandidates(c.baseAddr)
+	candidates, err = getLocalCandidates(c.baseAddr)
 	if err != nil {
 		return
 	}
@@ -100,7 +100,7 @@ func (s *StunSocket) GetCandidates() (candidates []*Candidate, err error) {
 	return
 }
 
-func (s *StunSocket) Close() {
+func (s *stunSocket) Close() {
 	if s.Client != nil {
 		s.Client.Close()
 	}
@@ -109,6 +109,6 @@ func (s *StunSocket) Close() {
 /*
 address need to listen for input stun binding request...
 */
-func (s *StunSocket) GetListenCandidiates() []string {
+func (s *stunSocket) getListenCandidiates() []string {
 	return s.localAddrs
 }

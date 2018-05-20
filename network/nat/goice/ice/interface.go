@@ -2,7 +2,7 @@ package ice
 
 import "github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 
-type CandidateGetter interface {
+type candidateGetter interface {
 	/*
 		获取有一部分信息的candidiate.第一个是本机主要地址,最后一个是缺省 Candidate
 	*/
@@ -10,10 +10,10 @@ type CandidateGetter interface {
 }
 
 //treat stun and turn as the same ...
-type StunTranporter interface {
-	CandidateGetter
+type stunTranporter interface {
+	candidateGetter
 	Close()
-	GetListenCandidiates() []string
+	getListenCandidiates() []string
 	/*
 		transporter is using turn?
 	*/
@@ -23,7 +23,7 @@ type StunTranporter interface {
 /*
 建立连接需要的本地的 简易stun 服务器.
 */
-type ServerSocker interface {
+type serverSocker interface {
 	/*
 		指定 从 from 到 to 发送一个消息
 		from 有可能是本地地址,也有可能是 turn server relay 的地址

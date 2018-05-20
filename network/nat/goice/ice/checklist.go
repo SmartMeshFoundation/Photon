@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-/**
- * This enumeration describes the state of ICE check.
- */
+/*
+SessionCheckState describes the state of ICE check.
+*/
 type SessionCheckState int
 
 const (
@@ -16,44 +16,44 @@ const (
 	 * yet be performed until some other check succeeds, allowing this
 	 * pair to unfreeze and move into the Waiting state.
 	 */
-	CheckStateFrozen SessionCheckState = iota
+	checkStateFrozen SessionCheckState = iota
 	/**
 	 * A check has not been performed for this pair, and can be
 	 * performed as soon as it is the highest priority Waiting pair on
 	 * the check list.
 	 */
-	CheckStateWaiting
+	checkStateWaiting
 	/**
 	 * A check has not been performed for this pair, and can be
 	 * performed as soon as it is the highest priority Waiting pair on
 	 * the check list.
 	 */
-	CheckStateInProgress
+	checkStateInProgress
 	/**
 	 * A check has not been performed for this pair, and can be
 	 * performed as soon as it is the highest priority Waiting pair on
 	 * the check list.
 	 */
-	CheckStateSucced
+	checkStateSucced
 	/**
 	 * A check for this pair was already done and failed, either
 	 * never producing any response or producing an unrecoverable failure
 	 * response.
 	 */
-	CheckStateFailed
+	checkStateFailed
 )
 
 func (s SessionCheckState) String() string {
 	switch s {
-	case CheckStateFrozen:
+	case checkStateFrozen:
 		return "frozen"
-	case CheckStateWaiting:
+	case checkStateWaiting:
 		return "waiting"
-	case CheckStateInProgress:
+	case checkStateInProgress:
 		return "inprogress"
-	case CheckStateSucced:
+	case checkStateSucced:
 		return "success"
-	case CheckStateFailed:
+	case checkStateFailed:
 		return "failed"
 	}
 	return "unknown"
@@ -66,7 +66,7 @@ func (s SessionCheckState) String() string {
  * A check is sent from the local candidate to the remote candidate
  * of a candidate pair.
  */
-type SessionCheck struct {
+type sessionCheck struct {
 	localCandidate  *Candidate
 	remoteCandidate *Candidate
 	key             string //简单与其他 check 区分,更多用于调试.
@@ -83,16 +83,16 @@ type SessionCheck struct {
 	err error
 }
 
-func (s *SessionCheck) String() string {
+func (s *sessionCheck) String() string {
 	return fmt.Sprintf("{l=%s,r=%s,priorit=%x,state=%s,nominated=%v,err=%s}",
 		s.localCandidate.addr, s.remoteCandidate.addr, s.priority, s.state, s.nominated, s.err)
 }
 
-type SessionCheckList struct {
-	checks []*SessionCheck
+type sessionCheckList struct {
+	checks []*sessionCheck
 }
 
-func (sc *SessionCheckList) String() string {
+func (sc *sessionCheckList) String() string {
 	w := new(bytes.Buffer)
 	for i, v := range sc.checks {
 		fmt.Fprintf(w, "\t [%d]=%s\n", i, v)
@@ -100,15 +100,15 @@ func (sc *SessionCheckList) String() string {
 	fmt.Fprintf(w, "}")
 	return w.String()
 }
-func (sc *SessionCheckList) Len() int {
+func (sc *sessionCheckList) Len() int {
 	return len(sc.checks)
 }
-func (sc *SessionCheckList) Less(i, j int) bool {
+func (sc *sessionCheckList) Less(i, j int) bool {
 	return sc.checks[i].priority > sc.checks[j].priority
 }
 
-func (sc *SessionCheckList) Swap(i, j int) {
-	var t *SessionCheck
+func (sc *sessionCheckList) Swap(i, j int) {
+	var t *sessionCheck
 	t = sc.checks[i]
 	sc.checks[i] = sc.checks[j]
 	sc.checks[j] = t

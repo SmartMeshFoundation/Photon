@@ -5,16 +5,15 @@ import (
 	"testing"
 )
 
-func newTestTurnSock() (turn *TurnSock) {
-	turn, err := NewTurnSock("182.254.155.208:3478", "bai", "bai")
+func newTestTurnSock() (turn *turnSock) {
+	turn, err := newTurnSock("182.254.155.208:3478", "bai", "bai")
 	if err != nil {
 		panic(err)
-		return
 	}
 	return turn
 }
 func TestNewTurnSock(t *testing.T) {
-	turn, err := NewTurnSock("182.254.155.208:3478", "bai", "bai")
+	turn, err := newTurnSock("182.254.155.208:3478", "bai", "bai")
 	if err != nil {
 		t.Error(err)
 		return

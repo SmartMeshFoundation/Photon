@@ -13,19 +13,23 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/sdp"
 )
 
+//StreamTransportCallbacker callback of ICE
 type StreamTransportCallbacker interface {
 	/*
-			This callback will be called when the ICE transport receives
+			OnReceiveData will be called when the ICE transport receives
 		     * incoming packet from the sockets which is not related to ICE
 		     * (for example, normal RTP/RTCP packet destined for application).
 	*/
 	OnReceiveData(data []byte, from net.Addr)
 	/*
-		Callback to report status of various ICE operations.
+		OnIceComplete report status of various ICE operations.
 	*/
 	OnIceComplete(result error)
 }
 
+/*
+TransportConfig is configuration of ICE
+*/
 type TransportConfig struct {
 	Server          string
 	StunSever       string //maybe empty
@@ -34,13 +38,15 @@ type TransportConfig struct {
 	TurnPassword    string
 	ComponentNumber int //must be 1,right now
 }
-type IceStreamTransport struct {
+
+//StreamTransport is a transport
+type StreamTransport struct {
 	Name        string //debug info
 	cfg         *TransportConfig
-	transporter StunTranporter
-	component   *TransportComponent
-	State       TransportState
-	session     *IceSession
+	transporter stunTranporter
+	component   *transportComponent
+	State       transportState
+	session     *session
 	cb          StreamTransportCallbacker
 	log         log.Logger
 }
@@ -49,29 +55,34 @@ type sessionDescription struct {
 	user            string
 	password        string
 	defaultPort     int
-	defaultIp       string
+	defaultIP       string
 	candidates      []*Candidate
 	defautCandidate *Candidate
 }
-type TransportComponent struct {
+type transportComponent struct {
 	Name             string
-	componentId      int
+	componentID      int
 	candidates       []*Candidate
 	defaultCandidate *Candidate
-	candidateGetter  CandidateGetter
+	candidateGetter  candidateGetter
 }
 
+//NewTransportConfigHostonly return a  hostonly config
 func NewTransportConfigHostonly() *TransportConfig {
 	return &TransportConfig{
 		ComponentNumber: 1,
 	}
 }
+
+//NewTransportConfigWithStun return a stun config
 func NewTransportConfigWithStun(stunServer string) *TransportConfig {
 	return &TransportConfig{
 		StunSever:       stunServer,
 		ComponentNumber: 1,
 	}
 }
+
+//NewTransportConfigWithTurn return a turn config
 func NewTransportConfigWithTurn(turnServer, turnUser, turnPass string) *TransportConfig {
 	return &TransportConfig{
 		TurnSever:       turnServer,
@@ -81,38 +92,32 @@ func NewTransportConfigWithTurn(turnServer, turnUser, turnPass string) *Transpor
 	}
 }
 
-type TransportState int
+type transportState int
 
 const (
-	/**
-	 * ICE stream transport initialization/candidate gathering process is
-	 * complete, ICE session may be created on this stream transport.
-	 */
-	TransportStateReady TransportState = iota
-	/**
-	 * New session has been created and the session is ready.
+	/*TransportStateReady represents that ICE stream transport initialization/candidate gathering process is
+	complete, ICE session may be created on this stream transport.
+	*/
+	TransportStateReady transportState = iota
+	/*TransportStateSessionReady means that New session has been created and the session is ready.
 	 */
 	TransportStateSessionReady
-	/**
-	 * ICE negotiation is in progress.
+	/*TransportStateNegotiation means that ICE negotiation is in progress.
 	 */
 	TransportStateNegotiation
-	/**
-	 * ICE negotiation has completed successfully and media is ready
-	 * to be used.
-	 */
+	/*TransportStateRunning means that ICE negotiation has completed successfully and media is ready
+	  to be used.
+	*/
 	TransportStateRunning
-	/**
-	 * ICE negotiation has completed with failure.
+	/*TransportStateFailed means ICE negotiation has completed with failure.
 	 */
 	TransportStateFailed
-	/**
-	 * ICE negotiation has completed with failure.
+	/*TransportStateStopped ICE negotiation has completed with failure.
 	 */
 	TransportStateStopped
 )
 
-func (s TransportState) String() string {
+func (s transportState) String() string {
 	switch s {
 	case TransportStateReady:
 		return "Candidate Gathering Complete"
@@ -130,24 +135,26 @@ func (s TransportState) String() string {
 	return "unkown"
 }
 
-func NewIceStreamTransport(cfg *TransportConfig, name string) (it *IceStreamTransport, err error) {
-	it = &IceStreamTransport{
+//NewIceStreamTransport create streamTransport from configuration
+//name is for debug
+func NewIceStreamTransport(cfg *TransportConfig, name string) (it *StreamTransport, err error) {
+	it = &StreamTransport{
 		cfg:   cfg,
 		State: TransportStateReady,
 		Name:  name,
-		log:   log.New("name", fmt.Sprintf("%s-IceStreamTransport", name)),
+		log:   log.New("name", fmt.Sprintf("%s-StreamTransport", name)),
 	}
 	if len(it.cfg.StunSever) > 0 {
-		it.transporter, err = NewStunSocket(it.cfg.StunSever)
+		it.transporter, err = newStunSocket(it.cfg.StunSever)
 	} else if len(it.cfg.TurnSever) > 0 {
-		it.transporter, err = NewTurnSock(it.cfg.TurnSever, cfg.TurnUserName, cfg.TurnPassword)
+		it.transporter, err = newTurnSock(it.cfg.TurnSever, cfg.TurnUserName, cfg.TurnPassword)
 	} else {
 		it.transporter = new(HostOnlySock)
 	}
 	if err != nil {
 		return
 	}
-	it.component = NewTransportComponent(it.transporter, 1)
+	it.component = newTransportComponent(it.transporter, 1)
 	_, err = it.component.GetCandidates()
 	if err != nil {
 		return
@@ -155,11 +162,13 @@ func NewIceStreamTransport(cfg *TransportConfig, name string) (it *IceStreamTran
 	it.log.Trace(fmt.Sprintf("candidates=%#v", it.component.candidates))
 	return
 }
-func (t *IceStreamTransport) InitIce(role SessionRole) error {
-	s := NewIceSession(t.Name, role, t.component.candidates, t.transporter, t)
+
+//InitIce set role of this transport
+func (t *StreamTransport) InitIce(role SessionRole) error {
+	s := newIceSession(t.Name, role, t.component.candidates, t.transporter, t)
 	t.session = s
 	for i, c := range s.localCandidates {
-		t.log.Trace(fmt.Sprintf("%s Candidate %d added componentId=%d type=%s foundation=%d,addr=%s,base=%s,priority=%d",
+		t.log.Trace(fmt.Sprintf("%s Candidate %d added componentID=%d type=%s foundation=%d,addr=%s,base=%s,priority=%d",
 			t.Name, i, c.ComponentID, c.Type, c.Foundation, c.addr, c.baseAddr, c.Priority,
 		))
 	}
@@ -171,11 +180,14 @@ func (t *IceStreamTransport) InitIce(role SessionRole) error {
 	return nil
 }
 
-//TODO should move set to NewIceStreamTransport
-func (t *IceStreamTransport) SetCallBack(cb StreamTransportCallbacker) {
+//SetCallBack set the callback
+// TODO should move set to NewIceStreamTransport
+func (t *StreamTransport) SetCallBack(cb StreamTransportCallbacker) {
 	t.cb = cb
 }
-func (t *IceStreamTransport) StartNegotiation(remoteSDP string) (err error) {
+
+//StartNegotiation starts negotiation process. can be called only once.
+func (t *StreamTransport) StartNegotiation(remoteSDP string) (err error) {
 	defer func() {
 		if err != nil {
 			t.log.Error(fmt.Sprintf("StartNegotiation with remotesdp err =%s", err))
@@ -208,16 +220,18 @@ func (t *IceStreamTransport) StartNegotiation(remoteSDP string) (err error) {
 	}
 	return nil
 }
-func (t *IceStreamTransport) EncodeSession() (s string, err error) {
+
+//EncodeSession encoding ice info to sdp
+func (t *StreamTransport) EncodeSession() (s string, err error) {
 	if t.session == nil {
-		err = errors.New(fmt.Sprintf("no session and state =%d", t.State))
+		err = fmt.Errorf("no session and state =%d", t.State)
 		return
 	}
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "v=0\no=- 3414953978 3414953978 IN IP4 localhost\ns=ice\nt=0 0\n")
 	fmt.Fprintf(buf, "a=ice-ufrag:%s\na=ice-pwd:%s\n", t.session.rxUserFrag, t.session.rxPassword)
 	//only on component now....
-	uaddr := addrToUdpAddr(t.component.defaultCandidate.addr)
+	uaddr := addrToUDPAddr(t.component.defaultCandidate.addr)
 	fmt.Fprintf(buf, "m=audio %d RTP/AVP 0\nc=IN IP4 %s\n", uaddr.Port, uaddr.IP.String())
 	for _, c := range t.component.candidates {
 		fmt.Fprintf(buf, "%s\n", c)
@@ -225,8 +239,8 @@ func (t *IceStreamTransport) EncodeSession() (s string, err error) {
 	return string(buf.Bytes()), nil
 }
 
-//不支持复用,只能完全重新构建.
-func (t *IceStreamTransport) Stop() {
+//Stop destroy this transport, and cannot be reused
+func (t *StreamTransport) Stop() {
 	if t.State == TransportStateStopped {
 		t.log.Error(fmt.Sprintf("%s has already stopped", t.Name))
 		return
@@ -236,7 +250,9 @@ func (t *IceStreamTransport) Stop() {
 		t.session.Stop()
 	}
 }
-func (t *IceStreamTransport) SendData(data []byte) error {
+
+//SendData send data to peer, peer's ip and port are select by ice
+func (t *StreamTransport) SendData(data []byte) error {
 	if t.State != TransportStateRunning {
 		return errors.New("transport not running")
 	}
@@ -247,7 +263,7 @@ func (t *IceStreamTransport) SendData(data []byte) error {
 保证只会被调用一次,表示已经找到了至少一个有效连接,可以发送数据了,
 但是这个连接未必是最后确定的,可能会发生变化.
 */
-func (t *IceStreamTransport) onIceComplete(result error) {
+func (t *StreamTransport) onIceComplete(result error) {
 
 	if t.State != TransportStateNegotiation {
 		t.log.Error(fmt.Sprintf("%s finish reulst %s,t.State=%d", t.Name, result, t.State))
@@ -270,9 +286,9 @@ func (t *IceStreamTransport) onIceComplete(result error) {
 /*
 收到数据,并不表示协商已经完毕,而是对方找到了一条有效连接.
 */
-func (t *IceStreamTransport) onRxData(data []byte, from string) {
+func (t *StreamTransport) onRxData(data []byte, from string) {
 	if t.cb != nil {
-		t.cb.OnReceiveData(data, addrToUdpAddr(from))
+		t.cb.OnReceiveData(data, addrToUDPAddr(from))
 	}
 }
 func decodeSession(str string) (session *sessionDescription, err error) {
@@ -311,16 +327,16 @@ func decodeSession(str string) (session *sessionDescription, err error) {
 		case sdp.TypeMediaDescription:
 			fmt.Sscanf(v, "audio %d RTP/", &session.defaultPort)
 		case sdp.TypeConnectionData:
-			fmt.Sscanf(v, "IN IP4 %s", &session.defaultIp)
+			fmt.Sscanf(v, "IN IP4 %s", &session.defaultIP)
 		}
 	}
 	if len(session.user) <= 0 || len(session.password) == 0 ||
-		len(session.defaultIp) == 0 ||
+		len(session.defaultIP) == 0 ||
 		len(session.candidates) == 0 {
 		err = fmt.Errorf("remote session description error %s", str)
 		return
 	}
-	s2 := fmt.Sprintf("%s:%d", session.defaultIp, session.defaultPort)
+	s2 := fmt.Sprintf("%s:%d", session.defaultIP, session.defaultPort)
 	for _, c := range session.candidates {
 		if c.addr == s2 {
 			session.defautCandidate = c
@@ -333,21 +349,21 @@ func decodeSession(str string) (session *sessionDescription, err error) {
 	return
 }
 
-func NewTransportComponent(candidateGetter CandidateGetter, id int) *TransportComponent {
-	return &TransportComponent{
+func newTransportComponent(candidateGetter candidateGetter, id int) *transportComponent {
+	return &transportComponent{
 		candidateGetter: candidateGetter,
-		componentId:     id,
+		componentID:     id,
 	}
 }
 
-func (t *TransportComponent) GetCandidates() (candidates []*Candidate, err error) {
+func (t *transportComponent) GetCandidates() (candidates []*Candidate, err error) {
 	candidates, err = t.candidateGetter.GetCandidates()
 	if err != nil {
 		return
 	}
 	for _, c := range candidates {
-		c.ComponentID = t.componentId
-		c.Priority = calcCandidatePriority(c.Type, DefaultPreference, c.ComponentID)
+		c.ComponentID = t.componentID
+		c.Priority = calcCandidatePriority(c.Type, defaultPreference, c.ComponentID)
 		c.transport = TransportUDP
 	}
 	t.candidates = candidates

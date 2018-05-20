@@ -41,7 +41,7 @@ func (c *icecb) OnIceComplete(result error) {
 	c.iceresult <- result
 	log.Trace(fmt.Sprintf("%s negotiation complete", c.name))
 }
-func setupIcePair(typ int) (s1, s2 *ice.IceStreamTransport, err error) {
+func setupIcePair(typ int) (s1, s2 *ice.StreamTransport, err error) {
 	var cfg *ice.TransportConfig
 	switch typ {
 	case typHost:

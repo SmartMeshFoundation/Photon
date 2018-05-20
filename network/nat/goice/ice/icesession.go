@@ -22,11 +22,15 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
+//SessionRole role of ICE
 type SessionRole int
 
 const (
+	//SessionRoleUnkown error state
 	SessionRoleUnkown SessionRole = iota
+	//SessionRoleControlling role controlling
 	SessionRoleControlling
+	//SessionRoleControlled role controlled
 	SessionRoleControlled
 )
 
@@ -42,7 +46,7 @@ func (s SessionRole) String() string {
 	return "unknown"
 }
 
-type IceSession struct {
+type session struct {
 	Name string //for debug
 	/*
 		controlling or controlled
@@ -74,34 +78,34 @@ type IceSession struct {
 	rxPassword       string /**< Local password.    */
 	txCrendientials  stun.MessageIntegrity
 	rxCrendientials  stun.MessageIntegrity
-	sessionComponent SessionComponet
+	sessionComponent sessionComponet
 	localCandidates  []*Candidate
 	remoteCandidates []*Candidate
-	checkList        *SessionCheckList
-	validCheckList   *SessionCheckList // check has been verified and is valid.
-	transporter      StunTranporter    //获取 candidates 用的 stunclient, 可能只指定了一个 stun 服务器,而没有 turn 服务器,也可能两者都没有.
+	checkList        *sessionCheckList
+	validCheckList   *sessionCheckList // check has been verified and is valid.
+	transporter      stunTranporter    //获取 candidates 用的 stunclient, 可能只指定了一个 stun 服务器,而没有 turn 服务器,也可能两者都没有.
 	/*
-		探测的过程中,按照协议要求,必须从指定的 ip 地址和端口发送探测数据,因此,如果本机有多个 ip 地址,那么就会有多个 ServerSocker
+		探测的过程中,按照协议要求,必须从指定的 ip 地址和端口发送探测数据,因此,如果本机有多个 ip 地址,那么就会有多个 serverSocker
 	*/
-	serverSocks map[string]ServerSocker
+	serverSocks map[string]serverSocker
 	/*
 			按照现在的实现,连接到 stun/turn 服务器的那个需要特殊处理,
 			只有他发送数据的时候,可能需要经过 turn server 中转.
 		当然如果真的没有 turnserver, 也不影响,它会是 nil, 也不会从服务器发送中转数据
 	*/
-	turnServerSock *TurnServerSock
+	turnServerSock *turnServerSock
 
 	isNominating bool /* Nominating stage   */
 	//write this chan to finish one check.
 	checkMap map[string]chan error
 	//todo refer state, etc.
-	iceStreamTransport *IceStreamTransport
+	iceStreamTransport *StreamTransport
 	/*
 	   用于角色冲突的时候,自行进行角色切换 ICEROLECONTROLLING <--->ICEROLECONTROLLED
 	*/
 	tieBreaker     uint64
-	earlyCheckList []*RxCheck
-	msg2Check      map[stun.TransactionID]*SessionCheck
+	earlyCheckList []*rxCheck
+	msg2Check      map[stun.TransactionID]*sessionCheck
 	mlock          sync.Mutex
 
 	/*
@@ -117,31 +121,31 @@ type IceSession struct {
 type sessionCompleteResult int
 
 const (
-	SessionNotComplete        sessionCompleteResult = iota
-	SessionCheckComplete                            //wait for nomination.
-	SessionCompleteSuccess                          //at least have one nomination
-	SessionAllCompleteSuccess                       //所有的 check 都 finish 了.
-	SessionCompleteFailure
+	sessionNotComplete        sessionCompleteResult = iota
+	sessionCheckComplete                            //wait for nomination.
+	sessionCompleteSuccess                          //at least have one nomination
+	sessionAllCompleteSuccess                       //所有的 check 都 finish 了.
+	sessionCompleteFailure
 )
 
-type SessionComponet struct {
+type sessionComponet struct {
 	/**
 	 * Pointer to ICE check with highest priority which connectivity check
 	 * has been successful. The value will be NULL if a no successful check
 	 * has not been found for this component.
 	 */
-	validCheck *SessionCheck
+	validCheck *sessionCheck
 	/**
 	 * Pointer to ICE check with highest priority which connectivity check
 	 * has been successful and it has been nominated. The value may be NULL
 	 * if there is no such check yet.
 	 */
-	nominatedCheck *SessionCheck
+	nominatedCheck *sessionCheck
 	/*
 		nominated server socker
 		to send data to peer.
 	*/
-	nominatedServerSock ServerSocker
+	nominatedServerSock serverSocker
 }
 
 /**
@@ -153,8 +157,8 @@ type SessionComponet struct {
  * request in a list, and we'll do triggered checks (simultaneously)
  * as soon as we receive answer.
  */
-type RxCheck struct {
-	componentId   int
+type rxCheck struct {
+	componentID   int
 	remoteAddress string
 	localAddress  string
 	userCandidate bool
@@ -162,7 +166,7 @@ type RxCheck struct {
 	role          SessionRole
 }
 
-func (r *RxCheck) String() string {
+func (r *rxCheck) String() string {
 	return fmt.Sprintf("{remote=%s,local=%s,userCandidate=%v,priorit=%d,role=%d}", r.remoteAddress, r.localAddress, r.userCandidate, r.priority, r.role)
 }
 
@@ -181,7 +185,7 @@ type stunDataWrapper struct {
 尝试多次失败以后,需要结束这次 check,
 */
 type checkFailedWrapper struct {
-	c   *SessionCheck
+	c   *sessionCheck
 	err error
 }
 
@@ -192,8 +196,8 @@ ice session运行着四种协程
 3.自身的 loop 协程
 4.check 时候的大量协程,
 */
-func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, transporter StunTranporter, ice *IceStreamTransport) *IceSession {
-	s := &IceSession{
+func newIceSession(name string, role SessionRole, localCandidates []*Candidate, transporter stunTranporter, ice *StreamTransport) *session {
+	s := &session{
 		Name:               name,
 		role:               role,
 		aggresive:          true,
@@ -203,11 +207,11 @@ func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 		transporter:        transporter,
 		checkMap:           make(map[string]chan error),
 		iceStreamTransport: ice,
-		checkList:          new(SessionCheckList),
-		validCheckList:     new(SessionCheckList),
+		checkList:          new(sessionCheckList),
+		validCheckList:     new(sessionCheckList),
 		tieBreaker:         attr.RandUint64(),
-		serverSocks:        make(map[string]ServerSocker),
-		msg2Check:          make(map[stun.TransactionID]*SessionCheck),
+		serverSocks:        make(map[string]serverSocker),
+		msg2Check:          make(map[stun.TransactionID]*sessionCheck),
 		msgChan:            make(chan *stunMessageWrapper, 10),
 		dataChan:           make(chan *stunDataWrapper, 10),
 		tryFailChan:        make(chan *checkFailedWrapper, 10),
@@ -222,22 +226,22 @@ func NewIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 
 var errTooManyCandidates = errors.New("too many candidates")
 
-func (s *IceSession) addMsgCheck(id stun.TransactionID, check *SessionCheck) {
+func (s *session) addMsgCheck(id stun.TransactionID, check *sessionCheck) {
 	s.mlock.Lock()
 	s.msg2Check[id] = check
 	s.mlock.Unlock()
 }
-func (s *IceSession) getMsgCheck(id stun.TransactionID) *SessionCheck {
+func (s *session) getMsgCheck(id stun.TransactionID) *sessionCheck {
 	s.mlock.Lock()
 	defer s.mlock.Unlock()
 	return s.msg2Check[id]
 }
-func (s *IceSession) deleteMsgCheck(id stun.TransactionID) {
+func (s *session) deleteMsgCheck(id stun.TransactionID) {
 	s.mlock.Lock()
 	delete(s.msg2Check, id)
 	s.mlock.Unlock()
 }
-func (s *IceSession) Stop() {
+func (s *session) Stop() {
 	s.hasStopped = true
 	for _, srv := range s.serverSocks {
 		srv.Close()
@@ -249,8 +253,8 @@ func (s *IceSession) Stop() {
 	close(s.msgChan)
 	close(s.dataChan)
 }
-func (s *IceSession) createCheckList(sd *sessionDescription) error {
-	if len(sd.candidates) > MaxCandidates {
+func (s *session) createCheckList(sd *sessionDescription) error {
+	if len(sd.candidates) > maxCandidates {
 		return errTooManyCandidates
 	}
 	s.txUserName = fmt.Sprintf("%s:%s", sd.user, s.rxUserFrag)
@@ -265,11 +269,11 @@ func (s *IceSession) createCheckList(sd *sessionDescription) error {
 	}
 	for _, l := range s.localCandidates {
 		for _, r := range s.remoteCandidates {
-			chk := &SessionCheck{
+			chk := &sessionCheck{
 				localCandidate:  l,
 				remoteCandidate: r,
 				key:             fmt.Sprintf("%s-%s", l.addr, r.addr),
-				state:           CheckStateFrozen,
+				state:           checkStateFrozen,
 				priority:        calcPairPriority(s.role, l, r),
 			}
 			s.checkList.checks = append(s.checkList.checks, chk)
@@ -294,11 +298,11 @@ func (s *IceSession) createCheckList(sd *sessionDescription) error {
  * higher up on the priority list.  The result is a sequence of ordered
  * candidate pairs, called the check list for that media stream.
  */
-func (s *IceSession) pruneCheckList() {
+func (s *session) pruneCheckList() {
 	m := make(map[string]bool)
-	var checks []*SessionCheck
+	var checks []*sessionCheck
 	for _, c := range s.checkList.checks {
-		key := fmt.Sprintf("%d%d", c.localCandidate.Foundation, c.remoteCandidate.addr)
+		key := fmt.Sprintf("%d%s", c.localCandidate.Foundation, c.remoteCandidate.addr)
 		if m[key] {
 			continue
 		}
@@ -318,7 +322,7 @@ The actual short-term credential is formed by exchanging username fragments in t
 The need for this mechanism goes beyond just security; it is actually required for correct operation
 of ICE in the first place.
 */
-func (s *IceSession) StartServer() (err error) {
+func (s *session) StartServer() (err error) {
 	defer func() {
 		if err != nil {
 			for _, srv := range s.serverSocks {
@@ -327,12 +331,12 @@ func (s *IceSession) StartServer() (err error) {
 		}
 	}()
 	s.transporter.Close() //首先要关闭这个连接,否则没法再次 Listen, 会提示被占用
-	turnsock, hasRelay := s.transporter.(*TurnSock)
+	turnsock, hasRelay := s.transporter.(*turnSock)
 	start := 0
-	candidates := s.transporter.GetListenCandidiates()
+	candidates := s.transporter.getListenCandidiates()
 	if hasRelay {
 		start = 1
-		cfg := &TurnServerSockConfig{
+		cfg := &turnServerSockConfig{
 			user:         turnsock.user,
 			password:     turnsock.password,
 			nonce:        turnsock.nonce,
@@ -342,15 +346,15 @@ func (s *IceSession) StartServer() (err error) {
 			serverAddr:   turnsock.serverAddr,
 			lifetime:     turnsock.lifetime,
 		}
-		s.turnServerSock, err = NewTurnServerSockWrapper(candidates[0], s.Name, s, cfg)
+		s.turnServerSock, err = newTurnServerSockWrapper(candidates[0], s.Name, s, cfg)
 		if err != nil {
 			return err
 		}
 		s.serverSocks[candidates[0]] = s.turnServerSock
 	}
 	for ; start < len(candidates); start++ {
-		var srv *StunServerSock
-		srv, err = NewStunServerSock(candidates[start], s, s.Name)
+		var srv *stunServerSock
+		srv, err = newStunServerSock(candidates[start], s, s.Name)
 		if err != nil {
 			return err
 		}
@@ -365,7 +369,7 @@ func (s *IceSession) StartServer() (err error) {
 那么需要在turn server 上专门设置,对方发送到 turn server 的数据才会中转给我.
 否则会被 turn server 丢弃.
 */
-func (s *IceSession) createTurnPermissionIfNeeded() (err error) {
+func (s *session) createTurnPermissionIfNeeded() (err error) {
 	var res *stun.Message
 	if s.turnServerSock != nil {
 		res, err = s.turnServerSock.createPermission(s.remoteCandidates)
@@ -383,13 +387,13 @@ func (s *IceSession) createTurnPermissionIfNeeded() (err error) {
 check stage:
 one check received a valid response
 */
-func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *stun.Message) {
+func (s *session) handleCheckResponse(check *sessionCheck, from string, res *stun.Message) {
 	var err error
 	s.log.Trace(fmt.Sprintf("handle check response check=%s\nfrom=%s\n res=%s", check.String(), from, res.String()))
 	if from != check.remoteCandidate.addr {
 		s.log.Info(fmt.Sprintf("check received stun message not from expected address,got:%s,check is %s", from, check))
 	}
-	if s.completeResult >= SessionAllCompleteSuccess {
+	if s.completeResult >= sessionAllCompleteSuccess {
 		/*
 			收到前期bindingRequest 的 response, 但是已经协商完毕了,忽略即可.
 		*/
@@ -406,9 +410,9 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	if res.Type.Class == stun.ClassErrorResponse {
 		s.log.Info(fmt.Sprintf("%s received error response %s", check.key, res.Type))
 		var code stun.ErrorCodeAttribute
-		err := code.GetFrom(res)
+		err = code.GetFrom(res)
 		if err != nil || code.Code != stun.CodeRoleConflict {
-			s.changeCheckState(check, CheckStateFailed, fmt.Errorf("unkown error code %s", code))
+			s.changeCheckState(check, checkStateFailed, fmt.Errorf("unkown error code %s", code))
 			s.tryCompleteCheck(check)
 			return
 		}
@@ -444,11 +448,11 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 			对方发送的 bingding response 中的 Message Integrity是错的,我们不能把它当成错误处理.
 		todo 当我作为 controlled 时候一旦收到对方的 bindingRequest ,应该明确知道以后的 response Message Integrity 必须是对的.
 	*/
-	if err := s.rxCrendientials.Check(res); err != nil {
+	if err = s.rxCrendientials.Check(res); err != nil {
 		if s.role == SessionRoleControlling {
 			err = fmt.Errorf("receive check response,but crendientials check failed %s", err)
 			s.log.Error(err.Error())
-			s.changeCheckState(check, CheckStateFailed, err)
+			s.changeCheckState(check, checkStateFailed, err)
 			s.tryCompleteCheck(check) //is this the last check?
 		} else {
 			s.log.Warn(fmt.Sprintf("receive check response,but crendientials check failed %s", err))
@@ -469,7 +473,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		*/
 		err = fmt.Errorf("check %s got message from unkown address %s", check.key, from)
 		s.log.Error(fmt.Sprintf("connectivity check failed,  check:%s remote address mismatch,err:%s", check, err))
-		s.changeCheckState(check, CheckStateFailed, err)
+		s.changeCheckState(check, checkStateFailed, err)
 		s.tryCompleteCheck(check) //is this the last check?
 		return
 	}
@@ -490,7 +494,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	var xaddr stun.XORMappedAddress
 	err = xaddr.GetFrom(res)
 	if err != nil {
-		s.changeCheckState(check, CheckStateFailed, err)
+		s.changeCheckState(check, checkStateFailed, err)
 		s.tryCompleteCheck(check)
 		return
 	}
@@ -517,7 +521,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		lcand.ComponentID = check.localCandidate.ComponentID
 		lcand.addr = xaddr.String()
 		lcand.transport = check.localCandidate.transport
-		lcand.Priority = calcCandidatePriority(lcand.Type, DefaultPreference, lcand.ComponentID)
+		lcand.Priority = calcCandidatePriority(lcand.Type, defaultPreference, lcand.ComponentID)
 		s.log.Trace(fmt.Sprintf("candidate add peer reflexive :%s", lcand))
 		s.localCandidates = append(s.localCandidates, lcand)
 	}
@@ -531,7 +535,7 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	 * nominated flag
 	 */
 	found := false
-	var newcheck *SessionCheck
+	var newcheck *sessionCheck
 	for _, check2 := range s.validCheckList.checks {
 		if check2.localCandidate == lcand && check2.remoteCandidate == check.remoteCandidate {
 			found = true
@@ -541,11 +545,11 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 		}
 	}
 	if !found {
-		newcheck = &SessionCheck{
+		newcheck = &sessionCheck{
 			localCandidate:  lcand,
 			remoteCandidate: check.remoteCandidate,
 			priority:        calcPairPriority(s.role, lcand, check.remoteCandidate),
-			state:           CheckStateSucced,
+			state:           checkStateSucced,
 			nominated:       check.nominated,
 			key:             fmt.Sprintf("%s-%s", lcand.addr, check.remoteCandidate.addr),
 		}
@@ -560,13 +564,13 @@ func (s *IceSession) handleCheckResponse(check *SessionCheck, from string, res *
 	 * Succeeded.  The success of this check might also cause the state of
 	 * other checks to change as well.
 	 */
-	s.changeCheckState(check, CheckStateSucced, nil)
+	s.changeCheckState(check, checkStateSucced, nil)
 	/* Perform 7.1.2.2.2.  Updating Pair States.
 	 * This may terminate ICE processing.
 	 */
 	s.tryCompleteCheck(check)
 }
-func (s *IceSession) markValidAndNonimated(check *SessionCheck) {
+func (s *session) markValidAndNonimated(check *sessionCheck) {
 	s.mlock.Lock()
 	if s.sessionComponent.validCheck == nil || s.sessionComponent.validCheck.priority < check.priority {
 		s.sessionComponent.validCheck = check
@@ -583,7 +587,7 @@ func (s *IceSession) markValidAndNonimated(check *SessionCheck) {
 /*
 if all check is failed or success, notify upper layer. return true, when this ice negotiation finished.
 */
-func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
+func (s *session) tryCompleteCheck(check *sessionCheck) bool {
 	/* 7.1.2.2.2.  Updating Pair States
 	 *
 	 * The agent sets the state of the pair that generated the check to
@@ -598,8 +602,8 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	 */
 	if check.err == nil {
 		for _, c := range s.checkList.checks {
-			if c.localCandidate.Foundation == check.localCandidate.Foundation && c.state == CheckStateFrozen {
-				s.changeCheckState(c, CheckStateWaiting, nil)
+			if c.localCandidate.Foundation == check.localCandidate.Foundation && c.state == checkStateFrozen {
+				s.changeCheckState(c, checkStateWaiting, nil)
 			}
 		}
 		s.log.Trace(fmt.Sprintf("check  finished:%s", check.String()))
@@ -628,11 +632,11 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	 */
 	if check.err == nil && check.nominated {
 		for _, c := range s.checkList.checks {
-			if c.state < CheckStateInProgress {
+			if c.state < checkStateInProgress {
 				//just fail frozen/waiting check
 				s.log.Trace(fmt.Sprintf("check %s to be failed because higher priority check finished.", c.key))
 				s.cancelOneCheck(c)
-			} else if c.state == CheckStateInProgress && c.priority <= check.priority {
+			} else if c.state == checkStateInProgress && c.priority <= check.priority {
 				/*
 					c.priority<check.priority or <= todo if any error,change to <
 						这种策略会尽快结束,但是存在问题,如果低优先级的先完成
@@ -693,7 +697,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	 */
 	hasNotFinished := false
 	for _, c := range s.checkList.checks {
-		if c.state < CheckStateSucced {
+		if c.state < checkStateSucced {
 			hasNotFinished = true
 			break
 		}
@@ -716,7 +720,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				return true
 			}
 			s.log.Trace(fmt.Sprintf("all checks completed. controlled agent now waits for nomination.."))
-			s.changeCompleteResult(SessionCheckComplete)
+			s.changeCompleteResult(sessionCheckComplete)
 			go func() {
 				//start a timer,failed if there is no nomiated
 				time.Sleep(s.controlledAgentWaitNomiatedTimeout) // time from pjnath
@@ -734,7 +738,7 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 				如果我是 regular 模式,那么此时应该是再次发送 bingdingrequest, 并带上 usecandidate, 目前没必要.
 			*/
 			panic("not implemented")
-			return false
+			//return false
 		}
 
 	}
@@ -745,10 +749,9 @@ func (s *IceSession) tryCompleteCheck(check *SessionCheck) bool {
 	//目前只有一个 component, 另外只支持 aggressive 模式.
 	return false
 }
-func (s *IceSession) changeCompleteResult(r sessionCompleteResult) {
+func (s *session) changeCompleteResult(r sessionCompleteResult) {
 	if r <= s.completeResult {
 		panic(fmt.Sprintf("%s  complete result must increase only, old=%d,new=%d", s.Name, s.completeResult, r))
-		return
 	}
 	s.log.Trace(fmt.Sprintf("change complete result from %d to %d", s.completeResult, r))
 	s.completeResult = r
@@ -758,7 +761,7 @@ func (s *IceSession) changeCompleteResult(r sessionCompleteResult) {
 /*
 关闭除要使用的那个 serversock 以外其他所有的 sock, 因为只有一个是有效的,要使用的.
 */
-func (s *IceSession) closeUselessServerSock() {
+func (s *session) closeUselessServerSock() {
 	for k, srv2 := range s.serverSocks {
 		if s.sessionComponent.nominatedServerSock != srv2 {
 			delete(s.serverSocks, k)
@@ -769,12 +772,12 @@ func (s *IceSession) closeUselessServerSock() {
 		s.turnServerSock = nil
 	}
 }
-func (s *IceSession) iceComplete(result error, allcomplete bool) {
+func (s *session) iceComplete(result error, allcomplete bool) {
 	//应该继续允许处理 BindingRequest, 因为对方可能还没有结束.
 	s.log.Debug(fmt.Sprintf("icesseion complete ,err:%v,allcomplete=%v", result, allcomplete))
 	old := s.completeResult
 	if result != nil {
-		s.changeCompleteResult(SessionCompleteFailure)
+		s.changeCompleteResult(sessionCompleteFailure)
 	} else {
 		if allcomplete {
 			/*
@@ -794,14 +797,14 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 			/*
 				到这里协商才算真正完毕,后续的 request 请求继续响应,但是我不再发送 request了
 			*/
-			s.changeCompleteResult(SessionAllCompleteSuccess)
+			s.changeCompleteResult(sessionAllCompleteSuccess)
 			s.log.Debug(fmt.Sprintf("icesession allcomplete"))
 			if len(s.checkMap) != 0 {
 				panic("all check should finished")
 			}
 		} else {
-			if s.completeResult < SessionCompleteSuccess {
-				s.changeCompleteResult(SessionCompleteSuccess)
+			if s.completeResult < sessionCompleteSuccess {
+				s.changeCompleteResult(sessionCompleteSuccess)
 			}
 		}
 		s.log.Trace(fmt.Sprintf("valid check=%s\n nominated=%s\n", s.sessionComponent.validCheck, s.sessionComponent.nominatedCheck))
@@ -824,18 +827,18 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 					s.log.Error(fmt.Sprintf("channel bind err:%s", result))
 					//s.iceStreamTransport.State = TransportStateFailed
 					//t.Stop()
-					srv.FinishNegotiation(TurnModeData)
+					srv.FinishNegotiation(turnModeData)
 					return
 				}
-				srv.FinishNegotiation(TurnModeData)
+				srv.FinishNegotiation(turnModeData)
 			} else {
-				srv.FinishNegotiation(StunModeData)
+				srv.FinishNegotiation(stunModeData)
 			}
 		} else {
 			s.mlock.Unlock()
 		}
 	}
-	if old < SessionCompleteSuccess { //只通知上层一次,但是可能完成多次,不断更新状态.
+	if old < sessionCompleteSuccess { //只通知上层一次,但是可能完成多次,不断更新状态.
 		s.iceStreamTransport.onIceComplete(result)
 	}
 }
@@ -843,36 +846,36 @@ func (s *IceSession) iceComplete(result error, allcomplete bool) {
 /*
 cancel one started check
 */
-func (s *IceSession) cancelOneCheck(check *SessionCheck) {
+func (s *session) cancelOneCheck(check *sessionCheck) {
 	chr := s.checkMap[check.key]
 	chr <- errors.New("canceled")
-	s.changeCheckState(check, CheckStateFailed, errors.New("canceled"))
+	s.changeCheckState(check, checkStateFailed, errors.New("canceled"))
 }
-func (s *IceSession) finishOneCheck(check *SessionCheck) {
+func (s *session) finishOneCheck(check *sessionCheck) {
 	chr := s.checkMap[check.key]
 	delete(s.checkMap, check.key)
 	close(chr)
 }
-func (s *IceSession) retryOneCheck(check *SessionCheck) {
-	if check.state != CheckStateInProgress {
+func (s *session) retryOneCheck(check *sessionCheck) {
+	if check.state != checkStateInProgress {
 		s.log.Info(fmt.Sprintf("only can retry a check in progress, check=%s", check))
 		return
 	}
 	chr := s.checkMap[check.key]
 	chr <- errCheckRetry
 }
-func (s *IceSession) startCheck() error {
+func (s *session) startCheck() error {
 	s.log.Trace(fmt.Sprintf("start ice check..."))
 	if s.aggresive && s.role == SessionRoleControlling {
 		s.isNominating = true
 	}
-	if s.checkList.checks[0].state != CheckStateFrozen {
-		return errors.New("already start another check...")
+	if s.checkList.checks[0].state != checkStateFrozen {
+		return errors.New("already start another check")
 	}
 	s.allcheck(s.checkList.checks)
 	return nil
 }
-func (s *IceSession) changeCheckState(check *SessionCheck, newState SessionCheckState, err error) {
+func (s *session) changeCheckState(check *sessionCheck, newState SessionCheckState, err error) {
 	s.log.Trace(fmt.Sprintf("check %s: state changed from %s to %s err:%s", check.key, check.state, newState, err))
 	if check.state >= newState {
 		s.log.Error(fmt.Sprintf("check state only can increase. newstate=%s,oldState=%s, check=%s", newState, check.state, check))
@@ -881,13 +884,13 @@ func (s *IceSession) changeCheckState(check *SessionCheck, newState SessionCheck
 	check.state = newState
 	check.err = err
 	//停止探测
-	if check.state >= CheckStateSucced {
+	if check.state >= checkStateSucced {
 		s.finishOneCheck(check)
 	}
 }
 
 //启动完毕以后立即返回,结果要从 ice complete中获取.
-func (s *IceSession) allcheck(checks []*SessionCheck) {
+func (s *session) allcheck(checks []*sessionCheck) {
 	const checkInterval = time.Millisecond * 20
 	fmap := make(map[int]bool)
 	for _, c := range checks {
@@ -901,7 +904,7 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 	for _, c := range checks {
 		if !fmap[c.localCandidate.Foundation] {
 			fmap[c.localCandidate.Foundation] = true
-			s.changeCheckState(c, CheckStateWaiting, nil)
+			s.changeCheckState(c, checkStateWaiting, nil)
 		}
 
 	}
@@ -915,8 +918,8 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 	for _, c := range checks {
 		ch := s.checkMap[c.key]
 		//有可能还没有启动,其他 check 已经完毕,这个就没有必要了.
-		if c.state == CheckStateWaiting {
-			s.changeCheckState(c, CheckStateInProgress, nil)
+		if c.state == checkStateWaiting {
+			s.changeCheckState(c, checkStateInProgress, nil)
 			go s.onecheck(c, ch, s.isNominating)
 			time.Sleep(checkInterval)
 		}
@@ -927,14 +930,14 @@ func (s *IceSession) allcheck(checks []*SessionCheck) {
 	for _, c := range checks {
 		ch := s.checkMap[c.key]
 		//有可能还没有启动,其他 check 已经完毕,这个就没有必要了.
-		if c.state == CheckStateFrozen {
-			s.changeCheckState(c, CheckStateInProgress, nil)
+		if c.state == checkStateFrozen {
+			s.changeCheckState(c, checkStateInProgress, nil)
 			go s.onecheck(c, ch, s.isNominating)
 			time.Sleep(checkInterval)
 		}
 	}
 }
-func (s *IceSession) buildBindingRequest(c *SessionCheck) (req *stun.Message) {
+func (s *session) buildBindingRequest(c *sessionCheck) (req *stun.Message) {
 	var (
 		err      error
 		priority attr.Priority
@@ -943,7 +946,7 @@ func (s *IceSession) buildBindingRequest(c *SessionCheck) (req *stun.Message) {
 		setters  []stun.Setter
 	)
 	req = new(stun.Message)
-	prio = calcCandidatePriority(CandidatePeerReflexive, DefaultPreference, 1)
+	prio = calcCandidatePriority(CandidatePeerReflexive, defaultPreference, 1)
 	priority = attr.Priority(prio)
 	if s.role == SessionRoleControlling {
 		control = attr.IceControlling(s.tieBreaker)
@@ -967,7 +970,7 @@ func (s *IceSession) buildBindingRequest(c *SessionCheck) (req *stun.Message) {
 	}
 	return
 }
-func (s *IceSession) getSenderServerSock(localAddr string) (ss ServerSocker, err error) {
+func (s *session) getSenderServerSock(localAddr string) (ss serverSocker, err error) {
 	srv, ok := s.serverSocks[localAddr]
 	if ok {
 		return srv, nil
@@ -989,20 +992,20 @@ func (s *IceSession) getSenderServerSock(localAddr string) (ss ServerSocker, err
 
 func calcRetransmitTimeout(count int, lastsleep time.Duration) time.Duration {
 	if count == 0 {
-		return DefaultRTOValue
-	} else if count < MaxRetryBindingRequest-1 {
+		return defaultRTOValue
+	} else if count < maxRetryBindingRequest-1 {
 		return lastsleep * 2
 	} else {
-		return StunTimeoutValue
+		return stunTimeoutValue
 	}
 
 }
-func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominate bool) {
+func (s *session) onecheck(c *sessionCheck, chCheckResult chan error, nominate bool) {
 	var (
 		err        error
 		req        *stun.Message
-		sleep      time.Duration = DefaultRTOValue
-		serversock ServerSocker
+		sleep      time.Duration = defaultRTOValue
+		serversock serverSocker
 	)
 	s.log.Trace(fmt.Sprintf("start check %s", c.key))
 	defer func() {
@@ -1012,7 +1015,7 @@ func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominat
 		}
 	}()
 	serversock, err = s.getSenderServerSock(c.localCandidate.addr)
-	if err != nil && s.completeResult < SessionAllCompleteSuccess {
+	if err != nil && s.completeResult < sessionAllCompleteSuccess {
 		s.log.Error(err.Error())
 		return
 	}
@@ -1022,7 +1025,7 @@ func (s *IceSession) onecheck(c *SessionCheck, chCheckResult chan error, nominat
 	//build req message
 lblRestart:
 	req = s.buildBindingRequest(c)
-	for i := 0; i < MaxRetryBindingRequest; i++ {
+	for i := 0; i < maxRetryBindingRequest; i++ {
 		s.log.Trace(fmt.Sprintf("%s sendData %d times,bindingrequestlength=%d", c.key, i+1, len(req.Raw)))
 		sleep = calcRetransmitTimeout(i, sleep)
 		s.addMsgCheck(req.TransactionID, c)
@@ -1046,24 +1049,24 @@ lblRestart:
 	return
 }
 
-func (s *IceSession) changeRole(newrole SessionRole) {
-	s.log.Trace(fmt.Sprintf("role changed from % to %s", s.role, newrole))
+func (s *session) changeRole(newrole SessionRole) {
+	s.log.Trace(fmt.Sprintf("role changed from %s to %s", s.role, newrole))
 	s.role = newrole
 }
-func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message, code stun.ErrorCode) {
+func (s *session) sendResponse(localAddr, fromAddr string, req *stun.Message, code stun.ErrorCode) {
 	var (
 		err         error
 		res         = new(stun.Message)
-		fromUdpAddr *net.UDPAddr
+		fromUDPAddr *net.UDPAddr
 	)
-	fromUdpAddr = addrToUdpAddr(fromAddr)
+	fromUDPAddr = addrToUDPAddr(fromAddr)
 	sc, err := s.getSenderServerSock(localAddr)
 	if err != nil {
 		/*
 			ignore
 			partner should have negotiation complete,
 		*/
-		if s.completeResult < SessionAllCompleteSuccess {
+		if s.completeResult < sessionAllCompleteSuccess {
 			s.log.Error(err.Error())
 		}
 		return
@@ -1074,8 +1077,8 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 			stun.NewType(stun.MethodBinding, stun.ClassSuccessResponse),
 			software,
 			&stun.XORMappedAddress{
-				IP:   fromUdpAddr.IP,
-				Port: fromUdpAddr.Port,
+				IP:   fromUDPAddr.IP,
+				Port: fromUDPAddr.Port,
 			},
 			s.txCrendientials,
 			stun.Fingerprint,
@@ -1092,8 +1095,8 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 			software,
 			stun.CodeRoleConflict,
 			&stun.XORMappedAddress{
-				IP:   fromUdpAddr.IP,
-				Port: fromUdpAddr.Port,
+				IP:   fromUDPAddr.IP,
+				Port: fromUDPAddr.Port,
 			},
 			s.txCrendientials,
 			stun.Fingerprint,
@@ -1111,11 +1114,11 @@ func (s *IceSession) sendResponse(localAddr, fromAddr string, req *stun.Message,
 }
 
 //binding request 和普通的 stun message 一样处理.
-func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun.Message) {
+func (s *session) processBindingRequest(localAddr, fromAddr string, req *stun.Message) {
 	var (
 		err         error
 		hasControll = false
-		rcheck      = new(RxCheck)
+		rcheck      = new(rxCheck)
 		priority    attr.Priority
 	)
 	var userName stun.Username
@@ -1193,11 +1196,11 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 		如果是 earlycheck, 那么发送过去的 response 中 username 应该是错的,所以我们不能认为 username 不对就是错的.
 	*/
 	s.sendResponse(localAddr, fromAddr, req, 0)
-	if s.completeResult >= SessionAllCompleteSuccess {
+	if s.completeResult >= sessionAllCompleteSuccess {
 		return // 不应该继续处理了,因为negotiation 已经完成了.
 	}
 	//early check received.
-	if len(s.checkMap) <= 0 && s.completeResult == SessionNotComplete {
+	if len(s.checkMap) <= 0 && s.completeResult == sessionNotComplete {
 		s.rxUserName = string(userName)
 		s.log.Info(fmt.Sprintf("received early check from %s, username=%s", fromAddr, s.rxUserName))
 	}
@@ -1214,10 +1217,10 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
 	if err == nil {
 		rcheck.userCandidate = true
 	}
-	rcheck.componentId = 1
+	rcheck.componentID = 1
 	rcheck.remoteAddress = fromAddr
 	rcheck.localAddress = localAddr
-	if len(s.checkMap) <= 0 && s.completeResult == SessionNotComplete { //checkmap为空表示我还没开始协商,当然也可能是我已经把所有的 check 都检查完了.
+	if len(s.checkMap) <= 0 && s.completeResult == sessionNotComplete { //checkmap为空表示我还没开始协商,当然也可能是我已经把所有的 check 都检查完了.
 		/*
 			We don't have answer yet, so keep this request for later
 		*/
@@ -1234,7 +1237,7 @@ func (s *IceSession) processBindingRequest(localAddr, fromAddr string, req *stun
  * SDP answer is received and we have received early checks.
  */
 
-func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
+func (s *session) handleIncomingCheck(rcheck *rxCheck) {
 	var (
 		lcand *Candidate
 		rcand *Candidate
@@ -1251,7 +1254,7 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 		}
 	}
 	if rcand == nil {
-		if len(s.remoteCandidates) > MaxCandidates {
+		if len(s.remoteCandidates) > maxCandidates {
 			s.log.Warn(fmt.Sprintf("unable to add new peer reflexive candidate: too many candidates ."))
 			return
 		}
@@ -1283,7 +1286,7 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 	 * Now that we have local and remote candidate, check if we already
 	 * have this pair in our checklist.
 	 */
-	var c *SessionCheck
+	var c *sessionCheck
 	for _, chk := range s.checkList.checks {
 		if chk.localCandidate == lcand && chk.remoteCandidate == rcand {
 			c = chk
@@ -1307,19 +1310,19 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 		oldnominated := c.nominated
 		c.nominated = rcheck.userCandidate || c.nominated
 		s.log.Trace(fmt.Sprintf("change check %s nominated from %v to %v", c.key, oldnominated, c.nominated))
-		if c.state == CheckStateFrozen || c.state == CheckStateWaiting {
+		if c.state == checkStateFrozen || c.state == checkStateWaiting {
 			s.log.Trace(fmt.Sprintf("performing triggered check for %s", c.key))
 			chResult, ok := s.checkMap[c.key]
 			if !ok {
 				panic("must ...")
 			}
-			s.changeCheckState(c, CheckStateInProgress, nil)
+			s.changeCheckState(c, checkStateInProgress, nil)
 			go s.onecheck(c, chResult, c.nominated || s.isNominating)
-		} else if c.state == CheckStateInProgress {
+		} else if c.state == checkStateInProgress {
 			//Should retransmit immediately
 			s.log.Trace(fmt.Sprintf("triggered check for check %s not performed, because its in progress. Retransmitting", c.key))
 			s.retryOneCheck(c)
-		} else if c.state == CheckStateSucced {
+		} else if c.state == checkStateSucced {
 			if rcheck.userCandidate {
 				for _, vc := range s.validCheckList.checks {
 					if vc.remoteCandidate == c.remoteCandidate {
@@ -1342,11 +1345,11 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 		 * - A triggered check for that pair is performed immediately.
 		 */
 		/* Note: only do this if we don't have too many checks in checklist */
-		c := &SessionCheck{
+		c := &sessionCheck{
 			localCandidate:  lcand,
 			remoteCandidate: rcand,
 			priority:        calcPairPriority(s.role, lcand, rcand),
-			state:           CheckStateInProgress,
+			state:           checkStateInProgress,
 			nominated:       rcheck.userCandidate,
 			key:             fmt.Sprintf("%s-%s", lcand.addr, rcand.addr),
 		}
@@ -1364,7 +1367,7 @@ func (s *IceSession) handleIncomingCheck(rcheck *RxCheck) {
 注意这里的 localAddr 并不是代表本机地址,
 代表的是SessionCheck 中的 localCandidate
 */
-func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *stun.Message) {
+func (s *session) processBindingResponse(localAddr, remoteAddr string, msg *stun.Message) {
 	id := msg.TransactionID
 	check := s.getMsgCheck(id)
 	if check == nil {
@@ -1375,7 +1378,7 @@ func (s *IceSession) processBindingResponse(localAddr, remoteAddr string, msg *s
 		s.log.Warn(fmt.Sprintf("received bind response ,but local addr err ,expect %s,got %s", check.localCandidate.addr, localAddr))
 		return
 	}
-	if check.state >= CheckStateSucced {
+	if check.state >= checkStateSucced {
 		s.log.Info(fmt.Sprintf("check %s has been finished", check.key))
 		return
 	}
@@ -1390,10 +1393,10 @@ ice 协商的核心就是处理
 4. 协商找到可用连接以后,收发数据. 收数据用dataChan
 
 */
-func (s *IceSession) loop() {
+func (s *session) loop() {
 	for {
 		r := utils.RandomString(20)
-		s.log.Trace(fmt.Sprintf("IceSession loop %s start @%s", r, time.Now().Format("15:04:05.999")))
+		s.log.Trace(fmt.Sprintf("session loop %s start @%s", r, time.Now().Format("15:04:05.999")))
 		select {
 		case msg, ok := <-s.msgChan:
 			if ok {
@@ -1409,9 +1412,9 @@ func (s *IceSession) loop() {
 			}
 		case c, ok := <-s.tryFailChan:
 			if ok {
-				if c.c.state < CheckStateSucced {
+				if c.c.state < checkStateSucced {
 					//可能已经成功了,
-					s.changeCheckState(c.c, CheckStateFailed, c.err)
+					s.changeCheckState(c.c, checkStateFailed, c.err)
 					s.tryCompleteCheck(c.c)
 				}
 			} else {
@@ -1426,7 +1429,7 @@ func (s *IceSession) loop() {
 ice 协商只应该收到 binding response 和 bindingRequest
 其他消息都应该是某种错误,或者恶意攻击.
 */
-func (s *IceSession) processStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
+func (s *session) processStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
 	if msg.Type == stun.BindingRequest {
 		s.processBindingRequest(localAddr, remoteAddr, msg)
 		return
@@ -1442,7 +1445,7 @@ func (s *IceSession) processStunMessage(localAddr, remoteAddr string, msg *stun.
 /*
 message received from peer or stun server after negiotiation complete.
 */
-func (s *IceSession) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
+func (s *session) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
 	s.log.Trace(fmt.Sprintf("%s receive stun message from  %s, msg:%s", localAddr, remoteAddr, msg.Type))
 	if s.hasStopped {
 		return
@@ -1457,7 +1460,7 @@ func (s *IceSession) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.
 1. 在协商未完全结束之前就有可能收到数据,只要有一个可用的连接,对方就会发送数据,
 2. 随着协商的完成,最终双方会确认一个一致的 check, 如果这时候是走的 relay, 那么才会启用 turn channel 模式.
 */
-func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
+func (s *session) ReceiveData(localAddr, peerAddr string, data []byte) {
 	if s.hasStopped {
 		return
 	}
@@ -1466,7 +1469,7 @@ func (s *IceSession) ReceiveData(localAddr, peerAddr string, data []byte) {
 	return
 
 }
-func (s *IceSession) SendData(data []byte) error {
+func (s *session) SendData(data []byte) error {
 	s.mlock.Lock()
 	//nominiatedcheck可能会在可以发送数据以后变化.
 	check := s.sessionComponent.nominatedCheck
@@ -1474,7 +1477,7 @@ func (s *IceSession) SendData(data []byte) error {
 	fromaddr := check.localCandidate.addr
 	s.mlock.Unlock()
 	if check == nil {
-		return errors.New("no check.")
+		return errors.New("no check")
 	}
 	if srv == nil {
 		return errors.New("no stun transport")
@@ -1512,7 +1515,7 @@ func calcPairPriority(role SessionRole, l, r *Candidate) uint64 {
 	max = max << 1
 	p += uint64(max)
 	if o > a {
-		p += 1
+		p++
 	}
 	return p
 }

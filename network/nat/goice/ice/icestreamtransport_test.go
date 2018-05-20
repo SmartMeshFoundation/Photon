@@ -50,7 +50,7 @@ func (c *icecb) OnIceComplete(result error) {
 	c.iceresult <- result
 	log.Trace(fmt.Sprintf("%s negotiation complete", c.name))
 }
-func setupTestIceStreamTransport(typ int) (s1, s2 *IceStreamTransport, err error) {
+func setupTestIceStreamTransport(typ int) (s1, s2 *StreamTransport, err error) {
 	var cfg *TransportConfig
 	switch typ {
 	case typHost:
@@ -121,7 +121,7 @@ a=candidate:Rb6fe9bd0 1 UDP 16777215 182.254.155.208 52628 typ relay
 		t.Error(err)
 		return
 	}
-	t.Log("session=%s", utils.StringInterface(session, 3))
+	t.Logf("session=%s", utils.StringInterface(session, 3))
 }
 
 func TestIceStreamTransport_StartNegotiation(t *testing.T) {
@@ -150,7 +150,7 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("sdp length=%s", len(lsdp)))
+	log.Trace(fmt.Sprintf("sdp length=%d", len(lsdp)))
 	rsdp, err := s2.EncodeSession()
 	if err != nil {
 		t.Error(err)
@@ -224,12 +224,12 @@ func TestIceStreamTransport_StartNegotiation(t *testing.T) {
 	}
 	return
 }
-func encodeSessionExclude(t *IceStreamTransport, excludes ...CandidateType) string {
+func encodeSessionExclude(t *StreamTransport, excludes ...CandidateType) string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "v=0\no=- 3414953978 3414953978 IN IP4 localhost\ns=ice\nt=0 0\n")
 	fmt.Fprintf(buf, "a=ice-ufrag:%s\na=ice-pwd:%s\n", t.session.rxUserFrag, t.session.rxPassword)
 	//only on component now....
-	uaddr := addrToUdpAddr(t.component.defaultCandidate.addr)
+	uaddr := addrToUDPAddr(t.component.defaultCandidate.addr)
 	fmt.Fprintf(buf, "m=audio %d RTP/AVP 0\nc=IN IP4 %s\n", uaddr.Port, uaddr.IP.String())
 	for _, c := range t.component.candidates {
 		found := false
@@ -544,8 +544,8 @@ func BenchmarkIceStreamTransport_StartNegotiationNoHost(b *testing.B) {
 }
 
 func TestStunServerSock(t *testing.T) {
-	t1 := new(TurnServerSock)
-	var s1 ServerSocker = t1
+	t1 := new(turnServerSock)
+	var s1 serverSocker = t1
 	s2 := s1
 	if s1 != s2 {
 		t.Error("not equal 1")

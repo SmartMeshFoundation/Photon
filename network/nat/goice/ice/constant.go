@@ -7,7 +7,7 @@ import "time"
  *
  * Default: 7 (as per RFC 3489-bis)
  */
-const MaxRetryBindingRequest = 7
+const maxRetryBindingRequest = 7
 
 /**
  * The STUN transaction timeout value, in miliseconds.
@@ -16,7 +16,7 @@ const MaxRetryBindingRequest = 7
  *
  * The default value is 16x RTO (as per RFC 3489-bis).
  */
-const StunTimeoutValue = 1600 * time.Millisecond
+const stunTimeoutValue = 1600 * time.Millisecond
 
 /**
 * The default initial STUN round-trip time estimation (the RTO value
@@ -26,37 +26,37 @@ const StunTimeoutValue = 1600 * time.Millisecond
 * would be set to this value, and will be doubled after each
 * retransmission.
  */
-const DefaultRTOValue = time.Millisecond * 100
+const defaultRTOValue = time.Millisecond * 100
 
 /**
  * The TURN permission lifetime setting. This value should be taken from the
  * TURN protocol specification.
  */
-const TurnPermissionTimeout = time.Second * 300
+const turnPermissionTimeout = time.Second * 300
 
 /**
  * The TURN channel binding lifetime. This value should be taken from the
  * TURN protocol specification.
  */
-const TurnChannelTimeout = time.Second * 600
+const turnChannelTimeout = time.Second * 600
 
 /**
  * Number of seconds to refresh the permission/channel binding before the
  * permission/channel binding expires. This value should be greater than
  * PJ_TURN_PERM_TIMEOUT setting.
  */
-const TurnRefreshSecondsBefore = time.Second * 60
+const turnRefreshSecondsBefore = time.Second * 60
 
 /**
  * The TURN session timer heart beat interval. When this timer occurs, the
  * TURN session will scan all the permissions/channel bindings to see which
  * need to be refreshed.
  */
-const TurnKeepAliveSeconds = time.Second * 15
+const turnKeepAliveSeconds = time.Second * 15
 
 /**
  * Duration to keep response in the cache, in msec.
  *
  * Default: 10000 (as per RFC 3489-bis)
  */
-const StunResponseCacheDuration = time.Second * 10
+const stunResponseCacheDuration = time.Second * 10

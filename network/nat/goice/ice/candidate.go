@@ -269,7 +269,7 @@ func (a Attributes) Value(k []byte) []byte {
 	return nil
 }
 
-func (a Attributes) Equal(b Attributes) bool {
+func (a Attributes) equal(b Attributes) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -591,7 +591,7 @@ func ParseAttribute(v []byte, c *Candidate) error {
 }
 
 //按照 RFC5245计算 Preference 的算法.
-func calcCandidatePriority(candidateType CandidateType, localPreference int, componentId int) int {
+func calcCandidatePriority(candidateType CandidateType, localPreference int, componentID int) int {
 	var typePreference int32
 	switch candidateType {
 	case CandidateHost:
@@ -606,6 +606,6 @@ func calcCandidatePriority(candidateType CandidateType, localPreference int, com
 		typePreference = 0
 	}
 	p := ((typePreference & 0xff) << 24) + ((int32(localPreference) & 0xffff) << 8) +
-		((256 - int32(componentId)) & 0xff)
+		((256 - int32(componentID)) & 0xff)
 	return int(p)
 }

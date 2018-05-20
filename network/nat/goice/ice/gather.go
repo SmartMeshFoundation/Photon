@@ -11,7 +11,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
-const DefaultPreference = 0xffff
+const defaultPreference = 0xffff
 
 // Gatherer is source for addresses.
 //
@@ -78,6 +78,7 @@ type Addr struct {
 	Precedence int
 }
 
+//Addrs represents Addr List
 type Addrs []Addr
 
 func (s Addrs) Less(i, j int) bool {
@@ -170,8 +171,8 @@ var DefaultGatherer Gatherer = defaultGatherer{}
 /*
 返回所有可能的
 */
-const MaxCandidates = 8 //candidate 列表中最多有多少个,太多了可能是攻击
-func GetLocalCandidates(primaryAddress string) (candidates []*Candidate, err error) {
+const maxCandidates = 8 //candidate 列表中最多有多少个,太多了可能是攻击
+func getLocalCandidates(primaryAddress string) (candidates []*Candidate, err error) {
 	_, port, err := net.SplitHostPort(primaryAddress)
 	if err != nil {
 		return
@@ -218,8 +219,8 @@ func GetLocalCandidates(primaryAddress string) (candidates []*Candidate, err err
 	if !primaryFound {
 		log.Error(fmt.Sprintf("primaryaddress not found %s", primaryAddress))
 	}
-	if len(candidates) > MaxCandidates-1 {
-		candidates = candidates[:MaxCandidates-1]
+	if len(candidates) > maxCandidates-1 {
+		candidates = candidates[:maxCandidates-1]
 	}
 	return
 }

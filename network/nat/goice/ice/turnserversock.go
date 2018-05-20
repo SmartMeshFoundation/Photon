@@ -15,7 +15,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/turn"
 )
 
-type TurnServerSockConfig struct {
+type turnServerSockConfig struct {
 	user         string //turn server user
 	password     string //turn server password
 	nonce        string
@@ -25,24 +25,24 @@ type TurnServerSockConfig struct {
 	relayAddress string
 	serverAddr   string
 }
-type TurnServerSock struct {
-	s        *StunServerSock
-	cfg      *TurnServerSockConfig
-	cb       ServerSockCallbacker
+type turnServerSock struct {
+	s        *stunServerSock
+	cfg      *turnServerSockConfig
+	cb       serverSockCallbacker
 	Name     string
 	stopchan chan struct{} //for stop refresh.
 	log      log.Logger
 }
 
-func NewTurnServerSockWrapper(bindAddr, name string, cb ServerSockCallbacker, cfg *TurnServerSockConfig) (ts *TurnServerSock, err error) {
-	ts = &TurnServerSock{
+func newTurnServerSockWrapper(bindAddr, name string, cb serverSockCallbacker, cfg *turnServerSockConfig) (ts *turnServerSock, err error) {
+	ts = &turnServerSock{
 		cfg:      cfg,
 		cb:       cb,
 		Name:     name,
 		stopchan: make(chan struct{}),
-		log:      log.New("name", fmt.Sprintf("%s-TurnServerSock", name)),
+		log:      log.New("name", fmt.Sprintf("%s-turnServerSock", name)),
 	}
-	s, err := NewStunServerSock(bindAddr, ts, name)
+	s, err := newStunServerSock(bindAddr, ts, name)
 	if err != nil {
 		return
 	}
@@ -53,7 +53,7 @@ func NewTurnServerSockWrapper(bindAddr, name string, cb ServerSockCallbacker, cf
 /*
  收到一个 stun.Message, 可能是 Bind Request/Bind Response 等等.
 */
-func (ts *TurnServerSock) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
+func (ts *turnServerSock) RecieveStunMessage(localAddr, remoteAddr string, msg *stun.Message) {
 	/*
 		需要在协商阶段处理 turn server 中转来的 Data Indication.将其解码,然后把其中的 binding response 交给调用者.
 	*/
@@ -101,7 +101,7 @@ func (ts *TurnServerSock) RecieveStunMessage(localAddr, remoteAddr string, msg *
 	ICE 协商建立连接以后,收到了对方发过来的数据,可能是经过 turn server 中转的 channel data( 不接受 sendData data request),也可能直接是数据.
 	如果是经过 turn server 中转的, channelNumber 一定介于0x4000-0x7fff 之间.否则一定为0
 */
-func (ts *TurnServerSock) ReceiveData(localAddr, peerAddr string, data []byte) {
+func (ts *turnServerSock) ReceiveData(localAddr, peerAddr string, data []byte) {
 	msg2 := new(stun.Message)
 	_, err := msg2.Write(data)
 	if err == nil && msg2.Type.Method != stun.MethodChannelData {
@@ -118,14 +118,14 @@ func (ts *TurnServerSock) ReceiveData(localAddr, peerAddr string, data []byte) {
 发送CreatePermissionRequest
 这样对方发送到我的 relay 地址的消息,turn server 才会给我中转.
 */
-func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *stun.Message, err error) {
+func (ts *turnServerSock) createPermission(remoteCandidates []*Candidate) (res *stun.Message, err error) {
 	var req *stun.Message
 	var peers []stun.Setter
 	for _, c := range remoteCandidates {
-		host, port, err := net.SplitHostPort(c.addr)
-		if err != nil {
+		host, port, err2 := net.SplitHostPort(c.addr)
+		if err2 != nil {
 			//panic?
-			ts.log.Error(fmt.Sprintf("split error for %s,err:%s", c.addr, err))
+			ts.log.Error(fmt.Sprintf("split error for %s,err:%s", c.addr, err2))
 			continue
 		}
 		peer := turn.PeerAddress{
@@ -164,7 +164,7 @@ func (ts *TurnServerSock) createPermission(remoteCandidates []*Candidate) (res *
 当 fromaddr 不是本机地址的时候,必然是 turn server relay 地址,
 那么需要将消息封装为数据,通过SendIndication发送给 turn server, 请求 turn server 转发.
 */
-func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg *stun.Message) (msg2 *stun.Message, fromaddr2, toaddr2 string) {
+func (ts *turnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg *stun.Message) (msg2 *stun.Message, fromaddr2, toaddr2 string) {
 	if fromaddr == ts.s.Addr {
 		return msg, fromaddr, toaddr
 	}
@@ -172,7 +172,7 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 		panic(fmt.Sprintf("sendData from unkonw address.. ts.s.Addr=%s,fromaddr=%s,relay=%s", ts.s.Addr, fromaddr, ts.cfg.relayAddress))
 	}
 	msg2 = new(stun.Message)
-	to := addrToUdpAddr(toaddr)
+	to := addrToUDPAddr(toaddr)
 	peer := &turn.PeerAddress{
 		IP:   to.IP,
 		Port: to.Port,
@@ -187,7 +187,7 @@ func (ts *TurnServerSock) wrapperStunMessage(fromaddr string, toaddr string, msg
 /*
 需要特别处理中转情形.
 */
-func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
+func (ts *turnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toaddr string) error {
 	ts.log.Trace(fmt.Sprintf("---sendData stun message %s-->%s ---\n%s\n", fromaddr, toaddr, msg))
 	msg2, fromaddr2, toaddr2 := ts.wrapperStunMessage(fromaddr, toaddr, msg)
 	if fromaddr2 != fromaddr {
@@ -199,7 +199,7 @@ func (ts *TurnServerSock) sendStunMessageAsync(msg *stun.Message, fromaddr, toad
 /*
 暂时不用
 */
-func (ts *TurnServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error) {
+func (ts *turnServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr, toaddr string) (key stun.TransactionID, ch chan *serverSockResponse, err error) {
 	wait := make(chan *serverSockResponse)
 	err = ts.s.addWaiter(msg.TransactionID, wait)
 	if err != nil {
@@ -216,7 +216,7 @@ func (ts *TurnServerSock) sendStunMessageWithResult(msg *stun.Message, fromaddr,
 /*
 和异步发送一样需要考虑中转消息的封装.
 */
-func (ts *TurnServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error) {
+func (ts *turnServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toaddr string) (res *stun.Message, err error) {
 	wait := make(chan *serverSockResponse)
 	err = ts.s.addWaiter(msg.TransactionID, wait)
 	if err != nil {
@@ -230,7 +230,7 @@ func (ts *TurnServerSock) sendStunMessageSync(msg *stun.Message, fromaddr, toadd
 	}
 	return ts.s.wait(wait)
 }
-func (ts *TurnServerSock) Close() {
+func (ts *turnServerSock) Close() {
 	close(ts.stopchan)
 	ts.s.Close()
 }
@@ -241,19 +241,19 @@ func (ts *TurnServerSock) Close() {
 2.通过 stun server 反馈到的 地址通信
 3.通过 turn 中转.
 */
-func (ts *TurnServerSock) StartRefresh() {
+func (ts *turnServerSock) StartRefresh() {
 	go func() {
 		for {
 			ts.keepAlive()
 			select {
-			case <-time.After(TurnKeepAliveSeconds):
+			case <-time.After(turnKeepAliveSeconds):
 				continue
 			case <-ts.stopchan:
 				return
 			}
 		}
 	}()
-	if ts.s.mode == TurnModeData {
+	if ts.s.mode == turnModeData {
 		go func() {
 			for {
 				ts.refreshRequest(ts.cfg.lifetime)
@@ -272,7 +272,7 @@ func (ts *TurnServerSock) StartRefresh() {
 	}
 
 }
-func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
+func (ts *turnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
 	if fromaddr == ts.cfg.relayAddress {
 		/*
 			分成两个阶段,第一阶段协商完毕可以发送数据,但是 check 仍在继续,发送链接随时可能变化.
@@ -292,10 +292,10 @@ func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
 			ts.log.Trace(fmt.Sprintf("send  channel data %d, %s---->%s", len(r.Raw), ts.s.Addr, ts.cfg.serverAddr))
 			ts.s.sendData(r.Raw, ts.s.Addr, ts.cfg.serverAddr)
 		} else {
-			if ts.s.mode == TurnModeData {
+			if ts.s.mode == turnModeData {
 				ts.log.Warn(fmt.Sprintf("should not happen only if channel binding fail"))
 			}
-			to := addrToUdpAddr(toaddr)
+			to := addrToUDPAddr(toaddr)
 			peer := turn.PeerAddress{
 				IP:   to.IP,
 				Port: to.Port,
@@ -317,8 +317,8 @@ func (ts *TurnServerSock) sendData(data []byte, fromaddr, toaddr string) error {
 /*
 绑定到 channel, 节省流量.
 */
-func (ts *TurnServerSock) channelBind(addr string) error {
-	uaddr := addrToUdpAddr(addr)
+func (ts *turnServerSock) channelBind(addr string) error {
+	uaddr := addrToUDPAddr(addr)
 	peerAddr := &turn.PeerAddress{
 		IP:   uaddr.IP,
 		Port: uaddr.Port,
@@ -350,12 +350,12 @@ func (ts *TurnServerSock) channelBind(addr string) error {
 /*
 我这边认为协商成功了,但是对方可能还灭与偶成功,所以仍然可能收到 stun message 消息,也就是通过 channel data 收到的还有可能是 stun 消息而不是真实的数据
 */
-func (ts *TurnServerSock) FinishNegotiation(mode serverSockMode) {
+func (ts *turnServerSock) FinishNegotiation(mode serverSockMode) {
 	ts.log.Trace(fmt.Sprintf("change mode from %d to %d", ts.s.mode, mode))
 	ts.s.mode = mode
 	ts.StartRefresh()
 }
-func (ts *TurnServerSock) refreshRequest(lifetime turn.Lifetime) {
+func (ts *turnServerSock) refreshRequest(lifetime turn.Lifetime) {
 	req, err := stun.Build(stun.TransactionIDSetter,
 		turn.RefreshRequest,
 		stun.Username(ts.cfg.user),
@@ -394,7 +394,7 @@ func (ts *TurnServerSock) refreshRequest(lifetime turn.Lifetime) {
 only keep server reflexive port is valid.
 keep the allocate address valid ,should call refersh request.
 */
-func (ts *TurnServerSock) keepAlive() {
+func (ts *turnServerSock) keepAlive() {
 	req, _ := stun.Build(stun.TransactionIDSetter, stun.BindingIndication)
 	ts.s.sendStunMessageAsync(req, ts.s.Addr, ts.cfg.serverAddr)
 }
