@@ -42,6 +42,7 @@ func (a MappedAddress) String() string {
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
+//GetFromAs decodes attribute t from message
 func (a *MappedAddress) GetFromAs(m *Message, t AttrType) error {
 	v, err := m.Get(t)
 	if err != nil {

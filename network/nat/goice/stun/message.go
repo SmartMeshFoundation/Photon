@@ -29,6 +29,7 @@ const (
 	TransactionIDSize = 12 // 96 bit
 )
 
+//TransactionID field in header of message
 type TransactionID [TransactionIDSize]byte
 
 // NewTransactionID returns new random transaction ID using crypto/rand
@@ -77,7 +78,7 @@ func (m *Message) NewTransactionID() error {
 	return err
 }
 
-type GetFromer interface {
+type getFromer interface {
 	GetFromAs(m *Message, t AttrType) error
 	String() string
 }
@@ -118,7 +119,7 @@ func getAttrIntercepter(attr AttrType, value []byte, m *Message) string {
 		)
 				)
 	*/
-	var fromer GetFromer
+	var fromer getFromer
 	switch attr {
 	case AttrMappedAddress:
 		fromer = new(MappedAddress)
@@ -359,6 +360,9 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 	if n, err = r.Read(tBuf); err != nil {
 		return int64(n), err
 	}
+	if n == 0 {
+		return 0, ErrUnexpectedHeaderEOF
+	}
 	m.Raw = tBuf[:n]
 	err = m.Decode()
 	if _, ok := r.(*net.UDPConn); ok {
@@ -376,6 +380,8 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 // ErrUnexpectedHeaderEOF means that there were not enough bytes in
 // m.Raw to read header.
 var ErrUnexpectedHeaderEOF = errors.New("unexpected EOF: not enough bytes to read header")
+
+//ErrFormatError means that received a data cannot decode
 var ErrFormatError = errors.New("data format error")
 
 // Decode decodes m.Raw into m.

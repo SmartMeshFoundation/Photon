@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 
+//MinChannelNumber minimum channel number
 const MinChannelNumber = 0x4000
+
+//MaxChannelNumber maximum channel number
 const MaxChannelNumber = 0x7fff
 
+//ChannelData  represents channel data
 type ChannelData struct {
 	ChannelNumber uint16 //must between 0x4000-0x7fff
 	Data          []byte //data to send, can be empty.

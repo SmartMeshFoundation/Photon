@@ -4,6 +4,7 @@ package turn
 
 import (
 	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/nat/goice/stun"
 )
 
@@ -66,9 +67,9 @@ func FuzzSetters(data []byte) int {
 		return 1
 	}
 	m2.WriteHeader()
-	if err := a.g.AddTo(m2); err != nil {
+	if err2 := a.g.AddTo(m2); err2 != nil {
 		fmt.Println("failed to add atribute to m2")
-		panic(err)
+		panic(err2)
 	}
 	m3.WriteHeader()
 	v, err := m2.Get(a.t)

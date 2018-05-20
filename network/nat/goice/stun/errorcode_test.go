@@ -60,7 +60,7 @@ func TestMessage_AddErrorCode(t *testing.T) {
 	}
 	copy(m.TransactionID[:], transactionID)
 	expectedCode := ErrorCode(428)
-	expectedReason := "Stale Nonce"
+	expectedReason := "Stale nonce"
 	CodeStaleNonce.AddTo(m)
 	m.WriteHeader()
 

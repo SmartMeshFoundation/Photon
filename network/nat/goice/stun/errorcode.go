@@ -66,6 +66,7 @@ func (c *ErrorCodeAttribute) GetFrom(m *Message) error {
 	return nil
 }
 
+//GetFromAs decodes attribute t from message
 func (c *ErrorCodeAttribute) GetFromAs(m *Message, t AttrType) error {
 	return c.GetFrom(m)
 }
@@ -119,7 +120,7 @@ var errorReasons = map[ErrorCode][]byte{
 	CodeBadRequest:       []byte("Bad Request"),
 	CodeUnauthorised:     []byte("Unauthorised"),
 	CodeUnknownAttribute: []byte("Unknown Attribute"),
-	CodeStaleNonce:       []byte("Stale Nonce"),
+	CodeStaleNonce:       []byte("Stale nonce"),
 	CodeServerError:      []byte("Server Error"),
 	CodeRoleConflict:     []byte("Role Conflict"),
 

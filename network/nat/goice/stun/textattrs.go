@@ -84,7 +84,7 @@ func (s *Software) GetFrom(m *Message) error {
 // https://tools.ietf.org/html/rfc5389#section-15.8
 type Nonce []byte
 
-// NewNonce returns new Nonce from string.
+// NewNonce returns new nonce from string.
 func NewNonce(nonce string) Nonce {
 	return Nonce(nonce)
 }

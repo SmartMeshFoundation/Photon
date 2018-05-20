@@ -40,6 +40,7 @@ func (t RequestedTransport) String() string {
 
 const requestedTransportSize = 4
 
+// AddTo adds REQUESTED-TRANSPORT to message.
 func (t RequestedTransport) AddTo(m *stun.Message) error {
 	v := make([]byte, requestedTransportSize)
 	v[0] = byte(t.Protocol)
@@ -50,6 +51,7 @@ func (t RequestedTransport) AddTo(m *stun.Message) error {
 	return nil
 }
 
+// GetFrom decodes REQUESTED-TRANSPORT from message.
 func (t *RequestedTransport) GetFrom(m *stun.Message) error {
 	v, err := m.Get(stun.AttrRequestedTransport)
 	if err != nil {

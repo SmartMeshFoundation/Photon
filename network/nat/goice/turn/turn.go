@@ -45,12 +45,12 @@ var (
 	SendIndication = stun.NewType(stun.MethodSend, stun.ClassIndication)
 	//DataIndication is shorthand for data indication message type from turn server.
 	DataIndication = stun.NewType(stun.MethodData, stun.ClassIndication)
-	//ChannelBind Request
+	//ChannelBindRequest is shorthand for send channel bind message to turn server
 	ChannelBindRequest = stun.NewType(stun.MethodChannelBind, stun.ClassRequest)
 	// RefreshRequest is shorthand for refresh request message type.
 	RefreshRequest = stun.NewType(stun.MethodRefresh, stun.ClassRequest)
-	// ChannelData Request //request is fake
+	// ChannelDataRequest is fake request
 	ChannelDataRequest = stun.NewType(stun.MethodChannelData, stun.ClassRequest)
-	// Refresh success
+	// RefreshResponse is shorthand for a success refresh response
 	RefreshResponse = stun.NewType(stun.MethodRefresh, stun.ClassSuccessResponse)
 )
