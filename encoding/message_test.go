@@ -41,7 +41,7 @@ func GetTestAddress() common.Address {
 
 def test_signature():
     ping = Ping(nonce=0)
-    ping.sign(PRIVKEY, ADDRESS)
+    ping.Sign(PRIVKEY, ADDRESS)
     print binascii.b2a_hex(ping.encode())
     assert ping.sender == ADDRESS
 */
@@ -84,10 +84,10 @@ func TestType(t *testing.T) {
 	var p Messager = new(Ping)
 	var pi interface{}
 	pi = p
-	if _, ok := pi.(*CmdStruct); ok {
+	if _, ok := pi.(*cmdStruct); ok {
 		t.Log("is type  cmd struct")
 	}
-	//if _, ok := p.(*CmdStruct); ok {
+	//if _, ok := p.(*cmdStruct); ok {
 	//	T.Log("struct is type cmd struct")
 	//}
 }
@@ -103,7 +103,7 @@ func TestEnvelopeMessage(t *testing.T) {
 		t.Error(err)
 	}
 	data := p.Pack()
-	err = sm.VerifySignature(data)
+	err = sm.verifySignature(data)
 	if err != nil {
 		t.Error(err)
 	}
