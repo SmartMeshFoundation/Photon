@@ -16,8 +16,8 @@ type testreceiver struct {
 	data chan []byte
 }
 
-func (this *testreceiver) Receive(data []byte, host string, port int) {
-	this.data <- data
+func (tr *testreceiver) Receive(data []byte, host string, port int) {
+	tr.data <- data
 }
 func TestNewIceTransporter(t *testing.T) {
 	var err error

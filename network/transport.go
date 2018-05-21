@@ -13,48 +13,59 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//Policier to control the sending speed of transporter
 type Policier interface {
-	//"""Consume tokens.
+	//Consume tokens.
 	//Args:
 	//tokens (float): number of transport tokens to consume
 	//Returns:
 	//wait_time (float): waiting time for the consumer
 	Consume(tokens float64) time.Duration
 }
+
+//Transporter denotes a communication transport used by protocol
 type Transporter interface {
+	//Send a message
 	Send(receiver common.Address, host string, port int, data []byte) error
-	Receive(data []byte, host string, port int) error
+	//receive a message
+	receive(data []byte, host string, port int) error
+	//Start ,ready for send and receive
 	Start()
+	//Stop send and receive
 	Stop()
-	StopAccepting()                            //stop receiving data
-	RegisterProtocol(protcol ProtocolReceiver) //register transporter to protocol
+	//StopAccepting stops receiving
+	StopAccepting()
+	//RegisterProtocol a receiver
+	RegisterProtocol(protcol ProtocolReceiver)
 }
-type MessageCallBack func(sender common.Address, hostport string, msg []byte)
+type messageCallBack func(sender common.Address, hostport string, msg []byte)
 
 func tohostport(host string, port int) string {
 	return fmt.Sprintf("%s:%d", host, port)
 }
 
-type DummyPolicy struct {
+type dummyPolicy struct {
 }
 
-func (this *DummyPolicy) Consume(tokens float64) time.Duration {
+//Consume mocker
+func (dp *dummyPolicy) Consume(tokens float64) time.Duration {
 	time.Now()
 	return 0
 }
 
-type TimeFunc func() time.Time
+type timeFunc func() time.Time
 
-//Implementation of the token bucket throttling algorithm.
+//TokenBucket Implementation of the token bucket throttling algorithm.
 type TokenBucket struct {
 	Capacity  float64
 	FillRate  float64
 	Tokens    float64
-	timeFunc  TimeFunc
+	timeFunc  timeFunc
 	Timestamp time.Time
 }
 
-func NewTokenBucket(capacity, fillRate float64, timeFunc ...TimeFunc) *TokenBucket {
+//NewTokenBucket create a TokenBucket
+func NewTokenBucket(capacity, fillRate float64, timeFunc ...timeFunc) *TokenBucket {
 	tb := &TokenBucket{
 		Capacity: capacity,
 		FillRate: fillRate,
@@ -69,88 +80,97 @@ func NewTokenBucket(capacity, fillRate float64, timeFunc ...TimeFunc) *TokenBuck
 	return tb
 }
 
-func (this *TokenBucket) Consume(tokens float64) time.Duration {
+//Consume calc wait time.
+func (tb *TokenBucket) Consume(tokens float64) time.Duration {
 	waitTime := 0.0
-	this.Tokens -= tokens
-	if this.Tokens < 0 {
-		this.getTokens()
+	tb.Tokens -= tokens
+	if tb.Tokens < 0 {
+		tb.getTokens()
 	}
-	if this.Tokens < 0 {
-		waitTime = -this.Tokens / this.FillRate
+	if tb.Tokens < 0 {
+		waitTime = -tb.Tokens / tb.FillRate
 	}
 	return time.Duration(waitTime * float64(time.Second))
 }
-func (this *TokenBucket) getTokens() {
-	now := this.timeFunc()
-	fill := float64(now.Sub(this.Timestamp)) / float64(time.Second)
-	this.Tokens += this.FillRate * fill
-	if this.Tokens > this.Capacity {
-		this.Tokens = this.Capacity
+func (tb *TokenBucket) getTokens() {
+	now := tb.timeFunc()
+	fill := float64(now.Sub(tb.Timestamp)) / float64(time.Second)
+	tb.Tokens += tb.FillRate * fill
+	if tb.Tokens > tb.Capacity {
+		tb.Tokens = tb.Capacity
 	}
-	this.Timestamp = this.timeFunc()
+	tb.Timestamp = tb.timeFunc()
 }
 
-//Store global state for an in process network, this won't use a real
+//dummyNetwork Store global state for an in process network, this won't use a real
 //network protocol
-type DummyNetwork struct {
+type dummyNetwork struct {
 	Transports              map[string]Transporter
 	Counter                 int
-	MessageSendCallbacks    []MessageCallBack
-	MessageReceiveCallbacks []MessageCallBack
+	MessageSendCallbacks    []messageCallBack
+	MessageReceiveCallbacks []messageCallBack
 }
 
-func NewDummyNetwork() *DummyNetwork {
-	return &DummyNetwork{
+func newDummyNetwork() *dummyNetwork {
+	return &dummyNetwork{
 		Transports: make(map[string]Transporter),
 		Counter:    0,
 	}
 }
 
-var dummyNetwork = NewDummyNetwork()
+var dummyNet = newDummyNetwork()
 
-func RegisterSendCallback(cb MessageCallBack) {
-	dummyNetwork.MessageSendCallbacks = append(dummyNetwork.MessageSendCallbacks, cb)
+//RegisterSendCallback register callback
+func RegisterSendCallback(cb messageCallBack) {
+	dummyNet.MessageSendCallbacks = append(dummyNet.MessageSendCallbacks, cb)
 }
-func RegisterReceiveCallback(cb MessageCallBack) {
-	dummyNetwork.MessageReceiveCallbacks = append(dummyNetwork.MessageReceiveCallbacks, cb)
+
+//RegisterReceiveCallback register callback
+func RegisterReceiveCallback(cb messageCallBack) {
+	dummyNet.MessageReceiveCallbacks = append(dummyNet.MessageReceiveCallbacks, cb)
 }
 
 //Register a new node in the dummy network.
-func (this *DummyNetwork) Register(transpoter Transporter, host string, port int) {
+func (dn *dummyNetwork) Register(transpoter Transporter, host string, port int) {
 	hostport := fmt.Sprintf("%s:%d", host, port)
-	this.Transports[hostport] = transpoter
+	dn.Transports[hostport] = transpoter
 }
 
 //Register an attempt to send a packet. This method should be called
 //everytime send() is used.
-func (this *DummyNetwork) TrackSend(receiver common.Address, host string, port int, data []byte) error {
-	this.Counter += 1
-	for _, cb := range this.MessageSendCallbacks {
+func (dn *dummyNetwork) trackSend(receiver common.Address, host string, port int, data []byte) error {
+	dn.Counter++
+	for _, cb := range dn.MessageSendCallbacks {
 		cb(receiver, tohostport(host, port), data)
 	}
 	return nil
 }
 
-func (this *DummyNetwork) TrackReceive(receiver common.Address, host string, port int, data []byte) {
-	for _, cb := range this.MessageReceiveCallbacks {
+func (dn *dummyNetwork) trackReceive(receiver common.Address, host string, port int, data []byte) {
+	for _, cb := range dn.MessageReceiveCallbacks {
 		cb(receiver, tohostport(host, port), data)
 	}
 }
-func (this *DummyNetwork) Send(sender common.Address, host string, port int, data []byte) error {
-	this.TrackSend(sender, host, port, data)
+
+//Send a message
+func (dn *dummyNetwork) Send(sender common.Address, host string, port int, data []byte) error {
+	dn.trackSend(sender, host, port, data)
 	hostport := tohostport(host, port)
 	time.AfterFunc(time.Nanosecond, func() {
-		this.Transports[hostport].Receive(data, host, port)
+		dn.Transports[hostport].receive(data, host, port)
 	})
 	return nil
 }
 
+//ProtocolReceiver receive
 type ProtocolReceiver interface {
-	Receive(data []byte, host string, port int)
+	receive(data []byte, host string, port int)
 }
+
+//UDPTransport represents a UDP connection
 type UDPTransport struct {
 	protocol      ProtocolReceiver
-	conn          *SafeUdpConnection
+	conn          *SafeUDPConnection
 	Host          string
 	Port          int
 	policy        Policier
@@ -158,7 +178,8 @@ type UDPTransport struct {
 	stopReceiving bool //todo use atomic to replace
 }
 
-func NewUDPTransport(host string, port int, conn *SafeUdpConnection, protocol ProtocolReceiver, policy Policier) *UDPTransport {
+//NewUDPTransport create UDPTransport
+func NewUDPTransport(host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) *UDPTransport {
 	t := &UDPTransport{
 		Host:          host,
 		Port:          port,
@@ -172,7 +193,7 @@ func NewUDPTransport(host string, port int, conn *SafeUdpConnection, protocol Pr
 		Port: port}
 	var err error
 	if conn == nil {
-		conn, err = NewSafeUdpConnection("udp", addr)
+		conn, err = NewSafeUDPConnection("udp", addr)
 		if err != nil {
 			log.Crit(fmt.Sprintf("listen udp %s:%d error %v", host, port, err))
 		}
@@ -181,12 +202,13 @@ func NewUDPTransport(host string, port int, conn *SafeUdpConnection, protocol Pr
 	log.Trace(fmt.Sprintf("listen udp on %s:%d", host, port))
 	return t
 }
-func NewUDPTransportWithHostPort(host string, port int, protocol ProtocolReceiver, policy Policier) *UDPTransport {
+func newUDPTransportWithHostPort(host string, port int, protocol ProtocolReceiver, policy Policier) *UDPTransport {
 	return NewUDPTransport(host, port, nil, protocol, policy)
 }
 
-func (this *UDPTransport) Start() {
-	t := this
+//Start udp listening
+func (ut *UDPTransport) Start() {
+	t := ut
 	go func() {
 		data := make([]byte, 4096)
 		for {
@@ -206,16 +228,16 @@ func (this *UDPTransport) Start() {
 			}
 			log.Trace(fmt.Sprintf("%d receive from %s:%d,message=%s,hash=%s\n", t.Port, remoteAddr.IP.String(),
 				remoteAddr.Port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
-			t.Receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
+			t.receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
 		}
 
 	}()
 }
-func (this *UDPTransport) Receive(data []byte, host string, port int) error {
+func (ut *UDPTransport) receive(data []byte, host string, port int) error {
 	//todo fix get raiden address, my node address
-	dummyNetwork.TrackReceive(common.Address{}, host, port, data)
-	if this.protocol != nil { //receive data before register a protocol
-		this.protocol.Receive(data, host, port)
+	dummyNet.trackReceive(common.Address{}, host, port, data)
+	if ut.protocol != nil { //receive data before register a protocol
+		ut.protocol.receive(data, host, port)
 	}
 
 	return nil
@@ -234,84 +256,102 @@ Args:
     host_port (Tuple[(str, int)]): Tuple with the Host name and Port number.
     bytes_ (bytes): The bytes that are going to be sent through the wire.
 */
-func (this *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	dummyNetwork.TrackSend(receiver, host, port, data)
-	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,hash=%s\n", this.Port, utils.APex(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
-	time.Sleep(this.policy.Consume(1))
+func (ut *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
+	dummyNet.trackSend(receiver, host, port, data)
+	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,hash=%s\n", ut.Port, utils.APex(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
+	time.Sleep(ut.policy.Consume(1))
 	//todo need one lock for write?
-	_, err := this.conn.WriteToUDP(data, udpAddrFromHostport(host, port))
+	_, err := ut.conn.WriteToUDP(data, udpAddrFromHostport(host, port))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (this *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
-	this.protocol = proto
+//RegisterProtocol register receiver
+func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
+	ut.protocol = proto
 }
-func (this *UDPTransport) Stop() {
-	this.isClosed = true
-	this.conn.Close()
+
+//Stop UDP connection
+func (ut *UDPTransport) Stop() {
+	ut.isClosed = true
+	ut.conn.Close()
 }
-func (this *UDPTransport) StopAccepting() {
-	this.stopReceiving = true
+
+//StopAccepting stop receiving
+func (ut *UDPTransport) StopAccepting() {
+	ut.stopReceiving = true
 }
 
 // Communication between inter-process nodes.
-type DummyTransport struct {
+type dummyTransport struct {
 	protocol ProtocolReceiver
 	host     string
 	port     int
 	policy   Policier
 }
 
-func NewDummyTransport(host string, port int, protocol ProtocolReceiver, policy Policier) *DummyTransport {
-	t := &DummyTransport{
+//NewDummyTransport create a dummy transporter
+func NewDummyTransport(host string, port int, protocol ProtocolReceiver, policy Policier) Transporter {
+	t := &dummyTransport{
 		protocol: protocol,
 		host:     host,
 		port:     port,
 		policy:   policy,
 	}
-	dummyNetwork.Register(t, host, port)
+	dummyNet.Register(t, host, port)
 	return t
 }
-func (this *DummyTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	time.Sleep(this.policy.Consume(1))
-	return dummyNetwork.Send(receiver, host, port, data)
+
+//Send a message
+func (dt *dummyTransport) Send(receiver common.Address, host string, port int, data []byte) error {
+	time.Sleep(dt.policy.Consume(1))
+	return dummyNet.Send(receiver, host, port, data)
 }
-func (this *DummyTransport) Receive(data []byte, host string, port int) error {
-	dummyNetwork.TrackReceive(common.Address{}, host, port, data)
-	this.protocol.Receive(data, host, port)
+func (dt *dummyTransport) receive(data []byte, host string, port int) error {
+	dummyNet.trackReceive(common.Address{}, host, port, data)
+	dt.protocol.receive(data, host, port)
 	return nil
 }
-func (this *DummyTransport) RegisterProtocol(protcol ProtocolReceiver) {
-	this.protocol = protcol
-}
-func (this *DummyTransport) Start() {
 
+//RegisterProtocol a callback
+func (dt *dummyTransport) RegisterProtocol(protcol ProtocolReceiver) {
+	dt.protocol = protcol
 }
-func (this *DummyTransport) Stop() {
 
-}
-func (this *DummyTransport) StopAccepting() {
+//Start dummy
+func (dt *dummyTransport) Start() {
 
 }
 
-type UnreliableTransport struct {
-	DummyTransport
+//Stop dummy
+func (dt *dummyTransport) Stop() {
+
+}
+
+//StopAccepting dummy
+func (dt *dummyTransport) StopAccepting() {
+
+}
+
+type unreliableTransport struct {
+	dummyTransport
 	DropRate int
 }
 
-func NewUnreliableTransport(t *DummyTransport) *UnreliableTransport {
-	return &UnreliableTransport{DummyTransport: *t, DropRate: 2}
+func newUnreliableTransport(t *dummyTransport) *unreliableTransport {
+	return &unreliableTransport{dummyTransport: *t, DropRate: 2}
 }
-func (this *UnreliableTransport) Send(sender common.Address, host string, port int, data []byte) error {
-	time.Sleep(this.policy.Consume(1))
-	drop := dummyNetwork.Counter%this.DropRate == 0
+
+//Send a message ,it drops message randomly.
+func (ut *unreliableTransport) Send(sender common.Address, host string, port int, data []byte) error {
+	time.Sleep(ut.policy.Consume(1))
+	drop := dummyNet.Counter%ut.DropRate == 0
 	if !drop {
-		return dummyNetwork.Send(sender, host, port, data)
+		return dummyNet.Send(sender, host, port, data)
 	}
-	dummyNetwork.TrackSend(sender, host, port, data)
-	log.Debug("dropped packet ", dummyNetwork.Counter, utils.Pex(data))
+	dummyNet.trackSend(sender, host, port, data)
+	log.Debug("dropped packet ", dummyNet.Counter, utils.Pex(data))
 	return nil
 }

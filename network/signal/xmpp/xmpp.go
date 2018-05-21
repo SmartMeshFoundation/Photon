@@ -1,30 +1,29 @@
 package xmpp
 
 import (
+	"encoding/json"
 	"errors"
-	"sync"
 	"time"
 
+	"sync"
+
 	"fmt"
-
-	"encoding/json"
-
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/interface"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-xmpp"
+	"github.com/nkbai/log"
 )
 
 var (
-	ErrTimeout            = errors.New("timed out")
-	ErrInvalidMessage     = errors.New("invalid message")
-	ErrDuplicateWaiter    = errors.New("waiter with uid already exists")
-	ErrWaiterClosed       = errors.New("waiter closed")
-	ErrClientDisconnected = errors.New("client disconnected")
+	errTimeout            = errors.New("timed out")
+	errInvalidMessage     = errors.New("invalid message")
+	errDuplicateWaiter    = errors.New("waiter with uid already exists")
+	errWaiterClosed       = errors.New("waiter closed")
+	errClientDisconnected = errors.New("client disconnected")
 )
 
 const (
@@ -36,9 +35,9 @@ const (
 			4. send it's own sdp back to offer
 		so how long should be better?
 	*/
-	DefaultTimeout   = 15 * time.Second
-	DefaultReconnect = true
-	NameSuffix       = "@mobileraiden"
+	defaultTimeout   = 15 * time.Second
+	defaultReconnect = true
+	nameSuffix       = "@mobileraiden"
 )
 
 // Config contains various client options.
@@ -48,23 +47,26 @@ type Config struct {
 
 // DefaultConfig with standard private channel prefix and 1 second timeout.
 var DefaultConfig = &Config{
-	Timeout: DefaultTimeout,
+	Timeout: defaultTimeout,
 }
 
 // Status shows actual connection status.
 type Status int
 
 const (
-	DISCONNECTED = Status(iota)
-	CONNECTED
-	CLOSED
-	RECONNECTING
+	disconnected = Status(iota)
+	connected
+	closed
+	reconnecting
 )
 
+/*
+GetCurrentPasswordFunc generate login password
+*/
 type GetCurrentPasswordFunc func() string
 
-// XmppWrapper describes client connection to Centrifugo server.
-type XmppWrapper struct {
+// SignalConnection describes client connection to Centrifugo server.
+type SignalConnection struct {
 	mutex          sync.RWMutex
 	config         *Config
 	options        xmpp.Options
@@ -79,11 +81,14 @@ type XmppWrapper struct {
 	name           string
 }
 
-func NewXmpp(ServerUrl string, User common.Address, passwordFn GetCurrentPasswordFunc, sdphandler SignalInterface.SdpHandler, name string) (sp SignalInterface.SignalProxy, err error) {
-	x := &XmppWrapper{
+/*
+NewSignalConnection create Xmpp connection to signal sever
+*/
+func NewSignalConnection(ServerURL string, User common.Address, passwordFn GetCurrentPasswordFunc, sdphandler SignalInterface.SdpHandler, name string) (sp SignalInterface.SignalProxy, err error) {
+	x := &SignalConnection{
 		options: xmpp.Options{
-			Host:     ServerUrl,
-			User:     fmt.Sprintf("%s%s", User.String(), NameSuffix),
+			Host:     ServerURL,
+			User:     fmt.Sprintf("%s%s", User.String(), nameSuffix),
 			Password: passwordFn(),
 			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
@@ -95,7 +100,7 @@ func NewXmpp(ServerUrl string, User common.Address, passwordFn GetCurrentPasswor
 		config:         DefaultConfig,
 		reconnect:      true,
 		NextPasswordFn: passwordFn,
-		status:         DISCONNECTED,
+		status:         disconnected,
 		SdpHandler:     sdphandler,
 		waiters:        make(map[string]chan *xmpp.Chat),
 		closed:         make(chan struct{}),
@@ -107,19 +112,19 @@ func NewXmpp(ServerUrl string, User common.Address, passwordFn GetCurrentPasswor
 		log.Trace(fmt.Sprintf("%s new xmpp client err %s", name, err))
 		return
 	}
-	x.status = CONNECTED
+	x.status = connected
 	sp = x
 	go func() {
 		for {
 			chat, err := x.client.Recv()
-			if x.status == CLOSED {
+			if x.status == closed {
 				return
 			}
 			if err != nil {
 				//todo how to detect network error ,disconnect
 				log.Error(fmt.Sprintf("%s receive error %s ,try to reconnect ", name, err))
 				x.client.Close()
-				x.ReConnect()
+				x.reConnect()
 				continue
 			}
 			switch v := chat.(type) {
@@ -138,13 +143,13 @@ func NewXmpp(ServerUrl string, User common.Address, passwordFn GetCurrentPasswor
 					log.Trace(fmt.Sprintf("%s %s received response", name, uid))
 					ch <- &v
 				} else {
-					var cmd XmppCommand
+					var cmd xmppCommand
 					err := json.Unmarshal([]byte(v.Text), &cmd)
 					if err != nil {
 						log.Debug(fmt.Sprintf("%s recieve unkown message from:%s, subject:%s,text:%s", name, v.Remote, v.Subject, v.Text))
 						continue //
 					} else {
-						x.HandleNewCommand(v.Remote, v.Subject, &cmd)
+						x.handleNewCommand(v.Remote, v.Subject, &cmd)
 					}
 				}
 			}
@@ -152,8 +157,8 @@ func NewXmpp(ServerUrl string, User common.Address, passwordFn GetCurrentPasswor
 	}()
 	return
 }
-func (x *XmppWrapper) ReConnect() {
-	x.status = RECONNECTING
+func (x *SignalConnection) reConnect() {
+	x.status = reconnecting
 	o := x.options
 	for {
 		o.Password = x.NextPasswordFn()
@@ -168,9 +173,9 @@ func (x *XmppWrapper) ReConnect() {
 		x.mutex.Unlock()
 		break
 	}
-	x.status = CONNECTED
+	x.status = connected
 }
-func (x *XmppWrapper) sendSync(msg *xmpp.Chat) (response *xmpp.Chat, err error) {
+func (x *SignalConnection) sendSync(msg *xmpp.Chat) (response *xmpp.Chat, err error) {
 	uid := fmt.Sprintf("%s-%s", msg.Remote, msg.Subject)
 	wait := make(chan *xmpp.Chat)
 	err = x.addWaiter(uid, wait)
@@ -185,10 +190,10 @@ func (x *XmppWrapper) sendSync(msg *xmpp.Chat) (response *xmpp.Chat, err error) 
 	return x.wait(wait)
 }
 
-func (x *XmppWrapper) send(msg *xmpp.Chat) error {
+func (x *SignalConnection) send(msg *xmpp.Chat) error {
 	select {
 	case <-x.closed:
-		return ErrClientDisconnected
+		return errClientDisconnected
 	default:
 		x.mutex.Lock()
 		cli := x.client
@@ -199,42 +204,42 @@ func (x *XmppWrapper) send(msg *xmpp.Chat) error {
 	return nil
 }
 
-func (x *XmppWrapper) addWaiter(uid string, ch chan *xmpp.Chat) error {
+func (x *SignalConnection) addWaiter(uid string, ch chan *xmpp.Chat) error {
 	x.waitersMutex.Lock()
 	defer x.waitersMutex.Unlock()
 	if _, ok := x.waiters[uid]; ok {
-		return ErrDuplicateWaiter
+		return errDuplicateWaiter
 	}
 	x.waiters[uid] = ch
 	return nil
 }
 
-func (x *XmppWrapper) removeWaiter(uid string) error {
+func (x *SignalConnection) removeWaiter(uid string) error {
 	x.waitersMutex.Lock()
 	defer x.waitersMutex.Unlock()
 	delete(x.waiters, uid)
 	return nil
 }
 
-func (x *XmppWrapper) wait(ch chan *xmpp.Chat) (response *xmpp.Chat, err error) {
+func (x *SignalConnection) wait(ch chan *xmpp.Chat) (response *xmpp.Chat, err error) {
 	select {
 	case data, ok := <-ch:
 		if !ok {
-			return nil, ErrWaiterClosed
+			return nil, errWaiterClosed
 		}
 		return data, nil
 	case <-time.After(x.config.Timeout):
-		return nil, ErrTimeout
+		return nil, errTimeout
 	case <-x.closed:
-		return nil, ErrClientDisconnected
+		return nil, errClientDisconnected
 	}
 }
 
 var reachok string
 
 func init() {
-	var cmd = XmppCommand{
-		Command: CommandTryReach,
+	var cmd = xmppCommand{
+		Command: commandTryReach,
 	}
 	data, err := json.Marshal(&cmd)
 	if err != nil {
@@ -243,21 +248,21 @@ func init() {
 	reachok = string(data)
 }
 
-func (x *XmppWrapper) HandleNewCommand(from, subject string, cmd *XmppCommand) {
+func (x *SignalConnection) handleNewCommand(from, subject string, cmd *xmppCommand) {
 	log.Trace(fmt.Sprintf("%s new command from:%s,subect:%s,cmd=%s", x.name, from, subject, utils.StringInterface1(cmd)))
 	switch cmd.Command {
-	case CommandTryReach:
+	case commandTryReach:
 		x.send(&xmpp.Chat{
 			Type:    "chat",
 			Remote:  from,
 			Subject: subject,
 			Text:    reachok,
 		})
-	case CommandExChangeSdp:
+	case commandExChangeSdp:
 		fromaddr := strings.Split(from, "@")[0]
 		r, err := x.SdpHandler(common.HexToAddress(fromaddr), cmd.OtherInfo)
-		cmd2 := XmppCommand{
-			Command: CommandExChangeSdp,
+		cmd2 := xmppCommand{
+			Command: commandExChangeSdp,
 		}
 		if err != nil {
 			cmd2.Error = err.Error()
@@ -279,32 +284,35 @@ func (x *XmppWrapper) HandleNewCommand(from, subject string, cmd *XmppCommand) {
 		log.Error(fmt.Sprintf("%s receive unkown from:%s,subject:%s cmd:%s", x.name, from, subject, spew.Sdump(cmd)))
 	}
 }
-func (x *XmppWrapper) Close() {
-	x.status = CLOSED
+
+//Close this connection
+func (x *SignalConnection) Close() {
+	x.status = closed
 	close(x.closed)
 	x.client.Close()
 }
 
-func (x *XmppWrapper) Connected() bool {
-	return x.status == CONNECTED
+//Connected returns true when this connection is ready for sent
+func (x *SignalConnection) Connected() bool {
+	return x.status == connected
 }
 
-type Command int
+type command int
 
 const (
-	CommandTryReach = Command(iota)
-	CommandExChangeSdp
+	commandTryReach = command(iota)
+	commandExChangeSdp
 )
 
-type XmppCommand struct {
-	Command   Command
+type xmppCommand struct {
+	Command   command
 	Error     string
 	OtherInfo string
 }
 
-func (x *XmppWrapper) sendCommand(addr common.Address, cmd *XmppCommand) (cmdResponse *XmppCommand, err error) {
+func (x *SignalConnection) sendCommand(addr common.Address, cmd *xmppCommand) (cmdResponse *xmppCommand, err error) {
 	chat := &xmpp.Chat{
-		Remote:  fmt.Sprintf("%s%s", addr.String(), NameSuffix),
+		Remote:  fmt.Sprintf("%s%s", addr.String(), nameSuffix),
 		Type:    "chat",
 		Subject: utils.RandomString(10),
 		Stamp:   time.Now(),
@@ -319,7 +327,7 @@ func (x *XmppWrapper) sendCommand(addr common.Address, cmd *XmppCommand) (cmdRes
 		return
 	}
 	log.Trace(fmt.Sprintf("%s receive  response %s,%s", x.name, response.Remote, response.Text))
-	var cmd2 XmppCommand
+	var cmd2 xmppCommand
 	err = json.Unmarshal([]byte(response.Text), &cmd2)
 	if err != nil {
 		return
@@ -331,16 +339,19 @@ func (x *XmppWrapper) sendCommand(addr common.Address, cmd *XmppCommand) (cmdRes
 	cmdResponse = &cmd2
 	return
 }
-func (x *XmppWrapper) TryReach(addr common.Address) error {
-	_, err := x.sendCommand(addr, &XmppCommand{
-		Command: CommandTryReach,
+
+//TryReach test if `addr` is online or not
+func (x *SignalConnection) TryReach(addr common.Address) error {
+	_, err := x.sendCommand(addr, &xmppCommand{
+		Command: commandTryReach,
 	})
 	return err
 }
 
-func (x *XmppWrapper) ExchangeSdp(addr common.Address, sdp string) (partnerSdp string, err error) {
-	r, err := x.sendCommand(addr, &XmppCommand{
-		Command:   CommandExChangeSdp,
+//ExchangeSdp exchange sdp info with `addr`
+func (x *SignalConnection) ExchangeSdp(addr common.Address, sdp string) (partnerSdp string, err error) {
+	r, err := x.sendCommand(addr, &xmppCommand{
+		Command:   commandExChangeSdp,
 		OtherInfo: sdp,
 	})
 	if err != nil {

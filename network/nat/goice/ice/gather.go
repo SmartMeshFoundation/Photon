@@ -71,14 +71,14 @@ func init() {
 	}
 }
 
-// Addr represents gathered address from interface.
+// addr represents gathered address from interface.
 type Addr struct {
 	IP         net.IP
 	Zone       string
 	Precedence int
 }
 
-//Addrs represents Addr List
+//Addrs represents addr List
 type Addrs []Addr
 
 func (s Addrs) Less(i, j int) bool {

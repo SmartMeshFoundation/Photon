@@ -15,22 +15,28 @@ import (
 	"github.com/prestonTao/upnp"
 )
 
+/*
+PortMappedSocket contains internal ip port and extern ip and port
+and the established connection
+*/
 type PortMappedSocket struct {
-	Conn         *SafeUdpConnection
-	Ip           string
+	Conn         *SafeUDPConnection
+	IP           string
 	Port         int
-	ExternalIp   string
+	ExternalIP   string
 	ExternalPort int
 	Method       string
 }
 
-func OpenBareSocket(ip string, port int) (*SafeUdpConnection, error) {
-	return NewSafeUdpConnection("udp", &net.UDPAddr{
+//OpenBareSocket create a UDP connection
+func OpenBareSocket(ip string, port int) (*SafeUDPConnection, error) {
+	return NewSafeUDPConnection("udp", &net.UDPAddr{
 		IP:   net.ParseIP(ip),
 		Port: port,
 	})
 }
 
+//UpnpMapping do a upnp discovery
 func UpnpMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 	upnpMan := new(upnp.Upnp)
 	err = upnpMan.SearchGateway()
@@ -38,8 +44,8 @@ func UpnpMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 		return
 	}
 	if err = upnpMan.AddPortMapping(port, port, "UDP"); err == nil {
-		externalIp := upnpMan.GatewayOutsideIP
-		if externalIp == "" { //multi nat routers
+		externalIP := upnpMan.GatewayOutsideIP
+		if externalIP == "" { //multi nat routers
 			err = errors.New("no outside ip")
 			return
 		}
@@ -50,14 +56,16 @@ func UpnpMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 	}
 	pms = &PortMappedSocket{
 		Conn:         conn,
-		Ip:           ip,
+		IP:           ip,
 		Port:         port,
-		ExternalIp:   upnpMan.GatewayOutsideIP,
+		ExternalIP:   upnpMan.GatewayOutsideIP,
 		ExternalPort: port,
 		Method:       "upnp",
 	}
 	return
 }
+
+//StunMapping do a stun ip port discovery and keep alive
 func StunMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 	var err2 error
 	laddr := &net.UDPAddr{
@@ -77,7 +85,7 @@ func StunMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 		return
 	}
 	pms = &PortMappedSocket{
-		Ip:     ip,
+		IP:     ip,
 		Port:   port,
 		Method: "stun",
 	}
@@ -95,10 +103,10 @@ func StunMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 				return
 			}
 			log.Info(fmt.Sprintf("addr=%s", addr))
-			pms.ExternalIp = addr.IP.String()
+			pms.ExternalIP = addr.IP.String()
 			pms.ExternalPort = addr.Port
 		} else {
-			pms.ExternalIp = xorAddr.IP.String()
+			pms.ExternalIP = xorAddr.IP.String()
 			pms.ExternalPort = xorAddr.Port
 			log.Info(fmt.Sprintf("xoraddr=%s", xorAddr))
 		}
@@ -137,43 +145,6 @@ func StunMapping(ip string, port int) (pms *PortMappedSocket, err error) {
 	return
 }
 
-//func StunMapping2(ip string, port int) (pms *PortMappedSocket, err error) {
-//	conn, err := OpenBareSocket(ip, port)
-//	if err != nil {
-//		return
-//	}
-//	c := stun.NewClientWithConnection(conn)
-//	c.SetVerbose(false)
-//	c.SetVVerbose(false)
-//	//c.SetServerHost("stunserver.org", 3478)
-//	//c.SetServerHost("182.254.155.208", 3478)
-//	nattype, host, err := c.Discover()
-//	if err != nil {
-//		return
-//	}
-//	//disable timeout
-//	conn.SetDeadline(time.Time{})
-//	log.Info(fmt.Sprintf("stun nattype:%s", nattype.String()))
-//	pms = &PortMappedSocket{
-//		Conn:         conn,
-//		Ip:           ip,
-//		Port:         port,
-//		ExternalIp:   host.IP(),
-//		ExternalPort: int(host.Port()),
-//		Method:       "stun",
-//	}
-//	go func() {
-//		for {
-//			err := c.KeepaliveOnlySend()
-//			if err != nil {
-//				log.Info("stun keep alive error:", err)
-//			}
-//			time.Sleep(time.Second * 30)
-//		}
-//	}()
-//	return
-//}
-
 func noneMaping(ip string, port int) (pms *PortMappedSocket, err error) {
 	conn, err := OpenBareSocket(ip, port)
 	if err != nil {
@@ -181,14 +152,16 @@ func noneMaping(ip string, port int) (pms *PortMappedSocket, err error) {
 	}
 	pms = &PortMappedSocket{
 		Conn:         conn,
-		Ip:           ip,
+		IP:           ip,
 		Port:         port,
-		ExternalIp:   ip,
+		ExternalIP:   ip,
 		ExternalPort: port,
 		Method:       "none",
 	}
 	return
 }
+
+//SocketFactory create local listening socket according `strategy`
 func SocketFactory(ip string, port int, strategy string) (pms *PortMappedSocket, err error) {
 	switch strategy {
 	case "upnp":
@@ -208,7 +181,7 @@ func SocketFactory(ip string, port int, strategy string) (pms *PortMappedSocket,
 	}
 	return
 }
-func RelaseMappedSocket(pms *PortMappedSocket) {
+func releaseMappedSocket(pms *PortMappedSocket) {
 	if pms.Method == "upnp" {
 		upnpMan := new(upnp.Upnp)
 		upnpMan.DelPortMapping(pms.ExternalPort, "UDP")

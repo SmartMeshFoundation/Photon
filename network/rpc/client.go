@@ -233,7 +233,7 @@ type RegistryProxy struct {
 func (r *RegistryProxy) ChannelManagerByToken(tokenAddress common.Address) (mgr common.Address, err error) {
 	mgr, err = r.registry.ChannelManagerByToken(r.bcs.getQueryOpts(), tokenAddress)
 	if err != nil && err.Error() == "abi: unmarshalling empty output" {
-		err = rerr.NoTokenManager
+		err = rerr.ErrNoTokenManager
 	}
 	return
 }

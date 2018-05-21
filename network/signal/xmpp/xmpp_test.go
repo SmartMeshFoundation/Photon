@@ -35,12 +35,12 @@ func TestNewXmpp(t *testing.T) {
 	addr2 := crypto.PubkeyToAddress(key2.PublicKey)
 	log.Trace(fmt.Sprintf("addr1=%s,addr=%s\n", addr1.String(), addr2.String()))
 	sdp := "test test test"
-	x1, err := NewXmpp("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
+	x1, err := NewSignalConnection("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	x2, err := NewXmpp("139.199.6.114:5222", addr2, newpassword(key2), testSdpHandler, "client2")
+	x2, err := NewSignalConnection("139.199.6.114:5222", addr2, newpassword(key2), testSdpHandler, "client2")
 	if err != nil {
 		t.Error(err)
 		return
@@ -68,7 +68,7 @@ func TestNewXmppError(t *testing.T) {
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
 	sdp := "test test test"
 	log.Trace(fmt.Sprintf("addr1 is  %s", addr1.String()))
-	x1, err := NewXmpp("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
+	x1, err := NewSignalConnection("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
 	if err != nil {
 		t.Error(err)
 		return
@@ -91,7 +91,7 @@ func BenchmarkNewXmpp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
 		addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-		x1, err := NewXmpp("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
+		x1, err := NewSignalConnection("139.199.6.114:5222", addr1, newpassword(key1), testSdpHandler, "client1")
 		if err != nil {
 			return
 		}

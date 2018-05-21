@@ -1,9 +1,9 @@
 package network
 
 import (
-	"crypto/ecdsa"
 	"sync/atomic"
 
+	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -11,18 +11,26 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+/*
+MixTransporter is a wrapper for two Transporter(UDP and ICE)
+*/
 type MixTransporter struct {
 	udp *UDPTransport
 	ice *IceTransport
 	t   atomic.Value
 }
+
+/*
+MixDiscovery is a wrapper for two Discover ,so it can switch between these discover
+*/
 type MixDiscovery struct {
 	udp *Discovery
 	ice *IceHelperDicovery
 	d   atomic.Value
 }
 
-func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int, conn *SafeUdpConnection, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery) {
+//NewMixTranspoter create a MixTransporter and discover
+func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery) {
 	var err error
 	var h Transporter
 	t = &MixTransporter{}
@@ -31,10 +39,10 @@ func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int,
 	if err != nil {
 		log.Error(fmt.Sprintf("new ice transport error %s,default will be udp transport", err))
 		h = t.udp
-		d = NewMixDiscovery(false)
+		d = newMixDiscovery(false)
 	} else {
 		h = t.ice
-		d = NewMixDiscovery(true)
+		d = newMixDiscovery(true)
 	}
 	t.t.Store(&h)
 	return
@@ -42,12 +50,18 @@ func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int,
 func (t *MixTransporter) getTranspoter() Transporter {
 	return *t.t.Load().(*Transporter)
 }
+
+//Send message
 func (t *MixTransporter) Send(receiver common.Address, host string, port int, data []byte) error {
 	return t.getTranspoter().Send(receiver, host, port, data)
 }
-func (t *MixTransporter) Receive(data []byte, host string, port int) error {
+
+//receive  just for Transporter interface
+func (t *MixTransporter) receive(data []byte, host string, port int) error {
 	panic("useless")
 }
+
+//Start the two transporter
 func (t *MixTransporter) Start() {
 	if t.udp != nil {
 		t.udp.Start()
@@ -56,6 +70,8 @@ func (t *MixTransporter) Start() {
 		t.ice.Start()
 	}
 }
+
+//Stop the two transporter
 func (t *MixTransporter) Stop() {
 	if t.ice != nil {
 		t.ice.Stop()
@@ -64,6 +80,8 @@ func (t *MixTransporter) Stop() {
 		t.udp.Stop()
 	}
 }
+
+//StopAccepting stops receiving for the two transporter
 func (t *MixTransporter) StopAccepting() {
 	if t.ice != nil {
 		t.ice.StopAccepting()
@@ -71,7 +89,9 @@ func (t *MixTransporter) StopAccepting() {
 	if t.udp != nil {
 		t.udp.StopAccepting()
 	}
-} //stop receiving data
+}
+
+//RegisterProtocol register receiver for the two transporter
 func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 	if t.ice != nil {
 		t.ice.RegisterProtocol(protcol)
@@ -80,8 +100,8 @@ func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 		t.udp.RegisterProtocol(protcol)
 	}
 
-} //register transporter to protocol
-func (t *MixTransporter) switchToUdp() bool {
+}
+func (t *MixTransporter) switchToUDP() bool {
 	u := t.getTranspoter()
 	_, ok := u.(*UDPTransport)
 	if ok {
@@ -107,7 +127,7 @@ func (t *MixTransporter) switchToIce() bool {
 	t.t.Store(&i)
 	return true
 }
-func NewMixDiscovery(useIce bool) *MixDiscovery {
+func newMixDiscovery(useIce bool) *MixDiscovery {
 	m := &MixDiscovery{
 		udp: NewDiscovery(),
 		ice: NewIceHelperDiscovery(),
@@ -124,16 +144,22 @@ func NewMixDiscovery(useIce bool) *MixDiscovery {
 func (d *MixDiscovery) getDefault() DiscoveryInterface {
 	return *d.d.Load().(*DiscoveryInterface)
 }
+
+//Register a node
 func (d *MixDiscovery) Register(address common.Address, host string, port int) error {
 	return d.getDefault().Register(address, host, port)
 }
+
+//Get node's ip and port
 func (d *MixDiscovery) Get(address common.Address) (host string, port int, err error) {
 	return d.getDefault().Get(address)
 }
-func (d *MixDiscovery) NodeIdByHostPort(host string, port int) (node common.Address, err error) {
-	return d.getDefault().NodeIdByHostPort(host, port)
+
+//NodeIDByHostPort find a node by host and port
+func (d *MixDiscovery) NodeIDByHostPort(host string, port int) (node common.Address, err error) {
+	return d.getDefault().NodeIDByHostPort(host, port)
 }
-func (d *MixDiscovery) switchToUdp() bool {
+func (d *MixDiscovery) switchToUDP() bool {
 	u := d.getDefault()
 	_, ok := u.(*Discovery)
 	if ok {
@@ -160,7 +186,7 @@ func (d *MixDiscovery) printNodes() {
 	u, ok := d.getDefault().(*Discovery)
 	if ok {
 		log.Trace(fmt.Sprintf("nodes are:\n"))
-		for k, v := range u.NodeIdHostPortMap {
+		for k, v := range u.NodeIDHostPortMap {
 			log.Trace(fmt.Sprintf("%s:%s", utils.APex(k), v))
 		}
 	} else {

@@ -22,28 +22,55 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+/*
+NodeNetworkUnkown doesn't know node is online or not
+*/
 const NodeNetworkUnkown = "unknown"
+
+/*
+NodeNetworkUnreachable node is offline
+*/
 const NodeNetworkUnreachable = "unreachable"
+
+/*
+NodeNetworkReachable node is online
+*/
 const NodeNetworkReachable = "reachable"
 
 var errTimeout = errors.New("wait timeout")
 var errExpired = errors.New("message expired")
 
-type NodesStatusMap map[common.Address]*NetworkStatus
+/*
+NodesStatusMap node's status
+*/
+type NodesStatusMap map[common.Address]*NodeNetworkStatus
 
-type NetworkStatus struct {
+/*
+NodeNetworkStatus contains node's Status and last change time
+*/
+type NodeNetworkStatus struct {
 	LastAckTime time.Time //time of last received ack message
 	Status      string
 }
+
+/*
+MessageToRaiden message and it's echo hash
+*/
 type MessageToRaiden struct {
 	Msg      encoding.SignedMessager
 	EchoHash common.Hash
 }
+
+/*
+AsyncResult is designed for async notify
+and Tag can be save anything by user.
+*/
 type AsyncResult struct {
 	Result chan error
 	Tag    interface{}
 }
 
+//SentMessageState is the state of message on sending
 type SentMessageState struct {
 	AsyncResult     *AsyncResult
 	AckChannel      chan error
@@ -54,25 +81,34 @@ type SentMessageState struct {
 	EchoHash common.Hash       //message echo hash
 	Data     []byte            //packed message
 }
+
+//NodesStatusGetter for route service
 type NodesStatusGetter interface {
+	//GetNetworkStatus return addr's status
 	GetNetworkStatus(addr common.Address) string
+	//GetNetworkStatusAndLastAckTime return addr's status and last ack time
 	GetNetworkStatusAndLastAckTime(addr common.Address) (status string, lastAckTime time.Time)
 }
+
+//PingSender do send ping task
 type PingSender interface {
+	//SendPing send a ping to receiver,and not block
 	SendPing(receiver common.Address) error
 }
 
 /*
-get the lastest block number,so sender can remove expired mediated transfer.
+BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
 for example :
 A send B a mediated transfer, but B is offline
 when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
 message secret,secretRequest,revealSecret won't allow error
 */
 type BlockNumberGetter interface {
+	//GetBlockNumber return latest block number
 	GetBlockNumber() int64
 }
 
+//NewAsyncResult create a AsyncResult
 func NewAsyncResult() *AsyncResult {
 	return &AsyncResult{Result: make(chan error, 1)}
 }
@@ -102,6 +138,10 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 	}
 }
 
+/*
+RaidenProtocol is a UDP  protocol,
+every message needs a ack to make sure sent success.
+*/
 type RaidenProtocol struct {
 	Transport             Transporter
 	discovery             DiscoveryInterface
@@ -111,7 +151,7 @@ type RaidenProtocol struct {
 	retryTimes            int
 	retryInterval         time.Duration
 	mapLock               sync.Mutex
-	address2NetworkStatus map[common.Address]*NetworkStatus
+	address2NetworkStatus map[common.Address]*NodeNetworkStatus
 	statusLock            sync.RWMutex
 	/*
 		message from other nodes
@@ -128,6 +168,7 @@ type RaidenProtocol struct {
 	onStop                    bool //flag for stop
 }
 
+//NewRaidenProtocol create RaidenProtocol
 func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
 		Transport:                 transport,
@@ -136,7 +177,7 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 		retryTimes:                10,
 		retryInterval:             time.Millisecond * 6000,
 		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
-		address2NetworkStatus:     make(map[common.Address]*NetworkStatus),
+		address2NetworkStatus:     make(map[common.Address]*NodeNetworkStatus),
 		ReceivedMessageChan:       make(chan *MessageToRaiden),
 		ReceivedMessageResultChan: make(chan error),
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
@@ -147,6 +188,7 @@ func NewRaidenProtocol(transport Transporter, discovery DiscoveryInterface, priv
 	return rp
 }
 
+//New create new object from sample.
 func New(sample interface{}) interface{} {
 	t := reflect.ValueOf(sample)
 	if t.Kind() == reflect.Ptr {
@@ -156,37 +198,41 @@ func New(sample interface{}) interface{} {
 	v := reflect.New(tt).Interface()
 	return v
 }
-func (this *RaidenProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
-	this.receivedMessageSaver = saver
+
+//SetReceivedMessageSaver set db saver
+func (p *RaidenProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
+	p.receivedMessageSaver = saver
 }
-func (this *RaidenProtocol) _sendAck(host string, port int, data []byte) {
-	reciver, err := this.discovery.NodeIdByHostPort(host, port)
+func (p *RaidenProtocol) _sendAck(host string, port int, data []byte) {
+	reciver, err := p.discovery.NodeIDByHostPort(host, port)
 	if err != nil {
 		log.Error(fmt.Sprintf("unkonw %s:%d ,no such address", host, port))
 	}
-	this.Transport.Send(reciver, host, port, data)
+	p.Transport.Send(reciver, host, port, data)
 }
-func (this *RaidenProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
-	this.sendRawWitNoAck(receiver, ack.Pack())
+func (p *RaidenProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
+	p.sendRawWitNoAck(receiver, ack.Pack())
 }
-func (this *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
-	host, port, err := this.discovery.Get(receiver)
+func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
+	host, port, err := p.discovery.Get(receiver)
 	if err != nil {
 		return err
 	}
-	return this.Transport.Send(receiver, host, port, data)
+	return p.Transport.Send(receiver, host, port, data)
 }
-func (this *RaidenProtocol) SendPing(receiver common.Address) error {
+
+//SendPing PingSender
+func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
-	ping.Sign(this.privKey, ping)
+	ping.Sign(p.privKey, ping)
 	data := ping.Pack()
-	return this.sendRawWitNoAck(receiver, data)
+	return p.sendRawWitNoAck(receiver, data)
 }
 
 /*
 message mediatedTransfer and refundTransfer can safely be discarded when expired.
 */
-func (this *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
+func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	var expired int64
 	switch msg2 := msg.(type) {
 	case *encoding.MediatedTransfer:
@@ -194,56 +240,56 @@ func (this *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	case *encoding.RefundTransfer:
 		expired = msg2.Expiration
 	}
-	if expired > 0 && expired <= this.BlockNumberGetter.GetBlockNumber() {
+	if expired > 0 && expired <= p.BlockNumberGetter.GetBlockNumber() {
 		return false
 	}
 	return true
 }
-func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- *SentMessageState {
+func (p *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- *SentMessageState {
 
-	this.mapLock.Lock()
-	defer this.mapLock.Unlock()
+	p.mapLock.Lock()
+	defer p.mapLock.Unlock()
 	key := fmt.Sprintf("%s-%s", receiver.String(), token.String())
 	var sendingChan chan *SentMessageState
 	var ok bool
-	if token == utils.EmptyAddress { //no token means that this message doesn't need ordered.
+	if token == utils.EmptyAddress { //no token means that p message doesn't need ordered.
 		sendingChan = make(chan *SentMessageState, 1) //should not block sender
 	} else {
-		sendingChan, ok = this.sendingQueueMap[key]
+		sendingChan, ok = p.sendingQueueMap[key]
 		if ok {
 			return sendingChan
 		}
 		sendingChan = make(chan *SentMessageState, 1000) //should not block sender
-		this.sendingQueueMap[key] = sendingChan
+		p.sendingQueueMap[key] = sendingChan
 	}
 	go func() {
 		/*
-			1. if this packet is on sending, retry send immediately
+			1. if p packet is on sending, retry send immediately
 			2. retry infinite, until receive a ack
-			3. this message should be sent by caller after restart.
+			3. p message should be sent by caller after restart.
 
-			caller can read from chan reusltChannel to get if this packet is successfully sent to receiver
+			caller can read from chan reusltChannel to get if p packet is successfully sent to receiver
 		*/
 	labelNextMessage:
 		for {
 			log.Trace(fmt.Sprintf("queue %s try send next message", key))
-			this.quitWaitGroup.Add(1)
+			p.quitWaitGroup.Add(1)
 			msgState, ok := <-sendingChan
 			if !ok {
 				log.Info(fmt.Sprintf("queue %s quit, because of chan closed", key))
-				this.quitWaitGroup.Done() //user stop
+				p.quitWaitGroup.Done() //user stop
 				return
 			}
 			for {
-				if !this.messageCanBeSent(msgState.Message) {
+				if !p.messageCanBeSent(msgState.Message) {
 					log.Info(fmt.Sprintf("message cannot be send because of expired msg=%s", msgState.Message))
 					msgState.AsyncResult.Result <- errExpired
 					close(msgState.AsyncResult.Result)
-					this.quitWaitGroup.Done()
+					p.quitWaitGroup.Done()
 					break
 				}
-				nextTimeout := timeoutExponentialBackoff(this.retryTimes, this.retryInterval, this.retryInterval*10)
-				err := this.sendRawWitNoAck(receiver, msgState.Data)
+				nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
+				err := p.sendRawWitNoAck(receiver, msgState.Data)
 				if err != nil {
 					log.Info(fmt.Sprintf("sendRawWitNoAck %s msg error %s", key, err.Error()))
 				}
@@ -254,12 +300,12 @@ func (this *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan
 						log.Trace(fmt.Sprintf("msg=%s, sent success :%s", encoding.MessageType(msgState.Message.Cmd()), utils.HPex(msgState.EchoHash)))
 						msgState.AsyncResult.Result <- nil
 						close(msgState.AsyncResult.Result)
-						this.quitWaitGroup.Done()
+						p.quitWaitGroup.Done()
 						goto labelNextMessage
 					} else {
 						//message must send success, otherwise keep trying...
 						log.Info(fmt.Sprintf("queue %s quit, because of chan closed", key))
-						this.quitWaitGroup.Done()
+						p.quitWaitGroup.Done()
 						return //user call stop
 					}
 				case <-timeout: //retry
@@ -302,28 +348,27 @@ func getMessageChannelAddress(msg encoding.Messager) common.Address {
 msg should be signed.
 msg must be sent success.
 */
-func (this *RaidenProtocol) sendWithResult(receiver common.Address,
+func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	msg encoding.Messager) (result *AsyncResult) {
 	//no more message...
-	if this.onStop {
+	if p.onStop {
 		return NewAsyncResult()
 	}
-	this.quitWaitGroup.Add(1)
-	defer this.quitWaitGroup.Done()
+	p.quitWaitGroup.Add(1)
+	defer p.quitWaitGroup.Done()
 	if true {
 		signed, ok := msg.(encoding.SignedMessager)
-		if ok && len(signed.GetSignature()) <= 0 {
+		if ok && signed.GetSender() == utils.EmptyAddress {
 			log.Error("send unsigned message")
 			panic("send unsigned message")
-			return
 		}
 	}
 	data := msg.Pack()
 	echohash := utils.Sha3(data, receiver[:])
-	this.mapLock.Lock()
-	msgState, ok := this.SentHashesToChannel[echohash]
+	p.mapLock.Lock()
+	msgState, ok := p.SentHashesToChannel[echohash]
 	if ok {
-		this.mapLock.Unlock()
+		p.mapLock.Unlock()
 		result = msgState.AsyncResult
 		return
 	}
@@ -336,86 +381,94 @@ func (this *RaidenProtocol) sendWithResult(receiver common.Address,
 		Data:            data,
 		EchoHash:        echohash,
 	}
-	this.SentHashesToChannel[echohash] = msgState
-	this.mapLock.Unlock()
+	p.SentHashesToChannel[echohash] = msgState
+	p.mapLock.Unlock()
 	result = msgState.AsyncResult
 	tokenAddress := getMessageTokenAddress(msg)
 	//make sure not block
-	this.getChannelQueue(receiver, tokenAddress) <- msgState
+	p.getChannelQueue(receiver, tokenAddress) <- msgState
 	return
 }
 
-// send this packet and wait ack until timeout
-func (this *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messager, timeout time.Duration) error {
+//SendAndWait send this packet and wait ack until timeout
+func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messager, timeout time.Duration) error {
 	var err error
-	result := this.sendWithResult(receiver, msg)
+	result := p.sendWithResult(receiver, msg)
 	timeoutCh := time.After(timeout)
 	select {
 	case err = <-result.Result:
 		if err == nil {
-			this.updateNetworkStatus(receiver, NodeNetworkReachable)
+			p.updateNetworkStatus(receiver, NodeNetworkReachable)
 		}
 	case <-timeoutCh:
 		err = errTimeout
-		this.updateNetworkStatus(receiver, NodeNetworkUnreachable)
+		p.updateNetworkStatus(receiver, NodeNetworkUnreachable)
 	}
 	return err
 }
-func (this *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *AsyncResult {
-	return this.sendWithResult(receiver, msg)
+
+//SendAsync send a message asynchronize ,notify by `AsyncResult`
+func (p *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *AsyncResult {
+	return p.sendWithResult(receiver, msg)
 }
-func (this *RaidenProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
-	return encoding.NewAck(this.nodeAddr, echohash)
+
+//CreateAck creat a ack message,
+func (p *RaidenProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
+	return encoding.NewAck(p.nodeAddr, echohash)
 }
-func (this *RaidenProtocol) updateNetworkStatus(addr common.Address, status string) {
-	this.statusLock.Lock()
-	defer this.statusLock.Unlock()
-	s, ok := this.address2NetworkStatus[addr]
+func (p *RaidenProtocol) updateNetworkStatus(addr common.Address, status string) {
+	p.statusLock.Lock()
+	defer p.statusLock.Unlock()
+	s, ok := p.address2NetworkStatus[addr]
 	if !ok {
-		s = &NetworkStatus{
+		s = &NodeNetworkStatus{
 			time.Now(), NodeNetworkUnkown,
 		}
-		this.address2NetworkStatus[addr] = s
+		p.address2NetworkStatus[addr] = s
 	}
 	s.Status = status
 	s.LastAckTime = time.Now()
 }
-func (this *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
-	this.statusLock.Lock()
-	defer this.statusLock.Unlock()
-	s, ok := this.address2NetworkStatus[addr]
+
+//GetNetworkStatus return `addr` node's network status
+func (p *RaidenProtocol) GetNetworkStatus(addr common.Address) string {
+	p.statusLock.Lock()
+	defer p.statusLock.Unlock()
+	s, ok := p.address2NetworkStatus[addr]
 	if !ok {
 		return NodeNetworkUnkown
 	}
 	return s.Status
 }
-func (this *RaidenProtocol) GetNetworkStatusAndLastAckTime(addr common.Address) (status string, lastAckTime time.Time) {
-	this.statusLock.Lock()
-	defer this.statusLock.Unlock()
-	s, ok := this.address2NetworkStatus[addr]
+
+//GetNetworkStatusAndLastAckTime return `addr` status
+func (p *RaidenProtocol) GetNetworkStatusAndLastAckTime(addr common.Address) (status string, lastAckTime time.Time) {
+	p.statusLock.Lock()
+	defer p.statusLock.Unlock()
+	s, ok := p.address2NetworkStatus[addr]
 	if !ok {
 		return NodeNetworkUnkown, time.Now()
 	}
 	return s.Status, s.LastAckTime
 }
-func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
+func (p *RaidenProtocol) receive(data []byte, host string, port int) {
 	if len(data) > params.UDPMaxMessageSize {
 		log.Error("receive packet larger than maximum size :", len(data))
 		return
 	}
 	//ignore incomming message when stop
-	if this.onStop {
+	if p.onStop {
 		return
 	}
-	//wait finish this packet when stop
-	this.quitWaitGroup.Add(1)
-	defer this.quitWaitGroup.Done()
+	//wait finish p packet when stop
+	p.quitWaitGroup.Add(1)
+	defer p.quitWaitGroup.Done()
 	cmdid := int(data[0])
-	echohash := utils.Sha3(data, this.nodeAddr[:])
-	if this.receivedMessageSaver != nil {
-		ackdata := this.receivedMessageSaver.GetAck(echohash)
+	echohash := utils.Sha3(data, p.nodeAddr[:])
+	if p.receivedMessageSaver != nil {
+		ackdata := p.receivedMessageSaver.GetAck(echohash)
 		if len(ackdata) > 0 {
-			this._sendAck(host, port, ackdata)
+			p._sendAck(host, port, ackdata)
 			return
 		}
 	}
@@ -430,47 +483,46 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 		log.Warn(fmt.Sprintf("message unpack error : %s", err))
 		return
 	}
-	if messager.Cmd() == encoding.AckCmdId { //some one may be waiting this ack
+	if messager.Cmd() == encoding.AckCmdID { //some one may be waiting p ack
 		ackMsg := messager.(*encoding.Ack)
 		log.Debug(fmt.Sprintf("receive ack ,hash=%s", utils.HPex(ackMsg.Echo)))
-		this.updateNetworkStatus(ackMsg.Sender, NodeNetworkReachable)
-		this.mapLock.Lock()
-		msgState, ok := this.SentHashesToChannel[ackMsg.Echo]
+		p.updateNetworkStatus(ackMsg.Sender, NodeNetworkReachable)
+		p.mapLock.Lock()
+		msgState, ok := p.SentHashesToChannel[ackMsg.Echo]
 		if ok && msgState.Success == false {
 			msgState.AckChannel <- nil
 			close(msgState.AckChannel)
 			msgState.Success = true
-			//delete(this.SentHashesToChannel, ackMsg.Echo)
+			//delete(p.SentHashesToChannel, ackMsg.Echo)
 		} else {
 			log.Debug(fmt.Sprintf("receive duplicate ack  from %s:%d ", host, port))
 		}
-		this.mapLock.Unlock()
+		p.mapLock.Unlock()
 	} else {
 		signedMessager, ok := messager.(encoding.SignedMessager)
 		log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack=%s", encoding.MessageType(messager.Cmd()), utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
 		if !ok {
 			log.Warn("message should be signed except for ack")
 		}
-		err := signedMessager.VerifySignature(data)
-		if err != nil {
-			log.Warn(fmt.Sprint("verify message  signature error,length:%d, from %s:%d ", len(data), host, port))
+		if signedMessager.GetSender() == utils.EmptyAddress {
+			log.Warn(fmt.Sprintf("verify message  signature error,length:%d, from %s:%d ", len(data), host, port))
 			return
 		}
-		this.updateNetworkStatus(signedMessager.GetSender(), NodeNetworkReachable)
-		if messager.Cmd() == encoding.PingCmdId { //send ack
-			this.sendAck(signedMessager.GetSender(), this.CreateAck(echohash))
+		p.updateNetworkStatus(signedMessager.GetSender(), NodeNetworkReachable)
+		if messager.Cmd() == encoding.PingCmdID { //send ack
+			p.sendAck(signedMessager.GetSender(), p.CreateAck(echohash))
 		} else {
 			//send message to raiden ,and wait result
 			log.Trace(fmt.Sprintf("protocol send message to raiden... %s", signedMessager))
-			this.ReceivedMessageChan <- &MessageToRaiden{signedMessager, echohash}
-			err, ok = <-this.ReceivedMessageResultChan
+			p.ReceivedMessageChan <- &MessageToRaiden{signedMessager, echohash}
+			err, ok = <-p.ReceivedMessageResultChan
 			log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%s", ok, err))
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
-				ack := this.CreateAck(echohash)
-				this.sendAck(signedMessager.GetSender(), ack)
-				if this.receivedMessageSaver != nil {
-					this.receivedMessageSaver.SaveAck(echohash, messager, ack.Pack())
+				ack := p.CreateAck(echohash)
+				p.sendAck(signedMessager.GetSender(), ack)
+				if p.receivedMessageSaver != nil {
+					p.receivedMessageSaver.SaveAck(echohash, messager, ack.Pack())
 				}
 			} else {
 				log.Info(fmt.Sprintf("and raiden report error %s, for Received Message %s", err, utils.StringInterface(signedMessager, 3)))
@@ -480,63 +532,67 @@ func (this *RaidenProtocol) Receive(data []byte, host string, port int) {
 
 }
 
-func (this *RaidenProtocol) StopAndWait() {
+//StopAndWait stop andf wait for clean.
+func (p *RaidenProtocol) StopAndWait() {
 	log.Info("RaidenProtocol stop...")
-	this.onStop = true
-	this.Transport.StopAccepting()
-	this.mapLock.Lock()
-	for k, c := range this.SentHashesToChannel {
-		delete(this.SentHashesToChannel, k)
+	p.onStop = true
+	p.Transport.StopAccepting()
+	p.mapLock.Lock()
+	for k, c := range p.SentHashesToChannel {
+		delete(p.SentHashesToChannel, k)
 		if !c.Success {
 			close(c.AckChannel)
 			//close(c.AsyncResult.Result) //caller waiting for result, it must be a successful result.
 		}
 	}
 	//stop sending..
-	for _, c := range this.sendingQueueMap {
+	for _, c := range p.sendingQueueMap {
 		close(c)
 	}
-	this.mapLock.Unlock()
+	p.mapLock.Unlock()
 	//what about the outgoing packets, maybe lost
-	this.Transport.Stop()
-	close(this.ReceivedMessageResultChan)
-	close(this.ReceivedMessageChan)
-	this.quitWaitGroup.Wait()
+	p.Transport.Stop()
+	close(p.ReceivedMessageResultChan)
+	close(p.ReceivedMessageChan)
+	p.quitWaitGroup.Wait()
 	log.Info("raiden protocol stop ok...")
 }
 
-func (this *RaidenProtocol) Start() {
-	this.Transport.Start()
+//Start raiden protocol
+func (p *RaidenProtocol) Start() {
+	p.Transport.Start()
 }
 
+//NodeInfo get from user
 type NodeInfo struct {
 	Address string `json:"address"`
-	IpPort  string `json:"ip_port"`
+	IPPort  string `json:"ip_port"`
 }
 
-func (this *RaidenProtocol) SwitchTransporterToMeshNetwork(nodes []*NodeInfo) error {
+//SwitchTransporterToMeshNetwork switch between mesh and common network
+func (p *RaidenProtocol) SwitchTransporterToMeshNetwork(nodes []*NodeInfo) error {
 	log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
-	m, ok := this.Transport.(*MixTransporter)
+	m, ok := p.Transport.(*MixTransporter)
 	if !ok {
 		return fmt.Errorf("raiden not start with mixTransporter")
 	}
 	if len(nodes) <= 0 {
 		log.Info(fmt.Sprintf("switch back to ice "))
 		m.switchToIce()
-		this.discovery.(*MixDiscovery).switchToIce()
+		p.discovery.(*MixDiscovery).switchToIce()
 		return nil
 	}
-	if m.switchToUdp() {
+	if m.switchToUDP() {
 
 	} else {
 		log.Error(fmt.Sprintf("cannot switch to mesh network,maybe it's already on mesh network"))
 	}
-	this.discovery.(*MixDiscovery).switchToUdp()
+	p.discovery.(*MixDiscovery).switchToUDP()
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)
-		host, port := SplitHostPort(n.IpPort)
-		this.discovery.Register(addr, host, port)
+		host, port := SplitHostPort(n.IPPort)
+		p.discovery.Register(addr, host, port)
 	}
-	this.discovery.(*MixDiscovery).printNodes()
+	p.discovery.(*MixDiscovery).printNodes()
 	return nil
 }

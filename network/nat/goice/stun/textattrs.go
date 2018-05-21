@@ -79,7 +79,7 @@ func (s *Software) GetFrom(m *Message) error {
 	return (*TextAttribute)(s).GetFromAs(m, AttrSoftware)
 }
 
-// Nonce represents NONCE attribute.
+// nonce represents NONCE attribute.
 //
 // https://tools.ietf.org/html/rfc5389#section-15.8
 type Nonce []byte

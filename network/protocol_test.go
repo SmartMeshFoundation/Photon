@@ -41,8 +41,8 @@ func TestDiscovery(t *testing.T) {
 	}
 	host = "0.0.0.0"
 	port = rand.New(utils.RandSrc).Intn(50000)
-	if err := discover.Register(bcs.NodeAddress, host, port); err != nil {
-		t.Error(err)
+	if err2 := discover.Register(bcs.NodeAddress, host, port); err2 != nil {
+		t.Error(err2)
 		return
 	}
 	newhost, newport, err := discover.Get(bcs.NodeAddress)
@@ -56,8 +56,7 @@ func TestDiscovery(t *testing.T) {
 	}
 }
 func TestNewHttpDiscovery(t *testing.T) {
-	return //http discovery has been obsolete
-	dis := NewHttpDiscovery()
+	dis := NewHTTPDiscovery()
 	host := "127.0.0.1"
 	port := rand.New(utils.RandSrc).Intn(50000)
 	addr := utils.NewRandomAddress()
@@ -69,7 +68,7 @@ func TestNewHttpDiscovery(t *testing.T) {
 	if err != nil || host2 != host || port2 != port {
 		t.Error(err)
 	}
-	address, err := dis.NodeIdByHostPort(host, port)
+	address, err := dis.NodeIDByHostPort(host, port)
 	if err != nil || address != addr {
 		t.Error(err)
 	}
@@ -165,7 +164,7 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	msger := encoding.MessageMap[encoding.SecretCmdId]
+	msger := encoding.MessageMap[encoding.SecretCmdID]
 	msg := New(msger)
 	spew.Dump(msg)
 	switch m2 := msg.(type) {

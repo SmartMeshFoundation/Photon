@@ -47,6 +47,6 @@ func TestSocketFactory(t *testing.T) {
 		return
 	}
 	t.Logf("pms=%#v", pms)
-	RelaseMappedSocket(pms)
+	releaseMappedSocket(pms)
 	time.Sleep(2 * time.Second)
 }
