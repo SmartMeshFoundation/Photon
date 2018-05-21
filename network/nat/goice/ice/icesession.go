@@ -114,6 +114,7 @@ type session struct {
 	msgChan        chan *stunMessageWrapper
 	dataChan       chan *stunDataWrapper
 	tryFailChan    chan *checkFailedWrapper
+	quitChan       chan struct{}         //close when stop
 	hasStopped     bool                  //停止销毁相关资源时,标记.
 	completeResult sessionCompleteResult //0,not complete ,1 complete success, 2 complete failure
 	log            log.Logger
@@ -214,6 +215,7 @@ func newIceSession(name string, role SessionRole, localCandidates []*Candidate, 
 		msg2Check:          make(map[stun.TransactionID]*sessionCheck),
 		msgChan:            make(chan *stunMessageWrapper, 10),
 		dataChan:           make(chan *stunDataWrapper, 10),
+		quitChan:           make(chan struct{}),
 		tryFailChan:        make(chan *checkFailedWrapper, 10),
 		log:                log.New("name", fmt.Sprintf("%s-icesession", name)),
 		controlledAgentWaitNomiatedTimeout: time.Second * 10,
@@ -249,9 +251,7 @@ func (s *session) Stop() {
 	for _, c := range s.checkMap {
 		close(c)
 	}
-	close(s.tryFailChan)
-	close(s.msgChan)
-	close(s.dataChan)
+	close(s.quitChan) //avoid send on close
 }
 func (s *session) createCheckList(sd *sessionDescription) error {
 	if len(sd.candidates) > maxCandidates {
@@ -1420,6 +1420,8 @@ func (s *session) loop() {
 			} else {
 				return
 			}
+		case <-s.quitChan:
+			return
 		}
 		s.log.Trace(fmt.Sprintf("loop %s end @%s", r, time.Now().Format("15:04:05.999")))
 	}
