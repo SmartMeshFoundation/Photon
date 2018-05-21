@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//StartTx start a new tx of db
 func (model *ModelDB) StartTx() (tx storm.Node) {
 	var err error
 	tx, err = model.db.Begin(true)
@@ -18,6 +19,8 @@ func (model *ModelDB) StartTx() (tx storm.Node) {
 	}
 	return
 }
+
+//AddStateManager add new StateManager
 func (model *ModelDB) AddStateManager(mgr *transfer.StateManager) error {
 	err := model.db.Save(mgr)
 	if err != nil {
@@ -25,6 +28,8 @@ func (model *ModelDB) AddStateManager(mgr *transfer.StateManager) error {
 	}
 	return err
 }
+
+//UpdateStateManaer update all fileds of StateManager
 func (model *ModelDB) UpdateStateManaer(mgr *transfer.StateManager, tx storm.Node) error {
 	//log.Trace(fmt.Sprintf("UpdateStateManaer %s\n", utils.StringInterface(mgr, 7)))
 	err := tx.Save(mgr)
@@ -33,6 +38,8 @@ func (model *ModelDB) UpdateStateManaer(mgr *transfer.StateManager, tx storm.Nod
 	}
 	return err
 }
+
+//GetAllStateManager return all StateManager in db
 func (model *ModelDB) GetAllStateManager() []*transfer.StateManager {
 	var mgrs []*transfer.StateManager
 	//err := model.db.Find("IsFinished", false, &mgrs)
@@ -42,6 +49,8 @@ func (model *ModelDB) GetAllStateManager() []*transfer.StateManager {
 	}
 	return mgrs
 }
+
+//GetAck get message related ack message
 func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 	var data []byte
 	log.Trace(fmt.Sprintf("quer ack %s from db", utils.HPex(echohash)))
@@ -52,6 +61,7 @@ func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 	return data
 }
 
+//SaveAck save a new ack to db
 func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echohash)))
 	tx.Set("ack", echohash.String(), ack)

@@ -13,7 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (model *ModelDB) NewChannel(c *channel.ChannelSerialization) error {
+// NewChannel save a just created channel to db
+func (model *ModelDB) NewChannel(c *channel.Serialization) error {
 	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddress.String()))
 	err := model.db.Save(c)
 	//notify new channel added
@@ -23,7 +24,9 @@ func (model *ModelDB) NewChannel(c *channel.ChannelSerialization) error {
 	}
 	return err
 }
-func (model *ModelDB) UpdateChannelNoTx(c *channel.ChannelSerialization) error {
+
+//UpdateChannelNoTx update channel status without a Tx
+func (model *ModelDB) UpdateChannelNoTx(c *channel.Serialization) error {
 	log.Trace(fmt.Sprintf("save channel %s", c.ChannelAddress.String()))
 	err := model.db.Save(c)
 	if err != nil {
@@ -31,10 +34,10 @@ func (model *ModelDB) UpdateChannelNoTx(c *channel.ChannelSerialization) error {
 	}
 	return err
 }
-func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.ChannelSerialization) {
+func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.Serialization) {
 	var cbs []*ChannelCb
 	model.mlock.Lock()
-	for f, _ := range m {
+	for f := range m {
 		remove := (*f)(c)
 		if remove {
 			cbs = append(cbs, f)
@@ -46,8 +49,8 @@ func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.Ch
 	model.mlock.Unlock()
 }
 
-//update channel balance
-func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerialization) error {
+//UpdateChannelContractBalance update channel balance
+func (model *ModelDB) UpdateChannelContractBalance(c *channel.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -57,8 +60,8 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channel.ChannelSerializati
 	return nil
 }
 
-//update channel balance? transfer complete?
-func (model *ModelDB) UpdateChannel(c *channel.ChannelSerialization, tx storm.Node) error {
+//UpdateChannel update channel status in a Tx
+func (model *ModelDB) UpdateChannel(c *channel.Serialization, tx storm.Node) error {
 	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
 	err := tx.Save(c)
 	if err != nil {
@@ -67,8 +70,8 @@ func (model *ModelDB) UpdateChannel(c *channel.ChannelSerialization, tx storm.No
 	return err
 }
 
-//update channel state ,close settle
-func (model *ModelDB) UpdateChannelState(c *channel.ChannelSerialization) error {
+//UpdateChannelState update channel state ,close settle
+func (model *ModelDB) UpdateChannelState(c *channel.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -78,9 +81,9 @@ func (model *ModelDB) UpdateChannelState(c *channel.ChannelSerialization) error 
 	return nil
 }
 
-//channel (token,partner)
-func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.ChannelSerialization, err error) {
-	var cs []*channel.ChannelSerialization
+//GetChannel return a channel queried by (token,partner)
+func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Serialization, err error) {
+	var cs []*channel.Serialization
 	if token == utils.EmptyAddress {
 		panic("token is empty")
 	}
@@ -100,9 +103,9 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Chan
 	return nil, storm.ErrNotFound
 }
 
-//channel (token,partner)
-func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channel.ChannelSerialization, err error) {
-	var c2 channel.ChannelSerialization
+//GetChannelByAddress return a channel queried by channel address
+func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channel.Serialization, err error) {
+	var c2 channel.Serialization
 	err = model.db.One("ChannelAddressString", channelAddress.String(), &c2)
 	if err == nil {
 		c = &c2
@@ -110,8 +113,9 @@ func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *cha
 	return
 }
 
+//GetChannelList returns all related channels
 //one of token and partner must be empty
-func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channel.ChannelSerialization, err error) {
+func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channel.Serialization, err error) {
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
 	} else if token == utils.EmptyAddress {
@@ -130,7 +134,7 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 const bucketWithDraw = "bucketWithdraw"
 
 /*
-	is secret has withdrawed on channel?
+IsThisLockHasWithdraw return ture when  secret has withdrawed on channel?
 */
 func (model *ModelDB) IsThisLockHasWithdraw(channel common.Address, secret common.Hash) bool {
 	var result bool
@@ -148,7 +152,7 @@ func (model *ModelDB) IsThisLockHasWithdraw(channel common.Address, secret commo
 }
 
 /*
- I have withdrawed this secret on channel.
+WithdrawThisLock marks that I have withdrawed this secret on channel.
 */
 func (model *ModelDB) WithdrawThisLock(channel common.Address, secret common.Hash) {
 	key := new(bytes.Buffer)
@@ -163,7 +167,7 @@ func (model *ModelDB) WithdrawThisLock(channel common.Address, secret common.Has
 const bucketExpiredHashlock = "expiredHashlock"
 
 /*
-	is a expired hashlock has been removed from channel status.
+IsThisLockRemoved return true when  a expired hashlock has been removed from channel status.
 */
 func (model *ModelDB) IsThisLockRemoved(channel common.Address, sender common.Address, secret common.Hash) bool {
 	var result bool
@@ -182,7 +186,7 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Address, sender common.Ad
 }
 
 /*
-	remember this lock has been removed from channel status.
+RemoveLock remember this lock has been removed from channel status.
 */
 func (model *ModelDB) RemoveLock(channel common.Address, sender common.Address, secret common.Hash) {
 	key := new(bytes.Buffer)

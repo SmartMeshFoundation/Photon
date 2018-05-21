@@ -44,7 +44,7 @@ func TestNewStateChangeLog(t *testing.T) {
 	defer func() {
 		model.CloseDB()
 	}()
-	st := &transfer.BlockStateChange{3}
+	st := &transfer.BlockStateChange{BlockNumber: 3}
 	id, err := model.LogStateChange(st)
 	if err != nil {
 		t.Error(err)
@@ -52,7 +52,7 @@ func TestNewStateChangeLog(t *testing.T) {
 	//if id != 1 {
 	//	t.Error("id not equal 1, ", id)
 	//}
-	st2, err := model.GetStateChangeById(id)
+	st2, err := model.GetStateChangeByID(id)
 	if err != nil {
 		t.Error(err)
 	}
@@ -60,10 +60,10 @@ func TestNewStateChangeLog(t *testing.T) {
 		t.Error("data not equal")
 	}
 	s := &snapshotToWrite{
-		StateChangeId: 1,
+		StateChangeID: 1,
 		State:         st,
 	}
-	_, err = model.Snapshot(s.StateChangeId, s)
+	_, err = model.Snapshot(s.StateChangeID, s)
 	if err != nil {
 		t.Error(err)
 	}
@@ -86,7 +86,7 @@ func TestNewStateChangeLog(t *testing.T) {
 	if len(events2) != 1 {
 		t.Error("events length error")
 	}
-	t.Log("events2=%#v", events2[0])
+	t.Logf("events2=%#v", events2[0])
 }
 
 func TestToken(t *testing.T) {
@@ -130,15 +130,15 @@ func TestChannel(t *testing.T) {
 	var newaddrs []common.Address
 	var updateContractBalanceAddrs []common.Address
 	var UpdateChannelStateAddrs []common.Address
-	newchannelcb := func(c *channel.ChannelSerialization) bool {
+	newchannelcb := func(c *channel.Serialization) bool {
 		newaddrs = append(newaddrs, c.ChannelAddress)
 		return true
 	}
-	updateContractBalancechannelcb := func(c *channel.ChannelSerialization) bool {
+	updateContractBalancechannelcb := func(c *channel.Serialization) bool {
 		updateContractBalanceAddrs = append(updateContractBalanceAddrs, c.ChannelAddress)
 		return true
 	}
-	UpdateChannelStatecb := func(c *channel.ChannelSerialization) bool {
+	UpdateChannelStatecb := func(c *channel.Serialization) bool {
 		UpdateChannelStateAddrs = append(UpdateChannelStateAddrs, c.ChannelAddress)
 		return true
 	}

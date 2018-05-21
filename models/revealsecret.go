@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//ReceivedRevealSecret represents a receiving reveal secret message.
 type ReceivedRevealSecret struct {
 	EchoHashString string `storm:"id"`
 	EchoHash       common.Hash
@@ -17,6 +18,7 @@ type ReceivedRevealSecret struct {
 	IsComplete     string `storm:"index"`
 }
 
+//SentRevealSecret represents a sending reveal secret message
 type SentRevealSecret struct {
 	EchoHash       common.Hash
 	EchoHashString string `storm:"id"`
@@ -25,6 +27,7 @@ type SentRevealSecret struct {
 	IsComplete     string `storm:"index"`
 }
 
+//NewReceivedRevealSecret create a ReceivedRevealSecret
 func NewReceivedRevealSecret(msg *encoding.RevealSecret, echohash common.Hash) *ReceivedRevealSecret {
 	return &ReceivedRevealSecret{
 		EchoHashString: echohash.String(),
@@ -33,6 +36,8 @@ func NewReceivedRevealSecret(msg *encoding.RevealSecret, echohash common.Hash) *
 		IsComplete:     "false",
 	}
 }
+
+//NewSentRevealSecret create a SentRevealSecret
 func NewSentRevealSecret(msg *encoding.RevealSecret, receiver common.Address) *SentRevealSecret {
 	echohash := utils.Sha3(msg.Pack(), receiver[:])
 	return &SentRevealSecret{
@@ -43,17 +48,23 @@ func NewSentRevealSecret(msg *encoding.RevealSecret, receiver common.Address) *S
 		IsComplete:     "false",
 	}
 }
+
+//IsReceivedRevealSecretExist return true when this message has received before.
 func (model *ModelDB) IsReceivedRevealSecretExist(echohash common.Hash) bool {
 	var rss ReceivedRevealSecret
 	err := model.db.One("EchoHashString", echohash.String(), &rss)
 	return err == nil
 }
+
+//NewReceivedRevealSecret marks receive a reveal secret message
 func (model *ModelDB) NewReceivedRevealSecret(secret *ReceivedRevealSecret) {
 	err := model.db.Save(secret)
 	if err != nil {
 		panic("ReceivedRevealSecret should not exist ")
 	}
 }
+
+//UpdateReceivedRevealSecretComplete marks a revealsecret message has been processed.
 func (model *ModelDB) UpdateReceivedRevealSecretComplete(echohash common.Hash) {
 	var rss ReceivedRevealSecret
 	err := model.db.One("EchoHashString", echohash.String(), &rss)
@@ -66,6 +77,7 @@ func (model *ModelDB) UpdateReceivedRevealSecretComplete(echohash common.Hash) {
 	}
 }
 
+//GetAllUncompleteReceivedRevealSecret return all reveal secret messages that have not been processed before quit.
 func (model *ModelDB) GetAllUncompleteReceivedRevealSecret() []*ReceivedRevealSecret {
 	var msgs []*ReceivedRevealSecret
 	err := model.db.Find("IsComplete", "false", &msgs)
@@ -75,6 +87,7 @@ func (model *ModelDB) GetAllUncompleteReceivedRevealSecret() []*ReceivedRevealSe
 	return msgs
 }
 
+//IsSentRevealSecretExist return true when this message can be found in db
 func (model *ModelDB) IsSentRevealSecretExist(echohash common.Hash) bool {
 	var rss SentRevealSecret
 	err := model.db.One("EchoHashString", echohash.String(), &rss)
@@ -82,7 +95,7 @@ func (model *ModelDB) IsSentRevealSecretExist(echohash common.Hash) bool {
 }
 
 /*
-It is very likely to send reveal secret repeatedly, which can be ignored directly.
+NewSentRevealSecret It is very likely to send reveal secret repeatedly, which can be ignored directly.
 */
 func (model *ModelDB) NewSentRevealSecret(secret *SentRevealSecret) {
 	log.Trace(fmt.Sprintf("NewSentRevealSecret %s", utils.HPex(secret.EchoHash)))
@@ -91,6 +104,8 @@ func (model *ModelDB) NewSentRevealSecret(secret *SentRevealSecret) {
 		log.Error(fmt.Sprintf("NewSentRevealSecret err=%s", err))
 	}
 }
+
+//UpdateSentRevealSecretComplete marks message has been sent complete
 func (model *ModelDB) UpdateSentRevealSecretComplete(echohash common.Hash) {
 	var sss SentRevealSecret
 	log.Trace(fmt.Sprintf("UpdateSentRevealSecretComplete %s", utils.HPex(echohash)))
@@ -104,6 +119,7 @@ func (model *ModelDB) UpdateSentRevealSecretComplete(echohash common.Hash) {
 	}
 }
 
+//GetAllUncompleteSentRevealSecret get all sending reveal secret messages that have not recevied ack
 func (model *ModelDB) GetAllUncompleteSentRevealSecret() []*SentRevealSecret {
 	var msgs []*SentRevealSecret
 	err := model.db.Find("IsComplete", "false", &msgs)

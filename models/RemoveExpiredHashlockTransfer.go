@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/nkbai/log"
 )
 
+/*
+SentRemoveExpiredHashlockTransfer is record of sending a  RemoveExpiredHashlockTransfer
+*/
 type SentRemoveExpiredHashlockTransfer struct {
 	EchoHash       common.Hash
 	EchoHashString string `storm:"id"`
@@ -18,11 +21,14 @@ type SentRemoveExpiredHashlockTransfer struct {
 	IsComplete     string `storm:"index"`
 }
 
+//IsSentRemoveExpiredHashlockTransferExist returns true when this message has been sent
 func (model *ModelDB) IsSentRemoveExpiredHashlockTransferExist(echohash common.Hash) bool {
 	var rss SentRemoveExpiredHashlockTransfer
 	err := model.db.One("EchoHashString", echohash.String(), &rss)
 	return err == nil
 }
+
+//NewSentRemoveExpiredHashlockTransfer create a sending RemoveExpiredHashlockTransfer in db
 func (model *ModelDB) NewSentRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer, receiver common.Address, tx storm.Node) {
 	echohash := utils.Sha3(msg.Pack(), receiver[:])
 	tr := &SentRemoveExpiredHashlockTransfer{
@@ -38,6 +44,8 @@ func (model *ModelDB) NewSentRemoveExpiredHashlockTransfer(msg *encoding.RemoveE
 		log.Error(fmt.Sprintf("NewSentRemoveExpiredHashlockTransfer err=%s", err))
 	}
 }
+
+//UpdateSentRemoveExpiredHashlockTransfer mark message sent complete
 func (model *ModelDB) UpdateSentRemoveExpiredHashlockTransfer(echohash common.Hash) {
 	var sss SentRemoveExpiredHashlockTransfer
 	log.Trace(fmt.Sprintf("UpdateSentRemoveExpiredHashlockTransfer %s", utils.HPex(echohash)))
@@ -51,6 +59,7 @@ func (model *ModelDB) UpdateSentRemoveExpiredHashlockTransfer(echohash common.Ha
 	}
 }
 
+//GetAllUncompleteSentRemoveExpiredHashlockTransfer returns all RemoveExpiredHashlockTransfer message that have not receive ack
 func (model *ModelDB) GetAllUncompleteSentRemoveExpiredHashlockTransfer() []*SentRemoveExpiredHashlockTransfer {
 	var msgs []*SentRemoveExpiredHashlockTransfer
 	err := model.db.Find("IsComplete", "false", &msgs)
