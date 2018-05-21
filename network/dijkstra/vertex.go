@@ -40,15 +40,17 @@ func (v *Vertex) AddArc(Destination int, Distance int64) {
 	}
 	v.arcs[Destination] = Distance
 }
+
+//DeleteArc removes an arc
 func (v *Vertex) DeleteArc(Destination int) {
 	delete(v.arcs, Destination)
 }
 
 /*
-set vertex's weight to the same weight.
+SetWeight set vertex's weight to the same weight.
 */
 func (v *Vertex) SetWeight(Distance int64) {
-	for d, _ := range v.arcs {
+	for d := range v.arcs {
 		v.arcs[d] = Distance
 	}
 }

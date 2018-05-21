@@ -24,7 +24,7 @@ func NewGraph() *Graph {
 	return new
 }
 
-//clone this graph
+//CloneGraph clone this graph
 func (g *Graph) CloneGraph() *Graph {
 	new := &Graph{}
 	new.mapping = map[string]int{}

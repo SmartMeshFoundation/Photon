@@ -62,7 +62,7 @@ func (g *Graph) AddArc(Source, Destination int, Distance int64) error {
 	return nil
 }
 
-//delete one arc from graph
+//DeleteArc delete one arc from graph
 func (g *Graph) DeleteArc(Source, Destination int) error {
 	if len(g.Verticies) <= Source || len(g.Verticies) <= Destination {
 		return errors.New("Source/Destination not found")
@@ -71,12 +71,13 @@ func (g *Graph) DeleteArc(Source, Destination int) error {
 	return nil
 }
 
+//GetAllNeighbors returns all neighbors
 func (g *Graph) GetAllNeighbors(Source int) (neighbors []int, err error) {
 	if len(g.Verticies) <= Source {
 		err = errors.New("Source/Destination not found")
 		return
 	}
-	for k, _ := range g.Verticies[Source].arcs {
+	for k := range g.Verticies[Source].arcs {
 		neighbors = append(neighbors, k)
 	}
 	return neighbors, nil
