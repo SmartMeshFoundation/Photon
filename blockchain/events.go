@@ -7,6 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
@@ -18,8 +19,8 @@ import (
 )
 
 /*
-
- */
+Events handles all contract events from blockchain
+*/
 type Events struct {
 	client             *helper.SafeEthClient
 	lock               sync.RWMutex
@@ -29,6 +30,7 @@ type Events struct {
 	StateChangeChannel chan transfer.StateChange
 }
 
+//NewBlockChainEvents create BlockChainEvents
 func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *Events {
 	be := &Events{client: client,
 		LogChannelMap:   make(map[string]chan types.Log),
@@ -49,28 +51,28 @@ var eventNames = []string{params.NameTokenAdded,
 	params.NameChannelSecretRevealed,
 }
 var eventAbiMap = map[string]string{
-	params.NameChannelNew:            rpc.ChannelManagerContractABI,
-	params.NameTokenAdded:            rpc.RegistryABI,
-	params.NameChannelNewBalance:     rpc.NettingChannelContractABI,
-	params.NameChannelClosed:         rpc.NettingChannelContractABI,
-	params.NameChannelSettled:        rpc.NettingChannelContractABI,
-	params.NameChannelSecretRevealed: rpc.NettingChannelContractABI,
+	params.NameChannelNew:            contracts.ChannelManagerContractABI,
+	params.NameTokenAdded:            contracts.RegistryABI,
+	params.NameChannelNewBalance:     contracts.NettingChannelContractABI,
+	params.NameChannelClosed:         contracts.NettingChannelContractABI,
+	params.NameChannelSettled:        contracts.NettingChannelContractABI,
+	params.NameChannelSecretRevealed: contracts.NettingChannelContractABI,
 }
 
-func (this *Events) InstallEventListener() (err error) {
+func (be *Events) installEventListener() (err error) {
 	var sub ethereum.Subscription
 	defer func() {
 		//event listener create error,must exit
 		if err != nil {
-			this.UninstallEventListener()
+			be.uninstallEventListener()
 		} else {
 			//if ethclient reconnect
-			c := this.client.RegisterReConnectNotify("Events")
+			c := be.client.RegisterReConnectNotify("Events")
 			go func() {
 				_, ok := <-c
 				if ok {
 					//eventlistener need reinstall
-					this.InstallEventListener()
+					be.installEventListener()
 				}
 			}()
 		}
@@ -78,30 +80,30 @@ func (this *Events) InstallEventListener() (err error) {
 	for _, name := range eventNames {
 		contractAddr := utils.EmptyAddress
 		if name == params.NameTokenAdded { //only registry's contract address is only one
-			contractAddr = this.RegistryAddress
+			contractAddr = be.RegistryAddress
 		}
-		sub, err = rpc.EventSubscribe(contractAddr, name, eventAbiMap[name], this.client, this.LogChannelMap[name])
+		sub, err = rpc.EventSubscribe(contractAddr, name, eventAbiMap[name], be.client, be.LogChannelMap[name])
 		if err != nil {
 			return
 		}
 		//ChannelNew
-		this.Subscribes[name] = sub
+		be.Subscribes[name] = sub
 	}
 	//try to listen event rightnow
-	this.startListenEvent()
+	be.startListenEvent()
 	return err
 }
-func (this *Events) UninstallEventListener() (err error) {
-	for _, sub := range this.Subscribes {
+func (be *Events) uninstallEventListener() (err error) {
+	for _, sub := range be.Subscribes {
 		sub.Unsubscribe()
 	}
 	return nil
 }
-func (this *Events) startListenEvent() {
+func (be *Events) startListenEvent() {
 	for _, name := range eventNames {
 		go func(name string) {
-			ch := this.LogChannelMap[name]
-			sub := this.Subscribes[name]
+			ch := be.LogChannelMap[name]
+			sub := be.Subscribes[name]
 			for {
 				select {
 				case l, ok := <-ch:
@@ -112,21 +114,21 @@ func (this *Events) startListenEvent() {
 					debugPrintLog(&l)
 					switch name {
 					case params.NameTokenAdded:
-						ev, err := NewEventTokenAdded(&l)
+						ev, err := newEventTokenAdded(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveTokenAddedStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveTokenAddedStateChange{
 							RegistryAddress: ev.ContractAddress,
 							TokenAddress:    ev.TokenAddress,
 							ManagerAddress:  ev.ChannelManagerAddress,
 						})
 					case params.NameChannelNew:
-						ev, err := NewEventEventChannelNew(&l)
+						ev, err := newEventEventChannelNew(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveNewChannelStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveNewChannelStateChange{
 							ManagerAddress: ev.ContractAddress,
 							ChannelAddress: ev.NettingChannelAddress,
 							Participant1:   ev.Participant1,
@@ -134,11 +136,11 @@ func (this *Events) startListenEvent() {
 							SettleTimeout:  ev.SettleTimeout,
 						})
 					case params.NameChannelNewBalance:
-						ev, err := NewEventChannelNewBalance(&l)
+						ev, err := newEventChannelNewBalance(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveBalanceStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveBalanceStateChange{
 							ChannelAddress:     ev.ContractAddress,
 							TokenAddress:       ev.TokenAddress,
 							ParticipantAddress: ev.ParticipantAddress,
@@ -146,30 +148,30 @@ func (this *Events) startListenEvent() {
 							BlockNumber:        ev.BlockNumber,
 						})
 					case params.NameChannelClosed:
-						ev, err := NewEventChannelClosed(&l)
+						ev, err := newEventChannelClosed(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveClosedStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveClosedStateChange{
 							ChannelAddress: ev.ContractAddress,
 							ClosingAddress: ev.ClosingAddress,
 							ClosedBlock:    ev.BlockNumber,
 						})
 					case params.NameChannelSettled:
-						ev, err := NewEventChannelSettled(&l)
+						ev, err := newEventChannelSettled(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveSettledStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveSettledStateChange{
 							ChannelAddress: ev.ContractAddress,
 							SettledBlock:   ev.BlockNumber,
 						})
 					case params.NameChannelSecretRevealed:
-						ev, err := NewEventChannelSecretRevealed(&l)
+						ev, err := newEventChannelSecretRevealed(&l)
 						if err != nil {
 							continue
 						}
-						this.sendStateChange(&mediated_transfer.ContractReceiveWithdrawStateChange{
+						be.sendStateChange(&mediated_transfer.ContractReceiveWithdrawStateChange{
 							ChannelAddress: ev.ContractAddress,
 							Secret:         ev.Secret,
 							Receiver:       ev.ReceiverAddress,
@@ -187,22 +189,26 @@ func (this *Events) startListenEvent() {
 		}(name)
 	}
 }
-func (this *Events) Stop() {
+
+//Stop event listenging
+func (be *Events) Stop() {
 	log.Info("Events stop...")
-	close(this.StateChangeChannel)
+	close(be.StateChangeChannel)
 	//channel close by ethclient
-	//for _, ch := range this.LogChannelMap {
+	//for _, ch := range be.LogChannelMap {
 	//	close(ch)
 	//}
-	for _, sub := range this.Subscribes {
+	for _, sub := range be.Subscribes {
 		sub.Unsubscribe()
 	}
 	log.Info("Events stop ok...")
 }
-func (this *Events) sendStateChange(st transfer.StateChange) {
-	this.StateChangeChannel <- st
+func (be *Events) sendStateChange(st transfer.StateChange) {
+	be.StateChangeChannel <- st
 }
-func (this *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+
+//GetAllRegistryEvents query all new token events
+func (be *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -212,12 +218,12 @@ func (this *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlo
 		ToBlockNumber = ethrpc.LatestBlockNumber
 	}
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), registryAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameTokenAdded, eventAbiMap[params.NameTokenAdded], this.client)
+		params.NameTokenAdded, eventAbiMap[params.NameTokenAdded], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventTokenAdded(&l)
+		e, err := newEventTokenAdded(&l)
 		if err != nil {
 			continue
 		}
@@ -227,10 +233,9 @@ func (this *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlo
 }
 
 /*
- These helpers have a better descriptive name and provide the translator for
- the caller.
+GetAllChannelManagerEvents get all new channel events
 */
-func (this *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+func (be *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -240,12 +245,12 @@ func (this *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBl
 		ToBlockNumber = ethrpc.LatestBlockNumber
 	}
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), mgrAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelNew, eventAbiMap[params.NameChannelNew], this.client)
+		params.NameChannelNew, eventAbiMap[params.NameChannelNew], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventEventChannelNew(&l)
+		e, err := newEventEventChannelNew(&l)
 		if err != nil {
 			continue
 		}
@@ -254,7 +259,9 @@ func (this *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBl
 	return
 
 }
-func (this *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
+
+//GetAllNettingChannelEvents get channel deposit,close,settle,withdraw,transferupdate events
+func (be *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -271,60 +278,60 @@ func (this *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock,
 		Use the font to determine the event name and combine the four queries into one, which is to get the Event Signature
 	*/
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelNewBalance, eventAbiMap[params.NameChannelNewBalance], this.client)
+		params.NameChannelNewBalance, eventAbiMap[params.NameChannelNewBalance], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelNewBalance(&l)
-		if err != nil {
+		e, err2 := newEventChannelNewBalance(&l)
+		if err2 != nil {
 			continue
 		}
 		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], this.client)
+		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelClosed(&l)
-		if err != nil {
+		e, err2 := newEventChannelClosed(&l)
+		if err2 != nil {
 			continue
 		}
 		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelSettled, eventAbiMap[params.NameChannelSettled], this.client)
+		params.NameChannelSettled, eventAbiMap[params.NameChannelSettled], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelSettled(&l)
-		if err != nil {
+		e, err2 := newEventChannelSettled(&l)
+		if err2 != nil {
 			continue
 		}
 		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], this.client)
+		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelSecretRevealed(&l)
-		if err != nil {
+		e, err2 := newEventChannelSecretRevealed(&l)
+		if err2 != nil {
 			continue
 		}
 		events = append(events, e)
 	}
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameTransferUpdated, eventAbiMap[params.NameChannelSecretRevealed], this.client)
+		params.NameTransferUpdated, eventAbiMap[params.NameChannelSecretRevealed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventTransferUpdated(&l)
+		e, err := newEventTransferUpdated(&l)
 		if err != nil {
 			continue
 		}
@@ -336,7 +343,7 @@ func (this *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock,
 /*
 events ChannelClosed and ChannelSecretRevealed must be sent to channels's Channel
 */
-func (this *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
+func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
 	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
 	if FromBlockNUmber < 0 {
 		FromBlockNUmber = 0
@@ -345,13 +352,13 @@ func (this *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (
 	ToBlockNumber := ethrpc.LatestBlockNumber
 
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], this.client)
+		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelClosed(&l)
-		if err != nil {
+		e, err2 := newEventChannelClosed(&l)
+		if err2 != nil {
 			continue
 		}
 		stateChanges = append(stateChanges, &mediated_transfer.ContractReceiveClosedStateChange{
@@ -362,12 +369,12 @@ func (this *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (
 	}
 
 	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], this.client)
+		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := NewEventChannelSecretRevealed(&l)
+		e, err := newEventChannelSecretRevealed(&l)
 		if err != nil {
 			continue
 		}
@@ -385,11 +392,11 @@ events send to  channel can duplicate but cannot lose.
 1. first resend events may lost (duplicat is ok)
 2. listen new events on blockchain
 */
-func (this *Events) Start(LastBlockNumber int64) error {
-	stateChanges := this.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
-	this.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
+func (be *Events) start(LastBlockNumber int64) error {
+	stateChanges := be.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
+	be.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
 	for _, st := range stateChanges {
-		this.sendStateChange(st)
+		be.sendStateChange(st)
 	}
-	return this.InstallEventListener()
+	return be.installEventListener()
 }

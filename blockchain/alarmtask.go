@@ -16,10 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-//stop this call back when return non nil error
+//AlarmCallback stop this call back when return non nil error
 type AlarmCallback func(blockNumber int64) error
 
-//Task to notify when a block is mined.
+//AlarmTask notify when a block is mined.
 type AlarmTask struct {
 	client          *helper.SafeEthClient
 	LastBlockNumber int64
@@ -29,6 +29,7 @@ type AlarmTask struct {
 	lock            sync.Mutex
 }
 
+//NewAlarmTask create a alarm task
 func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 	t := &AlarmTask{
 		client:          client,
@@ -40,53 +41,53 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 }
 
 /*
-Register a new callback.
+RegisterCallback register a new callback.
 
         Note:
             The callback will be executed in the AlarmTask context and for
             this reason it should not block, otherwise we can miss block
             changes.
 */
-func (this *AlarmTask) RegisterCallback(callback AlarmCallback) {
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	this.callback = append(this.callback, callback)
+func (at *AlarmTask) RegisterCallback(callback AlarmCallback) {
+	at.lock.Lock()
+	defer at.lock.Unlock()
+	at.callback = append(at.callback, callback)
 }
 
-//Remove callback from the list of callbacks if it exists
-func (this *AlarmTask) RemoveCallback(cb AlarmCallback) {
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	for k, c := range this.callback {
+//RemoveCallback remove callback from the list of callbacks if it exists
+func (at *AlarmTask) RemoveCallback(cb AlarmCallback) {
+	at.lock.Lock()
+	defer at.lock.Unlock()
+	for k, c := range at.callback {
 		addr1 := &c
 		addr2 := &cb
 		if addr1 == addr2 {
-			this.callback = append(this.callback[:k], this.callback[k+1:]...)
+			at.callback = append(at.callback[:k], at.callback[k+1:]...)
 		}
 	}
 
 }
 
-func (this *AlarmTask) run() {
-	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", this.LastBlockNumber))
+func (at *AlarmTask) run() {
+	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", at.LastBlockNumber))
 	for {
-		err := this.waitNewBlock()
+		err := at.waitNewBlock()
 		if err != nil {
-			time.Sleep(this.waitTime)
+			time.Sleep(at.waitTime)
 		}
 	}
 }
 
-func (this *AlarmTask) waitNewBlock() error {
-	currentBlock := this.LastBlockNumber
+func (at *AlarmTask) waitNewBlock() error {
+	currentBlock := at.LastBlockNumber
 	headerCh := make(chan *types.Header, 1)
 	//get the lastest number imediatelly
-	h, err := this.client.HeaderByNumber(context.Background(), nil)
+	h, err := at.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		return err
 	}
 	headerCh <- h
-	sub, err := this.client.SubscribeNewHead(context.Background(), headerCh)
+	sub, err := at.client.SubscribeNewHead(context.Background(), headerCh)
 	if err != nil {
 		//reconnect?
 		log.Warn("SubscribeNewHead block number err:", err)
@@ -107,16 +108,16 @@ func (this *AlarmTask) waitNewBlock() error {
 				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
 			}
 			var removes []AlarmCallback
-			for _, cb := range this.callback {
-				err := cb(currentBlock)
-				if err != nil {
+			for _, cb := range at.callback {
+				err2 := cb(currentBlock)
+				if err2 != nil {
 					removes = append(removes, cb)
 				}
 			}
 			for _, cb := range removes {
-				this.RemoveCallback(cb)
+				at.RemoveCallback(cb)
 			}
-		case <-this.shouldStop:
+		case <-at.shouldStop:
 			sub.Unsubscribe()
 			//close(headerCh) //should close by ethclient
 			return nil
@@ -126,26 +127,28 @@ func (this *AlarmTask) waitNewBlock() error {
 			//spew.Dump(err)
 			//if eof try to reconnect
 			if err != nil {
-				this.client.RecoverDisconnect()
+				at.client.RecoverDisconnect()
 				return errors.New("broken connection")
 			}
 		}
 
 	}
-	return nil
 }
 
-func (this *AlarmTask) Start() {
-	h, err := this.client.HeaderByNumber(context.Background(), nil)
+//Start this task
+func (at *AlarmTask) Start() {
+	h, err := at.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		panic(fmt.Sprintf("HeaderByNumber error %s", err))
 	}
-	this.LastBlockNumber = h.Number.Int64()
-	go this.run()
+	at.LastBlockNumber = h.Number.Int64()
+	go at.run()
 }
-func (this *AlarmTask) Stop() {
+
+//Stop this task
+func (at *AlarmTask) Stop() {
 	log.Info("alarm task stop...")
-	this.shouldStop <- struct{}{}
-	close(this.shouldStop)
+	at.shouldStop <- struct{}{}
+	close(at.shouldStop)
 	log.Info("alarm task stop ok...")
 }
