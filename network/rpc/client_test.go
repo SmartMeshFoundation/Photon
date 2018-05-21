@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -53,7 +54,7 @@ func TestAddToken(t *testing.T) {
 func TestGetAddTokenLog(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	logs, err := EventGetInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenAdded", RegistryABI, bcs.Client)
+		rpc.LatestBlockNumber, "TokenAdded", contracts.RegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -65,7 +66,7 @@ func TestEventSubscribe(t *testing.T) {
 	ch := make(chan types.Log, 1)
 	t.Log("wait for tokenadded event")
 	sub, err := EventSubscribeInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenAdded", RegistryABI, bcs.Client.Client, ch)
+		rpc.LatestBlockNumber, "TokenAdded", contracts.RegistryABI, bcs.Client.Client, ch)
 	if err != nil {
 		t.Error(err)
 		return
@@ -85,7 +86,7 @@ func TestEventGetChannelNew(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	oneChannelManagerAddress := common.HexToAddress("0x2a00314c128855512ce77c16c839c7f263bbe99")
 	logs, err := EventGetInternal(context.Background(), oneChannelManagerAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameChannelNew, ChannelManagerContractABI, bcs.Client)
+		rpc.LatestBlockNumber, params.NameChannelNew, contracts.ChannelManagerContractABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -96,7 +97,7 @@ func TestEventGetChannelNew(t *testing.T) {
 func TestEventAddressRegistered(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	logs, err := EventGetInternal(context.Background(), params.RopstenDiscoveryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameAddressRegistered, EndpointRegistryABI, bcs.Client)
+		rpc.LatestBlockNumber, params.NameAddressRegistered, contracts.EndpointRegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return

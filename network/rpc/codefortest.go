@@ -34,12 +34,14 @@ const key = `
 }
 `
 
-var PrivateRopstenRegistryAddress = common.HexToAddress("0x254365bF6CAd664000B1D0A7B08f892666bbA96D") // params.ROPSTEN_REGISTRY_ADDRESS
-var TestRpcEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
+//PrivateRopstenRegistryAddress test registry address, todo use env
+var PrivateRopstenRegistryAddress = common.HexToAddress("0x5bF5C32CEC0DC8a2c4C08705e41e88556dAf361A") // params.ROPSTEN_REGISTRY_ADDRESS
+//TestRPCEndpoint test eth rpc url, todo use env
+var TestRPCEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
 
-//var TestRpcEndpoint = "ws://10.0.0.2:8546"
+//MakeTestBlockChainService creat test BlockChainService
 func MakeTestBlockChainService() *BlockChainService {
-	conn, err := helper.NewSafeClient(TestRpcEndpoint)
+	conn, err := helper.NewSafeClient(TestRPCEndpoint)
 	//conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
 	if err != nil {
 		fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)

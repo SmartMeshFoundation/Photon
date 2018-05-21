@@ -10,7 +10,6 @@ import (
 )
 
 func TestBrokenClient(t *testing.T) {
-	return
 	bcs := MakeTestBlockChainService()
 	_, err := bcs.Client.BalanceAt(context.Background(), bcs.NodeAddress, nil)
 	if err != nil {

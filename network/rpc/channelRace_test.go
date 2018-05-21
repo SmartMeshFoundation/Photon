@@ -10,7 +10,7 @@ import (
 
 func TestChannelConcurrentQuery(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	ch, err := bcs.NettingChannel(common.HexToAddress("0xf029c3ec22b5dc7194dfa2650ae701e57068781e"))
+	ch, err := bcs.NettingChannel(common.HexToAddress("0x2244d2509cbBFe7a8616ed86ab5c3ECe8FDC40Fe"))
 	if err != nil {
 		t.Error(err)
 		return
@@ -18,8 +18,8 @@ func TestChannelConcurrentQuery(t *testing.T) {
 	s, _ := ch.SettleTimeout()
 	t.Log("settile:", s)
 	wg := sync.WaitGroup{}
-	wg.Add(10000)
-	for i := 0; i < 10000; i++ {
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
 		go func() {
 			s2, _ := ch.SettleTimeout()
 			if s != s2 {

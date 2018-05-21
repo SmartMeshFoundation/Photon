@@ -45,7 +45,7 @@ func ensureContext(ctx context.Context) context.Context {
 	return ctx
 }
 
-//events of history
+//EventGetInternal get events of history
 //if contractAddress is empty,it will query all contract
 func EventGetInternal(ctx context.Context, contractAddress common.Address, fromBlock rpc.BlockNumber,
 	toBlock rpc.BlockNumber, eventName string, abistr string, client *helper.SafeEthClient) ([]types.Log, error) {
@@ -57,12 +57,12 @@ func EventGetInternal(ctx context.Context, contractAddress common.Address, fromB
 	return client.FilterLogs(ctx, *q)
 }
 
-func EventGet(contractAddress common.Address, eventName string, abistr string, client *helper.SafeEthClient) ([]types.Log, error) {
-	return EventGetInternal(context.Background(), contractAddress, rpc.EarliestBlockNumber, rpc.LatestBlockNumber,
-		eventName, abistr, client)
-}
+//func EventGet(contractAddress common.Address, eventName string, abistr string, client *helper.SafeEthClient) ([]types.Log, error) {
+//	return EventGetInternal(context.Background(), contractAddress, rpc.EarliestBlockNumber, rpc.LatestBlockNumber,
+//		eventName, abistr, client)
+//}
 
-//events of future
+//EventSubscribeInternal subscribe events of future
 //if contractAddress is empty,it will subscribe all contract
 func EventSubscribeInternal(ctx context.Context, contractAddress common.Address, fromBlock rpc.BlockNumber,
 	toBlock rpc.BlockNumber, eventName string, abistr string,
@@ -80,6 +80,7 @@ func EventSubscribeInternal(ctx context.Context, contractAddress common.Address,
 	//node.DefaultIPCEndpoint("geth")
 }
 
+//EventSubscribe subscribe events of future
 func EventSubscribe(contractAddress common.Address,
 	eventName string, abistr string, client *helper.SafeEthClient, ch chan types.Log) (ethereum.Subscription, error) {
 	return EventSubscribeInternal(context.Background(), contractAddress, rpc.EarliestBlockNumber, rpc.LatestBlockNumber,
