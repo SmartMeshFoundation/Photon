@@ -202,7 +202,9 @@ func TestHandleBlock(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
-	newBlock := &transfer.BlockStateChange{blockNumber + 1}
+	newBlock := &transfer.BlockStateChange{
+		BlockNumber: blockNumber + 1,
+	}
 	StateTransiton(state, newBlock)
 	assert(t, state.BlockNumber, blockNumber+1)
 }
@@ -214,7 +216,9 @@ func TestHandleBlockEqualBlockNumber(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
-	newBlock := &transfer.BlockStateChange{blockNumber}
+	newBlock := &transfer.BlockStateChange{
+		BlockNumber: blockNumber,
+	}
 	StateTransiton(state, newBlock)
 	assert(t, state.BlockNumber, blockNumber)
 }
@@ -225,7 +229,9 @@ func TestHandleBlockLowerBlockNumber(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
-	newBlock := &transfer.BlockStateChange{blockNumber - 1}
+	newBlock := &transfer.BlockStateChange{
+		BlockNumber: blockNumber - 1,
+	}
 	StateTransiton(state, newBlock)
 	assert(t, state.BlockNumber, blockNumber)
 }
@@ -239,7 +245,10 @@ func TestClearIfFinalizedPayed(t *testing.T) {
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
 	state.State = mediated_transfer.StateBalanceProof
-	it := &transfer.TransitionResult{state, nil}
+	it := &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
 	it = clearIfFinalized(it)
 	assert(t, it.NewState, nil)
 }
@@ -252,7 +261,10 @@ func TestClearIfFinalizedExpired(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	beforestate := makeTargetState(ourAddress, amount, expire, initiator, expire)
-	beforeIt := &transfer.TransitionResult{beforestate, nil}
+	beforeIt := &transfer.TransitionResult{
+		NewState: beforestate,
+		Events:   nil,
+	}
 	beforeIt = clearIfFinalized(beforeIt)
 	assert(t, beforestate.FromTransfer.Secret, utils.EmptyHash)
 	assert(t, beforeIt.NewState != nil, true)
@@ -263,7 +275,10 @@ func TestClearIfFinalizedExpired(t *testing.T) {
 		FromTransfer: beforestate.FromTransfer,
 		BlockNumber:  expire + 1,
 	}
-	expireIt := &transfer.TransitionResult{expiredState, nil}
+	expireIt := &transfer.TransitionResult{
+		NewState: expiredState,
+		Events:   nil,
+	}
 	expireIt = clearIfFinalized(expireIt)
 	assert(t, expireIt.NewState == nil, true)
 }
@@ -286,7 +301,9 @@ func TestStateTransition(t *testing.T) {
 	assert(t, newstate.FromRoute, fromRoute)
 	assert(t, newstate.FromTransfer, fromTransfer)
 
-	firstNewBlock := &transfer.BlockStateChange{blockNumber + 1}
+	firstNewBlock := &transfer.BlockStateChange{
+		BlockNumber: blockNumber + 1,
+	}
 	StateTransiton(newstate, firstNewBlock)
 	assert(t, newstate.BlockNumber, blockNumber+1)
 

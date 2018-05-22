@@ -33,23 +33,23 @@ import (
  tree must be serializable to produce a snapshot. To enforce this inputs and
  outputs are separated under different class hierarquies (StateChange and Event).
 */
-/*
- """ An isolated state, modified by StateChange messages.
 
-    Notes:
-    - Don't duplicate the same state data in two different States, instead use
-    identifiers.
-    - State objects may be nested.
-    - State classes don't have logic by design.
-    - Each iteration must operate on fresh copy of the state, treating the old
-          objects as immutable.
-    - This class is used as a marker for states.
-    """
+/*
+State is  An isolated state, modified by StateChange messages.
+
+Notes:
+- Don't duplicate the same state data in two different States, instead use
+identifiers.
+- State objects may be nested.
+- State classes don't have logic by design.
+- Each iteration must operate on fresh copy of the state, treating the old
+      objects as immutable.
+- This class is used as a marker for states.
 */
 type State interface{}
 
 /*
-Events produced by the execution of a state change.
+Event produced by the execution of a state change.
 
     Nomenclature convention:
     - 'Send' prefix for protocol messages.
@@ -65,7 +65,7 @@ Events produced by the execution of a state change.
 type Event interface{}
 
 /*
-Declare the transition to be applied in a state object.
+StateChange Declare the transition to be applied in a state object.
 
     StateChanges are incoming events that change this node state (eg. a
     blockchain event, a new packet, an error). It is not used for the node to
@@ -81,17 +81,24 @@ Declare the transition to be applied in a state object.
     - This class is used as a marker for state changes.
 */
 type StateChange interface{}
+
+//TransitionResult result of next state transition
 type TransitionResult struct {
 	NewState State
 	Events   []Event
 }
 
-//def state_transition(state, state_change):
 /*
- The mutable storage for the application state, this storage can do
+FuncStateTransition The mutable storage for the application state, this storage can do
     state transitions by applying the StateChanges to the current State.
 */
 type FuncStateTransition func(state State, stateChange StateChange) *TransitionResult
+
+/*
+StateManager corresponding one MediatedTransfer
+it has State of the Transfer
+and Other Info for save and restore
+*/
 type StateManager struct {
 	ID                  int64 `storm:"id,increment"`
 	FuncStateTransition FuncStateTransition
@@ -111,29 +118,45 @@ type StateManager struct {
 	IsBalanceProofReceived bool              //mediatedtransfer must both true for finish
 }
 
+//StateManagerStateInit init State
 const StateManagerStateInit = "ManagerInit"
+
+//StateManagerReceivedMessage StateManager Received one message
 const StateManagerReceivedMessage = "ManagerReceivedOneMessage"
+
+//StateManagerSendMessage send a message last state
 const StateManagerSendMessage = "ManagerSendMessage" //may sending several message, for example reveal secret
+//StateManagerReceivedMessageProcessComplete the received message has been processed and sent out ack
 const StateManagerReceivedMessageProcessComplete = "ManagerReceivedMessageComplete"
+
+//StateManagerSendMessageSuccesss last sent message has received ack
 const StateManagerSendMessageSuccesss = "ManagerSendMessageSuccess"
+
+//StateManagerTransferComplete this transfer has finished
 const StateManagerTransferComplete = "ManagerTransferComplete"
 
+//MessageTag for save and restore
 type MessageTag struct {
 	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
 	ReceiveProcessComplete bool          //Whether the receipt of the message has been processed,
 	SendingMessageComplete bool          //Whether the message sent has received ACK
 	IsASendingMessage      bool          //this message is on sending or receiveing?
-	MessageId              string        //messageId for ping message
+	MessageID              string        //messageId for ping message
 	EchoHash               common.Hash
 	Receiver               common.Address
 }
 
-func (this *MessageTag) GetStateManager() *StateManager {
-	return this.stateManager
+//GetStateManager return stateManager
+func (mt *MessageTag) GetStateManager() *StateManager {
+	return mt.stateManager
 }
-func (this *MessageTag) SetStateManager(stateManager *StateManager) {
-	this.stateManager = stateManager
+
+//SetStateManager set statemanager
+func (mt *MessageTag) SetStateManager(stateManager *StateManager) {
+	mt.stateManager = stateManager
 }
+
+//NewStateManager create a StateManager
 func NewStateManager(stateTransition FuncStateTransition, currentState State, name string, identifier uint64, tokenAddress common.Address) *StateManager {
 	return &StateManager{
 		FuncStateTransition: stateTransition,
@@ -147,7 +170,7 @@ func NewStateManager(stateTransition FuncStateTransition, currentState State, na
 }
 
 /*
-Apply the `state_change` in the current machine and return the
+Dispatch Apply the `state_change` in the current machine and return the
         resulting events.
 
         Args:
@@ -159,7 +182,7 @@ Apply the `state_change` in the current machine and return the
             the upper layer's responsibility to decided how to handle these
             events.
 */
-func (this *StateManager) Dispatch(stateChange StateChange) (events []Event) {
+func (sm *StateManager) Dispatch(stateChange StateChange) (events []Event) {
 
 	/*
 			     the state objects must be treated as immutable, so make a copy of the
@@ -167,8 +190,8 @@ func (this *StateManager) Dispatch(stateChange StateChange) (events []Event) {
 		        next_state = deepcopy(self.current_state)
 			todo why clone?
 	*/
-	transitionResult := this.FuncStateTransition(this.CurrentState, stateChange)
-	this.CurrentState, events = transitionResult.NewState, transitionResult.Events
+	transitionResult := sm.FuncStateTransition(sm.CurrentState, stateChange)
+	sm.CurrentState, events = transitionResult.NewState, transitionResult.Events
 	return
 }
 

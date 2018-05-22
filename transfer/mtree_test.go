@@ -48,7 +48,7 @@ func TestMerkleTreeDuplicates(t *testing.T) {
 		return
 	}
 	_, err = NewMerkleTree([]common.Hash{hash0, hash1, hash0})
-	if err != ErrorDuplicateElement {
+	if err != errorDuplicateElement {
 		t.Error(errors.New("duplicate error not found"))
 		return
 	}
@@ -60,7 +60,7 @@ func TestMerkleTreeOne(t *testing.T) {
 	tree, _ := NewMerkleTree([]common.Hash{hash0})
 	root := tree.MerkleRoot()
 	proof := tree.MakeProof(hash0)
-	if !CheckProof(proof, root, hash0) {
+	if !checkProof(proof, root, hash0) {
 		t.Error("check proof error")
 	}
 }
@@ -72,12 +72,12 @@ func TestMerkleTreeTwo(t *testing.T) {
 	tree, _ := NewMerkleTree(leaves)
 	root := tree.MerkleRoot()
 	proof0 := tree.MakeProof(hash0)
-	if !CheckProof(proof0, root, hash0) {
+	if !checkProof(proof0, root, hash0) {
 		t.Error(errors.New("proof0 error"))
 		return
 	}
 	proof1 := tree.MakeProof(hash1)
-	if !CheckProof(proof1, root, hash1) {
+	if !checkProof(proof1, root, hash1) {
 		t.Error(errors.New("proof1 error"))
 	}
 }
@@ -135,16 +135,16 @@ func TestMerkleTreeThree(t *testing.T) {
 	proof0 := tree.MakeProof(hash0)
 	//spew.Dump("layers:", tree.Layers)
 	//spew.Dump(proof0)
-	if !CheckProof(proof0, root, hash0) {
+	if !checkProof(proof0, root, hash0) {
 		t.Error(errors.New("proof0 error"))
 		return
 	}
 	proof1 := tree.MakeProof(hash1)
-	if !CheckProof(proof1, root, hash1) {
+	if !checkProof(proof1, root, hash1) {
 		t.Error(errors.New("proof1 error"))
 	}
 	proof2 := tree.MakeProof(hash2)
-	if !CheckProof(proof2, root, hash2) {
+	if !checkProof(proof2, root, hash2) {
 		t.Error(errors.New("proof2 error"))
 	}
 }
@@ -157,7 +157,7 @@ func TestMerkleTreeMany(t *testing.T) {
 	tree, _ := NewMerkleTree(leaves)
 	for _, l := range leaves {
 		proof := tree.MakeProof(l)
-		if !CheckProof(proof, tree.MerkleRoot(), l) {
+		if !checkProof(proof, tree.MerkleRoot(), l) {
 			t.Error(errors.New("proof many error"))
 		}
 	}

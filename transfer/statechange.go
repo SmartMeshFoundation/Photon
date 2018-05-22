@@ -9,13 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-//Transition used when a new block is mined.
+//BlockStateChange used when a new block is mined.
 type BlockStateChange struct {
 	BlockNumber int64
 }
 
 /*
-A route change.
+ActionRouteChangeStateChange is A route change.
 
     State change used for:
         - when a new route is added.
@@ -30,7 +30,7 @@ type ActionRouteChangeStateChange struct {
 }
 
 /*
-The user requests the transfer to be cancelled.
+ActionCancelTransferStateChange The user requests the transfer to be cancelled.
 
     This state change can fail, it depends on the node's role and the current
     state of the transfer.
@@ -38,6 +38,8 @@ The user requests the transfer to be cancelled.
 type ActionCancelTransferStateChange struct {
 	Identifier uint64
 }
+
+//ActionTransferDirectStateChange send a direct transfer
 type ActionTransferDirectStateChange struct {
 	Identifier   uint64
 	Amount       *big.Int
@@ -45,6 +47,7 @@ type ActionTransferDirectStateChange struct {
 	NodeAddress  common.Address
 }
 
+//ReceiveTransferDirectStateChange receive a direct transfer
 type ReceiveTransferDirectStateChange struct {
 	Identifier   uint64
 	Amount       *big.Int

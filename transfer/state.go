@@ -17,19 +17,22 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+//ChannelStateClosed closed
 const ChannelStateClosed = "closed"
+
+//ChannelStateClosing waiting close
 const ChannelStateClosing = "waiting_for_close"
+
+//ChannelStateOpened opened
 const ChannelStateOpened = "opened"
+
+//ChannelStateSettled settled
 const ChannelStateSettled = "settled"
+
+//ChannelStateSetting waiting settle
 const ChannelStateSetting = "waiting_for_settle"
 
-//nothing
-//type Stater interface {
-//	fmt.Stringer
-//	StateName() string
-//}
-
-//this describes a route state
+//RouteState describes a route state
 type RouteState struct {
 	State          string
 	HopNode        common.Address
@@ -43,6 +46,7 @@ type RouteState struct {
 }
 
 /*
+NewRouteState create route state
 Args:
         state (string): The current state of the route (opened, closed or settled).
         node_address (address): The address of the next_hop.
@@ -69,14 +73,12 @@ func NewRouteState(state string, nodeAddress common.Address, channelAddress comm
 	return s
 }
 
-func (this *RouteState) StateName() string {
+//StateName return name of the state
+func (rs *RouteState) StateName() string {
 	return "RouteState"
 }
 
-//func (this *RouteState) String() string {
-//	return utils.StringInterface(this, 1)
-//}
-
+//BalanceProofState is   proof need by contract
 type BalanceProofState struct {
 	Nonce          int64
 	TransferAmount *big.Int
@@ -87,6 +89,7 @@ type BalanceProofState struct {
 	Signature []byte
 }
 
+//NewBalanceProofState create BalanceProofState
 func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common.Hash,
 	channelAddress common.Address, messageHash common.Hash, signature []byte) *BalanceProofState {
 	s := &BalanceProofState{
@@ -99,6 +102,8 @@ func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common
 	}
 	return s
 }
+
+//NewBalanceProofStateFromEnvelopMessage from locked transfer
 func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *BalanceProofState {
 	envmsg := msg.GetEnvelopMessage()
 	msgHash := encoding.HashMessageWithoutSignature(msg)
@@ -107,35 +112,36 @@ func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *Balan
 		msgHash, envmsg.Signature)
 }
 
-func (b *BalanceProofState) IsBalanceProofValid() bool {
+//IsBalanceProofValid true if valid
+func (bpf *BalanceProofState) IsBalanceProofValid() bool {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, b.Nonce)
-	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
-	buf.Write(b.LocksRoot[:])
-	buf.Write(b.ChannelAddress[:])
-	buf.Write(b.MessageHash[:])
+	binary.Write(buf, binary.BigEndian, bpf.Nonce)
+	buf.Write(utils.BigIntTo32Bytes(bpf.TransferAmount))
+	buf.Write(bpf.LocksRoot[:])
+	buf.Write(bpf.ChannelAddress[:])
+	buf.Write(bpf.MessageHash[:])
 	dataToSign := buf.Bytes()
 
 	hash := utils.Sha3(dataToSign)
-	signature := make([]byte, len(b.Signature))
-	copy(signature, b.Signature)
+	signature := make([]byte, len(bpf.Signature))
+	copy(signature, bpf.Signature)
 	signature[len(signature)-1] -= 27 //why?
 	pubkey, err := crypto.Ecrecover(hash[:], signature)
 	//log.Trace(fmt.Sprintf("signer =%s",utils.APex(utils.PubkeyToAddress(pubkey))))
 	return err == nil && utils.PubkeyToAddress(pubkey) != utils.EmptyAddress
 }
 
-//func (this *BalanceProofState) String() string {
-//	return utils.StringInterface(this, 1)
-//}
-func (this *BalanceProofState) StateName() string {
+//StateName name of state
+func (bpf *BalanceProofState) StateName() string {
 	return "BalanceProofState"
 }
 
+//MerkleTreeState need by channel
 type MerkleTreeState struct {
 	Tree *Merkletree
 }
 
+//EmptyMerkleTreeState a empty tree
 var EmptyMerkleTreeState *MerkleTreeState
 
 func init() {
@@ -143,11 +149,14 @@ func init() {
 	EmptyMerkleTreeState = NewMerkleTreeState(tree)
 }
 
+//NewMerkleTreeState  create MerkleTreeState from MerkleTree
 func NewMerkleTreeState(tree *Merkletree) *MerkleTreeState {
 	return &MerkleTreeState{
 		tree,
 	}
 }
+
+//NewMerkleTreeStateFromLeaves create MerkleTreeState from leaves
 func NewMerkleTreeStateFromLeaves(leaves []common.Hash) *MerkleTreeState {
 	tree, _ := NewMerkleTree(leaves)
 	return &MerkleTreeState{
@@ -155,16 +164,16 @@ func NewMerkleTreeStateFromLeaves(leaves []common.Hash) *MerkleTreeState {
 	}
 }
 
-func (this *MerkleTreeState) StateName() string {
+//StateName state  name of MerkleTreeState
+func (mt *MerkleTreeState) StateName() string {
 	return "MerkleTreeState"
 }
-func (this *MerkleTreeState) String() string {
-	return fmt.Sprintf("MerkleTreeState{root:%s,layer level:%d}", this.Tree.MerkleRoot(), len(this.Tree.Layers))
+func (mt *MerkleTreeState) String() string {
+	return fmt.Sprintf("MerkleTreeState{root:%s,layer level:%d}", mt.Tree.MerkleRoot(), len(mt.Tree.Layers))
 }
 
 /*
-Routing state.
-
+RoutesState is Routing state.
     Args:
         available_routes (list): A list of RouteState instances.
 */
@@ -175,6 +184,7 @@ type RoutesState struct {
 	CanceledRoutes  []*RouteState
 }
 
+//NewRoutesState create routes state from availabes routes
 func NewRoutesState(availables []*RouteState) *RoutesState {
 	rs := &RoutesState{}
 	m := make(map[common.Address]bool)

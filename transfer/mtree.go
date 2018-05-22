@@ -11,15 +11,22 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var ErrorDuplicateElement = errors.New("Duplicated element")
+var errorDuplicateElement = errors.New("Duplicated element")
 
+//LayerLeaves is layer 0
 const LayerLeaves = 0
+
+//LayerMerkleRoot is top layer
 const LayerMerkleRoot = -1
 
+/*
+Merkletree is hash tree
+*/
 type Merkletree struct {
 	Layers [][]common.Hash
 }
 
+//NewMerkleTree create Merkletree
 func NewMerkleTree(elements []common.Hash) (m *Merkletree, err error) {
 	m = new(Merkletree)
 	err = m.buildMerkleTreeLayers(elements)
@@ -34,25 +41,25 @@ func lenDiv2(l int) int {
    of elements and the last layer is a list with a single entry, the
    merkleroot
 */
-func (this *Merkletree) buildMerkleTreeLayers(elements []common.Hash) error {
+func (m *Merkletree) buildMerkleTreeLayers(elements []common.Hash) error {
 	if len(elements) == 0 {
-		this.Layers = append(this.Layers, []common.Hash(nil)) //make sure has one empty layer
+		m.Layers = append(m.Layers, []common.Hash(nil)) //make sure has one empty layer
 		return nil
 	}
 	elementsMap := make(map[common.Hash]bool)
 	for _, e := range elements {
 		if elementsMap[e] {
-			return ErrorDuplicateElement
+			return errorDuplicateElement
 		}
 		elementsMap[e] = true
 	}
 	sort.Slice(elements, func(i, j int) bool {
 		return bytes.Compare(elements[i][:], elements[j][:]) == -1
 	})
-	//this.Layers = append(this.Layers, elements)
+	//m.Layers = append(m.Layers, elements)
 	prevLayer := elements
 	for i := 0; ; i++ {
-		this.Layers = append(this.Layers, prevLayer)
+		m.Layers = append(m.Layers, prevLayer)
 		if len(prevLayer) == 1 {
 			break
 		}
@@ -70,34 +77,34 @@ func (this *Merkletree) buildMerkleTreeLayers(elements []common.Hash) error {
 }
 
 /*
-""" Return the root element of the merkle tree. """
+MerkleRoot Return the root element of the merkle tree.
 */
-func (this *Merkletree) MerkleRoot() common.Hash {
-	l := len(this.Layers)
+func (m *Merkletree) MerkleRoot() common.Hash {
+	l := len(m.Layers)
 	if l > 1 {
-		return this.Layers[l-1][0]
-	} else if l == 1 && len(this.Layers[0]) > 0 {
+		return m.Layers[l-1][0]
+	} else if l == 1 && len(m.Layers[0]) > 0 {
 		//root layer may be emtpy
-		return this.Layers[l-1][0]
+		return m.Layers[l-1][0]
 	} else {
 		return utils.EmptyHash
 	}
 }
 
 /*
-		The proof contains all elements between `element` and `root`.
-            If on all of [element] + proof is recursively hash_pair applied one
-            gets the root.
+MakeProof contains all elements between `element` and `root`.
+If on all of [element] + proof is recursively hash_pair applied one
+gets the root.
 */
-func (this *Merkletree) MakeProof(element common.Hash) []common.Hash {
+func (m *Merkletree) MakeProof(element common.Hash) []common.Hash {
 	idx := 0
-	for i, _ := range this.Layers[0] {
-		if bytes.Equal(element[:], this.Layers[0][i][:]) {
+	for i := range m.Layers[0] {
+		if bytes.Equal(element[:], m.Layers[0][i][:]) {
 			idx = i
 		}
 	}
 	var proof []common.Hash
-	for _, layer := range this.Layers {
+	for _, layer := range m.Layers {
 		pairidx := idx - 1
 		if idx%2 == 0 {
 			pairidx = idx + 1
@@ -111,14 +118,7 @@ func (this *Merkletree) MakeProof(element common.Hash) []common.Hash {
 }
 
 /*
-def hash_pair(first, second):
-    if second is None:
-        return first
-    if first is None:
-        return second
-    if first > second:
-        return keccak(second + first)
-    return keccak(first + second)
+HashPair makes first and secod ordered,then hash them
 */
 func HashPair(first, second common.Hash) common.Hash {
 	if first == utils.EmptyHash {
@@ -129,18 +129,18 @@ func HashPair(first, second common.Hash) common.Hash {
 	}
 	if bytes.Compare(first[:], second[:]) > 0 {
 		return utils.Sha3(second[:], first[:])
-	} else {
-		return utils.Sha3(first[:], second[:])
 	}
+	return utils.Sha3(first[:], second[:])
 }
 
-func CheckProof(proof []common.Hash, root, hash common.Hash) bool {
+func checkProof(proof []common.Hash, root, hash common.Hash) bool {
 	for _, x := range proof {
 		hash = HashPair(hash, x)
 	}
 	return hash == root
 }
 
+//Proof2Bytes convert proof to bytes
 func Proof2Bytes(proof []common.Hash) []byte {
 	buf := new(bytes.Buffer)
 	for _, h := range proof {

@@ -12,6 +12,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
+//NameInitiatorTransition name for state manager
 const NameInitiatorTransition = "InitiatorTransition"
 
 /*
@@ -22,7 +23,7 @@ const NameInitiatorTransition = "InitiatorTransition"
     - Add the current message to the canceled transfers
     """
 */
-func CancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
+func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
@@ -33,11 +34,11 @@ func CancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	state.Route = nil
 	state.SecretRequest = nil
 
-	return TryNewRoute(state)
+	return tryNewRoute(state)
 }
 
 //Cancel the current in-transit message
-func UserCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
+func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
@@ -58,7 +59,7 @@ func UserCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 	}
 }
 
-func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
+func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.Route != nil {
 		panic("cannot try a new route while one is being used")
 	}
@@ -77,7 +78,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		     Find a single route that may fulfill the request, this uses a single
 		     route intentionally
 	*/
-	var tryRoute *transfer.RouteState = nil
+	var tryRoute *transfer.RouteState
 	for len(state.Routes.AvailableRoutes) > 0 {
 		route := state.Routes.AvailableRoutes[0]
 		if state.Db != nil {
@@ -101,7 +102,7 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			break
 		}
 	}
-	var unlockFailed *mt.EventUnlockFailed = nil
+	var unlockFailed *mt.EventUnlockFailed
 	if state.Message != nil { //目前无论是发起时还是取消路由，Message都会被设置为nil，所以这个事件永远也不会发生。
 		unlockFailed = &mt.EventUnlockFailed{
 			Identifier: state.Transfer.Identifier,
@@ -131,48 +132,47 @@ func TryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			NewState: nil,
 			Events:   events,
 		}
-	} else {
-		state.Route = tryRoute
-		secret, hashlock := state.RandomGenerator()
-		/*
-					  The initiator doesn't need to learn the secret, so there is no need
-			         to decrement reveal_timeout from the lock timeout.
+	}
+	state.Route = tryRoute
+	secret, hashlock := state.RandomGenerator()
+	/*
+				  The initiator doesn't need to learn the secret, so there is no need
+		         to decrement reveal_timeout from the lock timeout.
 
-			         The lock_expiration could be set to a value larger than
-			         settle_timeout, this is not useful since the next hop will take this
-			         channel settle_timeout as an upper limit for expiration.
+		         The lock_expiration could be set to a value larger than
+		         settle_timeout, this is not useful since the next hop will take this
+		         channel settle_timeout as an upper limit for expiration.
 
-			         The two nodes will most likely disagree on latest block, as far as
-			         the expiration goes this is no problem.
-		*/
-		lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout)
-		if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
-			lockExpiration = state.Transfer.Expiration
-		}
-		tr := &mt.LockedTransferState{
-			Identifier:   state.Transfer.Identifier,
-			TargetAmount: state.Transfer.TargetAmount,
-			Amount:       new(big.Int).Add(state.Transfer.TargetAmount, tryRoute.TotalFee),
-			Token:        state.Transfer.Token,
-			Initiator:    state.Transfer.Initiator,
-			Target:       state.Transfer.Target,
-			Expiration:   lockExpiration,
-			Hashlock:     hashlock,
-			Secret:       secret,
-			Fee:          tryRoute.TotalFee,
-		}
-		msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
-		state.Transfer = tr
-		state.Message = msg
-		log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", tr.Identifier, tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
-		events := []transfer.Event{msg}
-		if unlockFailed != nil {
-			events = append(events, unlockFailed)
-		}
-		return &transfer.TransitionResult{
-			NewState: state,
-			Events:   events,
-		}
+		         The two nodes will most likely disagree on latest block, as far as
+		         the expiration goes this is no problem.
+	*/
+	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout)
+	if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
+		lockExpiration = state.Transfer.Expiration
+	}
+	tr := &mt.LockedTransferState{
+		Identifier:   state.Transfer.Identifier,
+		TargetAmount: state.Transfer.TargetAmount,
+		Amount:       new(big.Int).Add(state.Transfer.TargetAmount, tryRoute.TotalFee),
+		Token:        state.Transfer.Token,
+		Initiator:    state.Transfer.Initiator,
+		Target:       state.Transfer.Target,
+		Expiration:   lockExpiration,
+		Hashlock:     hashlock,
+		Secret:       secret,
+		Fee:          tryRoute.TotalFee,
+	}
+	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
+	state.Transfer = tr
+	state.Message = msg
+	log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", tr.Identifier, tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
+	events := []transfer.Event{msg}
+	if unlockFailed != nil {
+		events = append(events, unlockFailed)
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
 	}
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
@@ -205,7 +205,7 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 /*
 make sure not call this when transfer already finished , state is nil means finished.
 */
-func HandleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
+func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
 	}
@@ -215,34 +215,38 @@ func HandleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 	}
 }
 
-func HandleRouteChange(state *mt.InitiatorState, stateChange *transfer.ActionRouteChangeStateChange) *transfer.TransitionResult {
+func handleRouteChange(state *mt.InitiatorState, stateChange *transfer.ActionRouteChangeStateChange) *transfer.TransitionResult {
 	mt.UpdateRoute(state.Routes, stateChange)
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
 	}
 }
-func HandleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
+func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
 	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
-		return CancelCurrentRoute(state)
-	} else {
-		return &transfer.TransitionResult{state, nil}
+		return cancelCurrentRoute(state)
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
-func HandleCancelRoute(state *mt.InitiatorState, stateChange *mt.ActionCancelRouteStateChange) *transfer.TransitionResult {
+func handleCancelRoute(state *mt.InitiatorState, stateChange *mt.ActionCancelRouteStateChange) *transfer.TransitionResult {
 	if stateChange.Identifier == state.Transfer.Identifier {
-		return CancelCurrentRoute(state)
-	} else {
-		return &transfer.TransitionResult{state, nil}
+		return cancelCurrentRoute(state)
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
-func HandleCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
-	return UserCancelTransfer(state)
+func handleCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
+	return userCancelTransfer(state)
 }
 
-func HandleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecretRequestStateChange) *transfer.TransitionResult {
+func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecretRequestStateChange) *transfer.TransitionResult {
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.Hashlock == state.Transfer.Hashlock &&
 		stateChange.Identifier == state.Transfer.Identifier &&
@@ -267,25 +271,33 @@ func HandleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 			Sender:     state.OurAddress,
 		}
 		state.RevealSecret = revealSecret
-		return &transfer.TransitionResult{state, []transfer.Event{revealSecret}}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   []transfer.Event{revealSecret},
+		}
 	} else if isInvalid {
-		return CancelCurrentRoute(state)
+		return cancelCurrentRoute(state)
 	} else {
-		return &transfer.TransitionResult{state, nil}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   nil,
+		}
 	}
-	return nil
 }
 
 /*
 Send a balance proof to the next hop with the current mediated transfer
     lock removed and the balance updated.
 */
-func HandleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
+func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
 	/*
 		考虑到崩溃恢复情形,可能崩溃了很久. 如果这时候交易还继续进行,显然不合理.
 	*/
 	if state.BlockNumber >= state.Transfer.Expiration {
-		return &transfer.TransitionResult{state, nil}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   nil,
+		}
 	}
 	if st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
 		/*
@@ -313,17 +325,17 @@ func HandleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			NewState: nil,
 			Events:   []transfer.Event{unlockLock, transferSuccess, unlockSuccess},
 		}
-	} else {
-		return &transfer.TransitionResult{state, nil}
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
 /*
-	State machine for a node starting a mediated transfer.
-
-    Args:
-        state: The current State that is transitioned from.
-        state_change: The state_change that will be applied.
+StateTransition is State machine for a node starting a mediated transfer.
+    originalState: The current State that is transitioned from.
+    st: The state_change that will be applied.
 */
 func StateTransition(originalState transfer.State, st transfer.StateChange) *transfer.TransitionResult {
 	/*
@@ -334,7 +346,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 	        usage for each end, since the full merkle tree must be saved to compute
 	        it's root.
 	*/
-	it := &transfer.TransitionResult{originalState, nil}
+	it := &transfer.TransitionResult{
+		NewState: originalState,
+		Events:   nil,
+	}
 	state, ok := originalState.(*mt.InitiatorState)
 	if !ok {
 		if originalState != nil {
@@ -348,7 +363,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			var routes transfer.RoutesState
 			err := utils.DeepCopy(&routes, staii.Routes)
 			if err != nil {
-				panic(fmt.Sprintf("deepcopy error:#v", err))
+				panic(fmt.Sprintf("deepcopy error:%#v", err))
 			}
 			state = &mt.InitiatorState{
 				OurAddress:      staii.OurAddress,
@@ -358,42 +373,41 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				RandomGenerator: staii.RandomGenerator,
 				Db:              staii.Db,
 			}
-			return TryNewRoute(state)
-		} else {
-			//todo fix, find a way to remove this identifier from raiden.Identifier2StateManagers
-			//log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
-			//	utils.StringInterface1(originalState), utils.StringInterface1(st)))
+			return tryNewRoute(state)
 		}
+		//todo fix, find a way to remove this identifier from raiden.Identifier2StateManagers
+		//log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
+		//	utils.StringInterface1(originalState), utils.StringInterface1(st)))
 	} else if state.RevealSecret == nil {
 		switch st2 := st.(type) {
 		case *transfer.BlockStateChange:
-			it = HandleBlock(state, st2)
+			it = handleBlock(state, st2)
 			//目前没用,
 		case *transfer.ActionRouteChangeStateChange:
-			it = HandleRouteChange(state, st2)
+			it = handleRouteChange(state, st2)
 		case *mt.ReceiveSecretRequestStateChange:
-			it = HandleSecretRequest(state, st2)
+			it = handleSecretRequest(state, st2)
 		case *mt.ReceiveTransferRefundStateChange:
-			it = HandleTransferRefund(state, st2)
+			it = handleTransferRefund(state, st2)
 			//目前没用
 		case *mt.ActionCancelRouteStateChange:
-			it = HandleCancelRoute(state, st2)
+			it = handleCancelRoute(state, st2)
 			//目前也没用
 		case *transfer.ActionCancelTransferStateChange:
-			it = HandleCancelTransfer(state)
+			it = handleCancelTransfer(state)
 		case *mt.ReceiveSecretRevealStateChange:
 			//只要密码正确,就应该发送secret ,流程上可能有问题,但是结果是没错的(只有在token swap的时候才会走到这一步) . 因为按照协议层要求,同一个消息不会重复发送, 导致在tokenswap的时候maker不可能重复发送reveal secret
 			log.Warn(fmt.Sprintf("send balance proof before send a reveal secret message, this is only for token swap taker"))
-			it = HandleSecretReveal(state, st2)
+			it = handleSecretReveal(state, st2)
 		default:
 			log.Warn(fmt.Sprintf("RevealSecret is nil,cannot handle %s", utils.StringInterface(st, 3)))
 		}
 	} else {
 		switch st2 := st.(type) {
 		case *transfer.BlockStateChange:
-			it = HandleBlock(state, st2)
+			it = handleBlock(state, st2)
 		case *mt.ReceiveSecretRevealStateChange:
-			it = HandleSecretReveal(state, st2)
+			it = handleSecretReveal(state, st2)
 		default:
 			log.Warn(fmt.Sprintf("RevealSecret is not nil,cannot handle %s", utils.StringInterface(st, 3)))
 		}

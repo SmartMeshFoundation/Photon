@@ -63,11 +63,11 @@ func TestNextRoute(t *testing.T) {
 	assert(t, state.Routes.CanceledRoutes == nil, true)
 
 	//open this will panic,how to test panic?
-	//err := TryNewRoute(state)
+	//err := tryNewRoute(state)
 	//assert.Equal(t, err != nil, true)
 	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
 	state.Route = nil
-	TryNewRoute(state)
+	tryNewRoute(state)
 	/*
 	   HOP3 should be ignored because it doesnt have enough balance
 	*/

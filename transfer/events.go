@@ -9,7 +9,7 @@ import (
 )
 
 /*
-Event emitted by the initiator when a transfer is considered sucessful.
+EventTransferSentSuccess emitted by the initiator when a transfer is considered sucessful.
 
     A transfer is considered sucessful when the initiator's payee hop sends the
     reveal secret message, assuming that each hop in the mediator chain has
@@ -37,7 +37,7 @@ type EventTransferSentSuccess struct {
 }
 
 /*
-Event emitted by the payer when a transfer has failed.
+EventTransferSentFailed emitted by the payer when a transfer has failed.
 
     Note:
         Mediators cannot use this event since they don't know when a transfer
@@ -50,7 +50,7 @@ type EventTransferSentFailed struct {
 }
 
 /*
-Event emitted when a payee has received a payment.
+EventTransferReceivedSuccess emitted when a payee has received a payment.
 
     Note:
         A payee knows if a lock withdraw has failed, but this is not sufficient

@@ -87,9 +87,9 @@ func TestIsLockValid(t *testing.T) {
 	initiator := utest.HOP1
 	target := utest.HOP2
 	tr := utest.MakeTransfer(amount, initiator, target, expiration, utils.EmptyHash, utils.EmptyHash, utest.UnitIdentifier, utest.UnitTokenAddress)
-	assert(t, IsLockValid(tr, 5), true)
-	assert(t, IsLockValid(tr, 10), true)
-	assert(t, IsLockValid(tr, 11), false)
+	assert(t, isLockValid(tr, 5), true)
+	assert(t, isLockValid(tr, 10), true)
+	assert(t, isLockValid(tr, 11), false)
 
 }
 
@@ -117,7 +117,7 @@ func TestIsSafeToWait(t *testing.T) {
 func TestIsChannelCloseNeededUnpaid(t *testing.T) {
 	var amount = big.NewInt(10)
 	var expiration int64 = 10
-	var revealTimeout int = 5
+	var revealTimeout = 5
 
 	/*
 			    even if the secret is known by the payee, the transfer is paid only if a
@@ -139,7 +139,7 @@ func TestIsChannelCloseNeededUnpaid(t *testing.T) {
 func TestIsChannelClosedNeededPaid(t *testing.T) {
 	var amount = big.NewInt(10)
 	var expiration int64 = 10
-	var revealTimeout int = 5
+	var revealTimeout = 5
 
 	paidStates := []string{mediated_transfer.StatePayeeContractWithdraw, mediated_transfer.StatePayeeBalanceProof}
 	for _, paidState := range paidStates {
@@ -157,7 +157,7 @@ func TestIsChannelClosedNeededPaid(t *testing.T) {
 func TestIsChannelCloseNeedChannelClosed(t *testing.T) {
 	var amount = big.NewInt(10)
 	var expiration int64 = 10
-	var revealTimeout int = 5
+	var revealTimeout = 5
 
 	for state := range mediated_transfer.ValidPayeeStateMap {
 		pair := makeTransferPair(utest.HOP1, utest.HOP2, utest.HOP3, utest.HOP4, amount, expiration, utils.EmptyHash, revealTimeout)
@@ -174,7 +174,7 @@ func TestIsChannelCloseNeedChannelClosed(t *testing.T) {
 func TestIsChannelCloseNeededClosed(t *testing.T) {
 	var amount = big.NewInt(10)
 	var expiration int64 = 10
-	var revealTimeout int = 5
+	var revealTimeout = 5
 
 	pair := makeTransferPair(utest.HOP1, utest.HOP2, utest.HOP3, utest.HOP4, amount, expiration, utils.EmptyHash, revealTimeout)
 	pair.PayeeState = mediated_transfer.StatePayeeBalanceProof
@@ -236,28 +236,28 @@ func TestGetTimeoutBlocks(t *testing.T) {
 	var earlyExpire int64 = 10
 	earlyTransfer := utest.MakeTransfer(amount, initiator, nextHop, earlyExpire, utils.EmptyHash, utils.EmptyHash, 0, utest.UnitTokenAddress)
 	earlyBlock := getTimeoutBlocks(route, earlyTransfer, blockNumber)
-	assert(t, earlyBlock, 5-TRANSIT_BLOCKS)
+	assert(t, earlyBlock, 5-transitBlocks)
 
 	var equalExpire int64 = 30
 	equalTransfer := utest.MakeTransfer(amount, initiator, nextHop, equalExpire, utils.EmptyHash, utils.EmptyHash, 0, utest.UnitTokenAddress)
 	equalBlock := getTimeoutBlocks(route, equalTransfer, blockNumber)
-	assert(t, equalBlock, 25-TRANSIT_BLOCKS)
+	assert(t, equalBlock, 25-transitBlocks)
 
 	var largeExpire int64 = 70
 	largeTransfer := utest.MakeTransfer(amount, initiator, nextHop, largeExpire, utils.EmptyHash, utils.EmptyHash, 0, utest.UnitTokenAddress)
 	largeBlock := getTimeoutBlocks(route, largeTransfer, blockNumber)
-	assert(t, largeBlock, 30-TRANSIT_BLOCKS)
+	assert(t, largeBlock, 30-transitBlocks)
 
 	closedRoute := utest.MakeRoute(nextHop, amount, settleTimeout, 0, 2, utils.NewRandomAddress())
 
 	largeBlock = getTimeoutBlocks(closedRoute, largeTransfer, blockNumber)
-	assert(t, largeBlock, 27-TRANSIT_BLOCKS)
+	assert(t, largeBlock, 27-transitBlocks)
 	/*
 		the computed timeout may be negative, in which case the calling code must /not/ use it
 	*/
 	negativeBlockNumber := largeExpire
 	negativeBlock := getTimeoutBlocks(route, largeTransfer, negativeBlockNumber)
-	assert(t, negativeBlock, -TRANSIT_BLOCKS)
+	assert(t, negativeBlock, -transitBlocks)
 
 }
 
@@ -359,13 +359,13 @@ func TestSetPayee(t *testing.T) {
 	assert(t, pairs[0].PayeeState, mediated_transfer.StatePayeePending)
 	assert(t, pairs[1].PayerState, mediated_transfer.StatePayerPending)
 	assert(t, pairs[1].PayeeState, mediated_transfer.StatePayeePending)
-	SetPayeeStateAndCheckRevealOrder(pairs, utest.HOP2, mediated_transfer.StatePayeeSecretRevealed)
+	setPayeeStateAndCheckRevealOrder(pairs, utest.HOP2, mediated_transfer.StatePayeeSecretRevealed)
 	assert(t, pairs[0].PayerState, mediated_transfer.StatePayerPending)
 	assert(t, pairs[0].PayeeState, mediated_transfer.StatePayeePending)
 	assert(t, pairs[1].PayerState, mediated_transfer.StatePayerPending)
 	assert(t, pairs[1].PayeeState, mediated_transfer.StatePayeePending)
 
-	SetPayeeStateAndCheckRevealOrder(pairs, utest.HOP3, mediated_transfer.StatePayeeSecretRevealed)
+	setPayeeStateAndCheckRevealOrder(pairs, utest.HOP3, mediated_transfer.StatePayeeSecretRevealed)
 	assert(t, pairs[0].PayerState, mediated_transfer.StatePayerPending)
 	assert(t, pairs[0].PayeeState, mediated_transfer.StatePayeeSecretRevealed)
 	assert(t, pairs[1].PayerState, mediated_transfer.StatePayerPending)
@@ -383,20 +383,20 @@ func TestSetExpiredPairs(t *testing.T) {
 	assert(t, pair.PayeeState, mediated_transfer.StatePayeePending)
 	assert(t, pair.PayerState, mediated_transfer.StatePayerPending)
 	//payee lock expired
-	payee_expiration_block := pair.PayeeTransfer.Expiration
-	setExpiredPairs(pairs, payee_expiration_block)
+	payeeExpirationBlock := pair.PayeeTransfer.Expiration
+	setExpiredPairs(pairs, payeeExpirationBlock)
 	//dge case for the payee lock expiration
 	assert(t, pair.PayeeState, mediated_transfer.StatePayeePending)
 	assert(t, pair.PayerState, mediated_transfer.StatePayerPending)
-	setExpiredPairs(pairs, payee_expiration_block+1)
+	setExpiredPairs(pairs, payeeExpirationBlock+1)
 	assert(t, pair.PayeeState, mediated_transfer.StatePayeeExpired)
 	assert(t, pair.PayerState, mediated_transfer.StatePayerPending)
 	// edge case for the payer lock expiration
-	payer_expiration_block := pair.PayerTransfer.Expiration
-	setExpiredPairs(pairs, payer_expiration_block)
+	payerExpirationBlock := pair.PayerTransfer.Expiration
+	setExpiredPairs(pairs, payerExpirationBlock)
 	assert(t, pair.PayeeState, mediated_transfer.StatePayeeExpired)
 	assert(t, pair.PayerState, mediated_transfer.StatePayerPending)
-	setExpiredPairs(pairs, payer_expiration_block+1)
+	setExpiredPairs(pairs, payerExpirationBlock+1)
 	assert(t, pair.PayeeState, mediated_transfer.StatePayeeExpired)
 	assert(t, pair.PayerState, mediated_transfer.StatePayerExpired)
 }
@@ -433,7 +433,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 	secret := utest.UnitSecret
 	ourAddress := utest.ADDR
 	pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4}, utest.HOP6, 10, utest.UnitSecret, 0, utest.UnitRevealTimeout)
-	events := EventsForRevealSecret(pairs, ourAddress)
+	events := eventsForRevealSecret(pairs, ourAddress)
 	/*
 			   the secret is known by this node, but no other payee is at a secret known
 		    state, do nothing
@@ -443,7 +443,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 	lastPair := pairs[1]
 
 	lastPair.PayeeState = mediated_transfer.StatePayeeSecretRevealed
-	events = EventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress)
 	/*
 			  the last known hop sent a secret reveal message, this node learned the
 		     secret and now must reveal to the payer node from the transfer pair
@@ -455,14 +455,14 @@ func TestEventsForRevealSecret(t *testing.T) {
 	assert(t, ev.Receiver, lastPair.PayerRoute.HopNode)
 	assert(t, lastPair.PayerState, mediated_transfer.StatePayerSecretRevealed)
 
-	events = EventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress)
 	/*
 			   the payeee from the first_pair did not send a secret reveal message, do
 		     nothing
 	*/
 	assert(t, len(events), 0)
 	firstPair.PayeeState = mediated_transfer.StatePayeeSecretRevealed
-	events = EventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress)
 	assert(t, len(events), 1)
 	ev, ok = events[0].(*mediated_transfer.EventSendRevealSecret)
 	assert(t, ok, true)
@@ -474,7 +474,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 // When the secret is not know there is nothing to do.
 func TestEventsForRevealSecretSecretUnkown(t *testing.T) {
 	pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4}, utest.HOP6, 10, utils.EmptyHash, 0, utest.UnitRevealTimeout)
-	events := EventsForRevealSecret(pairs, utest.ADDR)
+	events := eventsForRevealSecret(pairs, utest.ADDR)
 	//这个测试有什么意义呢?肯定是0啊,和上一个测试没有一点不一样.
 	assert(t, len(events), 0)
 
@@ -485,12 +485,12 @@ func TestEventsForRevealSecretSecretUnkown(t *testing.T) {
 func TestEventsForRevealSecretAllStates(t *testing.T) {
 	secret := utest.UnitSecret
 	ourAddress := utest.ADDR
-	payee_secret_known := []string{mediated_transfer.StatePayeeSecretRevealed, mediated_transfer.StatePayeeRefundWithdraw, mediated_transfer.StatePayeeContractWithdraw, mediated_transfer.StatePayeeBalanceProof}
-	for _, state := range payee_secret_known {
+	payeeSecretKnowns := []string{mediated_transfer.StatePayeeSecretRevealed, mediated_transfer.StatePayeeRefundWithdraw, mediated_transfer.StatePayeeContractWithdraw, mediated_transfer.StatePayeeBalanceProof}
+	for _, state := range payeeSecretKnowns {
 		pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3}, utest.HOP6, 10, secret, 0, utest.UnitRevealTimeout)
 		pair := pairs[0]
 		pair.PayeeState = state
-		events := EventsForRevealSecret(pairs, ourAddress)
+		events := eventsForRevealSecret(pairs, ourAddress)
 		ev, ok := events[0].(*mediated_transfer.EventSendRevealSecret)
 		assert(t, ok, true)
 		assert(t, ev.Secret, secret)
@@ -528,7 +528,7 @@ func TestEventsForBanalceProof(t *testing.T) {
 }
 
 /*
-Balance proofs are useless if the channel is closed/settled, the payee
+balance proofs are useless if the channel is closed/settled, the payee
     needs to go on-chain and use the latest known balance proof which includes
     this lock in the locksroot.
 */
@@ -549,7 +549,7 @@ func TestEventsForBalanceProofChannelClosed(t *testing.T) {
 /*
 Even though the secret should only propagate from the end of the chain
     to the front, if there is a payee node in the middle that knows the secret
-    the Balance Proof is sent neverthless.
+    the balance Proof is sent neverthless.
 
     This can be done safely because the secret is know to the mediator and
     there is reveal_timeout blocks to withdraw the lock on-chain with the payer.
@@ -657,20 +657,20 @@ func TestEventsForCloseHoldForUnpaidPayee(t *testing.T) {
 	pair := pairs[0]
 	assert(t, pair.PayerTransfer.Secret, utest.UnitSecret)
 	assert(t, pair.PayeeTransfer.Secret, utest.UnitSecret)
-	assert(t, StateTransferPaidMap[pair.PayeeState], false)
+	assert(t, stateTransferPaidMaps[pair.PayeeState], false)
 
 	// do not generate events if the secret is known AND the payee is not paid
 	firstUnSafeBlock := pair.PayerTransfer.Expiration - int64(pair.PayerRoute.RevealTimeout)
 	events := eventsForClose(pairs, firstUnSafeBlock)
 	assert(t, len(events), 0)
-	assert(t, StateTransferPaidMap[pair.PayeeState], false)
-	assert(t, StateTransferPaidMap[pair.PayerState], false)
+	assert(t, stateTransferPaidMaps[pair.PayeeState], false)
+	assert(t, stateTransferPaidMaps[pair.PayerState], false)
 
 	payerExpirationBlock := pair.PayerTransfer.Expiration
 	events = eventsForClose(pairs, payerExpirationBlock)
 	assert(t, len(events), 0)
-	assert(t, StateTransferPaidMap[pair.PayeeState], false)
-	assert(t, StateTransferPaidMap[pair.PayerState], false)
+	assert(t, stateTransferPaidMaps[pair.PayeeState], false)
+	assert(t, stateTransferPaidMaps[pair.PayerState], false)
 
 }
 

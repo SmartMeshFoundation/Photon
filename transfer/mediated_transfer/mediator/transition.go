@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//NameMediatorTransition name for state manager
 const NameMediatorTransition = "MediatorTransition"
 
 /*
@@ -25,9 +26,9 @@ const NameMediatorTransition = "MediatorTransition"
  reveal_timeout blocks away the mediator will be forced to close the channel
  to be safe.
 */
-const TRANSIT_BLOCKS = 2 // TODO: make this a configuration variable
+const transitBlocks = 2 // TODO: make this a configuration variable
 
-var StateSecretKnownMap = map[string]bool{
+var stateSecretKnownMaps = map[string]bool{
 	mediated_transfer.StatePayeeSecretRevealed:   true,
 	mediated_transfer.StatePayeeRefundWithdraw:   true,
 	mediated_transfer.StatePayeeContractWithdraw: true,
@@ -39,7 +40,7 @@ var StateSecretKnownMap = map[string]bool{
 	mediated_transfer.StatePayerContractWithdraw: true,
 	mediated_transfer.StatePayerBalanceProof:     true,
 }
-var StateTransferPaidMap = map[string]bool{
+var stateTransferPaidMaps = map[string]bool{
 	mediated_transfer.StatePayeeContractWithdraw: true,
 	mediated_transfer.StatePayeeBalanceProof:     true,
 	mediated_transfer.StatePayerContractWithdraw: true,
@@ -47,7 +48,7 @@ var StateTransferPaidMap = map[string]bool{
 }
 
 //TODO: fix expired state, it is not final
-var StateTransferFinalMap = map[string]bool{
+var stateTransferFinalMaps = map[string]bool{
 	mediated_transfer.StatePayeeExpired:          true,
 	mediated_transfer.StatePayeeContractWithdraw: true,
 	mediated_transfer.StatePayeeBalanceProof:     true,
@@ -58,12 +59,12 @@ var StateTransferFinalMap = map[string]bool{
 }
 
 //True if the lock has not expired.
-func IsLockValid(tr *mediated_transfer.LockedTransferState, blockNumber int64) bool {
+func isLockValid(tr *mediated_transfer.LockedTransferState, blockNumber int64) bool {
 	return blockNumber <= tr.Expiration
 }
 
 /*
-True if there are more than enough blocks to safely settle on chain and
+IsSafeToWait returns True if there are more than enough blocks to safely settle on chain and
     waiting is safe.
 */
 func IsSafeToWait(tr *mediated_transfer.LockedTransferState, revealTimeout int, blockNumber int64) bool {
@@ -72,7 +73,7 @@ func IsSafeToWait(tr *mediated_transfer.LockedTransferState, revealTimeout int, 
 	return blockNumber < tr.Expiration-int64(revealTimeout)
 }
 
-//True if the refund transfer matches the original transfer.
+//IsValidRefund returns True if the refund transfer matches the original transfer.
 func IsValidRefund(originTr, refundTr *mediated_transfer.LockedTransferState, refundSender common.Address) bool {
 	//Ignore a refund from the target
 	if refundSender == originTr.Target {
@@ -100,8 +101,8 @@ True if this node needs to close the channel to withdraw on-chain.
     to force a close with the payer channel.
 */
 func isChannelCloseNeeded(tr *mediated_transfer.MediationPairState, blockNumber int64) bool {
-	payeeReceived := StateTransferPaidMap[tr.PayeeState]
-	payerPayed := StateTransferPaidMap[tr.PayerState]
+	payeeReceived := stateTransferPaidMaps[tr.PayeeState]
+	payerPayed := stateTransferPaidMaps[tr.PayerState]
 	payerChannelOpen := tr.PayerRoute.State == transfer.ChannelStateOpened
 	AlreadyClosing := tr.PayerState == mediated_transfer.StatePayerWaitingClose
 	safeToWait := IsSafeToWait(tr.PayerTransfer, tr.PayerRoute.RevealTimeout, blockNumber)
@@ -112,7 +113,7 @@ func isChannelCloseNeeded(tr *mediated_transfer.MediationPairState, blockNumber 
 //Return the transfer pairs that are not at a final state.
 func getPendingTransferPairs(pairs []*mediated_transfer.MediationPairState) (pendingPairs []*mediated_transfer.MediationPairState) {
 	for _, pair := range pairs {
-		if !StateTransferFinalMap[pair.PayeeState] || !StateTransferFinalMap[pair.PayerState] {
+		if !stateTransferFinalMaps[pair.PayeeState] || !stateTransferFinalMaps[pair.PayerState] {
 			pendingPairs = append(pendingPairs, pair)
 		}
 	}
@@ -151,7 +152,7 @@ func getTimeoutBlocks(payerRoute *transfer.RouteState, payerTransfer *mediated_t
 	if blocksUntilSettlement > payerTransfer.Expiration-blockNumber {
 		blocksUntilSettlement = payerTransfer.Expiration - blockNumber
 	}
-	return blocksUntilSettlement - TRANSIT_BLOCKS
+	return blocksUntilSettlement - transitBlocks
 }
 
 //Check invariants that must hold.
@@ -162,10 +163,10 @@ func sanityCheck(state *mediated_transfer.MediatorState) {
 	}
 	//if a transfer is paid we must know the secret
 	for _, pair := range state.TransfersPair {
-		if StateTransferPaidMap[pair.PayerState] && state.Secret == utils.EmptyHash {
+		if stateTransferPaidMaps[pair.PayerState] && state.Secret == utils.EmptyHash {
 			panic("payer:a transfer is paid but we don't know the secret")
 		}
-		if StateTransferPaidMap[pair.PayeeState] && state.Secret == utils.EmptyHash {
+		if stateTransferPaidMaps[pair.PayeeState] && state.Secret == utils.EmptyHash {
 			panic("payee:a transfer is paid but we don't know the secret")
 		}
 	}
@@ -197,7 +198,7 @@ func sanityCheck(state *mediated_transfer.MediatorState) {
 		}
 	}
 	pairs2 := state.TransfersPair[0 : len(state.TransfersPair)-1]
-	for i, _ := range pairs2 {
+	for i := range pairs2 {
 		original := state.TransfersPair[i]
 		refund := state.TransfersPair[i+1]
 		if !original.PayeeTransfer.AlmostEqual(refund.PayerTransfer) {
@@ -224,13 +225,16 @@ func clearIfFinalized(result *transfer.TransitionResult) *transfer.TransitionRes
 	*/
 	isAllFinalized := true
 	for _, p := range state.TransfersPair {
-		if !StateTransferPaidMap[p.PayeeState] || !StateTransferPaidMap[p.PayerState] {
+		if !stateTransferPaidMaps[p.PayeeState] || !stateTransferPaidMaps[p.PayerState] {
 			isAllFinalized = false
 			break
 		}
 	}
 	if isAllFinalized {
-		return &transfer.TransitionResult{nil, result.Events}
+		return &transfer.TransitionResult{
+			NewState: nil,
+			Events:   result.Events,
+		}
 	}
 	return result
 }
@@ -257,9 +261,8 @@ func nextRoute(rss *transfer.RoutesState, timeoutBlocks int, transferAmount *big
 		lockTimeout := timeoutBlocks - route.RevealTimeout
 		if route.AvaibleBalance.Cmp(transferAmount) >= 0 && lockTimeout > 0 {
 			return route
-		} else {
-			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
 		}
+		rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
 	}
 	return nil
 }
@@ -337,7 +340,7 @@ Set the state of a transfer *sent* to a payee and check the secret is
         The elements from transfers_pair are changed in place, the list must
         contain all the known transfers to properly check reveal order.
 */
-func SetPayeeStateAndCheckRevealOrder(transferPair []*mediated_transfer.MediationPairState, payeeAddress common.Address,
+func setPayeeStateAndCheckRevealOrder(transferPair []*mediated_transfer.MediationPairState, payeeAddress common.Address,
 	newPayeeState string) []transfer.Event {
 	if !mediated_transfer.ValidPayeeStateMap[newPayeeState] {
 		panic(fmt.Sprintf("invalid payeestate:%s", newPayeeState))
@@ -348,7 +351,7 @@ func SetPayeeStateAndCheckRevealOrder(transferPair []*mediated_transfer.Mediatio
 		if back.PayeeRoute.HopNode == payeeAddress {
 			back.PayeeState = newPayeeState
 			break
-		} else if !StateSecretKnownMap[back.PayeeState] {
+		} else if !stateSecretKnownMaps[back.PayeeState] {
 			WrongRevealOrder = true
 		}
 	}
@@ -406,7 +409,7 @@ func setExpiredPairs(transfersPairs []*mediated_transfer.MediationPairState, blo
 
 			   assert pair.payee_state == 'payee_expired'
 			*/
-			//if StateTransferPaidMap[pair.PayeeState] {
+			//if stateTransferPaidMaps[pair.PayeeState] {
 			//	panic("pair.payee_state should not in STATE_TRANSFER_PAID")
 			//}
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
@@ -493,18 +496,18 @@ Reveal the secret backwards.
     will only be revealed to B upon confirmation from C.
 
     Even though B somehow learnt the secret out-of-order N is safe to proceed
-    with the protocol, the TRANSIT_BLOCKS configuration adds enough time for
+    with the protocol, the transitBlocks configuration adds enough time for
     the reveal secrets to propagate backwards and for B to send the balance
     proof. If the proof doesn't arrive in time and the lock's expiration is at
     risk, N won't lose tokens since it knows the secret can go on-chain at any
     time.
 这些transfersPair,都是我介入的中介传输
 */
-func EventsForRevealSecret(transfersPair []*mediated_transfer.MediationPairState, ourAddress common.Address) (events []transfer.Event) {
+func eventsForRevealSecret(transfersPair []*mediated_transfer.MediationPairState, ourAddress common.Address) (events []transfer.Event) {
 	for j := len(transfersPair) - 1; j >= 0; j-- {
 		pair := transfersPair[j]
-		isPayeeSecretKnown := StateSecretKnownMap[pair.PayeeState]
-		isPayerSecretKnown := StateSecretKnownMap[pair.PayerState]
+		isPayeeSecretKnown := stateSecretKnownMaps[pair.PayeeState]
+		isPayerSecretKnown := stateSecretKnownMaps[pair.PayerState]
 		if isPayeeSecretKnown && !isPayerSecretKnown { //todo 如果我在发送reveal secret过程中崩溃了，这个消息payer没有收到，payee也没有收到ack，payee会重发revealsecret消息，我的内部状态一定不能变。目前好像是这么做的。
 			pair.PayerState = mediated_transfer.StatePayerSecretRevealed
 			tr := pair.PayerTransfer
@@ -525,8 +528,8 @@ func EventsForRevealSecret(transfersPair []*mediated_transfer.MediationPairState
 func eventsForBalanceProof(transfersPair []*mediated_transfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
 	for j := len(transfersPair) - 1; j >= 0; j-- {
 		pair := transfersPair[j]
-		payeeKnowsSecret := StateSecretKnownMap[pair.PayeeState]
-		payeePayed := StateTransferPaidMap[pair.PayeeState]
+		payeeKnowsSecret := stateSecretKnownMaps[pair.PayeeState]
+		payeePayed := stateTransferPaidMaps[pair.PayeeState]
 		payeeChannelOpen := pair.PayeeRoute.State == transfer.ChannelStateOpened
 
 		/*
@@ -536,7 +539,7 @@ func eventsForBalanceProof(transfersPair []*mediated_transfer.MediationPairState
 			         not gone on-chain while near the expiration? (The problem is how to
 			         define the unsafe region, since that is a local configuration)
 		*/
-		lockValid := IsLockValid(pair.PayeeTransfer, blockNumber)
+		lockValid := isLockValid(pair.PayeeTransfer, blockNumber)
 		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid {
 			pair.PayeeState = mediated_transfer.StatePayeeBalanceProof
 			tr := pair.PayeeTransfer
@@ -636,7 +639,7 @@ Set the state of the `payee_address` transfer, check the secret is
     SendBalanceProof, and Withdraws.
 */
 func secretLearned(state *mediated_transfer.MediatorState, secret common.Hash, payeeAddress common.Address, newPayeeState string) *transfer.TransitionResult {
-	if !StateSecretKnownMap[newPayeeState] {
+	if !stateSecretKnownMaps[newPayeeState] {
 		panic(fmt.Sprintf("%s not in STATE_SECRET_KNOWN", newPayeeState))
 	}
 	// TODO: if any of the transfers is in expired state, event for byzantine
@@ -644,15 +647,18 @@ func secretLearned(state *mediated_transfer.MediatorState, secret common.Hash, p
 		state.SetSecret(secret)
 	}
 	var events []transfer.Event
-	eventsWrongOrder := SetPayeeStateAndCheckRevealOrder(state.TransfersPair, payeeAddress, newPayeeState)
-	eventsSecretReveal := EventsForRevealSecret(state.TransfersPair, state.OurAddress)
+	eventsWrongOrder := setPayeeStateAndCheckRevealOrder(state.TransfersPair, payeeAddress, newPayeeState)
+	eventsSecretReveal := eventsForRevealSecret(state.TransfersPair, state.OurAddress)
 	eventBalanceProof := eventsForBalanceProof(state.TransfersPair, state.BlockNumber)
 	eventsWithdraw := eventsForWithdraw(state.TransfersPair, state.Db)
 	events = append(events, eventsWrongOrder...)
 	events = append(events, eventsSecretReveal...)
 	events = append(events, eventBalanceProof...)
 	events = append(events, eventsWithdraw...)
-	return &transfer.TransitionResult{state, events}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
+	}
 }
 
 /*
@@ -727,14 +733,19 @@ func mediateTransfer(state *mediated_transfer.MediatorState, payerRoute *transfe
 				state.HasRefunded = true
 			}
 		}
-		return &transfer.TransitionResult{state, refundEvents}
-	} else {
-		/*
-					   the list must be ordered from high to low expiration, expiration
-			         handling depends on it
-		*/
-		state.TransfersPair = append(state.TransfersPair, transferPair)
-		return &transfer.TransitionResult{state, events}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   refundEvents,
+		}
+	}
+	/*
+				   the list must be ordered from high to low expiration, expiration
+		         handling depends on it
+	*/
+	state.TransfersPair = append(state.TransfersPair, transferPair)
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
 	}
 }
 
@@ -761,7 +772,10 @@ func handleBlock(state *mediated_transfer.MediatorState, st *transfer.BlockState
 	events = append(events, closeEvents...)
 	events = append(events, withdrawEvents...)
 	events = append(events, unlockfailEvents...)
-	return &transfer.TransitionResult{state, events}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
+	}
 }
 
 /*
@@ -799,8 +813,10 @@ func handleRefundTransfer(state *mediated_transfer.MediatorState, st *mediated_t
 	if IsValidRefund(payeeTransfer, st.Transfer, st.Sender) {
 		//什么时候会产生多个transferpair，就是发生refund的时候。 从这里也可以看出把refund当成普通mediatedtransfer来处理。
 		return mediateTransfer(state, transferPair.PayeeRoute, st.Transfer)
-	} else {
-		return &transfer.TransitionResult{state, nil}
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
@@ -816,9 +832,11 @@ func handleSecretReveal(state *mediated_transfer.MediatorState, st *mediated_tra
 	secret := st.Secret
 	if utils.Sha3(secret[:]) == state.Hashlock {
 		return secretLearned(state, secret, st.Sender, mediated_transfer.StatePayeeSecretRevealed)
-	} else {
-		//  TODO: event for byzantine behavior,所有的reveal secret，是否与自己有关，都会到这里，是正常现象。
-		return &transfer.TransitionResult{state, nil}
+	}
+	//  TODO: event for byzantine behavior,所有的reveal secret，是否与自己有关，都会到这里，是正常现象。
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
@@ -854,7 +872,7 @@ func handleContractWithDraw(state *mediated_transfer.MediatorState, st *mediated
 				*/
 				if pos > 0 {
 					previousPair := state.TransfersPair[pos-1]
-					if !StateTransferFinalMap[previousPair.PayeeState] {
+					if !stateTransferFinalMaps[previousPair.PayeeState] {
 						previousPair.PayeeState = mediated_transfer.StatePayeeRefundWithdraw
 					}
 				}
@@ -883,12 +901,18 @@ func handleBalanceProof(state *mediated_transfer.MediatorState, st *mediated_tra
 	var events []transfer.Event
 	for _, pair := range state.TransfersPair {
 		if pair.PayerRoute.HopNode == st.NodeAddress {
-			withdraw := &mediated_transfer.EventWithdrawSuccess{pair.PayeeTransfer.Identifier, pair.PayeeTransfer.Hashlock}
+			withdraw := &mediated_transfer.EventWithdrawSuccess{
+				Identifier: pair.PayeeTransfer.Identifier,
+				Hashlock:   pair.PayeeTransfer.Hashlock,
+			}
 			events = append(events, withdraw)
 			pair.PayerState = mediated_transfer.StatePayerBalanceProof
 		}
 	}
-	return &transfer.TransitionResult{state, events}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
+	}
 }
 
 //Handle an ActionRouteChange state change
@@ -918,10 +942,13 @@ func handleRouteChange(state *mediated_transfer.MediatorState, st *transfer.Acti
 	}
 	//  a route might be closed by another task
 	withdrawEvents := eventsForWithdraw(state.TransfersPair, state.Db)
-	return &transfer.TransitionResult{state, withdrawEvents}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   withdrawEvents,
+	}
 }
 
-//State machine for a node mediating a transfer.
+//StateTransition is State machine for a node mediating a transfer.
 func StateTransition(originalState transfer.State, stateChange transfer.StateChange) (it *transfer.TransitionResult) {
 	/*
 			  Notes:
@@ -930,7 +957,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		       doesn't control the secret reveal and needs to wait for the lock
 		       expiration before safely discarding the transfer.
 	*/
-	it = &transfer.TransitionResult{originalState, nil}
+	it = &transfer.TransitionResult{
+		NewState: originalState,
+		Events:   nil,
+	}
 	state, ok := originalState.(*mediated_transfer.MediatorState)
 	if !ok {
 		if originalState != nil {
@@ -964,11 +994,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		} else {
 			log.Error(" db is nil can only be ignored when you are run testing...")
 		}
-
 	}
 	if state == nil { //nil 判断小心了,有可能是空指针被当做非空了.
 		if aim, ok := stateChange.(*mediated_transfer.ActionInitMediatorStateChange); ok {
-			state := &mediated_transfer.MediatorState{
+			state = &mediated_transfer.MediatorState{
 				OurAddress:  aim.OurAddress,
 				Routes:      aim.Routes,
 				BlockNumber: aim.BlockNumber,

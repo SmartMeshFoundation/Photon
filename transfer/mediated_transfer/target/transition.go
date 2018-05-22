@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
+//NameTargetTransition name for state manager
 const NameTargetTransition = "TargetTransition"
 
 func init() {
@@ -88,10 +89,15 @@ func handleInitTraget(st *mediated_transfer.ActionInitTargetStateChange) *transf
 			Hashlock:  tr.Hashlock,
 			Receiver:  tr.Initiator,
 		}
-		return &transfer.TransitionResult{state, []transfer.Event{secretRequest}}
-	} else {
-		//如果超时了,那就什么都不做,等待相关各方自己取消?
-		return &transfer.TransitionResult{state, nil}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   []transfer.Event{secretRequest},
+		}
+	}
+	//如果超时了,那就什么都不做,等待相关各方自己取消?
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
@@ -115,12 +121,18 @@ func handleSecretReveal(state *mediated_transfer.TargetState, st *mediated_trans
 	} else {
 		// TODO: event for byzantine behavior
 	}
-	it = &transfer.TransitionResult{state, events}
+	it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
+	}
 	return
 }
 
 func handleBalanceProof(state *mediated_transfer.TargetState, st *mediated_transfer.ReceiveBalanceProofStateChange) (it *transfer.TransitionResult) {
-	it = &transfer.TransitionResult{state, nil}
+	it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
 	//TODO: byzantine behavior event when the sender doesn't match
 	if st.NodeAddress == state.FromRoute.HopNode {
 		state.State = mediated_transfer.StateBalanceProof
@@ -146,7 +158,10 @@ func handleBlock(state *mediated_transfer.TargetState, st *transfer.BlockStateCh
 	}
 	events2 := eventsForWithdraw(state, state.FromRoute)
 	events = append(events, events2...)
-	it = &transfer.TransitionResult{state, events}
+	it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   events,
+	}
 	return
 }
 
@@ -159,7 +174,10 @@ func handleRouteChange(state *mediated_transfer.TargetState, st *transfer.Action
 	*/
 	state.FromRoute = st.Route
 	withdrawEvents := eventsForWithdraw(state, state.FromRoute)
-	it = &transfer.TransitionResult{state, withdrawEvents}
+	it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   withdrawEvents,
+	}
 	return
 }
 
@@ -180,7 +198,10 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			ChannelAddress: state.FromRoute.ChannelAddress,
 			Reason:         "lock expired",
 		}
-		it = &transfer.TransitionResult{nil, []transfer.Event{failed}}
+		it = &transfer.TransitionResult{
+			NewState: nil,
+			Events:   []transfer.Event{failed},
+		}
 	} else if state.State == mediated_transfer.StateBalanceProof {
 		//这些事件对应的处理都没有
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
@@ -192,14 +213,20 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			Identifier: state.FromTransfer.Identifier,
 			Hashlock:   state.FromTransfer.Hashlock,
 		}
-		it = &transfer.TransitionResult{nil, []transfer.Event{transferSuccess, unlockSuccess}}
+		it = &transfer.TransitionResult{
+			NewState: nil,
+			Events:   []transfer.Event{transferSuccess, unlockSuccess},
+		}
 	}
 	return it
 }
 
-// State machine for the target node of a target transfer.
+// StateTransiton is State machine for the target node of a target transfer.
 func StateTransiton(originalState transfer.State, stateChange transfer.StateChange) (it *transfer.TransitionResult) {
-	it = &transfer.TransitionResult{originalState, nil}
+	it = &transfer.TransitionResult{
+		NewState: originalState,
+		Events:   nil,
+	}
 	if originalState == nil {
 		ait, ok := stateChange.(*mediated_transfer.ActionInitTargetStateChange)
 		if ok {
