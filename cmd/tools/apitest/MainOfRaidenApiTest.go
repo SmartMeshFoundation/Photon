@@ -20,5 +20,5 @@ func main() {
 		Transfer(NewTokenName, "./../../testdata/TransCase/case1.ini")
 	}
 	//test API item by item
-	ApiTest()
+	APITest()
 }

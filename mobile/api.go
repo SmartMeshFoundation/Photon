@@ -20,7 +20,7 @@ import (
 
 //API for export interface
 type API struct {
-	api *smartraiden.RaidenApi
+	api *smartraiden.RaidenAPI
 }
 
 func marshal(v interface{}) (s string, err error) {
@@ -105,7 +105,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		if err == nil {
 			d.Balance = c.OurBalance
 		} else {
-			log.Error(" RaidenApi.Deposit error : ", err)
+			log.Error(" RaidenAPI.Deposit error : ", err)
 			return
 		}
 	}

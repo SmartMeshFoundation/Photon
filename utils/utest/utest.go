@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
@@ -87,7 +87,7 @@ func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTime
 }
 
 //MakeTransfer create test transfer
-func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, identifier uint64, token /*UnitTokenAddress*/ common.Address) *mediated_transfer.LockedTransferState {
+func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, identifier uint64, token /*UnitTokenAddress*/ common.Address) *mediatedtransfer.LockedTransferState {
 	if secret != utils.EmptyHash {
 		if utils.Sha3(secret[:]) != hashlock {
 			log.Error("sha3(secret) != hashlock")
@@ -96,7 +96,7 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 	if hashlock == utils.EmptyHash {
 		hashlock = UnitHashLock
 	}
-	return &mediated_transfer.LockedTransferState{
+	return &mediatedtransfer.LockedTransferState{
 		Identifier:   identifier,
 		TargetAmount: new(big.Int).Set(amount),
 		Amount:       new(big.Int).Set(amount),
@@ -111,7 +111,7 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 }
 
 //MakeFrom create test from route and from transfer
-func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediated_transfer.LockedTransferState) {
+func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediatedtransfer.LockedTransferState) {
 	fromroute = MakeRoute(initiator, amount, UnitSettleTimeout, UnitRevealTimeout, 0, utils.EmptyAddress)
 	fromtransfer = MakeTransfer(amount, initiator, target, fromExpiration, secret, utils.EmptyHash, 0, UnitTokenAddress)
 	return

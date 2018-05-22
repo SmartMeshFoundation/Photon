@@ -3,39 +3,37 @@ package smartraiden
 import (
 	"fmt"
 
-	"errors"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 )
 
 //save state ,call many times is ok
-func (this *RaidenService) SaveSnapshot() {
-	log.Info("SaveSnapshot...")
-	this.db.IsDbCrashedLastTime()
+func (rs *RaidenService) saveSnapshot() {
+	log.Info("saveSnapshot...")
+	rs.db.IsDbCrashedLastTime()
 }
 
 //retore state ,only one time ,just after app start immediately
-func (this *RaidenService) RestoreSnapshot() error {
-	log.Info("RestoreSnapshot...")
+func (rs *RaidenService) restoreSnapshot() error {
+	log.Info("restoreSnapshot...")
 	defer func() {
-		this.db.MarkDbOpenedStatus()
-		this.db.SaveRegistryAddress(this.RegistryAddress)
+		rs.db.MarkDbOpenedStatus()
+		rs.db.SaveRegistryAddress(rs.RegistryAddress)
 	}()
 	/*
 	   When debugging, the registry address may change constantly, Testing is to avoid unnecessary mistakes.
 	*/
-	registryAddr := this.db.GetRegistryAddress()
-	if registryAddr != this.RegistryAddress && registryAddr != utils.EmptyAddress {
-		err := errors.New(fmt.Sprintf("db registry address not match db=%s,mine=%s", registryAddr.String(), this.RegistryAddress.String()))
+	registryAddr := rs.db.GetRegistryAddress()
+	if registryAddr != rs.RegistryAddress && registryAddr != utils.EmptyAddress {
+		err := fmt.Errorf("db registry address not match db=%s,mine=%s", registryAddr.String(), rs.RegistryAddress.String())
 		log.Error(err.Error())
 		return err
 	}
@@ -47,27 +45,27 @@ func (this *RaidenService) RestoreSnapshot() error {
 		The fourth step   recovery processing for unsent revealsecret and the unprocessed revealsecret.
 		The fifth step   save the recovered channel state to the database.
 	*/
-	this.restoreChannel(this.db.IsDbCrashedLastTime())
-	this.RestoreToken2Hash2Channels()
-	this.restoreStateManager(this.db.IsDbCrashedLastTime())
-	this.RestoreRevealSecret()
-	this.saveChannelStatusAfterStart()
+	rs.restoreChannel(rs.db.IsDbCrashedLastTime())
+	rs.restoreToken2Hash2Channels()
+	rs.restoreStateManager(rs.db.IsDbCrashedLastTime())
+	rs.restoreRevealSecret()
+	rs.saveChannelStatusAfterStart()
 	return nil
 }
-func (this *RaidenService) saveChannelStatusAfterStart() {
-	for _, g := range this.Token2ChannelGraph {
+func (rs *RaidenService) saveChannelStatusAfterStart() {
+	for _, g := range rs.Token2ChannelGraph {
 		for _, c := range g.ChannelAddress2Channel {
-			this.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 		}
 	}
 }
 
 //ds, parameter for validate stored data.
-func (this *RaidenService) restoreChannel(isCrashed bool) error {
+func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 	log.Info("restore channel...")
-	for _, g := range this.Token2ChannelGraph {
+	for _, g := range rs.Token2ChannelGraph {
 		for _, c := range g.ChannelAddress2Channel {
-			cs, err := this.db.GetChannelByAddress(c.MyAddress)
+			cs, err := rs.db.GetChannelByAddress(c.MyAddress)
 			if err != nil {
 				if err == storm.ErrNotFound {
 					continue //new channel when shutdown
@@ -99,38 +97,38 @@ func (this *RaidenService) restoreChannel(isCrashed bool) error {
 	return nil
 }
 
-func (this *RaidenService) restoreDbPointer(state transfer.State) {
+func (rs *RaidenService) restoreDbPointer(state transfer.State) {
 	if state == nil {
 		return
 	}
 	switch st2 := state.(type) {
-	case *mediated_transfer.InitiatorState:
-		st2.Db = this.db
-	case *mediated_transfer.TargetState:
-		st2.Db = this.db
-	case *mediated_transfer.MediatorState:
-		st2.Db = this.db
+	case *mediatedtransfer.InitiatorState:
+		st2.Db = rs.db
+	case *mediatedtransfer.TargetState:
+		st2.Db = rs.db
+	case *mediatedtransfer.MediatorState:
+		st2.Db = rs.db
 	default:
 		panic(fmt.Sprintf("unkown state %s", utils.StringInterface(st2, 3)))
 	}
 }
 
 //function pointer save and restore
-func (this *RaidenService) restoreStateManager(isCrashed bool) {
-	log.Info(fmt.Sprintf("restore statemanager ,last close correct=%s", !isCrashed))
-	mgrs := this.db.GetAllStateManager()
+func (rs *RaidenService) restoreStateManager(isCrashed bool) {
+	log.Info(fmt.Sprintf("restore statemanager ,last close correct=%v", !isCrashed))
+	mgrs := rs.db.GetAllStateManager()
 	for _, mgr := range mgrs {
 		//log.Trace(fmt.Sprintf("unfinish manager %s", utils.StringInterface(mgr, 7)))
 		if mgr.ManagerState == transfer.StateManagerStateInit || mgr.ManagerState == transfer.StateManagerTransferComplete {
 			continue
 		}
 		setStateManagerFuncPointer(mgr)
-		idmgrs := this.Identifier2StateManagers[mgr.Identifier]
+		idmgrs := rs.Identifier2StateManagers[mgr.Identifier]
 		idmgrs = append(idmgrs, mgr)
-		this.Identifier2StateManagers[mgr.Identifier] = idmgrs
-		this.restoreDbPointer(mgr.CurrentState)
+		rs.Identifier2StateManagers[mgr.Identifier] = idmgrs
+		rs.restoreDbPointer(mgr.CurrentState)
 	}
-	for _, mgrs := range this.Identifier2StateManagers {
+	for _, mgrs := range rs.Identifier2StateManagers {
 		//mannagers for the same channel should be order, otherwise, nonce error.
 		for _, mgr := range mgrs {
 			log.Trace(fmt.Sprintf("restore state manager:%s\n", utils.StringInterface(mgr, 7)))
@@ -140,10 +138,10 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 			case transfer.StateManagerTransferComplete:
 				//ignore
 			case transfer.StateManagerReceivedMessage:
-				st, ok := mgr.LastReceivedMessage.(mediated_transfer.ActionInitInitiatorStateChange)
+				st, ok := mgr.LastReceivedMessage.(mediatedtransfer.ActionInitInitiatorStateChange)
 				if ok {
-					st.Db = this.db
-					this.StateMachineEventHandler.Dispatch(mgr, st)
+					st.Db = rs.db
+					rs.StateMachineEventHandler.dispatch(mgr, st)
 				} else {
 					//receive a message,and not handled
 					//ignore ,partner will try
@@ -171,7 +169,7 @@ func (this *RaidenService) restoreStateManager(isCrashed bool) {
 					continue // for receive secret message, no need sending any message but ack.
 				}
 				messageTag.SetStateManager(mgr) //statemanager doesn't save
-				this.SendAsync(messageTag.Receiver, mgr.LastSendMessage.(encoding.SignedMessager))
+				rs.sendAsync(messageTag.Receiver, mgr.LastSendMessage.(encoding.SignedMessager))
 			case transfer.StateManagerSendMessageSuccesss:
 				//do nothing right now.
 			}
@@ -187,7 +185,7 @@ func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 	case initiator.NameInitiatorTransition:
 		mgr.FuncStateTransition = initiator.StateTransition
 		if mgr.CurrentState != nil {
-			state := mgr.CurrentState.(*mediated_transfer.InitiatorState)
+			state := mgr.CurrentState.(*mediatedtransfer.InitiatorState)
 			state.RandomGenerator = utils.RandomSecretGenerator //todo fix for tokenswap
 		}
 	case mediator.NameMediatorTransition:
@@ -199,33 +197,33 @@ func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 	}
 }
 
-func (this *RaidenService) RestoreRevealSecret() {
-	log.Trace(fmt.Sprintf("RestoreRevealSecret... "))
-	receiveSecrets := this.db.GetAllUncompleteReceivedRevealSecret()
+func (rs *RaidenService) restoreRevealSecret() {
+	log.Trace(fmt.Sprintf("restoreRevealSecret... "))
+	receiveSecrets := rs.db.GetAllUncompleteReceivedRevealSecret()
 	for _, s := range receiveSecrets {
-		this.MessageHandler.OnMessage(s.Message, s.EchoHash)
+		rs.MessageHandler.onMessage(s.Message, s.EchoHash)
 	}
-	sentSecrets := this.db.GetAllUncompleteSentRevealSecret()
+	sentSecrets := rs.db.GetAllUncompleteSentRevealSecret()
 	for _, s := range sentSecrets {
-		this.SendAsync(s.Receiver, s.Message)
+		rs.sendAsync(s.Receiver, s.Message)
 	}
 }
 
-func (this *RaidenService) RestoreToken2Hash2Channels() {
-	log.Trace("RestoreToken2Hash2Channels...")
-	for token, g := range this.Token2ChannelGraph {
+func (rs *RaidenService) restoreToken2Hash2Channels() {
+	log.Trace("restoreToken2Hash2Channels...")
+	for token, g := range rs.Token2ChannelGraph {
 		for _, c := range g.ChannelAddress2Channel {
 			for lock := range c.OurState.Lock2PendingLocks {
-				this.RegisterChannelForHashlock(token, c, lock)
+				rs.registerChannelForHashlock(token, c, lock)
 			}
 			for lock := range c.PartnerState.Lock2PendingLocks {
-				this.RegisterChannelForHashlock(token, c, lock)
+				rs.registerChannelForHashlock(token, c, lock)
 			}
 			for lock := range c.OurState.Lock2UnclaimedLocks {
-				this.RegisterChannelForHashlock(token, c, lock)
+				rs.registerChannelForHashlock(token, c, lock)
 			}
 			for lock := range c.PartnerState.Lock2UnclaimedLocks {
-				this.RegisterChannelForHashlock(token, c, lock)
+				rs.registerChannelForHashlock(token, c, lock)
 			}
 		}
 	}

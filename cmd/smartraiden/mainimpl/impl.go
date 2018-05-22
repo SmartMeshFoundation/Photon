@@ -235,7 +235,7 @@ func MainCtx(ctx *cli.Context) error {
 		raidenService.SetFeePolicy(&smartraiden.NoFeePolicy{})
 	}
 	raidenService.Start()
-	api := smartraiden.NewRaidenApi(raidenService)
+	api := smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
 	restful.Start(api, cfg)
 	return nil
@@ -272,7 +272,7 @@ func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocke
 	}
 	return
 }
-func regQuitHandler(api *smartraiden.RaidenApi) {
+func regQuitHandler(api *smartraiden.RaidenAPI) {
 	go func() {
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
@@ -358,8 +358,8 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	config.Port = listenport
 	config.UseConsole = ctx.Bool("console")
 	config.UseRpc = ctx.Bool("rpc")
-	config.ApiHost = apihost
-	config.ApiPort = apiport
+	config.APIHost = apihost
+	config.APIPort = apiport
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
 	maxUnresponsiveTime := ctx.Int64("max-unresponsive-time")

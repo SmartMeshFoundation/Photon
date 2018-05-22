@@ -8,7 +8,7 @@ import (
 )
 
 //API tests and use examples
-func ApiTest() {
+func APITest() {
 	c, err := config.ReadDefault("./apitest.ini")
 	if err != nil {
 		log.Println("Read error:", err)
@@ -29,7 +29,7 @@ func ApiTest() {
 	Node6Url = "http://" + Node6Url
 
 	log.Println("==============================================================================================")
-	log.Println("Start Test goRaiden Api")
+	log.Println("Start Test goRaiden API")
 	start := time.Now()
 	//test for querying  a node address
 	QueryingNodeAddressTest(Node1Url)

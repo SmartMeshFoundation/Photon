@@ -111,7 +111,7 @@ var DefaultConfig = Config{
 	EnableHealthCheck: false,
 }
 
-//ConditionQuit is for test
+//conditionQuit is for test
 type ConditionQuit struct {
 	QuitEvent  string //name match
 	IsBefore   bool   //quit before event occur
@@ -119,7 +119,7 @@ type ConditionQuit struct {
 }
 
 /*
-TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete HandleSecret in raidenservice)?
+TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete handleSecret in raidenservice)?
 todo remove?
 */
 var TreatRefundTransferAsNormalMediatedTransfer = true

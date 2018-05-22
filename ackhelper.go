@@ -9,26 +9,32 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//AckHelper save ack for sent and recevied  message
 type AckHelper struct {
 	db *models.ModelDB
 }
 
+//NewAckHelper create ack
 func NewAckHelper(db *models.ModelDB) *AckHelper {
 	return &AckHelper{db}
 }
-func (this *AckHelper) GetAck(echohash common.Hash) []byte {
-	return this.db.GetAck(echohash)
+
+//GetAck return a message's ack
+func (ah *AckHelper) GetAck(echohash common.Hash) []byte {
+	return ah.db.GetAck(echohash)
 }
-func (this *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
-	data := this.GetAck(echohash)
+
+//SaveAck save ack to db
+func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
+	data := ah.GetAck(echohash)
 	_, ok := msg.(*encoding.RevealSecret)
 	_, ok2 := msg.(*encoding.SecretRequest)
 	if ok || ok2 {
 		if len(data) > 0 {
 			log.Error(fmt.Sprintf("save ack for  RevealSecret which is already exist"))
 		} else {
-			tx := this.db.StartTx()
-			this.db.SaveAck(echohash, ack, tx)
+			tx := ah.db.StartTx()
+			ah.db.SaveAck(echohash, ack, tx)
 			tx.Commit()
 		}
 

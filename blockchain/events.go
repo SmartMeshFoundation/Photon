@@ -10,7 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -118,7 +118,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveTokenAddedStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveTokenAddedStateChange{
 							RegistryAddress: ev.ContractAddress,
 							TokenAddress:    ev.TokenAddress,
 							ManagerAddress:  ev.ChannelManagerAddress,
@@ -128,7 +128,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveNewChannelStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveNewChannelStateChange{
 							ManagerAddress: ev.ContractAddress,
 							ChannelAddress: ev.NettingChannelAddress,
 							Participant1:   ev.Participant1,
@@ -140,7 +140,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveBalanceStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveBalanceStateChange{
 							ChannelAddress:     ev.ContractAddress,
 							TokenAddress:       ev.TokenAddress,
 							ParticipantAddress: ev.ParticipantAddress,
@@ -152,7 +152,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveClosedStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveClosedStateChange{
 							ChannelAddress: ev.ContractAddress,
 							ClosingAddress: ev.ClosingAddress,
 							ClosedBlock:    ev.BlockNumber,
@@ -162,7 +162,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveSettledStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveSettledStateChange{
 							ChannelAddress: ev.ContractAddress,
 							SettledBlock:   ev.BlockNumber,
 						})
@@ -171,7 +171,7 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							continue
 						}
-						be.sendStateChange(&mediated_transfer.ContractReceiveWithdrawStateChange{
+						be.sendStateChange(&mediatedtransfer.ContractReceiveWithdrawStateChange{
 							ChannelAddress: ev.ContractAddress,
 							Secret:         ev.Secret,
 							Receiver:       ev.ReceiverAddress,
@@ -361,7 +361,7 @@ func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (st
 		if err2 != nil {
 			continue
 		}
-		stateChanges = append(stateChanges, &mediated_transfer.ContractReceiveClosedStateChange{
+		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveClosedStateChange{
 			ChannelAddress: e.ContractAddress,
 			ClosingAddress: e.ClosingAddress,
 			ClosedBlock:    e.BlockNumber,
@@ -378,7 +378,7 @@ func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (st
 		if err != nil {
 			continue
 		}
-		stateChanges = append(stateChanges, &mediated_transfer.ContractReceiveWithdrawStateChange{
+		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveWithdrawStateChange{
 			ChannelAddress: e.ContractAddress,
 			Secret:         e.Secret,
 			Receiver:       e.ReceiverAddress,

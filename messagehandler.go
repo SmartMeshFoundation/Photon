@@ -14,17 +14,14 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-/*
-来自其他节点的消息并不可信,目前的实现可以保证对方不能拿走额外的钱,但是也要预防 DoS 攻击.
-*/
 /*
  Class responsible to handle the protocol messages.
 
@@ -32,13 +29,13 @@ import (
         This class is not intended to be used standalone, use RaidenService
         instead.
 */
-type RaidenMessageHandler struct {
+type raidenMessageHandler struct {
 	raiden        *RaidenService
 	blockedTokens map[common.Address]bool
 }
 
-func NewRaidenMessageHandler(raiden *RaidenService) *RaidenMessageHandler {
-	h := &RaidenMessageHandler{
+func newRaidenMessageHandler(raiden *RaidenService) *raidenMessageHandler {
+	h := &raidenMessageHandler{
 		raiden:        raiden,
 		blockedTokens: make(map[common.Address]bool),
 	}
@@ -48,7 +45,7 @@ func NewRaidenMessageHandler(raiden *RaidenService) *RaidenMessageHandler {
 /*
  Handles `message` and sends an ACK on success.
 */
-func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash common.Hash) (err error) {
+func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash common.Hash) (err error) {
 	msg.SetTag(&transfer.MessageTag{
 		EchoHash:          hash,
 		IsASendingMessage: false,
@@ -56,85 +53,85 @@ func (this *RaidenMessageHandler) OnMessage(msg encoding.SignedMessager, hash co
 	})
 	switch m2 := msg.(type) {
 	case *encoding.SecretRequest:
-		f := this.raiden.SecretRequestPredictorMap[m2.HashLock]
+		f := mh.raiden.SecretRequestPredictorMap[m2.HashLock]
 		if f != nil {
 			ignore := (f)(m2)
 			if ignore {
-				return errors.New("ignore this secret request")
+				return errors.New("ignore mh secret request")
 			}
 		}
-		err = this.messageSecretRequest(m2)
+		err = mh.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
-		this.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
-		f := this.raiden.RevealSecretListenerMap[m2.HashLock()]
+		mh.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
+		f := mh.raiden.RevealSecretListenerMap[m2.HashLock()]
 		if f != nil {
 			remove := (f)(m2)
 			if remove {
-				delete(this.raiden.RevealSecretListenerMap, m2.HashLock())
+				delete(mh.raiden.RevealSecretListenerMap, m2.HashLock())
 			}
 		}
-		err = this.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
+		err = mh.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
 	case *encoding.Secret:
-		err = this.messageSecret(m2)
+		err = mh.messageSecret(m2)
 	case *encoding.DirectTransfer:
-		err = this.messageDirectTransfer(m2)
+		err = mh.messageDirectTransfer(m2)
 	case *encoding.MediatedTransfer:
-		err = this.MessageMediatedTransfer(m2)
+		err = mh.messageMediatedTransfer(m2)
 		if err == nil {
-			for f, _ := range this.raiden.ReceivedMediatedTrasnferListenerMap {
+			for f := range mh.raiden.ReceivedMediatedTrasnferListenerMap {
 				remove := (*f)(m2)
 				if remove {
-					delete(this.raiden.ReceivedMediatedTrasnferListenerMap, f)
+					delete(mh.raiden.ReceivedMediatedTrasnferListenerMap, f)
 				}
 			}
 		}
 	case *encoding.RefundTransfer:
-		err = this.messageRefundTransfer(m2)
+		err = mh.messageRefundTransfer(m2)
 	case *encoding.RemoveExpiredHashlockTransfer:
-		err = this.messageRemoveExpiredHashlockTransfer(m2)
+		err = mh.messageRemoveExpiredHashlockTransfer(m2)
 	default:
-		log.Error(fmt.Sprintf("RaidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
+		log.Error(fmt.Sprintf("raidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
 	}
 	return err
 }
 
-func (this *RaidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
+func (mh *raidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
 	//blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msger)
 	msg := msger.GetEnvelopMessage()
-	balanceProof := &mediated_transfer.ReceiveBalanceProofStateChange{
+	balanceProof := &mediatedtransfer.ReceiveBalanceProofStateChange{
 		Identifier:   msg.Identifier,
 		NodeAddress:  msg.Sender,
 		BalanceProof: transfer.NewBalanceProofStateFromEnvelopMessage(msger),
 		Message:      msger,
 	}
-	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(balanceProof.Identifier, balanceProof)
+	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(balanceProof.Identifier, balanceProof)
 }
-func (this *RaidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
+func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.Secret
 	sender := msg.Sender
-	this.raiden.RegisterSecret(secret)
-	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{secret, sender, msg}
-	this.raiden.StateMachineEventHandler.LogAndDispatchToAllTasks(stateChange)
+	mh.raiden.registerSecret(secret)
+	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
+	mh.raiden.StateMachineEventHandler.logAndDispatchToAllTasks(stateChange)
 	return nil
 }
-func (this *RaidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
-	stateChange := &mediated_transfer.ReceiveSecretRequestStateChange{
+func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
+	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
 		Identifier: msg.Identifier,
 		Amount:     new(big.Int).Set(msg.Amount),
 		Hashlock:   msg.HashLock,
 		Sender:     msg.Sender,
 		Message:    msg,
 	}
-	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
+	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
 }
-func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
+func (mh *raidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	if msg.Tag() == nil {
 		log.Error(fmt.Sprintf("tag must not be nil ,only when token swap %s", utils.StringInterface(msg, 5)))
 		return
 	}
-	tx := this.raiden.db.StartTx()
+	tx := mh.raiden.db.StartTx()
 	msgTag := msg.Tag().(*transfer.MessageTag)
 	mgr := msgTag.GetStateManager()
 
@@ -149,8 +146,8 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
 	log.Trace(fmt.Sprintf("markSecretComplete set message %s ReceiveProcessComplete", msgTag.MessageId))
 	msgTag.ReceiveProcessComplete = true
-	ack := this.raiden.Protocol.CreateAck(msgTag.EchoHash)
-	this.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)
+	ack := mh.raiden.Protocol.CreateAck(msgTag.EchoHash)
+	mh.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)
 	_, ok := mgr.LastReceivedMessage.(*encoding.Secret)
 	if !ok {
 		panic("must be a secret message")
@@ -171,72 +168,72 @@ func (this *RaidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 			mgr.ManagerState = transfer.StateManagerTransferComplete
 		}
 	}
-	this.raiden.db.UpdateStateManaer(mgr, tx)
+	mh.raiden.db.UpdateStateManaer(mgr, tx)
 	if mgr.ChannelAddress == utils.EmptyAddress {
 		panic("channeladdress must be valid")
 	}
 	if mgr.ChannelAddress != msg.Channel {
-		log.Info(fmt.Sprintf("this is a secret message from refunded node %s", msg))
+		log.Info(fmt.Sprintf("mh is a secret message from refunded node %s", msg))
 	}
-	ch, err := this.raiden.FindChannelByAddress(msg.Channel)
+	ch, err := mh.raiden.findChannelByAddress(msg.Channel)
 	if err != nil {
 		panic(fmt.Sprintf("channel %s must exists", utils.APex(msg.Channel)))
 	}
-	this.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	mh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 	tx.Commit()
-	this.raiden.ConditionQuit("SecretSendAck")
+	mh.raiden.conditionQuit("SecretSendAck")
 }
-func (this *RaidenMessageHandler) messageSecret(msg *encoding.Secret) error {
-	this.balanceProof(msg)
+func (mh *raidenMessageHandler) messageSecret(msg *encoding.Secret) error {
+	mh.balanceProof(msg)
 	hashlock := msg.HashLock()
 	identifer := msg.Identifier
 	secret := msg.Secret
-	this.raiden.RegisterSecret(secret)
+	mh.raiden.registerSecret(secret)
 	var nettingChannel *channel.Channel
 	var err error
-	nettingChannel, err = this.raiden.FindChannelByAddress(msg.Channel)
+	nettingChannel, err = mh.raiden.findChannelByAddress(msg.Channel)
 	if err != nil {
 		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
 	} else {
-		fmt.Sprintf("hashlock=%s,identifier=%s,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel)
+		log.Trace(fmt.Sprintf("hashlock=%s,identifier=%d,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel))
 		if !params.TreatRefundTransferAsNormalMediatedTransfer {
-			this.raiden.HandleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
+			mh.raiden.handleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
 		} else {
-			err = nettingChannel.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+			err = nettingChannel.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 			if err != nil {
 				log.Error(fmt.Sprintf("messageSecret RegisterTransfer err=%s", err))
 			}
 		}
 	}
 	//mark balanceproof complete
-	this.markSecretComplete(msg)
+	mh.markSecretComplete(msg)
 	return nil
 }
 
 /*
 if there is any error, just ignore.
 */
-func (this *RaidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	this.balanceProof(msg)
-	ch, err := this.raiden.FindChannelByAddress(msg.Channel)
+func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
+	mh.balanceProof(msg)
+	ch, err := mh.raiden.findChannelByAddress(msg.Channel)
 	if err != nil {
 		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 		return nil
 	}
-	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, this.raiden.GetBlockNumber())
+	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.raiden.GetBlockNumber())
 	if err != nil {
 		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s", err)
 	}
-	this.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	mh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	return nil
 }
-func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransfer) (err error) {
-	this.balanceProof(msg)
-	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
+func (mh *raidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransfer) (err error) {
+	mh.balanceProof(msg)
+	graph := mh.raiden.getToken2ChannelGraph(msg.Token)
 	if graph == nil {
 		return rerr.UnknownTokenAddress(msg.Token.String())
 	}
-	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
 		err = fmt.Errorf("Direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
@@ -244,11 +241,11 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 	if ch == nil {
 		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(msg.Token), utils.APex2(msg.Sender)))
 	}
-	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		return
 	}
-	transferState := &mediated_transfer.LockedTransferState{
+	transferState := &mediatedtransfer.LockedTransferState{
 		Identifier:   msg.Identifier,
 		TargetAmount: big.NewInt(0).Sub(msg.Amount, msg.Fee),
 		Amount:       new(big.Int).Set(msg.Amount),
@@ -260,25 +257,25 @@ func (this *RaidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTran
 		Secret:       utils.EmptyHash,
 		Fee:          msg.Fee,
 	}
-	stateChange := &mediated_transfer.ReceiveTransferRefundStateChange{
+	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
 		Sender:   msg.Sender,
 		Transfer: transferState,
 		Message:  msg,
 	}
-	this.raiden.StateMachineEventHandler.LogAndDispatchByIdentifier(msg.Identifier, stateChange)
+	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(msg.Identifier, stateChange)
 	return nil
 }
 
-func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
-	this.balanceProof(msg)
-	if graph := this.raiden.GetToken2ChannelGraph(msg.Token); graph == nil {
+func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
+	mh.balanceProof(msg)
+	if graph := mh.raiden.getToken2ChannelGraph(msg.Token); graph == nil {
 		return rerr.UnknownTokenAddress(msg.Token.String())
 	}
-	if _, ok := this.blockedTokens[msg.Token]; ok {
+	if _, ok := mh.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
-	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
-	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
+	graph := mh.raiden.getToken2ChannelGraph(msg.Token)
+	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
 		return rerr.UnknownAddress(fmt.Sprintf("Direct transfer from node without an existing channel partner %s  ", msg.Sender))
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
@@ -297,11 +294,11 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		Sender:       msg.Sender,
 		Message:      msg,
 	}
-	stateChangeId, err := this.raiden.db.LogStateChange(stateChange)
+	stateChangeID, err := mh.raiden.db.LogStateChange(stateChange)
 	if err != nil {
 		return err
 	}
-	err = ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error("RegisterTransfer error %s\n", msg)
 		return err
@@ -311,25 +308,25 @@ func (this *RaidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTran
 		Amount:     amount,
 		Initiator:  msg.Sender,
 	}
-	err = this.raiden.db.LogEvents(stateChangeId, []transfer.Event{receiveSuccess}, this.raiden.GetBlockNumber())
+	err = mh.raiden.db.LogEvents(stateChangeID, []transfer.Event{receiveSuccess}, mh.raiden.GetBlockNumber())
 	return err
 }
 
-func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.MediatedTransfer) error {
-	if this.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != this.raiden.NodeAddress {
-		return fmt.Errorf("ignored this mediated transfer, because i don't want to route ")
+func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
+	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
+		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
-	this.balanceProof(msg)
+	mh.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
-	// this is a downstream bug and the transfer is going in cycles (issue #490)
-	if _, ok := this.blockedTokens[msg.Token]; ok {
+	// mh is a downstream bug and the transfer is going in cycles (issue #490)
+	if _, ok := mh.blockedTokens[msg.Token]; ok {
 		return rerr.TransferUnwanted
 	}
-	graph := this.raiden.GetToken2ChannelGraph(msg.Token)
+	graph := mh.raiden.getToken2ChannelGraph(msg.Token)
 	if graph == nil {
-		return errors.New(fmt.Sprintf("received transfer on unkown token :%s", msg.Token.String()))
+		return fmt.Errorf("received transfer on unkown token :%s", msg.Token.String())
 	}
-	if !graph.HasChannel(this.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
 		return rerr.ChannelNotFound(fmt.Sprintf("mediated transfer from node without an existing channel %s", msg.Sender))
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
@@ -339,23 +336,23 @@ func (this *RaidenMessageHandler) MessageMediatedTransfer(msg *encoding.Mediated
 	if ch.State() != transfer.ChannelStateOpened {
 		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is closed %s", ch.MyAddress))
 	}
-	err := ch.RegisterTransfer(this.raiden.GetBlockNumber(), msg)
+	err := ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		return err
 	}
-	if msg.Target == this.raiden.NodeAddress {
-		this.raiden.TargetMediatedTransfer(msg)
+	if msg.Target == mh.raiden.NodeAddress {
+		mh.raiden.targetMediatedTransfer(msg)
 	} else {
-		this.raiden.MediateMediatedTransfer(msg)
+		mh.raiden.mediateMediatedTransfer(msg)
 	}
 	/*
 		start  taker's tokenswap ,only if receive a valid mediated transfer
 	*/
-	key := SwapKey{msg.Identifier, msg.Token, msg.Amount.String()}
-	if tokenswap, ok := this.raiden.SwapKey2TokenSwap[key]; ok {
-		remove := this.raiden.messageTokenSwapTaker(msg, tokenswap)
-		if remove { //once the swap start,remove this key immediately. otherwise,maker may repeat this tokenswap operation.
-			delete(this.raiden.SwapKey2TokenSwap, key)
+	key := swapKey{msg.Identifier, msg.Token, msg.Amount.String()}
+	if tokenswap, ok := mh.raiden.SwapKey2TokenSwap[key]; ok {
+		remove := mh.raiden.messageTokenSwapTaker(msg, tokenswap)
+		if remove { //once the swap start,remove mh key immediately. otherwise,maker may repeat mh tokenswap operation.
+			delete(mh.raiden.SwapKey2TokenSwap, key)
 		}
 		//return nil
 	}

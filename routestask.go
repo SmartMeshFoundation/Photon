@@ -14,62 +14,62 @@ import (
 send ping to detect neighbours is online or not
 */
 
-type RoutesTask struct {
-	NewTask           chan *RoutesToDetect
-	TaskResult        chan *RoutesToDetect
+type routesTask struct {
+	NewTask           chan *routesToDetect
+	TaskResult        chan *routesToDetect
 	PingSender        network.PingSender
 	NodesStatusGetter network.NodesStatusGetter
 	enabled           bool
 }
 
-type RoutesToDetect struct {
+type routesToDetect struct {
 	RoutesState     *transfer.RoutesState
 	StateManager    *transfer.StateManager
 	InitStateChange transfer.StateChange
 }
 
-func NewRoutesTask(sender network.PingSender, statusGetter network.NodesStatusGetter) *RoutesTask {
-	return &RoutesTask{
-		NewTask:           make(chan *RoutesToDetect, 10),
-		TaskResult:        make(chan *RoutesToDetect, 10),
+func newRoutesTask(sender network.PingSender, statusGetter network.NodesStatusGetter) *routesTask {
+	return &routesTask{
+		NewTask:           make(chan *routesToDetect, 10),
+		TaskResult:        make(chan *routesToDetect, 10),
 		PingSender:        sender,
 		NodesStatusGetter: statusGetter,
 		//enabled:           true, //每个节点都要进行探测,尤其是在 ice 模式下,很耗费资源,并且效果不佳,暂时禁用.
 	}
 }
 
-func (this *RoutesTask) Start() {
-	go this.loop()
+func (rt *routesTask) start() {
+	go rt.loop()
 }
-func (this *RoutesTask) Stop() {
-	close(this.NewTask)
+func (rt *routesTask) stop() {
+	close(rt.NewTask)
 	//let task result open,otherwise may crash
 }
-func (this *RoutesTask) loop() {
+func (rt *routesTask) loop() {
 	for {
-		task, ok := <-this.NewTask
+		task, ok := <-rt.NewTask
 		if !ok {
 			break //user stop
 		}
-		this.startTask(task)
+		rt.startTask(task)
 	}
 }
 
-func (this *RoutesTask) startTask(task *RoutesToDetect) {
-	if this.enabled {
+func (rt *routesTask) startTask(task *routesToDetect) {
+	if rt.enabled {
 		var availables []*transfer.RouteState
-		var needWait bool = true
+		var needWait = true
 		pingcnt := 0
 		const MaxPingOneTime = 10
 		for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
-			status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
+			status, lastAckTime := rt.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
 			if status == network.NodeNetworkReachable && lastAckTime.Add(time.Minute).After(time.Now()) {
 				if i == 0 {
 					needWait = false
 				}
 				continue //just detect seconds ago
 			}
-			err := this.PingSender.SendPing(task.RoutesState.AvailableRoutes[i].HopNode)
+			err := rt.PingSender.SendPing(task.RoutesState.AvailableRoutes[i].HopNode)
 			if err != nil {
 				log.Error(fmt.Sprintf("sendping to %s err:%s", task.RoutesState.AvailableRoutes[i].HopNode.String(), err))
 			}
@@ -83,7 +83,7 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 		if needWait {
 			time.Sleep(5 * time.Second)
 			for i := 0; i < len(task.RoutesState.AvailableRoutes); i++ {
-				status, lastAckTime := this.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
+				status, lastAckTime := rt.NodesStatusGetter.GetNetworkStatusAndLastAckTime(task.RoutesState.AvailableRoutes[i].HopNode)
 				if status == network.NodeNetworkReachable && lastAckTime.Add(time.Minute).After(time.Now()) {
 					availables = append(availables, task.RoutesState.AvailableRoutes[i])
 				} else {
@@ -95,8 +95,8 @@ func (this *RoutesTask) startTask(task *RoutesToDetect) {
 		}
 
 		task.RoutesState.AvailableRoutes = availables
-		this.TaskResult <- task
+		rt.TaskResult <- task
 	} else {
-		this.TaskResult <- task
+		rt.TaskResult <- task
 	}
 }

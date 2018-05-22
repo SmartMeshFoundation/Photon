@@ -15,7 +15,7 @@ import (
 RaidenAPI is the interface of raiden network
 should be set before start restful server
 */
-var RaidenAPI *smartraiden.RaidenApi
+var RaidenAPI *smartraiden.RaidenAPI
 
 /*
 Config is the configuration of raiden network
@@ -28,7 +28,7 @@ Start the restful server
 */
 func Start() {
 
-	api := rest.NewApi()
+	api := rest.NewAPI()
 	api.Use(rest.DefaultDevStack...)
 	router, err := rest.MakeRouter(
 		rest.Get("/api/1/address", Address),
@@ -76,6 +76,6 @@ func Start() {
 		log.Crit(fmt.Sprintf("maker router :%s", err))
 	}
 	api.SetApp(router)
-	listen := fmt.Sprintf("%s:%d", Config.ApiHost, Config.ApiPort)
+	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
 	log.Crit(fmt.Sprintf("http listen and serve :%s", http.ListenAndServe(listen, api.MakeHandler())))
 }

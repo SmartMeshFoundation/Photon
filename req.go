@@ -13,11 +13,13 @@ request from user
 todo  we need a seperate rpc server .
 */
 //key for map, no pointer
-type SwapKey struct {
+type swapKey struct {
 	Identifier uint64
 	FromToken  common.Address
 	FromAmount string //string of  big int
 }
+
+//TokenSwap for tokenswap api
 type TokenSwap struct {
 	Identifier      uint64
 	FromToken       common.Address
@@ -28,18 +30,18 @@ type TokenSwap struct {
 	ToNodeAddress   common.Address //the node address of the owner of the `to_token`
 }
 
-const TransferReqName = "transfer"
-const NewChannelReqName = "newchannel"
-const CloseChannelReqName = "closechannel"
-const SettleChannelReqName = "settlechannel"
-const DepositChannelReqName = "deposit"
-const TokenSwapMakerReqName = "tokenswapmaker"
-const TokenSwapTakerReqName = "tokenswaptaker"
+const transferReqName = "transfer"
+const newChannelReqName = "newchannel"
+const closeChannelReqName = "closechannel"
+const settleChannelReqName = "settlechannel"
+const depositChannelReqName = "deposit"
+const tokenSwapMakerReqName = "tokenswapmaker"
+const tokenSwapTakerReqName = "tokenswaptaker"
 
 /*
 transfer api
 */
-type TransferReq struct {
+type transferReq struct {
 	TokenAddress common.Address
 	Amount       *big.Int
 	Target       common.Address
@@ -50,7 +52,7 @@ type TransferReq struct {
 /*
 new channel api
 */
-type NewChannelReq struct {
+type newChannelReq struct {
 	tokenAddress   common.Address
 	partnerAddress common.Address
 	settleTimeout  int
@@ -60,14 +62,14 @@ type NewChannelReq struct {
 close channel api
 settle channel api
 */
-type CloseSettleChannelReq struct {
+type closeSettleChannelReq struct {
 	addr common.Address //channel address
 }
 
 /*
 depsoit  to channel api
 */
-type DepositChannelReq struct {
+type depositChannelReq struct {
 	addr   common.Address
 	amount *big.Int
 }
@@ -75,22 +77,22 @@ type DepositChannelReq struct {
 /*
 maker's token swap
 */
-type TokenSwapMakerReq struct {
+type tokenSwapMakerReq struct {
 	tokenSwap *TokenSwap
 }
 
 /*
 taker's token swap api
 */
-type TokenSwapTakerReq struct {
+type tokenSwapTakerReq struct {
 	tokenSwap *TokenSwap
 }
 
 /*
 general req's wraper
 */
-type ApiReq struct {
-	ReqId  string
+type apiReq struct {
+	ReqID  string
 	Name   string      //operation name
 	Req    interface{} //operatoin
 	result chan *network.AsyncResult
@@ -107,11 +109,11 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  TransferReqName,
-		Req: &TransferReq{
+func (rs *RaidenService) mediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  transferReqName,
+		Req: &transferReq{
 			TokenAddress: tokenAddress,
 			Amount:       amount,
 			Target:       target,
@@ -119,71 +121,71 @@ func (this *RaidenService) MediatedTransferAsyncClient(tokenAddress common.Addre
 			Fee:          fee,
 		},
 	}
-	return this.sendReqClient(req)
-	//return this.StartMediatedTransfer(tokenAddress, target, amount, identifier)
+	return rs.sendReqClient(req)
+	//return rs.startMediatedTransfer(tokenAddress, target, amount, identifier)
 }
-func (this *RaidenService) sendReqClient(req *ApiReq) *network.AsyncResult {
+func (rs *RaidenService) sendReqClient(req *apiReq) *network.AsyncResult {
 	req.result = make(chan *network.AsyncResult, 1)
-	this.UserReqChan <- req
+	rs.UserReqChan <- req
 	ar := <-req.result
 	return ar
 }
-func (this *RaidenService) NewChannelClient(token, partner common.Address, settleTimeout int) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  NewChannelReqName,
-		Req: &NewChannelReq{
+func (rs *RaidenService) newChannelClient(token, partner common.Address, settleTimeout int) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  newChannelReqName,
+		Req: &newChannelReq{
 			tokenAddress:   token,
 			partnerAddress: partner,
 			settleTimeout:  settleTimeout,
 		},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }
-func (this *RaidenService) DepositChannelClient(channelAddres common.Address, amount *big.Int) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  DepositChannelReqName,
-		Req: &DepositChannelReq{
+func (rs *RaidenService) depositChannelClient(channelAddres common.Address, amount *big.Int) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  depositChannelReqName,
+		Req: &depositChannelReq{
 			addr:   channelAddres,
 			amount: amount,
 		},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }
-func (this *RaidenService) CloseChannelClient(channelAddress common.Address) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  CloseChannelReqName,
-		Req: &CloseSettleChannelReq{
+func (rs *RaidenService) closeChannelClient(channelAddress common.Address) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  closeChannelReqName,
+		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }
-func (this *RaidenService) SettleChannelClient(channelAddress common.Address) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  SettleChannelReqName,
-		Req: &CloseSettleChannelReq{
+func (rs *RaidenService) settleChannelClient(channelAddress common.Address) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  settleChannelReqName,
+		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }
-func (this *RaidenService) TokenSwapMakerClient(tokenswap *TokenSwap) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  TokenSwapMakerReqName,
-		Req:   &TokenSwapMakerReq{tokenswap},
+func (rs *RaidenService) tokenSwapMakerClient(tokenswap *TokenSwap) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  tokenSwapMakerReqName,
+		Req:   &tokenSwapMakerReq{tokenswap},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }
-func (this *RaidenService) TokenSwapTakerClient(tokenswap *TokenSwap) *network.AsyncResult {
-	req := &ApiReq{
-		ReqId: utils.RandomString(10),
-		Name:  TokenSwapTakerReqName,
-		Req:   &TokenSwapTakerReq{tokenswap},
+func (rs *RaidenService) tokenSwapTakerClient(tokenswap *TokenSwap) *network.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  tokenSwapTakerReqName,
+		Req:   &tokenSwapTakerReq{tokenswap},
 	}
-	return this.sendReqClient(req)
+	return rs.sendReqClient(req)
 }

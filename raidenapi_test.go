@@ -18,32 +18,32 @@ import (
 	"github.com/fatedier/frp/src/utils/log"
 )
 
-var RepeatCount int = 10
+var repeatCount = 10
 var big1 = big.NewInt(1)
 
 //a valid channel address onchain
-func getAChannel(api *RaidenApi) common.Address {
+func getAChannel(api *RaidenAPI) common.Address {
 	for _, g := range api.Raiden.Token2ChannelGraph {
-		for addr, _ := range g.ChannelAddress2Channel {
+		for addr := range g.ChannelAddress2Channel {
 			return addr
 		}
 	}
 	panic("no channel")
 }
-func getAToken(api *RaidenApi) common.Address {
-	for t, _ := range api.Raiden.Token2ChannelGraph {
+func getAToken(api *RaidenAPI) common.Address {
+	for t := range api.Raiden.Token2ChannelGraph {
 		return t
 	}
 	panic("no token")
 }
 func TestSwapKeyAsMapKey(t *testing.T) {
-	key1 := SwapKey{
+	key1 := swapKey{
 		Identifier: 32,
 		FromToken:  utils.NewRandomAddress(),
 		FromAmount: big.NewInt(300).String(),
 	}
 	key2 := key1
-	m := make(map[SwapKey]bool)
+	m := make(map[swapKey]bool)
 	m[key1] = true
 	if m[key2] != true {
 		t.Error("expect equal")
@@ -54,15 +54,15 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	}
 }
 
-func testRaidenApiGetNetworkEvents(t *testing.T, api *RaidenApi) {
+func testRaidenAPIGetNetworkEvents(t *testing.T, api *RaidenAPI) {
 	events, err := api.GetNetworkEvents(-1, -1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(RepeatCount)
-	for i := 0; i < RepeatCount; i++ {
+	wg.Add(repeatCount)
+	for i := 0; i < repeatCount; i++ {
 		go func() {
 			ev2, err := api.GetNetworkEvents(-1, -1)
 			if err != nil {
@@ -77,7 +77,7 @@ func testRaidenApiGetNetworkEvents(t *testing.T, api *RaidenApi) {
 	wg.Wait()
 }
 
-func testRaidenApiGetChannelEvents(t *testing.T, api *RaidenApi) {
+func testRaidenAPIGetChannelEvents(t *testing.T, api *RaidenAPI) {
 	addr := getAChannel(api)
 	events, err := api.GetChannelEvents(addr, -1, -1)
 	if err != nil {
@@ -85,8 +85,8 @@ func testRaidenApiGetChannelEvents(t *testing.T, api *RaidenApi) {
 		return
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(RepeatCount)
-	for i := 0; i < RepeatCount; i++ {
+	wg.Add(repeatCount)
+	for i := 0; i < repeatCount; i++ {
 		go func() {
 			ev2, err := api.GetChannelEvents(addr, -1, -1)
 			if err != nil {
@@ -100,7 +100,7 @@ func testRaidenApiGetChannelEvents(t *testing.T, api *RaidenApi) {
 	}
 	wg.Wait()
 }
-func testGetTokenNetworkEvents(t *testing.T, api *RaidenApi) {
+func testGetTokenNetworkEvents(t *testing.T, api *RaidenAPI) {
 	addr := getAToken(api)
 	events, err := api.GetTokenNetworkEvents(addr, -1, -1)
 	if err != nil {
@@ -108,8 +108,8 @@ func testGetTokenNetworkEvents(t *testing.T, api *RaidenApi) {
 		return
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(RepeatCount)
-	for i := 0; i < RepeatCount; i++ {
+	wg.Add(repeatCount)
+	for i := 0; i < repeatCount; i++ {
 		go func() {
 			ev2, err := api.GetTokenNetworkEvents(addr, -1, -1)
 			if err != nil {
@@ -124,15 +124,15 @@ func testGetTokenNetworkEvents(t *testing.T, api *RaidenApi) {
 	wg.Wait()
 }
 func TestEvents(t *testing.T) {
-	api := newTestRaidenApi()
+	api := newTestRaidenAPI()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() {
-		testRaidenApiGetChannelEvents(t, api)
+		testRaidenAPIGetChannelEvents(t, api)
 		wg.Done()
 	}()
 	go func() {
-		testRaidenApiGetNetworkEvents(t, api)
+		testRaidenAPIGetNetworkEvents(t, api)
 		wg.Done()
 	}()
 	go func() {
@@ -142,12 +142,12 @@ func TestEvents(t *testing.T) {
 	wg.Wait()
 }
 
-func testRaidenApiClose(t *testing.T, api *RaidenApi, ch *channel.Channel) {
+func testRaidenAPIClose(t *testing.T, api *RaidenAPI, ch *channel.Channel) {
 	tokenAddr := ch.TokenAddress
 	partnerAddr := ch.PartnerState.Address
 	wg := sync.WaitGroup{}
-	wg.Add(RepeatCount)
-	for i := 0; i < RepeatCount; i++ {
+	wg.Add(repeatCount)
+	for i := 0; i < repeatCount; i++ {
 		go func() {
 			api.Close(tokenAddr, partnerAddr)
 			wg.Done()
@@ -155,12 +155,12 @@ func testRaidenApiClose(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	}
 	wg.Wait()
 }
-func raidenApiSettle(t *testing.T, api *RaidenApi, ch *channel.Channel) {
+func raidenAPISettle(t *testing.T, api *RaidenAPI, ch *channel.Channel) {
 	tokenAddr := ch.TokenAddress
 	partnerAddr := ch.PartnerState.Address
 	wg := sync.WaitGroup{}
-	wg.Add(RepeatCount)
-	for i := 0; i < RepeatCount; i++ {
+	wg.Add(repeatCount)
+	for i := 0; i < repeatCount; i++ {
 		go func() {
 			//settle error ignore
 			api.Settle(tokenAddr, partnerAddr)
@@ -169,24 +169,24 @@ func raidenApiSettle(t *testing.T, api *RaidenApi, ch *channel.Channel) {
 	}
 	wg.Wait()
 }
-func TestRaidenApiCloseAndSettle(t *testing.T) {
-	api := newTestRaidenApi()
-	ch := api.Raiden.GetChannelWithAddr(getAChannel(api))
+func TestRaidenAPICloseAndSettle(t *testing.T) {
+	api := newTestRaidenAPI()
+	ch := api.Raiden.getChannelWithAddr(getAChannel(api))
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		testRaidenApiClose(t, api, ch)
+		testRaidenAPIClose(t, api, ch)
 		wg.Done()
 	}()
 	go func() {
-		raidenApiSettle(t, api, ch)
+		raidenAPISettle(t, api, ch)
 		wg.Done()
 	}()
 	wg.Wait()
 }
 
-func findAValidChannel(ra, rb *RaidenApi) (addr common.Address, money *big.Int) {
-	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
+func findAValidChannel(ra, rb *RaidenAPI) (addr common.Address, money *big.Int) {
+	for _, g := range ra.Raiden.Token2ChannelGraph {
 		c := g.GetPartenerAddress2Channel(rb.Raiden.NodeAddress)
 		if c != nil && c.Balance().Cmp(big.NewInt(10)) > 0 && c.State() == transfer.ChannelStateOpened {
 			return c.MyAddress, c.Balance()
@@ -198,14 +198,14 @@ func findAValidChannel(ra, rb *RaidenApi) (addr common.Address, money *big.Int) 
 /*
 to test transfer concurrency, todo, return only channel between a,b,c
 */
-func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.Address {
+func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Address]common.Address {
 	var allAddresses = map[common.Address]bool{
 		ra.Raiden.NodeAddress: true,
 		rb.Raiden.NodeAddress: true,
 		rc.Raiden.NodeAddress: true,
 	}
 	m := make(map[common.Address]common.Address)
-	for _, g := range ra.Raiden.CloneToken2ChannelGraph() {
+	for _, g := range ra.Raiden.Token2ChannelGraph {
 		for addr, c := range g.ChannelAddress2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.ChannelStateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
@@ -214,7 +214,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 			}
 		}
 	}
-	for _, g := range rb.Raiden.CloneToken2ChannelGraph() {
+	for _, g := range rb.Raiden.Token2ChannelGraph {
 		for addr, c := range g.ChannelAddress2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State() == transfer.ChannelStateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
@@ -226,14 +226,14 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenApi) map[common.Address]common.
 	return m
 }
 func TestTransfer(t *testing.T) {
-	ra, rb, rc, _ := makeTestRaidenApis()
+	ra, rb, rc, _ := makeTestRaidenAPIs()
 	chm := findAllCanTransferChannel(ra, rb, rc)
 
 	wgStart := sync.WaitGroup{}
 	wgEnd := sync.WaitGroup{}
 	log.Info("channels number ", len(chm))
-	var i uint64 = 0
-	values := make(map[*RaidenApi]map[common.Address]*big.Int)
+	var i uint64
+	values := make(map[*RaidenAPI]map[common.Address]*big.Int)
 	for chaddr, nodeAddr := range chm {
 		i++
 		r := rb
@@ -249,7 +249,7 @@ func TestTransfer(t *testing.T) {
 			values[r] = make(map[common.Address]*big.Int)
 		}
 		values[r][chaddr] = ch.OurBalance
-		go func(r *RaidenApi, tokenAddr, partnerAddr common.Address, id uint64) {
+		go func(r *RaidenAPI, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
 			wgStart.Wait() //start at the same time
 			err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, id, time.Minute*2)
@@ -284,7 +284,7 @@ func TestTransfer(t *testing.T) {
 //test must must fail,because transfer must ordered between two partners.
 //but should not panic
 func TestTransferWithPython(t *testing.T) {
-	ra := newTestRaidenApi()
+	ra := newTestRaidenAPI()
 	log.Info("node addr:=", ra.Address().String())
 	c, _ := ra.GetChannel(common.HexToAddress("0x82e7281fc9d42a66e195ed66b6718bb706c1af7c"))
 	money := c.OurBalance
@@ -308,11 +308,11 @@ func TestTransferWithPython(t *testing.T) {
 }
 
 func TestPairTransfer(t *testing.T) {
-	ra, rb, _, _ := makeTestRaidenApis()
+	ra, rb, _, _ := makeTestRaidenAPIs()
 	addr, _ := findAValidChannel(ra, rb)
-	c := ra.Raiden.GetChannelWithAddr(addr)
-	amoney := ra.Raiden.GetChannelWithAddr(addr).Balance()
-	bmoney := rb.Raiden.GetChannelWithAddr(addr).Balance()
+	c := ra.Raiden.getChannelWithAddr(addr)
+	amoney := ra.Raiden.getChannelWithAddr(addr).Balance()
+	bmoney := rb.Raiden.getChannelWithAddr(addr).Balance()
 	wg := sync.WaitGroup{}
 	fmt.Printf("start transfer...\n")
 	wg.Add(5 * 2)
@@ -337,7 +337,7 @@ func TestPairTransfer(t *testing.T) {
 	wg.Wait()
 	fmt.Print("end transfer...\n")
 	time.Sleep(time.Second * 180) //let ra,rb update
-	c1 := ra.Raiden.GetChannelWithAddr(addr)
+	c1 := ra.Raiden.getChannelWithAddr(addr)
 	if c1.Balance().Cmp(amoney) != 0 {
 		t.Error(fmt.Sprintf("money not equal expect=%d,get =%d", c1.Balance(), amoney))
 		//return
@@ -346,7 +346,7 @@ func TestPairTransfer(t *testing.T) {
 		t.Error(fmt.Sprintf("money not equalexpect=%d,get =%d", c1.PartnerState.Balance(c1.OurState), bmoney))
 		//return
 	}
-	c2 := rb.Raiden.GetChannelWithAddr(addr)
+	c2 := rb.Raiden.getChannelWithAddr(addr)
 	if c2.Balance().Cmp(bmoney) != 0 {
 		t.Error(fmt.Sprintf("money not equal expect=%d get=%d", c2.Balance(), bmoney))
 		//return
@@ -358,7 +358,7 @@ func TestPairTransfer(t *testing.T) {
 }
 
 func TestSpecifedTransfer(t *testing.T) {
-	ra := newTestRaidenApi()
+	ra := newTestRaidenAPI()
 	target := common.HexToAddress("0x33Df901ABc22DcB7F33c2a77aD43CC98FbFa0790")
 	c := ra.Raiden.getChannel(common.HexToAddress("0xb1Bd4Ad117BD467101fDB9e35cFCf86945b3CF75"), target)
 	amoney := c.Balance()
@@ -378,7 +378,7 @@ func TestSpecifedTransfer(t *testing.T) {
 	wg.Wait()
 	t.Log("end transfer...")
 	time.Sleep(time.Second * 15) //let ra,rb update
-	c1 := ra.Raiden.GetChannelWithAddr(c.MyAddress)
+	c1 := ra.Raiden.getChannelWithAddr(c.MyAddress)
 	if c1.Balance().Cmp(amoney.Sub(amoney, big.NewInt(int64(cnt)))) != 0 {
 		t.Error(fmt.Sprintf("money not equal expect=%d,get =%d", c1.Balance(), amoney))
 		return

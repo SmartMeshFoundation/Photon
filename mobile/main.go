@@ -148,11 +148,11 @@ func mobileMain() (api *API, err error) {
 	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	//startup may take long time
 	raidenService.Start()
-	api = &API{smartraiden.NewRaidenApi(raidenService)}
+	api = &API{smartraiden.NewRaidenAPI(raidenService)}
 	regQuitHandler(api.api)
 	return api, nil
 }
-func regQuitHandler(api *smartraiden.RaidenApi) {
+func regQuitHandler(api *smartraiden.RaidenAPI) {
 	go func() {
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
@@ -236,8 +236,8 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	config.Port = listenport
 	config.UseConsole = false
 	config.UseRpc = false
-	config.ApiHost = apihost
-	config.ApiPort = apiport
+	config.APIHost = apihost
+	config.APIPort = apiport
 	config.ExternIp = pms.ExternalIp
 	config.ExternPort = pms.ExternalPort
 	maxUnresponsiveTime := int64(time.Minute)

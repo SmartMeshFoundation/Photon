@@ -232,7 +232,7 @@ func (node *EndState) computeMerkleRootWithout(without *encoding.Lock) (*transfe
 }
 
 /*
-  registerLockedTransfer  Api design: using specialized methods to force the user to register the
+  registerLockedTransfer  API design: using specialized methods to force the user to register the
     transfer and the lock in a single step
 	Register the latest known transfer.
 

@@ -43,7 +43,7 @@ func deployAToken(t *testing.T, raiden *RaidenService) (addr common.Address) {
 	}
 	return
 }
-func testNewToken(t *testing.T, ra, rb, rc, rd *RaidenApi) (tokenAddr common.Address) {
+func testNewToken(t *testing.T, ra, rb, rc, rd *RaidenAPI) (tokenAddr common.Address) {
 	tokenAddr = deployAToken(t, ra.Raiden)
 	token := ra.Raiden.Chain.Token(tokenAddr)
 	assert(t, token.Transfer(rb.Raiden.NodeAddress, big500), nil)
@@ -58,7 +58,7 @@ func testNewToken(t *testing.T, ra, rb, rc, rd *RaidenApi) (tokenAddr common.Add
 	}
 	return
 }
-func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *big.Int, ra, rb, rc *RaidenApi) {
+func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *big.Int, ra, rb, rc *RaidenAPI) {
 	var err error
 	_, err = ra.Open(tokenAddr, rb.Raiden.NodeAddress, ra.Raiden.Config.SettleTimeout, ra.Raiden.Config.RevealTimeout)
 	if err != nil {
@@ -79,7 +79,7 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 	assert(t, rb.Deposit(tokenAddr, rc.Raiden.NodeAddress, contractBalance, time.Minute), nil)
 	assert(t, rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute), nil)
 }
-func newEnv(t *testing.T, ra, rb, rc, rd *RaidenApi) (addr1, addr2 common.Address) {
+func newEnv(t *testing.T, ra, rb, rc, rd *RaidenAPI) (addr1, addr2 common.Address) {
 	var contractBalance = big.NewInt(100)
 	tokenAddr := testNewToken(t, ra, rb, rc, rd)
 	testCreateChannel(t, tokenAddr, contractBalance, ra, rb, rc)
@@ -91,7 +91,7 @@ func newEnv(t *testing.T, ra, rb, rc, rd *RaidenApi) (addr1, addr2 common.Addres
 }
 func TestSmoke(t *testing.T) {
 	var err error
-	ra, rb, rc, rd := makeTestRaidenApis()
+	ra, rb, rc, rd := makeTestRaidenAPIs()
 	log.Info("step 1. build env for test")
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
@@ -205,7 +205,7 @@ func TestSmoke(t *testing.T) {
 func TestFeeCharger(t *testing.T) {
 	var err error
 	policy := &ConstantFeePolicy{}
-	ra, rb, rc, rd := makeTestRaidenApisWithFee(policy)
+	ra, rb, rc, rd := makeTestRaidenAPIsWithFee(policy)
 	log.Info("step 1. build env for test")
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
