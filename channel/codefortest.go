@@ -14,7 +14,7 @@ import (
 )
 
 func newTestBlockChainService() *rpc.BlockChainService {
-	conn, err := helper.NewSafeClient(rpc.TestRpcEndpoint)
+	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
 	if err != nil {
 		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}

@@ -42,6 +42,7 @@ func panicOnNullValue() {
 	c[0] = 0
 }
 
+//StartMain entry point of raiden app
 func StartMain() {
 	os.Args[0] = "smartraiden"
 	fmt.Printf("os.args=%q\n", os.Args)
@@ -54,7 +55,7 @@ func StartMain() {
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
-			Value: ethutils.DirectoryString{params.DefaultKeyStoreDir()},
+			Value: ethutils.DirectoryString{Value: params.DefaultKeyStoreDir()},
 		},
 		cli.StringFlag{
 			Name: "eth-rpc-endpoint",
@@ -105,7 +106,7 @@ func StartMain() {
 		ethutils.DirectoryFlag{
 			Name:  "datadir",
 			Usage: "Directory for storing raiden data.",
-			Value: ethutils.DirectoryString{params.DefaultDataDir()},
+			Value: ethutils.DirectoryString{Value: params.DefaultDataDir()},
 		},
 		cli.StringFlag{
 			Name:  "password-file",
@@ -178,7 +179,7 @@ func StartMain() {
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
-	app.Action = MainCtx
+	app.Action = mainCtx
 	app.Name = "smartraiden"
 	app.Version = "0.2"
 	app.Before = func(ctx *cli.Context) error {
@@ -194,7 +195,8 @@ func StartMain() {
 	}
 	app.Run(os.Args)
 }
-func MainCtx(ctx *cli.Context) error {
+
+func mainCtx(ctx *cli.Context) error {
 	var pms *network.PortMappedSocket
 	var err error
 	fmt.Printf("Welcom to smartraiden,version %s\n", ctx.App.Version)
@@ -209,7 +211,7 @@ func MainCtx(ctx *cli.Context) error {
 	} else {
 		host, port := network.SplitHostPort(ctx.String("listen-address"))
 		pms = &network.PortMappedSocket{
-			Ip:   host,
+			IP:   host,
 			Port: port,
 		}
 	}
@@ -252,12 +254,12 @@ func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocke
 	case params.NoNetwork:
 		discovery = network.NewDiscovery()
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport = network.NewDummyTransport(pms.Ip, pms.Port, nil, policy)
+		transport = network.NewDummyTransport(pms.IP, pms.Port, nil, policy)
 		return
 	case params.UDPOnly:
 		discovery = network.NewContractDiscovery(bcs.NodeAddress, cfg.DiscoveryAddress, bcs.Client, bcs.Auth)
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport = network.NewUDPTransport(pms.Ip, pms.Port, pms.Conn, nil, policy)
+		transport = network.NewUDPTransport(pms.IP, pms.Port, pms.Conn, nil, policy)
 	case params.ICEOnly:
 		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
 		transport, err = network.NewIceTransporter(bcs.PrivKey, utils.APex2(bcs.NodeAddress))
@@ -268,7 +270,7 @@ func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocke
 	case params.MixUDPICE:
 		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, discovery = network.NewMixTranspoter(bcs.PrivKey, utils.APex2(bcs.NodeAddress), pms.Ip, pms.Port, pms.Conn, nil, policy)
+		transport, discovery = network.NewMixTranspoter(bcs.PrivKey, utils.APex2(bcs.NodeAddress), pms.IP, pms.Port, pms.Conn, nil, policy)
 	}
 	return
 }
@@ -357,10 +359,10 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) *params.Config {
 	config.Host = listenhost
 	config.Port = listenport
 	config.UseConsole = ctx.Bool("console")
-	config.UseRpc = ctx.Bool("rpc")
+	config.UseRPC = ctx.Bool("rpc")
 	config.APIHost = apihost
 	config.APIPort = apiport
-	config.ExternIp = pms.ExternalIp
+	config.ExternIP = pms.ExternalIP
 	config.ExternPort = pms.ExternalPort
 	maxUnresponsiveTime := ctx.Int64("max-unresponsive-time")
 	config.Protocol.NatKeepAliveTimeout = maxUnresponsiveTime / params.DefaultKeepAliveReties

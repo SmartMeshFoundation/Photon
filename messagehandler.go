@@ -49,7 +49,7 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 	msg.SetTag(&transfer.MessageTag{
 		EchoHash:          hash,
 		IsASendingMessage: false,
-		MessageId:         utils.RandomString(10),
+		MessageID:         utils.RandomString(10),
 	})
 	switch m2 := msg.(type) {
 	case *encoding.SecretRequest:
@@ -144,7 +144,7 @@ func (mh *raidenMessageHandler) markSecretComplete(msg *encoding.Secret) {
 	}
 
 	mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
-	log.Trace(fmt.Sprintf("markSecretComplete set message %s ReceiveProcessComplete", msgTag.MessageId))
+	log.Trace(fmt.Sprintf("markSecretComplete set message %s ReceiveProcessComplete", msgTag.MessageID))
 	msgTag.ReceiveProcessComplete = true
 	ack := mh.raiden.Protocol.CreateAck(msgTag.EchoHash)
 	mh.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)

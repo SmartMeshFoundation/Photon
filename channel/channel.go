@@ -33,8 +33,8 @@ type Channel struct {
 	SettleTimeout        int
 	ReceivedTransfers    []encoding.SignedMessager
 	SentTransfers        []encoding.SignedMessager
-	IsCloseEventComplete bool           //channel close event has been processed  completely  ,  crash when processing close event
-	feeCharger           fee.FeeCharger //calc fee for each transfer?
+	IsCloseEventComplete bool        //channel close event has been processed  completely  ,  crash when processing close event
+	feeCharger           fee.Charger //calc fee for each transfer?
 }
 
 /*
@@ -485,7 +485,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	}
 	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
 	distributable := fromState.distributable(toState)
-	if tr.Cmd() == encoding.DirectTransferCmdId {
+	if tr.Cmd() == encoding.DirectTransferCmdID {
 		if amount.Cmp(distributable) > 0 {
 			return rerr.ErrInsufficientBalance
 		}
@@ -494,7 +494,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		if new(big.Int).Add(amount, mtr.Amount).Cmp(distributable) > 0 {
 			return rerr.ErrInsufficientBalance
 		}
-	} else if tr.Cmd() == encoding.SecretCmdId {
+	} else if tr.Cmd() == encoding.SecretCmdID {
 		sec := tr.(*encoding.Secret)
 		hashlock := utils.Sha3(sec.Secret[:])
 		lock := fromState.getLockByHashlock(hashlock)
@@ -530,13 +530,13 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		*/
 		c.ExternState.funcRegisterChannelForHashlock(c, mtr.HashLock)
 	}
-	if tr.Cmd() == encoding.DirectTransferCmdId {
+	if tr.Cmd() == encoding.DirectTransferCmdID {
 		err = fromState.registerDirectTransfer(tr.(*encoding.DirectTransfer))
 		if err != nil {
 			return err
 		}
 	}
-	if tr.Cmd() == encoding.SecretCmdId {
+	if tr.Cmd() == encoding.SecretCmdID {
 		err = fromState.registerSecretMessage(tr.(*encoding.Secret))
 		if err != nil {
 			return err

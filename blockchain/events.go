@@ -388,11 +388,11 @@ func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (st
 }
 
 /*
-events send to  channel can duplicate but cannot lose.
+Start listening events send to  channel can duplicate but cannot lose.
 1. first resend events may lost (duplicat is ok)
 2. listen new events on blockchain
 */
-func (be *Events) start(LastBlockNumber int64) error {
+func (be *Events) Start(LastBlockNumber int64) error {
 	stateChanges := be.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
 	be.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
 	for _, st := range stateChanges {

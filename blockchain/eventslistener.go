@@ -321,7 +321,8 @@ type EventAddressRegistered struct {
 	Socket     string
 }
 
-func newEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err error) {
+//NewEventAddressRegistered new token event
+func NewEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err error) {
 	if len(el.Data) < 64 {
 		err = errEventNotMatch
 		return

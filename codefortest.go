@@ -130,7 +130,7 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	return
 }
 
-func makeTestRaidenAPIsWithFee(policy fee.FeeCharger) (rA, rB, rC, rD *RaidenAPI) {
+func makeTestRaidenAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *RaidenAPI) {
 	rA = NewRaidenAPI(newTestRaidenWithPolicy(policy))
 	rB = NewRaidenAPI(newTestRaidenWithPolicy(policy))
 	rC = NewRaidenAPI(newTestRaidenWithPolicy(policy))

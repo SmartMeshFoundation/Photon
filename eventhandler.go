@@ -583,7 +583,7 @@ func (eh *stateMachineEventHandler) updateStateManagerFromEvent(receiver common.
 		panic(fmt.Sprintf("unknown message updateStateManagerFromEvent :%s", utils.StringInterface(msg, 3)))
 	}
 	tag := &transfer.MessageTag{
-		MessageId:         utils.RandomString(10),
+		MessageID:         utils.RandomString(10),
 		EchoHash:          utils.Sha3(msg.Pack(), receiver[:]),
 		IsASendingMessage: true,
 		Receiver:          receiver,
@@ -602,7 +602,7 @@ func (eh *stateMachineEventHandler) updateStateManagerFromEvent(receiver common.
 		receiveMessageTag := receiveTag.(*transfer.MessageTag)
 		if receiveMessageTag.ReceiveProcessComplete == false {
 			mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
-			log.Trace(fmt.Sprintf("set message %s ReceiveProcessComplete", receiveMessageTag.MessageId))
+			log.Trace(fmt.Sprintf("set message %s ReceiveProcessComplete", receiveMessageTag.MessageID))
 			receiveMessageTag.ReceiveProcessComplete = true
 			ack := eh.raiden.Protocol.CreateAck(receiveMessageTag.EchoHash)
 			eh.raiden.db.SaveAck(receiveMessageTag.EchoHash, ack.Pack(), tx)
