@@ -9,7 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,12 +22,12 @@ func init() {
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
 }
-func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber int64, initiator common.Address, expire int64) *mediated_transfer.ActionInitTargetStateChange {
+func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber int64, initiator common.Address, expire int64) *mediatedtransfer.ActionInitTargetStateChange {
 	if expire == 0 {
 		expire = blocknumber + int64(utest.UnitRevealTimeout)
 	}
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
-	init := &mediated_transfer.ActionInitTargetStateChange{
+	init := &mediatedtransfer.ActionInitTargetStateChange{
 		OurAddress:  ourAddress,
 		FromRoute:   fromRoute,
 		FromTranfer: fromTransfer,
@@ -36,12 +36,12 @@ func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber in
 	return init
 }
 
-func makeTargetState(ouraddress common.Address, amount, blocknumber int64, initiator common.Address, expire int64) *mediated_transfer.TargetState {
+func makeTargetState(ouraddress common.Address, amount, blocknumber int64, initiator common.Address, expire int64) *mediatedtransfer.TargetState {
 	if expire == 0 {
 		expire = blocknumber + int64(utest.UnitRevealTimeout)
 	}
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ouraddress, expire, initiator, utils.EmptyHash)
-	state := &mediated_transfer.TargetState{
+	state := &mediatedtransfer.TargetState{
 		OurAddress:   ouraddress,
 		FromRoute:    fromRoute,
 		FromTransfer: fromTransfer,
@@ -61,7 +61,7 @@ func TestEventsForClose(t *testing.T) {
 	safeToWait := expire - int64(fromRoute.RevealTimeout) - 1
 	unsafeToWait := expire - int64(fromRoute.RevealTimeout)
 
-	state := &mediated_transfer.TargetState{
+	state := &mediatedtransfer.TargetState{
 		OurAddress:   ourAddress,
 		FromRoute:    fromRoute,
 		FromTransfer: fromTransfer,
@@ -72,7 +72,7 @@ func TestEventsForClose(t *testing.T) {
 	state.BlockNumber = unsafeToWait
 	events = eventsForClose(state)
 	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediated_transfer.EventContractSendChannelClose)
+	ev, ok := events[0].(*mediatedtransfer.EventContractSendChannelClose)
 	assert(t, ok, true)
 	assert(t, fromTransfer.Secret != utils.EmptyHash, true)
 	assert(t, ev.ChannelAddress, fromRoute.ChannelAddress)
@@ -90,7 +90,7 @@ func TestEventsForCloseSecretUnkown(t *testing.T) {
 
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
 
-	state := &mediated_transfer.TargetState{
+	state := &mediatedtransfer.TargetState{
 		OurAddress:   ourAddress,
 		FromRoute:    fromRoute,
 		FromTransfer: fromTransfer,
@@ -113,7 +113,7 @@ func TestEventsForWithDraw(t *testing.T) {
 	initiator := utest.HOP1
 	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UnitSecret, utils.Sha3(utest.UnitSecret[:]), 1, utest.UnitTokenAddress)
 	route := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress())
-	state := &mediated_transfer.TargetState{
+	state := &mediatedtransfer.TargetState{
 		FromTransfer: tr,
 		FromRoute:    route,
 	}
@@ -122,7 +122,7 @@ func TestEventsForWithDraw(t *testing.T) {
 	route.State = transfer.ChannelStateClosed
 	events = eventsForWithdraw(state, route)
 	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediated_transfer.EventContractSendWithdraw)
+	ev, ok := events[0].(*mediatedtransfer.EventContractSendWithdraw)
 	assert(t, ok, true)
 	assert(t, ev.ChannelAddress, route.ChannelAddress)
 }
@@ -141,7 +141,7 @@ func TestHandleInitTarget(t *testing.T) {
 	fromTransfer := st.FromTranfer
 	it := handleInitTraget(st)
 	assert(t, len(it.Events) > 0, true)
-	ev := it.Events[0].(*mediated_transfer.EventSendSecretRequest)
+	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
 	assert(t, ev.Identifer, fromTransfer.Identifier)
 	assert(t, ev.Amount, fromTransfer.Amount)
@@ -174,7 +174,7 @@ func TestHandleSecretReveal(t *testing.T) {
 	ourAddress := utest.ADDR
 	secret := utest.UnitSecret
 	state := makeTargetState(ourAddress, amount.Int64(), blockNumber, initiator, expire)
-	stateChange := &mediated_transfer.ReceiveSecretRevealStateChange{
+	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{
 		Secret: secret,
 		Sender: initiator,
 	}
@@ -186,8 +186,8 @@ func TestHandleSecretReveal(t *testing.T) {
 	it := handleSecretReveal(state, stateChange)
 
 	assert(t, len(it.Events), 1)
-	ev := it.Events[0].(*mediated_transfer.EventSendRevealSecret)
-	assert(t, state.State, mediated_transfer.StateRevealSecret)
+	ev := it.Events[0].(*mediatedtransfer.EventSendRevealSecret)
+	assert(t, state.State, mediatedtransfer.StateRevealSecret)
 	assert(t, ev.Identifier, state.FromTransfer.Identifier)
 	assert(t, ev.Secret, secret)
 	assert(t, ev.Receiver, state.FromRoute.HopNode)
@@ -244,7 +244,7 @@ func TestClearIfFinalizedPayed(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	state := makeTargetState(ourAddress, amount, blockNumber, initiator, expire)
-	state.State = mediated_transfer.StateBalanceProof
+	state.State = mediatedtransfer.StateBalanceProof
 	it := &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -269,7 +269,7 @@ func TestClearIfFinalizedExpired(t *testing.T) {
 	assert(t, beforestate.FromTransfer.Secret, utils.EmptyHash)
 	assert(t, beforeIt.NewState != nil, true)
 
-	expiredState := &mediated_transfer.TargetState{
+	expiredState := &mediatedtransfer.TargetState{
 		OurAddress:   ourAddress,
 		FromRoute:    beforestate.FromRoute,
 		FromTransfer: beforestate.FromTransfer,
@@ -289,7 +289,7 @@ func TestStateTransition(t *testing.T) {
 	var blockNumber int64 = 1
 	expire := blockNumber + int64(utest.UnitRevealTimeout)
 	fromRoute, fromTransfer := utest.MakeFrom(amount, utest.ADDR, expire, initiator, utils.EmptyHash)
-	init := &mediated_transfer.ActionInitTargetStateChange{
+	init := &mediatedtransfer.ActionInitTargetStateChange{
 		OurAddress:  utest.ADDR,
 		FromRoute:   fromRoute,
 		FromTranfer: fromTransfer,
@@ -297,7 +297,7 @@ func TestStateTransition(t *testing.T) {
 	}
 	initIt := StateTransiton(nil, init)
 	assert(t, initIt.NewState != nil, true)
-	newstate := initIt.NewState.(*mediated_transfer.TargetState)
+	newstate := initIt.NewState.(*mediatedtransfer.TargetState)
 	assert(t, newstate.FromRoute, fromRoute)
 	assert(t, newstate.FromTransfer, fromTransfer)
 

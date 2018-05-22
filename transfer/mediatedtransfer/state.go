@@ -1,4 +1,4 @@
-package mediated_transfer
+package mediatedtransfer
 
 import (
 	"encoding/gob"
@@ -13,7 +13,7 @@ import (
 )
 
 /*
-State of a transfer that is time hash locked.
+LockedTransferState is State of a transfer that is time hash locked.
 
     Args:
         identifier (int): A unique identifer for the transfer.
@@ -37,17 +37,18 @@ type LockedTransferState struct {
 	Fee          *big.Int       // how much fee left for other hop node.
 }
 
-func (self *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
+//AlmostEqual if two state equals?
+func (l *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 	//expiration maybe different
-	return self.Identifier == other.Identifier &&
-		self.TargetAmount.Cmp(other.TargetAmount) == 0 &&
-		self.Token == other.Token &&
-		self.Target == other.Target &&
-		self.Hashlock == other.Hashlock &&
-		self.Secret == other.Secret
+	return l.Identifier == other.Identifier &&
+		l.TargetAmount.Cmp(other.TargetAmount) == 0 &&
+		l.Token == other.Token &&
+		l.Target == other.Target &&
+		l.Hashlock == other.Hashlock &&
+		l.Secret == other.Secret
 }
 
-//Create LockedTransferState from a MediatedTransfer message.
+//LockedTransferFromMessage Create LockedTransferState from a MediatedTransfer message.
 func LockedTransferFromMessage(msg *encoding.MediatedTransfer) *LockedTransferState {
 	return &LockedTransferState{
 		Identifier:   msg.Identifier,
@@ -63,7 +64,7 @@ func LockedTransferFromMessage(msg *encoding.MediatedTransfer) *LockedTransferSt
 }
 
 /*
-State of a node initiating a mediated transfer.
+InitiatorState is State of a node initiating a mediated transfer.
 
     Args:
         our_address (address): This node address.
@@ -72,7 +73,6 @@ State of a node initiating a mediated transfer.
         block_number (int): Latest known block number.
         random_generator (generator): A generator that yields valid secrets.
 */
-
 type InitiatorState struct {
 	OurAddress        common.Address             //This node address.
 	Transfer          *LockedTransferState       // The description of the mediated transfer.
@@ -88,7 +88,7 @@ type InitiatorState struct {
 }
 
 /*
-State of a node mediating a transfer.
+MediatorState is State of a node mediating a transfer.
 
     Args:
         our_address (address): This node address.
@@ -112,25 +112,32 @@ type MediatorState struct {
 }
 
 /*
- Set the secret to all mediated transfers.
+SetSecret Set the secret to all mediated transfers.
 
     It doesn't matter if the secret was learned through the blockchain or a
     secret reveal message.
 */
-func (this *MediatorState) SetSecret(secret common.Hash) {
-	this.Secret = secret
-	for _, p := range this.TransfersPair {
+func (m *MediatorState) SetSecret(secret common.Hash) {
+	m.Secret = secret
+	for _, p := range m.TransfersPair {
 		p.PayerTransfer.Secret = secret
 		p.PayeeTransfer.Secret = secret
 	}
 }
 
+//StateSecretRequest receive  secret request
 const StateSecretRequest = "secret_request"
+
+//StateRevealSecret receive reveal secret
 const StateRevealSecret = "reveal_secret"
+
+//StateBalanceProof receive balance proof
 const StateBalanceProof = "balance_proof"
+
+//StateWaitingClose wait close
 const StateWaitingClose = "waiting_close"
 
-//State of mediated transfer target.
+//TargetState State of mediated transfer target.
 type TargetState struct {
 	OurAddress   common.Address
 	FromRoute    *transfer.RouteState
@@ -142,7 +149,7 @@ type TargetState struct {
 }
 
 /*
-State for a mediated transfer.
+MediationPairState State for a mediated transfer.
 
     A mediator will pay payee node knowing that there is a payer node to cover
     the token expenses. This state keeps track of the routes and transfer for
@@ -158,14 +165,15 @@ type MediationPairState struct {
 }
 
 //all payee's valid state
-// Initial state.
+
+//StatePayeePending Initial state.
 const StatePayeePending = "payee_pending"
 
-//The payee is following the raiden protocol and has sent a SecretReveal.
+//StatePayeeSecretRevealed The payee is following the raiden protocol and has sent a SecretReveal.
 const StatePayeeSecretRevealed = "payee_secret_revealed"
 
 /*
-   The corresponding refund transfer was withdrawn on-chain, the payee has
+StatePayeeRefundWithdraw  The corresponding refund transfer was withdrawn on-chain, the payee has
        /not/ withdrawn the lock yet, it only learned the secret through the
        blockchain.
        Note: This state is reachable only if there is a refund transfer, that
@@ -175,20 +183,21 @@ const StatePayeeSecretRevealed = "payee_secret_revealed"
 const StatePayeeRefundWithdraw = "payee_refund_withdraw"
 
 /*
- The payee received the token on-chain. A transition to this state is
+StatePayeeContractWithdraw The payee received the token on-chain. A transition to this state is
 valid from all but the `payee_expired` state.
 */
 const StatePayeeContractWithdraw = "payee_contract_withdraw"
 
 /*
-   This node has sent a SendBalanceProof to the payee with the balance
+StatePayeeBalanceProof   This node has sent a SendBalanceProof to the payee with the balance
     updated.
 */
 const StatePayeeBalanceProof = "payee_balance_proof"
 
-//The lock has expired.
+//StatePayeeExpired The lock has expired.
 const StatePayeeExpired = "payee_expired"
 
+//ValidPayeeStateMap payee's valid state
 var ValidPayeeStateMap = map[string]bool{
 	StatePayeePending:          true,
 	StatePayeeSecretRevealed:   true,
@@ -198,6 +207,7 @@ var ValidPayeeStateMap = map[string]bool{
 	StatePayeeExpired:          true,
 }
 
+//ValidPayerStateMap payer's valid state
 var ValidPayerStateMap = map[string]bool{
 	StatePayerPending:          true,
 	StatePayerSecretRevealed:   true,
@@ -209,27 +219,30 @@ var ValidPayerStateMap = map[string]bool{
 }
 
 //payer's state
+
+//StatePayerPending payer pending
 const StatePayerPending = "payer_pending"
 
-//SendRevealSecret was sent
+//StatePayerSecretRevealed RevealSecret was sent
 const StatePayerSecretRevealed = "payer_secret_revealed"
 
-//ContractSendChannelClose was sent
+//StatePayerWaitingClose ContractSendChannelClose was sent
 const StatePayerWaitingClose = "payer_waiting_close"
 
-//ContractSendWithdraw was sent
+//StatePayerWaitingWithdraw ContractSendWithdraw was sent
 const StatePayerWaitingWithdraw = "payer_waiting_withdraw"
 
-// ContractReceiveWithdraw for the above send received
+//StatePayerContractWithdraw ContractReceiveWithdraw for the above send received
 const StatePayerContractWithdraw = "payer_contract_withdraw"
 
-// ReceiveBalanceProof was received
+//StatePayerBalanceProof ReceiveBalanceProof was received
 const StatePayerBalanceProof = "payer_balance_proof"
 
-//None of the above happened and the lock expired
+//StatePayerExpired None of the above happened and the lock expired
 const StatePayerExpired = "payer_expired"
 
 /*
+NewMediationPairState create mediated state
   Args:
            payer_route (RouteState): The details of the route with the payer.
            payer_transfer (LockedTransferState): The transfer this node

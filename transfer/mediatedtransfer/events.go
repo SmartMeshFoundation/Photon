@@ -1,4 +1,4 @@
-package mediated_transfer
+package mediatedtransfer
 
 import (
 	"encoding/gob"
@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// A mediated transfer that must be sent to `node_address`.
+// EventSendMediatedTransfer A mediated transfer that must be sent to `node_address`.
 type EventSendMediatedTransfer struct {
 	Identifier uint64
 	Token      common.Address
@@ -21,6 +21,7 @@ type EventSendMediatedTransfer struct {
 	Fee        *big.Int // target should get amount-fee.
 }
 
+//NewEventSendMediatedTransfer create EventSendMediatedTransfer
 func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
 	return &EventSendMediatedTransfer{
 		Identifier: transfer.Identifier,
@@ -36,7 +37,7 @@ func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common
 }
 
 /*
-Sends a RevealSecret to another node.
+EventSendRevealSecret Sends a RevealSecret to another node.
 
     This event is used once the secret is known locally and an action must be
     performed on the receiver:
@@ -73,7 +74,7 @@ type EventSendRevealSecret struct {
 }
 
 /*
- Event to send a balance-proof to the counter-party, used after a lock
+EventSendBalanceProof send a balance-proof to the counter-party, used after a lock
     is unlocked locally allowing the counter-party to withdraw.
 
     Used by payers: The initiator and mediator nodes.
@@ -98,7 +99,7 @@ type EventSendBalanceProof struct {
 }
 
 /*
-Event used by a target node to request the secret from the initiator
+EventSendSecretRequest used by a target node to request the secret from the initiator
     (`receiver`).
 */
 type EventSendSecretRequest struct {
@@ -109,7 +110,7 @@ type EventSendSecretRequest struct {
 }
 
 /*
-Event used to cleanly backtrack the current node in the route.
+EventSendRefundTransfer used to cleanly backtrack the current node in the route.
 
     This message will pay back the same amount of token from the receiver to
     the sender, allowing the sender to try a different route without the risk
@@ -129,7 +130,7 @@ type EventSendRefundTransfer struct {
 }
 
 /*
-Event emitted to close the netting channel.
+EventContractSendChannelClose emitted to close the netting channel.
 
     This event is used when a node needs to prepare the channel to withdraw
     on-chain.
@@ -143,13 +144,14 @@ type EventContractSendChannelClose struct {
 上家不知什么原因要关闭channel，我一旦知道密码，应该立即到链上提现。
 channel 自己会关注是否要提现，但是如果是在关闭以后才获取到密码的呢？
 */
-//Event emitted when the lock must be withdrawn on-chain.
+
+//EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 type EventContractSendWithdraw struct {
 	Transfer       *LockedTransferState
 	ChannelAddress common.Address
 }
 
-//Event emitted when a lock unlock succeded ,emit this event after receive a revealsecret message
+//EventUnlockSuccess emitted when a lock unlock succeded ,emit this event after receive a revealsecret message
 type EventUnlockSuccess struct {
 	Identifier uint64
 	Hashlock   common.Hash
@@ -159,7 +161,8 @@ type EventUnlockSuccess struct {
 下家没有在expiration之内收到balanceproof，也没有选择在链上兑现。
 能想到的应对就是移除失效的lock
 */
-//Event emitted when a lock unlock failed.
+
+//EventUnlockFailed emitted when a lock unlock failed.
 type EventUnlockFailed struct {
 	Identifier     uint64
 	Hashlock       common.Hash
@@ -167,7 +170,7 @@ type EventUnlockFailed struct {
 	Reason         string
 }
 
-//Event emitted when a lock withdraw succeded.
+//EventWithdrawSuccess emitted when a lock withdraw succeded.
 type EventWithdrawSuccess struct {
 	Identifier uint64
 	Hashlock   common.Hash
@@ -177,7 +180,8 @@ type EventWithdrawSuccess struct {
 上家没有在expiration之内给我balanceproof，我也没有在链上兑现（因为没有密码）。
 必须等待上家的 RemoveExpiredHashlockTransfer, 然后移除.
 */
-//Event emitted when a lock withdraw failed.
+
+//EventWithdrawFailed emitted when a lock withdraw failed.
 type EventWithdrawFailed struct {
 	Identifier     uint64
 	Hashlock       common.Hash

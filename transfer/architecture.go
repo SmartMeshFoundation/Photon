@@ -171,7 +171,7 @@ func NewStateManager(stateTransition FuncStateTransition, currentState State, na
 
 /*
 Dispatch Apply the `state_change` in the current machine and return the
-        resulting events.
+         resulting events.
 
         Args:
             state_change (StateChange): An object representation of a state

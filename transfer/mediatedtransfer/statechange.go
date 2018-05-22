@@ -1,4 +1,4 @@
-package mediated_transfer
+package mediatedtransfer
 
 import (
 	"encoding/gob"
@@ -13,6 +13,7 @@ import (
 )
 
 /*
+ActionInitInitiatorStateChange start a mediated transfer
  Note: The init states must contain all the required data for trying doing
  useful work, ie. there must /not/ be an event for requesting new data.
 */
@@ -25,7 +26,7 @@ type ActionInitInitiatorStateChange struct {
 	Db              channel.Db            //get the latest channel state
 }
 
-// Initial state for a new mediator.
+//ActionInitMediatorStateChange  Initial state for a new mediator.
 type ActionInitMediatorStateChange struct {
 	OurAddress  common.Address             //This node address.
 	FromTranfer *LockedTransferState       //The received MediatedTransfer.
@@ -36,7 +37,7 @@ type ActionInitMediatorStateChange struct {
 	Db          channel.Db                 //get the latest channel state
 }
 
-//Initial state for a new target.
+//ActionInitTargetStateChange Initial state for a new target.
 type ActionInitTargetStateChange struct {
 	OurAddress  common.Address       //This node address.
 	FromTranfer *LockedTransferState //The received MediatedTransfer.
@@ -47,7 +48,7 @@ type ActionInitTargetStateChange struct {
 }
 
 /*
-Cancel the current route.
+ActionCancelRouteStateChange Cancel the current route.
  Notes:
         Used to cancel a specific route but not the transfer, may be used for
         timeouts.
@@ -56,7 +57,7 @@ type ActionCancelRouteStateChange struct {
 	Identifier uint64
 }
 
-// A SecretRequest message received.
+//ReceiveSecretRequestStateChange A SecretRequest message received.
 type ReceiveSecretRequestStateChange struct {
 	Identifier uint64
 	Amount     *big.Int
@@ -65,21 +66,21 @@ type ReceiveSecretRequestStateChange struct {
 	Message    *encoding.SecretRequest //the message trigger this statechange
 }
 
-//A SecretReveal message received
+//ReceiveSecretRevealStateChange A SecretReveal message received
 type ReceiveSecretRevealStateChange struct {
 	Secret  common.Hash
 	Sender  common.Address
 	Message *encoding.RevealSecret //the message trigger this statechange
 }
 
-// A RefundTransfer message received.
+//ReceiveTransferRefundStateChange A RefundTransfer message received.
 type ReceiveTransferRefundStateChange struct {
 	Sender   common.Address
 	Transfer *LockedTransferState
 	Message  *encoding.RefundTransfer //the message trigger this statechange
 }
 
-//A balance proof `identifier` was received.
+//ReceiveBalanceProofStateChange A balance proof `identifier` was received.
 type ReceiveBalanceProofStateChange struct {
 	Identifier   uint64
 	NodeAddress  common.Address
@@ -88,7 +89,7 @@ type ReceiveBalanceProofStateChange struct {
 }
 
 /*
-A lock was withdrawn via the blockchain.
+ContractReceiveWithdrawStateChange A lock was withdrawn via the blockchain.
 
     Used when a hash time lock was withdrawn and a log ChannelSecretRevealed is
     emited by the netting channel.
@@ -107,17 +108,20 @@ type ContractReceiveWithdrawStateChange struct {
 	Receiver       common.Address //this address use secret to withdraw onchain
 }
 
+//ContractReceiveClosedStateChange a channel was closed
 type ContractReceiveClosedStateChange struct {
 	ChannelAddress common.Address
 	ClosingAddress common.Address
 	ClosedBlock    int64 //block number when close
 }
 
+//ContractReceiveSettledStateChange a channel was settled
 type ContractReceiveSettledStateChange struct {
 	ChannelAddress common.Address
 	SettledBlock   int64
 }
 
+//ContractReceiveBalanceStateChange new deposit on channel
 type ContractReceiveBalanceStateChange struct {
 	ChannelAddress     common.Address
 	TokenAddress       common.Address
@@ -126,6 +130,7 @@ type ContractReceiveBalanceStateChange struct {
 	BlockNumber        int64
 }
 
+//ContractReceiveNewChannelStateChange new channel created on block chain
 type ContractReceiveNewChannelStateChange struct {
 	ManagerAddress common.Address
 	ChannelAddress common.Address
@@ -134,6 +139,7 @@ type ContractReceiveNewChannelStateChange struct {
 	SettleTimeout  int
 }
 
+//ContractReceiveTokenAddedStateChange a new token registered
 type ContractReceiveTokenAddedStateChange struct {
 	RegistryAddress common.Address
 	TokenAddress    common.Address
