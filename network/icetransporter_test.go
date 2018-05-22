@@ -5,18 +5,19 @@ import (
 
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func init() {
-	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "182.254.155.208:5222")
+	InitIceTransporter(params.DefaultTurnServer, params.DefaultTurnUserName, params.DefaultTurnPassword, params.DefaultSignalServer)
 }
 
 type testreceiver struct {
 	data chan []byte
 }
 
-func (tr *testreceiver) Receive(data []byte, host string, port int) {
+func (tr *testreceiver) receive(data []byte, host string, port int) {
 	tr.data <- data
 }
 func TestNewIceTransporter(t *testing.T) {
@@ -40,7 +41,7 @@ func TestNewIceTransporter(t *testing.T) {
 	}
 
 	select {
-	case <-time.After(time.Second * 50):
+	case <-time.After(time.Second * 15):
 		t.Error("receive timeout")
 	case data := <-tr2.data:
 		t.Log("addr2 received ", string(data))

@@ -26,7 +26,7 @@ func init() {
 type dummyProtocol struct {
 }
 
-func (p *dummyProtocol) Receive(data []byte, host string, port int) {
+func (p *dummyProtocol) receive(data []byte, host string, port int) {
 	log.Debug(fmt.Sprintf("receive from %s:%d data len=%d", host, port, len(data)))
 }
 

@@ -43,10 +43,10 @@ func TestEndState(t *testing.T) {
 	state2 := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.balance(state2), balance1)
-	assert.EqualValues(t, state2.balance(state1), balance2)
-	assert.Equal(t, state1.isLocked(lockHashlock), false)
-	assert.Equal(t, state2.isLocked(lockHashlock), false)
+	assert.EqualValues(t, state1.Balance(state2), balance1)
+	assert.EqualValues(t, state2.Balance(state1), balance2)
+	assert.Equal(t, state1.IsLocked(lockHashlock), false)
+	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
@@ -72,17 +72,17 @@ func TestEndState(t *testing.T) {
 	state1.registerLockedTransfer(mtr)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.balance(state2), balance1)
-	assert.EqualValues(t, state2.balance(state1), balance2)
+	assert.EqualValues(t, state1.Balance(state2), balance1)
+	assert.EqualValues(t, state2.Balance(state1), balance2)
 
-	assert.EqualValues(t, state1.distributable(state2), new(big.Int).Sub(balance1, lockAmount))
-	assert.EqualValues(t, state2.distributable(state1), balance2)
+	assert.EqualValues(t, state1.Distributable(state2), new(big.Int).Sub(balance1, lockAmount))
+	assert.EqualValues(t, state2.Distributable(state1), balance2)
 
 	assert.EqualValues(t, state1.amountLocked(), lockAmount)
 	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.isLocked(lockHashlock), true)
-	assert.Equal(t, state2.isLocked(lockHashlock), false)
+	assert.Equal(t, state1.IsLocked(lockHashlock), true)
+	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
@@ -94,15 +94,15 @@ func TestEndState(t *testing.T) {
 	assert.Equal(t, state1.UpdateContractBalance(new(big.Int).Add(balance1, big10)), nil)
 	assert.EqualValues(t, state1.ContractBalance, new(big.Int).Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.balance(state2), new(big.Int).Add(balance1, big10))
-	assert.EqualValues(t, state2.balance(state1), balance2)
+	assert.EqualValues(t, state1.Balance(state2), new(big.Int).Add(balance1, big10))
+	assert.EqualValues(t, state2.Balance(state1), balance2)
 	x = new(big.Int).Sub(balance1, lockAmount)
-	assert.EqualValues(t, state1.distributable(state2), x.Add(x, big10))
+	assert.EqualValues(t, state1.Distributable(state2), x.Add(x, big10))
 	assert.EqualValues(t, state1.amountLocked(), lockAmount)
 	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.isLocked(lockHashlock), true)
-	assert.Equal(t, state2.isLocked(lockHashlock), false)
+	assert.Equal(t, state1.IsLocked(lockHashlock), true)
+	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
@@ -112,15 +112,15 @@ func TestEndState(t *testing.T) {
 	state1.RegisterSecret(lockSecret)
 	assert.EqualValues(t, state1.ContractBalance, x.Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.balance(state2), x.Add(balance1, big10))
-	assert.EqualValues(t, state2.balance(state1), balance2)
+	assert.EqualValues(t, state1.Balance(state2), x.Add(balance1, big10))
+	assert.EqualValues(t, state2.Balance(state1), balance2)
 
-	assert.EqualValues(t, state1.distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
+	assert.EqualValues(t, state1.Distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
 	assert.EqualValues(t, state1.amountLocked(), lockAmount)
 	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.isLocked(lockHashlock), false)
-	assert.Equal(t, state2.isLocked(lockHashlock), false)
+	assert.Equal(t, state1.IsLocked(lockHashlock), false)
+	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
@@ -132,16 +132,16 @@ func TestEndState(t *testing.T) {
 
 	assert.EqualValues(t, state1.ContractBalance, x.Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
-	assert.EqualValues(t, state1.balance(state2), x.Add(balance1, big10).Sub(x, lockAmount))
-	assert.EqualValues(t, state2.balance(state1), x.Add(balance2, lockAmount))
+	assert.EqualValues(t, state1.Balance(state2), x.Add(balance1, big10).Sub(x, lockAmount))
+	assert.EqualValues(t, state2.Balance(state1), x.Add(balance2, lockAmount))
 
-	assert.EqualValues(t, state1.distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
-	assert.EqualValues(t, state2.distributable(state1), x.Add(balance2, lockAmount))
+	assert.EqualValues(t, state1.Distributable(state2), x.Sub(balance1, lockAmount).Add(x, big10))
+	assert.EqualValues(t, state2.Distributable(state1), x.Add(balance2, lockAmount))
 	assert.EqualValues(t, state1.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, state2.amountLocked(), utils.BigInt0)
 
-	assert.Equal(t, state1.isLocked(lockHashlock), false)
-	assert.Equal(t, state2.isLocked(lockHashlock), false)
+	assert.Equal(t, state1.IsLocked(lockHashlock), false)
+	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
 
@@ -150,8 +150,9 @@ func TestEndState(t *testing.T) {
 }
 func makeExternState() *ExternalState {
 	bcs := newTestBlockChainService()
+	ch := os.Getenv("CHANNEL")
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x93b84FF17268b6a2636D94Ecc58949527BB4ac9d"))
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(ch))
 	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, newMockChannelDb())
 }
 func TestSenderCannotOverSpend(t *testing.T) {
@@ -385,12 +386,12 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 
 	assert.EqualValues(t, ch0.OurState.amountLocked(), ch1.PartnerState.amountLocked())
 	assert.EqualValues(t, ch0.TransferAmount(), ch1.PartnerState.TransferAmount())
-	balance0 := ch0.OurState.balance(ch0.PartnerState)
-	balance1 := ch1.PartnerState.balance(ch1.OurState)
+	balance0 := ch0.OurState.Balance(ch0.PartnerState)
+	balance1 := ch1.PartnerState.Balance(ch1.OurState)
 	assert.EqualValues(t, balance0, balance1)
 
-	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.distributable(ch0.PartnerState))
-	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.distributable(ch1.OurState))
+	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.Distributable(ch0.PartnerState))
+	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.Distributable(ch1.OurState))
 
 	unclaimed0 = ch1.OurState.TreeState.Tree.MerkleRoot()
 	unclaimed1 = ch0.PartnerState.TreeState.Tree.MerkleRoot()
@@ -398,12 +399,12 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 
 	assert.EqualValues(t, ch1.OurState.amountLocked(), ch0.PartnerState.amountLocked())
 	assert.EqualValues(t, ch1.TransferAmount(), ch0.PartnerState.TransferAmount())
-	balance0 = ch1.OurState.balance(ch1.PartnerState)
-	balance1 = ch0.PartnerState.balance(ch0.OurState)
+	balance0 = ch1.OurState.Balance(ch1.PartnerState)
+	balance1 = ch0.PartnerState.Balance(ch0.OurState)
 	assert.EqualValues(t, balance0, balance1)
 
-	assert.EqualValues(t, ch1.Distributable(), ch1.OurState.distributable(ch1.PartnerState))
-	assert.EqualValues(t, ch1.Distributable(), ch0.PartnerState.distributable(ch0.OurState))
+	assert.EqualValues(t, ch1.Distributable(), ch1.OurState.Distributable(ch1.PartnerState))
+	assert.EqualValues(t, ch1.Distributable(), ch0.PartnerState.Distributable(ch0.OurState))
 }
 
 //Assert the locks created from `from_channel`.
@@ -425,7 +426,7 @@ func assertLocked(ch *Channel, pendingLocks []*encoding.Lock, t *testing.T) {
 	}
 	assert.EqualValues(t, ch.OurState.amountLocked(), sum)
 	for _, lock := range pendingLocks {
-		assert.Equal(t, ch.OurState.isLocked(lock.HashLock), true)
+		assert.Equal(t, ch.OurState.IsLocked(lock.HashLock), true)
 	}
 }
 
@@ -439,7 +440,7 @@ func assertBalance(ch *Channel, balance, outstanding, distributable *big.Int, t 
 		     we have outstanding
 	*/
 	assert.EqualValues(t, ch.PartnerState.amountLocked(), outstanding)
-	assert.EqualValues(t, ch.Balance(), ch.OurState.balance(ch.PartnerState))
+	assert.EqualValues(t, ch.Balance(), ch.OurState.Balance(ch.PartnerState))
 	assert.EqualValues(t, ch.Balance().Cmp(utils.BigInt0) >= 0, true)
 	assert.EqualValues(t, ch.Distributable().Cmp(utils.BigInt0) >= 0, true)
 	assert.EqualValues(t, ch.Locked().Cmp(utils.BigInt0) >= 0, true)

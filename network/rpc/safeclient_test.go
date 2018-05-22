@@ -21,6 +21,9 @@ func TestBrokenClient(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	fmt.Println("try  operation on broken connection")
 	_, err = bcs.Client.BalanceAt(context.Background(), bcs.NodeAddress, nil)
-	spew.Dump(err)
-	t.Error(err)
+	if err != nil {
+		spew.Dump(err)
+		t.Error(err)
+	}
+
 }

@@ -100,11 +100,11 @@ func (c *Channel) State() string {
 Distributable return the available amount of the token that our end of the channel can transfer to the partner.
 */
 func (c *Channel) Distributable() *big.Int {
-	return c.OurState.distributable(c.PartnerState)
+	return c.OurState.Distributable(c.PartnerState)
 }
 
 /*
-CanTransfer  a closed channel and has no balance channel cannot
+CanTransfer  a closed channel and has no Balance channel cannot
 transfer tokens to partner.
 */
 func (c *Channel) CanTransfer() bool {
@@ -126,7 +126,7 @@ func (c *Channel) TransferAmount() *big.Int {
 }
 
 /*
-Balance Return our current balance.
+Balance Return our current Balance.
 
 OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
 were both `receive_amount` and `sent_amount` are unlocked.
@@ -139,7 +139,7 @@ func (c *Channel) Balance() *big.Int {
 }
 
 /*
-PartnerBalance return partner current balance.
+PartnerBalance return partner current Balance.
 OurBalance is equal to `initial_deposit + received_amount - sent_amount`,
 were both `receive_amount` and `sent_amount` are unlocked.
 */
@@ -230,7 +230,7 @@ RegisterSecret Register a secret to this channel
             their locksroot at the moment a secret was revealed.
 
             The protocol is to register the secret so that it can compute a
-            proof of balance, if necessary, forward the secret to the sender
+            proof of Balance, if necessary, forward the secret to the sender
             and wait for the update from it. It's the sender's duty to order the
             current in-transit (and possible the transfers in queue) transfers
             and the secret/locksroot update.
@@ -394,7 +394,7 @@ Note:
             - Avoid sending a new transaction without funds.
 
         Raises:
-            ErrInsufficientBalance: If the transfer is negative or above the distributable amount.
+            ErrInsufficientBalance: If the transfer is negative or above the Distributable amount.
             InvalidLocksRoot: If locksroot check fails.
             InvalidNonce: If the expected nonce does not match.
             ValueError: If there is an address mismatch (token or node address).
@@ -424,8 +424,8 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	}
 	/*
 					 if the locksroot is out-of-sync (because a transfer was created while
-				    a Secret was in traffic) the balance _will_ be wrong, so first check
-				    the locksroot and then the balance
+				    a Secret was in traffic) the Balance _will_ be wrong, so first check
+				    the locksroot and then the Balance
 		During building this transfer and registering transfer, we receive a secret.
 	*/
 	if encoding.IsLockedTransfer(tr) {
@@ -476,7 +476,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			return fmt.Errorf("Lock expires after the settlement period.")
 		}
 	}
-	// only check the balance if the locksroot matched
+	// only check the Balance if the locksroot matched
 	if evMsg.TransferAmount.Cmp(fromState.TransferAmount()) < 0 {
 		log.Error(fmt.Sprintf("NEGATIVE TRANSFER node=%s,from=%s,to=%s,transfer=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
@@ -484,7 +484,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		return fmt.Errorf("Negative transfer")
 	}
 	amount := new(big.Int).Sub(evMsg.TransferAmount, fromState.TransferAmount())
-	distributable := fromState.distributable(toState)
+	distributable := fromState.Distributable(toState)
 	if tr.Cmd() == encoding.DirectTransferCmdID {
 		if amount.Cmp(distributable) > 0 {
 			return rerr.ErrInsufficientBalance
@@ -570,9 +570,9 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *
 	}
 	from := c.OurState
 	to := c.PartnerState
-	distributable := from.distributable(to)
+	distributable := from.Distributable(to)
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(distributable) > 0 {
-		log.Debug(fmt.Sprintf("Insufficient funds : amount=%s, distributable=%s", amount, distributable))
+		log.Debug(fmt.Sprintf("Insufficient funds : amount=%s, Distributable=%s", amount, distributable))
 		return nil, rerr.ErrInsufficientFunds
 	}
 	tranferAmount := new(big.Int).Add(from.TransferAmount(), amount)
@@ -600,7 +600,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
 	}
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(c.Distributable()) > 0 {
-		log.Info(fmt.Sprintf("Insufficient funds  amount=%s,distributable=%s", amount, c.Distributable()))
+		log.Info(fmt.Sprintf("Insufficient funds  amount=%s,Distributable=%s", amount, c.Distributable()))
 		return nil, fmt.Errorf("Insufficient funds")
 	}
 	from := c.OurState
@@ -650,7 +650,7 @@ func (c *Channel) CreateSecret(identifer uint64, secret common.Hash) (tr *encodi
 
 // String fmt.Stringer
 func (c *Channel) String() string {
-	return fmt.Sprintf("{ContractBalance=%s,balance=%s,distributable=%s,locked=%s,transferAmount=%s}",
+	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
 		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
 }
 

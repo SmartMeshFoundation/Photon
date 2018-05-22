@@ -5,6 +5,8 @@ import (
 
 	"fmt"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -28,10 +30,12 @@ func newTestBlockChainService() *rpc.BlockChainService {
 func makeTestExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress("0x5BFC50667F097F44B881e2ce4dA2B5Ff4dAdF962"))
+	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(os.Getenv("CHANNEL")))
 	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
 }
-func makeTestPairChannel() (*Channel, *Channel) {
+
+//MakeTestPairChannel for test
+func MakeTestPairChannel() (*Channel, *Channel) {
 	tokenAddress := utils.NewRandomAddress()
 	externState1 := makeTestExternState()
 	externState2 := makeTestExternState()

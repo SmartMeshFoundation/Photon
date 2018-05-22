@@ -25,7 +25,7 @@ type PendingLock struct {
 }
 
 /*
-UnlockPartialProof is the lock that I have known the secret ,but haven't receive the balance proof
+UnlockPartialProof is the lock that I have known the secret ,but haven't receive the Balance proof
 */
 type UnlockPartialProof struct {
 	Lock       *encoding.Lock
@@ -122,16 +122,16 @@ func (node *EndState) nonce() int64 {
 	return 0
 }
 
-//balance returns the availabe tokens i have
-func (node *EndState) balance(counterpart *EndState) *big.Int {
+//Balance returns the availabe tokens i have
+func (node *EndState) Balance(counterpart *EndState) *big.Int {
 	x := new(big.Int).Sub(node.ContractBalance, node.TransferAmount())
 	x.Add(x, counterpart.TransferAmount())
 	return x
 }
 
-//distributable returns the availabe tokens i can send to partner. this equals `balance`-`amountLocked`
-func (node *EndState) distributable(counterpart *EndState) *big.Int {
-	return new(big.Int).Sub(node.balance(counterpart), node.amountLocked())
+//Distributable returns the availabe tokens i can send to partner. this equals `Balance`-`amountLocked`
+func (node *EndState) Distributable(counterpart *EndState) *big.Int {
+	return new(big.Int).Sub(node.Balance(counterpart), node.amountLocked())
 }
 
 //IsKnown returns True if the `hashlock` corresponds to a known lock.
@@ -144,17 +144,17 @@ func (node *EndState) IsKnown(hashlock common.Hash) bool {
 	return ok
 }
 
-//isLocked returns True if the `hashlock` is known and the correspoding secret is not.
-func (node *EndState) isLocked(hashlock common.Hash) bool {
+//IsLocked returns True if the `hashlock` is known and the correspoding secret is not.
+func (node *EndState) IsLocked(hashlock common.Hash) bool {
 	_, ok := node.Lock2PendingLocks[hashlock]
 	return ok
 }
 
 /*
-UpdateContractBalance returns Update the contract balance, it must always increase.
+UpdateContractBalance returns Update the contract Balance, it must always increase.
 
 return error If the `contract_balance` is smaller than the current
-           balance.
+           Balance.
 */
 func (node *EndState) UpdateContractBalance(balance *big.Int) error {
 	if balance.Cmp(node.ContractBalance) < 0 {
@@ -385,7 +385,7 @@ func (node *EndState) TryRemoveExpiredHashLock(hashlock common.Hash, blockNumber
 }
 
 /*
-RegisterSecret register a secret(not secret message) so that it can be used in a balance proof.
+RegisterSecret register a secret(not secret message) so that it can be used in a Balance proof.
 
         Note:
             This methods needs to be called once a `Secret` message is received
@@ -400,7 +400,7 @@ func (node *EndState) RegisterSecret(secret common.Hash) error {
 	if !node.IsKnown(hashlock) {
 		return errors.New("secret does not correspond to any hashlock")
 	}
-	if node.isLocked(hashlock) {
+	if node.IsLocked(hashlock) {
 		pendingLock := node.Lock2PendingLocks[hashlock]
 		delete(node.Lock2PendingLocks, hashlock)
 		node.Lock2UnclaimedLocks[hashlock] = UnlockPartialProof{

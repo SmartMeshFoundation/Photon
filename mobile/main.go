@@ -78,7 +78,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
 	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
-	os.Args = append(os.Args, fmt.Sprintf("--nat=ice"))
+	os.Args = append(os.Args, fmt.Sprintf("--nat=none"))
 	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
 	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", apiAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
@@ -235,10 +235,10 @@ func config(pms *network.PortMappedSocket) *params.Config {
 	config.Host = listenhost
 	config.Port = listenport
 	config.UseConsole = false
-	config.UseRpc = false
+	config.UseRPC = false
 	config.APIHost = apihost
 	config.APIPort = apiport
-	config.ExternIp = pms.ExternalIp
+	config.ExternIP = pms.ExternalIP
 	config.ExternPort = pms.ExternalPort
 	maxUnresponsiveTime := int64(time.Minute)
 	config.Protocol.NatKeepAliveTimeout = maxUnresponsiveTime / params.DefaultKeepAliveReties

@@ -3,10 +3,16 @@ package rpc
 import (
 	"fmt"
 
+	"os"
+
+	"encoding/hex"
+
+	"crypto/ecdsa"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 )
 
@@ -34,10 +40,24 @@ const key = `
 }
 `
 
+var privkeybin = "2ddd679cb0f0754d0e20ef8206ea2210af3b51f159f55cfffbd8550f58daf779"
+
 //PrivateRopstenRegistryAddress test registry address, todo use env
-var PrivateRopstenRegistryAddress = common.HexToAddress("0x5bF5C32CEC0DC8a2c4C08705e41e88556dAf361A") // params.ROPSTEN_REGISTRY_ADDRESS
+var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("REGISTRY")) // params.ROPSTEN_REGISTRY_ADDRESS
 //TestRPCEndpoint test eth rpc url, todo use env
 var TestRPCEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
+var privkey *ecdsa.PrivateKey
+
+func init() {
+	keybin, err := hex.DecodeString(privkeybin)
+	if err != nil {
+		log.Crit("err %s", err)
+	}
+	privkey, err = crypto.ToECDSA(keybin)
+	if err != nil {
+		log.Crit("err %s", err)
+	}
+}
 
 //MakeTestBlockChainService creat test BlockChainService
 func MakeTestBlockChainService() *BlockChainService {
@@ -46,9 +66,5 @@ func MakeTestBlockChainService() *BlockChainService {
 	if err != nil {
 		fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)
 	}
-	privkey, err := keystore.DecryptKey([]byte(key), "123")
-	if err != nil {
-		log.Crit("Failed to create authorized transactor: ", err)
-	}
-	return NewBlockChainService(privkey.PrivateKey, PrivateRopstenRegistryAddress, conn)
+	return NewBlockChainService(privkey, PrivateRopstenRegistryAddress, conn)
 }

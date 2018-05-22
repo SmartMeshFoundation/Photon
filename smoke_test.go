@@ -11,7 +11,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +28,7 @@ func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{
 func deployAToken(t *testing.T, raiden *RaidenService) (addr common.Address) {
 	n := new(big.Int)
 	n.SetBytes(raiden.NodeAddress[:])
-	addr, tx, _, err := rpc.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, "Contracts in Go!!!", 0, "Go!")
+	addr, tx, _, err := contracts.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, "Contracts in Go!!!", 0, "Go!")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -103,9 +103,7 @@ func TestSmoke(t *testing.T) {
 		tokenAddr2 = common.HexToAddress("0xF3AdEde8030D33d6B360e7d0FE08E5e4c1425c8C")
 		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
 		log.Info("channels about token1")
-		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
 		log.Info("channels about token2")
-		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
 	}
 
 	log.Info("step 2 transfer from A to B")
@@ -210,16 +208,14 @@ func TestFeeCharger(t *testing.T) {
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
 	var tAmount = big.NewInt(1)
-	if false {
+	if true {
 		tokenAddr, tokenAddr2 = newEnv(t, ra, rb, rc, rd)
 	} else {
 		tokenAddr = common.HexToAddress("0x883FF6D87eB3f0b6f9122E96cE01d9b508bEC2C9")
 		tokenAddr2 = common.HexToAddress("0xd319EBa3d8237c8b72759f0BB368Fb0A31De7CcA")
 		time.Sleep(time.Second) //let ra,rb,rc,rd udpate channel info
 		log.Info("channels about token1")
-		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
 		log.Info("channels about token2")
-		ra.Raiden.Token2ChannelGraph[tokenAddr].PrintGraph()
 	}
 	log.Info("tokenAddr=%s,tokenaddr2=%s", tokenAddr.String(), tokenAddr2.String())
 	log.Info("transfer from A to C")
