@@ -10,30 +10,62 @@ import (
 	"github.com/fatedier/frp/src/utils/log"
 )
 
+//UnitSettleTimeout for test only
 var UnitSettleTimeout = 50
+
+//UnitRevealTimeout for test
 var UnitRevealTimeout = 5
+
+//UnitTransferAmount for test
 var UnitTransferAmount = big.NewInt(10)
+
+//UnitBlockNumber for test
 var UnitBlockNumber int64 = 1
+
+//UnitIdentifier for test
 var UnitIdentifier uint64 = 3
+
+//UnitSecret for test
 var UnitSecret = common.StringToHash("secretsecretsecretsecretsecretse")
+
+//UnitHashLock for test
 var UnitHashLock = utils.Sha3(UnitSecret[:])
 
+//UnitTokenAddress for test
 var UnitTokenAddress = utils.NewRandomAddress()
 
+//ADDR for test
 var ADDR = utils.NewRandomAddress()
+
+//HOP1 for test
 var HOP1 = common.HexToAddress("0x0101010101010101111111111111111111111111")
+
+//HOP2 for test
 var HOP2 = common.HexToAddress("0x0202020222222222222222222222222222222222")
+
+//HOP3 for test
 var HOP3 = common.HexToAddress("0x0303030303333333333333333333333333333333")
+
+//HOP4 for test
 var HOP4 = common.HexToAddress("0x0404040444444444444444444444444444444444")
+
+//HOP5 for test
 var HOP5 = common.HexToAddress("0x0505050505055555555555555555555555555555")
+
+//HOP6 for test
 var HOP6 = common.HexToAddress("0x060606060606666666666666666666666666666")
 
+//Hop1Timeout for test
 var Hop1Timeout = UnitSettleTimeout
+
+//Hop2Timeout for test
 var Hop2Timeout = Hop1Timeout - UnitRevealTimeout
+
+//Hop3Timeout for test
 var Hop3Timeout = Hop2Timeout - UnitRevealTimeout
 
 /*
-Helper for creating a route.
+MakeRoute Helper for creating a route.
 
     Args:
         node_address (address): The node address.
@@ -54,6 +86,7 @@ func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTime
 	}
 }
 
+//MakeTransfer create test transfer
 func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, identifier uint64, token /*UnitTokenAddress*/ common.Address) *mediated_transfer.LockedTransferState {
 	if secret != utils.EmptyHash {
 		if utils.Sha3(secret[:]) != hashlock {
@@ -76,6 +109,8 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 		Fee:          utils.BigInt0,
 	}
 }
+
+//MakeFrom create test from route and from transfer
 func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *transfer.RouteState, fromtransfer *mediated_transfer.LockedTransferState) {
 	fromroute = MakeRoute(initiator, amount, UnitSettleTimeout, UnitRevealTimeout, 0, utils.EmptyAddress)
 	fromtransfer = MakeTransfer(amount, initiator, target, fromExpiration, secret, utils.EmptyHash, 0, UnitTokenAddress)

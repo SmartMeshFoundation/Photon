@@ -18,6 +18,7 @@ func Stack() []byte {
 	}
 }
 
+//PrintStack output stack to
 func PrintStack() {
 	os.Stderr.Write(Stack())
 }
