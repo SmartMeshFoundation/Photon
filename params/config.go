@@ -22,31 +22,26 @@ type protocolConfig struct {
 	NatKeepAliveRetries  int
 	NatKeepAliveTimeout  int64
 }
+
+//NetworkMode is transport status
 type NetworkMode int
 
 const (
-	/*
-		节点不对外暴露网络接口,仅供测试使用
-	*/
-	NoNetwork = iota + 1
-	/*
-		通过udp ip 端口对外暴露服务,可以使用 stun,upnp 等方式,依赖节点发现合约或者直接告知其他节点 ip 端口
-	*/
+	//NoNetwork 节点不对外暴露网络接口,仅供测试使用
+	NoNetwork NetworkMode = iota + 1
+	//UDPOnly 通过udp ip 端口对外暴露服务,可以使用 stun,upnp 等方式,依赖节点发现合约或者直接告知其他节点 ip 端口
 	UDPOnly
-	/*
-		通过信令服务器协助,建立连接.
-	*/
+	//ICEOnly 通过信令服务器协助,建立连接.
 	ICEOnly
-	/*
-		适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
-	*/
+	//MixUDPICE 适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
 	MixUDPICE
 )
 
+//Config is configuration for Raiden,
 type Config struct {
 	Host                      string
 	Port                      int
-	ExternIp                  string
+	ExternIP                  string
 	ExternPort                int
 	PrivateKeyHex             string
 	PrivateKey                *ecdsa.PrivateKey
@@ -55,10 +50,10 @@ type Config struct {
 	DataBasePath              string
 	MsgTimeout                time.Duration
 	Protocol                  protocolConfig
-	UseRpc                    bool
+	UseRPC                    bool
 	UseConsole                bool
-	ApiHost                   string
-	ApiPort                   int
+	APIHost                   string
+	APIPort                   int
 	RegistryAddress           common.Address
 	DiscoveryAddress          common.Address
 	DataDir                   string
@@ -89,6 +84,7 @@ type iceConfig struct {
 	TurnPassword string
 }
 
+//DefaultConfig default config
 var DefaultConfig = Config{
 	Port:          InitialPort,
 	ExternPort:    InitialPort,
@@ -96,15 +92,15 @@ var DefaultConfig = Config{
 	RevealTimeout: DefaultRevealTimeout,
 	SettleTimeout: DefaultSettleTimeout,
 	Protocol: protocolConfig{
-		RetryInterval:        DefaultprotocolRetryInterval,
-		RetriesBeforeBackoff: DefaultProtocolRetiesBeforeBackoff,
-		ThrottleCapacity:     DefaultProtocolRhrottleCapacity,
-		ThrottleFillRate:     DefaultProtocolThrottleFillRate,
+		RetryInterval:        defaultprotocolRetryInterval,
+		RetriesBeforeBackoff: defaultProtocolRetiesBeforeBackoff,
+		ThrottleCapacity:     defaultProtocolRhrottleCapacity,
+		ThrottleFillRate:     defaultProtocolThrottleFillRate,
 		NatInvitationTimeout: DefaultNATInvitationTimeout,
 		NatKeepAliveRetries:  DefaultKeepAliveReties,
 		NatKeepAliveTimeout:  DefaultNATKeepAliveTimeout,
 	},
-	UseRpc:           true,
+	UseRPC:           true,
 	UseConsole:       false,
 	RegistryAddress:  RopstenRegistryAddress,
 	DiscoveryAddress: RopstenDiscoveryAddress,
@@ -115,6 +111,7 @@ var DefaultConfig = Config{
 	EnableHealthCheck: false,
 }
 
+//ConditionQuit is for test
 type ConditionQuit struct {
 	QuitEvent  string //name match
 	IsBefore   bool   //quit before event occur
@@ -122,13 +119,16 @@ type ConditionQuit struct {
 }
 
 /*
-When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete HandleSecret in raidenservice)?
+TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete HandleSecret in raidenservice)?
+todo remove?
 */
 var TreatRefundTransferAsNormalMediatedTransfer = true
 
 func init() {
 
 }
+
+//DefaultDataDir default work directory
 func DefaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	home := homeDir()
@@ -155,6 +155,7 @@ func homeDir() string {
 	return ""
 }
 
+//DefaultKeyStoreDir keystore path of ethereum
 func DefaultKeyStoreDir() string {
 	return filepath.Join(node.DefaultDataDir(), "keystore")
 }
