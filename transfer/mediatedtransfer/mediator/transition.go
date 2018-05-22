@@ -373,7 +373,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 	for _, pair := range pendingTransfersPairs {
 		if blockNumber > pair.PayerTransfer.Expiration {
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
-				log.Error("PayeeState!=mediated_transfer.StatePayeeExpired")
+				log.Error("PayeeState!=mediatedtransfer.StatePayeeExpired")
 				return
 			}
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {

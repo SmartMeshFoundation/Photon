@@ -89,7 +89,7 @@ func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.A
 		return
 	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
-	if err == rerr.NoTokenManager {
+	if err == rerr.ErrNoTokenManager {
 		return r.Raiden.Registry.AddToken(tokenAddress)
 	}
 	return
@@ -170,7 +170,7 @@ func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTime
 		settleTimeout = r.Raiden.Config.SettleTimeout
 	}
 	if settleTimeout <= revealTimeout {
-		err = rerr.InvalidSettleTimeout
+		err = rerr.ErrInvalidSettleTimeout
 		return
 	}
 	wg := sync.WaitGroup{}
@@ -227,7 +227,7 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	if balance.Cmp(amount) < 0 {
 		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
 		log.Error(err.Error())
-		return rerr.InsufficientFunds
+		return rerr.ErrInsufficientFunds
 	}
 	err = token.Approve(c.ChannelAddress, amount)
 	if err != nil {
@@ -359,7 +359,7 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			err = rerr.TransferTimeout
+			err = rerr.ErrTransferTimeout
 		case err = <-result.Result:
 		}
 	} else {
@@ -388,7 +388,7 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 		return
 	}
 	if amount.Cmp(utils.BigInt0) <= 0 {
-		err = rerr.InvalidAmount
+		err = rerr.ErrInvalidAmount
 		return
 	}
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d identifier=%d",

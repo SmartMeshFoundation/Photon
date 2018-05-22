@@ -185,7 +185,7 @@ func TestSenderCannotOverSpend(t *testing.T) {
 	sentMediatedTransfer1 := encoding.NewMediatedTransfer(2, sentMediatedTransfer0.Nonce+1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
 	sentMediatedTransfer1.Sign(privkey1, sentMediatedTransfer1)
 	err := testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer1)
-	if err != rerr.InsufficientBalance {
+	if err != rerr.ErrInsufficientBalance {
 		t.Error(err)
 	}
 }
@@ -222,7 +222,7 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	locksroot2 := tree2.MerkleRoot()
 	sendMediatedTransfer0 := encoding.NewMediatedTransfer(1, 1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
 	sendMediatedTransfer0.Sign(privkey1, sendMediatedTransfer0)
-	if testChannel.RegisterTransfer(blockNumber, sendMediatedTransfer0) != rerr.InsufficientBalance {
+	if testChannel.RegisterTransfer(blockNumber, sendMediatedTransfer0) != rerr.ErrInsufficientBalance {
 		t.Error("RegisterTransfer should be failed ")
 	}
 	t.Log("after tr2 channel=", testChannel.String())

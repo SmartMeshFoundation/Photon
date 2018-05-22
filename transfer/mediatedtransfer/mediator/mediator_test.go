@@ -783,7 +783,7 @@ func TestInitMediator(t *testing.T) {
 			mediatedTransfers = append(mediatedTransfers, e2)
 		}
 	}
-	assert(t, len(mediatedTransfers), 1, "mediated_transfer should /not/ split the transfer")
+	assert(t, len(mediatedTransfers), 1, "mediatedtransfer should /not/ split the transfer")
 	mtr := mediatedTransfers[0]
 	assert(t, mtr.Token, FromTransfer.Token)
 	assert(t, mtr.Amount, FromTransfer.Amount)

@@ -7,8 +7,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	mt "github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
+	mt "github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 

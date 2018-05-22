@@ -7,10 +7,10 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 )

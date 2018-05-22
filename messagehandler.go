@@ -14,10 +14,10 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/initiator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/mediator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediated_transfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -272,7 +272,7 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		return rerr.UnknownTokenAddress(msg.Token.String())
 	}
 	if _, ok := mh.blockedTokens[msg.Token]; ok {
-		return rerr.TransferUnwanted
+		return rerr.ErrTransferUnwanted
 	}
 	graph := mh.raiden.getToken2ChannelGraph(msg.Token)
 	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
@@ -320,7 +320,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// mh is a downstream bug and the transfer is going in cycles (issue #490)
 	if _, ok := mh.blockedTokens[msg.Token]; ok {
-		return rerr.TransferUnwanted
+		return rerr.ErrTransferUnwanted
 	}
 	graph := mh.raiden.getToken2ChannelGraph(msg.Token)
 	if graph == nil {

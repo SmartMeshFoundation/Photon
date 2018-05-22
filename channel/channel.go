@@ -394,7 +394,7 @@ Note:
             - Avoid sending a new transaction without funds.
 
         Raises:
-            InsufficientBalance: If the transfer is negative or above the distributable amount.
+            ErrInsufficientBalance: If the transfer is negative or above the distributable amount.
             InvalidLocksRoot: If locksroot check fails.
             InvalidNonce: If the expected nonce does not match.
             ValueError: If there is an address mismatch (token or node address).
@@ -487,12 +487,12 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 	distributable := fromState.distributable(toState)
 	if tr.Cmd() == encoding.DirectTransferCmdId {
 		if amount.Cmp(distributable) > 0 {
-			return rerr.InsufficientBalance
+			return rerr.ErrInsufficientBalance
 		}
 	} else if encoding.IsLockedTransfer(tr) {
 		mtr := encoding.GetMtrFromLockedTransfer(tr)
 		if new(big.Int).Add(amount, mtr.Amount).Cmp(distributable) > 0 {
-			return rerr.InsufficientBalance
+			return rerr.ErrInsufficientBalance
 		}
 	} else if tr.Cmd() == encoding.SecretCmdId {
 		sec := tr.(*encoding.Secret)
@@ -573,7 +573,7 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *
 	distributable := from.distributable(to)
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(distributable) > 0 {
 		log.Debug(fmt.Sprintf("Insufficient funds : amount=%s, distributable=%s", amount, distributable))
-		return nil, rerr.InsufficientFunds
+		return nil, rerr.ErrInsufficientFunds
 	}
 	tranferAmount := new(big.Int).Add(from.TransferAmount(), amount)
 	currentLocksroot := to.TreeState.Tree.MerkleRoot()
