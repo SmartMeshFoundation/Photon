@@ -13,7 +13,6 @@ script:
   - export ETHRPCENDPOINT="ws://182.254.155.208:30306"
   - go get  ./...
   - ./goclean.sh
-  - go test -timeout 30m ./...
 notifications:
   email:
     on_success: never
