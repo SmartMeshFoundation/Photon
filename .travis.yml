@@ -8,8 +8,8 @@ install:
 script:
   - export PATH=$PATH:$HOME/gopath/bin
   - go get  ./...
-  - go test -v ./...
   - ./goclean.sh
+  - go test -v ./...
 notifications:
   email:
     on_success: never
