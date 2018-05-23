@@ -12,6 +12,7 @@ script:
   - export DISCOVERY=0x8cA6Ca4139909F69b053126d0818A8C9BD1e0573
   - export ETHRPCENDPOINT="ws://182.254.155.208:30306"
   - go get  ./...
+  - chmod +x ./goclean.sh
   - ./goclean.sh
 notifications:
   email:
