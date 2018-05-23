@@ -397,7 +397,9 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleCancelTransfer(state)
 		case *mt.ReceiveSecretRevealStateChange:
 			//只要密码正确,就应该发送secret ,流程上可能有问题,但是结果是没错的(只有在token swap的时候才会走到这一步) . 因为按照协议层要求,同一个消息不会重复发送, 导致在tokenswap的时候maker不可能重复发送reveal secret
-			log.Warn(fmt.Sprintf("send balance proof before send a reveal secret message, this is only for token swap taker"))
+			if st2.Secret == state.Transfer.Secret {
+				log.Warn(fmt.Sprintf("send balance proof before send a reveal secret message, this is only for token swap taker,state=%s", utils.StringInterface(state, 3)))
+			}
 			it = handleSecretReveal(state, st2)
 		default:
 			log.Warn(fmt.Sprintf("RevealSecret is nil,cannot handle %s", utils.StringInterface(st, 3)))

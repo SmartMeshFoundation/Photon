@@ -211,6 +211,7 @@ func (p *RaidenProtocol) _sendAck(host string, port int, data []byte) {
 	p.Transport.Send(reciver, host, port, data)
 }
 func (p *RaidenProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
+	log.Trace(fmt.Sprintf("send to %s, ack=%s", utils.APex2(receiver), ack))
 	p.sendRawWitNoAck(receiver, ack.Pack())
 }
 func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
@@ -245,14 +246,19 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	}
 	return true
 }
-func (p *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- *SentMessageState {
+func (p *RaidenProtocol) getChannelQueue(receiver, channelAddr common.Address) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
-	key := fmt.Sprintf("%s-%s", receiver.String(), token.String())
+	key := fmt.Sprintf("%s-%s", receiver.String(), channelAddr.String())
 	var sendingChan chan *SentMessageState
 	var ok bool
-	if token == utils.EmptyAddress { //no token means that p message doesn't need ordered.
+	/*
+		no channelAddr means that p message doesn't need ordered.
+		if  channel address is not nil,it must contain a new balance proof.
+		balance proof must be sent ordered
+	*/
+	if channelAddr == utils.EmptyAddress {
 		sendingChan = make(chan *SentMessageState, 1) //should not block sender
 	} else {
 		sendingChan, ok = p.sendingQueueMap[key]
@@ -280,6 +286,9 @@ func (p *RaidenProtocol) getChannelQueue(receiver, token common.Address) chan<- 
 				p.quitWaitGroup.Done() //user stop
 				return
 			}
+			log.Trace(fmt.Sprintf("send to %s,msg=%s, echoash=%s",
+				utils.APex2(msgState.ReceiverAddress), msgState.Message,
+				utils.HPex(msgState.EchoHash)))
 			for {
 				if !p.messageCanBeSent(msgState.Message) {
 					log.Info(fmt.Sprintf("message cannot be send because of expired msg=%s", msgState.Message))
@@ -384,9 +393,9 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	p.SentHashesToChannel[echohash] = msgState
 	p.mapLock.Unlock()
 	result = msgState.AsyncResult
-	tokenAddress := getMessageTokenAddress(msg)
+	channelAddress := getMessageChannelAddress(msg)
 	//make sure not block
-	p.getChannelQueue(receiver, tokenAddress) <- msgState
+	p.getChannelQueue(receiver, channelAddress) <- msgState
 	return
 }
 
@@ -516,7 +525,7 @@ func (p *RaidenProtocol) receive(data []byte, host string, port int) {
 			log.Trace(fmt.Sprintf("protocol send message to raiden... %s", signedMessager))
 			p.ReceivedMessageChan <- &MessageToRaiden{signedMessager, echohash}
 			err, ok = <-p.ReceivedMessageResultChan
-			log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%s", ok, err))
+			log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%v", ok, err))
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
 				ack := p.CreateAck(echohash)

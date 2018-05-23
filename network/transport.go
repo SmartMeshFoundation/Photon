@@ -226,7 +226,7 @@ func (ut *UDPTransport) Start() {
 				}
 
 			}
-			log.Trace(fmt.Sprintf("%d receive from %s:%d,message=%s,hash=%s\n", t.Port, remoteAddr.IP.String(),
+			log.Trace(fmt.Sprintf("%d receive from %s:%d,message=%s,hash=%s", t.Port, remoteAddr.IP.String(),
 				remoteAddr.Port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
 			t.receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
 		}
@@ -258,8 +258,9 @@ Args:
 */
 func (ut *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
 	dummyNet.trackSend(receiver, host, port, data)
-	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,hash=%s\n", ut.Port, utils.APex(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
-	time.Sleep(ut.policy.Consume(1))
+	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,response hash=%s", ut.Port, utils.APex2(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
+	//only comment this line,if you want to test.
+	//time.Sleep(ut.policy.Consume(1)) //force to wait,
 	//todo need one lock for write?
 	_, err := ut.conn.WriteToUDP(data, udpAddrFromHostport(host, port))
 	if err != nil {

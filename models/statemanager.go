@@ -53,11 +53,11 @@ func (model *ModelDB) GetAllStateManager() []*transfer.StateManager {
 //GetAck get message related ack message
 func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 	var data []byte
-	log.Trace(fmt.Sprintf("quer ack %s from db", utils.HPex(echohash)))
 	err := model.db.Get("ack", echohash.String(), &data)
 	if err != nil && err != storm.ErrNotFound {
 		panic(fmt.Sprintf("GetAck err %s", err))
 	}
+	log.Trace(fmt.Sprintf("get ack %s from db,result=%d", utils.HPex(echohash), len(data)))
 	return data
 }
 

@@ -342,7 +342,7 @@ func TestPairTransfer(t *testing.T) {
 	amoney := ra.Raiden.getChannelWithAddr(addr).Balance()
 	bmoney := rb.Raiden.getChannelWithAddr(addr).Balance()
 	wg := sync.WaitGroup{}
-	cnt := 1
+	cnt := 5
 	fmt.Printf("start transfer...\n")
 	wg.Add(cnt * 2)
 	for i := 1; i <= cnt; i++ {
