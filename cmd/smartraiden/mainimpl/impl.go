@@ -247,7 +247,7 @@ func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocke
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if cfg.NetworkMode == params.ICEOnly && cfg.IgnoreMediatedNodeRequest {
+	if /*cfg.NetworkMode == params.ICEOnly && */ cfg.IgnoreMediatedNodeRequest {
 		cfg.NetworkMode = params.MixUDPICE
 	}
 	switch cfg.NetworkMode {
