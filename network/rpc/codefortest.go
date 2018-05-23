@@ -13,7 +13,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/node"
 )
 
 const key = `
@@ -45,7 +44,7 @@ var privkeybin = "2ddd679cb0f0754d0e20ef8206ea2210af3b51f159f55cfffbd8550f58daf7
 //PrivateRopstenRegistryAddress test registry address, todo use env
 var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("REGISTRY")) // params.ROPSTEN_REGISTRY_ADDRESS
 //TestRPCEndpoint test eth rpc url, todo use env
-var TestRPCEndpoint = fmt.Sprintf("ws://%s", node.DefaultWSEndpoint())
+var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
 var privkey *ecdsa.PrivateKey
 
 func init() {

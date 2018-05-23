@@ -80,7 +80,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	}
 	privkey, _ := testGetnextValidAccount()
 	if err != nil {
-		log.Error("Failed to create authorized transactor: ", err)
+		log.Error(fmt.Sprintf("Failed to create authorized transactor: %s", err))
 	}
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
