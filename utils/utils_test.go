@@ -18,8 +18,8 @@ func TestBigIntTo32Bytes(t *testing.T) {
 
 func TestNewRandomAddress(t *testing.T) {
 	addr := NewRandomAddress()
-	fmt.Println(addr)
-	fmt.Printf("addrs=%s\n", addr)
+	//fmt.Println(addr)
+	//fmt.Printf("addrs=%s\n", addr)
 	fmt.Printf("addrs=%s", addr.String())
 	//spew.Dump(addr)
 	//t.Logf("addrs=%s\n", addr)

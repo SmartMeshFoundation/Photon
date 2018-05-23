@@ -20,5 +20,8 @@ func Stack() []byte {
 
 //PrintStack output stack to
 func PrintStack() {
-	os.Stderr.Write(Stack())
+	_, err := os.Stderr.Write(Stack())
+	if err != nil {
+		panic(err)
+	}
 }
