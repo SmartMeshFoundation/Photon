@@ -92,6 +92,7 @@ VERSION: 0.1
 --fee                                                        enable mediation fee
 --help, -h                                                   how help
 --version,-v                                                 print the version
+--nonetwork                                                  for test purpose,ignore sending and receiving message
                                                                                                                                                                                                                                      
 ```
 ## Requirements
