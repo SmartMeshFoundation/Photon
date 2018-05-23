@@ -1,0 +1,16 @@
+language: go
+go:
+- '1.10'
+sudo: false
+install:
+- go get -v github.com/alecthomas/gometalinter
+- gometalinter --install
+script:
+  - export PATH=$PATH:$HOME/gopath/bin
+  - go get  ./...
+  - go test -v ./...
+  - ./goclean.sh
+notifications:
+  email:
+    on_success: never
+    on_failure: always
