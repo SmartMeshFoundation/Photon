@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -40,7 +40,7 @@ func getDeployKey(keystorePath string) (key *ecdsa.PrivateKey) {
 func DeployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr common.Address) {
 	key := getDeployKey(keystorePath)
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := rpc.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
+	tokenAddr, tx, _, err := contracts.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -54,17 +54,17 @@ func DeployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr comm
 
 func CreateTokenAndChannels(keystorePath string, conn *ethclient.Client, registryAddress common.Address, createchannel bool) (TokenName string) {
 	key := getDeployKey(keystorePath)
-	registry, err := rpc.NewRegistry(registryAddress, conn)
+	registry, err := contracts.NewRegistry(registryAddress, conn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	managerAddress, tokenAddress := NewToken(key, conn, registry)
 	TokenName = tokenAddress.String()
-	manager, err := rpc.NewChannelManagerContract(managerAddress, conn)
+	manager, err := contracts.NewChannelManagerContract(managerAddress, conn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	token, err := rpc.NewToken(tokenAddress, conn)
+	token, err := contracts.NewToken(tokenAddress, conn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func CreateTokenAndChannels(keystorePath string, conn *ethclient.Client, registr
 	}
 	return
 }
-func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
+func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := rpc.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
+	tokenAddr, tx, _, err := contracts.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -115,7 +115,7 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Regis
 	//fmt.Printf("DeployHumanStandardToken complete... \nNewTokenAddr=%s,mgr=%s\n", tokenAddr.String(), mgrAddress.String())
 	return
 }
-func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *rpc.Token) {
+func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *contracts.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
 	auth := bind.NewKeyedTransactor(key)
@@ -142,7 +142,7 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 	}
 	wg.Wait()
 }
-func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *contracts.ChannelManagerContract, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -210,7 +210,7 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	creatAChannelAndDeposit(AccountD, AccountE, keyD, keyE, 100, manager, token, conn)
 
 }
-func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *rpc.ChannelManagerContract, token *rpc.Token, conn *ethclient.Client) {
+func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *contracts.ChannelManagerContract, token *contracts.Token, conn *ethclient.Client) {
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth1.GasLimit = uint64(params.GasLimit)
 	auth1.GasPrice = big.NewInt(params.GasPrice)
@@ -239,7 +239,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	if err != nil {
 		log.Fatalf("failed to get channel")
 	}
-	channel, _ := rpc.NewNettingChannelContract(channelAddress, conn)
+	channel, _ := contracts.NewNettingChannelContract(channelAddress, conn)
 	wg2 := sync.WaitGroup{}
 	go func() {
 		wg2.Add(1)

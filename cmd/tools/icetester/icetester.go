@@ -24,13 +24,6 @@ func init() {
 	flag.BoolVar(&use2, "2", false, "use second address")
 	flag.Parse()
 }
-
-type testreceiver struct{}
-
-func (testreceiver) Receive(data []byte, host string, port int) {
-	log.Error(fmt.Sprintf("from %s:%d, recevied:%s", host, port, string(data)))
-}
-
 func main() {
 	var err error
 	var mykey *ecdsa.PrivateKey
@@ -56,7 +49,7 @@ func main() {
 	log.Info(fmt.Sprintf("myaddr=%s,partneraddr=%s\n", myaddr.String(), partneraddr.String()))
 	it, err := network.NewIceTransporter(mykey, "client1")
 	it.Start()
-	it.RegisterProtocol(new(testreceiver))
+	it.RegisterProtocol(new(network.DummyProtocol))
 	for {
 		var cmd string
 		fmt.Printf("input s to start, q to quit")

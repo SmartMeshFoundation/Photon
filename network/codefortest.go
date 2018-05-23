@@ -23,10 +23,11 @@ func init() {
 	//testtransport = MakeTestUDPTransport(rand.Intn(50000))
 }
 
-type dummyProtocol struct {
+//DummyProtocol only print received message
+type DummyProtocol struct {
 }
 
-func (p *dummyProtocol) receive(data []byte, host string, port int) {
+func (p *DummyProtocol) receive(data []byte, host string, port int) {
 	log.Debug(fmt.Sprintf("receive from %s:%d data len=%d", host, port, len(data)))
 }
 
