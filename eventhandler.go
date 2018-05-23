@@ -339,7 +339,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 			connectionManager.RetryConnect()
 		}()
 	} else {
-		log.Info("ignoring new channel, eh node is not a participant.")
+		log.Info("ignoring new channel, this node is not a participant.")
 	}
 	return nil
 }

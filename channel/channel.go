@@ -498,6 +498,11 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		sec := tr.(*encoding.Secret)
 		hashlock := utils.Sha3(sec.Secret[:])
 		lock := fromState.getLockByHashlock(hashlock)
+		if lock == nil {
+			err = fmt.Errorf("channel %s receive secret message,but has no related hashlock,msg=%s", utils.APex(c.MyAddress), utils.StringInterface(sec, 3))
+			log.Error(fmt.Sprintf("getLockByHashlock err %s", err))
+			return err
+		}
 		transferAmount := new(big.Int).Add(fromState.TransferAmount(), lock.Amount)
 		/*
 			 tr.transferred_amount could be larger than the previous

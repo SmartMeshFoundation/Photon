@@ -554,7 +554,7 @@ func (p *RaidenProtocol) StopAndWait() {
 	p.Transport.Stop()
 	close(p.ReceivedMessageResultChan)
 	close(p.ReceivedMessageChan)
-	p.quitWaitGroup.Wait()
+	//p.quitWaitGroup.Wait()
 	log.Info("raiden protocol stop ok...")
 }
 

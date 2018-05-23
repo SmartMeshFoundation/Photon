@@ -71,7 +71,7 @@ func init() {
 	}
 }
 
-// addr represents gathered address from interface.
+// Addr represents gathered address from interface.
 type Addr struct {
 	IP         net.IP
 	Zone       string

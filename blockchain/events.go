@@ -28,6 +28,7 @@ type Events struct {
 	RegistryAddress    common.Address //this address is unique
 	Subscribes         map[string]ethereum.Subscription
 	StateChangeChannel chan transfer.StateChange
+	stopped            bool // has stopped?
 }
 
 //NewBlockChainEvents create BlockChainEvents
@@ -193,17 +194,17 @@ func (be *Events) startListenEvent() {
 //Stop event listenging
 func (be *Events) Stop() {
 	log.Info("Events stop...")
+	be.stopped = true
 	close(be.StateChangeChannel)
-	//channel close by ethclient
-	//for _, ch := range be.LogChannelMap {
-	//	close(ch)
-	//}
 	for _, sub := range be.Subscribes {
 		sub.Unsubscribe()
 	}
 	log.Info("Events stop ok...")
 }
 func (be *Events) sendStateChange(st transfer.StateChange) {
+	if be.stopped {
+		return
+	}
 	be.StateChangeChannel <- st
 }
 

@@ -13,7 +13,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,7 +36,7 @@ func main() {
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
-			Value: ethutils.DirectoryString{params.DefaultKeyStoreDir()},
+			Value: ethutils.DirectoryString{Value: params.DefaultKeyStoreDir()},
 		},
 		cli.StringFlag{
 			Name: "eth-rpc-endpoint",
@@ -45,13 +45,13 @@ func main() {
 			Value: node.DefaultIPCEndpoint("geth"),
 		},
 	}
-	app.Action = Main
+	app.Action = mainctx
 	app.Name = "raidendeploy"
 	app.Version = "0.1"
 	app.Run(os.Args)
 }
 
-func Main(ctx *cli.Context) error {
+func mainctx(ctx *cli.Context) error {
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
@@ -60,13 +60,13 @@ func Main(ctx *cli.Context) error {
 	address := common.HexToAddress(ctx.String("address"))
 	address, key := promptAccount(address, ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
-	DeployContract(key, conn)
+	deployContract(key, conn)
 	return nil
 }
-func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
+func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	auth := bind.NewKeyedTransactor(key)
 	//DeployNettingChannelLibrary
-	NettingChannelLibraryAddress, tx, _, err := rpc.DeployNettingChannelLibrary(auth, conn)
+	NettingChannelLibraryAddress, tx, _, err := contracts.DeployNettingChannelLibrary(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -77,8 +77,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	}
 	fmt.Printf("DeployNettingChannelLibrary complete...\n")
 	//DeployChannelManagerLibrary link nettingchannle library before deploy
-	rpc.ChannelManagerLibraryBin = strings.Replace(rpc.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
-	ChannelManagerLibraryAddress, tx, _, err := rpc.DeployChannelManagerLibrary(auth, conn)
+	contracts.ChannelManagerLibraryBin = strings.Replace(contracts.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
+	ChannelManagerLibraryAddress, tx, _, err := contracts.DeployChannelManagerLibrary(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -89,8 +89,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	}
 	fmt.Printf("DeployChannelManagerLibrary complete...\n")
 	//DeployRegistry link channelmanagerlibrary before deploy
-	rpc.RegistryBin = strings.Replace(rpc.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
-	RegistryAddress, tx, _, err := rpc.DeployRegistry(auth, conn)
+	contracts.RegistryBin = strings.Replace(contracts.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
+	RegistryAddress, tx, _, err := contracts.DeployRegistry(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -101,7 +101,7 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	}
 	fmt.Printf("DeployRegistry complete...\n")
 	//DeployEndpointRegistry
-	EndpointRegistryAddress, tx, _, err := rpc.DeployEndpointRegistry(auth, conn)
+	EndpointRegistryAddress, tx, _, err := contracts.DeployEndpointRegistry(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}

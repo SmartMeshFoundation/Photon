@@ -57,7 +57,7 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		if f != nil {
 			ignore := (f)(m2)
 			if ignore {
-				return errors.New("ignore mh secret request")
+				return errors.New("ignore this secret request")
 			}
 		}
 		err = mh.messageSecretRequest(m2)

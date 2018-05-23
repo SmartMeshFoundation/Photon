@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -57,13 +57,13 @@ func main() {
 			Usage: "not-create channels between node for test.",
 		},
 	}
-	app.Action = Main
+	app.Action = mainctx
 	app.Name = "newraidenenv"
 	app.Version = "0.1"
 	app.Run(os.Args)
 }
 
-func Main(ctx *cli.Context) error {
+func mainctx(ctx *cli.Context) error {
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
@@ -74,9 +74,9 @@ func Main(ctx *cli.Context) error {
 
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
-	registryAddress := DeployContract(key, conn)
+	registryAddress := deployContract(key, conn)
 	//registryAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
-	registry, err := rpc.NewRegistry(registryAddress, conn)
+	registry, err := contracts.NewRegistry(registryAddress, conn)
 	if err != nil {
 		return err
 	}
@@ -114,10 +114,10 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	}
 	return
 }
-func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddress common.Address) {
+func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddress common.Address) {
 	auth := bind.NewKeyedTransactor(key)
 	//DeployNettingChannelLibrary
-	NettingChannelLibraryAddress, tx, _, err := rpc.DeployNettingChannelLibrary(auth, conn)
+	NettingChannelLibraryAddress, tx, _, err := contracts.DeployNettingChannelLibrary(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to DeployNettingChannelLibrary: %v", err)
 	}
@@ -128,8 +128,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 	}
 	fmt.Printf("DeployNettingChannelLibrary complete...\n")
 	//DeployChannelManagerLibrary link nettingchannle library before deploy
-	rpc.ChannelManagerLibraryBin = strings.Replace(rpc.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
-	ChannelManagerLibraryAddress, tx, _, err := rpc.DeployChannelManagerLibrary(auth, conn)
+	contracts.ChannelManagerLibraryBin = strings.Replace(contracts.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
+	ChannelManagerLibraryAddress, tx, _, err := contracts.DeployChannelManagerLibrary(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -140,8 +140,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 	}
 	fmt.Printf("DeployChannelManagerLibrary complete...\n")
 	//DeployRegistry link channelmanagerlibrary before deploy
-	rpc.RegistryBin = strings.Replace(rpc.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
-	RegistryAddress, tx, _, err = rpc.DeployRegistry(auth, conn)
+	contracts.RegistryBin = strings.Replace(contracts.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
+	RegistryAddress, tx, _, err = contracts.DeployRegistry(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -151,7 +151,7 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
 	fmt.Printf("DeployRegistry complete...\n")
-	EndpointRegistryAddress, tx, _, err := rpc.DeployEndpointRegistry(auth, conn)
+	EndpointRegistryAddress, tx, _, err := contracts.DeployEndpointRegistry(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -163,16 +163,16 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 	fmt.Printf("RegistryAddress=%s\nEndpointRegistryAddress=%s\n", RegistryAddress.String(), EndpointRegistryAddress.String())
 	return
 }
-func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry, keystorepath string, createchannel bool) {
-	managerAddress, tokenAddress := NewToken(key, conn, registry)
+func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.Registry, keystorepath string, createchannel bool) {
+	managerAddress, tokenAddress := newToken(key, conn, registry)
 	//tokenAddress := common.HexToAddress("0xD29A9Cbf2Ca88981D0794ce94e68495c4bC16F28")
 	//managerAddress, _ := registry.ChannelManagerByToken(nil, tokenAddress)
-	manager, err := rpc.NewChannelManagerContract(managerAddress, conn)
+	manager, err := contracts.NewChannelManagerContract(managerAddress, conn)
 	if err != nil {
 		log.Fatalf("err for NewChannelManagerContract %s", err)
 		return
 	}
-	token, err := rpc.NewToken(tokenAddress, conn)
+	token, err := contracts.NewToken(tokenAddress, conn)
 	if err != nil {
 		log.Fatalf("err for newtoken err %s", err)
 		return
@@ -192,15 +192,15 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 		}
 		keys = append(keys, keytemp)
 	}
-	fmt.Sprintf("key=%s", key)
-	TransferMoneyForAccounts(key, conn, accounts[1:], token)
+	fmt.Printf("key=%s\n", key)
+	transferMoneyForAccounts(key, conn, accounts[1:], token)
 	if createchannel {
-		CreateChannels(conn, accounts, keys, manager, token)
+		createChannels(conn, accounts, keys, manager, token)
 	}
 }
-func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
+func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := rpc.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
+	tokenAddr, tx, _, err := contracts.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -224,7 +224,7 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *rpc.Regis
 	fmt.Printf("DeployHumanStandardToken complete... %s,mgr=%s\n", tokenAddr.String(), mgrAddress.String())
 	return
 }
-func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *rpc.Token) {
+func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *contracts.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
 	auth := bind.NewKeyedTransactor(key)
@@ -263,7 +263,7 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 }
 
 //path A-B-C-F-B-D-G-E
-func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func createChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *contracts.ChannelManagerContract, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -284,7 +284,7 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	keyE := keys[4]
 	keyF := keys[5]
 	keyG := keys[6]
-	fmt.Sprintf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
+	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s\n", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
 	creatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, manager, token, conn)
 	creatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 90, manager, token, conn)
 	creatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, manager, token, conn)
@@ -296,7 +296,7 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 
 }
 
-func CreateChannels2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func createChannels2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *contracts.ChannelManagerContract, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -313,7 +313,7 @@ func CreateChannels2(conn *ethclient.Client, accounts []common.Address, keys []*
 	keyD := keys[3]
 	keyE := keys[4]
 	keyF := keys[5]
-	fmt.Sprintf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s", keyA, keyB, keyC, keyD, keyE, keyF)
+	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s\n", keyA, keyB, keyC, keyD, keyE, keyF)
 	creatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, manager, token, conn)
 	creatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 50, manager, token, conn)
 	creatAChannelAndDeposit(AccountA, AccountC, keyA, keyC, 90, manager, token, conn)
@@ -326,7 +326,7 @@ func CreateChannels2(conn *ethclient.Client, accounts []common.Address, keys []*
 registry address :0x0C31cF985eA2F2932c2EDF05f36aBC7b24B17d40 test poa net networkid :8888
 you find this topology at the above address
 */
-func CreateChannels3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func createChannels3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *contracts.ChannelManagerContract, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -353,7 +353,7 @@ func CreateChannels3(conn *ethclient.Client, accounts []common.Address, keys []*
 	creatAChannelAndDeposit(AccountF, AccountD, keyF, keyD, 60, manager, token, conn)
 
 }
-func CreateChannels4(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *rpc.ChannelManagerContract, token *rpc.Token) {
+func createChannels4(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, manager *contracts.ChannelManagerContract, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}
@@ -421,7 +421,7 @@ func CreateChannels4(conn *ethclient.Client, accounts []common.Address, keys []*
 	creatAChannelAndDeposit(AccountD, AccountE, keyD, keyE, 100, manager, token, conn)
 
 }
-func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *rpc.ChannelManagerContract, token *rpc.Token, conn *ethclient.Client) {
+func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *contracts.ChannelManagerContract, token *contracts.Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth1.GasLimit = uint64(params.GasLimit)
@@ -453,7 +453,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		log.Fatalf("failed to get channel %s", err)
 		return
 	}
-	channel, err := rpc.NewNettingChannelContract(channelAddress, conn)
+	channel, err := contracts.NewNettingChannelContract(channelAddress, conn)
 	if err != nil {
 		log.Fatalf("NewNettingChannelContract err%s", err)
 	}

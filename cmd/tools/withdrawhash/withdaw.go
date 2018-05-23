@@ -75,13 +75,13 @@ func main() {
 			Value: utils.EmptyHash.String(),
 		},
 	}
-	app.Action = Main
+	app.Action = mainctx
 	app.Name = "withdraw"
 	app.Version = "0.1"
 	app.Run(os.Args)
 }
 
-type WithDraw struct {
+type withDraw struct {
 	Address                common.Address
 	Conn                   *helper.SafeEthClient
 	PrivateKey             *ecdsa.PrivateKey
@@ -96,9 +96,9 @@ type WithDraw struct {
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
-func Main(ctx *cli.Context) error {
+func mainctx(ctx *cli.Context) error {
 	var err error
-	w := &WithDraw{
+	w := &withDraw{
 		ChannelAddress2Channel: make(map[common.Address]*channel.Channel),
 	}
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, utils.MyStreamHandler(os.Stderr)))
@@ -173,7 +173,8 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	var password string
 	var err error
 	if len(passwordfile) > 0 {
-		data, err := ioutil.ReadFile(passwordfile)
+		var data []byte
+		data, err = ioutil.ReadFile(passwordfile)
 		if err != nil {
 			log.Error(fmt.Sprintf("password_file error:%s", err))
 			utils.SystemExit(1)
@@ -204,14 +205,14 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	return
 }
 
-func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
+func (w *withDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
 	addr1, b1, addr2, b2, err := proxy.AddressAndBalance()
 	if err != nil {
 		log.Error(fmt.Sprintf("AddressAndBalance err %s", err))
 	}
 	var ourAddr, partnerAddr common.Address
 	var ourBalance, partnerBalance *big.Int
-	if addr1 == this.Address {
+	if addr1 == w.Address {
 		ourAddr = addr1
 		partnerAddr = addr2
 		ourBalance = b1
@@ -228,13 +229,13 @@ func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *
 	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
 
 	}
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, this.bcs, this.db)
+	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, w.bcs, w.db)
 	channelDetail := &network.ChannelDetails{
 		ChannelAddress:    channelAddress,
 		OurState:          ourState,
 		PartenerState:     partenerState,
 		ExternState:       externState,
-		BlockChainService: this.bcs,
+		BlockChainService: w.bcs,
 		RevealTimeout:     params.DefaultRevealTimeout,
 	}
 	channelDetail.SettleTimeout, err = externState.NettingChannel.SettleTimeout()
@@ -244,37 +245,37 @@ func (this *WithDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *
 	return channelDetail
 }
 
-func (this *WithDraw) NewChannel(channelAddress common.Address) (c *channel.Channel, err error) {
-	proxy, err := this.bcs.NettingChannel(channelAddress)
+func (w *withDraw) NewChannel(channelAddress common.Address) (c *channel.Channel, err error) {
+	proxy, err := w.bcs.NettingChannel(channelAddress)
 	if err != nil {
 		return
 	}
-	detail := this.getChannelDetail(proxy)
+	detail := w.getChannelDetail(proxy)
 	c, err = channel.NewChannel(detail.OurState, detail.PartenerState,
-		detail.ExternState, utils.EmptyAddress, channelAddress, this.bcs, detail.RevealTimeout, detail.SettleTimeout)
+		detail.ExternState, utils.EmptyAddress, channelAddress, w.bcs, detail.RevealTimeout, detail.SettleTimeout)
 	return
 }
 
-func (this *WithDraw) openDb() {
+func (w *withDraw) openDb() {
 	var err error
-	this.db, err = models.OpenDb(this.DbPath)
+	w.db, err = models.OpenDb(w.DbPath)
 	if err != nil {
 		log.Crit("cannot open db")
 	}
 }
 
-func (this *WithDraw) restoreChannel() error {
+func (w *withDraw) restoreChannel() error {
 	var err error
-	allChannels, err := this.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	allChannels, err := w.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		log.Crit(fmt.Sprintf("get channel list err %s", err))
 		return err
 	}
 	for _, cs := range allChannels {
-		if cs.ChannelAddress == this.WithDrawChannelAddress {
+		if cs.ChannelAddress == w.WithDrawChannelAddress {
 			//log.Info(fmt.Sprintf("db channel=%s", utils.StringInterface(cs, 5)))
 		}
-		c, err := this.NewChannel(cs.ChannelAddress)
+		c, err := w.NewChannel(cs.ChannelAddress)
 		if err != nil {
 			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.APex(cs.ChannelAddress)))
 			continue
@@ -294,16 +295,16 @@ func (this *WithDraw) restoreChannel() error {
 			c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
 			c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
 		}
-		this.ChannelAddress2Channel[cs.ChannelAddress] = c
+		w.ChannelAddress2Channel[cs.ChannelAddress] = c
 	}
 	return nil
 }
-func (this *WithDraw) WithDrawOnChannel() {
-	for addr, c := range this.ChannelAddress2Channel {
-		if addr == this.WithDrawChannelAddress {
-			err := c.RegisterSecret(this.Secret)
+func (w *withDraw) WithDrawOnChannel() {
+	for addr, c := range w.ChannelAddress2Channel {
+		if addr == w.WithDrawChannelAddress {
+			err := c.RegisterSecret(w.Secret)
 			if err != nil {
-				log.Error(fmt.Sprint("regist secret %s on channel %s error %s", utils.HPex(this.Secret), utils.APex(this.WithDrawChannelAddress), err))
+				log.Error(fmt.Sprintf("regist secret %s on channel %s error %s", utils.HPex(w.Secret), utils.APex(w.WithDrawChannelAddress), err))
 				return
 			}
 			err = c.ExternState.Close(c.PartnerState.BalanceProofState)

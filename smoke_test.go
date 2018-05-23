@@ -91,7 +91,12 @@ func newEnv(t *testing.T, ra, rb, rc, rd *RaidenAPI) (addr1, addr2 common.Addres
 }
 func TestSmoke(t *testing.T) {
 	var err error
+	reinit()
 	ra, rb, rc, rd := makeTestRaidenAPIs()
+	defer ra.Stop()
+	defer rb.Stop()
+	defer rc.Stop()
+	defer rd.Stop()
 	log.Info("step 1. build env for test")
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)
@@ -203,7 +208,12 @@ func TestSmoke(t *testing.T) {
 func TestFeeCharger(t *testing.T) {
 	var err error
 	policy := &ConstantFeePolicy{}
+	reinit()
 	ra, rb, rc, rd := makeTestRaidenAPIsWithFee(policy)
+	defer ra.Stop()
+	defer rb.Stop()
+	defer rc.Stop()
+	defer rd.Stop()
 	log.Info("step 1. build env for test")
 	var tokenAddr, tokenAddr2 common.Address
 	var contractBalance = big.NewInt(100)

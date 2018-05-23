@@ -111,7 +111,7 @@ var DefaultConfig = Config{
 	EnableHealthCheck: false,
 }
 
-//conditionQuit is for test
+//ConditionQuit is for test
 type ConditionQuit struct {
 	QuitEvent  string //name match
 	IsBefore   bool   //quit before event occur

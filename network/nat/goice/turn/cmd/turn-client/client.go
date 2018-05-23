@@ -115,7 +115,7 @@ func main() {
 	log.Info(fmt.Sprintf("dial server laddr:%s raddr:%s", c.LocalAddr(), c.RemoteAddr()))
 
 	// Crafting allocation request.
-	if err := do(req, res, c,
+	if err = do(req, res, c,
 		stun.TransactionIDSetter,
 		turn.AllocateRequest,
 		turn.RequestedTransportUDP,
@@ -130,17 +130,17 @@ func main() {
 	if res.Type.Class != stun.ClassErrorResponse {
 		log.Crit(fmt.Sprintf("expected error class, got " + res.Type.Class.String()))
 	}
-	if err := code.GetFrom(res); err != nil {
+	if err = code.GetFrom(res); err != nil {
 		log.Crit(fmt.Sprintf("failed to get error code from message %s", err))
 	}
 	if code.Code != stun.CodeUnauthorised {
 		log.Crit(fmt.Sprintf("unexpected code of error err:%s", code))
 	}
-	if err := nonce.GetFrom(res); err != nil {
-		log.Crit(fmt.Sprintf("failed to nonce from message", err))
+	if err = nonce.GetFrom(res); err != nil {
+		log.Crit(fmt.Sprintf("failed to nonce from message %s", err))
 	}
-	if err := realm.GetFrom(res); err != nil {
-		log.Crit(fmt.Sprintf("failed to get realm from message", err))
+	if err = realm.GetFrom(res); err != nil {
+		log.Crit(fmt.Sprintf("failed to get realm from message %s", err))
 	}
 	realmStr := realm.String()
 	nonceStr := nonce.String()
@@ -152,7 +152,7 @@ func main() {
 
 	// Constructing allocate request with integrity
 	req = new(stun.Message)
-	if err := do(req, res, c, stun.TransactionIDSetter, turn.AllocateRequest,
+	if err = do(req, res, c, stun.TransactionIDSetter, turn.AllocateRequest,
 		turn.RequestedTransportUDP, realm,
 		stun.NewUsername(*username), nonce, credentials,
 	); err != nil {
@@ -167,11 +167,11 @@ func main() {
 		reladdr turn.RelayedAddress
 		maddr   stun.XORMappedAddress
 	)
-	if err := reladdr.GetFrom(res); err != nil {
+	if err = reladdr.GetFrom(res); err != nil {
 		log.Crit(fmt.Sprintf("failed to get relayed address %s", err))
 	}
 	log.Info(fmt.Sprintf("relayed address addr:%s", reladdr))
-	if err := maddr.GetFrom(res); err != nil && err != stun.ErrAttributeNotFound {
+	if err = maddr.GetFrom(res); err != nil && err != stun.ErrAttributeNotFound {
 		log.Crit(fmt.Sprintf("failed to decode relayed address %s", err))
 	} else {
 		log.Info(fmt.Sprintf("mapped address %s", maddr))

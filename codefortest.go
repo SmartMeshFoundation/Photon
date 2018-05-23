@@ -23,8 +23,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+//reinit this variable before test case start
 var curAccountIndex = 0
 
+func reinit() {
+	curAccountIndex = 0
+}
 func newTestRaiden() *RaidenService {
 	return newTestRaidenWithPolicy(&NoFeePolicy{})
 }
@@ -38,6 +42,7 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey
 	config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
+	log.Info(fmt.Sprintf("DataDir=%s", config.DataDir))
 	config.ExternIP = transport.Host
 	config.ExternPort = transport.Port
 	config.Host = transport.Host
@@ -127,6 +132,7 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 		rD.Raiden.Start()
 		wg.Done()
 	}()
+	wg.Wait()
 	return
 }
 
