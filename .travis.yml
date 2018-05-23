@@ -7,6 +7,10 @@ install:
 - gometalinter --install
 script:
   - export PATH=$PATH:$HOME/gopath/bin
+  - export CHANNEL=0xee3B26E9132162F88978D98f47d489bafb5f4d31
+  - export REGISTRY=0x5bF5C32CEC0DC8a2c4C08705e41e88556dAf361A
+  - export DISCOVERY=0x8cA6Ca4139909F69b053126d0818A8C9BD1e0573
+  - export ETHRPCENDPOINT="ws://182.254.155.208:30306"
   - go get  ./...
   - ./goclean.sh
   - go test -v ./...
