@@ -11,4 +11,5 @@ import "syscall"
 
 const ioctlReadTermios = syscall.TCGETS
 
+//Termios terminal info
 type Termios syscall.Termios

@@ -8,7 +8,7 @@
 #
 # gometalinter (github.com/alecthomas/gometalinter) is used to run each static
 # checker.
-
+go get -v -u github.com/alecthomas/gometalinter
 set -ex
 
 # Make sure gometalinter is installed and $GOPATH/bin is in your path.
@@ -17,7 +17,7 @@ set -ex
 if [ ! -x "$(type -p gometalinter)" ]; then
   exit 1
 fi
-
+gometalinter --install
 
 
 # Automatic checks
