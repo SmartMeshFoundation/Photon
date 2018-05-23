@@ -133,7 +133,7 @@ Init transfer must send a secret request if the expiration is valid.
 func TestHandleInitTarget(t *testing.T) {
 	var blockNumber int64 = 1
 	var amount int64 = 1
-	var expire int64 = int64(utest.UnitRevealTimeout) + blockNumber + 1
+	var expire = int64(utest.UnitRevealTimeout) + blockNumber + 1
 	initiator := utest.HOP1
 
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
@@ -153,7 +153,7 @@ func TestHandleInitTarget(t *testing.T) {
 func TestHandleInitTargetBadExpiration(t *testing.T) {
 	var blockNumber int64 = 1
 	var amount int64 = 1
-	var expire int64 = int64(utest.UnitRevealTimeout) + blockNumber
+	var expire = int64(utest.UnitRevealTimeout) + blockNumber
 	initiator := utest.HOP1
 
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
@@ -169,7 +169,7 @@ The target node needs to inform the secret to the previous node to
 func TestHandleSecretReveal(t *testing.T) {
 	var blockNumber int64 = 1
 	var amount = big.NewInt(1)
-	var expire int64 = int64(utest.UnitRevealTimeout) + blockNumber
+	var expire = int64(utest.UnitRevealTimeout) + blockNumber
 	initiator := utest.HOP1
 	ourAddress := utest.ADDR
 	secret := utest.UnitSecret

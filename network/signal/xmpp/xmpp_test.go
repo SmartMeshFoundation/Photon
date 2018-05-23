@@ -56,7 +56,7 @@ func TestNewXmpp(t *testing.T) {
 		return
 	}
 	if sdp != sdp2 {
-		t.Error(fmt.Sprintf("sdp not equal sdp:%s,sdp2:%s", sdp, sdp2))
+		t.Errorf("sdp not equal sdp:%s,sdp2:%s", sdp, sdp2)
 	} else {
 		t.Log("sdp exchange ok")
 	}
@@ -75,12 +75,12 @@ func TestNewXmppError(t *testing.T) {
 	}
 	err = x1.TryReach(utils.NewRandomAddress())
 	if err == nil {
-		t.Error(fmt.Sprintf("should not reach"))
+		t.Errorf("should not reach")
 		return
 	}
 	_, err = x1.ExchangeSdp(utils.NewRandomAddress(), sdp)
 	if err == nil {
-		t.Error(fmt.Sprintf("should fail"))
+		t.Errorf("shouldfail")
 		return
 	}
 	x1.Close()

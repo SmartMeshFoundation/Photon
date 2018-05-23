@@ -367,20 +367,20 @@ func TestPairTransfer(t *testing.T) {
 	time.Sleep(time.Second * 18) //let ra,rb update
 	c1 := ra.Raiden.getChannelWithAddr(addr)
 	if c1.Balance().Cmp(amoney) != 0 {
-		t.Error(fmt.Sprintf("money not equal expect=%d,get =%d", c1.Balance(), amoney))
+		t.Errorf("money not equal expect=%d,get =%d", c1.Balance(), amoney)
 		//return
 	}
 	if c1.PartnerState.Balance(c1.OurState).Cmp(bmoney) != 0 {
-		t.Error(fmt.Sprintf("money not equalexpect=%d,get =%d", c1.PartnerState.Balance(c1.OurState), bmoney))
+		t.Errorf("money not equalexpect=%d,get =%d", c1.PartnerState.Balance(c1.OurState), bmoney)
 		//return
 	}
 	c2 := rb.Raiden.getChannelWithAddr(addr)
 	if c2.Balance().Cmp(bmoney) != 0 {
-		t.Error(fmt.Sprintf("money not equal expect=%d get=%d", c2.Balance(), bmoney))
+		t.Errorf("money not equal expect=%d get=%d", c2.Balance(), bmoney)
 		//return
 	}
 	if c2.PartnerState.Balance(c2.OurState).Cmp(amoney) != 0 {
-		t.Error(fmt.Sprintf("money not equal expect=%d get=%d", c2.PartnerState.Balance(c2.OurState), amoney))
+		t.Errorf("money not equal expect=%d get=%d", c2.PartnerState.Balance(c2.OurState), amoney)
 		//return
 	}
 }

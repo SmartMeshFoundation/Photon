@@ -21,7 +21,7 @@ func (m *mockcb) RecieveStunMessage(localAddr, remoteAddr string, req *stun.Mess
 		return
 	}
 	log.Info(fmt.Sprintf("recevied binding request %s<----%s", localAddr, remoteAddr))
-	var res *stun.Message = new(stun.Message)
+	var res = new(stun.Message)
 	from := addrToUDPAddr(remoteAddr)
 
 	err := res.Build(

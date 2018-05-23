@@ -35,7 +35,10 @@ func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []
 		} else {
 			tx := ah.db.StartTx()
 			ah.db.SaveAck(echohash, ack, tx)
-			tx.Commit()
+			err := tx.Commit()
+			if err != nil {
+				log.Error(fmt.Sprintf("SaveAck err %s", err))
+			}
 		}
 
 	} else {

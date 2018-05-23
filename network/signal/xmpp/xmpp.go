@@ -123,7 +123,10 @@ func NewSignalConnection(ServerURL string, User common.Address, passwordFn GetCu
 			if err != nil {
 				//todo how to detect network error ,disconnect
 				log.Error(fmt.Sprintf("%s receive error %s ,try to reconnect ", name, err))
-				x.client.Close()
+				err = x.client.Close()
+				if err != nil {
+					log.Error(fmt.Sprintf("xmpp close err %s", err))
+				}
 				x.reConnect()
 				continue
 			}
@@ -199,7 +202,10 @@ func (x *SignalConnection) send(msg *xmpp.Chat) error {
 		cli := x.client
 		x.mutex.Unlock()
 		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.Remote, msg.Subject, msg.Text))
-		cli.Send(*msg)
+		_, err := cli.Send(*msg)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -252,12 +258,15 @@ func (x *SignalConnection) handleNewCommand(from, subject string, cmd *xmppComma
 	log.Trace(fmt.Sprintf("%s new command from:%s,subect:%s,cmd=%s", x.name, from, subject, utils.StringInterface1(cmd)))
 	switch cmd.Command {
 	case commandTryReach:
-		x.send(&xmpp.Chat{
+		err := x.send(&xmpp.Chat{
 			Type:    "chat",
 			Remote:  from,
 			Subject: subject,
 			Text:    reachok,
 		})
+		if err != nil {
+			log.Error(fmt.Sprintf("handleNewCommand send err %s", err))
+		}
 	case commandExChangeSdp:
 		fromaddr := strings.Split(from, "@")[0]
 		r, err := x.SdpHandler(common.HexToAddress(fromaddr), cmd.OtherInfo)
@@ -274,12 +283,15 @@ func (x *SignalConnection) handleNewCommand(from, subject string, cmd *xmppComma
 		if err != nil {
 			log.Error(fmt.Sprintf("json marshal cmd error %s", err))
 		}
-		x.send(&xmpp.Chat{
+		err = x.send(&xmpp.Chat{
 			Type:    "chat",
 			Remote:  from,
 			Subject: subject,
 			Text:    string(data),
 		})
+		if err != nil {
+			log.Error(fmt.Sprintf("handleNewCommand send err %s", err))
+		}
 	default:
 		log.Error(fmt.Sprintf("%s receive unkown from:%s,subject:%s cmd:%s", x.name, from, subject, spew.Sdump(cmd)))
 	}
@@ -289,7 +301,10 @@ func (x *SignalConnection) handleNewCommand(from, subject string, cmd *xmppComma
 func (x *SignalConnection) Close() {
 	x.status = closed
 	close(x.closed)
-	x.client.Close()
+	err := x.client.Close()
+	if err != nil {
+		log.Error(fmt.Sprintf("handleNewCommand send err %s", err))
+	}
 }
 
 //Connected returns true when this connection is ready for sent

@@ -473,7 +473,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 			log.Error(fmt.Sprintf("Lock expires after the settlement period. node=%s,from=%s,to=%s,lockexpiration=%d,currentblock=%d,end_settle_period=%d",
 				utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 				mtr.Expiration, blockNumber, endSettlePeriod))
-			return fmt.Errorf("Lock expires after the settlement period.")
+			return fmt.Errorf("lock expires after the settlement period")
 		}
 	}
 	// only check the Balance if the locksroot matched
@@ -571,7 +571,7 @@ sent.
 */
 func (c *Channel) CreateDirectTransfer(amount *big.Int, identifier uint64) (tr *encoding.DirectTransfer, err error) {
 	if !c.CanTransfer() {
-		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
+		return nil, fmt.Errorf("transfer not possible, no funding or channel closed")
 	}
 	from := c.OurState
 	to := c.PartnerState
@@ -602,7 +602,7 @@ Args:
 */
 func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, identifier uint64, expiration int64, hashlock common.Hash) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
-		return nil, fmt.Errorf("Transfer not possible, no funding or channel closed.")
+		return nil, fmt.Errorf("transfer not possible, no funding or channel closed")
 	}
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(c.Distributable()) > 0 {
 		log.Info(fmt.Sprintf("Insufficient funds  amount=%s,Distributable=%s", amount, c.Distributable()))

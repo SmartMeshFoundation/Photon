@@ -247,7 +247,7 @@ func TestFeeCharger(t *testing.T) {
 	//specifed a  wrong fee,
 	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute)
 	if err == nil {
-		t.Error(fmt.Sprintf("should fail because of not engough fee."))
+		t.Errorf("should fail because of not engough fee.")
 		return
 	}
 }

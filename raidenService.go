@@ -1261,7 +1261,7 @@ taker process token swap
 taker's action is triggered by maker's mediated transfer.
 */
 func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) (remove bool) {
-	var hashlock common.Hash = msg.HashLock
+	var hashlock = msg.HashLock
 	var hasReceiveRevealSecret bool
 	var stateManager *transfer.StateManager
 	if msg.Identifier != tokenswap.Identifier || msg.Amount.Cmp(tokenswap.FromAmount) != 0 || msg.Initiator != tokenswap.FromNodeAddress || msg.Token != tokenswap.FromToken || msg.Target != tokenswap.ToNodeAddress {

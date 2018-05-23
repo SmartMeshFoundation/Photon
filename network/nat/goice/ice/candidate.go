@@ -343,7 +343,10 @@ func parseInt(v []byte) (int, error) {
 	i, err := fasthttp.ParseUint(v2)
 	if err != nil {
 		//为了兼容 pjnath
-		fmt.Sscanf(string(v2), "%x", &i)
+		_, err = fmt.Sscanf(string(v2), "%x", &i)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return i, nil
 }

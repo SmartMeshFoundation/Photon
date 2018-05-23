@@ -52,7 +52,7 @@ const turnRefreshSecondsBefore = time.Second * 60
  * TURN session will scan all the permissions/channel bindings to see which
  * need to be refreshed.
  */
-const turnKeepAliveSeconds = time.Second * 15
+const turnKeepAliveSecond = time.Second * 15
 
 /**
  * Duration to keep response in the cache, in msec.

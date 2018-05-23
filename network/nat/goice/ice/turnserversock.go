@@ -246,7 +246,7 @@ func (ts *turnServerSock) StartRefresh() {
 		for {
 			ts.keepAlive()
 			select {
-			case <-time.After(turnKeepAliveSeconds):
+			case <-time.After(turnKeepAliveSecond):
 				continue
 			case <-ts.stopchan:
 				return

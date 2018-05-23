@@ -89,9 +89,9 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) error {
 	defer e.lock.Unlock()
 	var Nonce int64
 	TransferAmount := utils.BigInt0
-	var LocksRoot common.Hash = utils.EmptyHash
+	var LocksRoot = utils.EmptyHash
 	//var ChannelAddress common.Address = utils.EmptyAddress
-	var MessageHash common.Hash = utils.EmptyHash
+	var MessageHash = utils.EmptyHash
 	var Signature []byte
 	if balanceProof != nil {
 		Nonce = balanceProof.Nonce

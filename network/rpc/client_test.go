@@ -40,7 +40,7 @@ func TestAddToken(t *testing.T) {
 	tokenAddress := utils.EmptyAddress
 	_, err := reg.AddToken(tokenAddress)
 	if err == nil {
-		t.Error(fmt.Sprintf("should fail for invalid token"))
+		t.Errorf("should fail for invalid token")
 		return
 	}
 }

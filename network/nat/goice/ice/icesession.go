@@ -1004,7 +1004,7 @@ func (s *session) onecheck(c *sessionCheck, chCheckResult chan error, nominate b
 	var (
 		err        error
 		req        *stun.Message
-		sleep      time.Duration = defaultRTOValue
+		sleep      = defaultRTOValue
 		serversock serverSocker
 	)
 	s.log.Trace(fmt.Sprintf("start check %s", c.key))

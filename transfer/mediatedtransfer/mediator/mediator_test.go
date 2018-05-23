@@ -601,7 +601,7 @@ func TestEventsForBalanceProofLockExpired(t *testing.T) {
 	pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4, utest.HOP5}, utest.HOP6, 10, utest.UnitSecret, 0, utest.UnitRevealTimeout)
 	lastpair := pairs[len(pairs)-1]
 	lastpair.PayeeState = mediatedtransfer.StatePayeeSecretRevealed
-	var blockNumber int64 = lastpair.PayeeTransfer.Expiration + 1
+	var blockNumber = lastpair.PayeeTransfer.Expiration + 1
 	//the lock has expired, do not send a balance proof
 	events := eventsForBalanceProof(pairs, blockNumber)
 	assert(t, len(events), 0)
