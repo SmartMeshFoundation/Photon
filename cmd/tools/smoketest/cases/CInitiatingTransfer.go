@@ -1,61 +1,118 @@
 package cases
 
-//
-//import (
-//	"encoding/json"
-//	"math/rand"
-//	"net/http"
-//	"time"
-//)
-//
-////For  InitiatingTransfer API  http body
-//type TransferRequest struct {
-//	Amount     int32 `json:"amount"`
-//	Identifier int64 `json:"identifier"`
-//}
-//
-//func CInitiatingTransfer(node1 *Node, node2 *Node, no string, amount int32) {
-//	logger.Println("CInitiatingTransfer prepare...")
-//	// build test payload
-//	var payload TransferRequest
-//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-//	Intsn := r.Int63n(9223372036854775807)
-//	payload.Amount = amount
-//	payload.Identifier = Intsn
-//	p, _ := json.Marshal(payload)
-//
-//	// get test token
-//	_, body, _ := DoReq( &ReqParams{
-//		No:no,
-//		ApiName:"QueryRegisteredTokens",
-//		FullUrl:node1.Host + "/api/1/tokens",
-//		Method:http.MethodGet,
-//		Payload:"",
-//	})
-//	var tokens []string
-//	json.Unmarshal(body, &tokens)
-//
-//	// get test target address
-//	_, body, _ = DoReq(&ReqParams{
-//		No:no,
-//		ApiName:"QueryNodeAddress",
-//		FullUrl:node2.Host + "/api/1/address",
-//		Method:http.MethodGet,
-//		Payload:"",
-//	})
-//	var targetAddress struct{
-//		Our_address string `json:"our_address"`
-//	}
-//	json.Unmarshal(body, &targetAddress)
-//
-//	logger.Println("CInitiatingTransfer start...")
-//	reqParams := ReqParams{
-//		No:no,
-//		ApiName:"InitiatingTransfer",
-//		FullUrl:node1.Host + "/api/1/transfers/" + tokens[0] + "/" + targetAddress.Our_address,
-//		Method:http.MethodPost,
-//		Payload:string(p),
-//	}
-//	status, _, _ := DoReq(&reqParams)
-//	DealStatus(status, "CInitiatingTransfer")
-//}
+import (
+	"log"
+	"net/http"
+	"time"
+
+	"encoding/json"
+
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/go-errors/errors"
+)
+
+// TransferPayload API  http body
+type TransferPayload struct {
+	Amount int32 `json:"amount"`
+	Fee    int64 `json:"fee"`
+}
+
+type testTransferParams struct {
+	Env         *models.RaidenEnvReader
+	AllowFail   bool
+	CaseName    string
+	PrepareData func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token *models.Token, err error)
+}
+
+// InitiatingTransferTest : test case for InitiatingTransfer
+func InitiatingTransferTest(env *models.RaidenEnvReader, allowFail bool) {
+
+	// test transfer between two nodes who have direct opened channel
+	testTransfer(&testTransferParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "DirectTransfer A-B",
+		PrepareData: prepareDataForDirectTransfer,
+	})
+	// test transfer between two nodes who doesn't have direct opened channel
+	testTransfer(&testTransferParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "IndirectTransfer A-B-C",
+		PrepareData: prepareDataForIndirectTransfer,
+	})
+}
+
+func testTransfer(param *testTransferParams) {
+	// prepare data
+	sender, receiver, token, err := param.PrepareData(param.Env)
+	if err != nil {
+		log.Printf("Case [%-40s] FAILED because no suitable env : %s", param.CaseName, err.Error())
+		Logger.Printf("Case [%-40s] FAILED because no suitable env : %s", param.CaseName, err.Error())
+		if !param.AllowFail {
+			Logger.Println("allowFail = false,exit")
+			panic("allowFail = false,exit")
+		}
+		return
+	}
+	var payload TransferPayload
+	payload.Amount = 5
+	payload.Fee = 0
+	p, _ := json.Marshal(payload)
+	// run case
+	case1 := &APITestCase{
+		CaseName:  param.CaseName,
+		AllowFail: param.AllowFail,
+		Req: &models.Req{
+			APIName: "InitiatingTransfer",
+			FullURL: sender.Host + "/api/1/transfers/" + token.Address + "/" + receiver.AccountAddress,
+			Method:  http.MethodPost,
+			Payload: string(p),
+			Timeout: time.Second * 180,
+		},
+		TargetStatusCode: 200,
+	}
+	case1.Run()
+}
+
+// find a opened channel from env, if there is none, create one
+func prepareDataForDirectTransfer(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token *models.Token, err error) {
+	if len(env.RaidenNodes) < 2 {
+		err = errors.New("no enough raiden node")
+		return
+	}
+	sender, receiver = env.RaidenNodes[0], env.RaidenNodes[1]
+	for _, t := range env.Tokens {
+		if env.HasOpenedChannelBetween(sender, receiver, t) {
+			token = t
+			break
+		}
+	}
+	if token == nil {
+		err = errors.New(fmt.Errorf("no opened channel between %s and %s", sender.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	return
+}
+
+// find a enable route from env, if there is none, create one
+func prepareDataForIndirectTransfer(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token *models.Token, err error) {
+	if len(env.RaidenNodes) < 3 {
+		err = errors.New("no enough raiden node")
+		return
+	}
+	sender, mid, receiver := env.RaidenNodes[0], env.RaidenNodes[1], env.RaidenNodes[2]
+	for _, t := range env.Tokens {
+		if env.HasOpenedChannelBetween(sender, mid, t) && env.HasOpenedChannelBetween(mid, receiver, t) {
+			token = t
+			break
+		}
+	}
+	if token == nil {
+		err = errors.New(fmt.Errorf("no enable route between %s and %s", sender.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	return
+}

@@ -1,75 +1,146 @@
 package cases
 
-//
-//import (
-//	"encoding/json"
-//	"math/rand"
-//	"net/http"
-//	"strconv"
-//	"time"
-//)
-//
-////For TokenSwaps API  http body
-//type TokenSwapsPayload struct {
-//	Role            string `json:"role"`
-//	SendingAmount   int32  `json:"sending_amount"`
-//	SendingToken    string `json:"sending_token"`
-//	ReceivingAmount int32  `json:"receiving_amount"`
-//	ReceivingToken  string `json:"receiving_token"`
-//}
-//
-//func CTokenSwaps(node1 *Node, node2 *Node, no string, sendNum int32, recvNum int32, role string) {
-//	logger.Println("CTokenSwaps prepare...")
-//	// get id
-//	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-//	id := r.Int63n(9223372036854775807)
-//
-//	// get test token
-//	_, body, _ := DoReq( &ReqParams{
-//		No:no,
-//		ApiName:"QueryRegisteredTokens",
-//		FullUrl:node1.Host + "/api/1/tokens",
-//		Method:http.MethodGet,
-//		Payload:"",
-//	})
-//	var tokens []string
-//	json.Unmarshal(body, &tokens)
-//
-//	// build test payload
-//	var payload TokenSwapsPayload
-//	payload.Role = role
-//	payload.SendingAmount = sendNum
-//	if (role == "maker") {
-//		payload.SendingToken = tokens[0]
-//		payload.ReceivingToken = tokens[1]
-//	} else {
-//		payload.SendingToken = tokens[1]
-//		payload.ReceivingToken = tokens[0]
-//	}
-//	payload.ReceivingAmount = recvNum
-//	p, _ := json.Marshal(payload)
-//
-//	// get test target address
-//	_, body, _ = DoReq(&ReqParams{
-//		No:no,
-//		ApiName:"QueryNodeAddress",
-//		FullUrl:node2.Host + "/api/1/address",
-//		Method:http.MethodGet,
-//		Payload:"",
-//	})
-//	var targetAddress struct{
-//		Our_address string `json:"our_address"`
-//	}
-//	json.Unmarshal(body, &targetAddress)
-//
-//	logger.Println("CTokenSwaps start...")
-//	reqParams := ReqParams{
-//		No:no,
-//		ApiName:"TokenSwaps",
-//		FullUrl:node1.Host + "/api/1/token_swaps/" + targetAddress.Our_address + "/" + strconv.FormatInt(id, 10),
-//		Method:http.MethodPut,
-//		Payload:string(p),
-//	}
-//	status, _, _ := DoReq(&reqParams)
-//	DealStatus(status, "CTokenSwaps")
-//}
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
+	"math/rand"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/go-errors/errors"
+)
+
+// TokenSwapsPayload :
+type TokenSwapsPayload struct {
+	Role            string `json:"role"`
+	SendingAmount   int32  `json:"sending_amount"`
+	SendingToken    string `json:"sending_token"`
+	ReceivingAmount int32  `json:"receiving_amount"`
+	ReceivingToken  string `json:"receiving_token"`
+}
+
+type testTokenSwapParams struct {
+	Env         *models.RaidenEnvReader
+	AllowFail   bool
+	CaseName    string
+	PrepareData func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error)
+}
+
+// TokenSwapsTest : test case for TokenSwap
+func TokenSwapsTest(env *models.RaidenEnvReader, allowFail bool) {
+	// test TokenSwap between two nodes who have direct opened channel
+	testTokenSwap(&testTokenSwapParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "DirectTokenSwap A-B",
+		PrepareData: prepareDataForDirectTokenSwap,
+	})
+	// test TokenSwap between two nodes who doesn't have direct opened channel
+	testTokenSwap(&testTokenSwapParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "IndirectTokenSwap A-B-C",
+		PrepareData: prepareDataForIndirectTokenSwap,
+	})
+}
+
+func testTokenSwap(param *testTokenSwapParams) {
+	// prepare data
+	node1, node2, token1, token2, err := param.PrepareData(param.Env)
+	if err != nil {
+		log.Printf("Case [%-40s] FAILED because no suitable env : %s", param.CaseName, err.Error())
+		Logger.Printf("Case [%-40s] FAILED because no suitable env : %s", param.CaseName, err.Error())
+		if !param.AllowFail {
+			Logger.Println("allowFail = false,exit")
+			panic("allowFail = false,exit")
+		}
+		return
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	id := r.Int63n(9223372036854775807)
+
+	// run case
+	invokeTokenSwap(node1, node2, token1, token2, 1, 2, "taker", param.CaseName, param.AllowFail, id)
+	invokeTokenSwap(node2, node1, token2, token1, 2, 1, "maker", param.CaseName, param.AllowFail, id)
+}
+
+func prepareDataForDirectTokenSwap(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error) {
+	if len(env.RaidenNodes) < 2 {
+		err = errors.New("no enough raiden node")
+		return
+	}
+	if len(env.Tokens) < 2 {
+		err = errors.New("no enough registered token ")
+		return
+	}
+	sender, receiver = env.RaidenNodes[0], env.RaidenNodes[1]
+	token1, token2 = env.Tokens[0], env.Tokens[1]
+	if !env.HasOpenedChannelBetween(sender, receiver, token1) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	if !env.HasOpenedChannelBetween(sender, receiver, token2) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	return
+}
+
+func prepareDataForIndirectTokenSwap(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error) {
+	if len(env.RaidenNodes) < 3 {
+		err = errors.New("no enough raiden node")
+		return
+	}
+	if len(env.Tokens) < 2 {
+		err = errors.New("no enough registered token ")
+		return
+	}
+	sender, mid, receiver := env.RaidenNodes[0], env.RaidenNodes[1], env.RaidenNodes[2]
+	token1, token2 = env.Tokens[0], env.Tokens[1]
+	if !env.HasOpenedChannelBetween(sender, mid, token1) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, mid.AccountAddress))
+		return
+	}
+	if !env.HasOpenedChannelBetween(mid, receiver, token1) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, mid.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	if !env.HasOpenedChannelBetween(sender, mid, token2) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, mid.AccountAddress))
+		return
+	}
+	if !env.HasOpenedChannelBetween(mid, receiver, token2) {
+		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, mid.AccountAddress, receiver.AccountAddress))
+		return
+	}
+	return
+}
+
+func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, amount1 int32, amount2 int32, role string, caseName string, allowFail bool, id int64) {
+	payload := TokenSwapsPayload{
+		Role:            role,
+		SendingToken:    token1.Address,
+		SendingAmount:   amount1,
+		ReceivingToken:  token2.Address,
+		ReceivingAmount: amount2,
+	}
+	p, _ := json.Marshal(payload)
+	// run case
+	case1 := &APITestCase{
+		CaseName:  caseName + " " + role,
+		AllowFail: allowFail,
+		Req: &models.Req{
+			APIName: "TokenSwap",
+			FullURL: node1.Host + "/api/1/token_swaps/" + node2.AccountAddress + "/" + strconv.FormatInt(id, 10),
+			Method:  http.MethodPut,
+			Payload: string(p),
+			Timeout: time.Second * 180,
+		},
+		TargetStatusCode: 201,
+	}
+	case1.Run()
+}
