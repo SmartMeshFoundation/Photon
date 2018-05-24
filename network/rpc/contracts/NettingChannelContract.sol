@@ -129,13 +129,37 @@ contract NettingChannelContract {
         emit TransferUpdated(msg.sender);
     }
 
+    /// @notice Dispute the state after closing, called by the counterparty (the
+    ///         participant who did not close the channel).
+    function updateTransferDelegate(
+        uint64 nonce,
+        uint256 transferred_amount,
+        bytes32 locksroot,
+        bytes32 extra_hash,
+        bytes closing_signature,
+        bytes non_closing_signature
+    )
+    public
+    {
+        data.updateTransferDelegate(
+            nonce,
+            transferred_amount,
+            locksroot,
+            extra_hash,
+            closing_signature,
+            non_closing_signature
+        );
+        emit TransferUpdated(msg.sender);
+    }
+
     /// @notice Unlock a locked transfer.
+    /// @param participant who gets the token
     /// @param locked_encoded The locked transfer to be unlocked.
     /// @param merkle_proof The merke_proof for the locked transfer.
     /// @param secret The secret to unlock the locked transfer.
-    function withdraw(bytes locked_encoded, bytes merkle_proof, bytes32 secret) public {
+    function withdraw(address participant, bytes locked_encoded, bytes merkle_proof, bytes32 secret) public {
         // throws if sender is not a participant
-        data.withdraw(locked_encoded, merkle_proof, secret);
+        data.withdraw(participant, locked_encoded, merkle_proof, secret);
         emit ChannelSecretRevealed(data.registry_address, secret, msg.sender);
     }
 
