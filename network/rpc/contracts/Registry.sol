@@ -27,19 +27,19 @@ contract Registry {
     /// @notice Register a new ERC20 token
     /// @param token_address Address of the token
     /// @return The address of the channel manager
-    function addToken(address registry_address, address token_address)
+    function addToken(address token_address)
         doesNotExist(token_address)
         public
         returns (address)
     {
         address manager_address;
 
-        manager_address = new ChannelManagerContract(registry_address, token_address);
+        manager_address = new ChannelManagerContract(this, token_address);
 
         registry[token_address] = manager_address;
         tokens.push(token_address);
 
-        emit TokenAdded(registry_address, token_address, manager_address);
+        emit TokenAdded(this, token_address, manager_address);
 
         return manager_address;
     }
