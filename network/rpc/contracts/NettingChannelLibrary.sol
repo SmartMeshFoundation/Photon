@@ -187,7 +187,64 @@ library NettingChannelLibrary {
         self.participants[closer_index].locksroot = locksroot;
         self.participants[closer_index].transferred_amount = transferred_amount;
     }
+    /// @notice Called on a closed channel, the function allows the non-closing participant to
+    /// provide the last balance proof, which modifies the closing participant's state. Can be
+    /// called only once
+    function updateTransferDelegate(
+        Data storage self,
+        uint64 nonce,
+        uint256 transferred_amount,
+        bytes32 locksroot,
+        bytes32 extra_hash,
+        bytes closing_signature,
+        bytes non_closing_signature
+    )
+    isClosed(self)
+    stillTimeout(self)
+    public
+    {
+        address transfer_address;
+        address non_closing_address;
+        uint8 caller_index;
+        uint8 closer_index;
 
+        // updateTransfer can be called by the counter party only once
+        require(!self.updated);
+        self.updated = true;
+        //make sure that 3rd party not call too early.
+        require(self.settle_timeout<= (2*(block.number-self.closed)));
+
+        non_closing_address=recoverDelegaterAddressFromSignature(
+            nonce,
+            transferred_amount,
+            locksroot,
+            extra_hash,
+            closing_signature,
+            non_closing_signature
+        );
+        caller_index = index_or_throw(self, non_closing_address);
+
+        // The closer is not allowed to call updateTransfer
+        require(self.closing_address != non_closing_address);
+
+        // Counter party can only update the closer transfer
+        transfer_address = recoverAddressFromSignature(
+            nonce,
+            transferred_amount,
+            locksroot,
+            extra_hash,
+            closing_signature
+        );
+        require(transfer_address == self.closing_address);
+
+        // Update the structure of the closer with its data provided by the
+        // counterparty
+        closer_index = 1 - caller_index;
+
+        self.participants[closer_index].nonce = nonce;
+        self.participants[closer_index].locksroot = locksroot;
+        self.participants[closer_index].transferred_amount = transferred_amount;
+    }
     function recoverAddressFromSignature(
         uint64 nonce,
         uint256 transferred_amount,
@@ -218,13 +275,47 @@ library NettingChannelLibrary {
         return ecrecover(signed_hash, v, r, s);
     }
 
+    function recoverDelegaterAddressFromSignature(
+        uint64 nonce,
+        uint256 transferred_amount,
+        bytes32 locksroot,
+        bytes32 extra_hash,
+        bytes closing_signature,
+        bytes non_closing_signature
+    )
+    constant
+    internal
+    returns (address)
+    {
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        bytes32 signed_hash;
+
+        require(closing_signature.length == 65);
+        require(non_closing_signature.length == 65);
+
+        signed_hash = keccak256(
+            nonce,
+            transferred_amount,
+            locksroot,
+            this,
+            extra_hash,
+            closing_signature
+        );
+
+        (r, s, v) = signatureSplit(non_closing_signature);
+        return ecrecover(signed_hash, v, r, s);
+    }
     /// @notice Unlock a locked transfer
     /// @dev Unlock a locked transfer
+    /// @param participant who  will get tokens
     /// @param locked_encoded The lock
     /// @param merkle_proof The merkle proof
     /// @param secret The secret
     function withdraw(
         Data storage self,
+        address participant,
         bytes locked_encoded,
         bytes merkle_proof,
         bytes32 secret 
@@ -238,9 +329,9 @@ library NettingChannelLibrary {
         bytes32 h;
         bytes32 hashlock;
 
-        // Check if msg.sender is a participant and select the partner (for
+        // Check if `participant` is a participant and select the partner (for
         // third party unlock see #541)
-        index = 1 - index_or_throw(self, msg.sender);
+        index = 1 - index_or_throw(self, participant);
         Participant storage counterparty = self.participants[index];
 
         // An empty locksroot means there are no pending locks
