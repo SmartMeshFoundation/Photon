@@ -4,10 +4,12 @@
  * The Ethereum address registers his address in this registry.
 */
 
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.21;
 
 contract EndpointRegistry{
-    event AddressRegistered(address  eth_address, string socket);
+    string constant public contract_version = "0.2._";
+
+    event AddressRegistered(address indexed eth_address, string socket);
 
     // Mapping of Ethereum Addresses => SocketEndpoints
     mapping (address => string) address_to_socket;
@@ -25,9 +27,11 @@ contract EndpointRegistry{
     /*
      * @notice Registers the Ethereum Address to the Endpoint socket.
      * @dev Registers the Ethereum Address to the Endpoint socket.
-     * @param string of socket in this format "127.0.0.1:40001"
+     * @param string of socket in this format "127.0.0.1:38647"
      */
-    function registerEndpoint(string socket) noEmptyString(socket)
+    function registerEndpoint(string socket)
+        public
+        noEmptyString(socket)
     {
         string storage old_socket = address_to_socket[msg.sender];
 
@@ -40,7 +44,7 @@ contract EndpointRegistry{
         socket_to_address[old_socket] = address(0);
         address_to_socket[msg.sender] = socket;
         socket_to_address[socket] = msg.sender;
-        AddressRegistered(msg.sender, socket);
+        emit AddressRegistered(msg.sender, socket);
     }
 
     /*
@@ -49,7 +53,7 @@ contract EndpointRegistry{
      * @param An eth_address which is a 20 byte Ethereum Address
      * @return A socket which the current Ethereum Address is using.
      */
-    function findEndpointByAddress(address eth_address) constant returns (string socket)
+    function findEndpointByAddress(address eth_address) public constant returns (string socket)
     {
         return address_to_socket[eth_address];
     }
@@ -57,17 +61,17 @@ contract EndpointRegistry{
     /*
      * @notice Finds Ethreum Address if given an existing socket address
      * @dev Finds Ethreum Address if given an existing socket address
-     * @param string of socket in this format "127.0.0.1:40001"
+     * @param string of socket in this format "127.0.0.1:38647"
      * @return An ethereum address
      */
-    function findAddressByEndpoint(string socket) constant returns (address eth_address)
+    function findAddressByEndpoint(string socket) public constant returns (address eth_address)
     {
         return socket_to_address[socket];
     }
 
-    function equals(string a, string b) internal constant returns (bool result)
+    function equals(string a, string b) internal pure returns (bool result)
     {
-        if (sha3(a) == sha3(b)) {
+        if (keccak256(a) == keccak256(b)) {
             return true;
         }
 
