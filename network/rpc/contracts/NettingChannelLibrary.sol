@@ -301,7 +301,8 @@ library NettingChannelLibrary {
             locksroot,
             this,
             extra_hash,
-            closing_signature
+            closing_signature,
+            msg.sender
         );
 
         (r, s, v) = signatureSplit(non_closing_signature);
