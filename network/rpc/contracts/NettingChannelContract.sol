@@ -141,7 +141,8 @@ contract NettingChannelContract {
     )
     public
     {
-        data.updateTransferDelegate(
+        address participant;
+        participant=data.updateTransferDelegate(
             nonce,
             transferred_amount,
             locksroot,
@@ -149,7 +150,7 @@ contract NettingChannelContract {
             closing_signature,
             non_closing_signature
         );
-        emit TransferUpdated(msg.sender);
+        emit TransferUpdated(participant);
     }
 
     /// @notice Unlock a locked transfer.

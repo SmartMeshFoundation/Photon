@@ -202,6 +202,7 @@ library NettingChannelLibrary {
     isClosed(self)
     stillTimeout(self)
     public
+    returns (address)
     {
         address transfer_address;
         address non_closing_address;
@@ -244,6 +245,7 @@ library NettingChannelLibrary {
         self.participants[closer_index].nonce = nonce;
         self.participants[closer_index].locksroot = locksroot;
         self.participants[closer_index].transferred_amount = transferred_amount;
+        return non_closing_address;
     }
     function recoverAddressFromSignature(
         uint64 nonce,
