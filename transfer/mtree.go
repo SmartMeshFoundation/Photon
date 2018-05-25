@@ -7,6 +7,9 @@ import (
 
 	"errors"
 
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -144,7 +147,10 @@ func checkProof(proof []common.Hash, root, hash common.Hash) bool {
 func Proof2Bytes(proof []common.Hash) []byte {
 	buf := new(bytes.Buffer)
 	for _, h := range proof {
-		buf.Write(h[:])
+		_, err := buf.Write(h[:])
+		if err != nil {
+			log.Trace(fmt.Sprintf("Proof2Bytes write err %s", err))
+		}
 	}
 	return buf.Bytes()
 }

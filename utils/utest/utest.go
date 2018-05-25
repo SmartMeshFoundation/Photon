@@ -83,6 +83,8 @@ func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTime
 		SettleTimeout:  settleTimeout,
 		RevealTimeout:  revealTimeout,
 		ClosedBlock:    closedBlock,
+		Fee:            utils.BigInt0,
+		TotalFee:       utils.BigInt0,
 	}
 }
 

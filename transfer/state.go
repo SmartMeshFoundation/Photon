@@ -69,6 +69,7 @@ func NewRouteState(state string, nodeAddress common.Address, channelAddress comm
 		SettleTimeout:  settleTimeout,
 		RevealTimeout:  revealTimeout,
 		ClosedBlock:    closedBlock,
+		Fee:            utils.BigInt0,
 	}
 	return s
 }
