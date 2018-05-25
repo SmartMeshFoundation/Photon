@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.23;
 
 import "./Token.sol";
 import "./Utils.sol";
@@ -14,6 +14,7 @@ contract ChannelManagerContract is Utils {
     ChannelManagerLibrary.Data data;
 
     event ChannelNew(
+        address registry_address,
         address netting_channel,
         address participant1,
         address participant2,
@@ -21,11 +22,13 @@ contract ChannelManagerContract is Utils {
     );
 
     event ChannelDeleted(
+        address registry_address,
         address caller_address,
         address partner
     );
 
-    function ChannelManagerContract(address token_address) public {
+    constructor(address registry_address, address token_address) public {
+        data.registry_address = registry_address;
         data.token = Token(token_address);
     }
 
@@ -39,11 +42,11 @@ contract ChannelManagerContract is Utils {
     {
         address old_channel = getChannelWith(partner);
         if (old_channel != 0) {
-            ChannelDeleted(msg.sender, partner);
+            emit ChannelDeleted(data.registry_address, msg.sender, partner);
         }
 
         address new_channel = data.newChannel(partner, settle_timeout);
-        ChannelNew(new_channel, msg.sender, partner, settle_timeout);
+        emit ChannelNew(data.registry_address, new_channel, msg.sender, partner, settle_timeout);
         return new_channel;
     }
 
@@ -84,6 +87,8 @@ contract ChannelManagerContract is Utils {
         uint i;
         uint pos;
         address[] memory result;
+        address address1;
+        address address2;
         NettingChannelContract channel;
 
         uint open_channels_num = 0;
@@ -101,7 +106,7 @@ contract ChannelManagerContract is Utils {
             }
             channel = NettingChannelContract(data.all_channels[i]);
 
-            var (address1, , address2, ) = channel.addressAndBalance();
+            (address1, , address2, ) = channel.addressAndBalance();
 
             result[pos] = address1;
             pos += 1;

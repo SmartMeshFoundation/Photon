@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.21;
 
 import "./ChannelManagerContract.sol";
 
@@ -8,7 +8,7 @@ contract Registry {
     mapping(address => address) public registry;
     address[] public tokens;
 
-    event TokenAdded(address token_address, address channel_manager_address);
+    event TokenAdded(address registry_address, address token_address, address channel_manager_address);
 
     modifier addressExists(address _address) {
         require(registry[_address] != 0x0);
@@ -34,12 +34,12 @@ contract Registry {
     {
         address manager_address;
 
-        manager_address = new ChannelManagerContract(token_address);
+        manager_address = new ChannelManagerContract(this, token_address);
 
         registry[token_address] = manager_address;
         tokens.push(token_address);
 
-        TokenAdded(token_address, manager_address);
+        emit TokenAdded(this, token_address, manager_address);
 
         return manager_address;
     }

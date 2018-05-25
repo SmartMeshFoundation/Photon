@@ -15,7 +15,9 @@ script:
   - chmod +x ./goclean.sh
   - ./goclean.sh
   - go build
-  - go test -v ./...
+  - pwd
+  # - pwd
+  - go test -timeout 30m ./...
 
 notifications:
   email:

@@ -153,7 +153,7 @@ func (e *ExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 			log.Info(fmt.Sprintf("withdraw secret has been used %s-%s", utils.APex(e.ChannelAddress), utils.HPex(proof.Secret)))
 			continue
 		}
-		tx, err := e.NettingChannel.GetContract().Withdraw(e.bcs.Auth, proof.LockEncoded, transfer.Proof2Bytes(proof.MerkleProof), proof.Secret)
+		tx, err := e.NettingChannel.GetContract().Withdraw(e.bcs.Auth, e.bcs.NodeAddress, proof.LockEncoded, transfer.Proof2Bytes(proof.MerkleProof), proof.Secret)
 		lock := new(encoding.Lock)
 		lock.FromBytes(proof.LockEncoded)
 		if err != nil {

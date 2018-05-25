@@ -117,6 +117,8 @@ func (be *Events) startListenEvent() {
 					case params.NameTokenAdded:
 						ev, err := newEventTokenAdded(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventTokenAdded err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveTokenAddedStateChange{
@@ -127,6 +129,8 @@ func (be *Events) startListenEvent() {
 					case params.NameChannelNew:
 						ev, err := newEventEventChannelNew(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventEventChannelNew err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveNewChannelStateChange{
@@ -139,6 +143,8 @@ func (be *Events) startListenEvent() {
 					case params.NameChannelNewBalance:
 						ev, err := newEventChannelNewBalance(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelNewBalance err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveBalanceStateChange{
@@ -151,6 +157,8 @@ func (be *Events) startListenEvent() {
 					case params.NameChannelClosed:
 						ev, err := newEventChannelClosed(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelClosed err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveClosedStateChange{
@@ -161,6 +169,8 @@ func (be *Events) startListenEvent() {
 					case params.NameChannelSettled:
 						ev, err := newEventChannelSettled(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelSettled err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveSettledStateChange{
@@ -170,12 +180,26 @@ func (be *Events) startListenEvent() {
 					case params.NameChannelSecretRevealed:
 						ev, err := newEventChannelSecretRevealed(&l)
 						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelSecretRevealed err=%s", err))
+							debugPrintLog(&l)
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveWithdrawStateChange{
 							ChannelAddress: ev.ContractAddress,
 							Secret:         ev.Secret,
 							Receiver:       ev.ReceiverAddress,
+						})
+					case params.NameTransferUpdated:
+						ev, err := newEventTransferUpdated(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventTransferUpdated err=%s", err))
+							debugPrintLog(&l)
+							continue
+						}
+						be.sendStateChange(&mediatedtransfer.ContractTransferUpdatedStateChange{
+							RegistryAddress: ev.RegistryAddress,
+							ChannelAddress:  ev.ContractAddress,
+							Participant:     ev.NodeAddress,
 						})
 					default:
 						log.Crit(fmt.Sprintf("receive unkown event %s,it must be a bug", name))

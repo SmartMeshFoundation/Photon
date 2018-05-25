@@ -146,6 +146,13 @@ type ContractReceiveTokenAddedStateChange struct {
 	ManagerAddress  common.Address
 }
 
+//ContractTransferUpdatedStateChange contrct TransferUpdated event
+type ContractTransferUpdatedStateChange struct {
+	RegistryAddress common.Address
+	ChannelAddress  common.Address
+	Participant     common.Address
+}
+
 func init() {
 	gob.Register(&ActionInitInitiatorStateChange{})
 	gob.Register(&ActionInitMediatorStateChange{})

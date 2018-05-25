@@ -56,6 +56,7 @@ func initEventWithLog(el *types.Log, e *chainEvent) {
 //EventTokenAdded is a new token event
 type EventTokenAdded struct {
 	chainEvent
+	RegistryAddress       common.Address
 	TokenAddress          common.Address
 	ChannelManagerAddress common.Address
 }
@@ -89,14 +90,16 @@ func newEventTokenAdded(el *types.Log) (e *EventTokenAdded, err error) {
 		log.Crit("newEventTokenAdded with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.TokenAddress = common.BytesToAddress(el.Data[12:32])          // the first 32byte is tokenaddress
-	e.ChannelManagerAddress = common.BytesToAddress(el.Data[44:64]) //the second 32byte is channelManagerAddress
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.TokenAddress = common.BytesToAddress(el.Data[44:64])
+	e.ChannelManagerAddress = common.BytesToAddress(el.Data[76:96])
 	return
 }
 
 //EventChannelNew event on contract
 type EventChannelNew struct {
 	chainEvent
+	RegistryAddress       common.Address
 	NettingChannelAddress common.Address
 	Participant1          common.Address
 	Participant2          common.Address
@@ -122,11 +125,12 @@ func newEventEventChannelNew(el *types.Log) (e *EventChannelNew, err error) {
 		log.Crit("newEventEventChannelNew with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.NettingChannelAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
-	e.Participant1 = common.BytesToAddress(el.Data[44:64])          //the second 32byte is channelManagerAddress
-	e.Participant2 = common.BytesToAddress(el.Data[76:96])
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.NettingChannelAddress = common.BytesToAddress(el.Data[44:64])
+	e.Participant1 = common.BytesToAddress(el.Data[76:96])
+	e.Participant2 = common.BytesToAddress(el.Data[108:128])
 	t := new(big.Int)
-	t.SetBytes(el.Data[96:128])
+	t.SetBytes(el.Data[128:160])
 	e.SettleTimeout = int(t.Int64())
 	return
 }
@@ -134,8 +138,9 @@ func newEventEventChannelNew(el *types.Log) (e *EventChannelNew, err error) {
 //EventChannelDeleted on contract
 type EventChannelDeleted struct {
 	chainEvent
-	CallerAddress common.Address
-	Partener      common.Address
+	RegistryAddress common.Address
+	CallerAddress   common.Address
+	Partener        common.Address
 }
 
 func newEventChannelDeleted(el *types.Log) (e *EventChannelDeleted, err error) {
@@ -157,14 +162,16 @@ func newEventChannelDeleted(el *types.Log) (e *EventChannelDeleted, err error) {
 		log.Crit("newEventEventChannelNew with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.CallerAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
-	e.Partener = common.BytesToAddress(el.Data[44:64])      //the second 32byte is channelManagerAddress
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.CallerAddress = common.BytesToAddress(el.Data[44:64])
+	e.Partener = common.BytesToAddress(el.Data[76:96])
 	return
 }
 
 //EventChannelNewBalance event on contract
 type EventChannelNewBalance struct {
 	chainEvent
+	RegistryAddress    common.Address
 	TokenAddress       common.Address
 	ParticipantAddress common.Address
 	Balance            *big.Int
@@ -189,10 +196,13 @@ func newEventChannelNewBalance(el *types.Log) (e *EventChannelNewBalance, err er
 		log.Crit("newEventChannelNewBalance with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.TokenAddress = common.BytesToAddress(el.Data[12:32])       //the first 32byte is tokenaddress
-	e.ParticipantAddress = common.BytesToAddress(el.Data[44:64]) //the second 32byte is channelManagerAddress
+
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.TokenAddress = common.BytesToAddress(el.Data[44:64])
+	e.ParticipantAddress = common.BytesToAddress(el.Data[76:96])
+
 	t := new(big.Int)
-	t.SetBytes(el.Data[64:96])
+	t.SetBytes(el.Data[96:128])
 	e.Balance = t
 	return
 }
@@ -201,7 +211,8 @@ func newEventChannelNewBalance(el *types.Log) (e *EventChannelNewBalance, err er
 //event ChannelClosed(address closing_address, uint block_number);
 type EventChannelClosed struct {
 	chainEvent
-	ClosingAddress common.Address
+	RegistryAddress common.Address
+	ClosingAddress  common.Address
 }
 
 func newEventChannelClosed(el *types.Log) (e *EventChannelClosed, err error) {
@@ -223,7 +234,9 @@ func newEventChannelClosed(el *types.Log) (e *EventChannelClosed, err error) {
 		log.Crit("newEventChannelClosed with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.ClosingAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.ClosingAddress = common.BytesToAddress(el.Data[44:64])
+
 	return
 }
 
@@ -231,7 +244,8 @@ func newEventChannelClosed(el *types.Log) (e *EventChannelClosed, err error) {
 //event TransferUpdated(address node_address, uint block_number);
 type EventTransferUpdated struct {
 	chainEvent
-	NodeAddress common.Address
+	RegistryAddress common.Address
+	NodeAddress     common.Address
 }
 
 func newEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error) {
@@ -253,7 +267,9 @@ func newEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error)
 		log.Crit("NewEventTransferUpdatedd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.NodeAddress = common.BytesToAddress(el.Data[12:32]) //the first 32byte is tokenaddress
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.NodeAddress = common.BytesToAddress(el.Data[44:64])
+
 	return
 }
 
@@ -261,6 +277,7 @@ func newEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error)
 //event ChannelSettled(uint block_number);
 type EventChannelSettled struct {
 	chainEvent
+	RegistryAddress common.Address
 }
 
 func newEventChannelSettled(el *types.Log) (e *EventChannelSettled, err error) {
@@ -278,6 +295,7 @@ func newEventChannelSettled(el *types.Log) (e *EventChannelSettled, err error) {
 		log.Crit("NewEventChannelSettledd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
 	return
 }
 
@@ -285,6 +303,7 @@ func newEventChannelSettled(el *types.Log) (e *EventChannelSettled, err error) {
 //event ChannelSecretRevealed(bytes32 secret, address receiver_address);
 type EventChannelSecretRevealed struct {
 	chainEvent
+	RegistryAddress common.Address
 	Secret          common.Hash
 	ReceiverAddress common.Address
 }
@@ -308,8 +327,9 @@ func newEventChannelSecretRevealed(el *types.Log) (e *EventChannelSecretRevealed
 		log.Crit("NewEventChannelSecretRevealedd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.Secret = common.BytesToHash(el.Data[:32]) //the first 32byte is secret,the second is address
-	e.ReceiverAddress = common.BytesToAddress(el.Data[44:64])
+	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
+	e.Secret = common.BytesToHash(el.Data[32:64])
+	e.ReceiverAddress = common.BytesToAddress(el.Data[76:96])
 	return
 }
 

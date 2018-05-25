@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.16;
 
 import "./Token.sol";
 
@@ -29,8 +29,6 @@ library NettingChannelLibrary {
 
         // A mapping to keep track of locks that have been withdrawn.
         mapping(bytes32 => bool) withdrawn_locks;
-        // A mapping to keep track of locks that have been unwithdrawn.
-        mapping(bytes32 => bool) unwithdrawn_locks;
     }
 
     struct Data {
@@ -38,6 +36,7 @@ library NettingChannelLibrary {
         uint opened;
         uint closed;
         address closing_address;
+        address registry_address;
         Token token;
         Participant[2] participants;
         mapping(address => uint8) participant_index;
@@ -67,8 +66,8 @@ library NettingChannelLibrary {
     /// @return Success if the transfer was successful
     /// @return The new balance of the invoker
     function deposit(Data storage self, uint256 amount)
-    public
-    returns (bool success, uint256 balance)
+        public
+        returns (bool success, uint256 balance)
     {
         uint8 index;
 
@@ -90,7 +89,7 @@ library NettingChannelLibrary {
 
         return (false, 0);
     }
-    //only call once
+
     /// @notice Close a channel between two parties that was used bidirectionally
     function close(
         Data storage self,
@@ -100,7 +99,7 @@ library NettingChannelLibrary {
         bytes32 extra_hash,
         bytes signature
     )
-    public
+        public
     {
         address transfer_address;
         uint closer_index;
@@ -128,7 +127,7 @@ library NettingChannelLibrary {
                 transferred_amount,
                 locksroot,
                 extra_hash,
-                signature
+                signature 
             );
 
             counterparty_index = index_or_throw(self, transfer_address);
@@ -142,7 +141,7 @@ library NettingChannelLibrary {
             counterparty.transferred_amount = transferred_amount;
         }
     }
-    //only call once
+
     /// @notice Updates counter party transfer after closing.
     function updateTransfer(
         Data storage self,
@@ -152,9 +151,9 @@ library NettingChannelLibrary {
         bytes32 extra_hash,
         bytes signature
     )
-    isClosed(self)
-    stillTimeout(self)
-    public
+        isClosed(self)
+        stillTimeout(self)
+        public
     {
         address transfer_address;
         uint8 caller_index;
@@ -176,7 +175,7 @@ library NettingChannelLibrary {
             transferred_amount,
             locksroot,
             extra_hash,
-            signature
+            signature 
         );
         require(transfer_address == self.closing_address);
 
@@ -188,7 +187,66 @@ library NettingChannelLibrary {
         self.participants[closer_index].locksroot = locksroot;
         self.participants[closer_index].transferred_amount = transferred_amount;
     }
+    /// @notice Called on a closed channel, the function allows the non-closing participant to
+    /// provide the last balance proof, which modifies the closing participant's state. Can be
+    /// called only once
+    function updateTransferDelegate(
+        Data storage self,
+        uint64 nonce,
+        uint256 transferred_amount,
+        bytes32 locksroot,
+        bytes32 extra_hash,
+        bytes closing_signature,
+        bytes non_closing_signature
+    )
+    isClosed(self)
+    stillTimeout(self)
+    public
+    returns (address)
+    {
+        address transfer_address;
+        address non_closing_address;
+        uint8 caller_index;
+        uint8 closer_index;
 
+        // updateTransfer can be called by the counter party only once
+        require(!self.updated);
+        self.updated = true;
+        //make sure that 3rd party not call too early.
+        require(self.settle_timeout<= (2*(block.number-self.closed)));
+
+        non_closing_address=recoverDelegaterAddressFromSignature(
+            nonce,
+            transferred_amount,
+            locksroot,
+            extra_hash,
+            closing_signature,
+            non_closing_signature
+        );
+        caller_index = index_or_throw(self, non_closing_address);
+
+        // The closer is not allowed to call updateTransfer
+        require(self.closing_address != non_closing_address);
+
+        // Counter party can only update the closer transfer
+        transfer_address = recoverAddressFromSignature(
+            nonce,
+            transferred_amount,
+            locksroot,
+            extra_hash,
+            closing_signature
+        );
+        require(transfer_address == self.closing_address);
+
+        // Update the structure of the closer with its data provided by the
+        // counterparty
+        closer_index = 1 - caller_index;
+
+        self.participants[closer_index].nonce = nonce;
+        self.participants[closer_index].locksroot = locksroot;
+        self.participants[closer_index].transferred_amount = transferred_amount;
+        return non_closing_address;
+    }
     function recoverAddressFromSignature(
         uint64 nonce,
         uint256 transferred_amount,
@@ -196,10 +254,13 @@ library NettingChannelLibrary {
         bytes32 extra_hash,
         bytes signature
     )
-    constant
-    internal
-    returns (address)
+        constant
+        internal
+        returns (address)
     {
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
         bytes32 signed_hash;
 
         require(signature.length == 65);
@@ -212,81 +273,58 @@ library NettingChannelLibrary {
             extra_hash
         );
 
-        var (r, s, v) = signatureSplit(signature);
+        (r, s, v) = signatureSplit(signature);
         return ecrecover(signed_hash, v, r, s);
     }
 
-    function recoverAddressFromRawData(bytes rawdata, bytes signature) constant
+    function recoverDelegaterAddressFromSignature(
+        uint64 nonce,
+        uint256 transferred_amount,
+        bytes32 locksroot,
+        bytes32 extra_hash,
+        bytes closing_signature,
+        bytes non_closing_signature
+    )
+    constant
     internal
     returns (address)
     {
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
         bytes32 signed_hash;
 
-        require(signature.length == 65);
+        require(closing_signature.length == 65);
+        require(non_closing_signature.length == 65);
 
-        signed_hash = keccak256(rawdata);
+        signed_hash = keccak256(
+            nonce,
+            transferred_amount,
+            locksroot,
+            this,
+            extra_hash,
+            closing_signature,
+            msg.sender
+        );
 
-        var (r, s, v) = signatureSplit(signature);
+        (r, s, v) = signatureSplit(non_closing_signature);
         return ecrecover(signed_hash, v, r, s);
     }
-
-    /// @notice unwithdraw a locked transfer
-    /// @dev unwithdraw a locked transfer
-    /// @param locked_encoded The lock
-    /// @param signature of the lock
-    function unwithdraw(
-        Data storage self,
-        bytes locked_encoded,
-        bytes signature
-    )
-    isClosed(self)
-    public
-    {
-        uint amount;
-        uint8 index;
-        uint64 expiration;
-        bytes32 hashlock;
-        address partner_address;
-
-        // Check if msg.sender is a participant and select the partner (for
-        // third party unlock see #541)
-        index = 1 - index_or_throw(self, msg.sender);
-        Participant storage counterparty = self.participants[index];
-
-        // An empty locksroot means there are no pending locks
-        require(counterparty.locksroot != 0);
-
-        (expiration, amount, hashlock) = decodeLock(locked_encoded);
-        //negative amount is not allowed.
-        require(amount > 0);
-
-        // this hashlock must have been withdrawed by 
-        require(counterparty.withdrawn_locks[hashlock] == true);
-        //this hashlock must have not been unwithdrawed .
-        require(counterparty.unwithdrawn_locks[hashlock] == false);
-        counterparty.unwithdrawn_locks[hashlock] = true;
-
-        partner_address = recoverAddressFromRawData(locked_encoded, signature);
-        require(partner_address == counterparty.node_address);
-        //get the tokens back, what about punishment? set mine transferred_amount to 0?
-        counterparty.transferred_amount += amount;
-    }
-
-
-    //can be called many times
     /// @notice Unlock a locked transfer
     /// @dev Unlock a locked transfer
+    /// @param participant who  will get tokens
     /// @param locked_encoded The lock
     /// @param merkle_proof The merkle proof
     /// @param secret The secret
     function withdraw(
         Data storage self,
+        address participant,
         bytes locked_encoded,
         bytes merkle_proof,
-        bytes32 secret
+        bytes32 secret 
     )
-    isClosed(self)
-    public
+        isClosed(self)
+        public
     {
         uint amount;
         uint8 index;
@@ -294,9 +332,9 @@ library NettingChannelLibrary {
         bytes32 h;
         bytes32 hashlock;
 
-        // Check if msg.sender is a participant and select the partner (for
+        // Check if `participant` is a participant and select the partner (for
         // third party unlock see #541)
-        index = 1 - index_or_throw(self, msg.sender);
+        index = 1 - index_or_throw(self, participant);
         Participant storage counterparty = self.participants[index];
 
         // An empty locksroot means there are no pending locks
@@ -337,9 +375,9 @@ library NettingChannelLibrary {
     /// @dev Settles the balances of the two parties fo the channel
     /// @return The participants with netted balances
     function settle(Data storage self)
-    isClosed(self)
-    timeoutOver(self)
-    public
+        isClosed(self)
+        timeoutOver(self)
+        public
     {
         uint8 closing_index;
         uint8 counter_index;
@@ -355,9 +393,9 @@ library NettingChannelLibrary {
         Participant storage counter_party = self.participants[counter_index];
 
         counter_net = (
-        counter_party.balance
-        + closing_party.transferred_amount
-        - counter_party.transferred_amount
+            counter_party.balance
+            + closing_party.transferred_amount
+            - counter_party.transferred_amount
         );
 
         // Direct token transfers done through the token `transfer` function
@@ -392,9 +430,9 @@ library NettingChannelLibrary {
     }
 
     function index_or_throw(Data storage self, address participant_address)
-    constant
-    private
-    returns (uint8)
+        constant
+        private
+        returns (uint8)
     {
         uint8 n;
         // Return index of participant, or throw
@@ -446,9 +484,9 @@ library NettingChannelLibrary {
     // - http://solidity.readthedocs.io/en/develop/assembly.html
 
     function decodeLock(bytes lock)
-    pure
-    internal
-    returns (uint64 expiration, uint amount, bytes32 hashlock)
+        pure
+        internal
+        returns (uint64 expiration, uint amount, bytes32 hashlock)
     {
         require(lock.length == 72);
 
@@ -464,9 +502,9 @@ library NettingChannelLibrary {
     }
 
     function signatureSplit(bytes signature)
-    pure
-    internal
-    returns (bytes32 r, bytes32 s, uint8 v)
+        pure
+        internal
+        returns (bytes32 r, bytes32 s, uint8 v)
     {
         // The signature format is a compact form of:
         //   {bytes32 r}{bytes32 s}{uint8 v}
@@ -474,11 +512,11 @@ library NettingChannelLibrary {
         assembly {
             r := mload(add(signature, 32))
             s := mload(add(signature, 64))
-        // Here we are loading the last 32 bytes, including 31 bytes
-        // of 's'. There is no 'mload8' to do this.
-        //
-        // 'byte' is not working due to the Solidity parser, so lets
-        // use the second best option, 'and'
+            // Here we are loading the last 32 bytes, including 31 bytes
+            // of 's'. There is no 'mload8' to do this.
+            //
+            // 'byte' is not working due to the Solidity parser, so lets
+            // use the second best option, 'and'
             v := and(mload(add(signature, 65)), 0xff)
         }
 
@@ -486,9 +524,9 @@ library NettingChannelLibrary {
     }
 
     function computeMerkleRoot(bytes lock, bytes merkle_proof)
-    pure
-    internal
-    returns (bytes32)
+        pure
+        internal
+        returns (bytes32)
     {
         require(merkle_proof.length % 32 == 0);
 
