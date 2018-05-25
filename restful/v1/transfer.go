@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -68,6 +70,7 @@ GetSentTransfers retuns list of sent transfer between `from_block` and `to_block
 */
 func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
 	from, to := getFromTo(r)
+	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := RaidenAPI.GetSentTransfers(from, to)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)

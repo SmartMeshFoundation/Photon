@@ -5,16 +5,29 @@ import (
 	"net/http"
 	"strconv"
 
+	"net/url"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func getFromTo(r *rest.Request) (fromBlock, toBlock int64) {
-	fromBlockStr := r.PathParam("from_block")
-	toBlockStr := r.PathParam("to_block")
 	fromBlock = -1
 	toBlock = -1
+	var fromBlockStr = ""
+	var toBlockStr = ""
+	m, err := url.ParseQuery(r.Request.URL.RawQuery)
+	if err != nil {
+		log.Error(fmt.Sprintf("ParseQuery err %s", err))
+		return
+	}
+	if len(m["from_block"]) > 0 {
+		fromBlockStr = m["from_block"][0]
+	}
+	if len(m["to_block"]) > 0 {
+		toBlockStr = m["to_block"][0]
+	}
 	if _, err := strconv.Atoi(fromBlockStr); err == nil {
 		fromBlock, err = strconv.ParseInt(fromBlockStr, 10, 64)
 		if err != nil {
