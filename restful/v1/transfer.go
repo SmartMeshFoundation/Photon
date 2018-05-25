@@ -62,3 +62,30 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Token = token
 	w.WriteJson(req)
 }
+
+/*
+GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
+*/
+func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
+	from, to := getFromTo(r)
+	trs, err := RaidenAPI.GetSentTransfers(from, to)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(trs)
+}
+
+/*
+GetReceivedTransfers retuns list of received transfer between `from_block` and `to_block`
+it contains token swap
+*/
+func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
+	from, to := getFromTo(r)
+	trs, err := RaidenAPI.GetReceivedTransfers(from, to)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(trs)
+}

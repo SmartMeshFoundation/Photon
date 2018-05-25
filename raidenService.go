@@ -906,9 +906,10 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 	}
 	//This should be set once the direct transfer is acknowledged
 	transferSuccess := transfer.EventTransferSentSuccess{
-		Identifier: identifier,
-		Amount:     amount,
-		Target:     target,
+		Identifier:     identifier,
+		Amount:         amount,
+		Target:         target,
+		ChannelAddress: directChannel.MyAddress,
 	}
 	rs.db.LogEvents(stateChangeID, []transfer.Event{transferSuccess}, rs.GetBlockNumber())
 	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)

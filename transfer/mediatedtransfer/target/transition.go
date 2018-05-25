@@ -205,9 +205,10 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 	} else if state.State == mediatedtransfer.StateBalanceProof {
 		//这些事件对应的处理都没有
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
-			Identifier: state.FromTransfer.Identifier,
-			Amount:     state.FromTransfer.Amount,
-			Initiator:  state.FromTransfer.Initiator,
+			Identifier:     state.FromTransfer.Identifier,
+			Amount:         state.FromTransfer.Amount,
+			Initiator:      state.FromTransfer.Initiator,
+			ChannelAddress: state.FromRoute.ChannelAddress,
 		}
 		unlockSuccess := &mediatedtransfer.EventWithdrawSuccess{
 			Identifier: state.FromTransfer.Identifier,

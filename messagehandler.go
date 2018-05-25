@@ -304,9 +304,10 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		return err
 	}
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{
-		Identifier: msg.Identifier,
-		Amount:     amount,
-		Initiator:  msg.Sender,
+		Identifier:     msg.Identifier,
+		Amount:         amount,
+		Initiator:      msg.Sender,
+		ChannelAddress: msg.Channel,
 	}
 	err = mh.raiden.db.LogEvents(stateChangeID, []transfer.Event{receiveSuccess}, mh.raiden.GetBlockNumber())
 	return err

@@ -236,10 +236,22 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventSendRefundTransfer(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendRefundTransferAfter")
 	case *transfer.EventTransferSentSuccess:
+		ch := eh.raiden.getChannelWithAddr(e2.ChannelAddress)
+		if ch == nil {
+			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.APex(e2.ChannelAddress))
+			return
+		}
+		eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelAddress, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
+		ch := eh.raiden.getChannelWithAddr(e2.ChannelAddress)
+		if ch == nil {
+			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.APex(e2.ChannelAddress))
+			return
+		}
+		eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelAddress, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
 		//TODO need payer's new signature to remove eh expired lock
@@ -265,6 +277,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 	}
 	return
 }
+
+//remove the successful transfer's state manager
 func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	var err error
 	var identifier uint64
@@ -485,7 +499,7 @@ func (eh *stateMachineEventHandler) filterStateChange(st transfer.StateChange) b
 	return found
 }
 func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
-	log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface1(st)))
+	log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
 	_, err = eh.raiden.db.LogStateChange(st)
 	if err != nil {
 		return err

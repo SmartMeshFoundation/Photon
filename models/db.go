@@ -252,5 +252,7 @@ func (model *ModelDB) initDb() {
 	model.db.Init(&snapshotToWrite{})
 	model.db.Init(&StateChange{})
 	model.db.Init(&channel.Serialization{})
+	model.db.Init(&SentTransfer{})
+	model.db.Init(&ReceivedTransfer{})
 	model.db.Set(bucketBlockNumber, keyBlockNumber, 0)
 }

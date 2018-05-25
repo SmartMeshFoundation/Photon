@@ -313,9 +313,10 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			Secret:         tr.Secret,
 		}
 		transferSuccess := &transfer.EventTransferSentSuccess{
-			Identifier: tr.Identifier,
-			Amount:     tr.Amount,
-			Target:     tr.Target,
+			Identifier:     tr.Identifier,
+			Amount:         tr.Amount,
+			Target:         tr.Target,
+			ChannelAddress: state.Route.ChannelAddress,
 		}
 		unlockSuccess := &mt.EventUnlockSuccess{
 			Identifier: tr.Identifier,

@@ -604,6 +604,20 @@ func (r *RaidenAPI) GetChannelEvents(channelAddress common.Address, fromBlock, t
 	return
 }
 
+/*
+GetSentTransfers query sent transfers from db
+*/
+func (r *RaidenAPI) GetSentTransfers(from, to int64) ([]*models.SentTransfer, error) {
+	return r.Raiden.db.GetSentTransferInBlockRange(from, to)
+}
+
+/*
+GetReceivedTransfers query received transfers from db
+*/
+func (r *RaidenAPI) GetReceivedTransfers(from, to int64) ([]*models.ReceivedTransfer, error) {
+	return r.Raiden.db.GetReceivedTransferInBlockRange(from, to)
+}
+
 //Stop stop for mobile app
 func (r *RaidenAPI) Stop() {
 	log.Info("calling api stop..")

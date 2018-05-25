@@ -31,9 +31,10 @@ EventTransferSentSuccess emitted by the initiator when a transfer is considered 
         sucessful but there is no knowledge about the global transfer.
 */
 type EventTransferSentSuccess struct {
-	Identifier uint64
-	Amount     *big.Int
-	Target     common.Address
+	Identifier     uint64
+	Amount         *big.Int
+	Target         common.Address
+	ChannelAddress common.Address
 }
 
 /*
@@ -59,9 +60,10 @@ EventTransferReceivedSuccess emitted when a payee has received a payment.
         there is no correspoding `EventTransferReceivedFailed`.
 */
 type EventTransferReceivedSuccess struct {
-	Identifier uint64
-	Amount     *big.Int
-	Initiator  common.Address
+	Identifier     uint64
+	Amount         *big.Int
+	Initiator      common.Address
+	ChannelAddress common.Address
 }
 
 func init() {

@@ -65,7 +65,10 @@ func (be *Events) installEventListener() (err error) {
 	defer func() {
 		//event listener create error,must exit
 		if err != nil {
-			be.uninstallEventListener()
+			err = be.uninstallEventListener()
+			if err != nil {
+				log.Error(fmt.Sprintf("uninstallEventListener err %s", err))
+			}
 		} else {
 			//if ethclient reconnect
 			c := be.client.RegisterReConnectNotify("Events")
@@ -73,7 +76,10 @@ func (be *Events) installEventListener() (err error) {
 				_, ok := <-c
 				if ok {
 					//eventlistener need reinstall
-					be.installEventListener()
+					err = be.installEventListener()
+					if err != nil {
+						log.Error(fmt.Sprintf("installEventListener err %s", err))
+					}
 				}
 			}()
 		}

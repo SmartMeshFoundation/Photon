@@ -63,13 +63,16 @@ type EventTokenAdded struct {
 
 func debugPrintLog(l *types.Log) {
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "{\nblocknumber=%d,txIndex=%d,Index=%d,Address=%s\n",
+	_, err := fmt.Fprintf(w, "{\nblocknumber=%d,txIndex=%d,Index=%d,Address=%s\n",
 		l.BlockNumber, l.TxIndex, l.Index, utils.APex(l.Address))
 	for i, t := range l.Topics {
-		fmt.Fprintf(w, "topics[%d]=%s\n", i, t.String())
+		_, err = fmt.Fprintf(w, "topics[%d]=%s\n", i, t.String())
 	}
-	fmt.Fprintf(w, "data:\n%s\n}", hex.Dump(l.Data))
-	log.Trace(string(w.Bytes()))
+	_, err = fmt.Fprintf(w, "data:\n%s\n}", hex.Dump(l.Data))
+	if err != nil {
+		log.Error(fmt.Sprintf("Fprintf err %s", err))
+	}
+	//log.Trace(string(w.Bytes()))
 }
 func newEventTokenAdded(el *types.Log) (e *EventTokenAdded, err error) {
 	if len(el.Data) < 64 {
