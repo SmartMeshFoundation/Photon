@@ -414,17 +414,14 @@ func (node *EndState) GetKnownUnlocks() []*UnlockProof {
 	tree := node.TreeState.Tree
 	var proofs []*UnlockProof
 	for _, v := range node.Lock2UnclaimedLocks {
-		proof := node.computeProofForLock(v.Secret, v.Lock, tree)
+		proof := ComputeProofForLock(v.Secret, v.Lock, tree)
 		proofs = append(proofs, proof)
 	}
 	return proofs
 }
 
-//computeProofForLock returns unlockProof need by contracts
-func (node *EndState) computeProofForLock(secret common.Hash, lock *encoding.Lock, tree *transfer.Merkletree) *UnlockProof {
-	if tree == nil {
-		tree = node.TreeState.Tree
-	}
+//ComputeProofForLock returns unlockProof need by contracts
+func ComputeProofForLock(secret common.Hash, lock *encoding.Lock, tree *transfer.Merkletree) *UnlockProof {
 	lockEncoded := lock.AsBytes()
 	lockhash := utils.Sha3(lockEncoded)
 	merkleProof := tree.MakeProof(lockhash)

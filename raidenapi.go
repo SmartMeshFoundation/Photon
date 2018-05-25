@@ -11,6 +11,13 @@ import (
 
 	"errors"
 
+	"encoding/hex"
+
+	"bytes"
+	"encoding/binary"
+
+	"crypto/ecdsa"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -623,6 +630,116 @@ func (r *RaidenAPI) Stop() {
 	log.Info("calling api stop..")
 	r.Raiden.Stop()
 	log.Info("stop successful..")
+}
+
+/*
+{
+    "channel_address": "0x5B3F0E96E45e1e4351F6460feBfB6007af25FBB0",
+ "update_transfer":{
+        "nonce": 32,
+        "transferred_amount": 1800000000000000,
+        "locksroot": " 0x447b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89",
+        "extra_hash": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89",
+        "closing_signature": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e8927",
+        "non_closing_signature": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e8927"
+ },
+ "withdraws":[
+     {
+        "locked_encoded": "0x00000033333333333333333333333333333333333333333",
+        "merkle_proof": "0x3333333333333333333333333333",
+        "secret": "0x333333333333333333333333333333333333333",
+     },
+      {
+        "locked_encoded": "0x00000033333333333333333333333333333333333333333",
+        "merkle_proof": "0x3333333333333333333333333333",
+        "secret": "0x333333333333333333333333333333333333333",
+     },
+ ],
+}
+*/
+type updateTransfer struct {
+	Nonce               int64    `json:"nonce"`
+	TransferAmount      *big.Int `json:"transfer_amount"`
+	Locksroot           string   `json:"locksroot"`
+	ExtraHash           string   `json:"extra_hash"`
+	ClosingSignature    string   `json:"closing_signature"`
+	NonClosingSignature string   `json:"non_closing_signature"`
+}
+type withdraw struct {
+	LockedEncoded string `json:"locked_encoded"`
+	MerkleProof   string `json:"merkle_proof"`
+	Secret        string `json:"secret"`
+}
+
+//ChannelFor3rd is for 3rd party to call update transfer
+type ChannelFor3rd struct {
+	ChannelAddress string         `json:"channel_address"`
+	UpdateTransfer updateTransfer `json:"update_transfer"`
+	Withdraws      []*withdraw    `json:"withdraws"`
+}
+
+/*
+ChannelInformationFor3rdParty generate all information need by 3rd party
+*/
+func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
+	var sig []byte
+	c, err := r.GetChannel(channelAddr)
+	if err != nil {
+		return
+	}
+	c3 := new(ChannelFor3rd)
+	c3.ChannelAddress = channelAddr.String()
+	if c.PartnerBalanceProof == nil {
+		result = c3
+		return
+	}
+	c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
+	c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
+	c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot.String()
+	c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash.String()
+	c3.UpdateTransfer.ClosingSignature = hex.EncodeToString(c.PartnerBalanceProof.Signature)
+	sig, err = signFor3rd(c, thirdAddr, r.Raiden.PrivateKey)
+	if err != nil {
+		return
+	}
+	c3.UpdateTransfer.NonClosingSignature = hex.EncodeToString(sig)
+	tree, err := transfer.NewMerkleTree(c.PartnerLeaves)
+	if err != nil {
+		return
+	}
+	var ws []*withdraw
+	for _, l := range c.PartnerLock2UnclaimedLocks {
+		proof := channel.ComputeProofForLock(l.Secret, l.Lock, tree)
+		w := &withdraw{
+			LockedEncoded: hex.EncodeToString(proof.LockEncoded),
+			Secret:        l.Secret.String(),
+			MerkleProof:   hex.EncodeToString(transfer.Proof2Bytes(proof.MerkleProof)),
+		}
+		log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
+		ws = append(ws, w)
+	}
+	c3.Withdraws = ws
+
+	result = c3
+	return
+}
+
+//make sure PartnerBalanceProof is not nil
+func signFor3rd(c *channel.Serialization, thirdAddr common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
+	if c.PartnerBalanceProof == nil {
+		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
+		return nil, errors.New("empty PartnerBalanceProof")
+	}
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
+	buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
+	buf.Write(c.PartnerBalanceProof.LocksRoot[:])
+	buf.Write(c.ChannelAddress[:])
+	buf.Write(c.PartnerBalanceProof.MessageHash[:])
+	buf.Write(c.PartnerBalanceProof.Signature)
+	buf.Write(thirdAddr[:])
+	dataToSign := buf.Bytes()
+	return utils.SignData(privkey, dataToSign)
 }
 
 //EventTransferSentSuccessWrapper wrapper

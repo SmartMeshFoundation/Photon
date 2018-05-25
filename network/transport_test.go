@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"bytes"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,16 +29,15 @@ func TestUDPTransport(t *testing.T) {
 	registercallback()
 	udp1.RegisterProtocol(new(DummyProtocol))
 	udp2.RegisterProtocol(new(DummyProtocol))
+	udp1.Start()
+	udp2.Start()
 	err := udp1.Send(utils.EmptyAddress, udp2.Host, udp2.Port, []byte("abcdefg"))
 	if err != nil {
 		t.Error(err)
 	}
 
 	time.Sleep(time.Millisecond * 10)
-	if (len(lastsend) != len(lastreceive)) || (len(lastsend) != 1) {
-		t.Errorf("send data error")
-	}
-	if !bytes.Equal(lastsend[0], lastreceive[0]) {
-		t.Errorf("send receive error")
-	}
+	assert.EqualValues(t, len(lastsend), 1, "send data error")
+	assert.EqualValues(t, len(lastreceive), 1, "send data error")
+	assert.EqualValues(t, lastsend[0], lastreceive[0], "send receive error")
 }

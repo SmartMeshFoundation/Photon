@@ -30,10 +30,7 @@ type ChannelData struct {
 	RevealTimeout       int      `json:"reveal_timeout"`
 }
 
-/*
-ChannelDataWithLockAndSignature for third party service
-*/
-type ChannelDataWithLockAndSignature struct {
+type channelDataDetail struct {
 	ChannelAddress      string   `json:"channel_address"`
 	PartnerAddrses      string   `json:"partner_address"`
 	Balance             *big.Int `json:"balance"`
@@ -89,6 +86,27 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
+ChannelFor3rdParty generate info for 3rd party use,
+for update transfer and withdraw.
+*/
+func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
+	ch := r.PathParam("channel")
+	thirdParty := r.PathParam("3rd")
+	channelAddress := common.HexToAddress(ch)
+	thirdAddress := common.HexToAddress(thirdParty)
+	if channelAddress == utils.EmptyAddress || thirdAddress == utils.EmptyAddress {
+		rest.Error(w, "argument error", http.StatusBadRequest)
+		return
+	}
+	result, err := RaidenAPI.ChannelInformationFor3rdParty(channelAddress, thirdAddress)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(result)
+}
+
+/*
 SpecifiedChannel get  a channel state
 */
 func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
@@ -99,7 +117,7 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	d := &ChannelDataWithLockAndSignature{
+	d := &channelDataDetail{
 		ChannelAddress:           c.ChannelAddress.String(),
 		PartnerAddrses:           c.PartnerAddress.String(),
 		Balance:                  c.OurBalance,

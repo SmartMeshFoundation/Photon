@@ -54,6 +54,7 @@ func Start() {
 		rest.Get("/api/1/channels", GetChannelList),
 		rest.Put("/api/1/channels", OpenChannel),
 		rest.Patch("/api/1/channels/:channel", CloseSettleDepositChannel),
+		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
 		/*
 			connections
 		*/
