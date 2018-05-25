@@ -33,7 +33,7 @@ func SmokeTest() {
 }
 
 func runSmokeCases() {
-	// 1 cases about query api
+	// cases about query api
 	cases.QueryNodeAddressTest(env, allowFail)
 	cases.QueryRegisteredTokenTest(env, allowFail)
 	cases.QueryAllPartnersForOneTokenTest(env, allowFail)
@@ -43,6 +43,10 @@ func runSmokeCases() {
 	cases.QueryTokenNetworkEventsTest(env, allowFail)
 	cases.QueryChannelEventsTest(env, allowFail)
 
+	// cases about transfer
+	cases.InitiatingTransferTest(env, allowFail)
+	cases.TokenSwapsTest(env, allowFail)
+
 	// cases about token
 	cases.RegisteringTokenTest(env, allowFail)
 	cases.Connecting2TokenNetworkTest(env, allowFail)
@@ -50,18 +54,10 @@ func runSmokeCases() {
 
 	// cases about channel
 	cases.OpenChannelTest(env, allowFail)
+	env.RefreshChannels()
+	cases.CloseChannelTest(env, allowFail)
+	env.RefreshChannels()
+	cases.SettleChannelTest(env, allowFail)
+	env.RefreshChannels()
 	cases.Deposit2ChannelTest(env, allowFail)
-	//CCloseChannel(&node, "Case12")
-	//CSettleChannel(&node, "Case13")
-
-	// cases about transfer
-	//CInitiatingTransfer(&nodes[1], &nodes[3], "Case14", 1)
-	//CInitiatingTransfer(&nodes[1], &nodes[5], "Case15", 2)
-	//
-	//CTokenSwaps(&nodes[2], &nodes[1], "Case16", 2, 1, "taker")
-	//CTokenSwaps(&nodes[1], &nodes[2], "Case16", 1, 2, "maker")
-	//
-	//CTokenSwaps(&nodes[5], &nodes[1], "Case17", 2, 1, "taker")
-	//CTokenSwaps(&nodes[1], &nodes[5], "Case17", 1, 2, "maker")
-
 }

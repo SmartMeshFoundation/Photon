@@ -35,10 +35,18 @@ func NewRaidenEnvReader(hosts []string) *RaidenEnvReader {
 
 // Refresh : refresh all data by raiden query api
 func (env *RaidenEnvReader) Refresh() {
-	var req *Req
 	// 1. refresh node address
+	env.RefreshNodes()
+	// 2. refresh tokens
+	env.RefreshTokens()
+	// 3. refresh channels
+	env.RefreshChannels()
+}
+
+// RefreshNodes :
+func (env *RaidenEnvReader) RefreshNodes() {
 	for _, node := range env.RaidenNodes {
-		req = &Req{
+		req := &Req{
 			APIName: "QueryNodeAddress",
 			FullURL: node.Host + "/api/1/address",
 			Method:  http.MethodGet,
@@ -55,8 +63,12 @@ func (env *RaidenEnvReader) Refresh() {
 		json.Unmarshal(body, &addr)
 		node.AccountAddress = strings.ToUpper(addr.OurAddress)
 	}
-	// 2. refresh tokens
-	req = &Req{
+	log.Println("RaidenEnvReader refresh nodes done")
+}
+
+// RefreshTokens :
+func (env *RaidenEnvReader) RefreshTokens() {
+	req := &Req{
 		APIName: "QueryRegisteredTokens",
 		FullURL: env.RandomNode().Host + "/api/1/tokens",
 		Method:  http.MethodGet,
@@ -71,14 +83,26 @@ func (env *RaidenEnvReader) Refresh() {
 	json.Unmarshal(body, &tokenAddrs)
 	env.Tokens = []*Token{}
 	for _, addr := range tokenAddrs {
+		if env.HasToken(addr) {
+			continue
+		}
 		env.Tokens = append(env.Tokens, &Token{
 			Address:      strings.ToUpper(addr),
 			IsRegistered: true,
 		})
 	}
-	// 3. refresh channels
+	log.Println("RaidenEnvReader refresh tokens done")
+}
+
+// RefreshChannels :
+func (env *RaidenEnvReader) RefreshChannels() {
+	// clear old data
+	for _, token := range env.Tokens {
+		token.Channels = []Channel{}
+	}
+	// set new data
 	for _, node := range env.RaidenNodes {
-		req = &Req{
+		req := &Req{
 			APIName: "QueryNodeAllChannels",
 			FullURL: node.Host + "/api/1/channels",
 			Method:  http.MethodGet,
@@ -89,19 +113,16 @@ func (env *RaidenEnvReader) Refresh() {
 		if err != nil {
 			panic(err)
 		}
-		var channels []Channel
-		json.Unmarshal(body, &channels)
-		if len(channels) == 0 {
+		var nodeChannels []Channel
+		json.Unmarshal(body, &nodeChannels)
+		if len(nodeChannels) == 0 {
 			continue
 		}
-		// clear old data
-		for _, token := range env.Tokens {
-			token.Channels = []Channel{}
-		}
-		// set new data
-		for _, channel := range channels {
+		for _, channel := range nodeChannels {
+			channel.ChannelAddress = strings.ToUpper(channel.ChannelAddress)
 			channel.SelfAddress = node.AccountAddress
 			channel.TokenAddress = strings.ToUpper(channel.TokenAddress)
+			channel.PartnerAddress = strings.ToUpper(channel.PartnerAddress)
 			for _, token := range env.Tokens {
 				if channel.TokenAddress == token.Address && !token.hasChannel(channel.ChannelAddress) {
 					token.Channels = append(token.Channels, channel)
@@ -110,7 +131,17 @@ func (env *RaidenEnvReader) Refresh() {
 			}
 		}
 	}
-	log.Println("RaidenEnvReader refresh done")
+	log.Println("RaidenEnvReader refresh channels done")
+}
+
+// HasToken ：
+func (env *RaidenEnvReader) HasToken(tokenAddress string) bool {
+	for _, token := range env.Tokens {
+		if token.Address == strings.ToUpper(tokenAddress) {
+			return true
+		}
+	}
+	return false
 }
 
 // SaveToFile : save all data to file
@@ -130,12 +161,22 @@ func (env *RaidenEnvReader) SaveToFile(filepath string) {
 
 // RandomNode : get a random raiden node
 func (env *RaidenEnvReader) RandomNode() *RaidenNode {
-	return env.RaidenNodes[rand.Intn(len(env.RaidenNodes))]
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	num := len(env.RaidenNodes)
+	if num == 0 {
+		return nil
+	}
+	return env.RaidenNodes[r.Intn(num)]
 }
 
 // RandomToken : get a random Token
 func (env *RaidenEnvReader) RandomToken() *Token {
-	return env.Tokens[rand.Intn(len(env.Tokens))]
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	num := len(env.Tokens)
+	if num == 0 {
+		return nil
+	}
+	return env.Tokens[r.Intn(num)]
 }
 
 // GetChannelsOfNode : get all channels of a smartraiden node
@@ -160,7 +201,7 @@ func (env *RaidenEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channe
 	return channels
 }
 
-// GetChannelsOfNodeByState get all open channels of a smartraiden node
+// GetChannelsOfNodeByState get all channels of a smartraiden node by channel state
 func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, state string) (channels []Channel) {
 	all := env.GetChannelsOfNode(nodeAccountAddress)
 	for _, channel := range all {
@@ -169,4 +210,38 @@ func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, 
 		}
 	}
 	return channels
+}
+
+// GetChannelsByState : get all channels by channel state
+func (env *RaidenEnvReader) GetChannelsByState(state string) (channels []Channel) {
+	for _, token := range env.Tokens {
+		for _, channel := range token.Channels {
+			if channel.State == state {
+				channels = append(channels, channel)
+			}
+		}
+	}
+	return channels
+}
+
+// GetNodeByAccountAddress :
+func (env *RaidenEnvReader) GetNodeByAccountAddress(accountAddress string) (node *RaidenNode) {
+	for _, n := range env.RaidenNodes {
+		if n.AccountAddress == accountAddress {
+			node = n
+		}
+	}
+	return node
+}
+
+// HasOpenedChannelBetween :
+func (env *RaidenEnvReader) HasOpenedChannelBetween(node1 *RaidenNode, node2 *RaidenNode, token *Token) bool {
+	for _, channel := range token.Channels {
+		if channel.State == "opened" &&
+			((channel.SelfAddress == node1.AccountAddress && channel.PartnerAddress == node2.AccountAddress) ||
+				(channel.PartnerAddress == node1.AccountAddress && channel.SelfAddress == node2.AccountAddress)) {
+			return true
+		}
+	}
+	return false
 }

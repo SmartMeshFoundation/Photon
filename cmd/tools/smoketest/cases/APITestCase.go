@@ -63,8 +63,8 @@ func (c *APITestCase) Run() {
 	}
 	Logger.SetFlags(log.LstdFlags | log.Lshortfile)
 	if err != nil {
-		Logger.Printf("Test case [%s] FAILED !!!", c.CaseName)
 		if !c.AllowFail {
+			Logger.Printf("Test case [%s] FAILED !!!", c.CaseName)
 			Logger.Println("allowFail = false,exit")
 			panic(err)
 		}
@@ -72,8 +72,13 @@ func (c *APITestCase) Run() {
 	Logger.Printf("Expect [%d] and Get [%d]", c.TargetStatusCode, statusCode)
 	if statusCode != c.TargetStatusCode {
 		FailCases = append(FailCases, c.CaseName)
-		log.Printf("Case [%-40s] FAILED !!!", c.CaseName)
-		Logger.Printf("Test case [%s] FAILED !!!", c.CaseName)
+		if statusCode == 0 {
+			log.Printf("Case [%-40s] TIMEOUT !!!", c.CaseName)
+			Logger.Printf("Test case [%s] TIMEOUT !!!", c.CaseName)
+		} else {
+			log.Printf("Case [%-40s] FAILED !!!", c.CaseName)
+			Logger.Printf("Test case [%s] FAILED !!!", c.CaseName)
+		}
 		if !c.AllowFail {
 			log.Println("AllowFail = false,exit")
 			Logger.Println("allowFail = false,exit")
