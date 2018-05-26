@@ -365,9 +365,9 @@ func NewEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err er
 		log.Crit("NewEventAddressRegisteredd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	log.Trace(fmt.Sprintf("el=\n%s", el.String()))
-	log.Trace(fmt.Sprintf("topics=\n%s", utils.StringInterface(el.Topics, 3)))
-	e.EthAddress = common.BytesToAddress(el.Topics[1][12:32]) //
+	//log.Trace(fmt.Sprintf("el=\n%s", el.String()))
+	//log.Trace(fmt.Sprintf("topics=\n%s", utils.StringInterface(el.Topics, 3)))
+	e.EthAddress = common.BytesToAddress(el.Data[12:32]) //
 	/* Data todo why is  first 32bytes empty?
 		Data: ([]uint8) (len=96 cap=96) {
 	            00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
@@ -386,5 +386,6 @@ func NewEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err er
 		return
 	}
 	e.Socket = string(el.Data[64 : 64+int(t.Int64())])
+	log.Trace(fmt.Sprintf("entpoint %s:%s", e.EthAddress.String(), e.Socket))
 	return
 }
