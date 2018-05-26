@@ -6,7 +6,7 @@ import (
 )
 
 var env *models.RaidenEnvReader
-var allowFail = true
+var allowFail = false
 
 func main() {
 	// 1. init log
