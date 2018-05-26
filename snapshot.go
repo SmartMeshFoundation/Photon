@@ -161,8 +161,10 @@ func (rs *RaidenService) restoreStateManager(isCrashed bool) {
 					such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
 				*/
 				tag = mgr.LastSendMessage.Tag()
+				//崩溃启动以后继续崩溃,会出问题. todo fix
 				if tag == nil {
-					panic(fmt.Sprintf("statemanage state error, lastsendmessage has no tag :%s", utils.StringInterface(mgr, 5)))
+					log.Error(fmt.Sprintf("statemanage state error, lastsendmessage has no tag :%s", utils.StringInterface(mgr, 5)))
+					continue
 				}
 				messageTag = tag.(*transfer.MessageTag)
 				if messageTag.SendingMessageComplete {
