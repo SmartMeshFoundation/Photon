@@ -16,7 +16,7 @@ func LeavingTokenNetworkTest(env *models.RaidenEnvReader, allowFail bool) {
 			APIName: "LeavingTokenNetwork",
 			FullURL: env.RandomNode().Host + "/api/1/connections/" + env.RandomToken().Address,
 			Method:  http.MethodDelete,
-			Payload: "{\"only_receiving_channels\": true}",
+			Payload: "{\"only_receiving_channels\": false}",
 			Timeout: time.Second * 180,
 		},
 		TargetStatusCode: 201,

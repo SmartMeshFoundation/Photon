@@ -60,4 +60,5 @@ func runSmokeCases() {
 	cases.SettleChannelTest(env, allowFail)
 	env.RefreshChannels()
 	cases.Deposit2ChannelTest(env, allowFail)
+
 }
