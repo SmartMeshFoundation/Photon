@@ -170,6 +170,7 @@ type MediationPairState struct {
 const StatePayeePending = "payee_pending"
 
 //StatePayeeSecretRevealed The payee is following the raiden protocol and has sent a SecretReveal.
+//#nosec
 const StatePayeeSecretRevealed = "payee_secret_revealed"
 
 /*

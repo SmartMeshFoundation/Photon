@@ -148,9 +148,8 @@ type ContractReceiveTokenAddedStateChange struct {
 
 //ContractTransferUpdatedStateChange contrct TransferUpdated event
 type ContractTransferUpdatedStateChange struct {
-	RegistryAddress common.Address
-	ChannelAddress  common.Address
-	Participant     common.Address
+	ChannelAddress common.Address
+	Participant    common.Address
 }
 
 func init() {
@@ -168,4 +167,5 @@ func init() {
 	gob.Register(&ContractReceiveBalanceStateChange{})
 	gob.Register(&ContractReceiveNewChannelStateChange{})
 	gob.Register(&ContractReceiveTokenAddedStateChange{})
+	gob.Register(&ContractTransferUpdatedStateChange{})
 }
