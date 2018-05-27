@@ -9,35 +9,19 @@ import (
 
 	"crypto/ecdsa"
 
+	"context"
+	"math/big"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/params"
 )
-
-const key = `
-{
-  "address": "1a9ec3b0b807464e6d3398a59d6b0a369bf422fa",
-  "crypto": {
-    "cipher": "aes-128-ctr",
-    "ciphertext": "a471054846fb03e3e271339204420806334d1f09d6da40605a1a152e0d8e35f3",
-    "cipherparams": {
-      "iv": "44c5095dc698392c55a65aae46e0b5d9"
-    },
-    "kdf": "scrypt",
-    "kdfparams": {
-      "dklen": 32,
-      "n": 262144,
-      "p": 1,
-      "r": 8,
-      "salt": "e0a5fbaecaa3e75e20bccf61ee175141f3597d3b1bae6a28fe09f3507e63545e"
-    },
-    "mac": "cb3f62975cf6e7dfb454c2973bdd4a59f87262956d5534cdc87fb35703364043"
-  },
-  "id": "e08301fb-a263-4643-9c2b-d28959f66d6a",
-  "version": 3
-}
-`
 
 var privkeybin = "2ddd679cb0f0754d0e20ef8206ea2210af3b51f159f55cfffbd8550f58daf779"
 
@@ -45,14 +29,16 @@ var privkeybin = "2ddd679cb0f0754d0e20ef8206ea2210af3b51f159f55cfffbd8550f58daf7
 var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("REGISTRY")) // params.ROPSTEN_REGISTRY_ADDRESS
 //TestRPCEndpoint test eth rpc url, todo use env
 var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
-var privkey *ecdsa.PrivateKey
+
+//TestPrivKey for test only
+var TestPrivKey *ecdsa.PrivateKey
 
 func init() {
 	keybin, err := hex.DecodeString(privkeybin)
 	if err != nil {
 		log.Crit("err %s", err)
 	}
-	privkey, err = crypto.ToECDSA(keybin)
+	TestPrivKey, err = crypto.ToECDSA(keybin)
 	if err != nil {
 		log.Crit("err %s", err)
 	}
@@ -65,5 +51,49 @@ func MakeTestBlockChainService() *BlockChainService {
 	if err != nil {
 		fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)
 	}
-	return NewBlockChainService(privkey, PrivateRopstenRegistryAddress, conn)
+	return NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
+}
+
+/*
+CreateChannelBetweenAddress these two address doesn't need have token and ether
+*/
+func CreateChannelBetweenAddress(client *ethclient.Client, addr1, addr2 common.Address, key1, key2 *ecdsa.PrivateKey) (channelAddress common.Address, err error) {
+	token := os.Getenv("TOKEN")
+	manager := os.Getenv("MANAGER")
+	auth := bind.NewKeyedTransactor(TestPrivKey)
+
+	mp, err := contracts.NewChannelManagerContract(common.HexToAddress(manager), client)
+	if err != nil {
+		return
+	}
+	tp, err := contracts.NewToken(common.HexToAddress(token), client)
+	if err != nil {
+		return
+	}
+	err = createchannel.TransferTo(client, TestPrivKey, addr1, big.NewInt(params.Ether))
+	if err != nil {
+		return
+	}
+	err = createchannel.TransferTo(client, TestPrivKey, addr2, big.NewInt(params.Ether))
+	if err != nil {
+		return
+	}
+	tx, err := tp.Transfer(auth, addr1, big.NewInt(50))
+	if err != nil {
+		return
+	}
+	_, err = bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		return
+	}
+	tx, err = tp.Transfer(auth, addr2, big.NewInt(50))
+	if err != nil {
+		return
+	}
+	_, err = bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		return
+	}
+	channelAddress = createchannel.CreatAChannelAndDeposit(addr1, addr2, key1, key2, 40, mp, tp, client)
+	return
 }
