@@ -483,6 +483,8 @@ func (eh *stateMachineEventHandler) filterStateChange(st transfer.StateChange) b
 		channelAddress = st2.ChannelAddress
 	case *mediatedtransfer.ContractReceiveWithdrawStateChange:
 		channelAddress = st2.ChannelAddress
+	case *mediatedtransfer.ContractTransferUpdatedStateChange:
+		channelAddress = st2.ChannelAddress
 	default:
 		err := fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())
@@ -520,6 +522,8 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		err = eh.handleSettled(st2)
 	case *mediatedtransfer.ContractReceiveWithdrawStateChange:
 		err = eh.handleWithdraw(st2)
+	case *mediatedtransfer.ContractTransferUpdatedStateChange:
+		//do nothing
 	default:
 		err = fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())

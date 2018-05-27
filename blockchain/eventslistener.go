@@ -247,8 +247,7 @@ func newEventChannelClosed(el *types.Log) (e *EventChannelClosed, err error) {
 //event TransferUpdated(address node_address, uint block_number);
 type EventTransferUpdated struct {
 	chainEvent
-	RegistryAddress common.Address
-	NodeAddress     common.Address
+	NodeAddress common.Address
 }
 
 func newEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error) {
@@ -270,9 +269,7 @@ func newEventTransferUpdated(el *types.Log) (e *EventTransferUpdated, err error)
 		log.Crit("NewEventTransferUpdatedd with unknown log: ", el)
 	}
 	initEventWithLog(el, &e.chainEvent)
-	e.RegistryAddress = common.BytesToAddress(el.Data[12:32])
-	e.NodeAddress = common.BytesToAddress(el.Data[44:64])
-
+	e.NodeAddress = common.BytesToAddress(el.Data[12:32])
 	return
 }
 
