@@ -8,6 +8,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
@@ -81,7 +82,7 @@ func (model *ModelDB) UpdateChannelState(c *channel.Serialization) error {
 	return nil
 }
 
-//GetChannel return a channel queried by (token,partner)
+//GetChannel return a channel queried by (token,partner),this channel must not settled
 func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Serialization, err error) {
 	var cs []*channel.Serialization
 	if token == utils.EmptyAddress {
@@ -95,7 +96,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Seri
 		return
 	}
 	for _, c2 := range cs {
-		if c2.PartnerAddress == partner {
+		if c2.PartnerAddress == partner && c2.State != transfer.ChannelStateSettled {
 			c = c2
 			return
 		}

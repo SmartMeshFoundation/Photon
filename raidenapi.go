@@ -11,8 +11,6 @@ import (
 
 	"errors"
 
-	"encoding/hex"
-
 	"bytes"
 	"encoding/binary"
 
@@ -697,12 +695,12 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr, thirdAddr common.
 	c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
 	c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot.String()
 	c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash.String()
-	c3.UpdateTransfer.ClosingSignature = hex.EncodeToString(c.PartnerBalanceProof.Signature)
+	c3.UpdateTransfer.ClosingSignature = common.Bytes2Hex(c.PartnerBalanceProof.Signature)
 	sig, err = signFor3rd(c, thirdAddr, r.Raiden.PrivateKey)
 	if err != nil {
 		return
 	}
-	c3.UpdateTransfer.NonClosingSignature = hex.EncodeToString(sig)
+	c3.UpdateTransfer.NonClosingSignature = common.Bytes2Hex(sig)
 	tree, err := transfer.NewMerkleTree(c.PartnerLeaves)
 	if err != nil {
 		return
@@ -711,9 +709,9 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr, thirdAddr common.
 	for _, l := range c.PartnerLock2UnclaimedLocks {
 		proof := channel.ComputeProofForLock(l.Secret, l.Lock, tree)
 		w := &withdraw{
-			LockedEncoded: hex.EncodeToString(proof.LockEncoded),
+			LockedEncoded: common.Bytes2Hex(proof.LockEncoded),
 			Secret:        l.Secret.String(),
-			MerkleProof:   hex.EncodeToString(transfer.Proof2Bytes(proof.MerkleProof)),
+			MerkleProof:   common.Bytes2Hex(transfer.Proof2Bytes(proof.MerkleProof)),
 		}
 		log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
 		ws = append(ws, w)

@@ -314,7 +314,7 @@ func (rs *RaidenService) loop() {
 			if ok {
 				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
 				if err != nil {
-					log.Error("stateMachineEventHandler.OnBlockchainStateChange", err)
+					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
 				}
 			} else {
 				log.Info("Events.StateChangeChannel closed")

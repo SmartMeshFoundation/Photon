@@ -50,6 +50,7 @@ var eventNames = []string{params.NameTokenAdded,
 	params.NameChannelClosed,
 	params.NameChannelSettled,
 	params.NameChannelSecretRevealed,
+	params.NameTransferUpdated,
 }
 var eventAbiMap = map[string]string{
 	params.NameChannelNew:            contracts.ChannelManagerContractABI,
@@ -58,6 +59,7 @@ var eventAbiMap = map[string]string{
 	params.NameChannelClosed:         contracts.NettingChannelContractABI,
 	params.NameChannelSettled:        contracts.NettingChannelContractABI,
 	params.NameChannelSecretRevealed: contracts.NettingChannelContractABI,
+	params.NameTransferUpdated:       contracts.NettingChannelContractABI,
 }
 
 func (be *Events) installEventListener() (err error) {
@@ -203,9 +205,8 @@ func (be *Events) startListenEvent() {
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractTransferUpdatedStateChange{
-							RegistryAddress: ev.RegistryAddress,
-							ChannelAddress:  ev.ContractAddress,
-							Participant:     ev.NodeAddress,
+							ChannelAddress: ev.ContractAddress,
+							Participant:    ev.NodeAddress,
 						})
 					default:
 						log.Crit(fmt.Sprintf("receive unkown event %s,it must be a bug", name))

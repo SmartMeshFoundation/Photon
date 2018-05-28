@@ -170,7 +170,6 @@ func (e *ExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 		if receipt.Status != types.ReceiptStatusSuccessful {
 			log.Info(fmt.Sprintf("withdraw failed %s,receipt=%s", utils.APex2(e.ChannelAddress), receipt))
 			failed = true
-			//return errors.New("withdraw execution failed ,maybe reverted?")
 		} else {
 			/*
 				allow try withdraw next time if not success?
