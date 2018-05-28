@@ -100,7 +100,7 @@ func StartRaidenNode(RegistryAddress string) {
 	if runtime.GOOS == "windows" {
 		pstr2 = append(pstr2, "-F")
 		pstr2 = append(pstr2, "-IM")
-		pstr2 = append(pstr2, "smartraiden.exe")
+		pstr2 = append(pstr2, "smartraiden*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
 		pstr2 = append(pstr2, "smartraiden")
