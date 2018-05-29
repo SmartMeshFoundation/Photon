@@ -55,7 +55,7 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 var gasLimitHex string
 
 //RopstenRegistryAddress Registry contract address
-var RopstenRegistryAddress = common.HexToAddress("0xd01Ca23F2B84AF393550271bFCC2A8b48d6f65b8")
+var RopstenRegistryAddress = common.HexToAddress("0xFAFB55c642f8907bB5D0915AeDA8Cc5A79F6a523")
 
 //RopstenDiscoveryAddress discovery contract address
 var RopstenDiscoveryAddress = common.HexToAddress("0x4CDAF98516490d42E1E6F050bcfBD143dCb58CcD")
