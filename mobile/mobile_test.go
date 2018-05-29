@@ -12,7 +12,7 @@ import (
 )
 
 func TestMobile(t *testing.T) {
-	go StartUp("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa", "../testdata/keystore", "ws://127.0.0.1:18546" /*rpc.TestRpcEndpoint,*/, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:5009")
+	go StartUp("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa", "../testdata/keystore", "ws://127.0.0.1:18546" /*rpc.TestRpcEndpoint,*/, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:5009", "127.0.0.1:40001")
 	time.Sleep(time.Second * 5)
 }
 
