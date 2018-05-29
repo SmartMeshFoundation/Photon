@@ -143,7 +143,7 @@ func StartRaidenNode(RegistryAddress string) {
 		logfile := fmt.Sprintf("./log/N%d.log", i)
 		go ExecShell(exepath, pstr, logfile, false)
 	}
-	log.Println("Sleep 10 seconds to wait raiden nodes start ...")
-	time.Sleep(11 * time.Second)
+	log.Println("Sleep 30 seconds to wait raiden nodes start ...")
+	time.Sleep(30 * time.Second)
 	log.Println("Raiden nodes start done")
 }
