@@ -7,14 +7,16 @@ cd $HOME/gopath/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
 go install
 
 # 2. build envinit and run
-netstat -an|grep 8545
 cd ../tools/smoketest/envinit
 go build
-./envinit
+./envinit --eth-rpc-endpoint=ws://182.254.155.208:30306
 
 # 3. build smoketest and run
 cd ..
 rm -rf .smartraiden
+if [ ! -d "./log" ];then
+    mkdir log
+fi
 go build
 ./smoketest
 if [ $? -ne 0 ]; then
