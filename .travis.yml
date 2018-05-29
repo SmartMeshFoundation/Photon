@@ -18,7 +18,7 @@ script:
   - pwd
   # - pwd
   # - go test -timeout 30m ./...
-  ./smoketest.sh
+  - ./smoketest.sh
 
 notifications:
   email:
