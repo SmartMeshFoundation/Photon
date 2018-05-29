@@ -3,10 +3,11 @@
 # Start pwd : $HOME/gopath/src/github.com/SmartMeshFoundation/SmartRaiden
 
 # 1. install smartraiden
-cd $HOME/Gopath/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
+cd $HOME/gopath/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
 go install
 
 # 2. build envinit and run
+netstat -an|grep 8545
 cd ../tools/smoketest/envinit
 go build
 ./envinit
