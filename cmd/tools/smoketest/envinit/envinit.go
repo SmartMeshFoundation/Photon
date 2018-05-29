@@ -165,6 +165,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
+	env.RemoveOption("RAIDEN_PARAMS", "discovery_contract_address")
+	env.AddOption("RAIDEN_PARAMS", "discovery_contract_address", EndpointRegistryAddress.String())
 	ctx = context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
@@ -445,7 +447,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	auth2 := bind.NewKeyedTransactor(key2)
 	auth2.GasLimit = uint64(params.GasLimit)
 	auth2.GasPrice = big.NewInt(params.GasPrice)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(600))
+	tx, err := manager.NewChannel(auth1, account2, big.NewInt(35))
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return

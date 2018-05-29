@@ -100,7 +100,7 @@ func StartRaidenNode(RegistryAddress string) {
 	if runtime.GOOS == "windows" {
 		pstr2 = append(pstr2, "-F")
 		pstr2 = append(pstr2, "-IM")
-		pstr2 = append(pstr2, "smartraiden.exe")
+		pstr2 = append(pstr2, "smartraiden*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
 		pstr2 = append(pstr2, "smartraiden")
@@ -118,7 +118,7 @@ func StartRaidenNode(RegistryAddress string) {
 	}
 	param.datadir = c.RdString(paramsSection, "datadir", "/smtwork/share/.smartraiden")
 	param.keystorePath = c.RdString(paramsSection, "keystore_path", "/smtwork/privnet3/data/keystore")
-	param.discoveryContractAddress = c.RdString(paramsSection, "discovery_contract_address", "0x4CDAF98516490d42E1E6F050bcfBD143dCb58CcD")
+	param.discoveryContractAddress = c.RdString(paramsSection, "discovery_contract_address", "0xb5Cf09d7682cB12ba398Db11b384AC4C76ECec61")
 	if RegistryAddress == "" {
 		param.registryContractAddress = c.RdString(paramsSection, "registry_contract_address", "0x069E5c8954b14c7638e8E6479402FDa6F9971036")
 
@@ -143,7 +143,7 @@ func StartRaidenNode(RegistryAddress string) {
 		logfile := fmt.Sprintf("./log/N%d.log", i)
 		go ExecShell(exepath, pstr, logfile, false)
 	}
-	log.Println("Sleep 10 seconds to wait raiden nodes start ...")
-	time.Sleep(10 * time.Second)
+	log.Println("Sleep 30 seconds to wait raiden nodes start ...")
+	time.Sleep(30 * time.Second)
 	log.Println("Raiden nodes start done")
 }
