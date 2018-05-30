@@ -247,7 +247,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	api := smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
-	restful.Start(api, cfg)
+	if params.MobileMode {
+		go restful.Start(api, cfg)
+		time.Sleep(time.Millisecond * 100)
+	} else {
+		restful.Start(api, cfg)
+	}
+
 	return nil
 }
 func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocket, bcs *rpc.BlockChainService) (transport network.Transporter, discovery network.DiscoveryInterface, err error) {

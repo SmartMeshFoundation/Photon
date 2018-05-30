@@ -65,7 +65,7 @@ dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr string) error {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string) error {
 	argAddress = address
 	argKeyStorePath = keystorePath
 	argEthRPCEndpoint = ethRPCEndPoint
@@ -85,6 +85,9 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	os.Args = append(os.Args, fmt.Sprintf("--enable-health-check"))
+	if len(logFile) > 0 {
+		os.Args = append(os.Args, fmt.Sprintf("--logfile=%s", logFile))
+	}
 	//panicOnNullValue()
 	params.MobileMode = true
 	return mainimpl.StartMain()
@@ -150,7 +153,7 @@ func mobileMain() (api *API, err error) {
 	if err != nil {
 		return
 	}
-	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	//startup may take long time
 	raidenService.Start()
 	api = &API{smartraiden.NewRaidenAPI(raidenService)}

@@ -82,34 +82,55 @@ var (
 		Name:  "trace",
 		Usage: "Write execution trace to the given file",
 	}
+	logFileFlag = cli.StringFlag{
+		Name:  "logfile",
+		Usage: "redirect log to this the given file",
+	}
 )
 
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag, vmoduleFlag, backtraceAtFlag, debugFlag,
 	pprofFlag, pprofAddrFlag, pprofPortFlag,
-	memprofilerateFlag, blockprofilerateFlag, cpuprofileFlag, traceFlag,
+	memprofilerateFlag, blockprofilerateFlag, cpuprofileFlag, traceFlag, logFileFlag,
 }
 
 var glogger *log.GlogHandler
 
 func init() {
-	usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
-	output := io.Writer(os.Stderr)
-	if usecolor {
-		output = colorable.NewColorableStderr()
-	}
-	glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
 }
 
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
-func Setup(ctx *cli.Context) error {
+func Setup(ctx *cli.Context) (err error) {
+	//set up glogger
+	if len(ctx.String(logFileFlag.Name)) > 0 {
+		var h log.Handler
+		fmt.Printf("log will be write to %s\n", ctx.String(logFileFlag.Name))
+		h, err = log.FileHandler(ctx.String(logFileFlag.Name), log.TerminalFormat(false))
+		if err != nil {
+			return
+		}
+		glogger = log.NewGlogHandler(h)
+	} else {
+		usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
+		output := io.Writer(os.Stderr)
+		if usecolor {
+			output = colorable.NewColorableStderr()
+		}
+		glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
+	}
 	// logging
 	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
 	glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
-	glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
-	glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
+	err = glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
+	if err != nil {
+		return err
+	}
+	err = glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
+	if err != nil {
+		//todo fixit ,return error when backtraceAtFlag is empty
+	}
 	log.Root().SetHandler(glogger)
 
 	// profiling, tracing

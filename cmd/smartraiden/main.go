@@ -8,6 +8,6 @@ import (
 
 func main() {
 	if err := mainimpl.StartMain(); err != nil {
-		fmt.Printf("quit with err %s", err)
+		fmt.Printf("quit with err %s\n", err)
 	}
 }
