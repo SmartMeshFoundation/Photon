@@ -133,11 +133,11 @@ type RaidenService struct {
 
 //NewRaidenService create raiden service
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
-	discover network.DiscoveryInterface, config *params.Config) (srv *RaidenService) {
+	discover network.DiscoveryInterface, config *params.Config) (srv *RaidenService, err error) {
 	if config.SettleTimeout < params.NettingChannelSettleTimeoutMin || config.SettleTimeout > params.NettingChannelSettleTimeoutMax {
-		log.Error(fmt.Sprintf("settle timeout must be in range %d-%d",
-			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax))
-		utils.SystemExit(1)
+		err = fmt.Errorf("settle timeout must be in range %d-%d",
+			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax)
+		return
 	}
 	srv = &RaidenService{
 		Chain:                               chain,
@@ -166,14 +166,13 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		FeePolicy:                           &ConstantFeePolicy{},
 		HealthCheckMap:                      make(map[common.Address]bool),
 	}
-	var err error
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
 	srv.Protocol = network.NewRaidenProtocol(transport, discover, privateKey, srv)
 	srv.db, err = models.OpenDb(config.DataBasePath)
 	if err != nil {
-		log.Error("open db error")
-		utils.SystemExit(1)
+		err = fmt.Errorf("open db error %s", err)
+		return
 	}
 	srv.Protocol.SetReceivedMessageSaver(NewAckHelper(srv.db))
 	/*
@@ -182,24 +181,24 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	srv.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
 	locked, err := srv.FileLocker.TryLock()
 	if err != nil || !locked {
-		log.Error(fmt.Sprintf("another instance already running at %s", config.DataBasePath))
-		utils.SystemExit(1)
+		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
+		return
 	}
 	srv.SnapshortDir = filepath.Join(config.DataBasePath)
 	err = discover.Register(srv.NodeAddress, srv.Config.ExternIP, srv.Config.ExternPort)
 	if err != nil {
-		log.Error(fmt.Sprintf("register discover endpoint error:%s", err))
-		utils.SystemExit(1)
+		err = fmt.Errorf("register discover endpoint error:%s", err)
+		return
 	}
 	log.Info("node discovery register complete...")
 	//srv.Start()
 	//start routes detect task
 	srv.RoutesTask = newRoutesTask(srv.Protocol, srv.Protocol)
-	return srv
+	return srv, nil
 }
 
 // Start the node.
-func (rs *RaidenService) Start() {
+func (rs *RaidenService) Start() (err error) {
 	lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
 	rs.AlarmTask.Start()
 	rs.RoutesTask.start()
@@ -212,10 +211,10 @@ func (rs *RaidenService) Start() {
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
-	err := rs.BlockChainEvents.Start(lastHandledBlockNumber)
+	err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
 	if err != nil {
-		log.Error(fmt.Sprintf("Events listener error %v", err))
-		utils.SystemExit(1)
+		err = fmt.Errorf("Events listener error %v", err)
+		return
 	}
 	/*
 			  Registry registration must start *after* the alarm task, rs avoid
@@ -225,8 +224,8 @@ func (rs *RaidenService) Start() {
 	rs.registerRegistry()
 	err = rs.restoreSnapshot()
 	if err != nil {
-		log.Error(fmt.Sprintf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost!!", err, rs.Config.DataBasePath))
-		utils.SystemExit(1)
+		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost!!", err, rs.Config.DataBasePath)
+		return
 	}
 	rs.Protocol.Start()
 	rs.startNeighboursHealthCheck()
@@ -262,6 +261,7 @@ func (rs *RaidenService) Start() {
 		}
 		rs.loop()
 	}()
+	return nil
 }
 
 //Stop the node.
@@ -360,14 +360,14 @@ func (rs *RaidenService) loop() {
 func (rs *RaidenService) registerRegistry() {
 	mgrs, err := rs.Chain.GetAllChannelManagers()
 	if err != nil {
-		log.Error(fmt.Sprintf("registerRegistry err:%s", err))
-		utils.SystemExit(1)
+		err = fmt.Errorf("registerRegistry err:%s", err)
+		return
 	}
 	for _, mgr := range mgrs {
 		err = rs.registerChannelManager(mgr.Address)
 		if err != nil {
-			log.Error(fmt.Sprintf("registerChannelManager err:%s", err))
-			utils.SystemExit(1)
+			err = fmt.Errorf("registerChannelManager err:%s", err)
+			return
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 func TestNewMixDiscovery(t *testing.T) {
 	key, _ := crypto.GenerateKey()
 
-	ts, d := NewMixTranspoter(key, "test", "127.0.0.0.1", 5001, nil, nil, &dummyPolicy{})
+	ts, d, _ := NewMixTranspoter(key, "test", "127.0.0.0.1", 5001, nil, nil, &dummyPolicy{})
 	b := ts.switchToIce()
 	if b {
 		t.Error("should fail because default is ice")

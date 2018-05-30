@@ -58,8 +58,8 @@ type Config struct {
 	DiscoveryAddress          common.Address
 	DataDir                   string
 	MyAddress                 common.Address
-	DebugCrash                bool
-	ConditionQuit             ConditionQuit
+	DebugCrash                bool          //for test only,work with conditionQuit
+	ConditionQuit             ConditionQuit //for test only
 	Ice                       iceConfig
 	NetworkMode               NetworkMode
 	EnableMediationFee        bool //default false. which means no fee at all.

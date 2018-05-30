@@ -30,11 +30,13 @@ type MixDiscovery struct {
 }
 
 //NewMixTranspoter create a MixTransporter and discover
-func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery) {
-	var err error
+func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery, err error) {
 	var h Transporter
 	t = &MixTransporter{}
-	t.udp = NewUDPTransport(host, port, conn, protocol, policy)
+	t.udp, err = NewUDPTransport(host, port, conn, protocol, policy)
+	if err != nil {
+		return
+	}
 	t.ice, err = NewIceTransporter(key, name)
 	if err != nil {
 		log.Error(fmt.Sprintf("new ice transport error %s,default will be udp transport", err))

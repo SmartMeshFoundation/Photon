@@ -65,7 +65,7 @@ dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr string) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr string) error {
 	argAddress = address
 	argKeyStorePath = keystorePath
 	argEthRPCEndpoint = ethRPCEndPoint
@@ -86,7 +86,8 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	os.Args = append(os.Args, fmt.Sprintf("--enable-health-check"))
 	//panicOnNullValue()
-	mainimpl.StartMain()
+	params.MobileMode = true
+	return mainimpl.StartMain()
 }
 func setupLog() {
 	loglevel := argLogging
@@ -145,7 +146,10 @@ func mobileMain() (api *API, err error) {
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	discovery := network.NewContractDiscovery(bcs.NodeAddress, common.HexToAddress(argDiscoveryContractAddress), bcs.Client, bcs.Auth)
 	policy := network.NewTokenBucket(10, 1, time.Now)
-	transport := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
+	transport, err := network.NewUDPTransport(host, port, pms.Conn, nil, policy)
+	if err != nil {
+		return
+	}
 	raidenService := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	//startup may take long time
 	raidenService.Start()

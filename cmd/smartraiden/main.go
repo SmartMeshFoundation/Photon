@@ -1,7 +1,13 @@
 package main
 
-import "github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
+import (
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
+)
 
 func main() {
-	mainimpl.StartMain()
+	if err := mainimpl.StartMain(); err != nil {
+		fmt.Printf("quit with err %s", err)
+	}
 }

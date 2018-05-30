@@ -7,9 +7,10 @@ import (
 
 	"encoding/hex"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/go-errors/errors"
 )
 
 const passwordFormat = "2006-01-02"

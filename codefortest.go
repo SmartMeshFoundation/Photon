@@ -52,7 +52,10 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	os.MkdirAll(config.DataDir, os.ModePerm)
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	rd := NewRaidenService(bcs, bcs.PrivKey, transport, discover, &config)
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, discover, &config)
+	if err != nil {
+		log.Error(err.Error())
+	}
 	rd.SetFeePolicy(feePolicy)
 	return rd
 }

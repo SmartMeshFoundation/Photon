@@ -1,9 +1,10 @@
 package channel
 
 import (
+	"errors"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/go-errors/errors"
 )
 
 /*

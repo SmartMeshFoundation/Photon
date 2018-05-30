@@ -179,8 +179,8 @@ type UDPTransport struct {
 }
 
 //NewUDPTransport create UDPTransport
-func NewUDPTransport(host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) *UDPTransport {
-	t := &UDPTransport{
+func NewUDPTransport(host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *UDPTransport, err error) {
+	t = &UDPTransport{
 		Host:          host,
 		Port:          port,
 		protocol:      protocol,
@@ -191,19 +191,23 @@ func NewUDPTransport(host string, port int, conn *SafeUDPConnection, protocol Pr
 	addr := &net.UDPAddr{
 		IP:   net.ParseIP(host),
 		Port: port}
-	var err error
 	if conn == nil {
 		conn, err = NewSafeUDPConnection("udp", addr)
 		if err != nil {
-			log.Crit(fmt.Sprintf("listen udp %s:%d error %v", host, port, err))
+			err = fmt.Errorf("listen udp %s:%d error %v", host, port, err)
+			return
 		}
 	}
 	t.conn = conn
 	log.Trace(fmt.Sprintf("listen udp on %s:%d", host, port))
-	return t
+	return
 }
 func newUDPTransportWithHostPort(host string, port int, protocol ProtocolReceiver, policy Policier) *UDPTransport {
-	return NewUDPTransport(host, port, nil, protocol, policy)
+	t, err := NewUDPTransport(host, port, nil, protocol, policy)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	return t
 }
 
 //Start udp listening
