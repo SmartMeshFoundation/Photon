@@ -361,28 +361,33 @@ func NewEventAddressRegistered(el *types.Log) (e *EventAddressRegistered, err er
 	if eventAddressRegisteredID != el.Topics[0] {
 		log.Crit("NewEventAddressRegisteredd with unknown log: ", el)
 	}
+	if len(el.Data) < 128 {
+		err = fmt.Errorf("NewEventAddressRegistered data format error ,min length=128,but got \n%s", hex.Dump(el.Data))
+		return
+	}
 	initEventWithLog(el, &e.chainEvent)
-	//log.Trace(fmt.Sprintf("el=\n%s", el.String()))
-	//log.Trace(fmt.Sprintf("topics=\n%s", utils.StringInterface(el.Topics, 3)))
-	e.EthAddress = common.BytesToAddress(el.Data[12:32]) //
-	/* Data todo why is  first 32bytes empty?
-		Data: ([]uint8) (len=96 cap=96) {
-	            00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-	            00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 20  |............... |
-	            00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
-	            00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 12  |................|
-	            00000040  31 37 32 2e 33 31 2e 37  30 2e 32 38 3a 34 30 30  |172.31.70.28:400|
-	            00000050  30 31 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |01..............|
-	        },
+	log.Trace(fmt.Sprintf("el=\n%s", el.String()))
+	log.Trace(fmt.Sprintf("topics=\n%s", utils.StringInterface(el.Topics, 3)))
+	log.Trace(fmt.Sprintf("data=\n%s\n", hex.Dump(el.Data)))
+	e.EthAddress = common.BytesToAddress(el.Data[12:32])
+	/* Data
+	00000000  00 00 00 00 00 00 00 00  00 00 00 00 33 df 90 1a  |............3...|
+	00000010  bc 22 dc b7 f3 3c 2a 77  ad 43 cc 98 fb fa 07 90  |."...<*w.C......|
+	00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+	00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 40  |...............@|
+	00000040  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+	00000050  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 0f  |................|
+	00000060  31 32 37 2e 30 2e 30 2e  31 3a 34 30 30 30 32 00  |127.0.0.1:40002.|
+	00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 	*/
-	//the first 32 bytes in the data are empty,what does it mean?
+	//中间一个32字节是做什么用呢,依据在哪里呢?
 	t := new(big.Int)
-	t.SetBytes(el.Data[32:64])
-	if len(el.Data) < 64+int(t.Int64()) {
+	t.SetBytes(el.Data[64:96])
+	if len(el.Data) < 96+int(t.Int64()) {
 		err = errEventNotMatch
 		return
 	}
-	e.Socket = string(el.Data[64 : 64+int(t.Int64())])
+	e.Socket = string(el.Data[96 : 96+int(t.Int64())])
 	log.Trace(fmt.Sprintf("entpoint %s:%s", e.EthAddress.String(), e.Socket))
 	return
 }
