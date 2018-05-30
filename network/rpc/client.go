@@ -360,6 +360,7 @@ func (cm *ChannelManagerContractProxy) NewChannel(partnerAddress common.Address,
 	if err != nil {
 		return
 	}
+	log.Info(fmt.Sprintf("NewChannel txhash=%s", tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), cm.bcs.Client, tx)
 	if err != nil {
 		return
@@ -474,6 +475,7 @@ func (er *EndpointRegistryProxy) RegisterEndpoint(socket string) (err error) {
 	if err != nil {
 		return err
 	}
+	log.Info(fmt.Sprintf("RegisterEndpoint txhash=%s", tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), er.bcs.Client, tx)
 	if err != nil {
 		return err
@@ -531,6 +533,7 @@ func (t *TokenProxy) Approve(spender common.Address, value *big.Int) (err error)
 	if err != nil {
 		return err
 	}
+	log.Info(fmt.Sprintf("Approve %s, txhash=%s", utils.APex(spender), tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
 	if err != nil {
 		return err

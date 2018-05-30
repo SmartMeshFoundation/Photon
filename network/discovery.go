@@ -180,8 +180,9 @@ func (c *ContractDiscovery) Register(node common.Address, host string, port int)
 	hostport := tohostport(host, port)
 	tx, err := c.discovery.RegisterEndpoint(c.auth, hostport)
 	if err != nil {
-		return fmt.Errorf("RegisterEndpoint %s", err)
+		return fmt.Errorf("RegisterEndpoint err %s", err)
 	}
+	log.Info(fmt.Sprintf("contract regsiter, txhash=%s", tx.Hash().String()))
 	//wait for completion ?
 	_, err = bind.WaitMined(context.Background(), c.client, tx)
 	if err != nil {

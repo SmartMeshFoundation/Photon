@@ -106,6 +106,7 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) error {
 	if err != nil {
 		return err
 	}
+	log.Info(fmt.Sprintf("Close channel %s, txhash=%s", e.ChannelAddress.String(), tx.Hash().String()))
 	receipt, err := bind.WaitMined(rpc.GetCallContext(), e.bcs.Client, tx)
 	if err != nil {
 		return err
@@ -129,6 +130,7 @@ func (e *ExternalState) UpdateTransfer(bp *transfer.BalanceProofState) error {
 		if err != nil {
 			return err
 		}
+		log.Info(fmt.Sprintf("UpdateTransfer %s, txhash=%s", e.ChannelAddress.String(), tx.Hash().String()))
 		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.bcs.Client, tx)
 		if err != nil {
 			return err
@@ -162,6 +164,7 @@ func (e *ExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 			continue
 			//return err
 		}
+		log.Info(fmt.Sprintf("withdraw on %s ,txhash=%s", e.ChannelAddress.String(), tx.Hash().String()))
 		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.bcs.Client, tx)
 		if err != nil {
 			log.Info(fmt.Sprintf("WithDraw failed with error:%s", err))
@@ -195,6 +198,7 @@ func (e *ExternalState) Settle() error {
 		return err
 		//return err
 	}
+	log.Info(fmt.Sprintf("Settle Channel %s, err %s", e.ChannelAddress.String(), tx.Hash().String()))
 	receipt, err := bind.WaitMined(rpc.GetCallContext(), e.bcs.Client, tx)
 	if err != nil {
 		log.Info(fmt.Sprintf("settle WaitMined failed with error:%s", err))
@@ -217,8 +221,8 @@ func (e *ExternalState) Deposit(amount *big.Int) error {
 	if err != nil {
 		log.Info(fmt.Sprintf("Deposit failed %s", utils.APex(e.ChannelAddress)))
 		return err
-		//return err
 	}
+	log.Info(fmt.Sprintf("Deposit to %s, txhash=%s", e.ChannelAddress.String(), tx.Hash().String()))
 	receipt, err := bind.WaitMined(rpc.GetCallContext(), e.bcs.Client, tx)
 	if err != nil {
 		log.Info(fmt.Sprintf("Deposit WaitMined failed with error:%s", err))
