@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-//post for transfers
-type transferData struct {
+//TransferData post for transfers
+type TransferData struct {
 	Initiator  string   `json:"initiator_address"`
 	Target     string   `json:"target_address"`
 	Token      string   `json:"token_address"`
@@ -33,7 +33,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	tokenAddr := common.HexToAddress(token)
 	target := r.PathParam("target")
 	targetAddr := common.HexToAddress(target)
-	req := &transferData{}
+	req := &TransferData{}
 	err := r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())

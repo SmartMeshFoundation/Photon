@@ -197,6 +197,16 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	return srv, nil
 }
 
+type stoper interface {
+	Stop()
+}
+
+func stopHelper(err error, s stoper) {
+	if err != nil {
+		s.Stop()
+	}
+}
+
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 	lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
@@ -224,7 +234,7 @@ func (rs *RaidenService) Start() (err error) {
 	rs.registerRegistry()
 	err = rs.restoreSnapshot()
 	if err != nil {
-		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost!!", err, rs.Config.DataBasePath)
+		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost", err, rs.Config.DataBasePath)
 		return
 	}
 	rs.Protocol.Start()

@@ -30,7 +30,8 @@ type ChannelData struct {
 	RevealTimeout       int      `json:"reveal_timeout"`
 }
 
-type channelDataDetail struct {
+//ChannelDataDetail more info
+type ChannelDataDetail struct {
 	ChannelAddress      string   `json:"channel_address"`
 	PartnerAddrses      string   `json:"partner_address"`
 	Balance             *big.Int `json:"balance"`
@@ -117,7 +118,7 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	d := &channelDataDetail{
+	d := &ChannelDataDetail{
 		ChannelAddress:           c.ChannelAddress.String(),
 		PartnerAddrses:           c.PartnerAddress.String(),
 		Balance:                  c.OurBalance,

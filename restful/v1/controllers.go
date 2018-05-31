@@ -50,10 +50,6 @@ func SwitchToMesh(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	//if len(nodes) <= 0 {
-	//	rest.Error(w, "no nodes", http.StatusBadRequest)
-	//	return
-	//}
 	err = RaidenAPI.Raiden.Protocol.SwitchTransporterToMeshNetwork(nodes)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)

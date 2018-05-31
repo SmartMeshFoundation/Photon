@@ -39,8 +39,10 @@ func init() {
 	debug2.SetTraceback("crash")
 }
 
+var api *smartraiden.RaidenAPI
+
 //StartMain entry point of raiden app
-func StartMain() error {
+func StartMain() (*smartraiden.RaidenAPI, error) {
 	os.Args[0] = "smartraiden"
 	fmt.Printf("os.args=%q\n", os.Args)
 	app := cli.NewApp()
@@ -190,7 +192,8 @@ func StartMain() error {
 		debug.Exit()
 		return nil
 	}
-	return app.Run(os.Args)
+	err := app.Run(os.Args)
+	return api, err
 }
 
 func mainCtx(ctx *cli.Context) (err error) {
@@ -234,6 +237,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
 	if err != nil {
+		transport.Stop()
 		return
 	}
 	if cfg.EnableMediationFee {
@@ -243,13 +247,14 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	err = raidenService.Start()
 	if err != nil {
+		raidenService.Stop()
 		return
 	}
-	api := smartraiden.NewRaidenAPI(raidenService)
+	api = smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
 	if params.MobileMode {
-		go restful.Start(api, cfg)
-		time.Sleep(time.Millisecond * 100)
+		//go restful.Start(api, cfg)
+		//time.Sleep(time.Millisecond * 100)
 	} else {
 		restful.Start(api, cfg)
 	}

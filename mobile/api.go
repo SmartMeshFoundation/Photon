@@ -13,8 +13,12 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -31,32 +35,25 @@ func marshal(v interface{}) (s string, err error) {
 	return string(d), nil
 }
 
-type channelData struct {
-	ChannelAddress string   `json:"channel_address"`
-	PartnerAddrses string   `json:"partner_address"`
-	Balance        *big.Int `json:"balance"`
-	TokenAddress   string   `json:"token_address"`
-	State          string   `json:"state"`
-	SettleTimeout  int      `json:"settle_timeout"`
-	RevealTimeout  int      `json:"reveal_timeout"`
-}
-
 //GetChannelList GET /api/1/channels
 func (a *API) GetChannelList() (channels string, err error) {
 	chs, err := a.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return
 	}
-	var datas []*channelData
+	var datas []*v1.ChannelData
 	for _, c := range chs {
-		d := &channelData{
-			ChannelAddress: c.OurAddress.String(),
-			PartnerAddrses: c.PartnerAddress.String(),
-			Balance:        c.OurBalance,
-			State:          c.State,
-			TokenAddress:   c.TokenAddress.String(),
-			SettleTimeout:  c.SettleTimeout,
-			RevealTimeout:  c.RevealTimeout,
+		d := &v1.ChannelData{
+			ChannelAddress:      c.OurAddress.String(),
+			PartnerAddrses:      c.PartnerAddress.String(),
+			Balance:             c.OurBalance,
+			PartnerBalance:      c.PartnerBalance,
+			LockedAmount:        c.OurAmountLocked,
+			PartnerLockedAmount: c.PartnerAmountLocked,
+			State:               c.State,
+			TokenAddress:        c.TokenAddress.String(),
+			SettleTimeout:       c.SettleTimeout,
+			RevealTimeout:       c.RevealTimeout,
 		}
 		datas = append(datas, d)
 	}
@@ -71,13 +68,26 @@ func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
 	if err != nil {
 		return
 	}
-	d := &channelData{
-		ChannelAddress: c.OurAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+	d := &v1.ChannelDataDetail{
+		ChannelAddress:           c.ChannelAddress.String(),
+		PartnerAddrses:           c.PartnerAddress.String(),
+		Balance:                  c.OurBalance,
+		PartnerBalance:           c.PartnerBalance,
+		State:                    c.State,
+		SettleTimeout:            c.SettleTimeout,
+		TokenAddress:             c.TokenAddress.String(),
+		LockedAmount:             c.OurAmountLocked,
+		PartnerLockedAmount:      c.PartnerAmountLocked,
+		ClosedBlock:              c.ClosedBlock,
+		SettledBlock:             c.SettledBlock,
+		OurLeaves:                c.OurLeaves,
+		PartnerLeaves:            c.PartnerLeaves,
+		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks,
+		OurUnkownSecretLocks:     c.OurLock2PendingLocks,
+		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks,
+		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks,
+		OurBalanceProof:          c.OurBalanceProof,
+		PartnerBalanceProof:      c.PartnerBalanceProof,
 	}
 	channel, err = marshal(d)
 	return
@@ -92,13 +102,16 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 	if err != nil {
 		return
 	}
-	d := &channelData{
-		ChannelAddress: c.OurAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+	d := &v1.ChannelData{
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	if balance.Cmp(utils.BigInt0) > 0 {
 		err = a.api.Deposit(tokenAddr, partnerAddr, balance, params.DefaultPollTimeout)
@@ -127,13 +140,16 @@ func (a *API) CloseChannel(channelAddres string) (channel string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	d := &channelData{
-		ChannelAddress: c.OurAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+	d := &v1.ChannelData{
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	channel, err = marshal(d)
 	return
@@ -152,13 +168,16 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	d := &channelData{
-		ChannelAddress: c.OurAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+	d := &v1.ChannelData{
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	channel, err = marshal(d)
 	return
@@ -178,13 +197,16 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 		return
 	}
 
-	d := &channelData{
-		ChannelAddress: c.OurAddress.String(),
-		PartnerAddrses: c.PartnerAddress.String(),
-		Balance:        c.OurBalance,
-		State:          c.State,
-		SettleTimeout:  c.SettleTimeout,
-		TokenAddress:   c.TokenAddress.String(),
+	d := &v1.ChannelData{
+		ChannelAddress:      c.ChannelAddress.String(),
+		PartnerAddrses:      c.PartnerAddress.String(),
+		Balance:             c.OurBalance,
+		PartnerBalance:      c.PartnerBalance,
+		State:               c.State,
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress.String(),
+		LockedAmount:        c.OurAmountLocked,
+		PartnerLockedAmount: c.PartnerAmountLocked,
 	}
 	channel, err = marshal(d)
 	return
@@ -270,22 +292,6 @@ func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err err
 	return mgr.String(), err
 }
 
-//post for transfers
-type transferData struct {
-	/*
-			  "initiator_address": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
-		    "target_address": "0x61c808d82a3ac53231750dadc13c777b59310bd9",
-		    "token_address": "0x2a65aca4d5fc5b5c859090a6c34d164135398226",
-		    "amount": 200,
-		    "identifier": 42
-	*/
-	Initiator  string   `json:"initiator_address"`
-	Target     string   `json:"target_address"`
-	Token      string   `json:"token_address"`
-	Amount     *big.Int `json:"amount"`
-	Identifier uint64   `json:"identifier"`
-}
-
 /*
 Transfers POST /api/1/transfers/0x2a65aca4d5fc5b5c859090a6c34d164135398226/0x61c808d82a3ac53231750dadc13c777b59310bd9
 Initiating a Transfer
@@ -308,12 +314,13 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	if err != nil {
 		return
 	}
-	req := &transferData{}
+	req := &v1.TransferData{}
 	req.Initiator = a.api.Raiden.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
 	req.Amount = amount
 	req.Identifier = identifier
+	req.Fee = fee
 	return marshal(req)
 }
 
@@ -404,4 +411,94 @@ func (a *API) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress string)
 	channels, err = marshal(addrs)
 	return
 
+}
+
+/*
+ChannelFor3rdParty generate info for 3rd party use,
+for update transfer and withdraw.
+*/
+func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
+	channelAddr := common.HexToAddress(channelAddress)
+	thirdPartyAddr := common.HexToAddress(thirdPartyAddress)
+	if channelAddr == utils.EmptyAddress || thirdPartyAddr == utils.EmptyAddress {
+		err = errors.New("invalid argument")
+		return
+	}
+	result, err := a.api.ChannelInformationFor3rdParty(channelAddr, thirdPartyAddr)
+	if err != nil {
+		return
+	}
+	r, err = marshal(result)
+	return
+}
+
+/*
+SwitchToMesh  makes raiden switch to mesh mode,if nodestr is empty ,will switch back to normal mode.
+*/
+func (a *API) SwitchToMesh(nodesstr string) (err error) {
+	var nodes []*network.NodeInfo
+	err = json.Unmarshal([]byte(nodesstr), &nodes)
+	if err != nil {
+		return
+	}
+	err = a.api.Raiden.Protocol.SwitchTransporterToMeshNetwork(nodes)
+	if err != nil {
+		return
+	}
+	return nil
+}
+
+/*
+EthereumStatus  query the status between raiden and ethereum
+todo fix it ,r is useless
+*/
+func (a *API) EthereumStatus() (r string, err error) {
+	c := a.api.Raiden.Chain
+	if c != nil && c.Client.Status == helper.ConnectionOk {
+		return time.Now().String(), nil
+	}
+	return time.Now().String(), errors.New("connect failed")
+}
+
+/*
+GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
+*/
+func (a *API) GetSentTransfers(from, to int64) (r string, err error) {
+	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
+	trs, err := a.api.GetSentTransfers(from, to)
+	if err != nil {
+		return
+	}
+	r, err = marshal(trs)
+	return
+}
+
+/*
+GetReceivedTransfers retuns list of received transfer between `from_block` and `to_block`
+it contains token swap
+*/
+func (a *API) GetReceivedTransfers(from, to int64) (r string, err error) {
+	trs, err := a.api.GetReceivedTransfers(from, to)
+	if err != nil {
+		return
+	}
+	r, err = marshal(trs)
+	return
+}
+
+// ErrorHandler is a client-side subscription callback to invoke on events and
+// subscription failure.
+type ErrorHandler interface {
+	OnError(errCode int, failure string)
+}
+
+// SubscribeNewHead subscribes to notifications about the current blockchain head
+// on the given channel.
+func (a *API) SubscribeNewHead(handler ErrorHandler) (sub *ethereum.Subscription, err error) {
+	// Subscribe to the event internally
+	go func() {
+		time.Sleep(time.Second)
+		handler.OnError(32, "aaaa aaa")
+	}()
+	return nil, nil
 }
