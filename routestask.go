@@ -5,6 +5,7 @@ import (
 
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -46,6 +47,7 @@ func (rt *routesTask) stop() {
 	//let task result open,otherwise may crash
 }
 func (rt *routesTask) loop() {
+	defer rpanic.PanicRecover(fmt.Sprintf("routetask"))
 	for {
 		task, ok := <-rt.NewTask
 		if !ok {

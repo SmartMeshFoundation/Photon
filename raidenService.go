@@ -27,6 +27,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
@@ -305,6 +306,7 @@ func (rs *RaidenService) loop() {
 	var req *apiReq
 	var sentMessage *protocolMessage
 	var routestask *routesToDetect
+	defer rpanic.PanicRecover("raiden service")
 	for {
 		select {
 		//message from other nodes
@@ -499,6 +501,7 @@ func (rs *RaidenService) sendAsync(recipient common.Address, msg encoding.Signed
 	}
 	result := rs.Protocol.SendAsync(recipient, msg)
 	go func() {
+		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
 		<-result.Result //always success
 		rs.ProtocolMessageSendComplete <- &protocolMessage{
 			receiver: recipient,
@@ -1106,6 +1109,7 @@ func (rs *RaidenService) startHealthCheckFor(address common.Address) {
 	}
 	rs.HealthCheckMap[address] = true
 	go func() {
+		defer rpanic.PanicRecover(fmt.Sprintf("ping %s", utils.APex(address)))
 		log.Trace(fmt.Sprintf("health check for %s started", utils.APex(address)))
 		for {
 			err := rs.Protocol.SendPing(address)
@@ -1155,6 +1159,7 @@ func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout
 	result = network.NewAsyncResult()
 	go func() {
 		var err error
+		defer rpanic.PanicRecover(fmt.Sprintf("newChannel token:%s,partner:%s", utils.APex(token), utils.APex(partner)))
 		defer func() {
 			result.Result <- err
 			close(result.Result)
@@ -1184,6 +1189,7 @@ func (rs *RaidenService) depositChannel(channelAddress common.Address, amount *b
 		return
 	}
 	go func() {
+		defer rpanic.PanicRecover(fmt.Sprintf("depositChannel %s ,amount %s", utils.APex(channelAddress), amount))
 		err := c.ExternState.Deposit(amount)
 		result.Result <- err
 		close(result.Result)
@@ -1204,6 +1210,7 @@ func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Address, op 
 	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.APex(channelAddress)))
 	go func() {
 		var err error
+		defer rpanic.PanicRecover(fmt.Sprintf("closeOrSettleChannel %s %s", op, utils.APex(channelAddress)))
 		c2, _ := rs.db.GetChannelByAddress(c.MyAddress)
 		proof := c2.PartnerBalanceProof
 		if op == closeChannelReqName {

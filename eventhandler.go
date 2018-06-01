@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -350,6 +351,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		}
 	} else if connectionManager.WantsMoreChannels() {
 		go func() {
+			defer rpanic.PanicRecover("RetryConnect")
 			connectionManager.RetryConnect()
 		}()
 	} else {
@@ -373,6 +375,7 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractR
 	if ch.ContractBalance().Cmp(utils.BigInt0) == 0 {
 		connectionManager, _ := eh.raiden.connectionManagerForToken(tokenAddress)
 		go func() {
+			defer rpanic.PanicRecover(fmt.Sprintf("JoinChannel %s", utils.APex(participant)))
 			connectionManager.JoinChannel(participant, balance)
 		}()
 	}

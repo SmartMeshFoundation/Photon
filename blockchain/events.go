@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -75,6 +76,7 @@ func (be *Events) installEventListener() (err error) {
 			//if ethclient reconnect
 			c := be.client.RegisterReConnectNotify("Events")
 			go func() {
+				defer rpanic.PanicRecover("installEventListener")
 				_, ok := <-c
 				if ok {
 					//eventlistener need reinstall
@@ -113,6 +115,7 @@ func (be *Events) startListenEvent() {
 		go func(name string) {
 			ch := be.LogChannelMap[name]
 			sub := be.Subscribes[name]
+			defer rpanic.PanicRecover(fmt.Sprintf("startListenEvent %s", name))
 			for {
 				select {
 				case l, ok := <-ch:

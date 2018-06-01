@@ -15,6 +15,7 @@ import (
 	"errors"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -269,6 +270,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver, channelAddr common.Address) c
 		p.sendingQueueMap[key] = sendingChan
 	}
 	go func() {
+		defer rpanic.PanicRecover(fmt.Sprintf("protocol ChannelQueue %s", key))
 		/*
 			1. if p packet is on sending, retry send immediately
 			2. retry infinite, until receive a ack
@@ -578,25 +580,9 @@ type NodeInfo struct {
 	IPPort  string `json:"ip_port"`
 }
 
-//SwitchTransporterToMeshNetwork switch between mesh and common network
-func (p *RaidenProtocol) SwitchTransporterToMeshNetwork(nodes []*NodeInfo) error {
+//UpdateMeshNetworkNodes update nodes in this intranet
+func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 	log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
-	m, ok := p.Transport.(*MixTransporter)
-	if !ok {
-		return fmt.Errorf("raiden not start with mixTransporter")
-	}
-	if len(nodes) <= 0 {
-		log.Info(fmt.Sprintf("switch back to ice "))
-		m.switchToIce()
-		p.discovery.(*MixDiscovery).switchToIce()
-		return nil
-	}
-	if m.switchToUDP() {
-
-	} else {
-		log.Error(fmt.Sprintf("cannot switch to mesh network,maybe it's already on mesh network"))
-	}
-	p.discovery.(*MixDiscovery).switchToUDP()
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)
 		host, port := SplitHostPort(n.IPPort)

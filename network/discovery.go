@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -141,6 +142,8 @@ func NewContractDiscovery(mynode, myaddress common.Address, client *helper.SafeE
 	if err == nil {
 		//c.db = db.GetDefaultDb()
 		go func() {
+			//todo 需要处理连接错误,
+			defer rpanic.PanicRecover("AddressRegistered subscribe")
 			for { //monitor event on chain
 				l := <-ch
 				ev, err := blockchain.NewEventAddressRegistered(&l)
@@ -220,4 +223,28 @@ func (c *ContractDiscovery) NodeIDByHostPort(host string, port int) (node common
 		c.put(node, hostport)
 	}
 	return
+}
+
+//MockDicovery a mock discovery for xmpp
+type MockDicovery struct {
+}
+
+//NewMockDicovery create MockDicovery
+func NewMockDicovery() *MockDicovery {
+	return new(MockDicovery)
+}
+
+//Register just to implement Discover
+func (id *MockDicovery) Register(address common.Address, host string, port int) error {
+	return nil
+}
+
+//Get just to implement Discover
+func (id *MockDicovery) Get(address common.Address) (host string, port int, err error) {
+	return address.String(), 0, nil
+}
+
+//NodeIDByHostPort just to implement Discover
+func (id *MockDicovery) NodeIDByHostPort(host string, port int) (node common.Address, err error) {
+	return common.HexToAddress(host), nil
 }

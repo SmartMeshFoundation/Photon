@@ -1,61 +1,67 @@
 package network
 
 import (
-	"sync/atomic"
-
-	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
-MixTransporter is a wrapper for two Transporter(UDP and ICE)
+MixTransporter is a wrapper for two Transporter(UDP and XMPP)
+if I can reach the node by UDP,then UDP,
+if I cannot reach the node, try XMPP
 */
 type MixTransporter struct {
-	udp *UDPTransport
-	ice *IceTransport
-	t   atomic.Value
+	udp  *UDPTransport
+	xmpp *XMPPTransporter
+	d    *MixDiscovery
+	name string
 }
 
 /*
 MixDiscovery is a wrapper for two Discover ,so it can switch between these discover
 */
 type MixDiscovery struct {
-	udp *Discovery
-	ice *IceHelperDicovery
-	d   atomic.Value
+	udp  *Discovery
+	mock *MockDicovery
 }
 
 //NewMixTranspoter create a MixTransporter and discover
-func NewMixTranspoter(key *ecdsa.PrivateKey, name string, host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery, err error) {
-	var h Transporter
+func NewMixTranspoter(name, host string, port int, protocol ProtocolReceiver, policy Policier) (t *MixTransporter, d *MixDiscovery, err error) {
 	t = &MixTransporter{}
-	t.udp, err = NewUDPTransport(host, port, conn, protocol, policy)
+	t.udp, err = NewUDPTransport(host, port, protocol, policy)
 	if err != nil {
 		return
 	}
-	t.ice, err = NewIceTransporter(key, name)
+	t.xmpp, err = NewXMPPTransporter()
 	if err != nil {
-		log.Error(fmt.Sprintf("new ice transport error %s,default will be udp transport", err))
-		h = t.udp
-		d = newMixDiscovery(false)
-	} else {
-		h = t.ice
-		d = newMixDiscovery(true)
+		log.Error(fmt.Sprintf("new xmpp transport error %s,default will be udp transport", err))
+		return
 	}
-	t.t.Store(&h)
+	d = newMixDiscovery()
+	t.d = d
+	t.name = name
 	return
 }
-func (t *MixTransporter) getTranspoter() Transporter {
-	return *t.t.Load().(*Transporter)
-}
 
-//Send message
+/*
+Send message
+优先选择局域网,在局域网走不通的情况下,才会考虑 xmpp
+*/
 func (t *MixTransporter) Send(receiver common.Address, host string, port int, data []byte) error {
-	return t.getTranspoter().Send(receiver, host, port, data)
+	_, ok := t.d.udp.NodeIDHostPortMap[receiver]
+	if ok {
+		return t.udp.Send(receiver, host, port, data)
+	} else if t.xmpp != nil {
+		return t.xmpp.Send(receiver, host, port, data)
+	} else {
+		err := fmt.Errorf("no valid %s send to %s %s:%d, message=%s,response hash=%s", t.name, utils.APex2(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:])))
+		log.Error(err.Error())
+		return err
+	}
 }
 
 //receive  just for Transporter interface
@@ -68,15 +74,15 @@ func (t *MixTransporter) Start() {
 	if t.udp != nil {
 		t.udp.Start()
 	}
-	if t.ice != nil {
-		t.ice.Start()
+	if t.xmpp != nil {
+		t.xmpp.Start()
 	}
 }
 
 //Stop the two transporter
 func (t *MixTransporter) Stop() {
-	if t.ice != nil {
-		t.ice.Stop()
+	if t.xmpp != nil {
+		t.xmpp.Stop()
 	}
 	if t.udp != nil {
 		t.udp.Stop()
@@ -85,8 +91,8 @@ func (t *MixTransporter) Stop() {
 
 //StopAccepting stops receiving for the two transporter
 func (t *MixTransporter) StopAccepting() {
-	if t.ice != nil {
-		t.ice.StopAccepting()
+	if t.xmpp != nil {
+		t.xmpp.StopAccepting()
 	}
 	if t.udp != nil {
 		t.udp.StopAccepting()
@@ -95,103 +101,49 @@ func (t *MixTransporter) StopAccepting() {
 
 //RegisterProtocol register receiver for the two transporter
 func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
-	if t.ice != nil {
-		t.ice.RegisterProtocol(protcol)
+	if t.xmpp != nil {
+		t.xmpp.RegisterProtocol(protcol)
 	}
 	if t.udp != nil {
 		t.udp.RegisterProtocol(protcol)
 	}
 
 }
-func (t *MixTransporter) switchToUDP() bool {
-	u := t.getTranspoter()
-	_, ok := u.(*UDPTransport)
-	if ok {
-		log.Error(fmt.Sprintf("mixTransporter already uses udp ."))
-		return false
-	}
-	u = t.udp
-	t.t.Store(&u)
-	return true
-}
-func (t *MixTransporter) switchToIce() bool {
-	if t.ice == nil {
-		log.Error(fmt.Sprintf("switch to ice,but  there is no ice transporter.use previous transpoter."))
-		return false
-	}
-	i := t.getTranspoter()
-	_, ok := i.(*IceTransport)
-	if ok {
-		log.Error(fmt.Sprintf("mixTransporter already uses ice ."))
-		return false
-	}
-	i = t.ice
-	t.t.Store(&i)
-	return true
-}
-func newMixDiscovery(useIce bool) *MixDiscovery {
+
+func newMixDiscovery() *MixDiscovery {
 	m := &MixDiscovery{
-		udp: NewDiscovery(),
-		ice: NewIceHelperDiscovery(),
+		udp:  NewDiscovery(),
+		mock: NewMockDicovery(),
 	}
-	var h DiscoveryInterface
-	if useIce {
-		h = m.ice
-	} else {
-		h = m.udp
-	}
-	m.d.Store(&h)
 	return m
-}
-func (d *MixDiscovery) getDefault() DiscoveryInterface {
-	return *d.d.Load().(*DiscoveryInterface)
 }
 
 //Register a node
 func (d *MixDiscovery) Register(address common.Address, host string, port int) error {
-	return d.getDefault().Register(address, host, port)
+	return d.udp.Register(address, host, port)
 }
 
 //Get node's ip and port
 func (d *MixDiscovery) Get(address common.Address) (host string, port int, err error) {
-	return d.getDefault().Get(address)
+	host, port, err = d.udp.Get(address)
+	if err != nil {
+		host, port, err = d.mock.Get(address)
+	}
+	return
 }
 
 //NodeIDByHostPort find a node by host and port
 func (d *MixDiscovery) NodeIDByHostPort(host string, port int) (node common.Address, err error) {
-	return d.getDefault().NodeIDByHostPort(host, port)
-}
-func (d *MixDiscovery) switchToUDP() bool {
-	u := d.getDefault()
-	_, ok := u.(*Discovery)
-	if ok {
-		log.Error(fmt.Sprintf("MixDiscovery already uses udp discovery"))
-		return false
+	node, err = d.udp.NodeIDByHostPort(host, port)
+	if err != nil {
+		node, err = d.mock.NodeIDByHostPort(host, port)
 	}
-	u = d.udp
-	d.d.Store(&u)
-	return true
+	return
 }
-func (d *MixDiscovery) switchToIce() bool {
-	i := d.getDefault()
-	_, ok := i.(*IceHelperDicovery)
-	if ok {
-		log.Error(fmt.Sprintf("MixDiscovery already uses ice helper discovery"))
-		return false
-	}
-	i = d.ice
-	d.d.Store(&i)
-	return true
-}
-
 func (d *MixDiscovery) printNodes() {
-	u, ok := d.getDefault().(*Discovery)
-	if ok {
-		log.Trace(fmt.Sprintf("nodes are:\n"))
-		for k, v := range u.NodeIDHostPortMap {
-			log.Trace(fmt.Sprintf("%s:%s", utils.APex(k), v))
-		}
-	} else {
-		log.Trace(fmt.Sprintf("it's ice helper discovery ,cannot get nodes."))
+	u := d.udp
+	log.Trace(fmt.Sprintf("nodes are:\n"))
+	for k, v := range u.NodeIDHostPortMap {
+		log.Trace(fmt.Sprintf("%s:%s", utils.APex(k), v))
 	}
 }

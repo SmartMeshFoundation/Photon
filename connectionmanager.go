@@ -11,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -227,6 +228,7 @@ func (cm *ConnectionManager) closeAll(onlyReceiving bool) []*channel.Serializati
 func (cm *ConnectionManager) LeaveAsync() *network.AsyncResult {
 	result := network.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("LeaveAsync")
 		cm.Leave(true)
 		result.Result <- nil
 		close(result.Result)

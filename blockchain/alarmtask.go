@@ -11,6 +11,7 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -70,6 +71,7 @@ func (at *AlarmTask) RemoveCallback(cb AlarmCallback) {
 
 func (at *AlarmTask) run() {
 	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", at.LastBlockNumber))
+	defer rpanic.PanicRecover("alarm task")
 	for {
 		err := at.waitNewBlock()
 		if err != nil {
