@@ -12,13 +12,13 @@ import (
 	"errors"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -30,6 +30,7 @@ type API struct {
 func marshal(v interface{}) (s string, err error) {
 	d, err := json.Marshal(v)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	return string(d), nil
@@ -39,12 +40,13 @@ func marshal(v interface{}) (s string, err error) {
 func (a *API) GetChannelList() (channels string, err error) {
 	chs, err := a.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelAddress:      c.OurAddress.String(),
+			ChannelAddress:      c.ChannelAddress.String(),
 			PartnerAddrses:      c.PartnerAddress.String(),
 			Balance:             c.OurBalance,
 			PartnerBalance:      c.PartnerBalance,
@@ -66,6 +68,7 @@ func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
 	chaddr := common.HexToAddress(channelAddress)
 	c, err := a.api.GetChannel(chaddr)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelDataDetail{
@@ -100,6 +103,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
 	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelData{
@@ -189,11 +193,13 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
 	c, err := a.api.GetChannel(chAddr)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.APex(chAddr), err))
 		return
 	}
 	err = a.api.Deposit(c.TokenAddress, c.PartnerAddress, balance, params.DefaultPollTimeout)
 	if err != nil {
+		log.Error(fmt.Sprintf("Deposit to %s:%s err %s", utils.APex(c.TokenAddress),
+			utils.APex(c.PartnerAddress), err))
 		return
 	}
 
@@ -216,6 +222,7 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err error) {
 	events, err := a.api.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	eventsString, err = marshal(events)
@@ -227,6 +234,7 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 	token := common.HexToAddress(tokenAddress)
 	events, err := a.api.GetTokenNetworkEvents(token, fromBlock, toBlock)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	eventsString, err = marshal(events)
@@ -238,6 +246,7 @@ func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (ev
 	channel := common.HexToAddress(channelAddress)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	eventsString, err = marshal(events)
@@ -268,6 +277,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 	tokenAddr := common.HexToAddress(tokenAddress)
 	chs, err := a.api.GetChannelList(tokenAddr, utils.EmptyAddress)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	var datas []*partnersData
@@ -287,6 +297,7 @@ func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err err
 	tokenAddr := common.HexToAddress(tokenAddress)
 	mgr, err := a.api.RegisterToken(tokenAddr)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	return mgr.String(), err
@@ -312,6 +323,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	}
 	err = a.api.Transfer(tokenAddr, amount, fee, targetAddr, identifier, params.MaxRequestTimeout)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	req := &v1.TransferData{}
@@ -401,6 +413,7 @@ func (a *API) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress string)
 
 	chs, err := a.api.LeaveTokenNetwork(token, OnlyReceivingChannels)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 
@@ -426,6 +439,7 @@ func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r st
 	}
 	result, err := a.api.ChannelInformationFor3rdParty(channelAddr, thirdPartyAddr)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	r, err = marshal(result)
@@ -439,10 +453,12 @@ func (a *API) SwitchToMesh(nodesstr string) (err error) {
 	var nodes []*network.NodeInfo
 	err = json.Unmarshal([]byte(nodesstr), &nodes)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
-	err = a.api.Raiden.Protocol.SwitchTransporterToMeshNetwork(nodes)
+	err = a.api.Raiden.Protocol.UpdateMeshNetworkNodes(nodes)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	return nil
@@ -467,6 +483,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error) {
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := a.api.GetSentTransfers(from, to)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	r, err = marshal(trs)
@@ -480,6 +497,7 @@ it contains token swap
 func (a *API) GetReceivedTransfers(from, to int64) (r string, err error) {
 	trs, err := a.api.GetReceivedTransfers(from, to)
 	if err != nil {
+		log.Error(err.Error())
 		return
 	}
 	r, err = marshal(trs)
@@ -492,13 +510,14 @@ type ErrorHandler interface {
 	OnError(errCode int, failure string)
 }
 
-// SubscribeNewHead subscribes to notifications about the current blockchain head
+// SubscribeError subscribes to notifications about the current blockchain head
 // on the given channel.
-func (a *API) SubscribeNewHead(handler ErrorHandler) (sub *ethereum.Subscription, err error) {
+func (a *API) SubscribeError(handler ErrorHandler) (err error) {
 	// Subscribe to the event internally
 	go func() {
-		time.Sleep(time.Second)
-		handler.OnError(32, "aaaa aaa")
+		rpanic.RegisterErrorNotifier("API SubscribeError")
+		err = <-rpanic.GetNotify()
+		handler.OnError(32, err.Error())
 	}()
-	return nil, nil
+	return nil
 }
