@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/signal/interface"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-xmpp"
-	"github.com/nkbai/log"
 )
 
 var (
@@ -87,15 +87,15 @@ NewSignalConnection create Xmpp connection to signal sever
 func NewSignalConnection(ServerURL string, User common.Address, passwordFn GetCurrentPasswordFunc, sdphandler SignalInterface.SdpHandler, name string) (sp SignalInterface.SignalProxy, err error) {
 	x := &SignalConnection{
 		options: xmpp.Options{
-			Host:     ServerURL,
-			User:     fmt.Sprintf("%s%s", User.String(), nameSuffix),
-			Password: passwordFn(),
-			NoTLS:    true,
+			Host:                         ServerURL,
+			User:                         fmt.Sprintf("%s%s", User.String(), nameSuffix),
+			Password:                     passwordFn(),
+			NoTLS:                        true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:         false,
-			Session:       false,
-			Status:        "xa",
-			StatusMessage: "welcome",
+			Debug:                        false,
+			Session:                      false,
+			Status:                       "xa",
+			StatusMessage:                "welcome",
 		},
 		config:         DefaultConfig,
 		reconnect:      true,
