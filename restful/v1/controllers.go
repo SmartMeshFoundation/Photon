@@ -50,7 +50,7 @@ func SwitchToMesh(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Raiden.Protocol.SwitchTransporterToMeshNetwork(nodes)
+	err = RaidenAPI.Raiden.Protocol.UpdateMeshNetworkNodes(nodes)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

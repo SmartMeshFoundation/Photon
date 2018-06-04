@@ -49,7 +49,7 @@ func main() {
 	log.Info(fmt.Sprintf("myaddr=%s,partneraddr=%s\n", myaddr.String(), partneraddr.String()))
 	it, err := network.NewIceTransporter(mykey, "client1")
 	it.Start()
-	it.RegisterProtocol(new(network.DummyProtocol))
+	it.RegisterProtocol(new(network.dummyProtocol))
 	for {
 		var cmd string
 		fmt.Printf("input s to start, q to quit")

@@ -34,25 +34,19 @@ func newTestRaiden() *RaidenService {
 }
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
-	transport := network.MakeTestUDPTransport(50000 + curAccountIndex + 1)
 	bcs := newTestBlockChainService()
-	discover := network.GetTestDiscovery() //share the same discovery ,so node can find each other
-	//discover := network.NewContractDiscovery(bcs.NodeAddress, bcs.Client, bcs.Auth)
+	transport := network.MakeTestXMPPTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey
 	config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
 	log.Info(fmt.Sprintf("DataDir=%s", config.DataDir))
-	config.ExternIP = transport.Host
-	config.ExternPort = transport.Port
-	config.Host = transport.Host
-	config.Port = transport.Port
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	os.MkdirAll(config.DataDir, os.ModePerm)
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, discover, &config)
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -61,20 +55,28 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 }
 func newTestRaidenAPI() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
-	api.Raiden.Start()
+	err := api.Raiden.Start()
+	if err != nil {
+		log.Error(fmt.Sprintf("raiden start err %s", err))
+	}
 	return api
 }
 
 //maker sure these accounts are valid, and  engouh eths for test
 func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	am := NewAccountManager("testdata/keystore")
-	privkey, err := am.GetPrivateKey(am.Accounts[curAccountIndex].Address, "123")
+	privkeybin, err := am.GetPrivateKey(am.Accounts[curAccountIndex].Address, "123")
 	if err != nil {
 		log.Error(fmt.Sprintf("testGetnextValidAccount err: %s", err))
 		panic("")
 	}
 	curAccountIndex++
-	return crypto.ToECDSAUnsafe(privkey), utils.PubkeyToAddress(privkey)
+	privkey, err := crypto.ToECDSA(privkeybin)
+	if err != nil {
+		log.Error(fmt.Sprintf("to privkey err %s", err))
+		panic("")
+	}
+	return privkey, crypto.PubkeyToAddress(privkey.PublicKey)
 }
 func newTestBlockChainService() *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
@@ -82,9 +84,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
 	privkey, _ := testGetnextValidAccount()
-	if err != nil {
-		log.Error(fmt.Sprintf("Failed to create authorized transactor: %s", err))
-	}
+	//	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 

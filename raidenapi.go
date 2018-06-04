@@ -335,12 +335,12 @@ func (r *RaidenAPI) ExpectTokenSwap(identifier uint64, makerToken, takerToken, m
 }
 
 //GetNodeNetworkState Returns the currently network status of `node_address
-func (r *RaidenAPI) GetNodeNetworkState(nodeAddress common.Address) string {
+func (r *RaidenAPI) GetNodeNetworkState(nodeAddress common.Address) (deviceType string, isOnline bool) {
 	return r.Raiden.Protocol.GetNetworkStatus(nodeAddress)
 }
 
 //StartHealthCheckFor Returns the currently network status of `node_address`.
-func (r *RaidenAPI) StartHealthCheckFor(nodeAddress common.Address) string {
+func (r *RaidenAPI) StartHealthCheckFor(nodeAddress common.Address) (deviceType string, isOnline bool) {
 	r.Raiden.startHealthCheckFor(nodeAddress)
 	return r.GetNodeNetworkState(nodeAddress)
 }

@@ -38,15 +38,6 @@ const DefaultJoinableFundsTarget = 0.4
 //DefaultInitialChannelTarget channels to create
 const DefaultInitialChannelTarget = 3
 
-//DefaultKeepAliveReties args i don't know
-const DefaultKeepAliveReties = 5
-
-//DefaultNATKeepAliveTimeout args
-const DefaultNATKeepAliveTimeout = 500
-
-//DefaultNATInvitationTimeout args
-const DefaultNATInvitationTimeout = 15000
-
 //DefaultTxTimeout args
 const DefaultTxTimeout = 5 * time.Minute //15seconds for one block,it may take sever minutes
 //MaxRequestTimeout args
@@ -74,27 +65,26 @@ const NettingChannelSettleTimeoutMax = 2700000
 //UDPMaxMessageSize message size
 const UDPMaxMessageSize = 1200
 
-//DefaultSignalServer signal server for ice
-const DefaultSignalServer = "193.112.248.133:5222"
+//DefaultXMPPServer xmpp server
+const DefaultXMPPServer = "193.112.248.133:5222"
 
-//DefaultTurnServer  turn server
-const DefaultTurnServer = "193.112.248.133:3478"
-
-//DefaultTurnUserName turn user
-const DefaultTurnUserName = "smartraiden"
-
-//DefaultTurnPassword turn password
-const DefaultTurnPassword = "smartraiden"
+//DefaultTestXMPPServer xmpp server for test only
+const DefaultTestXMPPServer = "182.254.155.208:5222" //"182.254.155.208:5222"
 
 func init() {
 	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
 }
 
 /*
-MobileMode	移动设备模式,这时候 smartraiden 并不是一个独立的进程,这时候很多工作模式要发生变化.
-	比如:
-	1.不能任意退出
-	2. 对于网络通信的处理要更谨慎
-	3. 对于资源的消耗如何控制?
+MobileMode works on mobile device, 移动设备模式,这时候 smartraiden 并不是一个独立的进程,这时候很多工作模式要发生变化.
+比如:
+1.不能任意退出
+2. 对于网络通信的处理要更谨慎
+3. 对于资源的消耗如何控制?
 */
 var MobileMode bool
+
+/*
+InTest are we test now?
+*/
+var InTest = true

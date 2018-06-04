@@ -19,8 +19,12 @@ import (
 
 	"errors"
 
+	"net"
+	"strconv"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
@@ -78,26 +82,6 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
 		},
 		cli.StringFlag{
-			Name: "rpccorsdomain",
-			Usage: `Comma separated list of domains to accept cross origin requests.
-				(localhost enabled by default)`,
-			Value: "http://localhost:* /*",
-		},
-		cli.IntFlag{Name: "max-unresponsive-time",
-			Usage: `Max time in seconds for which an address can send no packets and
-	               still be considered healthy.`,
-			Value: 120,
-		},
-		cli.IntFlag{Name: "send-ping-time",
-			Usage: `Time in seconds after which if we have received no message from a
-	               node we have a connection with, we are going to send a PING message`,
-			Value: 60,
-		},
-		cli.BoolTFlag{Name: "rpc",
-			Usage: `Start with or without the RPC server. Default is to start
-	               the RPC server`,
-		},
-		cli.StringFlag{
 			Name:  "api-address",
 			Usage: `host:port" for the RPC server to listen on.`,
 			Value: "127.0.0.1:5001",
@@ -111,26 +95,6 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "password-file",
 			Usage: "Text file containing password for provided account",
 		},
-		cli.StringFlag{
-			Name: "nat",
-			Usage: `
-				[auto|upnp|stun|none]
-				Manually specify method to use for
-				determining public IP / NAT traversal.
-				Available methods:
-				"auto" - Try UPnP, then
-				STUN, fallback to none
-				"upnp" - Try UPnP,
-				fallback to none
-				"stun" - Try STUN, fallback
-				to none
-				"none" - Use the local interface,only for test
-				address (this will likely cause connectivity
-				issues)
-				"ice"- Use ice framework for nat punching
-				[default: ice]`,
-			Value: "ice",
-		},
 		cli.BoolFlag{
 			Name:  "debugcrash",
 			Usage: "enable debug crash feature",
@@ -139,21 +103,6 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "conditionquit",
 			Usage: "quit at specified point for test",
 			Value: "",
-		},
-		cli.StringFlag{
-			Name:  "turn-server",
-			Usage: "tur server for ice",
-			Value: params.DefaultTurnServer,
-		},
-		cli.StringFlag{
-			Name:  "turn-user",
-			Usage: "turn username for turn server",
-			Value: params.DefaultTurnUserName,
-		},
-		cli.StringFlag{
-			Name:  "turn-pass",
-			Usage: "turn password for turn server",
-			Value: params.DefaultTurnPassword,
 		},
 		cli.BoolFlag{
 			Name:  "nonetwork",
@@ -164,9 +113,9 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Usage: "enable mediation fee",
 		},
 		cli.StringFlag{
-			Name:  "signal-server",
-			Usage: "use another signal server ",
-			Value: params.DefaultSignalServer,
+			Name:  "xmpp-server",
+			Usage: "use another xmpp server ",
+			Value: params.DefaultXMPPServer,
 		},
 		cli.BoolFlag{
 			Name:  "ignore-mediatednode-request",
@@ -197,28 +146,8 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 }
 
 func mainCtx(ctx *cli.Context) (err error) {
-	var pms *network.PortMappedSocket
 	fmt.Printf("Welcom to smartraiden,version %s\n", ctx.App.Version)
-	if ctx.String("nat") != "ice" {
-		host, port := network.SplitHostPort(ctx.String("listen-address"))
-		pms, err = network.SocketFactory(host, port, ctx.String("nat"))
-		if err != nil {
-			err = fmt.Errorf("SocketFactory err=%s", err)
-			return
-		}
-		log.Trace(fmt.Sprintf("pms=%s", utils.StringInterface1(pms)))
-	} else {
-		host, port := network.SplitHostPort(ctx.String("listen-address"))
-		pms = &network.PortMappedSocket{
-			IP:   host,
-			Port: port,
-		}
-	}
-	if err != nil {
-		err = fmt.Errorf("start server on %s error:%s", ctx.String("listen-address"), err)
-		return
-	}
-	cfg, err := config(ctx, pms)
+	cfg, err := config(ctx)
 	if err != nil {
 		return
 	}
@@ -230,12 +159,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
-	log.Trace(fmt.Sprintf("bcs=%#v", bcs))
-	transport, discovery, err := buildTransportAndDiscovery(cfg, pms, bcs)
+	transport, err := buildTransportAndDiscovery(cfg, bcs)
 	if err != nil {
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, discovery, cfg)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg)
 	if err != nil {
 		transport.Stop()
 		return
@@ -261,39 +189,32 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransportAndDiscovery(cfg *params.Config, pms *network.PortMappedSocket, bcs *rpc.BlockChainService) (transport network.Transporter, discovery network.DiscoveryInterface, err error) {
+func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if /*cfg.NetworkMode == params.ICEOnly && */ cfg.IgnoreMediatedNodeRequest {
-		cfg.NetworkMode = params.MixUDPICE
+	if cfg.IgnoreMediatedNodeRequest {
+		cfg.NetworkMode = params.MixUDPXMPP
 	}
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
-		discovery = network.NewDiscovery()
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport = network.NewDummyTransport(pms.IP, pms.Port, nil, policy)
+		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), "127.0.0.1", cfg.Port, nil, policy)
 		return
 	case params.UDPOnly:
-		discovery = network.NewContractDiscovery(bcs.NodeAddress, cfg.DiscoveryAddress, bcs.Client, bcs.Auth)
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, err = network.NewUDPTransport(pms.IP, pms.Port, pms.Conn, nil, policy)
-	case params.ICEOnly:
-		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
-		transport, err = network.NewIceTransporter(bcs.PrivKey, utils.APex2(bcs.NodeAddress))
-		if err != nil {
-			return
-		}
-		discovery = network.NewIceHelperDiscovery()
-	case params.MixUDPICE:
-		network.InitIceTransporter(cfg.Ice.TurnServer, cfg.Ice.TurnUser, cfg.Ice.TurnPassword, cfg.Ice.SignalServer)
+		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, nil, policy)
+	case params.XMPPOnly:
+		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
+	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, discovery, err = network.NewMixTranspoter(bcs.PrivKey, utils.APex2(bcs.NodeAddress), pms.IP, pms.Port, pms.Conn, nil, policy)
+		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, network.DeviceTypeMobile)
 	}
 	return
 }
 func regQuitHandler(api *smartraiden.RaidenAPI) {
 	go func() {
+		defer rpanic.PanicRecover("regQuitHandler")
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
 		<-quitSignal
@@ -373,21 +294,21 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	}
 	return
 }
-func config(ctx *cli.Context, pms *network.PortMappedSocket) (config *params.Config, err error) {
-
+func config(ctx *cli.Context) (config *params.Config, err error) {
 	config = &params.DefaultConfig
-	listenhost, listenport := network.SplitHostPort(ctx.String("listen-address"))
-	apihost, apiport := network.SplitHostPort(ctx.String("api-address"))
+	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
+	if err != nil {
+		return
+	}
+	apihost, apiport, err := net.SplitHostPort(ctx.String("api-address"))
+	if err != nil {
+		return
+	}
 	config.Host = listenhost
-	config.Port = listenport
+	config.Port, _ = strconv.Atoi(listenport)
 	config.UseConsole = ctx.Bool("console")
-	config.UseRPC = ctx.Bool("rpc")
 	config.APIHost = apihost
-	config.APIPort = apiport
-	config.ExternIP = pms.ExternalIP
-	config.ExternPort = pms.ExternalPort
-	maxUnresponsiveTime := ctx.Int64("max-unresponsive-time")
-	config.Protocol.NatKeepAliveTimeout = maxUnresponsiveTime / params.DefaultKeepAliveReties
+	config.APIPort, _ = strconv.Atoi(apiport)
 	address := common.HexToAddress(ctx.String("address"))
 	address, privkeyBin, err := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
 	if err != nil {
@@ -442,25 +363,18 @@ func config(ctx *cli.Context, pms *network.PortMappedSocket) (config *params.Con
 		}
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
 	}
-	config.Ice.StunServer = ctx.String("turn-server")
-	config.Ice.TurnServer = ctx.String("turn-server")
-	config.Ice.TurnUser = ctx.String("turn-user")
-	config.Ice.TurnPassword = ctx.String("turn-pass")
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
-	if ctx.String("nat") == "ice" {
-		config.NetworkMode = params.ICEOnly
-	} else if ctx.Bool("nonetwork") {
+	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
 	} else {
-		config.NetworkMode = params.UDPOnly
+		config.NetworkMode = params.XMPPOnly
 	}
 	if ctx.Bool("fee") {
 		config.EnableMediationFee = true
 	}
-	config.Ice.SignalServer = ctx.String("signal-server")
-	log.Trace(fmt.Sprintf("signal server=%s", config.Ice.SignalServer))
 	if ctx.Bool("enable-health-check") {
 		config.EnableHealthCheck = true
 	}
+	config.XMPPServer = ctx.String("xmpp-server")
 	return
 }

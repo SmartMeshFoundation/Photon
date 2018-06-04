@@ -76,7 +76,6 @@ type RaidenService struct {
 	RegistryAddress    common.Address
 	PrivateKey         *ecdsa.PrivateKey
 	Transport          network.Transporter
-	Discovery          network.Discovery
 	Config             *params.Config
 	Protocol           *network.RaidenProtocol
 	NodeAddress        common.Address
@@ -114,7 +113,6 @@ type RaidenService struct {
 	*/
 	UserReqChan                 chan *apiReq
 	ProtocolMessageSendComplete chan *protocolMessage
-	RoutesTask                  *routesTask
 	FeePolicy                   fee.Charger //Mediation fee
 	/*
 		these four maps designed for token swap,but it can be extended for purpose usage.
@@ -133,8 +131,7 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter,
-	discover network.DiscoveryInterface, config *params.Config) (srv *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (srv *RaidenService, err error) {
 	if config.SettleTimeout < params.NettingChannelSettleTimeoutMin || config.SettleTimeout > params.NettingChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax)
@@ -169,7 +166,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
-	srv.Protocol = network.NewRaidenProtocol(transport, discover, privateKey, srv)
+	srv.Protocol = network.NewRaidenProtocol(transport, privateKey, srv)
 	srv.db, err = models.OpenDb(config.DataBasePath)
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
@@ -186,15 +183,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		return
 	}
 	srv.SnapshortDir = filepath.Join(config.DataBasePath)
-	err = discover.Register(srv.NodeAddress, srv.Config.ExternIP, srv.Config.ExternPort)
-	if err != nil {
-		err = fmt.Errorf("register discover endpoint error:%s", err)
-		return
-	}
-	log.Info("node discovery register complete...")
-	//srv.Start()
-	//start routes detect task
-	srv.RoutesTask = newRoutesTask(srv.Protocol, srv.Protocol)
+	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", srv.RegistryAddress.String(), srv.NodeAddress.String()))
 	return srv, nil
 }
 
@@ -212,7 +201,6 @@ func stopHelper(err error, s stoper) {
 func (rs *RaidenService) Start() (err error) {
 	lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
 	rs.AlarmTask.Start()
-	rs.RoutesTask.start()
 	//must have a valid blocknumber before any transfer operation
 	rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
 	rs.AlarmTask.RegisterCallback(func(number int64) error {
@@ -279,7 +267,6 @@ func (rs *RaidenService) Start() (err error) {
 func (rs *RaidenService) Stop() {
 	log.Info("raiden service stop...")
 	rs.AlarmTask.Stop()
-	rs.RoutesTask.stop()
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.saveSnapshot()
@@ -305,7 +292,6 @@ func (rs *RaidenService) loop() {
 	var blockNumber int64
 	var req *apiReq
 	var sentMessage *protocolMessage
-	var routestask *routesToDetect
 	defer rpanic.PanicRecover("raiden service")
 	for {
 		select {
@@ -354,14 +340,6 @@ func (rs *RaidenService) loop() {
 				rs.handleSentMessage(sentMessage)
 			} else {
 				log.Info("ProtocolMessageSendComplete closed")
-				return
-			}
-			//before send a transfer, we would better detect if neighbors are online or not.
-		case routestask, ok = <-rs.RoutesTask.TaskResult:
-			if ok {
-				rs.handleRoutesTask(routestask)
-			} else {
-				log.Info("routesTask.TaskResult closed")
 				return
 			}
 		}
@@ -1020,13 +998,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	results = append(results, result)
 	rs.Identifier2Results[identifier] = results
 	rs.db.AddStateManager(stateManager)
-	//ping before send transfer
-	rs.RoutesTask.NewTask <- &routesToDetect{
-		RoutesState:     initInitiator.Routes,
-		StateManager:    stateManager,
-		InitStateChange: initInitiator,
-	}
-	//rs.stateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
+	rs.StateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
 	return
 }
 
@@ -1066,13 +1038,7 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer)
 	mgrs := rs.Identifier2StateManagers[msg.Identifier]
 	mgrs = append(mgrs, stateManager)
 	rs.Identifier2StateManagers[msg.Identifier] = mgrs //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
-	//ping before send transfer
-	rs.RoutesTask.NewTask <- &routesToDetect{
-		RoutesState:     initMediator.Routes,
-		StateManager:    stateManager,
-		InitStateChange: initMediator,
-	}
-	//rs.stateMachineEventHandler.logAndDispatch(stateManager, initMediator)
+	rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
 }
 
 //receive a MediatedTransfer, i'm the target
@@ -1429,18 +1395,6 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	} else {
 		log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
 	}
-}
-func (rs *RaidenService) handleRoutesTask(task *routesToDetect) {
-	/*
-		no need to modify InitStateChange's Routes, because routesTask share the same instance
-	*/
-	switch task.InitStateChange.(type) {
-	case *mediatedtransfer.ActionInitInitiatorStateChange:
-		//do nothing
-	case *mediatedtransfer.ActionInitMediatorStateChange:
-		//do nothing
-	}
-	rs.StateMachineEventHandler.logAndDispatch(task.StateManager, task.InitStateChange)
 }
 
 /*

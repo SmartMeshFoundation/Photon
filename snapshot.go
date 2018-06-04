@@ -68,6 +68,7 @@ func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 			cs, err := rs.db.GetChannelByAddress(c.MyAddress)
 			if err != nil {
 				if err == storm.ErrNotFound {
+					log.Info(fmt.Sprintf("new channel created when shutdown %s ", c.MyAddress.String()))
 					continue //new channel when shutdown
 				} else {
 					panic(fmt.Sprintf("get channel %s from db err %s", c.MyAddress.String(), err))

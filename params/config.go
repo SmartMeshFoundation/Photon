@@ -18,9 +18,6 @@ type protocolConfig struct {
 	RetriesBeforeBackoff int
 	ThrottleCapacity     float64
 	ThrottleFillRate     float64
-	NatInvitationTimeout int
-	NatKeepAliveRetries  int
-	NatKeepAliveTimeout  int64
 }
 
 //NetworkMode is transport status
@@ -31,18 +28,16 @@ const (
 	NoNetwork NetworkMode = iota + 1
 	//UDPOnly 通过udp ip 端口对外暴露服务,可以使用 stun,upnp 等方式,依赖节点发现合约或者直接告知其他节点 ip 端口
 	UDPOnly
-	//ICEOnly 通过信令服务器协助,建立连接.
-	ICEOnly
-	//MixUDPICE 适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
-	MixUDPICE
+	//XMPPOnly 通过XMPP服务器进行通信
+	XMPPOnly
+	//MixUDPXMPP 适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
+	MixUDPXMPP
 )
 
 //Config is configuration for Raiden,
 type Config struct {
 	Host                      string
 	Port                      int
-	ExternIP                  string
-	ExternPort                int
 	PrivateKeyHex             string
 	PrivateKey                *ecdsa.PrivateKey
 	RevealTimeout             int
@@ -60,34 +55,16 @@ type Config struct {
 	MyAddress                 common.Address
 	DebugCrash                bool          //for test only,work with conditionQuit
 	ConditionQuit             ConditionQuit //for test only
-	Ice                       iceConfig
 	NetworkMode               NetworkMode
 	EnableMediationFee        bool //default false. which means no fee at all.
 	IgnoreMediatedNodeRequest bool // true: this node will ignore any mediated transfer who's target is not me.
 	EnableHealthCheck         bool //send ping periodically?
-}
-type iceConfig struct {
-	/*
-		signal server url for ice
-	*/
-	SignalServer string
-	/*
-		must be xmpp
-	*/
-	SignalEngine string
-	/*
-		turn server for ice
-	*/
-	TurnServer   string
-	StunServer   string
-	TurnUser     string
-	TurnPassword string
+	XMPPServer                string
 }
 
 //DefaultConfig default config
 var DefaultConfig = Config{
 	Port:          InitialPort,
-	ExternPort:    InitialPort,
 	PrivateKeyHex: "",
 	RevealTimeout: DefaultRevealTimeout,
 	SettleTimeout: DefaultSettleTimeout,
@@ -96,19 +73,14 @@ var DefaultConfig = Config{
 		RetriesBeforeBackoff: defaultProtocolRetiesBeforeBackoff,
 		ThrottleCapacity:     defaultProtocolRhrottleCapacity,
 		ThrottleFillRate:     defaultProtocolThrottleFillRate,
-		NatInvitationTimeout: DefaultNATInvitationTimeout,
-		NatKeepAliveRetries:  DefaultKeepAliveReties,
-		NatKeepAliveTimeout:  DefaultNATKeepAliveTimeout,
 	},
-	UseRPC:           true,
-	UseConsole:       false,
-	RegistryAddress:  RopstenRegistryAddress,
-	DiscoveryAddress: RopstenDiscoveryAddress,
-	MsgTimeout:       100 * time.Second,
-	Ice: iceConfig{
-		SignalServer: DefaultSignalServer,
-	},
+	UseRPC:            true,
+	UseConsole:        false,
+	RegistryAddress:   RopstenRegistryAddress,
+	DiscoveryAddress:  RopstenDiscoveryAddress,
+	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
+	XMPPServer:        DefaultXMPPServer,
 }
 
 //ConditionQuit is for test

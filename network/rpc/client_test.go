@@ -9,6 +9,8 @@ import (
 
 	"fmt"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -101,30 +103,26 @@ func TestEventAddressRegistered(t *testing.T) {
 
 func TestCodeAt(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	addrKilled := common.HexToAddress("0xad65d5b1210a80e8664aa58185bcd492184a43fa")
 	addrNotExist := common.HexToAddress("0x0000000000000000000000000000000000000000")
-	addrHasContract := params.RopstenRegistryAddress
-	//
-	code, err := bcs.Client.CodeAt(context.Background(), addrKilled, nil)
+	addrHasContract := common.HexToAddress(os.Getenv("REGISTRY"))
+
+	code, err := bcs.Client.CodeAt(context.Background(), addrNotExist, nil)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(code) != 0 {
-		t.Error("selfdestruct contract's code should be empty")
-	}
-	code, err = bcs.Client.CodeAt(context.Background(), addrNotExist, nil)
-	if err != nil {
-		t.Error(err)
+		return
 	}
 	if len(code) != 0 {
 		t.Error("not exist account's code shoule be empty")
+		return
 	}
 	code, err = bcs.Client.CodeAt(context.Background(), addrHasContract, nil)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if len(code) <= 0 {
 		t.Error("this conctract 's code should not be empty")
+		return
 	}
 }
 
