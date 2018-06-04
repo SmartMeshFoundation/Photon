@@ -25,6 +25,7 @@ type AlarmTask struct {
 	client          *helper.SafeEthClient
 	LastBlockNumber int64
 	shouldStop      chan struct{}
+	stopped         bool
 	waitTime        time.Duration
 	callback        []AlarmCallback
 	lock            sync.Mutex
@@ -98,6 +99,9 @@ func (at *AlarmTask) waitNewBlock() error {
 	for {
 		select {
 		case h, ok := <-headerCh:
+			if at.stopped {
+				return nil
+			}
 			if !ok {
 				//client broke?
 				return errors.New("SubscribeNewHead channel closed unexpected")
@@ -121,14 +125,13 @@ func (at *AlarmTask) waitNewBlock() error {
 			}
 		case <-at.shouldStop:
 			sub.Unsubscribe()
-			//close(headerCh) //should close by ethclient
 			return nil
 		case err = <-sub.Err():
 			//reconnect here, todo fix ,how to distinguish which error should reconnect
 			log.Error(fmt.Sprintf("err=%s", err))
 			//spew.Dump(err)
 			//if eof try to reconnect
-			if err != nil {
+			if err != nil && !at.stopped {
 				at.client.RecoverDisconnect()
 				return errors.New("broken connection")
 			}
@@ -150,7 +153,7 @@ func (at *AlarmTask) Start() {
 //Stop this task
 func (at *AlarmTask) Stop() {
 	log.Info("alarm task stop...")
-	at.shouldStop <- struct{}{}
+	at.stopped = true
 	close(at.shouldStop)
 	log.Info("alarm task stop ok...")
 }

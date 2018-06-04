@@ -30,6 +30,7 @@ type Events struct {
 	Subscribes         map[string]ethereum.Subscription
 	StateChangeChannel chan transfer.StateChange
 	stopped            bool // has stopped?
+	quitChan           chan struct{}
 }
 
 //NewBlockChainEvents create BlockChainEvents
@@ -38,6 +39,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Ad
 		LogChannelMap:   make(map[string]chan types.Log),
 		Subscribes:      make(map[string]ethereum.Subscription),
 		RegistryAddress: registryAddress,
+		quitChan:        make(chan struct{}),
 	}
 	for _, name := range eventNames {
 		be.LogChannelMap[name] = make(chan types.Log, 10)
@@ -77,14 +79,19 @@ func (be *Events) installEventListener() (err error) {
 			c := be.client.RegisterReConnectNotify("Events")
 			go func() {
 				defer rpanic.PanicRecover("installEventListener")
-				_, ok := <-c
-				if ok {
-					//eventlistener need reinstall
-					err = be.installEventListener()
-					if err != nil {
-						log.Error(fmt.Sprintf("installEventListener err %s", err))
+				select {
+				case _, ok := <-c:
+					if ok {
+						//eventlistener need reinstall
+						err = be.installEventListener()
+						if err != nil {
+							log.Error(fmt.Sprintf("installEventListener err %s", err))
+						}
 					}
+				case <-be.quitChan:
+					return
 				}
+
 			}()
 		}
 	}()
@@ -216,8 +223,11 @@ func (be *Events) startListenEvent() {
 					}
 					//event to statechange
 				case err := <-sub.Err():
-					log.Error(fmt.Sprintf("eventlistener %s error:%v", name, err))
-					//close(ch)
+					if !be.stopped {
+						log.Error(fmt.Sprintf("eventlistener %s error:%v", name, err))
+					}
+					return
+				case <-be.quitChan:
 					return
 				}
 			}
@@ -229,7 +239,7 @@ func (be *Events) startListenEvent() {
 func (be *Events) Stop() {
 	log.Info("Events stop...")
 	be.stopped = true
-	close(be.StateChangeChannel)
+	close(be.quitChan)
 	for _, sub := range be.Subscribes {
 		sub.Unsubscribe()
 	}
