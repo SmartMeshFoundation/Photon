@@ -2,10 +2,78 @@ package network
 
 import (
 	"testing"
+
+	"net"
+
+	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/ethereum/go-ethereum/common"
 )
 
-func TestNewMixDiscovery(t *testing.T) {
-
-	NewMixTranspoter("test", "127.0.0.0.1", 5001, nil, &dummyPolicy{})
-
+func TestNewMixTransport(t *testing.T) {
+	key1, _ := utils.MakePrivateKeyAddress()
+	key2, _ := utils.MakePrivateKeyAddress()
+	key3, _ := utils.MakePrivateKeyAddress()
+	m1, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 40001, key1, newDummyProtocol("m1"), &dummyPolicy{}, DeviceTypeMobile)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	m2, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 40002, key2, newDummyProtocol("m2"), &dummyPolicy{}, DeviceTypeOther)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	m3, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 40003, key3, newDummyProtocol("m3"), &dummyPolicy{}, DeviceTypeMobile)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	m1.Start()
+	m2.Start()
+	m3.Start()
+	defer m1.Stop()
+	defer m2.Stop()
+	defer m3.Stop()
+	nodes := map[common.Address]*net.UDPAddr{
+		m1.xmpp.NodeAddress: m1.udp.UAddr,
+		m3.xmpp.NodeAddress: m3.udp.UAddr,
+	}
+	//m3.udp.setHostPort(nodes)
+	m1.udp.setHostPort(nodes)
+	datam12 := []byte("m1->m2")
+	datam13 := []byte("m1->m3")
+	err = m1.Send(m2.xmpp.NodeAddress, datam12)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = m1.Send(m3.xmpp.NodeAddress, datam13)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	deviceType, isOnline := m1.NodeStatus(m2.xmpp.NodeAddress)
+	if !isOnline || deviceType != DeviceTypeOther {
+		t.Error("type error")
+		return
+	}
+	deviceType, isOnline = m1.NodeStatus(m3.xmpp.NodeAddress)
+	if !isOnline || deviceType != DeviceTypeMobile {
+		t.Error("type error")
+		return
+	}
+	deviceType, isOnline = m3.NodeStatus(m1.xmpp.NodeAddress)
+	if !isOnline || deviceType != DeviceTypeMobile {
+		t.Error("type error")
+		return
+	}
+	err = m3.Send(m1.xmpp.NodeAddress, []byte("m3->m1"))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	time.Sleep(time.Second * 3)
 }

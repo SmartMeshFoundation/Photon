@@ -5,12 +5,14 @@ import (
 
 	"sync"
 
+	"os"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestChannelConcurrentQuery(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	ch, err := bcs.NettingChannel(common.HexToAddress("0x2244d2509cbBFe7a8616ed86ab5c3ECe8FDC40Fe"))
+	ch, err := bcs.NettingChannel(common.HexToAddress(os.Getenv("CHANNEL")))
 	if err != nil {
 		t.Error(err)
 		return

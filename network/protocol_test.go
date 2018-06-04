@@ -3,10 +3,6 @@ package network
 import (
 	"testing"
 
-	"math/rand"
-
-	"bytes"
-
 	"time"
 
 	"os"
@@ -19,81 +15,18 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
-//need a valid account on blockchain and it needs gas
-func TestDiscovery(t *testing.T) {
-	bcs := rpc.MakeTestBlockChainService()
-	discover := NewContractDiscovery(bcs.NodeAddress, common.HexToAddress(os.Getenv("DISCOVERY")), bcs.Client, bcs.Auth)
-	host, port, err := discover.Get(bcs.NodeAddress)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	host = "0.0.0.0"
-	port = rand.New(utils.RandSrc).Intn(50000)
-	if err2 := discover.Register(bcs.NodeAddress, host, port); err2 != nil {
-		t.Error(err2)
-		return
-	}
-	newhost, newport, err := discover.Get(bcs.NodeAddress)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if host != newhost || newport != newport {
-		t.Error("register Host Port failer")
-		return
-	}
-}
-
-//func TestNewHttpDiscovery(t *testing.T) {
-//	dis := NewHTTPDiscovery()
-//	host := "127.0.0.1"
-//	port := rand.New(utils.RandSrc).Intn(50000)
-//	addr := utils.NewRandomAddress()
-//	err := dis.Register(addr, host, port)
-//	if err != nil {
-//		t.Error(err)
-//	}
-//	host2, port2, err := dis.Get(addr)
-//	if err != nil || host2 != host || port2 != port {
-//		t.Error(err)
-//	}
-//	address, err := dis.NodeIDByHostPort(host, port)
-//	if err != nil || address != addr {
-//		t.Error(err)
-//	}
-//
-//}
-
-var lastreceive [][]byte
-var lastsend [][]byte
-
-func registercallback() {
-	lastreceive = nil
-	lastsend = nil
-	RegisterReceiveCallback(func(sender common.Address, hostport string, msg []byte) {
-		lastreceive = append(lastreceive, msg)
-	})
-	RegisterSendCallback(func(sender common.Address, hostport string, msg []byte) {
-		lastsend = append(lastsend, msg)
-	})
-}
-
 func TestRaidenProtocolSendReceive(t *testing.T) {
 	log.Trace("log...")
-	p1 := MakeTestRaidenProtocol()
-	p2 := MakeTestRaidenProtocol()
-	registercallback()
+	p1 := MakeTestRaidenProtocol("p1")
+	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	p2.Start()
 	ping := encoding.NewPing(32)
@@ -103,24 +36,11 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(lastsend) != 2 || len(lastreceive) != 2 {
-		t.Error("send receive packet numer error")
-		return
-	}
-	spew.Dump("send:", lastsend)
-	spew.Dump("receive", lastreceive)
-	if !bytes.Equal(lastsend[0], lastreceive[0]) {
-		t.Error("first packet not match")
-	}
-	if !bytes.Equal(lastsend[1], lastreceive[1]) {
-		t.Error("second packet not match")
-	}
 }
 func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 	log.Trace("log...")
-	p1 := MakeTestRaidenProtocol()
-	p2 := MakeTestRaidenProtocol()
-	registercallback()
+	p1 := MakeTestRaidenProtocol("p1")
+	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
@@ -129,18 +49,11 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 		t.Error(errors.New("should timeout"))
 		return
 	}
-	//if len(lastsend) != int(time.Second*2/p1.retryInterval)+1 || len(lastreceive) != 0 {
-	//	t.Error(fmt.Sprintf("send receive packet numer error,expect sent=%d, got=%d",
-	//		len(lastsend), int(time.Second*2/p1.retryInterval)+1))
-	//	//return
-	//}
-	spew.Dump("send:", lastsend)
-	spew.Dump("receive", lastreceive)
 }
 func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	var msg encoding.SignedMessager
-	p1 := MakeTestRaidenProtocol()
-	p2 := MakeTestRaidenProtocol()
+	p1 := MakeTestRaidenProtocol("p1")
+	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	p2.Start()
 	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
@@ -178,11 +91,11 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
+func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 	var msg encoding.SignedMessager
 	var wg = sync.WaitGroup{}
-	p1 := MakeTestIceRaidenProtocol("client1")
-	p2 := MakeTestIceRaidenProtocol("client2")
+	p1 := MakeTestRaidenProtocol("p1")
+	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	p2.Start()
 	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
@@ -225,8 +138,7 @@ func TestIceRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 
 func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	log.Trace("log...")
-	p1 := MakeTestDiscardExpiredTransferRaidenProtocol()
-	registercallback()
+	p1 := MakeTestDiscardExpiredTransferRaidenProtocol("p1")
 	p1.Start()
 	expiration := 7 //7 second
 	lock := encoding.Lock{

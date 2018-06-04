@@ -4,7 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"net"
+
+	"bytes"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,20 +29,46 @@ func TestTokenBucket(t *testing.T) {
 }
 
 func TestUDPTransport(t *testing.T) {
-	udp1 := MakeTestUDPTransport(40000)
-	udp2 := MakeTestUDPTransport(40001)
-	registercallback()
-	udp1.RegisterProtocol(new(DummyProtocol))
-	udp2.RegisterProtocol(new(DummyProtocol))
+	udp1 := MakeTestUDPTransport("u1", 40000)
+	udp2 := MakeTestUDPTransport("u2", 40001)
+	addr1 := utils.NewRandomAddress()
+	addr2 := utils.NewRandomAddress()
+	nodes := map[common.Address]*net.UDPAddr{
+		addr1: udp1.UAddr,
+		addr2: udp2.UAddr,
+	}
+	udp1.setHostPort(nodes)
+	udp2.setHostPort(nodes)
+	d1 := newDummyProtocol("u1")
+	d2 := newDummyProtocol("u2")
+	udp1.RegisterProtocol(d1)
+	udp2.RegisterProtocol(d2)
 	udp1.Start()
 	udp2.Start()
-	err := udp1.Send(utils.EmptyAddress, udp2.Host, udp2.Port, []byte("abcdefg"))
+	defer udp1.Stop()
+	defer udp2.Stop()
+	deviceType, isOnline := udp1.NodeStatus(addr1)
+	if deviceType != DeviceTypeMobile || !isOnline {
+		t.Error("node status error")
+		return
+	}
+	deviceType, isOnline = udp1.NodeStatus(utils.NewRandomAddress())
+	if isOnline {
+		t.Error("should unkown")
+		return
+	}
+	data := []byte("abc")
+	err := udp1.Send(addr2, data)
 	if err != nil {
 		t.Error(err)
+		return
 	}
-
-	time.Sleep(time.Millisecond * 10)
-	assert.EqualValues(t, len(lastsend), 1, "send data error")
-	assert.EqualValues(t, len(lastreceive), 1, "send data error")
-	assert.EqualValues(t, lastsend[0], lastreceive[0], "send receive error")
+	select {
+	case <-time.After(time.Millisecond * 100):
+		t.Error("timeout")
+	case data2 := <-d2.data:
+		if !bytes.Equal(data2, data) {
+			t.Error("not equal")
+		}
+	}
 }

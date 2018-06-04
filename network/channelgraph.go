@@ -372,9 +372,9 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			log.Debug(fmt.Sprintf("channel %s-%s doesn't have enough funds[%d],ignoring...", utils.APex(ourAddress), utils.APex(nw.neighbor), amount))
 			continue
 		}
-		status := nodesStatus.GetNetworkStatus(nw.neighbor)
-		if status == NodeNetworkUnreachable {
-			log.Debug(fmt.Sprintf("partener %s network ignored.. for:%s", utils.APex(nw.neighbor), status))
+		deviceType, isOnline := nodesStatus.GetNetworkStatus(nw.neighbor)
+		if !isOnline || deviceType == DeviceTypeMobile {
+			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}
 		routeState := Channel2RouteState(c, nw.neighbor, amount, feeCharger)

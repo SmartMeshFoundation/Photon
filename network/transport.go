@@ -7,10 +7,15 @@ import (
 
 	"net"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/go-errors/errors"
 )
 
 //Policier to control the sending speed of transporter
@@ -23,12 +28,19 @@ type Policier interface {
 	Consume(tokens float64) time.Duration
 }
 
+//DeviceTypeMobile if you are a raiden running on a mobile phone
+var DeviceTypeMobile = xmpptransport.TypeMobile
+
+//DeviceTypeMeshBox if you are a raiden running on a meshbox
+var DeviceTypeMeshBox = xmpptransport.TypeMeshBox
+
+//DeviceTypeOther if you don't known the type,and is not a mobile phone, then other
+var DeviceTypeOther = xmpptransport.TypeOtherDevice
+
 //Transporter denotes a communication transport used by protocol
 type Transporter interface {
-	//Send a message
-	Send(receiver common.Address, host string, port int, data []byte) error
-	//receive a message
-	receive(data []byte, host string, port int) error
+	//Send a message to receiver
+	Send(receiver common.Address, data []byte) error
 	//Start ,ready for send and receive
 	Start()
 	//Stop send and receive
@@ -37,11 +49,8 @@ type Transporter interface {
 	StopAccepting()
 	//RegisterProtocol a receiver
 	RegisterProtocol(protcol ProtocolReceiver)
-}
-type messageCallBack func(sender common.Address, hostport string, msg []byte)
-
-func tohostport(host string, port int) string {
-	return fmt.Sprintf("%s:%d", host, port)
+	//NodeStatus get node's status and is online right now
+	NodeStatus(addr common.Address) (deviceType string, isOnline bool)
 }
 
 type dummyPolicy struct {
@@ -102,155 +111,93 @@ func (tb *TokenBucket) getTokens() {
 	tb.Timestamp = tb.timeFunc()
 }
 
-//dummyNetwork Store global state for an in process network, this won't use a real
-//network protocol
-type dummyNetwork struct {
-	Transports              map[string]Transporter
-	Counter                 int
-	MessageSendCallbacks    []messageCallBack
-	MessageReceiveCallbacks []messageCallBack
-}
-
-func newDummyNetwork() *dummyNetwork {
-	return &dummyNetwork{
-		Transports: make(map[string]Transporter),
-		Counter:    0,
-	}
-}
-
-var dummyNet = newDummyNetwork()
-
-//RegisterSendCallback register callback
-func RegisterSendCallback(cb messageCallBack) {
-	dummyNet.MessageSendCallbacks = append(dummyNet.MessageSendCallbacks, cb)
-}
-
-//RegisterReceiveCallback register callback
-func RegisterReceiveCallback(cb messageCallBack) {
-	dummyNet.MessageReceiveCallbacks = append(dummyNet.MessageReceiveCallbacks, cb)
-}
-
-//Register a new node in the dummy network.
-func (dn *dummyNetwork) Register(transpoter Transporter, host string, port int) {
-	hostport := fmt.Sprintf("%s:%d", host, port)
-	dn.Transports[hostport] = transpoter
-}
-
-//Register an attempt to send a packet. This method should be called
-//everytime send() is used.
-func (dn *dummyNetwork) trackSend(receiver common.Address, host string, port int, data []byte) error {
-	dn.Counter++
-	for _, cb := range dn.MessageSendCallbacks {
-		cb(receiver, tohostport(host, port), data)
-	}
-	return nil
-}
-
-func (dn *dummyNetwork) trackReceive(receiver common.Address, host string, port int, data []byte) {
-	for _, cb := range dn.MessageReceiveCallbacks {
-		cb(receiver, tohostport(host, port), data)
-	}
-}
-
-//Send a message
-func (dn *dummyNetwork) Send(sender common.Address, host string, port int, data []byte) error {
-	dn.trackSend(sender, host, port, data)
-	hostport := tohostport(host, port)
-	time.AfterFunc(time.Nanosecond, func() {
-		dn.Transports[hostport].receive(data, host, port)
-	})
-	return nil
-}
-
 //ProtocolReceiver receive
 type ProtocolReceiver interface {
-	receive(data []byte, host string, port int)
+	receive(data []byte)
 }
 
-//UDPTransport represents a UDP connection
+//
+/*
+UDPTransport represents a UDP server
+but how to handle listen error?
+we need stop listen when switch to background
+restart listen when switch foreground
+*/
 type UDPTransport struct {
 	protocol      ProtocolReceiver
 	conn          *SafeUDPConnection
-	Host          string
-	Port          int
+	UAddr         *net.UDPAddr
 	policy        Policier
-	isClosed      bool
+	stopped       bool
 	stopReceiving bool //todo use atomic to replace
+	intranetNodes map[common.Address]*net.UDPAddr
+	lock          sync.RWMutex
+	name          string
+	log           log.Logger
 }
 
 //NewUDPTransport create UDPTransport
-func NewUDPTransport(host string, port int, conn *SafeUDPConnection, protocol ProtocolReceiver, policy Policier) (t *UDPTransport, err error) {
+func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, policy Policier) (t *UDPTransport, err error) {
 	t = &UDPTransport{
-		Host:          host,
-		Port:          port,
+		UAddr: &net.UDPAddr{
+			IP:   net.ParseIP(host),
+			Port: port,
+		},
 		protocol:      protocol,
 		policy:        policy,
-		isClosed:      false,
-		stopReceiving: false,
+		log:           log.New("name", name),
+		intranetNodes: make(map[common.Address]*net.UDPAddr),
 	}
-	addr := &net.UDPAddr{
-		IP:   net.ParseIP(host),
-		Port: port}
-	if conn == nil {
-		conn, err = NewSafeUDPConnection("udp", addr)
-		if err != nil {
-			err = fmt.Errorf("listen udp %s:%d error %v", host, port, err)
-			return
-		}
-	}
-	t.conn = conn
-	log.Trace(fmt.Sprintf("listen udp on %s:%d", host, port))
 	return
-}
-func newUDPTransportWithHostPort(host string, port int, protocol ProtocolReceiver, policy Policier) *UDPTransport {
-	t, err := NewUDPTransport(host, port, nil, protocol, policy)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	return t
 }
 
 //Start udp listening
 func (ut *UDPTransport) Start() {
-	t := ut
 	go func() {
 		data := make([]byte, 4096)
+		defer rpanic.PanicRecover("udptransport Start")
 		for {
-			if t.stopReceiving {
-				break
-			}
-			read, remoteAddr, err := t.conn.ReadFromUDP(data)
-			//log.Trace("receive data:")
+			conn, err := NewSafeUDPConnection("udp", ut.UAddr)
 			if err != nil {
-				fmt.Println("udp read data failure!", err)
-				if !t.isClosed {
-					continue
-				} else {
+				log.Error(fmt.Sprintf("listen udp %s error %v", ut.UAddr.String(), err))
+				time.Sleep(time.Second)
+			}
+			ut.conn = conn
+			ut.log.Info(fmt.Sprintf(" listen udp on %s", ut.UAddr))
+			for {
+				if ut.stopReceiving {
 					return
 				}
+				read, remoteAddr, err := ut.conn.ReadFromUDP(data)
+				if err != nil {
+					if !ut.stopped {
+						ut.log.Error(fmt.Sprintf("udp read data failure! %s", err))
+						ut.conn.Close()
+						break
+					} else {
+						return
+					}
 
+				}
+				ut.log.Trace(fmt.Sprintf("receive from %s ,message=%s,hash=%s", remoteAddr,
+					encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
+				ut.Receive(data[:read])
 			}
-			log.Trace(fmt.Sprintf("%d receive from %s:%d,message=%s,hash=%s", t.Port, remoteAddr.IP.String(),
-				remoteAddr.Port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
-			t.receive(data[:read], remoteAddr.IP.String(), remoteAddr.Port)
 		}
 
 	}()
+	time.Sleep(time.Millisecond)
 }
-func (ut *UDPTransport) receive(data []byte, host string, port int) error {
-	//todo fix get raiden address, my node address
-	dummyNet.trackReceive(common.Address{}, host, port, data)
-	if ut.protocol != nil { //receive data before register a protocol
-		ut.protocol.receive(data, host, port)
-	}
 
+//Receive a message
+func (ut *UDPTransport) Receive(data []byte) error {
+	if ut.stopReceiving {
+		return errors.New("stop receive")
+	}
+	if ut.protocol != nil { //receive data before register a protocol
+		ut.protocol.receive(data)
+	}
 	return nil
-}
-func udpAddrFromHostport(host string, port int) *net.UDPAddr {
-	//ss := strings.Split(hostport, ":")
-	//Host := ss[0]
-	//Port, _ := strconv.Atoi(ss[1])
-	return &net.UDPAddr{IP: net.ParseIP(host), Port: port}
 }
 
 /*
@@ -260,17 +207,38 @@ Args:
     host_port (Tuple[(str, int)]): Tuple with the Host name and Port number.
     bytes_ (bytes): The bytes that are going to be sent through the wire.
 */
-func (ut *UDPTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	dummyNet.trackSend(receiver, host, port, data)
-	log.Trace(fmt.Sprintf("%d send to %s %s:%d, message=%s,response hash=%s", ut.Port, utils.APex2(receiver), host, port, encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:]))))
-	//only comment this line,if you want to test.
-	//time.Sleep(ut.policy.Consume(1)) //force to wait,
-	//todo need one lock for write?
-	_, err := ut.conn.WriteToUDP(data, udpAddrFromHostport(host, port))
+func (ut *UDPTransport) Send(receiver common.Address, data []byte) error {
+	if ut.stopped {
+		return fmt.Errorf("%s closed", ut.name)
+	}
+	ua, err := ut.getHostPort(receiver)
 	if err != nil {
 		return err
 	}
-	return nil
+	ut.log.Trace(fmt.Sprintf("%s send to %s %s:%d, message=%s,response hash=%s", ut.name,
+		utils.APex2(receiver), ua.IP, ua.Port, encoding.MessageType(data[0]),
+		utils.HPex(utils.Sha3(data, receiver[:]))))
+	//only comment this line,if you want to test.
+	//time.Sleep(ut.policy.Consume(1)) //force to wait,
+	//todo need one lock for write?
+	_, err = ut.conn.WriteToUDP(data, ua)
+	return err
+}
+
+func (ut *UDPTransport) getHostPort(addr common.Address) (ua *net.UDPAddr, err error) {
+	ut.lock.RLock()
+	defer ut.lock.RUnlock()
+	ua, ok := ut.intranetNodes[addr]
+	if ok {
+		return
+	}
+	err = fmt.Errorf("%s host port not found", utils.APex(addr))
+	return
+}
+func (ut *UDPTransport) setHostPort(nodes map[common.Address]*net.UDPAddr) {
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
+	ut.intranetNodes = nodes
 }
 
 //RegisterProtocol register receiver
@@ -280,7 +248,9 @@ func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 
 //Stop UDP connection
 func (ut *UDPTransport) Stop() {
-	ut.isClosed = true
+	ut.stopReceiving = true
+	ut.stopped = true
+	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
 	ut.conn.Close()
 }
 
@@ -289,74 +259,12 @@ func (ut *UDPTransport) StopAccepting() {
 	ut.stopReceiving = true
 }
 
-// Communication between inter-process nodes.
-type dummyTransport struct {
-	protocol ProtocolReceiver
-	host     string
-	port     int
-	policy   Policier
-}
-
-//NewDummyTransport create a dummy transporter
-func NewDummyTransport(host string, port int, protocol ProtocolReceiver, policy Policier) Transporter {
-	t := &dummyTransport{
-		protocol: protocol,
-		host:     host,
-		port:     port,
-		policy:   policy,
+//NodeStatus always mark the node offline
+func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	ut.lock.RLock()
+	defer ut.lock.RUnlock()
+	if _, ok := ut.intranetNodes[addr]; ok {
+		return DeviceTypeMobile, true
 	}
-	dummyNet.Register(t, host, port)
-	return t
-}
-
-//Send a message
-func (dt *dummyTransport) Send(receiver common.Address, host string, port int, data []byte) error {
-	time.Sleep(dt.policy.Consume(1))
-	return dummyNet.Send(receiver, host, port, data)
-}
-func (dt *dummyTransport) receive(data []byte, host string, port int) error {
-	dummyNet.trackReceive(common.Address{}, host, port, data)
-	dt.protocol.receive(data, host, port)
-	return nil
-}
-
-//RegisterProtocol a callback
-func (dt *dummyTransport) RegisterProtocol(protcol ProtocolReceiver) {
-	dt.protocol = protcol
-}
-
-//Start dummy
-func (dt *dummyTransport) Start() {
-
-}
-
-//Stop dummy
-func (dt *dummyTransport) Stop() {
-
-}
-
-//StopAccepting dummy
-func (dt *dummyTransport) StopAccepting() {
-
-}
-
-type unreliableTransport struct {
-	dummyTransport
-	DropRate int
-}
-
-func newUnreliableTransport(t *dummyTransport) *unreliableTransport {
-	return &unreliableTransport{dummyTransport: *t, DropRate: 2}
-}
-
-//Send a message ,it drops message randomly.
-func (ut *unreliableTransport) Send(sender common.Address, host string, port int, data []byte) error {
-	time.Sleep(ut.policy.Consume(1))
-	drop := dummyNet.Counter%ut.DropRate == 0
-	if !drop {
-		return dummyNet.Send(sender, host, port, data)
-	}
-	dummyNet.trackSend(sender, host, port, data)
-	log.Debug("dropped packet ", dummyNet.Counter, utils.Pex(data))
-	return nil
+	return DeviceTypeOther, false
 }

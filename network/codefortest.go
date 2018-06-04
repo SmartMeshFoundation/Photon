@@ -1,44 +1,47 @@
 package network
 
 import (
+	"crypto/ecdsa"
 	"time"
 
 	"fmt"
 
-	"math/rand"
-
-	"crypto/ecdsa"
+	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var testdiscovery DiscoveryInterface
-
-//var testtransport Transporter
-
-func init() {
-	testdiscovery = NewDiscovery()
-	//testtransport = MakeTestUDPTransport(rand.Intn(50000))
+//dummyProtocol only print received message
+type dummyProtocol struct {
+	name string
+	data chan []byte
 }
 
-//DummyProtocol only print received message
-type DummyProtocol struct {
+func newDummyProtocol(name string) *dummyProtocol {
+	return &dummyProtocol{
+		name: name,
+		data: make(chan []byte, 20),
+	}
 }
-
-func (p *DummyProtocol) receive(data []byte, host string, port int) {
-	log.Debug(fmt.Sprintf("receive from %s:%d data len=%d", host, port, len(data)))
+func (p *dummyProtocol) receive(data []byte) {
+	log.Debug(fmt.Sprintf("%s receive  data len=%d,data=\n%s", p.name, len(data), hex.Dump(data)))
+	p.data <- data
 }
 
 //MakeTestUDPTransport test only
-func MakeTestUDPTransport(port int) *UDPTransport {
-	return newUDPTransportWithHostPort("127.0.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
+func MakeTestUDPTransport(name string, port int) *UDPTransport {
+	t, err := NewUDPTransport(name, "127.0.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
-//GetTestDiscovery test only
-func GetTestDiscovery() DiscoveryInterface {
-	return testdiscovery
+//MakeTestXMPPTransport create a test xmpp transport
+func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
+	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
 }
 
 type testBlockNumberGetter struct{}
@@ -65,33 +68,15 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 }
 
 //MakeTestRaidenProtocol test only
-func MakeTestRaidenProtocol() *RaidenProtocol {
-	port := rand.New(utils.RandSrc).Intn(50000)
+func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey, &testBlockNumberGetter{})
-	testdiscovery.Register(rp.nodeAddr, "127.0.0.1", port)
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testBlockNumberGetter{})
 	return rp
 }
 
 //MakeTestDiscardExpiredTransferRaidenProtocol test only
-func MakeTestDiscardExpiredTransferRaidenProtocol() *RaidenProtocol {
-	port := rand.New(utils.RandSrc).Intn(50000)
+func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestUDPTransport(port), testdiscovery, privkey, newTimeBlockNumberGetter(time.Now()))
-	testdiscovery.Register(rp.nodeAddr, "127.0.0.1", port)
-	return rp
-}
-
-//NewTestIceTransport test only
-func NewTestIceTransport(key *ecdsa.PrivateKey, name string) *IceTransport {
-	InitIceTransporter("182.254.155.208:3478", "bai", "bai", "139.199.6.114:5222")
-	it, _ := NewIceTransporter(key, name)
-	return it
-}
-
-//MakeTestIceRaidenProtocol test only
-func MakeTestIceRaidenProtocol(name string) *RaidenProtocol {
-	key, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(NewTestIceTransport(key, name), NewIceHelperDiscovery(), key, &testBlockNumberGetter{})
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
 	return rp
 }
