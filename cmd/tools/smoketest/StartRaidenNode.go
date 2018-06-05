@@ -127,10 +127,9 @@ func StartRaidenNode(RegistryAddress string) {
 	}
 
 	param.passwordFile = c.RdString(paramsSection, "password_file", "")
-	param.nat = c.RdString(paramsSection, "nat", "none")
 	param.ethRPCEndpoint = c.RdString(paramsSection, "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 	param.debug = c.RdBool(paramsSection, "debug", true)
-
+	param.xmppServer = c.RdString(paramsSection, "xmpp-server", "182.254.155.208:5222")
 	//start 6 raiden node
 	var NODE string
 	exepath := c.RdString(paramsSection, "raidenpath", "")
