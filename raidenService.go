@@ -128,6 +128,7 @@ type RaidenService struct {
 	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
 	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
 	HealthCheckMap                      map[common.Address]bool
+	quitChan                            chan struct{} //for quit notification
 }
 
 //NewRaidenService create raiden service
@@ -153,7 +154,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
 		BlockChainEvents:                    blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
-		BlockNumberChan:                     make(chan int64, 1),
+		BlockNumberChan:                     make(chan int64, 20), //not block alarm task
 		UserReqChan:                         make(chan *apiReq, 10),
 		BlockNumber:                         new(atomic.Value),
 		ProtocolMessageSendComplete:         make(chan *protocolMessage, 10),
@@ -163,6 +164,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
 		FeePolicy:                           &ConstantFeePolicy{},
 		HealthCheckMap:                      make(map[common.Address]bool),
+		quitChan:                            make(chan struct{}),
 	}
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
@@ -187,22 +189,17 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	return srv, nil
 }
 
-type stoper interface {
-	Stop()
-}
-
-func stopHelper(err error, s stoper) {
-	if err != nil {
-		s.Stop()
-	}
-}
-
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 	lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
-	rs.AlarmTask.Start()
-	//must have a valid blocknumber before any transfer operation
-	rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+	err = rs.AlarmTask.Start()
+	if err != nil {
+		n := rs.db.GetLatestBlockNumber()
+		rs.BlockNumber.Store(n)
+	} else {
+		//must have a valid blocknumber before any transfer operation
+		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+	}
 	rs.AlarmTask.RegisterCallback(func(number int64) error {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
@@ -266,9 +263,11 @@ func (rs *RaidenService) Start() (err error) {
 //Stop the node.
 func (rs *RaidenService) Stop() {
 	log.Info("raiden service stop...")
+	close(rs.quitChan)
 	rs.AlarmTask.Stop()
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
+	rs.Chain.Client.Close()
 	rs.saveSnapshot()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
@@ -342,6 +341,9 @@ func (rs *RaidenService) loop() {
 				log.Info("ProtocolMessageSendComplete closed")
 				return
 			}
+		case <-rs.quitChan:
+			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
+			return
 		}
 	}
 }
