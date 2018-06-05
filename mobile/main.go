@@ -11,21 +11,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
-var (
-	argAddress                  string
-	argKeyStorePath             string
-	argEthRPCEndpoint           string
-	argRegistryContractAddress  = params.RopstenRegistryAddress.String()
-	argDiscoveryContractAddress = params.RopstenDiscoveryAddress.String()
-	argListenAddress            = "0.0.0.0:40001"
-	argAPIAddress               = "0.0.0.0:5001"
-	argDataDir                  string
-	argPasswordFile             string
-	argNat                      = "stun"
-	argLogging                  = "trace"
-	argLogfile                  = ""
-)
-
 func init() {
 	debug.SetTraceback("crash")
 }
@@ -45,11 +30,6 @@ passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, listenAddr, logFile string, otherArgs ...string) (api *API, err error) {
-	argAddress = address
-	argKeyStorePath = keystorePath
-	argEthRPCEndpoint = ethRPCEndPoint
-	argDataDir = dataDir
-	argPasswordFile = passwordfile
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "smartraidenmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
