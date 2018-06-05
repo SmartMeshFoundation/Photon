@@ -8,8 +8,6 @@ import (
 
 	"encoding/json"
 
-	"fmt"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,7 +31,7 @@ func TestMobile(t *testing.T) {
 		return
 	}
 	if len(tokensstr) <= 0 {
-		t.Error(fmt.Sprintf("tokens length err"))
+		t.Errorf("tokens length err")
 		return
 	}
 	var channels []*v1.ChannelData
