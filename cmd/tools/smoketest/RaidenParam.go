@@ -11,14 +11,12 @@ type RaidenParam struct {
 	address string
 	//key address of the Account
 	keystorePath string
-	//Node discovery address
-	discoveryContractAddress string
 	//Contract address
 	registryContractAddress string
 	//The key and password file of the account
 	passwordFile string
-	//NAT type
-	nat string
+	//XMPP server
+	xmppServer string
 	//Geth service address
 	ethRPCEndpoint string
 	//Exiting event
@@ -35,10 +33,9 @@ func (rp *RaidenParam) getParam() []string {
 	param = append(param, "--listen-address="+rp.listenAddress)
 	param = append(param, "--address="+rp.address)
 	param = append(param, "--keystore-path="+rp.keystorePath)
-	param = append(param, "--discovery-contract-address="+rp.discoveryContractAddress)
 	param = append(param, "--registry-contract-address="+rp.registryContractAddress)
 	param = append(param, "--password-file="+rp.passwordFile)
-	param = append(param, "--nat="+rp.nat)
+	param = append(param, "--xmpp-server="+rp.xmppServer)
 	param = append(param, "--eth-rpc-endpoint="+rp.ethRPCEndpoint)
 	param = append(param, "--verbosity=5")
 	if rp.debug == true {
