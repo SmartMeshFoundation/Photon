@@ -40,12 +40,15 @@ func SettleChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 	if channel == nil {
 		channel = &(channels[0])
 	}
+	log.Println("sleep 120s to waiting channel close")
+	Logger.Println("sleep 120s to waiting channel close")
+	time.Sleep(120 * time.Second)
 	// run case
 	case1 := &APITestCase{
 		CaseName:  caseName,
 		AllowFail: allowFail,
 		Req: &models.Req{
-			APIName: "CloseChannel",
+			APIName: "SettleChannel",
 			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelAddress,
 			Method:  http.MethodPatch,
 			Payload: "{\"state\":\"settled\"}",
