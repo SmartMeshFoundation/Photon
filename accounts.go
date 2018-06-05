@@ -34,6 +34,7 @@ func NewAccountManager(keyPath string) (mgr *AccountManager) {
 	}
 	ks := keystore.NewKeyStore(keyPath, keystore.StandardScryptN, keystore.StandardScryptP)
 	mgr.Accounts = ks.Accounts()
+	ks.Close()
 	return
 }
 
