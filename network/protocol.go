@@ -139,7 +139,9 @@ type RaidenProtocol struct {
 	onStop                    bool //flag for stop
 	//notify quit
 	quitChan chan struct{}
-	log      log.Logger
+	//receive data
+	receiveChan chan []byte
+	log         log.Logger
 }
 
 //NewRaidenProtocol create RaidenProtocol
@@ -155,10 +157,12 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNu
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		BlockNumberGetter:         blockNumberGetter,
 		quitChan:                  make(chan struct{}),
+		receiveChan:               make(chan []byte, 20),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
 	rp.log = log.New("name", utils.APex2(rp.nodeAddr))
+	go rp.loop()
 	return rp
 }
 
@@ -396,6 +400,19 @@ func (p *RaidenProtocol) GetNetworkStatus(addr common.Address) (deviceType strin
 	return p.Transport.NodeStatus(addr)
 }
 func (p *RaidenProtocol) receive(data []byte) {
+	p.receiveChan <- data
+}
+func (p *RaidenProtocol) loop() {
+	for {
+		select {
+		case <-p.quitChan:
+			return
+		case data := <-p.receiveChan:
+			p.receiveInternal(data)
+		}
+	}
+}
+func (p *RaidenProtocol) receiveInternal(data []byte) {
 	if len(data) > params.UDPMaxMessageSize {
 		p.log.Error("receive packet larger than maximum size :", len(data))
 		return
