@@ -46,6 +46,12 @@ func Dial(rawurl string) (*Client, error) {
 	return NewClient(c), nil
 }
 
+//Close connection
+//by bai fix memory leak
+func (ec *Client) Close() {
+	ec.c.Close()
+}
+
 // NewClient creates a client that uses the given RPC client.
 func NewClient(c *rpc.Client) *Client {
 	return &Client{c}
