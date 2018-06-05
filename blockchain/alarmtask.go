@@ -24,7 +24,7 @@ type AlarmCallback func(blockNumber int64) error
 type AlarmTask struct {
 	client          *helper.SafeEthClient
 	LastBlockNumber int64
-	shouldStop      chan struct{}
+	quitChan        chan struct{}
 	stopped         bool
 	waitTime        time.Duration
 	callback        []AlarmCallback
@@ -37,7 +37,7 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 		client:          client,
 		waitTime:        time.Second,
 		LastBlockNumber: -1,
-		shouldStop:      make(chan struct{}), //sync channel
+		quitChan:        make(chan struct{}), //sync channel
 	}
 	return t
 }
@@ -74,6 +74,10 @@ func (at *AlarmTask) run() {
 	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", at.LastBlockNumber))
 	defer rpanic.PanicRecover("alarm task")
 	for {
+		if at.stopped {
+			log.Info(fmt.Sprintf("alarm task quit complete"))
+			return
+		}
 		err := at.waitNewBlock()
 		if err != nil {
 			time.Sleep(at.waitTime)
@@ -123,7 +127,7 @@ func (at *AlarmTask) waitNewBlock() error {
 			for _, cb := range removes {
 				at.RemoveCallback(cb)
 			}
-		case <-at.shouldStop:
+		case <-at.quitChan:
 			sub.Unsubscribe()
 			return nil
 		case err = <-sub.Err():
@@ -141,19 +145,20 @@ func (at *AlarmTask) waitNewBlock() error {
 }
 
 //Start this task
-func (at *AlarmTask) Start() {
+func (at *AlarmTask) Start() error {
 	h, err := at.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
-		panic(fmt.Sprintf("HeaderByNumber error %s", err))
+		return fmt.Errorf("HeaderByNumber error %s", err)
 	}
 	at.LastBlockNumber = h.Number.Int64()
 	go at.run()
+	return nil
 }
 
 //Stop this task
 func (at *AlarmTask) Stop() {
 	log.Info("alarm task stop...")
 	at.stopped = true
-	close(at.shouldStop)
+	close(at.quitChan)
 	log.Info("alarm task stop ok...")
 }
