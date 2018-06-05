@@ -87,6 +87,9 @@ func (e *ExternalState) SetSettled(blocknumber int64) bool {
 func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
+	if e.ClosedBlock != 0 {
+		return nil
+	}
 	var Nonce int64
 	TransferAmount := utils.BigInt0
 	var LocksRoot = utils.EmptyHash
@@ -191,6 +194,9 @@ func (e *ExternalState) WithDraw(unlockproofs []*UnlockProof) error {
 func (e *ExternalState) Settle() error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
+	if e.SettledBlock != 0 {
+		return nil
+	}
 	log.Info(fmt.Sprintf("settle called %s", utils.APex(e.ChannelAddress)))
 	tx, err := e.NettingChannel.GetContract().Settle(e.bcs.Auth)
 	if err != nil {

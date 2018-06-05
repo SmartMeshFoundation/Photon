@@ -131,8 +131,8 @@ func (r *RaidenAPI) LeaveTokenNetwork(tokenAddress common.Address, onlyReceiving
 	if err != nil {
 		return nil, err
 	}
-	chs := cm.Leave(onlyReceiving)
-	return chs, nil
+	chs, err := cm.Leave(onlyReceiving)
+	return chs, err
 }
 
 /*

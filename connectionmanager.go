@@ -205,23 +205,23 @@ Close all channels in the token network.
         If only_receiving is False then we close and settle all channels irrespective of them
         having received transfers or not.
 */
-func (cm *ConnectionManager) closeAll(onlyReceiving bool) []*channel.Serialization {
+func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channel.Serialization, err error) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 	cm.initChannelTarget = 0
-	var channelsToClose []*channel.Serialization
 	if onlyReceiving {
-		channelsToClose = cm.receivingChannels()
+		chs = cm.receivingChannels()
 	} else {
-		channelsToClose = cm.openChannels()
+		chs = cm.openChannels()
 	}
-	for _, c := range channelsToClose {
-		_, err := cm.api.Close(cm.tokenAddress, c.PartnerAddress)
+	for _, c := range chs {
+		_, err = cm.api.Close(cm.tokenAddress, c.PartnerAddress)
 		if err != nil {
 			log.Error(fmt.Sprintf("close channel %s error:%s", utils.APex(c.ChannelAddress), err))
+			return
 		}
 	}
-	return channelsToClose
+	return
 }
 
 //LeaveAsync leave raiden network
@@ -240,14 +240,17 @@ func (cm *ConnectionManager) LeaveAsync() *network.AsyncResult {
 Leave the token network.
         This implies closing all channels and waiting for all channels to be settled.
 */
-func (cm *ConnectionManager) Leave(onlyReceiving bool) []*channel.Serialization {
+func (cm *ConnectionManager) Leave(onlyReceiving bool) (chs []*channel.Serialization, err error) {
 	cm.raiden.MessageHandler.blockedTokens[cm.tokenAddress] = true
 	if cm.initChannelTarget > 0 {
 		cm.initChannelTarget = 0
 	}
-	closedChannels := cm.closeAll(onlyReceiving)
-	cm.WaitForSettle(closedChannels)
-	return closedChannels
+	chs, err = cm.closeAll(onlyReceiving)
+	if err != nil {
+		return
+	}
+	cm.WaitForSettle(chs)
+	return chs, err
 }
 
 /*
@@ -255,13 +258,24 @@ WaitForSettle Wait for all closed channels of the token network to settle.
         Note, that this does not time out.
 */
 func (cm *ConnectionManager) WaitForSettle(closedChannels []*channel.Serialization) bool {
+	var c *channel.Serialization
+	var err error
 	found := false
 	for {
 		found = false
-		for _, c := range closedChannels {
+		for _, c = range closedChannels {
+			c, err = cm.api.GetChannel(c.ChannelAddress)
+			if err != nil { // already settled?
+				continue
+			}
 			if c.State != transfer.ChannelStateSettled {
 				found = true
-				break
+				if c.ClosedBlock+int64(c.SettleTimeout) < cm.api.Raiden.GetBlockNumber() {
+					_, err := cm.api.Settle(c.TokenAddress, c.PartnerAddress)
+					if err != nil {
+						log.Error(fmt.Sprintf("settle %s err %s", c.ChannelAddress.String(), err))
+					}
+				}
 			}
 		}
 		if found {
