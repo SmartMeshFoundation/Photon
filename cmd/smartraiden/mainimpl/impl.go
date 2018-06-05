@@ -72,11 +72,6 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Value: params.RopstenRegistryAddress.String(),
 		},
 		cli.StringFlag{
-			Name:  "discovery-contract-address",
-			Usage: `hex encoded address of the discovery contract.`,
-			Value: params.RopstenDiscoveryAddress.String(),
-		},
-		cli.StringFlag{
 			Name:  "listen-address",
 			Usage: `"host:port" for the raiden service to listen on.`,
 			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
@@ -324,10 +319,6 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	registAddrStr := ctx.String("registry-contract-address")
 	if len(registAddrStr) > 0 {
 		config.RegistryAddress = common.HexToAddress(registAddrStr)
-	}
-	discoverAddr := ctx.String("discovery-contract-address")
-	if len(discoverAddr) > 0 {
-		config.DiscoveryAddress = common.HexToAddress(discoverAddr)
 	}
 	dataDir := ctx.String("datadir")
 	if len(dataDir) == 0 {

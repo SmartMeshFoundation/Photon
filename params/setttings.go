@@ -48,9 +48,6 @@ var gasLimitHex string
 //RopstenRegistryAddress Registry contract address
 var RopstenRegistryAddress = common.HexToAddress("0xFAFB55c642f8907bB5D0915AeDA8Cc5A79F6a523")
 
-//RopstenDiscoveryAddress discovery contract address
-var RopstenDiscoveryAddress = common.HexToAddress("0x4CDAF98516490d42E1E6F050bcfBD143dCb58CcD")
-
 //NettingChannelSettleTimeoutMin min settle timeout
 const NettingChannelSettleTimeoutMin = 6
 

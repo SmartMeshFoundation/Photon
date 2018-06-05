@@ -50,7 +50,6 @@ type Config struct {
 	APIHost                   string
 	APIPort                   int
 	RegistryAddress           common.Address
-	DiscoveryAddress          common.Address
 	DataDir                   string
 	MyAddress                 common.Address
 	DebugCrash                bool          //for test only,work with conditionQuit
@@ -77,7 +76,6 @@ var DefaultConfig = Config{
 	UseRPC:            true,
 	UseConsole:        false,
 	RegistryAddress:   RopstenRegistryAddress,
-	DiscoveryAddress:  RopstenDiscoveryAddress,
 	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
 	XMPPServer:        DefaultXMPPServer,
