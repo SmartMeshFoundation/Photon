@@ -161,18 +161,18 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (RegistryAddr
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
 	fmt.Printf("DeployRegistry complete...\n")
-	EndpointRegistryAddress, tx, _, err := contracts.DeployEndpointRegistry(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	env.RemoveOption("RAIDEN_PARAMS", "discovery_contract_address")
-	env.AddOption("RAIDEN_PARAMS", "discovery_contract_address", EndpointRegistryAddress.String())
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("RegistryAddress=%s\nEndpointRegistryAddress=%s\n", RegistryAddress.String(), EndpointRegistryAddress.String())
+	//EndpointRegistryAddress, tx, _, err := contracts.DeployEndpointRegistry(auth, conn)
+	//if err != nil {
+	//	log.Fatalf("Failed to deploy new token contract: %v", err)
+	//}
+	//env.RemoveOption("RAIDEN_PARAMS", "discovery_contract_address")
+	//env.AddOption("RAIDEN_PARAMS", "discovery_contract_address", EndpointRegistryAddress.String())
+	//ctx = context.Background()
+	//_, err = bind.WaitDeployed(ctx, conn, tx)
+	//if err != nil {
+	//	log.Fatalf("failed to deploy contact when mining :%v", err)
+	//}
+	fmt.Printf("RegistryAddress=%s\n", RegistryAddress.String())
 	return
 }
 func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.Registry, keystorepath string, createchannel bool) {
