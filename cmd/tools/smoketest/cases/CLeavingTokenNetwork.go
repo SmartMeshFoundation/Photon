@@ -19,7 +19,7 @@ func LeavingTokenNetworkTest(env *models.RaidenEnvReader, allowFail bool) {
 			Payload: "{\"only_receiving_channels\": false}",
 			Timeout: time.Second * 360,
 		},
-		TargetStatusCode: 201,
+		TargetStatusCode: 200,
 	}
 	case1.Run()
 }
