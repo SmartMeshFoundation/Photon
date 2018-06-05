@@ -484,6 +484,12 @@ func (ks *KeyStore) ImportPreSaleKey(keyJSON []byte, passphrase string) (account
 	return a, nil
 }
 
+//Close close accountCache
+//add by bai, fix memory leak
+func (ks *KeyStore) Close() {
+	ks.cache.close()
+}
+
 // zeroKey zeroes a private key in memory.
 func zeroKey(k *ecdsa.PrivateKey) {
 	b := k.D.Bits()
