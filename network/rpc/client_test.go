@@ -90,17 +90,6 @@ func TestEventGetChannelNew(t *testing.T) {
 	spew.Dump(logs)
 }
 
-func TestEventAddressRegistered(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	logs, err := EventGetInternal(context.Background(), params.RopstenDiscoveryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameAddressRegistered, contracts.EndpointRegistryABI, bcs.Client)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	spew.Dump(logs)
-}
-
 func TestCodeAt(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	addrNotExist := common.HexToAddress("0x0000000000000000000000000000000000000000")
