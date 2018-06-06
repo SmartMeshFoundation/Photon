@@ -8,6 +8,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +16,7 @@ import (
 
 func TestMobile(t *testing.T) {
 	nodeAddr := common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa")
-	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", "ws://127.0.0.1:18546" /*rpc.TestRpcEndpoint,*/, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:40001", "")
+	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:40001", "")
 	if err != nil {
 		t.Error(err)
 		return

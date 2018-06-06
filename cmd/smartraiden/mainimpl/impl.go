@@ -188,7 +188,7 @@ func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) 
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if cfg.IgnoreMediatedNodeRequest {
+	if params.MobileMode {
 		cfg.NetworkMode = params.MixUDPXMPP
 	}
 	switch cfg.NetworkMode {
@@ -300,10 +300,16 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		return
 	}
 	config.Host = listenhost
-	config.Port, _ = strconv.Atoi(listenport)
+	config.Port, err = strconv.Atoi(listenport)
+	if err != nil {
+		return
+	}
 	config.UseConsole = ctx.Bool("console")
 	config.APIHost = apihost
-	config.APIPort, _ = strconv.Atoi(apiport)
+	config.APIPort, err = strconv.Atoi(apiport)
+	if err != nil {
+		return
+	}
 	address := common.HexToAddress(ctx.String("address"))
 	address, privkeyBin, err := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
 	if err != nil {
@@ -358,7 +364,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
 	} else {
-		config.NetworkMode = params.XMPPOnly
+		config.NetworkMode = params.MixUDPXMPP
 	}
 	if ctx.Bool("fee") {
 		config.EnableMediationFee = true

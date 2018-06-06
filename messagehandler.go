@@ -310,12 +310,19 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		ChannelAddress: msg.Channel,
 	}
 	err = mh.raiden.db.LogEvents(stateChangeID, []transfer.Event{receiveSuccess}, mh.raiden.GetBlockNumber())
+	if err != nil {
+		log.Error(fmt.Sprintf("LogEvents err %s", err))
+	}
+	err = mh.raiden.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	return err
 }
 
 func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
 	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
+	}
+	if mh.raiden.Config.IsMeshNetwork {
+		return fmt.Errorf("deny any mediated transfer when there is no internet connection")
 	}
 	mh.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,

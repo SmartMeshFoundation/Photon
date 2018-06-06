@@ -144,6 +144,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		RegistryAddress:                     chain.RegistryAddress,
 		PrivateKey:                          privateKey,
 		Config:                              config,
+		Transport:                           transport,
 		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph:                  make(map[common.Address]*network.ChannelGraph),
 		Manager2Token:                       make(map[common.Address]common.Address),
@@ -898,7 +899,7 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		log.Error(fmt.Sprintf("LogStateChange %s err %s", utils.StringInterface(directTransferStateChange, 2), err))
 	}
 	//This should be set once the direct transfer is acknowledged
-	transferSuccess := transfer.EventTransferSentSuccess{
+	transferSuccess := &transfer.EventTransferSentSuccess{
 		Identifier:     identifier,
 		Amount:         amount,
 		Target:         target,
@@ -906,6 +907,10 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 	}
 	rs.db.LogEvents(stateChangeID, []transfer.Event{transferSuccess}, rs.GetBlockNumber())
 	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
+	err = rs.StateMachineEventHandler.OnEvent(transferSuccess, nil)
+	if err != nil {
+		log.Error(fmt.Sprintf("dispatch transferSuccess err %s", err))
+	}
 	return
 }
 
@@ -931,6 +936,10 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	result.Tag = target //tell the difference when token swap
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
+		return
+	}
+	if rs.Config.IsMeshNetwork {
+		result.Result <- errors.New("no mediated transfer on mesh only network")
 		return
 	}
 	if identifier == 0 {
@@ -1320,7 +1329,11 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 	switch req.Name {
 	case transferReqName: //mediated transfer only
 		r := req.Req.(*transferReq)
-		result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Identifier)
+		if r.IsDirectTransfer {
+			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount, r.Identifier)
+		} else {
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Identifier)
+		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
 		result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
@@ -1420,4 +1433,11 @@ func (rs *RaidenService) conditionQuit(eventName string) {
 		debug.PrintStack()
 		os.Exit(111)
 	}
+}
+
+/*
+GetDb return raiden's db
+*/
+func (rs *RaidenService) GetDb() *models.ModelDB {
+	return rs.db
 }

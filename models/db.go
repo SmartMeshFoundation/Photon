@@ -32,6 +32,10 @@ type ModelDB struct {
 	channelStateCallbacks   map[*ChannelCb]bool
 	mlock                   sync.Mutex
 	Name                    string
+	//SentTransferChan SentTransfer notify ,should never close
+	SentTransferChan chan *SentTransfer
+	//ReceivedTransferChan  ReceivedTransfer notify, should never close
+	ReceivedTransferChan chan *ReceivedTransfer
 }
 
 /*
@@ -70,6 +74,8 @@ func newModelDB() (db *ModelDB) {
 		newChannelCallbacks:     make(map[*ChannelCb]bool),
 		channelDepositCallbacks: make(map[*ChannelCb]bool),
 		channelStateCallbacks:   make(map[*ChannelCb]bool),
+		SentTransferChan:        make(chan *SentTransfer, 10),
+		ReceivedTransferChan:    make(chan *ReceivedTransfer, 10),
 	}
 
 }

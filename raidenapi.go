@@ -355,8 +355,8 @@ func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
 }
 
 //TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration) (err error) {
-	result, err := r.transferAsync(token, amount, fee, target, identifier)
+func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration, isDirectTransfer bool) (err error) {
+	result, err := r.transferAsync(token, amount, fee, target, identifier, isDirectTransfer)
 	if err != nil {
 		return err
 	}
@@ -374,12 +374,12 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 }
 
 //Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration) error {
-	return r.TransferAndWait(token, amount, fee, target, identifier, timeout)
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration, isDirectTransfer bool) error {
+	return r.TransferAndWait(token, amount, fee, target, identifier, timeout, isDirectTransfer)
 }
 
 //transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) (result *network.AsyncResult, err error) {
+func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) (result *network.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -392,13 +392,25 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 		err = errors.New("token not exist")
 		return
 	}
+	if isDirectTransfer {
+		var c *channel.Serialization
+		c, err = r.Raiden.db.GetChannel(tokenAddress, target)
+		if err != nil {
+			err = fmt.Errorf("no direct channel token:%s,partner:%s", tokenAddress.String(), target.String())
+			return
+		}
+		if c.State != transfer.ChannelStateOpened {
+			err = fmt.Errorf("channel %s not opened", c.ChannelAddress.String())
+			return
+		}
+	}
 	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = rerr.ErrInvalidAmount
 		return
 	}
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d identifier=%d",
 		r.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, identifier))
-	result = r.Raiden.mediatedTransferAsyncClient(tokenAddress, amount, fee, target, identifier)
+	result = r.Raiden.transferAsyncClient(tokenAddress, amount, fee, target, identifier, isDirectTransfer)
 	return
 }
 

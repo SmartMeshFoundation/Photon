@@ -1009,11 +1009,11 @@ func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
 //MessageMap contains all message can send and receive.
 //DirectTransfer has been deprecated
 var MessageMap = map[int]Messager{
-	PingCmdID:          new(Ping),
-	AckCmdID:           new(Ack),
-	SecretRequestCmdID: new(SecretRequest),
-	SecretCmdID:        new(Secret),
-	//DirectTransferCmdID:        new(DirectTransfer),
+	PingCmdID:                  new(Ping),
+	AckCmdID:                   new(Ack),
+	SecretRequestCmdID:         new(SecretRequest),
+	SecretCmdID:                new(Secret),
+	DirectTransferCmdID:        new(DirectTransfer),
 	RevealSecretCmdID:          new(RevealSecret),
 	MediatedTransferCmdID:      new(MediatedTransfer),
 	RefundTransferCmdID:        new(RefundTransfer),

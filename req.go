@@ -42,11 +42,12 @@ const tokenSwapTakerReqName = "tokenswaptaker"
 transfer api
 */
 type transferReq struct {
-	TokenAddress common.Address
-	Amount       *big.Int
-	Target       common.Address
-	Identifier   uint64
-	Fee          *big.Int
+	TokenAddress     common.Address
+	Amount           *big.Int
+	Target           common.Address
+	Identifier       uint64
+	Fee              *big.Int
+	IsDirectTransfer bool
 }
 
 /*
@@ -109,16 +110,17 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (rs *RaidenService) mediatedTransferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64) *network.AsyncResult {
+func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) *network.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  transferReqName,
 		Req: &transferReq{
-			TokenAddress: tokenAddress,
-			Amount:       amount,
-			Target:       target,
-			Identifier:   identifier,
-			Fee:          fee,
+			TokenAddress:     tokenAddress,
+			Amount:           amount,
+			Target:           target,
+			Identifier:       identifier,
+			Fee:              fee,
+			IsDirectTransfer: isDirectTransfer,
 		},
 	}
 	return rs.sendReqClient(req)

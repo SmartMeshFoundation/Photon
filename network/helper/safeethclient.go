@@ -5,8 +5,11 @@ import (
 	"math/big"
 	"sync"
 
+	"fmt"
+
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -14,23 +17,14 @@ import (
 	"github.com/fatedier/frp/src/utils/log"
 )
 
-//ConnectionStatus is status of connection to ethereum
-type ConnectionStatus int
-
-const (
-	//ConnectionOk connection status is success
-	ConnectionOk ConnectionStatus = 0
-	//ConnectionFailed connection now is disconnected
-	ConnectionFailed ConnectionStatus = 1
-)
-
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
 	*ethclient.Client
-	lock      sync.Mutex
-	url       string
-	ReConnect map[string]chan struct{}
-	Status    ConnectionStatus
+	lock       sync.Mutex
+	url        string
+	ReConnect  map[string]chan struct{}
+	Status     xmpptransport.Status
+	StatusChan chan xmpptransport.Status
 }
 
 //NewSafeClient create safeclient
@@ -38,12 +32,13 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	c := new(SafeEthClient)
 	c.ReConnect = make(map[string]chan struct{})
 	c.url = rawurl
+	c.StatusChan = make(chan xmpptransport.Status, 10)
 	var err error
 	c.Client, err = ethclient.Dial(rawurl)
 	if err == nil {
-		c.Status = ConnectionOk
+		c.changeStatus(xmpptransport.Connected)
 	} else {
-		c.Status = ConnectionFailed
+		c.changeStatus(xmpptransport.Disconnected)
 	}
 	return c, err
 }
@@ -61,20 +56,30 @@ func (c *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} {
 	c.ReConnect[name] = ch
 	return ch
 }
+func (c *SafeEthClient) changeStatus(newStatus xmpptransport.Status) {
+	log.Info("ethclient connection status changed from %d to %d", c.Status, newStatus)
+	c.Status = newStatus
+	select {
+	case c.StatusChan <- c.Status:
+	default:
+		//never block
+	}
+}
 
 //RecoverDisconnect try to reconnect with geth after a restart of geth
 func (c *SafeEthClient) RecoverDisconnect() {
 	var err error
 	var client *ethclient.Client
-	c.Status = ConnectionFailed
+	c.changeStatus(xmpptransport.Reconnecting)
 	for {
 		log.Info("tyring to reconnect geth ...")
 		client, err = ethclient.Dial(c.url)
 		if err != nil {
-			log.Info("reconnect to geth error:", err)
+			log.Info(fmt.Sprintf("reconnect to geth error: %s", err))
+			time.Sleep(time.Second * 3)
 		} else {
 			//reconnect ok
-			c.Status = ConnectionOk
+			c.changeStatus(xmpptransport.Connected)
 			c.lock.Lock()
 			c.Client = client
 			var keys []string
@@ -89,7 +94,6 @@ func (c *SafeEthClient) RecoverDisconnect() {
 			c.lock.Unlock()
 			return
 		}
-		time.Sleep(time.Second * 3)
 	}
 }
 

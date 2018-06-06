@@ -373,7 +373,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			continue
 		}
 		deviceType, isOnline := nodesStatus.GetNetworkStatus(nw.neighbor)
-		if !isOnline || deviceType == DeviceTypeMobile {
+		if !isOnline || (deviceType == DeviceTypeMobile && nw.neighbor != targetAdress) {
 			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}

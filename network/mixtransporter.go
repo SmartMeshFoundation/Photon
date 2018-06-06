@@ -5,8 +5,11 @@ import (
 
 	"crypto/ecdsa"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -103,4 +106,12 @@ func (t *MixTransporter) NodeStatus(addr common.Address) (deviceType string, isO
 		return
 	}
 	return t.xmpp.NodeStatus(addr)
+}
+
+//GetNotify notification of connection status change
+func (t *MixTransporter) GetNotify() (notify <-chan xmpptransport.Status, err error) {
+	if t.xmpp.conn != nil {
+		return t.xmpp.conn.StatusChan, nil
+	}
+	return nil, errors.New("connection not established")
 }

@@ -58,6 +58,11 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr, tokenAddr,
 	if err != nil {
 		log.Error(fmt.Sprintf("save SentTransfer err %s", err))
 	}
+	select {
+	case model.SentTransferChan <- st:
+	default:
+		//nerver block
+	}
 }
 
 //NewReceivedTransfer save a new received transfer to db
@@ -80,6 +85,11 @@ func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr, tokenA
 	err := model.db.Save(st)
 	if err != nil {
 		log.Error(fmt.Sprintf("save ReceivedTransfer err %s", err))
+	}
+	select {
+	case model.ReceivedTransferChan <- st:
+	default:
+		//never block
 	}
 }
 

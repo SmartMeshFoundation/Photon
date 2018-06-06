@@ -62,10 +62,14 @@ var DefaultConfig = &Config{
 type Status int
 
 const (
-	disconnected = Status(iota)
-	connected
-	closed
-	reconnecting
+	//Disconnected init status
+	Disconnected = Status(iota)
+	//Connected connection status
+	Connected
+	//Closed user closed
+	Closed
+	//Reconnecting connection error
+	Reconnecting
 )
 
 /*
@@ -93,6 +97,7 @@ type XMPPConnection struct {
 	closed         chan struct{}
 	reconnect      bool
 	status         Status
+	StatusChan     chan Status
 	NextPasswordFn PasswordGetter
 	dataHandler    DataHandler
 	name           string
@@ -122,7 +127,8 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		waiters:        make(map[string]chan *xmpp.IQ),
 		closed:         make(chan struct{}),
 		reconnect:      true,
-		status:         disconnected,
+		status:         Disconnected,
+		StatusChan:     make(chan Status, 10),
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
 		name:           name,
@@ -133,7 +139,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		log.Trace(fmt.Sprintf("%s new xmpp client err %s", name, err))
 		return
 	}
-	x.status = connected
+	x.changeStatus(Connected)
 	go x.loop()
 	x2 = x
 	return
@@ -142,7 +148,7 @@ func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
 	for {
 		chat, err := x.client.Recv()
-		if x.status == closed {
+		if x.status == Closed {
 			return
 		}
 		if err != nil {
@@ -186,8 +192,17 @@ func (x *XMPPConnection) loop() {
 		}
 	}
 }
+func (x *XMPPConnection) changeStatus(newStatus Status) {
+	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
+	x.status = newStatus
+	select {
+	case x.StatusChan <- newStatus:
+	default:
+		//never block
+	}
+}
 func (x *XMPPConnection) reConnect() {
-	x.status = reconnecting
+	x.changeStatus(Reconnecting)
 	o := x.options
 	for {
 		o.Password = x.NextPasswordFn.GetPassWord()
@@ -202,7 +217,7 @@ func (x *XMPPConnection) reConnect() {
 		x.mutex.Unlock()
 		break
 	}
-	x.status = connected
+	x.changeStatus(Connected)
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
 	uid := msg.ID
@@ -284,7 +299,7 @@ func (x *XMPPConnection) wait(ch chan *xmpp.IQ) (response *xmpp.IQ, err error) {
 
 //Close this connection
 func (x *XMPPConnection) Close() {
-	x.status = closed
+	x.changeStatus(Closed)
 	close(x.closed)
 	err := x.client.Close()
 	if err != nil {
@@ -294,7 +309,7 @@ func (x *XMPPConnection) Close() {
 
 //Connected returns true when this connection is ready for sent
 func (x *XMPPConnection) Connected() bool {
-	return x.status == connected
+	return x.status == Connected
 }
 
 //SendData to peer

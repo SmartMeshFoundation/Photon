@@ -242,6 +242,10 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.APex(e2.ChannelAddress))
 			return
 		}
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		if err != nil {
+			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
+		}
 		eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelAddress, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
@@ -251,6 +255,10 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if ch == nil {
 			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.APex(e2.ChannelAddress))
 			return
+		}
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		if err != nil {
+			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
 		eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelAddress, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
 	case *mediatedtransfer.EventUnlockSuccess:
@@ -300,7 +308,7 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	}
 	results := eh.raiden.Identifier2Results[identifier]
 	if len(results) <= 0 { //restart after crash?
-		log.Error(fmt.Sprintf("transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
+		log.Error(fmt.Sprintf("you can ignore this error when this transfer is a direct transfer.\n transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
 		return
 	}
 	for i, r := range results {

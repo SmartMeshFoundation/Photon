@@ -15,11 +15,6 @@ func init() {
 	debug.SetTraceback("crash")
 }
 
-func panicOnNullValue() {
-	var c []int
-	c[0] = 0
-}
-
 /*
 StartUp is entry point for mobile raiden
 address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
@@ -37,9 +32,8 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, liste
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
 	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
-	os.Args = append(os.Args, fmt.Sprintf("--nat=none"))
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", listenAddr))
-	//os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
+	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	//os.Args = append(os.Args, fmt.Sprintf("--enable-health-check"))

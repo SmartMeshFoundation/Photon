@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -56,7 +56,7 @@ EthereumStatus  query the status between raiden and ethereum
 */
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	c := RaidenAPI.Raiden.Chain
-	if c != nil && c.Client.Status == helper.ConnectionOk {
+	if c != nil && c.Client.Status == xmpptransport.Connected {
 		w.WriteJson("ok")
 	} else {
 		rest.Error(w, "connection failed", http.StatusInternalServerError)

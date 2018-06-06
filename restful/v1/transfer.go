@@ -23,6 +23,7 @@ type TransferData struct {
 	Amount     *big.Int `json:"amount"`
 	Identifier uint64   `json:"identifier"`
 	Fee        *big.Int `json:"fee"`
+	IsDirect   bool     `json:"is_direct"`
 }
 
 /*
@@ -54,7 +55,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout)
+	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

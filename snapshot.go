@@ -82,7 +82,7 @@ func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 					log.Error("snapshot data error, channel data error for ", c.MyAddress)
 					continue
 				} else {
-					log.Trace(fmt.Sprintf("retore channel %s\n", utils.StringInterface(cs, 7)))
+					log.Trace(fmt.Sprintf("retore channel %s\n", utils.APex2(cs.ChannelAddress)))
 					c.OurState.BalanceProofState = cs.OurBalanceProof
 					c.OurState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
 					c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
