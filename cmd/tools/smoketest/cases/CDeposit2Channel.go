@@ -15,8 +15,8 @@ func Deposit2ChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 
 	testDepositToNotExistChannel(env, allowFail)
 	testDepositToChannelByState(env, allowFail, "opened", 200)
-	testDepositToChannelByState(env, allowFail, "closed", 408)
-	testDepositToChannelByState(env, allowFail, "settled", 408)
+	testDepositToChannelByState(env, true, "closed", 408)
+	testDepositToChannelByState(env, true, "settled", 408)
 
 }
 
