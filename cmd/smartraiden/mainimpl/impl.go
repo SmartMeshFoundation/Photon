@@ -203,7 +203,11 @@ func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) 
 		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, network.DeviceTypeMobile)
+		deviceType := network.DeviceTypeOther
+		if params.MobileMode {
+			deviceType = network.DeviceTypeMobile
+		}
+		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }
