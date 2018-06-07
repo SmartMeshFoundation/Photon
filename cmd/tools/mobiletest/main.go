@@ -63,7 +63,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	dataDir := ctx.String("datadir")
 	password := ctx.String("password-file")
 	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, listenAddress, "",
-		fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
+		[]string{fmt.Sprintf("--registry-contract-address=%s", registryContractAddress)})
 	if err != nil {
 		log.Crit(fmt.Sprintf("start up err %s", err))
 		return
