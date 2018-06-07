@@ -681,10 +681,6 @@ func (rs *RaidenService) handleSecret(identifier uint64, tokenAddress common.Add
 	return
 }
 
-func (rs *RaidenService) channelManagerIsRegistered(manager common.Address) bool {
-	_, ok := rs.Manager2Token[manager]
-	return ok
-}
 func (rs *RaidenService) registerChannelManager(managerAddress common.Address) (err error) {
 	manager := rs.Chain.Manager(managerAddress)
 	channels, err := manager.NettingChannelByAddress(rs.NodeAddress)
@@ -698,7 +694,7 @@ func (rs *RaidenService) registerChannelManager(managerAddress common.Address) (
 		d := rs.getChannelDetail(tokenAddress, ch)
 		channelsDetails = append(channelsDetails, d)
 	}
-	graph := network.NewChannelGraph(rs.NodeAddress, managerAddress, tokenAddress, edgeList, channelsDetails)
+	graph := network.NewChannelGraph(rs.NodeAddress, tokenAddress, edgeList, channelsDetails)
 	rs.Manager2Token[managerAddress] = tokenAddress
 	rs.Token2ChannelGraph[tokenAddress] = graph
 	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)

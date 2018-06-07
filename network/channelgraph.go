@@ -49,11 +49,10 @@ type ChannelGraph struct {
 /*
 NewChannelGraph create ChannelGraph,one token one channelGraph
 */
-func NewChannelGraph(ourAddress, channelManagerAddress, tokenAddress common.Address, edgeList []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
+func NewChannelGraph(ourAddress, tokenAddress common.Address, edgeList []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
 	cg := &ChannelGraph{
 		OurAddress:              ourAddress,
 		TokenAddress:            tokenAddress,
-		ChannelManagerAddress:   channelManagerAddress,
 		PartenerAddress2Channel: make(map[common.Address]*channel.Channel),
 		ChannelAddress2Channel:  make(map[common.Address]*channel.Channel),
 		address2index:           make(map[common.Address]int),
