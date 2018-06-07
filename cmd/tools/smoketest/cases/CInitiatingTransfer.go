@@ -15,8 +15,9 @@ import (
 
 // TransferPayload API  http body
 type TransferPayload struct {
-	Amount int32 `json:"amount"`
-	Fee    int64 `json:"fee"`
+	Amount   int32 `json:"amount"`
+	Fee      int64 `json:"fee"`
+	IsDirect bool  `json:"is_direct"`
 }
 
 type testTransferParams struct {
@@ -24,6 +25,7 @@ type testTransferParams struct {
 	AllowFail   bool
 	CaseName    string
 	PrepareData func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token *models.Token, err error)
+	IsDirect    bool
 }
 
 // InitiatingTransferTest : test case for InitiatingTransfer
@@ -33,19 +35,36 @@ func InitiatingTransferTest(env *models.RaidenEnvReader, allowFail bool) {
 	testTransfer(&testTransferParams{
 		Env:         env,
 		AllowFail:   allowFail,
-		CaseName:    "DirectTransfer A-B",
+		CaseName:    "DirectTransfer A-B isDirect=true",
 		PrepareData: prepareDataForDirectTransfer,
-	})
+		IsDirect:    true,
+	}, 200)
+	testTransfer(&testTransferParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "DirectTransfer A-B isDirect=false",
+		PrepareData: prepareDataForDirectTransfer,
+		IsDirect:    false,
+	}, 200)
 	// test transfer between two nodes who doesn't have direct opened channel
 	testTransfer(&testTransferParams{
 		Env:         env,
 		AllowFail:   allowFail,
-		CaseName:    "IndirectTransfer A-B-C",
+		CaseName:    "IndirectTransfer A-B-C isDirect=true",
 		PrepareData: prepareDataForIndirectTransfer,
-	})
+		IsDirect:    true,
+	}, 500)
+	// test transfer between two nodes who doesn't have direct opened channel
+	testTransfer(&testTransferParams{
+		Env:         env,
+		AllowFail:   allowFail,
+		CaseName:    "IndirectTransfer A-B-C isDirect=false",
+		PrepareData: prepareDataForIndirectTransfer,
+		IsDirect:    false,
+	}, 200)
 }
 
-func testTransfer(param *testTransferParams) {
+func testTransfer(param *testTransferParams, targetStatus int) {
 	// prepare data
 	sender, receiver, token, err := param.PrepareData(param.Env)
 	if err != nil {
@@ -60,6 +79,7 @@ func testTransfer(param *testTransferParams) {
 	var payload TransferPayload
 	payload.Amount = 5
 	payload.Fee = 0
+	payload.IsDirect = param.IsDirect
 	p, _ := json.Marshal(payload)
 	// run case
 	case1 := &APITestCase{
@@ -72,7 +92,7 @@ func testTransfer(param *testTransferParams) {
 			Payload: string(p),
 			Timeout: time.Second * 180,
 		},
-		TargetStatusCode: 200,
+		TargetStatusCode: targetStatus,
 	}
 	case1.Run()
 }
