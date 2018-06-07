@@ -40,7 +40,9 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, liste
 	if len(logFile) > 0 {
 		os.Args = append(os.Args, fmt.Sprintf("--logfile=%s", logFile))
 	}
-	os.Args = append(os.Args, otherArgs.strs...)
+	if otherArgs != nil {
+		os.Args = append(os.Args, otherArgs.strs...)
+	}
 	//panicOnNullValue()
 	params.MobileMode = true
 	rapi, err := mainimpl.StartMain()
