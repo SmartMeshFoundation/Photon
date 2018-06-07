@@ -523,8 +523,8 @@ func (s *Subscription) Unsubscribe() {
 	close(s.quitChan)
 }
 
-//ConnectionStatus status of network connection
-type ConnectionStatus struct {
+//connectionStatus status of network connection
+type connectionStatus struct {
 	XMPPStatus xmpptransport.Status
 	EthStatus  xmpptransport.Status
 }
@@ -556,7 +556,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
 		quitChan: make(chan struct{}),
 	}
-	cs := ConnectionStatus{
+	cs := connectionStatus{
 		XMPPStatus: xmpptransport.Disconnected,
 		EthStatus:  xmpptransport.Disconnected,
 	}

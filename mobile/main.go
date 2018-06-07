@@ -24,7 +24,7 @@ dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, listenAddr, logFile string, otherArgs []string) (api *API, err error) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, listenAddr, logFile string, otherArgs *Strings) (api *API, err error) {
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "smartraidenmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
@@ -40,7 +40,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, liste
 	if len(logFile) > 0 {
 		os.Args = append(os.Args, fmt.Sprintf("--logfile=%s", logFile))
 	}
-	os.Args = append(os.Args, otherArgs...)
+	os.Args = append(os.Args, otherArgs.strs...)
 	//panicOnNullValue()
 	params.MobileMode = true
 	rapi, err := mainimpl.StartMain()
