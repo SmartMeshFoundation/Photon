@@ -111,7 +111,7 @@ func (t *MixTransporter) NodeStatus(addr common.Address) (deviceType string, isO
 //GetNotify notification of connection status change
 func (t *MixTransporter) GetNotify() (notify <-chan xmpptransport.Status, err error) {
 	if t.xmpp.conn != nil {
-		return t.xmpp.conn.StatusChan, nil
+		return t.xmpp.statusChan, nil
 	}
 	return nil, errors.New("connection not established")
 }

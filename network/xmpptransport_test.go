@@ -45,5 +45,4 @@ func TestXMPPTransport(t *testing.T) {
 			t.Error("not equal")
 		}
 	}
-	time.Sleep(time.Minute)
 }
