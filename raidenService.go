@@ -129,6 +129,7 @@ type RaidenService struct {
 	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
 	HealthCheckMap                      map[common.Address]bool
 	quitChan                            chan struct{} //for quit notification
+	ethInited                           bool
 }
 
 //NewRaidenService create raiden service
@@ -205,20 +206,27 @@ func (rs *RaidenService) Start() (err error) {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
 	})
-	/*
-		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
-	*/
-	err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
-	if err != nil {
-		err = fmt.Errorf("Events listener error %v", err)
-		return
-	}
-	/*
+	if rs.Chain.Client.IsConnected() {
+		/*
+			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+		*/
+		err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
+		if err != nil {
+			err = fmt.Errorf("Events listener error %v", err)
+			return
+		}
+		/*
 			  Registry registration must start *after* the alarm task, rs avoid
-		         corner cases were the registry is queried in block A, a new block B
-		         is mined, and the alarm starts polling at block C.
-	*/
-	rs.registerRegistry()
+				 corner cases were the registry is queried in block A, a new block B
+				 is mined, and the alarm starts polling at block C.
+		*/
+		rs.registerRegistry()
+		rs.ethInited = true
+	} else {
+		rs.ethInited = false
+		rs.startWithoutEthRPC()
+	}
+
 	err = rs.restoreSnapshot()
 	if err != nil {
 		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost", err, rs.Config.DataBasePath)
@@ -259,6 +267,9 @@ func (rs *RaidenService) Start() (err error) {
 		rs.loop()
 	}()
 	return nil
+}
+func (rs *RaidenService) startWithoutEthRPC() {
+
 }
 
 //Stop the node.
