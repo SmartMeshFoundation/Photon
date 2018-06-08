@@ -447,9 +447,9 @@ func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r st
 }
 
 /*
-SwithNetwork  switch between mesh and internet
+SwitchNetwork  switch between mesh and internet
 */
-func (a *API) SwithNetwork(isMesh bool) {
+func (a *API) SwitchNetwork(isMesh bool) {
 	a.api.Raiden.Config.IsMeshNetwork = isMesh
 }
 

@@ -46,7 +46,8 @@ func Start() {
 			test
 		*/
 		rest.Get("/api/1/stop", Stop),
-		rest.Post("/api/1/switch", SwitchToMesh),
+		rest.Get("/api/1/switch/:mesh", SwitchNetwork),
+		rest.Post("/api/1/updatenodes", UpdateMeshNetworkNodes),
 		/*
 			channels
 		*/

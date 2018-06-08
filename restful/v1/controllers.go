@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -41,9 +43,9 @@ func Stop(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
-SwitchToMesh for test only now
+UpdateMeshNetworkNodes update nodes of this intranet
 */
-func SwitchToMesh(w rest.ResponseWriter, r *rest.Request) {
+func UpdateMeshNetworkNodes(w rest.ResponseWriter, r *rest.Request) {
 	var nodes []*network.NodeInfo
 	err := r.DecodeJsonPayload(&nodes)
 	if err != nil {
@@ -55,5 +57,19 @@ func SwitchToMesh(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.(http.ResponseWriter).Write([]byte("ok"))
+}
+
+/*
+SwitchNetwork  switch between mesh and internet
+*/
+func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
+	mesh := r.PathParam("mesh")
+	isMesh, err := strconv.ParseBool(mesh)
+	if err != nil {
+		rest.Error(w, "arg error", http.StatusBadRequest)
+		return
+	}
+	RaidenAPI.Raiden.Config.IsMeshNetwork = isMesh
 	w.(http.ResponseWriter).Write([]byte("ok"))
 }
