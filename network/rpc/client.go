@@ -177,7 +177,7 @@ func (bcs *BlockChainService) NettingChannel(address common.Address) (t *Netting
 	return bcs.addressChannels[address], nil
 }
 
-//NettingChannel return a proxy to interact with a NettingChannelContract.
+//NettingChannelWithoutCheck return a proxy to interact with a NettingChannelContract,don't check this address is valid or not
 func (bcs *BlockChainService) NettingChannelWithoutCheck(address common.Address) (t *NettingChannelContractProxy, err error) {
 	_, ok := bcs.addressChannels[address]
 	if !ok {
