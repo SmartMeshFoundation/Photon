@@ -52,7 +52,9 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 
 //Close connection when destroy raiden service
 func (c *SafeEthClient) Close() {
-	c.Client.Close()
+	if c.Client != nil {
+		c.Client.Close()
+	}
 	close(c.quitChan)
 }
 

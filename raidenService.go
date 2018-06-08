@@ -33,6 +33,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -130,6 +131,7 @@ type RaidenService struct {
 	HealthCheckMap                      map[common.Address]bool
 	quitChan                            chan struct{} //for quit notification
 	ethInited                           bool
+	EthConnectionStatus                 chan xmpptransport.Status
 }
 
 //NewRaidenService create raiden service
@@ -167,6 +169,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		FeePolicy:                           &ConstantFeePolicy{},
 		HealthCheckMap:                      make(map[common.Address]bool),
 		quitChan:                            make(chan struct{}),
+		EthConnectionStatus:                 make(chan xmpptransport.Status, 10),
 	}
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
@@ -223,8 +226,12 @@ func (rs *RaidenService) Start() (err error) {
 		rs.registerRegistry()
 		rs.ethInited = true
 	} else {
+		log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
 		rs.ethInited = false
-		rs.startWithoutEthRPC()
+		err = rs.startWithoutEthRPC()
+		if err != nil {
+
+		}
 	}
 
 	err = rs.restoreSnapshot()
@@ -268,8 +275,74 @@ func (rs *RaidenService) Start() (err error) {
 	}()
 	return nil
 }
-func (rs *RaidenService) startWithoutEthRPC() {
-
+func (rs *RaidenService) startWithoutEthRPC() (err error) {
+	/*
+	   从数据库中把 channel 状态恢复了,等连接上以后再重新把链上信息取过来初始化.
+	*/
+	chmap := make(map[common.Address][]*channel.Serialization)
+	cs, err := rs.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	if err != nil {
+		return
+	}
+	//group by token
+	for _, c := range cs {
+		if c.State == transfer.ChannelStateSettled {
+			continue
+		}
+		cs2 := chmap[c.TokenAddress]
+		cs2 = append(cs2, c)
+		chmap[c.TokenAddress] = cs2
+	}
+	for t, cs := range chmap {
+		var details []*network.ChannelDetails
+		for _, c := range cs {
+			d := rs.makeChannelDetailFromChannelSerialization(c)
+			details = append(details, d)
+		}
+		graph := network.NewChannelGraph(rs.NodeAddress, t, nil, details)
+		rs.Token2ChannelGraph[t] = graph
+		rs.Tokens2ConnectionManager[t] = NewConnectionManager(rs, t)
+	}
+	return nil
+}
+func (rs *RaidenService) makeChannelDetailFromChannelSerialization(c *channel.Serialization) *network.ChannelDetails {
+	tokenAddress := c.TokenAddress
+	addr1, b1, addr2, b2 := c.OurAddress, c.OurBalance, c.PartnerAddress, c.PartnerBalance
+	var ourAddr, partnerAddr common.Address
+	var ourBalance, partnerBalance *big.Int
+	if addr1 == rs.NodeAddress {
+		ourAddr = addr1
+		partnerAddr = addr2
+		ourBalance = b1
+		partnerBalance = b2
+	} else {
+		ourAddr = addr2
+		partnerAddr = addr1
+		ourBalance = b2
+		partnerBalance = b1
+	}
+	ourAddr, ourBalance, partnerAddr, partnerBalance = c.OurAddress, c.OurContractBalance, c.PartnerAddress, c.PartnerContractBalance
+	proxy, err := rs.Chain.NettingChannelWithoutCheck(c.ChannelAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("NettingChannelWithoutCheck err %s", err))
+	}
+	ourState := channel.NewChannelEndState(ourAddr, ourBalance, nil, transfer.EmptyMerkleTreeState)
+	partenerState := channel.NewChannelEndState(partnerAddr, partnerBalance, nil, transfer.EmptyMerkleTreeState)
+	channelAddress := proxy.Address
+	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
+		rs.registerChannelForHashlock(tokenAddress, channel, hashlock)
+	}
+	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db, 0, c.ClosedBlock)
+	channelDetail := &network.ChannelDetails{
+		ChannelAddress:    channelAddress,
+		OurState:          ourState,
+		PartenerState:     partenerState,
+		ExternState:       externState,
+		BlockChainService: rs.Chain,
+		RevealTimeout:     rs.Config.RevealTimeout,
+		SettleTimeout:     c.SettleTimeout,
+	}
+	return channelDetail
 }
 
 //Stop the node.
@@ -353,6 +426,15 @@ func (rs *RaidenService) loop() {
 				log.Info("ProtocolMessageSendComplete closed")
 				return
 			}
+		case s := <-rs.Chain.Client.StatusChan:
+			select {
+			case rs.EthConnectionStatus <- s:
+			default:
+				//never block
+			}
+			if s == xmpptransport.Connected {
+				rs.handleEthRRCConnectionOK()
+			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
 			return
@@ -401,7 +483,9 @@ func (rs *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *rp
 	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
 		rs.registerChannelForHashlock(tokenAddress, channel, hashlock)
 	}
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db)
+	opened, _ := proxy.Opened()
+	closed, _ := proxy.Closed()
+	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db, opened, closed)
 	channelDetail := &network.ChannelDetails{
 		ChannelAddress:    channelAddress,
 		OurState:          ourState,
@@ -1447,4 +1531,29 @@ GetDb return raiden's db
 */
 func (rs *RaidenService) GetDb() *models.ModelDB {
 	return rs.db
+}
+
+func (rs *RaidenService) handleEthRRCConnectionOK() {
+	if !rs.ethInited {
+		log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
+		rs.ethInited = true
+		/*
+			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+		*/
+		err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
+		if err != nil {
+			err = fmt.Errorf("Events listener error %v", err)
+			return
+		}
+		/*
+			  Registry registration must start *after* the alarm task, rs avoid
+				 corner cases were the registry is queried in block A, a new block B
+				 is mined, and the alarm starts polling at block C.
+		*/
+		rs.registerRegistry()
+		err = rs.restoreChannel(false)
+		if err != nil {
+			log.Error(fmt.Sprintf("reinit restoreChannel err %s", err))
+		}
+	}
 }

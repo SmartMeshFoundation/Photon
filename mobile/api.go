@@ -578,7 +578,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			select {
 			case err = <-rpanic.GetNotify():
 				handler.OnError(32, err.Error())
-			case s := <-a.api.Raiden.Chain.Client.StatusChan:
+			case s := <-a.api.Raiden.EthConnectionStatus:
 				cs.EthStatus = s
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))

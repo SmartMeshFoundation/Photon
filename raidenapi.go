@@ -43,8 +43,18 @@ func (r *RaidenAPI) Address() common.Address {
 }
 
 //Tokens Return a list of the tokens registered with the default registry.
-func (r *RaidenAPI) Tokens() []common.Address {
-	addresses, _ := r.Raiden.Registry.TokenAddresses()
+func (r *RaidenAPI) Tokens() (addresses []common.Address) {
+	addresses, err := r.Raiden.Registry.TokenAddresses()
+	if err == nil {
+		return
+	}
+	tm, err := r.Raiden.db.GetAllTokens()
+	if err != nil {
+		return
+	}
+	for t := range tm {
+		addresses = append(addresses, t)
+	}
 	return addresses
 }
 

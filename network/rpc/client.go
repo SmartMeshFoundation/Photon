@@ -177,6 +177,20 @@ func (bcs *BlockChainService) NettingChannel(address common.Address) (t *Netting
 	return bcs.addressChannels[address], nil
 }
 
+//NettingChannel return a proxy to interact with a NettingChannelContract.
+func (bcs *BlockChainService) NettingChannelWithoutCheck(address common.Address) (t *NettingChannelContractProxy, err error) {
+	_, ok := bcs.addressChannels[address]
+	if !ok {
+		var ch *contracts.NettingChannelContract
+		ch, err = contracts.NewNettingChannelContract(address, bcs.Client)
+		if err != nil {
+			log.Error(fmt.Sprintf("NewNettingChannelContract %s err %s", address.String(), err))
+		}
+		bcs.addressChannels[address] = &NettingChannelContractProxy{Address: address, bcs: bcs, ch: ch}
+	}
+	return bcs.addressChannels[address], nil
+}
+
 // Manager return a proxy to interact with a ChannelManagerContract.
 func (bcs *BlockChainService) Manager(address common.Address) (t *ChannelManagerContractProxy) {
 	_, ok := bcs.addressChannelManagers[address]

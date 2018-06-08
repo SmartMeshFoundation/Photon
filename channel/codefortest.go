@@ -31,7 +31,7 @@ func makeTestExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
 	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(os.Getenv("CHANNEL")))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil)
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil, 0, 0)
 }
 
 //MakeTestPairChannel for test
