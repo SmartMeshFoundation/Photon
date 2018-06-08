@@ -196,20 +196,22 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
-	lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
-	err = rs.AlarmTask.Start()
-	if err != nil {
-		n := rs.db.GetLatestBlockNumber()
-		rs.BlockNumber.Store(n)
-	} else {
-		//must have a valid blocknumber before any transfer operation
-		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-	}
+
 	rs.AlarmTask.RegisterCallback(func(number int64) error {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
 	})
 	if rs.Chain.Client.IsConnected() {
+		lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
+		err = rs.AlarmTask.Start()
+		if err != nil {
+			log.Error(fmt.Sprintf("alarm task start err %s", err))
+			n := rs.db.GetLatestBlockNumber()
+			rs.BlockNumber.Store(n)
+		} else {
+			//must have a valid blocknumber before any transfer operation
+			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+		}
 		/*
 			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 		*/
@@ -1537,10 +1539,19 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 	if !rs.ethInited {
 		log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
 		rs.ethInited = true
+		err := rs.AlarmTask.Start()
+		if err != nil {
+			log.Error(fmt.Sprintf("alarm task start err %s", err))
+			n := rs.db.GetLatestBlockNumber()
+			rs.BlockNumber.Store(n)
+		} else {
+			//must have a valid blocknumber before any transfer operation
+			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+		}
 		/*
 			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 		*/
-		err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
+		err = rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
 		if err != nil {
 			err = fmt.Errorf("Events listener error %v", err)
 			return

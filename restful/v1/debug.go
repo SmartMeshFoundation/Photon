@@ -65,14 +65,29 @@ func EthBalance(w rest.ResponseWriter, r *rest.Request) {
 	w.(http.ResponseWriter).Write([]byte(v.String()))
 }
 
+//BlockTimeFormat  is time format of last block
+const BlockTimeFormat = "01-02|15:04:05.999"
+
+//ConnectionStatus status of network connection
+type ConnectionStatus struct {
+	XMPPStatus    xmpptransport.Status
+	EthStatus     xmpptransport.Status
+	LastBlockTime string
+}
+
 /*
 EthereumStatus  query the status between raiden and ethereum
 */
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	c := RaidenAPI.Raiden.Chain
-	if c != nil && c.Client.Status == xmpptransport.Connected {
-		w.WriteJson("ok")
-	} else {
-		rest.Error(w, "connection failed", http.StatusInternalServerError)
+	cs := &ConnectionStatus{
+		XMPPStatus:    xmpptransport.Disconnected,
+		LastBlockTime: RaidenAPI.Raiden.GetDb().GetLastBlockNumberTime().Format(BlockTimeFormat),
 	}
+	if c != nil && c.Client.Status == xmpptransport.Connected {
+		cs.EthStatus = xmpptransport.Connected
+	} else {
+		cs.EthStatus = xmpptransport.Disconnected
+	}
+	w.WriteJson(cs)
 }

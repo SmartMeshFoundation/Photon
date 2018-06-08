@@ -523,12 +523,6 @@ func (s *Subscription) Unsubscribe() {
 	close(s.quitChan)
 }
 
-//connectionStatus status of network connection
-type connectionStatus struct {
-	XMPPStatus xmpptransport.Status
-	EthStatus  xmpptransport.Status
-}
-
 // NotifyHandler is a client-side subscription callback to invoke on events and
 // subscription failure.
 type NotifyHandler interface {
@@ -556,7 +550,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
 		quitChan: make(chan struct{}),
 	}
-	cs := connectionStatus{
+	cs := v1.ConnectionStatus{
 		XMPPStatus: xmpptransport.Disconnected,
 		EthStatus:  xmpptransport.Disconnected,
 	}
@@ -580,10 +574,12 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				handler.OnError(32, err.Error())
 			case s := <-a.api.Raiden.EthConnectionStatus:
 				cs.EthStatus = s
+				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
+				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case t := <-a.api.Raiden.GetDb().SentTransferChan:
