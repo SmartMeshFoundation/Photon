@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"net/http"
 
+	"context"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,6 +51,18 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	w.WriteJson("ok")
+}
+
+//EthBalance how many eth `addr` have.
+func EthBalance(w rest.ResponseWriter, r *rest.Request) {
+	addrstr := r.PathParam("addr")
+	addr := common.HexToAddress(addrstr)
+	v, err := RaidenAPI.Raiden.Chain.Client.BalanceAt(context.Background(), addr, nil)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	w.(http.ResponseWriter).Write([]byte(v.String()))
 }
 
 /*
