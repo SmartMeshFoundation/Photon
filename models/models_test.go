@@ -59,7 +59,7 @@ func TestNewStateChangeLog(t *testing.T) {
 	if !reflect.DeepEqual(st, st2) {
 		t.Error("data not equal")
 	}
-	s := &snapshotToWrite{
+	s := &SnapshotToWrite{
 		StateChangeID: 1,
 		State:         st,
 	}
