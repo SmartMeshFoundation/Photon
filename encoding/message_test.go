@@ -84,10 +84,10 @@ func TestType(t *testing.T) {
 	var p Messager = new(Ping)
 	var pi interface{}
 	pi = p
-	if _, ok := pi.(*cmdStruct); ok {
+	if _, ok := pi.(*CmdStruct); ok {
 		t.Log("is type  cmd struct")
 	}
-	//if _, ok := p.(*cmdStruct); ok {
+	//if _, ok := p.(*CmdStruct); ok {
 	//	T.Log("struct is type cmd struct")
 	//}
 }
