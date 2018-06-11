@@ -6,10 +6,10 @@ import (
 
 	"strconv"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/nkbai/log"
 )
 
 /*
