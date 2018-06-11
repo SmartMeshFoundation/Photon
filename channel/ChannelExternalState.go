@@ -40,8 +40,7 @@ type ExternalState struct {
 
 //NewChannelExternalState create a new channel external state
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
-	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService, db Db) *ExternalState {
-	var err error
+	nettingChannel *rpc.NettingChannelContractProxy, channelAddress common.Address, bcs *rpc.BlockChainService, db Db, openedBlock, closedBlock int64) *ExternalState {
 	cs := &ExternalState{
 		funcRegisterChannelForHashlock: fun,
 		NettingChannel:                 nettingChannel,
@@ -50,14 +49,10 @@ func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
 		ChanSettled:                    make(chan struct{}, 1),
 		ChannelAddress:                 channelAddress,
 		db:                             db,
+		OpenedBlock:                    openedBlock,
+		ClosedBlock:                    closedBlock,
+		SettledBlock:                   0,
 	}
-	cs.OpenedBlock, err = nettingChannel.Opened()
-	if err != nil {
-		//todo don't panic for network error
-		panic(fmt.Sprintf("call contract error: %s", err))
-	}
-	cs.ClosedBlock, _ = nettingChannel.Closed()
-	cs.SettledBlock = 0
 	return cs
 }
 

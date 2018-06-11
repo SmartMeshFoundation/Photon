@@ -54,7 +54,8 @@ type StateChange struct {
 	StateChange transfer.StateChange
 }
 
-type snapshotToWrite struct {
+//SnapshotToWrite is useless right now
+type SnapshotToWrite struct {
 	ID            int
 	StateChangeID int
 	State         interface{}
@@ -82,6 +83,7 @@ func newModelDB() (db *ModelDB) {
 
 //OpenDb open or create a bolt db at dbPath
 func OpenDb(dbPath string) (model *ModelDB, err error) {
+	log.Trace(fmt.Sprintf("dbpath=%s", dbPath))
 	model = newModelDB()
 	needCreateDb := !common.FileExist(dbPath)
 	var ver int
@@ -99,7 +101,7 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 			return
 		}
 		//write a empty snapshot,
-		model.db.Save(&snapshotToWrite{ID: 1})
+		model.db.Save(&SnapshotToWrite{ID: 1})
 		err = model.db.Set(bucketToken, keyToken, make(AddressMap))
 		if err != nil {
 			log.Crit(fmt.Sprintf("unable to create db "))
@@ -225,7 +227,7 @@ func (model *ModelDB) GetStateChangeByID(id int) (st transfer.StateChange, err e
 
 //Snapshot save snapshot to db
 func (model *ModelDB) Snapshot(stateChangeID int, state interface{}) (id int, err error) {
-	s := &snapshotToWrite{
+	s := &SnapshotToWrite{
 		ID:            1,
 		StateChangeID: stateChangeID,
 		State:         state,
@@ -236,7 +238,7 @@ func (model *ModelDB) Snapshot(stateChangeID int, state interface{}) (id int, er
 
 //LoadSnapshot get last snapshort
 func (model *ModelDB) LoadSnapshot() (state interface{}, err error) {
-	var sw snapshotToWrite
+	var sw SnapshotToWrite
 	err = model.db.One("ID", 1, &sw)
 	if err == nil {
 		state = sw.State
@@ -248,14 +250,14 @@ func (model *ModelDB) LoadSnapshot() (state interface{}, err error) {
 }
 func init() {
 	gob.Register(&InternalEvent{})
-	gob.Register(&snapshotToWrite{})
+	gob.Register(&SnapshotToWrite{})
 	gob.Register(common.Address{})
 	gob.Register(&ModelDB{}) //cannot save and restore by gob,only avoid noise by gob
 }
 
 func (model *ModelDB) initDb() {
 	model.db.Init(&InternalEvent{})
-	model.db.Init(&snapshotToWrite{})
+	model.db.Init(&SnapshotToWrite{})
 	model.db.Init(&StateChange{})
 	model.db.Init(&channel.Serialization{})
 	model.db.Init(&SentTransfer{})

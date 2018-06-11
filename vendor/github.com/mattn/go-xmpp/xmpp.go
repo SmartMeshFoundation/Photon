@@ -115,7 +115,7 @@ func connect(host, user, passwd string) (net.Conn, error) {
 		}
 	}
 
-	c, err := net.Dial("tcp", addr)
+	c, err := net.DialTimeout("tcp", addr,time.Second*5)
 	if err != nil {
 		return nil, err
 	}

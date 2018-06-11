@@ -20,8 +20,8 @@ const (
 	termMsgJust    = 40
 )
 
-// locationTrims are trimmed for display to avoid unwieldy log lines.
-var locationTrims = []string{
+// LocationTrims are trimmed for display to avoid unwieldy log lines.
+var LocationTrims = []string{
 	"github.com/SmartMeshFoundation/SmartRaiden/",
 }
 
@@ -109,7 +109,7 @@ func TerminalFormat(usecolor bool) Format {
 		if atomic.LoadUint32(&locationEnabled) != 0 {
 			// Log origin printing was requested, format the location path and line number
 			location := fmt.Sprintf("%+v", r.Call)
-			for _, prefix := range locationTrims {
+			for _, prefix := range LocationTrims {
 				location = strings.TrimPrefix(location, prefix)
 			}
 			// Maintain the maximum location length for fancyer alignment

@@ -97,7 +97,7 @@ type XMPPConnection struct {
 	closed         chan struct{}
 	reconnect      bool
 	status         Status
-	StatusChan     chan Status
+	statusChan     chan<- Status
 	NextPasswordFn PasswordGetter
 	dataHandler    DataHandler
 	name           string
@@ -106,7 +106,7 @@ type XMPPConnection struct {
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- Status) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
@@ -128,7 +128,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		closed:         make(chan struct{}),
 		reconnect:      true,
 		status:         Disconnected,
-		StatusChan:     make(chan Status, 10),
+		statusChan:     statusChan,
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
 		name:           name,
@@ -196,7 +196,7 @@ func (x *XMPPConnection) changeStatus(newStatus Status) {
 	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
 	x.status = newStatus
 	select {
-	case x.StatusChan <- newStatus:
+	case x.statusChan <- newStatus:
 	default:
 		//never block
 	}

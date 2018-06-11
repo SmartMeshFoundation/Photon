@@ -59,7 +59,7 @@ func TestNewXmpp(t *testing.T) {
 	log.Trace(fmt.Sprintf("addr1=%s,addr=%s\n", addr1.String(), addr2.String()))
 	x1handler := newTestDataHandler("x1")
 	x2handler := newTestDataHandler("x2")
-	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile)
+	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -74,7 +74,7 @@ func TestNewXmpp(t *testing.T) {
 		return
 	}
 	defer x1.Close()
-	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice)
+	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -118,7 +118,7 @@ func BenchmarkNewXmpp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
 		addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice)
+		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan Status, 10))
 		if err != nil {
 			return
 		}

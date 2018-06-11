@@ -83,21 +83,29 @@ type Messager interface {
 	MessagePackerUnpacker
 }
 
-type cmdStruct struct {
+//CmdStruct base of message
+type CmdStruct struct {
 	CmdID       int32
 	InternalTag interface{} //for save to database
 }
 
-func (cmd *cmdStruct) Cmd() int {
+//Cmd id of this message
+func (cmd *CmdStruct) Cmd() int {
 	return int(cmd.CmdID)
 }
-func (cmd *cmdStruct) Tag() interface{} {
+
+//Tag for internal state save
+func (cmd *CmdStruct) Tag() interface{} {
 	return cmd.InternalTag
 }
-func (cmd *cmdStruct) SetTag(tag interface{}) {
+
+//SetTag for internal state save
+func (cmd *CmdStruct) SetTag(tag interface{}) {
 	cmd.InternalTag = tag
 }
-func (cmd *cmdStruct) Name() string {
+
+//Name of this message
+func (cmd *CmdStruct) Name() string {
 	return MessageType(cmd.CmdID).String()
 }
 
@@ -150,7 +158,7 @@ We don'T Sign Acks because attack vector can be mitigated and to speed up
 things.
 */
 type Ack struct {
-	cmdStruct
+	CmdStruct
 	Sender common.Address
 	Echo   common.Hash
 }
@@ -158,7 +166,7 @@ type Ack struct {
 //NewAck create ack message
 func NewAck(sender common.Address, echo common.Hash) *Ack {
 	return &Ack{
-		cmdStruct: cmdStruct{CmdID: AckCmdID},
+		CmdStruct: CmdStruct{CmdID: AckCmdID},
 		Sender:    sender,
 		Echo:      echo,
 	}
@@ -198,7 +206,7 @@ func (ack *Ack) String() string {
 
 //SignedMessage is corresponding of SignedMessager
 type SignedMessage struct {
-	cmdStruct
+	CmdStruct
 	Sender    common.Address
 	Signature []byte
 }
@@ -272,7 +280,7 @@ type Ping struct {
 //NewPing create ping message
 func NewPing(nonce int64) *Ping {
 	p := &Ping{
-		//SignedMessage:SignedMessage{cmdStruct: cmdStruct{CmdID: PingCmdID}},
+		//SignedMessage:SignedMessage{CmdStruct: CmdStruct{CmdID: PingCmdID}},
 		Nonce: nonce,
 	}
 	p.CmdID = PingCmdID
@@ -1022,7 +1030,7 @@ var MessageMap = map[int]Messager{
 
 func init() {
 	gob.Register(&Ack{})
-	gob.Register(&cmdStruct{})
+	gob.Register(&CmdStruct{})
 	gob.Register(&DirectTransfer{})
 	gob.Register(&EnvelopMessage{})
 	gob.Register(&Lock{})

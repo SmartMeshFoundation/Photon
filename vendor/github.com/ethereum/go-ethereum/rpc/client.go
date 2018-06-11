@@ -154,7 +154,9 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 //
 // The client reconnects automatically if the connection is lost.
 func Dial(rawurl string) (*Client, error) {
-	return DialContext(context.Background(), rawurl)
+	ctx,cancel:=context.WithTimeout(context.Background(),time.Second*5)
+	defer cancel()
+	return DialContext(ctx, rawurl)
 }
 
 // DialContext creates a new RPC client, just like Dial.

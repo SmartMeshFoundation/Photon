@@ -15,7 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/fatedier/frp/src/utils/log"
+	"github.com/go-errors/errors"
 )
+
+var errNotConnectd = errors.New("eth not connected")
 
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
@@ -25,22 +28,39 @@ type SafeEthClient struct {
 	ReConnect  map[string]chan struct{}
 	Status     xmpptransport.Status
 	StatusChan chan xmpptransport.Status
+	quitChan   chan struct{}
 }
 
 //NewSafeClient create safeclient
 func NewSafeClient(rawurl string) (*SafeEthClient, error) {
-	c := new(SafeEthClient)
-	c.ReConnect = make(map[string]chan struct{})
-	c.url = rawurl
-	c.StatusChan = make(chan xmpptransport.Status, 10)
+	c := &SafeEthClient{
+		ReConnect:  make(map[string]chan struct{}),
+		url:        rawurl,
+		StatusChan: make(chan xmpptransport.Status, 10),
+		quitChan:   make(chan struct{}),
+	}
 	var err error
 	c.Client, err = ethclient.Dial(rawurl)
 	if err == nil {
 		c.changeStatus(xmpptransport.Connected)
 	} else {
-		c.changeStatus(xmpptransport.Disconnected)
+		//c.changeStatus(xmpptransport.Disconnected)
+		go c.RecoverDisconnect()
 	}
-	return c, err
+	return c, nil
+}
+
+//Close connection when destroy raiden service
+func (c *SafeEthClient) Close() {
+	if c.Client != nil {
+		c.Client.Close()
+	}
+	close(c.quitChan)
+}
+
+//IsConnected return true when connected to eth rpc server
+func (c *SafeEthClient) IsConnected() bool {
+	return c.Status == xmpptransport.Connected
 }
 
 //RegisterReConnectNotify register notify when reconnect
@@ -73,15 +93,21 @@ func (c *SafeEthClient) RecoverDisconnect() {
 	c.changeStatus(xmpptransport.Reconnecting)
 	for {
 		log.Info("tyring to reconnect geth ...")
+		select {
+		case <-c.quitChan:
+			return
+		default:
+			//never block
+		}
 		client, err = ethclient.Dial(c.url)
 		if err != nil {
 			log.Info(fmt.Sprintf("reconnect to geth error: %s", err))
 			time.Sleep(time.Second * 3)
 		} else {
 			//reconnect ok
+			c.Client = client
 			c.changeStatus(xmpptransport.Connected)
 			c.lock.Lock()
-			c.Client = client
 			var keys []string
 			for name, c := range c.ReConnect {
 				keys = append(keys, name)
@@ -109,6 +135,9 @@ func (c *SafeEthClient) BlockByHash(ctx context.Context, hash common.Hash) (r1 *
 func (c *SafeEthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.BlockByNumber(ctx, number)
 }
 
@@ -116,6 +145,9 @@ func (c *SafeEthClient) BlockByNumber(ctx context.Context, number *big.Int) (*ty
 func (c *SafeEthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.HeaderByHash(ctx, hash)
 }
 
@@ -124,6 +156,9 @@ func (c *SafeEthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 func (c *SafeEthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.HeaderByNumber(ctx, number)
 }
 
@@ -131,6 +166,9 @@ func (c *SafeEthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 func (c *SafeEthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, false, errNotConnectd
+	}
 	return c.Client.TransactionByHash(ctx, hash)
 }
 
@@ -138,6 +176,9 @@ func (c *SafeEthClient) TransactionByHash(ctx context.Context, hash common.Hash)
 func (c *SafeEthClient) TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return common.Address{}, errNotConnectd
+	}
 	return c.Client.TransactionSender(ctx, tx, block, index)
 }
 
@@ -145,6 +186,9 @@ func (c *SafeEthClient) TransactionSender(ctx context.Context, tx *types.Transac
 func (c *SafeEthClient) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return 0, errNotConnectd
+	}
 	return c.Client.TransactionCount(ctx, blockHash)
 }
 
@@ -152,6 +196,9 @@ func (c *SafeEthClient) TransactionCount(ctx context.Context, blockHash common.H
 func (c *SafeEthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.TransactionInBlock(ctx, blockHash, index)
 }
 
@@ -159,6 +206,9 @@ func (c *SafeEthClient) TransactionInBlock(ctx context.Context, blockHash common
 func (c *SafeEthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.TransactionReceipt(ctx, txHash)
 }
 
@@ -166,6 +216,9 @@ func (c *SafeEthClient) TransactionReceipt(ctx context.Context, txHash common.Ha
 func (c *SafeEthClient) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.SyncProgress(ctx)
 }
 
@@ -173,6 +226,9 @@ func (c *SafeEthClient) SyncProgress(ctx context.Context) (*ethereum.SyncProgres
 func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.SubscribeNewHead(ctx, ch)
 }
 
@@ -180,6 +236,9 @@ func (c *SafeEthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 func (c *SafeEthClient) NetworkID(ctx context.Context) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.NetworkID(ctx)
 }
 
@@ -187,6 +246,9 @@ func (c *SafeEthClient) NetworkID(ctx context.Context) (*big.Int, error) {
 func (c *SafeEthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.BalanceAt(ctx, account, blockNumber)
 }
 
@@ -194,6 +256,9 @@ func (c *SafeEthClient) BalanceAt(ctx context.Context, account common.Address, b
 func (c *SafeEthClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.StorageAt(ctx, account, key, blockNumber)
 }
 
@@ -201,6 +266,9 @@ func (c *SafeEthClient) StorageAt(ctx context.Context, account common.Address, k
 func (c *SafeEthClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.CodeAt(ctx, account, blockNumber)
 }
 
@@ -208,6 +276,9 @@ func (c *SafeEthClient) CodeAt(ctx context.Context, account common.Address, bloc
 func (c *SafeEthClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return 0, errNotConnectd
+	}
 	return c.Client.NonceAt(ctx, account, blockNumber)
 }
 
@@ -215,6 +286,9 @@ func (c *SafeEthClient) NonceAt(ctx context.Context, account common.Address, blo
 func (c *SafeEthClient) FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.FilterLogs(ctx, q)
 }
 
@@ -222,6 +296,9 @@ func (c *SafeEthClient) FilterLogs(ctx context.Context, q ethereum.FilterQuery) 
 func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.SubscribeFilterLogs(ctx, q, ch)
 }
 
@@ -229,6 +306,9 @@ func (c *SafeEthClient) SubscribeFilterLogs(ctx context.Context, q ethereum.Filt
 func (c *SafeEthClient) PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.PendingBalanceAt(ctx, account)
 }
 
@@ -236,6 +316,9 @@ func (c *SafeEthClient) PendingBalanceAt(ctx context.Context, account common.Add
 func (c *SafeEthClient) PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.PendingStorageAt(ctx, account, key)
 }
 
@@ -243,6 +326,9 @@ func (c *SafeEthClient) PendingStorageAt(ctx context.Context, account common.Add
 func (c *SafeEthClient) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.PendingCodeAt(ctx, account)
 }
 
@@ -250,6 +336,9 @@ func (c *SafeEthClient) PendingCodeAt(ctx context.Context, account common.Addres
 func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return 0, errNotConnectd
+	}
 	return c.Client.PendingNonceAt(ctx, account)
 }
 
@@ -257,6 +346,9 @@ func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Addre
 func (c *SafeEthClient) PendingTransactionCount(ctx context.Context) (uint, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return 0, errNotConnectd
+	}
 	return c.Client.PendingTransactionCount(ctx)
 }
 
@@ -264,6 +356,9 @@ func (c *SafeEthClient) PendingTransactionCount(ctx context.Context) (uint, erro
 func (c *SafeEthClient) CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.CallContract(ctx, msg, blockNumber)
 }
 
@@ -271,6 +366,9 @@ func (c *SafeEthClient) CallContract(ctx context.Context, msg ethereum.CallMsg, 
 func (c *SafeEthClient) PendingCallContract(ctx context.Context, msg ethereum.CallMsg) ([]byte, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.PendingCallContract(ctx, msg)
 }
 
@@ -278,6 +376,9 @@ func (c *SafeEthClient) PendingCallContract(ctx context.Context, msg ethereum.Ca
 func (c *SafeEthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return nil, errNotConnectd
+	}
 	return c.Client.SuggestGasPrice(ctx)
 }
 
@@ -285,6 +386,9 @@ func (c *SafeEthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 func (c *SafeEthClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return 0, errNotConnectd
+	}
 	return c.Client.EstimateGas(ctx, msg)
 }
 
@@ -292,5 +396,8 @@ func (c *SafeEthClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (
 func (c *SafeEthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	if c.Client == nil {
+		return errNotConnectd
+	}
 	return c.Client.SendTransaction(ctx, tx)
 }

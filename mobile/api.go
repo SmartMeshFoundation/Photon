@@ -447,9 +447,9 @@ func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r st
 }
 
 /*
-SwithNetwork  switch between mesh and internet
+SwitchNetwork  switch between mesh and internet
 */
-func (a *API) SwithNetwork(isMesh bool) {
+func (a *API) SwitchNetwork(isMesh bool) {
 	a.api.Raiden.Config.IsMeshNetwork = isMesh
 }
 
@@ -523,12 +523,6 @@ func (s *Subscription) Unsubscribe() {
 	close(s.quitChan)
 }
 
-//ConnectionStatus status of network connection
-type ConnectionStatus struct {
-	XMPPStatus xmpptransport.Status
-	EthStatus  xmpptransport.Status
-}
-
 // NotifyHandler is a client-side subscription callback to invoke on events and
 // subscription failure.
 type NotifyHandler interface {
@@ -556,7 +550,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
 		quitChan: make(chan struct{}),
 	}
-	cs := ConnectionStatus{
+	cs := v1.ConnectionStatus{
 		XMPPStatus: xmpptransport.Disconnected,
 		EthStatus:  xmpptransport.Disconnected,
 	}
@@ -578,12 +572,14 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			select {
 			case err = <-rpanic.GetNotify():
 				handler.OnError(32, err.Error())
-			case s := <-a.api.Raiden.Chain.Client.StatusChan:
+			case s := <-a.api.Raiden.EthConnectionStatus:
 				cs.EthStatus = s
+				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
+				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case t := <-a.api.Raiden.GetDb().SentTransferChan:

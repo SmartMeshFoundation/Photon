@@ -29,6 +29,7 @@ type XMPPTransport struct {
 	protocol      ProtocolReceiver
 	NodeAddress   common.Address
 	key           *ecdsa.PrivateKey
+	statusChan    chan xmpptransport.Status
 }
 
 /*
@@ -40,6 +41,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 		quitChan:    make(chan struct{}),
 		NodeAddress: crypto.PubkeyToAddress(key.PublicKey),
 		key:         key,
+		statusChan:  make(chan xmpptransport.Status, 10),
 	}
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	x.log = log.New("name", name)
@@ -53,7 +55,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 		for {
 			select {
 			case <-time.After(wait):
-				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType)
+				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan)
 				if !first {
 					first = true
 					wg.Done()

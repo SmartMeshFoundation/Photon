@@ -15,15 +15,18 @@ import (
 
 // TransferPayload API  http body
 type TransferPayload struct {
-	Amount int32 `json:"amount"`
-	Fee    int64 `json:"fee"`
+	Amount   int32 `json:"amount"`
+	Fee      int64 `json:"fee"`
+	IsDirect bool  `json:"is_direct"`
 }
 
 type testTransferParams struct {
-	Env         *models.RaidenEnvReader
-	AllowFail   bool
-	CaseName    string
-	PrepareData func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token *models.Token, err error)
+	Env          *models.RaidenEnvReader
+	AllowFail    bool
+	CaseName     string
+	PrepareData  func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token *models.Token, err error)
+	IsDirect     bool
+	TargetStatus int
 }
 
 // InitiatingTransferTest : test case for InitiatingTransfer
@@ -31,17 +34,38 @@ func InitiatingTransferTest(env *models.RaidenEnvReader, allowFail bool) {
 
 	// test transfer between two nodes who have direct opened channel
 	testTransfer(&testTransferParams{
-		Env:         env,
-		AllowFail:   allowFail,
-		CaseName:    "DirectTransfer A-B",
-		PrepareData: prepareDataForDirectTransfer,
+		Env:          env,
+		AllowFail:    allowFail,
+		CaseName:     "DirectTransfer A-B isDirect=true",
+		PrepareData:  prepareDataForDirectTransfer,
+		IsDirect:     true,
+		TargetStatus: 200,
+	})
+	testTransfer(&testTransferParams{
+		Env:          env,
+		AllowFail:    allowFail,
+		CaseName:     "DirectTransfer A-B isDirect=false",
+		PrepareData:  prepareDataForDirectTransfer,
+		IsDirect:     false,
+		TargetStatus: 200,
 	})
 	// test transfer between two nodes who doesn't have direct opened channel
 	testTransfer(&testTransferParams{
-		Env:         env,
-		AllowFail:   allowFail,
-		CaseName:    "IndirectTransfer A-B-C",
-		PrepareData: prepareDataForIndirectTransfer,
+		Env:          env,
+		AllowFail:    allowFail,
+		CaseName:     "IndirectTransfer A-B-C isDirect=true",
+		PrepareData:  prepareDataForIndirectTransfer,
+		IsDirect:     true,
+		TargetStatus: 409,
+	})
+	// test transfer between two nodes who doesn't have direct opened channel
+	testTransfer(&testTransferParams{
+		Env:          env,
+		AllowFail:    allowFail,
+		CaseName:     "IndirectTransfer A-B-C isDirect=false",
+		PrepareData:  prepareDataForIndirectTransfer,
+		IsDirect:     false,
+		TargetStatus: 200,
 	})
 }
 
@@ -60,6 +84,7 @@ func testTransfer(param *testTransferParams) {
 	var payload TransferPayload
 	payload.Amount = 5
 	payload.Fee = 0
+	payload.IsDirect = param.IsDirect
 	p, _ := json.Marshal(payload)
 	// run case
 	case1 := &APITestCase{
@@ -72,7 +97,7 @@ func testTransfer(param *testTransferParams) {
 			Payload: string(p),
 			Timeout: time.Second * 180,
 		},
-		TargetStatusCode: 200,
+		TargetStatusCode: param.TargetStatus,
 	}
 	case1.Run()
 }

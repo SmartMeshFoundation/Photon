@@ -175,9 +175,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	api = smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
-	if params.MobileMode {
-		//go restful.Start(api, cfg)
-		//time.Sleep(time.Millisecond * 100)
+	if params.MobileMode && cfg.APIHost == "0.0.0.0" {
+		log.Info("start http server for test only...")
+		go restful.Start(api, cfg)
+		time.Sleep(time.Millisecond * 100)
 	} else {
 		restful.Start(api, cfg)
 	}
@@ -203,7 +204,11 @@ func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) 
 		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, network.DeviceTypeMobile)
+		deviceType := network.DeviceTypeOther
+		if params.MobileMode {
+			deviceType = network.DeviceTypeMobile
+		}
+		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }

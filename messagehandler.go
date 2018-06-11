@@ -300,7 +300,7 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	}
 	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
-		log.Error("RegisterTransfer error %s\n", msg)
+		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
 	}
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{

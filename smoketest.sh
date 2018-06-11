@@ -9,7 +9,10 @@ go install
 # 2. build envinit and run
 cd ../tools/smoketest/envinit
 go build
-./envinit --eth-rpc-endpoint=ws://182.254.155.208:30306
+./envinit --eth-rpc-endpoint=$ETHRPCENDPOINT
+if [ $? -ne 0 ]; then
+    exit -1
+fi
 
 # 3. build smoketest and run
 cd ..

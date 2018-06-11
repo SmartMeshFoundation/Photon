@@ -153,7 +153,7 @@ func makeExternState() *ExternalState {
 	ch := os.Getenv("CHANNEL")
 	//must provide a valid netting channel address
 	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(ch))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, newMockChannelDb())
+	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, newMockChannelDb(), 0, 0)
 }
 func TestSenderCannotOverSpend(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()

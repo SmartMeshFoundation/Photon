@@ -46,7 +46,8 @@ func Start() {
 			test
 		*/
 		rest.Get("/api/1/stop", Stop),
-		rest.Post("/api/1/switch", SwitchToMesh),
+		rest.Get("/api/1/switch/:mesh", SwitchNetwork),
+		rest.Post("/api/1/updatenodes", UpdateMeshNetworkNodes),
 		/*
 			channels
 		*/
@@ -73,6 +74,7 @@ func Start() {
 		*/
 		rest.Get("/api/1/debug/balance/:token/:addr", Balance),
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
+		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
 	)
 	if err != nil {
