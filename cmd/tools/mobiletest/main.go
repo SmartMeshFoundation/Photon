@@ -39,6 +39,10 @@ func main() {
 			Usage: `"host:port" for the raiden service to listen on.`,
 			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
 		},
+		cli.StringFlag{
+			Name:  "api-address",
+			Value: "127.0.0.1:5001",
+		},
 		ethutils.DirectoryFlag{
 			Name:  "datadir",
 			Usage: "Directory for storing raiden data.",
@@ -62,9 +66,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	listenAddress := ctx.String("listen-address")
 	dataDir := ctx.String("datadir")
 	password := ctx.String("password-file")
+	apiAddr := ctx.String("api-address")
 	otherArgs := mobile.NewStrings(1)
 	otherArgs.Set(0, fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
-	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, listenAddress, "",
+	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress, "",
 		otherArgs)
 	if err != nil {
 		log.Crit(fmt.Sprintf("start up err %s", err))

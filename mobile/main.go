@@ -24,7 +24,7 @@ dataDir:The working directory of a node, such as ~/.smartraiden
 passwordfile: file to storage password eg ~/.geth/pass.txt
 apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, listenAddr, logFile string, otherArgs *Strings) (api *API, err error) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, otherArgs *Strings) (api *API, err error) {
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "smartraidenmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
@@ -32,6 +32,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, liste
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
 	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
+	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", apiAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", listenAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
