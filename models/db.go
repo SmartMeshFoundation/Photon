@@ -83,6 +83,7 @@ func newModelDB() (db *ModelDB) {
 
 //OpenDb open or create a bolt db at dbPath
 func OpenDb(dbPath string) (model *ModelDB, err error) {
+	log.Trace(fmt.Sprintf("dbpath=%s", dbPath))
 	model = newModelDB()
 	needCreateDb := !common.FileExist(dbPath)
 	var ver int
