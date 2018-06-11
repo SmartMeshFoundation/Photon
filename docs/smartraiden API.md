@@ -284,7 +284,7 @@ GET /api/1/events/channels/_0x000397DFD32aFAAE870E6b5FB44154FD43e43224_?from_blo
 将返回事件列表。可以通过过滤进入转账的列表得到。请注意smartraiden最有力的特征是用户可以发送转账到任何连接到网络的节点，只要有路径，有足够的容量，不需要用户直接相连。称之为 mediated transfers。
 在进行mediated transfers时，需要考虑路由情况。以本文预设的7个节点为例。
 
-![smartraiden](/images/smartraidenAPI.png)
+![smartraiden](/docs/images/smartraidenAPI.png)
 #### 场景一：转账给直接通道对方
 节点A同时向节点B和节点C、节点D进行转账，假定当前余额足够。
 示例：节点2向节点1，节点3，节点4，节点7同时转账20 token，由于节点2与1、3、4、7均有直接通道，因此，转账不通过中转节点。转账成功。 
@@ -316,7 +316,7 @@ GET /api/1/events/channels/_0x000397DFD32aFAAE870E6b5FB44154FD43e43224_?from_blo
 如果此时3节点不在线，转账不成功，锁定转账金额。原因是按照最短路线，首选1，2，3，6。**只有3在线，告诉2不行，2才回去尝试4，3不在线，就转不了账**。
 #### 场景七：中间节点余额不足转账
 此时使用refundtransfer
-![smartraiden](/images/smartraidenAPI.png)
+![smartraiden](/docs/images/smartraidenAPI.png)
 节点1向节点6转账 45token。
 如果此前，节点3已向节点6转账270 token,向节点7转账30token,显然，节点3收到转账请求后，发现123 6 走不通，退回2，走12 7 3 6，也走不通，最后选择走12456，成功转账。由于refundtransfer时间较长，此时，需要确定settletimeout时间是否足够，否则很容易失败，锁定转账金额。
 #### 场景八：奔溃恢复后转账
@@ -784,7 +784,7 @@ http://{{ip2}}/api/1/debug/transfer/0x0b51CEf630c850A3CD72d673015752A0C191B63A/0
 （你想转多少token给谁）
 
 ### 16.崩溃恢复
-![smartraiden](/images/smartraidenAPI.png)
+![smartraiden](/docs/images/smartraidenAPI.png)
 #### 1.发送消息崩溃
 - 场景一：EventSendMediatedTransferAfter
 
