@@ -12,7 +12,7 @@ go build
 ./envinit --eth-rpc-endpoint=$ETHRPCENDPOINT
 if [ $? -ne 0 ]; then
     exit -1
-if
+fi
 # 3. build smoketest and run
 cd ..
 rm -rf .smartraiden
