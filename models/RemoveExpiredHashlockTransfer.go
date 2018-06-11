@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/nkbai/log"
 )
 
 /*
