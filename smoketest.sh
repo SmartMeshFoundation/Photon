@@ -13,6 +13,7 @@ go build
 if [ $? -ne 0 ]; then
     exit -1
 fi
+
 # 3. build smoketest and run
 cd ..
 rm -rf .smartraiden
