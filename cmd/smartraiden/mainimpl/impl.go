@@ -175,9 +175,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	api = smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
-	if params.MobileMode {
-		//go restful.Start(api, cfg)
-		//time.Sleep(time.Millisecond * 100)
+	if params.MobileMode && cfg.APIHost == "0.0.0.0" {
+		log.Info("start http server for test only...")
+		go restful.Start(api, cfg)
+		time.Sleep(time.Millisecond * 100)
 	} else {
 		restful.Start(api, cfg)
 	}
