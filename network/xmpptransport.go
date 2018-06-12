@@ -93,10 +93,10 @@ func (x *XMPPTransport) GetPassWord() string {
 
 //Send a message
 func (x *XMPPTransport) Send(receiver common.Address, data []byte) error {
+	x.log.Trace(fmt.Sprintf("send to %s, message=%s", utils.APex2(receiver), encoding.MessageType(data[0])))
 	if x.stopped || x.conn == nil {
 		return errXMPPConnectionNotReady
 	}
-	x.log.Trace(fmt.Sprintf("send to %s, message=%s", utils.APex2(receiver), encoding.MessageType(data[0])))
 	return x.conn.SendData(receiver, data)
 }
 

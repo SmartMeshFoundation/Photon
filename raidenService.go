@@ -171,6 +171,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		quitChan:                            make(chan struct{}),
 		EthConnectionStatus:                 make(chan xmpptransport.Status, 10),
 	}
+	srv.BlockNumber.Store(int64(0))
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
 	srv.Protocol = network.NewRaidenProtocol(transport, privateKey, srv)

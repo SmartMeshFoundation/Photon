@@ -266,6 +266,27 @@ func (mh *raidenMessageHandler) messageRefundTransfer(msg *encoding.RefundTransf
 	return nil
 }
 
+/*
+for direct transfer,
+we shoud make ack and update channel status ,these two operations atomic
+*/
+func (mh *raidenMessageHandler) markDirectTransferComplete(msg *encoding.DirectTransfer) {
+	if msg.Tag() == nil {
+		log.Error(fmt.Sprintf("tag must not be nil ,only when token swap %s", utils.StringInterface(msg, 5)))
+		return
+	}
+	tx := mh.raiden.db.StartTx()
+	msgTag := msg.Tag().(*transfer.MessageTag)
+	ack := mh.raiden.Protocol.CreateAck(msgTag.EchoHash)
+	mh.raiden.db.SaveAck(msgTag.EchoHash, ack.Pack(), tx)
+	ch, err := mh.raiden.findChannelByAddress(msg.Channel)
+	if err != nil {
+		panic(fmt.Sprintf("channel %s must exists", utils.APex(msg.Channel)))
+	}
+	mh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	tx.Commit()
+	mh.raiden.conditionQuit("DirectTransferSendAck")
+}
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	mh.balanceProof(msg)
 	if graph := mh.raiden.getToken2ChannelGraph(msg.Token); graph == nil {
@@ -303,6 +324,7 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
 	}
+	mh.markDirectTransferComplete(msg)
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{
 		Identifier:     msg.Identifier,
 		Amount:         amount,

@@ -162,6 +162,7 @@ func (ut *UDPTransport) Start() {
 				log.Error(fmt.Sprintf("listen udp %s error %v", ut.UAddr.String(), err))
 				time.Sleep(time.Second)
 			}
+			log.Info(fmt.Sprintf("udp server listening on %s", ut.UAddr.String()))
 			ut.conn = conn
 			ut.log.Info(fmt.Sprintf(" listen udp on %s", ut.UAddr))
 			for {

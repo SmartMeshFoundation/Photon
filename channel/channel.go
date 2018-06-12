@@ -298,7 +298,7 @@ func (c *Channel) PreCheckRecievedTransfer(blockNumber int64, tr encoding.Envelo
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
-			utils.Pex(toState.Address[:]), fromState.nonce(), evMsg.Nonce))
+			utils.Pex(toState.Address[:]), fromState.nonce()+1, evMsg.Nonce))
 		err = rerr.InvalidNonce(utils.StringInterface(tr, 3))
 		return
 	}
@@ -419,7 +419,7 @@ func (c *Channel) RegisterTransferFromTo(blockNumber int64, tr encoding.EnvelopM
 		//c may occur on normal operation
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
-			utils.Pex(toState.Address[:]), fromState.nonce(), evMsg.Nonce))
+			utils.Pex(toState.Address[:]), fromState.nonce()+1, evMsg.Nonce))
 		return rerr.InvalidNonce(utils.StringInterface(tr, 3))
 	}
 	/*
