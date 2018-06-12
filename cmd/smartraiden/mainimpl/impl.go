@@ -141,7 +141,8 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 }
 
 func mainCtx(ctx *cli.Context) (err error) {
-	fmt.Printf("Welcom to smartraiden,version %s\n", ctx.App.Version)
+	log.Info("Welcom to smartraiden,version %s\n", ctx.App.Version)
+	log.Info(fmt.Sprintf("os.args=%q", os.Args))
 	cfg, err := config(ctx)
 	if err != nil {
 		return
@@ -175,10 +176,12 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	api = smartraiden.NewRaidenAPI(raidenService)
 	regQuitHandler(api)
-	if params.MobileMode && cfg.APIHost == "0.0.0.0" {
-		log.Info("start http server for test only...")
-		go restful.Start(api, cfg)
-		time.Sleep(time.Millisecond * 100)
+	if params.MobileMode {
+		if cfg.APIHost == "0.0.0.0" {
+			log.Info("start http server for test only...")
+			go restful.Start(api, cfg)
+			time.Sleep(time.Millisecond * 100)
+		}
 	} else {
 		restful.Start(api, cfg)
 	}

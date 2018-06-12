@@ -161,6 +161,7 @@ func (ut *UDPTransport) Start() {
 			if err != nil {
 				log.Error(fmt.Sprintf("listen udp %s error %v", ut.UAddr.String(), err))
 				time.Sleep(time.Second)
+				continue
 			}
 			log.Info(fmt.Sprintf("udp server listening on %s", ut.UAddr.String()))
 			ut.conn = conn
@@ -252,7 +253,9 @@ func (ut *UDPTransport) Stop() {
 	ut.stopReceiving = true
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
-	ut.conn.Close()
+	if ut.conn != nil {
+		ut.conn.Close()
+	}
 }
 
 //StopAccepting stop receiving
