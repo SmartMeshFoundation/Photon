@@ -74,5 +74,6 @@ func (cm *CaseManager) CrashCase01() (err error) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
+	env.KillAllRaidenNodes()
 	return
 }
