@@ -6,7 +6,7 @@ import (
 
 	"context"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -70,8 +70,8 @@ const BlockTimeFormat = "01-02|15:04:05.999"
 
 //ConnectionStatus status of network connection
 type ConnectionStatus struct {
-	XMPPStatus    xmpptransport.Status
-	EthStatus     xmpptransport.Status
+	XMPPStatus    netshare.Status
+	EthStatus     netshare.Status
 	LastBlockTime string
 }
 
@@ -81,13 +81,13 @@ EthereumStatus  query the status between raiden and ethereum
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	c := RaidenAPI.Raiden.Chain
 	cs := &ConnectionStatus{
-		XMPPStatus:    xmpptransport.Disconnected,
+		XMPPStatus:    netshare.Disconnected,
 		LastBlockTime: RaidenAPI.Raiden.GetDb().GetLastBlockNumberTime().Format(BlockTimeFormat),
 	}
-	if c != nil && c.Client.Status == xmpptransport.Connected {
-		cs.EthStatus = xmpptransport.Connected
+	if c != nil && c.Client.Status == netshare.Connected {
+		cs.EthStatus = netshare.Connected
 	} else {
-		cs.EthStatus = xmpptransport.Disconnected
+		cs.EthStatus = netshare.Disconnected
 	}
 	w.WriteJson(cs)
 }

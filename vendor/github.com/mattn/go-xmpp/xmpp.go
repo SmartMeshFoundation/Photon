@@ -597,6 +597,7 @@ type Presence struct {
 	Type   string
 	Show   string
 	Status string
+	ID     string
 }
 
 type IQ struct {
@@ -639,7 +640,7 @@ func (c *Client) Recv() (stanza interface{}, err error) {
 			}
 			return Chat{Type: "roster", Roster: r}, nil
 		case *clientPresence:
-			return Presence{v.From, v.To, v.Type, v.Show, v.Status}, nil
+			return Presence{v.From, v.To, v.Type, v.Show, v.Status,v.ID}, nil
 		case *clientIQ:
 			// TODO check more strictly
 			if bytes.Equal(bytes.TrimSpace(v.Query), []byte(`<ping xmlns='urn:xmpp:ping'/>`)) || bytes.Equal(bytes.TrimSpace(v.Query), []byte(`<ping xmlns="urn:xmpp:ping"/>`)) {
@@ -673,7 +674,7 @@ func (c *Client) SendOrg(org string) (n int, err error) {
 }
 
 func (c *Client) SendPresence(presence Presence) (n int, err error) {
-	return fmt.Fprintf(c.w, "<presence from='%s' to='%s'/>", xmlEscape(presence.From), xmlEscape(presence.To))
+	return fmt.Fprintf(c.w, "<presence id='%s' from='%s' to='%s' type='%s'/>", xmlEscape(presence.ID),xmlEscape(presence.From), xmlEscape(presence.To),xmlEscape(presence.Type))
 }
 
 func (c*Client) SendIQ(iq IQ)(n int ,err error){
@@ -980,5 +981,6 @@ func (t teeWriter)Write(p []byte) (n int, err error){
 	n,err=t.w1.Write(p)
 	t.w2.Write([]byte(fmt.Sprintf("%s send:\n",t.name)))
 	t.w2.Write(p)
+	t.w2.Write([]byte("\n"))
 	return
 }

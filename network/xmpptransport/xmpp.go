@@ -11,10 +11,12 @@ import (
 
 	"strings"
 
-	"encoding/json"
-
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-xmpp"
@@ -58,20 +60,6 @@ var DefaultConfig = &Config{
 	Timeout: defaultTimeout,
 }
 
-// Status shows actual connection status.
-type Status int
-
-const (
-	//Disconnected init status
-	Disconnected = Status(iota)
-	//Connected connection status
-	Connected
-	//Closed user closed
-	Closed
-	//Reconnecting connection error
-	Reconnecting
-)
-
 /*
 PasswordGetter generate login password
 */
@@ -86,6 +74,12 @@ type DataHandler interface {
 	DataHandler(from common.Address, data []byte)
 }
 
+//NodeStatus is status of a raiden node
+type NodeStatus struct {
+	IsOnline   bool
+	DeviceType string
+}
+
 // XMPPConnection describes client connection to xmpp server.
 type XMPPConnection struct {
 	mutex          sync.RWMutex
@@ -93,41 +87,47 @@ type XMPPConnection struct {
 	options        xmpp.Options
 	client         *xmpp.Client
 	waitersMutex   sync.RWMutex
-	waiters        map[string]chan *xmpp.IQ
+	waiters        map[string]chan interface{} //message waiting for response
 	closed         chan struct{}
 	reconnect      bool
-	status         Status
-	statusChan     chan<- Status
+	status         netshare.Status
+	statusChan     chan<- netshare.Status
 	NextPasswordFn PasswordGetter
 	dataHandler    DataHandler
 	name           string
+	nodesStatus    map[string]*NodeStatus
+	db             *models.ModelDB
+	hasSubscribed  bool                   //是否初始化过订阅信息
+	addrMap        map[common.Address]int //addr neighbor count
 }
 
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- Status) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
 		options: xmpp.Options{
-			Host:                         ServerURL,
-			User:                         fmt.Sprintf("%s%s", User.String(), nameSuffix),
-			Password:                     passwordFn.GetPassWord(),
-			NoTLS:                        true,
+			Host:     ServerURL,
+			User:     fmt.Sprintf("%s%s", User.String(), nameSuffix),
+			Password: passwordFn.GetPassWord(),
+			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:                        false,
-			Session:                      false,
-			Status:                       "xa",
-			StatusMessage:                name,
-			Resource:                     deviceType,
+			Debug:         true,
+			Session:       false,
+			Status:        "xa",
+			StatusMessage: name,
+			Resource:      deviceType,
 		},
 		client:         nil,
 		waitersMutex:   sync.RWMutex{},
-		waiters:        make(map[string]chan *xmpp.IQ),
+		waiters:        make(map[string]chan interface{}),
+		nodesStatus:    make(map[string]*NodeStatus),
 		closed:         make(chan struct{}),
+		addrMap:        make(map[common.Address]int),
 		reconnect:      true,
-		status:         Disconnected,
+		status:         netshare.Disconnected,
 		statusChan:     statusChan,
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
@@ -139,7 +139,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		log.Trace(fmt.Sprintf("%s new xmpp client err %s", name, err))
 		return
 	}
-	x.changeStatus(Connected)
+	x.changeStatus(netshare.Connected)
 	go x.loop()
 	x2 = x
 	return
@@ -148,7 +148,7 @@ func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
 	for {
 		chat, err := x.client.Recv()
-		if x.status == Closed {
+		if x.status == netshare.Closed {
 			return
 		}
 		if err != nil {
@@ -176,7 +176,6 @@ func (x *XMPPConnection) loop() {
 				x.dataHandler.DataHandler(raddr, data)
 			}
 		case xmpp.IQ:
-
 			uid := v.ID
 			x.waitersMutex.Lock()
 			ch, ok := x.waiters[uid]
@@ -185,14 +184,42 @@ func (x *XMPPConnection) loop() {
 				log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
 				ch <- &v
 			} else {
-				log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
+				//log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
+			}
+		case xmpp.Presence:
+			if len(v.ID) > 0 {
+				//subscribe or unsubscribe
+				uid := v.ID
+				x.waitersMutex.Lock()
+				ch, ok := x.waiters[uid]
+				x.waitersMutex.Unlock()
+				if ok {
+					log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
+					ch <- &v
+				} else {
+					log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
+				}
+			} else {
+				from := v.From
+				ss := strings.Split(from, "/")
+				if len(ss) != 2 {
+					log.Error(fmt.Sprintf("presence doesn't have resource %s", utils.StringInterface(v, 2)))
+					continue
+				}
+				id, device := ss[0], ss[1]
+				bs := &NodeStatus{
+					DeviceType: device,
+					IsOnline:   len(v.Type) == 0,
+				}
+				x.nodesStatus[id] = bs
+				log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
 			}
 		default:
 			//log.Trace(fmt.Sprintf("recv %s", utils.StringInterface(v, 3)))
 		}
 	}
 }
-func (x *XMPPConnection) changeStatus(newStatus Status) {
+func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
 	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
 	x.status = newStatus
 	select {
@@ -202,9 +229,12 @@ func (x *XMPPConnection) changeStatus(newStatus Status) {
 	}
 }
 func (x *XMPPConnection) reConnect() {
-	x.changeStatus(Reconnecting)
+	x.changeStatus(netshare.Reconnecting)
 	o := x.options
 	for {
+		if x.status == netshare.Closed {
+			return
+		}
 		o.Password = x.NextPasswordFn.GetPassWord()
 		client, err := o.NewClient()
 		if err != nil {
@@ -217,11 +247,17 @@ func (x *XMPPConnection) reConnect() {
 		x.mutex.Unlock()
 		break
 	}
-	x.changeStatus(Connected)
+	if x.db != nil && !x.hasSubscribed {
+		err := x.CollectNeighbors(x.db)
+		if err != nil {
+			log.Error(fmt.Sprintf("CollectNeighbors err %s", err))
+		}
+	}
+	x.changeStatus(netshare.Connected)
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
 	uid := msg.ID
-	wait := make(chan *xmpp.IQ)
+	wait := make(chan interface{})
 	err = x.addWaiter(uid, wait)
 	if err != nil {
 		return nil, err
@@ -231,7 +267,12 @@ func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error)
 	if err != nil {
 		return nil, err
 	}
-	response, err = x.wait(wait)
+	r, err := x.wait(wait)
+	response, ok := r.(*xmpp.IQ)
+	if !ok {
+		log.Error(fmt.Sprintf("recevie response %s,but type error ", utils.StringInterface(r, 3)))
+		err = errors.New("type error")
+	}
 	return
 }
 func (x *XMPPConnection) send(msg *xmpp.Chat) error {
@@ -266,7 +307,7 @@ func (x *XMPPConnection) sendIQ(msg *xmpp.IQ) error {
 	}
 	return nil
 }
-func (x *XMPPConnection) addWaiter(uid string, ch chan *xmpp.IQ) error {
+func (x *XMPPConnection) addWaiter(uid string, ch chan interface{}) error {
 	x.waitersMutex.Lock()
 	defer x.waitersMutex.Unlock()
 	if _, ok := x.waiters[uid]; ok {
@@ -283,7 +324,7 @@ func (x *XMPPConnection) removeWaiter(uid string) error {
 	return nil
 }
 
-func (x *XMPPConnection) wait(ch chan *xmpp.IQ) (response *xmpp.IQ, err error) {
+func (x *XMPPConnection) wait(ch chan interface{}) (response interface{}, err error) {
 	select {
 	case data, ok := <-ch:
 		if !ok {
@@ -299,7 +340,7 @@ func (x *XMPPConnection) wait(ch chan *xmpp.IQ) (response *xmpp.IQ, err error) {
 
 //Close this connection
 func (x *XMPPConnection) Close() {
-	x.changeStatus(Closed)
+	x.changeStatus(netshare.Closed)
 	close(x.closed)
 	err := x.client.Close()
 	if err != nil {
@@ -309,7 +350,7 @@ func (x *XMPPConnection) Close() {
 
 //Connected returns true when this connection is ready for sent
 func (x *XMPPConnection) Connected() bool {
-	return x.status == Connected
+	return x.status == netshare.Connected
 }
 
 //SendData to peer
@@ -335,32 +376,147 @@ type iqResult struct {
 
 //IsNodeOnline test node is online
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
-	iq := &xmpp.IQ{
-		ID:    utils.RandomString(10),
-		From:  x.options.User,
-		To:    fmt.Sprintf("%s%s", addr.String(), nameSuffix),
-		Type:  "get",
-		Query: []byte("<ping xmlns='urn:xmpp:ping'/>"),
+	id := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
+	log.Trace(fmt.Sprintf("query nodeonline %s", addr.String()))
+	ns, ok := x.nodesStatus[id]
+	if ok {
+		return ns.DeviceType, ns.IsOnline, nil
 	}
-	r, err := x.sendSyncIQ(iq)
-	if err != nil {
-		err = fmt.Errorf("sendsynciq to %s err %s", utils.APex(addr), err)
-		return
-	}
-	if len(r.Query) < 13 {
-		err = fmt.Errorf("iq body too short")
-		return
-	}
+	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
+	return "", false, nil
 
-	//log.Trace(fmt.Sprintf("query=%s", string(r.Query)))
-	//log.Trace(fmt.Sprintf("body=%s", r.Query))
-	var ir iqResult
-	err = json.Unmarshal([]byte(r.Query), &ir)
+}
+func (x *XMPPConnection) sendPresence(msg *xmpp.Presence) error {
+	select {
+	case <-x.closed:
+		return errClientDisconnected
+	default:
+		x.mutex.Lock()
+		cli := x.client
+		x.mutex.Unlock()
+		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
+		_, err := cli.SendPresence(*msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (x *XMPPConnection) sendSyncPresence(msg *xmpp.Presence) (response *xmpp.Presence, err error) {
+	uid := msg.ID
+	wait := make(chan interface{})
+	err = x.addWaiter(uid, wait)
+	if err != nil {
+		return nil, err
+	}
+	defer x.removeWaiter(uid)
+	err = x.sendPresence(msg)
+	if err != nil {
+		return nil, err
+	}
+	r, err := x.wait(wait)
 	if err != nil {
 		return
 	}
-	//log.Trace(fmt.Sprintf("ir=%s", utils.StringInterface(ir, 3)))
-	isOnline = ir.Result == resultOnline
-	deviceType = ir.Resource
+	response, ok := r.(*xmpp.Presence)
+	if !ok {
+		log.Error(fmt.Sprintf("recevie response %s,but type error ", utils.StringInterface(r, 3)))
+		err = errors.New("type error")
+	}
 	return
+}
+
+//SubscribeNeighbour the status change of `addr`
+func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
+	addrName := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
+	p := xmpp.Presence{
+		From: x.options.User,
+		To:   addrName,
+		Type: "subscribe",
+		ID:   utils.RandomString(10),
+	}
+	_, err := x.sendSyncPresence(&p)
+	return err
+}
+
+//Unsubscribe the status change of `addr`
+/*
+```xml
+<presence id='xk3h1v69' to='leon@mobileraiden' type='unsubscribe'/>
+```
+*/
+func (x *XMPPConnection) Unsubscribe(addr common.Address) error {
+	addrName := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
+	p := xmpp.Presence{
+		From: x.options.User,
+		To:   addrName,
+		Type: "unsubscribe",
+		ID:   utils.RandomString(10),
+	}
+	_, err := x.sendSyncPresence(&p)
+	return err
+}
+
+//SubscribeNeighbors I want to know these `addrs` status change
+func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
+	for _, addr := range addrs {
+		err := x.SubscribeNeighbour(addr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//CollectNeighbors subscribe status change from database
+func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
+	x.db = db
+	return nil
+	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
+	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		if c.State == transfer.ChannelStateOpened {
+			x.addrMap[c.PartnerAddress]++
+		}
+	}
+	for addr := range x.addrMap {
+		err = x.SubscribeNeighbour(addr)
+		if err == nil && !db.XMPPIsAddrSubed(addr) {
+			db.XMPPMarkAddrSubed(addr)
+		}
+	}
+	db.RegisterNewChannellCallback(func(c *channel.Serialization) (remove bool) {
+		if x.status == netshare.Closed {
+			return true
+		}
+		err = x.SubscribeNeighbour(c.PartnerAddress)
+		if err != nil {
+			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddressString, err))
+		} else {
+			x.db.XMPPMarkAddrSubed(c.PartnerAddress)
+		}
+		return false
+	})
+	db.RegisterChannelStateCallback(func(c *channel.Serialization) (remove bool) {
+		if x.status == netshare.Closed {
+			return true
+		}
+		if c.State == transfer.ChannelStateSettled {
+			x.addrMap[c.PartnerAddress]--
+			if x.addrMap[c.PartnerAddress] <= 0 {
+				err = x.Unsubscribe(c.PartnerAddress)
+				if err != nil {
+					log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddressString, err))
+					return false
+				}
+				db.XMPPUnMarkAddr(c.PartnerAddress)
+			}
+		}
+		return false
+	})
+	x.hasSubscribed = true
+	return nil
 }
