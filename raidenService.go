@@ -31,9 +31,9 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -131,7 +131,7 @@ type RaidenService struct {
 	HealthCheckMap                      map[common.Address]bool
 	quitChan                            chan struct{} //for quit notification
 	ethInited                           bool
-	EthConnectionStatus                 chan xmpptransport.Status
+	EthConnectionStatus                 chan netshare.Status
 }
 
 //NewRaidenService create raiden service
@@ -169,7 +169,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		FeePolicy:                           &ConstantFeePolicy{},
 		HealthCheckMap:                      make(map[common.Address]bool),
 		quitChan:                            make(chan struct{}),
-		EthConnectionStatus:                 make(chan xmpptransport.Status, 10),
+		EthConnectionStatus:                 make(chan netshare.Status, 10),
 	}
 	srv.BlockNumber.Store(int64(0))
 	srv.MessageHandler = newRaidenMessageHandler(srv)
@@ -244,6 +244,11 @@ func (rs *RaidenService) Start() (err error) {
 	}
 	rs.Protocol.Start()
 	rs.startNeighboursHealthCheck()
+	err = rs.startSubscribeNeighborStatus()
+	if err != nil {
+		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
+		return
+	}
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -435,7 +440,7 @@ func (rs *RaidenService) loop() {
 			default:
 				//never block
 			}
-			if s == xmpptransport.Connected {
+			if s == netshare.Connected {
 				rs.handleEthRRCConnectionOK()
 			}
 		case <-rs.quitChan:
@@ -1199,7 +1204,13 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 		}
 	}
 }
-
+func (rs *RaidenService) startSubscribeNeighborStatus() error {
+	mt, ok := rs.Transport.(*network.MixTransporter)
+	if !ok {
+		return fmt.Errorf("transport is not mix transpoter")
+	}
+	return mt.SubscribeNeighbor(rs.db)
+}
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *network.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
 	if cg == nil {
@@ -1492,8 +1503,6 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 			switch msg := sentMessage.Message.(type) {
 			case *encoding.RevealSecret:
 				rs.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
-			case *encoding.RemoveExpiredHashlockTransfer:
-				rs.db.UpdateSentRemoveExpiredHashlockTransfer(sentMessageTag.EchoHash)
 			default:
 				log.Error(fmt.Sprintf("unknown message %s", utils.StringInterface(msg, 7)))
 			}
