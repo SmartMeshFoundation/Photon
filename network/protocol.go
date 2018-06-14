@@ -400,7 +400,10 @@ func (p *RaidenProtocol) GetNetworkStatus(addr common.Address) (deviceType strin
 	return p.Transport.NodeStatus(addr)
 }
 func (p *RaidenProtocol) receive(data []byte) {
-	p.receiveChan <- data
+	//todo fix ,remove copy and fix deadlock of send and receive
+	cdata := make([]byte, len(data))
+	copy(cdata, data)
+	p.receiveChan <- cdata
 }
 func (p *RaidenProtocol) loop() {
 	for {
@@ -461,7 +464,7 @@ func (p *RaidenProtocol) receiveInternal(data []byte) {
 		p.mapLock.Unlock()
 	} else {
 		signedMessager, ok := messager.(encoding.SignedMessager)
-		p.log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack=%s", encoding.MessageType(messager.Cmd()), utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
+		p.log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack=%s", messager, utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
 		if !ok {
 			p.log.Warn("message should be signed except for ack")
 			return
