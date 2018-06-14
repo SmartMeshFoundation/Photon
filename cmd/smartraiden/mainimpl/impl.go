@@ -141,7 +141,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 }
 
 func mainCtx(ctx *cli.Context) (err error) {
-	log.Info("Welcom to smartraiden,version %s\n", ctx.App.Version)
+	log.Info(fmt.Sprintf("Welcom to smartraiden,version %s\n", ctx.App.Version))
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
 	cfg, err := config(ctx)
 	if err != nil {

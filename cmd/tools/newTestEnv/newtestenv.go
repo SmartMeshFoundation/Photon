@@ -94,6 +94,7 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 		os.Exit(1)
 	}
 	addr = am.Accounts[0].Address
+	log.Printf("deploy account = %s", addr.String())
 	for i := 0; i < 3; i++ {
 		//retries three times
 		if len(globalPassword) <= 0 {

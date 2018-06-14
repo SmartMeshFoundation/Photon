@@ -73,7 +73,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
 	}
-	log.Printf("create channel gas %s:%d\n", tx.Hash().String(), tx.Gas())
+	log.Printf("create channel gas %s:%d,channel address=%s\n", tx.Hash().String(), tx.Gas(), tx.To().String())
 	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
