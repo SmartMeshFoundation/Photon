@@ -471,7 +471,6 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 //CollectNeighbors subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 	x.db = db
-	return nil
 	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
