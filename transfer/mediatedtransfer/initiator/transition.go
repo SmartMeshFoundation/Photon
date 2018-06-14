@@ -128,8 +128,12 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		if unlockFailed != nil {
 			events = append(events, unlockFailed)
 		}
+		var newState *mt.InitiatorState
+		if len(state.CanceledTransfers) != 0 {
+			newState = state //make sure not finish
+		}
 		return &transfer.TransitionResult{
-			NewState: nil,
+			NewState: newState,
 			Events:   events,
 		}
 	}
@@ -177,7 +181,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 	if state.BlockNumber > state.Transfer.Expiration {
-		if !state.Db.IsThisLockRemoved(state.Route.ChannelAddress, state.OurAddress, state.Transfer.Hashlock) {
+		if state.Route != nil && !state.Db.IsThisLockRemoved(state.Route.ChannelAddress, state.OurAddress, state.Transfer.Hashlock) {
 			unlockFailed := &mt.EventUnlockFailed{
 				Identifier:     state.Transfer.Identifier,
 				Hashlock:       state.Transfer.Hashlock,
@@ -358,7 +362,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		}
 		state = nil //originalState is nil
 	}
-	if state == nil { //这里可能是一个坑,关于interface和nil比较的问题
+	if state == nil {
 		staii, ok := st.(*mt.ActionInitInitiatorStateChange)
 		if ok {
 			var routes transfer.RoutesState
