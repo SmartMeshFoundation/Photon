@@ -1039,4 +1039,5 @@ func init() {
 	gob.Register(&RefundTransfer{})
 	gob.Register(&Secret{})
 	gob.Register(&SecretRequest{})
+	gob.Register(&RemoveExpiredHashlockTransfer{})
 }

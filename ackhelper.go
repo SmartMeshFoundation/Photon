@@ -27,11 +27,22 @@ func (ah *AckHelper) GetAck(echohash common.Hash) []byte {
 //SaveAck save ack to db
 func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
 	data := ah.GetAck(echohash)
-	_, ok := msg.(*encoding.RevealSecret)
-	_, ok2 := msg.(*encoding.SecretRequest)
-	if ok || ok2 {
+	var ok bool
+	switch msg.(type) {
+	case *encoding.RevealSecret:
+		ok = true
+	case *encoding.SecretRequest:
+		ok = true
+	case *encoding.DirectTransfer:
+		ok = true
+	case *encoding.RefundTransfer:
+		ok = true
+	case *encoding.RemoveExpiredHashlockTransfer:
+		ok = true
+	}
+	if ok {
 		if len(data) > 0 {
-			log.Error(fmt.Sprintf("save ack for  RevealSecret which is already exist"))
+			log.Error(fmt.Sprintf("save ack for  %s which is already exist", msg.String()))
 		} else {
 			tx := ah.db.StartTx()
 			ah.db.SaveAck(echohash, ack, tx)

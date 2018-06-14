@@ -204,10 +204,12 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	/*
 		save new channel status and sent RemoveExpiredHashlockTransfer must be atomic.
 	*/
-	tx := eh.raiden.db.StartTx()
-	eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-	eh.raiden.db.NewSentRemoveExpiredHashlockTransfer(tr, ch.PartnerState.Address, tx)
-	tx.Commit()
+	eh.updateStateManagerFromEvent(ch.PartnerState.Address, tr, manager)
+	//tx := eh.raiden.db.StartTx()
+	//eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+	//eh.raiden.db.NewSentRemoveExpiredHashlockTransfer(tr, ch.PartnerState.Address, tx)
+	//tx.Commit()
+	eh.raiden.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
 	err = eh.raiden.sendAsync(ch.PartnerState.Address, tr)
 	return
 }
@@ -278,6 +280,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		//should remove hashlock from channel todo fix bai
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", utils.HPex(e2.Hashlock), e2.Reason))
 		err = eh.eventUnlockFailed(e2, stateManager)
+		eh.raiden.conditionQuit("EventSendRemoveExpiredHashlockTransferAfter")
 	case *mediatedtransfer.EventContractSendChannelClose:
 		err = eh.eventContractSendChannelClose(e2)
 	default:
@@ -608,6 +611,8 @@ func (eh *stateMachineEventHandler) updateStateManagerFromEvent(receiver common.
 		msgtoSend = msg2 //state manager should be marked as finished? todo
 	case *encoding.SecretRequest:
 		msgtoSend = msg2
+	case *encoding.RemoveExpiredHashlockTransfer:
+		msgtoSend = msg2
 	default:
 		panic(fmt.Sprintf("unknown message updateStateManagerFromEvent :%s", utils.StringInterface(msg, 3)))
 	}
@@ -667,7 +672,15 @@ func (eh *stateMachineEventHandler) updateStateManagerFromEvent(receiver common.
 			eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 			mgr.ChannelAddresRefund = utils.EmptyAddress
 		} else {
-			panic("last received message must be a refund transfer and last send must be a mediated transfer")
+			/*
+				for initiator
+				maybe the following messages
+				1. send mediated transfer
+				2. recevie refund transfer
+				3. recevie remove expired hashlock transfer
+				4. send remove expired hashlock transfer
+			*/
+			//panic("last received message must be a refund transfer and last send must be a mediated transfer")
 		}
 	}
 	tx.Commit()
