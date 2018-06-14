@@ -3,6 +3,8 @@ package cases
 import (
 	"fmt"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -33,7 +35,11 @@ func (cm *CaseManager) CrashCase02() (err error) {
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
-
+	time.Sleep(time.Second * 3)
+	//  崩溃判断
+	if N2.IsRunning() {
+		panic("Node N2 should be exited,but it still running")
+	}
 	// 查询节点3，交易未完成，锁定节点2 20个token
 	cd32 := utils.GetChannelBetween(N3, N2, tokenAddress)
 	cd32.Println("Channel data after transfer send, cd32:")
@@ -51,9 +57,6 @@ func (cm *CaseManager) CrashCase02() (err error) {
 		return fmt.Errorf(msg)
 	}
 	// 重启节点2，自动发送之前中断的交易
-	if N2.IsRunning() {
-		panic("Node N2 should be exited,but it still running")
-	}
 	N2.DebugCrash = false
 	N2.ConditionQuit = nil
 	N2.Name = "RestartNode"

@@ -2,6 +2,7 @@ package cases
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
@@ -41,7 +42,12 @@ func (cm *CaseManager) CrashCase01() (err error) {
 
 	// 4. 从节点0发起到节点1的转账
 	N0.SendTrans(tokenAddress, transAmount, N1.Address, false)
-
+	time.Sleep(time.Second * 3)
+	// 崩溃判断
+	if N0.IsRunning() {
+		models.Logger.Println("Node N0 should be exited,but it still running, FAILED !!!")
+		return fmt.Errorf("Node N0 should be exited,but it still running")
+	}
 	// 5. 记录channel数据d2并与d1比对，assert(d1==d2)
 	cd2 := utils.GetChannelBetween(N1, N0, tokenAddress)
 	cd2.Println("Channel data after transfer send, cd2:")
@@ -51,10 +57,6 @@ func (cm *CaseManager) CrashCase01() (err error) {
 	}
 
 	// 6. 重启节点1，自动发送之前中断的交易
-	if N0.IsRunning() {
-		models.Logger.Println("Expect cd1 == cd2 but got cd1 != cd2, FAILED !!!")
-		return fmt.Errorf("Node N0 should be exited,but it still running")
-	}
 	N0.DebugCrash = false
 	N0.ConditionQuit = nil
 	N0.Name = "RestartNode"
