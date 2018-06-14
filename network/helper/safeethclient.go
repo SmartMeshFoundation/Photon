@@ -9,7 +9,7 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -26,8 +26,8 @@ type SafeEthClient struct {
 	lock       sync.Mutex
 	url        string
 	ReConnect  map[string]chan struct{}
-	Status     xmpptransport.Status
-	StatusChan chan xmpptransport.Status
+	Status     netshare.Status
+	StatusChan chan netshare.Status
 	quitChan   chan struct{}
 }
 
@@ -36,13 +36,13 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	c := &SafeEthClient{
 		ReConnect:  make(map[string]chan struct{}),
 		url:        rawurl,
-		StatusChan: make(chan xmpptransport.Status, 10),
+		StatusChan: make(chan netshare.Status, 10),
 		quitChan:   make(chan struct{}),
 	}
 	var err error
 	c.Client, err = ethclient.Dial(rawurl)
 	if err == nil {
-		c.changeStatus(xmpptransport.Connected)
+		c.changeStatus(netshare.Connected)
 	} else {
 		//c.changeStatus(xmpptransport.Disconnected)
 		go c.RecoverDisconnect()
@@ -60,7 +60,7 @@ func (c *SafeEthClient) Close() {
 
 //IsConnected return true when connected to eth rpc server
 func (c *SafeEthClient) IsConnected() bool {
-	return c.Status == xmpptransport.Connected
+	return c.Status == netshare.Connected
 }
 
 //RegisterReConnectNotify register notify when reconnect
@@ -76,7 +76,7 @@ func (c *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} {
 	c.ReConnect[name] = ch
 	return ch
 }
-func (c *SafeEthClient) changeStatus(newStatus xmpptransport.Status) {
+func (c *SafeEthClient) changeStatus(newStatus netshare.Status) {
 	log.Info("ethclient connection status changed from %d to %d", c.Status, newStatus)
 	c.Status = newStatus
 	select {
@@ -90,7 +90,7 @@ func (c *SafeEthClient) changeStatus(newStatus xmpptransport.Status) {
 func (c *SafeEthClient) RecoverDisconnect() {
 	var err error
 	var client *ethclient.Client
-	c.changeStatus(xmpptransport.Reconnecting)
+	c.changeStatus(netshare.Reconnecting)
 	for {
 		log.Info("tyring to reconnect geth ...")
 		select {
@@ -106,7 +106,7 @@ func (c *SafeEthClient) RecoverDisconnect() {
 		} else {
 			//reconnect ok
 			c.Client = client
-			c.changeStatus(xmpptransport.Connected)
+			c.changeStatus(netshare.Connected)
 			c.lock.Lock()
 			var keys []string
 			for name, c := range c.ReConnect {

@@ -15,7 +15,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -519,7 +519,7 @@ todo fix it ,r is useless
 */
 func (a *API) EthereumStatus() (r string, err error) {
 	c := a.api.Raiden.Chain
-	if c != nil && c.Client.Status == xmpptransport.Connected {
+	if c != nil && c.Client.Status == netshare.Connected {
 		return time.Now().String(), nil
 	}
 	return time.Now().String(), errors.New("connect failed")
@@ -586,15 +586,15 @@ type NotifyHandler interface {
 如果要新创建Raiden 实例,必须调用 sub.Unsubscribe, 否则肯定会发生内存泄漏
 */
 
-// Subscribe subscribes to notifications about the current blockchain head
+// SubscribeNeighbour subscribes to notifications about the current blockchain head
 // on the given channel.
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
 		quitChan: make(chan struct{}),
 	}
 	cs := v1.ConnectionStatus{
-		XMPPStatus: xmpptransport.Disconnected,
-		EthStatus:  xmpptransport.Disconnected,
+		XMPPStatus: netshare.Disconnected,
+		EthStatus:  netshare.Disconnected,
 	}
 	mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
 	if !ok {
@@ -604,10 +604,10 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	xn, err := mt.GetNotify()
 	if err != nil {
 		log.Error(fmt.Sprintf("xmpp transport err %s", err))
-		xn = make(chan xmpptransport.Status)
+		xn = make(chan netshare.Status)
 	}
 	go func() {
-		rpanic.RegisterErrorNotifier("API Subscribe")
+		rpanic.RegisterErrorNotifier("API SubscribeNeighbour")
 		for {
 			var err error
 			var d []byte

@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport/xmpppass"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -29,7 +30,7 @@ type XMPPTransport struct {
 	protocol      ProtocolReceiver
 	NodeAddress   common.Address
 	key           *ecdsa.PrivateKey
-	statusChan    chan xmpptransport.Status
+	statusChan    chan netshare.Status
 }
 
 /*
@@ -41,7 +42,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 		quitChan:    make(chan struct{}),
 		NodeAddress: crypto.PubkeyToAddress(key.PublicKey),
 		key:         key,
-		statusChan:  make(chan xmpptransport.Status, 10),
+		statusChan:  make(chan netshare.Status, 10),
 	}
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	x.log = log.New("name", name)
