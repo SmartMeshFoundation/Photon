@@ -44,7 +44,7 @@ func (c *CaseManager) RunAll() {
 				fmt.Printf("%s SUCCESS\n", k)
 			} else {
 				fmt.Printf("%s FAILED!!!\n", k)
-				//panic(err)
+				panic(err)
 			}
 		}
 	}
