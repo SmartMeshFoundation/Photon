@@ -14,7 +14,7 @@ if [ $? -ne 0 ]; then
     exit -1
 fi
 
-// build smartraiden
+# build smartraiden
 cd cmd/smartraiden
 go install
 if [ $? -ne 0 ]; then
@@ -22,13 +22,13 @@ if [ $? -ne 0 ]; then
     exit -1
 fi
 
-// build casemaneger
+# build casemaneger
 cd ../tools/casemanager
 go build
 
-// run casemanager
+# run casemanager
 ./casemanager --case=all
 if [ $? -ne 0 ]; then
-    echo "casemanager build failed"
+    echo "casemanager run failed"
     exit -1
 fi
