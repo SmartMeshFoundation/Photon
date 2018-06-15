@@ -19,6 +19,7 @@ func (cm *CaseManager) CrashCase02() (err error) {
 	if err != nil {
 		return
 	}
+	defer env.KillAllRaidenNodes()
 	// 源数据
 	var transAmount int32
 	transAmount = 20
@@ -75,6 +76,5 @@ func (cm *CaseManager) CrashCase02() (err error) {
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	env.KillAllRaidenNodes()
 	return
 }
