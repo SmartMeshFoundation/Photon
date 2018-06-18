@@ -151,6 +151,9 @@ func (be *Events) startListenEvent() {
 							debugPrintLog(&l)
 							continue
 						}
+						if ev.RegistryAddress != be.RegistryAddress {
+							continue
+						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveNewChannelStateChange{
 							ManagerAddress: ev.ContractAddress,
 							ChannelAddress: ev.NettingChannelAddress,
@@ -163,6 +166,9 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							log.Error(fmt.Sprintf("newEventChannelNewBalance err=%s", err))
 							debugPrintLog(&l)
+							continue
+						}
+						if ev.RegistryAddress != be.RegistryAddress {
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveBalanceStateChange{
@@ -179,6 +185,9 @@ func (be *Events) startListenEvent() {
 							debugPrintLog(&l)
 							continue
 						}
+						if ev.RegistryAddress != be.RegistryAddress {
+							continue
+						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveClosedStateChange{
 							ChannelAddress: ev.ContractAddress,
 							ClosingAddress: ev.ClosingAddress,
@@ -189,6 +198,9 @@ func (be *Events) startListenEvent() {
 						if err != nil {
 							log.Error(fmt.Sprintf("newEventChannelSettled err=%s", err))
 							debugPrintLog(&l)
+							continue
+						}
+						if ev.RegistryAddress != be.RegistryAddress {
 							continue
 						}
 						be.sendStateChange(&mediatedtransfer.ContractReceiveSettledStateChange{
@@ -406,6 +418,10 @@ func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (st
 		if err2 != nil {
 			continue
 		}
+		//ignore channel close event on other contracts
+		if e.RegistryAddress != be.RegistryAddress {
+			continue
+		}
 		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveClosedStateChange{
 			ChannelAddress: e.ContractAddress,
 			ClosingAddress: e.ClosingAddress,
@@ -421,6 +437,10 @@ func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (st
 	for _, l := range logs {
 		e, err := newEventChannelSecretRevealed(&l)
 		if err != nil {
+			continue
+		}
+		//ignore channel close event on other contracts
+		if e.RegistryAddress != be.RegistryAddress {
 			continue
 		}
 		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveWithdrawStateChange{
