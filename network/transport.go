@@ -193,6 +193,7 @@ func (ut *UDPTransport) Start() {
 
 //Receive a message
 func (ut *UDPTransport) Receive(data []byte) error {
+	//ut.log.Trace(fmt.Sprintf("recevied data\n%s", hex.Dump(data)))
 	if ut.stopReceiving {
 		return errors.New("stop receive")
 	}
@@ -220,6 +221,7 @@ func (ut *UDPTransport) Send(receiver common.Address, data []byte) error {
 	ut.log.Trace(fmt.Sprintf("%s send to %s %s:%d, message=%s,response hash=%s", ut.name,
 		utils.APex2(receiver), ua.IP, ua.Port, encoding.MessageType(data[0]),
 		utils.HPex(utils.Sha3(data, receiver[:]))))
+	//ut.log.Trace(fmt.Sprintf("send data  \n%s", hex.Dump(data)))
 	//only comment this line,if you want to test.
 	//time.Sleep(ut.policy.Consume(1)) //force to wait,
 	//todo need one lock for write?

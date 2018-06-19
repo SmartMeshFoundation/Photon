@@ -11,8 +11,6 @@ import (
 
 	"time"
 
-	"bytes"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport/xmpppass"
@@ -52,68 +50,6 @@ func (t *testDataHandler) DataHandler(from common.Address, data []byte) {
 	log.Trace(fmt.Sprintf("%s receive sdp request from %s,data=\n%s", t.name, utils.APex(from), hex.Dump(data)))
 	t.data <- data
 }
-func TestNewXmpp(t *testing.T) {
-	key1, _ := crypto.GenerateKey()
-	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-	key2, _ := crypto.GenerateKey()
-	addr2 := crypto.PubkeyToAddress(key2.PublicKey)
-	log.Trace(fmt.Sprintf("addr1=%s,addr2=%s\n", addr1.String(), addr2.String()))
-	x1handler := newTestDataHandler("x1")
-	x2handler := newTestDataHandler("x2")
-	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	deviceType, isOnline, err := x1.IsNodeOnline(addr2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if isOnline {
-		t.Error("should offline")
-		return
-	}
-	defer x1.Close()
-	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	defer x2.Close()
-	deviceType, isOnline, err = x1.IsNodeOnline(addr2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if !isOnline {
-		t.Error("should online")
-		return
-	}
-	if deviceType != TypeOtherDevice {
-		t.Error("type error")
-		return
-	}
-	deviceType, isOnline, err = x2.IsNodeOnline(addr1)
-	if deviceType != TypeMobile {
-		t.Error("type error")
-		return
-	}
-	err = x1.SendData(addr2, []byte("abc"))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	select {
-	case <-time.After(time.Second):
-		t.Error("recevie timeout")
-	case data := <-x2handler.data:
-		if !bytes.Equal(data, []byte("abc")) {
-			t.Error("not equal")
-		}
-	}
-}
-
 func TestSubscribe(t *testing.T) {
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
@@ -137,7 +73,7 @@ func TestSubscribe(t *testing.T) {
 
 	defer x1.Close()
 	_, isOnline, err := x1.IsNodeOnline(addr2)
-	if err == nil || isOnline {
+	if isOnline {
 		t.Error("should not online")
 		return
 	}
@@ -148,15 +84,15 @@ func TestSubscribe(t *testing.T) {
 		return
 	}
 	//wait notification from server
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 1000)
 	deviceType, isOnline, err := x1.IsNodeOnline(addr2)
 	if err != nil || !isOnline || deviceType != TypeOtherDevice {
-		t.Error("should  online")
+		t.Errorf("should  online,err=%v,isonline=%v,devicetype=%s", err, isOnline, deviceType)
 		return
 	}
 	log.Trace("client2 will logout")
 	x2.Close()
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 1000)
 	deviceType, isOnline, err = x1.IsNodeOnline(addr2)
 	if err != nil || isOnline || deviceType != TypeOtherDevice {
 		t.Error("should  offline")

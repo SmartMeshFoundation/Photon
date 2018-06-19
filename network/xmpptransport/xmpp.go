@@ -110,7 +110,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		config: DefaultConfig,
 		options: xmpp.Options{
 			Host:     ServerURL,
-			User:     fmt.Sprintf("%s%s", User.String(), nameSuffix),
+			User:     fmt.Sprintf("%s%s", strings.ToLower(User.String()), nameSuffix),
 			Password: passwordFn.GetPassWord(),
 			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
@@ -200,16 +200,18 @@ func (x *XMPPConnection) loop() {
 					log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
 				}
 			} else {
-				from := v.From
-				ss := strings.Split(from, "/")
-				if len(ss) != 2 {
-					log.Error(fmt.Sprintf("presence doesn't have resource %s", utils.StringInterface(v, 2)))
-					continue
+				var id, device string
+				ss := strings.Split(v.From, "/")
+				if len(ss) >= 2 {
+					device = ss[1]
 				}
-				id, device := ss[0], ss[1]
+				id = ss[0]
 				bs := &NodeStatus{
 					DeviceType: device,
 					IsOnline:   len(v.Type) == 0,
+				}
+				if bs.IsOnline && len(bs.DeviceType) == 0 {
+					log.Error(fmt.Sprintf("receive unexpected presence %s", utils.StringInterface(v, 3)))
 				}
 				x.nodesStatus[id] = bs
 				log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
@@ -356,7 +358,7 @@ func (x *XMPPConnection) Connected() bool {
 //SendData to peer
 func (x *XMPPConnection) SendData(addr common.Address, data []byte) error {
 	chat := &xmpp.Chat{
-		Remote: fmt.Sprintf("%s%s", addr.String(), nameSuffix),
+		Remote: fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix),
 		Type:   "chat",
 		Stamp:  time.Now(),
 	}
@@ -376,8 +378,8 @@ type iqResult struct {
 
 //IsNodeOnline test node is online
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
-	id := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
-	log.Trace(fmt.Sprintf("query nodeonline %s", addr.String()))
+	id := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
+	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
 	ns, ok := x.nodesStatus[id]
 	if ok {
 		return ns.DeviceType, ns.IsOnline, nil
@@ -428,7 +430,7 @@ func (x *XMPPConnection) sendSyncPresence(msg *xmpp.Presence) (response *xmpp.Pr
 
 //SubscribeNeighbour the status change of `addr`
 func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
-	addrName := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
+	addrName := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	p := xmpp.Presence{
 		From: x.options.User,
 		To:   addrName,
@@ -446,7 +448,7 @@ func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
 ```
 */
 func (x *XMPPConnection) Unsubscribe(addr common.Address) error {
-	addrName := fmt.Sprintf("%s%s", addr.String(), nameSuffix)
+	addrName := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	p := xmpp.Presence{
 		From: x.options.User,
 		To:   addrName,
@@ -471,7 +473,6 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 //CollectNeighbors subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 	x.db = db
-	return nil
 	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {

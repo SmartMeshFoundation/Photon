@@ -586,7 +586,7 @@ type NotifyHandler interface {
 如果要新创建Raiden 实例,必须调用 sub.Unsubscribe, 否则肯定会发生内存泄漏
 */
 
-// SubscribeNeighbour subscribes to notifications about the current blockchain head
+// Subscribe notifications about the current blockchain head
 // on the given channel.
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
