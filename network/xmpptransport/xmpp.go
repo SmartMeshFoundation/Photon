@@ -249,13 +249,13 @@ func (x *XMPPConnection) reConnect() {
 		x.mutex.Unlock()
 		break
 	}
+	x.changeStatus(netshare.Connected)
 	if x.db != nil && !x.hasSubscribed {
 		err := x.CollectNeighbors(x.db)
 		if err != nil {
 			log.Error(fmt.Sprintf("CollectNeighbors err %s", err))
 		}
 	}
-	x.changeStatus(netshare.Connected)
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
 	uid := msg.ID
@@ -473,7 +473,10 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 //CollectNeighbors subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 	x.db = db
-	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
+	if x.status != netshare.Connected {
+		log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
+		return nil
+	}
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
