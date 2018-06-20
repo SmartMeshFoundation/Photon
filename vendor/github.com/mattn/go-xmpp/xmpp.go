@@ -979,7 +979,7 @@ type teeWriter struct{
 }
 func (t teeWriter)Write(p []byte) (n int, err error){
 	n,err=t.w1.Write(p)
-	t.w2.Write([]byte(fmt.Sprintf("%s send:\n",t.name)))
+	t.w2.Write([]byte(fmt.Sprintf("%s send err=%v:",t.name,err)))
 	t.w2.Write(p)
 	t.w2.Write([]byte("\n"))
 	return
