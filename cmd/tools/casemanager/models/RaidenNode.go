@@ -38,7 +38,11 @@ func (node *RaidenNode) Start(env *TestEnv) {
 		time.Sleep(time.Second * 3)
 		count++
 		if count > 40 {
-			Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
+			}
 			panic("Start raiden node TIMEOUT")
 		}
 	}
