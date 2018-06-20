@@ -33,19 +33,24 @@ func (node *RaidenNode) Start(env *TestEnv) {
 	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
 
 	count := 0
+	t := time.Now()
 	for !node.IsRunning() {
 		time.Sleep(time.Second * 3)
 		count++
 		if count > 40 {
-			Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
+			}
 			panic("Start raiden node TIMEOUT")
 		}
 	}
-
+	used := time.Since(t)
 	if node.DebugCrash {
-		Logger.Printf("NODE %s %s start with %s", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+		Logger.Printf("NODE %s %s start with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
 	} else {
-		Logger.Printf("NODE %s %s start", node.Address, node.Host)
+		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
 }
 
