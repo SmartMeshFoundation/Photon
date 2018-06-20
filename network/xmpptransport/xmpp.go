@@ -141,8 +141,29 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 	}
 	x.changeStatus(netshare.Connected)
 	go x.loop()
+	go x.keepalive()
 	x2 = x
 	return
+}
+func (x *XMPPConnection) keepalive() {
+	for {
+		if x.status == netshare.Closed {
+			break
+		}
+		select {
+		case <-time.After(time.Second * 20):
+			if x.status == netshare.Connected {
+				log.Trace("send keep alive....")
+				//_, err := x.client.SendKeepAlive()
+				err := x.client.SendOnlinePing(utils.RandomString(10), x.options.User, x.options.User)
+				if err != nil {
+					log.Error(fmt.Sprintf("send keep alive error %s", err))
+				}
+			}
+		case <-x.closed:
+			return
+		}
+	}
 }
 func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
@@ -490,6 +511,9 @@ func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 		err = x.SubscribeNeighbour(addr)
 		if err == nil && !db.XMPPIsAddrSubed(addr) {
 			db.XMPPMarkAddrSubed(addr)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	db.RegisterNewChannellCallback(func(c *channel.Serialization) (remove bool) {
