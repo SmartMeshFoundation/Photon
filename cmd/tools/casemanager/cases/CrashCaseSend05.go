@@ -38,63 +38,29 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 	})
 
 	// 查询节点6，记录cd65数据
-	cd63 := utils.GetChannelBetween(N6, N3, tokenAddress)
-	cd63.Println("Channel data before transfer send, cd63:")
-	// 查询节点2，记录cd24数据
-	cd24 := utils.GetChannelBetween(N2, N4, tokenAddress)
-	cd24.Println("Channel data before transfer send, cd24:")
-	// 查询节点4，记录cd45数据
-	cd45 := utils.GetChannelBetween(N4, N5, tokenAddress)
-	cd45.Println("Channel data before transfer send, cd45:")
-	// 查询节点5，记录cd56数据
-	cd56 := utils.GetChannelBetween(N5, N6, tokenAddress)
-	cd56.Println("Channel data before transfer send, cd56:")
+	cd63 := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataBeforeTransfer()
+	utils.GetChannelBetween(N2, N4, tokenAddress).PrintDataBeforeTransfer()
+	utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataBeforeTransfer()
+	cd56 := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataBeforeTransfer()
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	if N3.IsRunning() {
-		panic("Node N3 should be exited,but it still running")
+		msg = "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"
+		models.Logger.Println(msg)
+		return fmt.Errorf(msg)
 	}
 
 	// 查询cd23，锁定45
-	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress)
-	cd23middle.Println("Channel data after transfer send, cd23middle:")
-	if cd23middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.PartnerLockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
+	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	// 查询cd63,cd24,cd45,均无锁定
-	cd63middle := utils.GetChannelBetween(N6, N3, tokenAddress)
-	cd63middle.Println("Channel data after transfer send, cd63middle:")
-	if cd63middle.LockedAmount != 0 || cd63middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd63middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-	cd24middle := utils.GetChannelBetween(N2, N4, tokenAddress)
-	cd24middle.Println("Channel data after transfer send, cd24middle:")
-	if cd63middle.LockedAmount != 0 || cd24middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd24middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-	cd45middle := utils.GetChannelBetween(N4, N5, tokenAddress)
-	cd45middle.Println("Channel data after transfer send, cd45middle:")
-	if cd45middle.LockedAmount != 0 || cd45middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd45middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-
+	utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
+	utils.GetChannelBetween(N2, N4, tokenAddress).PrintDataAfterCrash()
+	utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataAfterCrash()
 	// 重启节点3，自动发送之前中断的交易
-	N3.DebugCrash = false
-	N3.ConditionQuit = nil
-	N3.Name = "RestartNode"
-	N3.Start(env)
-
+	N3.ReStartWithoutConditionquit(env)
 	// 查询cd23并校验
 	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress)
 	cd23new.Println("Channel data after transfer success, cd23new:")

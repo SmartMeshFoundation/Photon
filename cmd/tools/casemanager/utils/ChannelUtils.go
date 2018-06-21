@@ -28,19 +28,10 @@ func GetChannelBetween(n1 *models.RaidenNode, n2 *models.RaidenNode, tokenAddr s
 	for _, channel := range nodeChannels {
 		if channel.PartnerAddress == n2.Address && channel.TokenAddress == tokenAddr {
 			channel.SelfAddress = n1.Address
+			channel.Name = "CD-" + n1.Name + "-" + n2.Name + "-"
 			return &channel
 		}
 	}
-	return nil
-}
-
-// CloseChannel close channel by address
-func CloseChannel(channelAddress string) bool {
-	return true
-}
-
-// OpenChannel open a channel
-func OpenChannel(n1 *models.RaidenNode, n2 *models.RaidenNode, amount1 int64, amount2 int64, settledTimeout int64, tokenAddr string) *models.Channel {
 	return nil
 }
 

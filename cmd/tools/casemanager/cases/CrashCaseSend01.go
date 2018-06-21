@@ -24,56 +24,37 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	transAmount = 5
 	tokenAddress := env.Tokens[0].Address
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 1. /启动节点0 with EventSendMediatedTransferAfter
-	N0 := env.Nodes[0]
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
+	N1, N2 := env.Nodes[0], env.Nodes[1]
+
+	// 1. /启动节点 EventSendMediatedTransferAfter
+	N1.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "EventSendMediatedTransferAfter",
 	})
-
-	// 2. 启动节点1
-	N1 := env.Nodes[1]
-	N1.Start(env)
-
-	// 3. 获取0-1之间的channel，记录channel数据d1
-	cd1 := utils.GetChannelBetween(N1, N0, tokenAddress)
-	if cd1 == nil {
-		return fmt.Errorf("Can not find channel between %s and %s on token %s", N0.Name, N1.Name, tokenAddress)
-	}
-	cd1.Println("Channel data before transfer send, cd1:")
-
+	// 2. 启动节点2
+	N2.Start(env)
+	// 3. 初始数据记录
+	cd21 := utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataBeforeTransfer()
 	// 4. 从节点0发起到节点1的转账
-	N0.SendTrans(tokenAddress, transAmount, N1.Address, false)
+	N1.SendTrans(tokenAddress, transAmount, N2.Address, false)
 	time.Sleep(time.Second * 3)
-	// 崩溃判断
-	if N0.IsRunning() {
-		models.Logger.Println("Node N0 should be exited,but it still running, FAILED !!!")
-		return fmt.Errorf("Node N0 should be exited,but it still running")
+	// 5. 崩溃判断
+	if N1.IsRunning() {
+		msg := "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
+		models.Logger.Println(msg)
+		return fmt.Errorf(msg)
 	}
-	// 5. 记录channel数据d2并与d1比对，assert(d1==d2)
-	cd2 := utils.GetChannelBetween(N1, N0, tokenAddress)
-	cd2.Println("Channel data after transfer send, cd2:")
-	if !utils.IsEqualChannelData(cd1, cd2) {
-		models.Logger.Println("Expect cd1 == cd2 but got cd1 != cd2, FAILED !!!")
-		return fmt.Errorf("Expect cd1 == cd2 but got cd1 != cd2")
-	}
-
+	// 6. 中间数据记录
+	utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataAfterCrash()
 	// 6. 重启节点1，自动发送之前中断的交易
-	N0.DebugCrash = false
-	N0.ConditionQuit = nil
-	N0.Name = "RestartNode"
-	N0.Start(env)
-
-	// 7. 记录channel数据d3, assert(余额校验)
-	cd3 := utils.GetChannelBetween(N0, N1, tokenAddress)
-	if cd3.SelfAddress != cd2.SelfAddress {
-		utils.SwitchChannel(cd3)
-	}
-	cd3.Println("Channel data after N0 restart, cd3:")
-	if cd3.Balance-cd2.Balance == transAmount {
-		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	} else {
+	N1.ReStartWithoutConditionquit(env)
+	// 7. 重启后数据
+	cd21new := utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataAfterCrash()
+	// 8. 验证
+	if cd21new.Balance-cd21.Balance != transAmount {
+		models.Logger.Println("Expect transfer on" + cd21new.Name + " success,but got failed ,FAILED!!!")
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
+	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }

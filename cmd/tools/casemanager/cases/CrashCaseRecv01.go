@@ -34,32 +34,29 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 		QuitEvent: "ActionInitTargetStateChange",
 	})
 
-	// 查询节点2，记录cd24数据
-	cd23 := utils.GetChannelBetween(N2, N3, tokenAddress)
-	cd23.Println("Channel data before transfer send, cd23:")
-	// 查询节点3，记录cd36数据
-	cd36 := utils.GetChannelBetween(N3, N6, tokenAddress)
-	cd36.Println("Channel data before transfer send, cd36:")
+	// 记录初始数据
+	cd23 := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataBeforeTransfer()
+	utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataBeforeTransfer()
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	if N6.IsRunning() {
-		panic("Node N6 should be exited,but it still running")
+		msg = "Node " + N6.Name + " should be exited,but it still running, FAILED !!!"
+		models.Logger.Println(msg)
+		return fmt.Errorf(msg)
 	}
 
 	// 查询cd23，锁定45
-	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress)
-	cd23middle.Println("Channel data after transfer send, cd23middle:")
+	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	if cd23middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.PartnerLockedAmount)
+		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.LockedAmount)
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
 	// 查询cd36，锁定45
-	cd36middle := utils.GetChannelBetween(N3, N6, tokenAddress)
-	cd36middle.Println("Channel data after transfer send, cd36middle:")
+	cd36middle := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
 	if cd36middle.LockedAmount != transAmount {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd36middle.LockedAmount)
 		models.Logger.Println(msg)
@@ -67,22 +64,17 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	}
 
 	// 重启节点6，交易自动继续
-	N6.DebugCrash = false
-	N6.ConditionQuit = nil
-	N6.Name = "RestartNode"
-	N6.Start(env)
+	N6.ReStartWithoutConditionquit(env)
 
 	// 查询cd23并校验
-	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress)
-	cd23new.Println("Channel data after transfer success, cd23new:")
-	if cd23new.Balance-cd23.Balance != transAmount {
+	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
+	if cd23new.PartnerBalance-cd23.PartnerBalance != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
 	// 查询cd36并校验
-	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress)
-	cd36new.Println("Channel data after transfer success, cd36new:")
-	if cd36new.Balance-cd36new.Balance != transAmount {
+	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterRestart()
+	if cd36new.PartnerBalance-cd36new.PartnerBalance != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
