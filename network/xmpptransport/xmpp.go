@@ -363,12 +363,20 @@ func (x *XMPPConnection) wait(ch chan interface{}) (response interface{}, err er
 
 //Close this connection
 func (x *XMPPConnection) Close() {
+	x.sendCloseMessage()
 	x.changeStatus(netshare.Closed)
 	close(x.closed)
 	err := x.client.Close()
 	if err != nil {
 		log.Error(fmt.Sprintf("close err %s", err))
 	}
+}
+func (x *XMPPConnection) sendCloseMessage() {
+	x.sendPresence(&xmpp.Presence{
+		From: x.options.User,
+		To:   x.options.User,
+		Type: "unavailable",
+	})
 }
 
 //Connected returns true when this connection is ready for sent
@@ -385,16 +393,6 @@ func (x *XMPPConnection) SendData(addr common.Address, data []byte) error {
 	}
 	chat.Text = base64.StdEncoding.EncodeToString(data)
 	return x.send(chat)
-}
-
-const (
-	resultOnline  = "pong"
-	resultOffline = "pang"
-)
-
-type iqResult struct {
-	Result   string
-	Resource string
 }
 
 //IsNodeOnline test node is online
