@@ -10,12 +10,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
-// CrashCase03 场景三：EventSendBalanceProofAfter
+// CrashCaseSend03 场景三：EventSendBalanceProofAfter
 // 发送余额证明后崩溃（发送方崩）
 // 节点2向节点6转账20 token,发送balanceProof后，节点2崩，路由走2-3-6，查询节点3，节点6，节点3和6之间交易完成。
 // 节点2、3交易未完成，节点2锁定20token。重启节点2后，节点2、3交易完成，实现转账继续。
-func (cm *CaseManager) CrashCase03() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCase03.ENV")
+func (cm *CaseManager) CrashCaseSend03() (err error) {
+	env, err := models.NewTestEnv("./cases/CrashCaseSend03.ENV")
 	if err != nil {
 		return
 	}

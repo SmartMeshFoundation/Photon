@@ -10,12 +10,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
-// CrashCase02 场景二：EventSendRevealSecretAfter
+// CrashCaseSend02 场景二：EventSendRevealSecretAfter
 // 节点2向节点6转账20token,发送revealsecret后，节点2崩，路由走2-3-6，查询节点6，节点3，交易未完成，锁定节点3 20个token,节点2 20个token，
 // 重启后，节点3和节点6的交易完成，节点2和节点3交易未完成，继续锁定20token。再次发送转账交易后，两次交易都完成。
 // 再次发转账会解锁第一笔交易，存在问题。
-func (cm *CaseManager) CrashCase02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCase02.ENV")
+func (cm *CaseManager) CrashCaseSend02() (err error) {
+	env, err := models.NewTestEnv("./cases/CrashCaseSend02.ENV")
 	if err != nil {
 		return
 	}

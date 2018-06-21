@@ -9,12 +9,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
-// CrashCase01 场景一：EventSendMediatedTransferAfter
+// CrashCaseSend01 场景一：EventSendMediatedTransferAfter
 // 发送中转转账后崩溃
 // 节点1向节点2发送MTR后，节点1崩溃，此时，节点2默认收到MTR，但由于没有ACK确认，没发生转账，余额不变。节点2没收到转账token.
 // 重启节点1后，继续转账，转账成功。
-func (cm *CaseManager) CrashCase01() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCase01.ENV")
+func (cm *CaseManager) CrashCaseSend01() (err error) {
+	env, err := models.NewTestEnv("./cases/CrashCaseSend01.ENV")
 	if err != nil {
 		return
 	}
