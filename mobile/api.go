@@ -62,7 +62,11 @@ func (a *API) GetChannelList() (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	channels, err = marshal(datas)
+	if len(datas) > 0 {
+		channels, err = marshal(datas)
+	} else {
+		channels = "[]"
+	}
 	return
 }
 
@@ -252,7 +256,12 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 		log.Error(err.Error())
 		return
 	}
-	eventsString, err = marshal(events)
+	if len(events) > 0 {
+		eventsString, err = marshal(events)
+	} else {
+		eventsString = "[]"
+	}
+
 	return
 }
 
@@ -264,7 +273,11 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 		log.Error(err.Error())
 		return
 	}
-	eventsString, err = marshal(events)
+	if len(events) > 0 {
+		eventsString, err = marshal(events)
+	} else {
+		eventsString = "[]"
+	}
 	return
 }
 
@@ -276,7 +289,11 @@ func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (ev
 		log.Error(err.Error())
 		return
 	}
-	eventsString, err = marshal(events)
+	if len(events) > 0 {
+		eventsString, err = marshal(events)
+	} else {
+		eventsString = "[]"
+	}
 	return
 }
 
@@ -287,10 +304,17 @@ func (a *API) Address() (addr string) {
 
 //Tokens GET /api/1/tokens
 func (a *API) Tokens() (tokens string) {
-	tokens, err := marshal(a.api.Tokens())
-	if err != nil {
-		log.Error(fmt.Sprintf("marshal tokens error %s", err))
+	var err error
+	ts := a.api.Tokens()
+	if len(ts) > 0 {
+		tokens, err = marshal(ts)
+		if err != nil {
+			log.Error(fmt.Sprintf("marshal tokens error %s", err))
+		}
+	} else {
+		tokens = "[]"
 	}
+
 	return
 }
 
@@ -315,7 +339,12 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	channels, err = marshal(datas)
+	if len(datas) > 0 {
+		channels, err = marshal(datas)
+	} else {
+		channels = "[]"
+	}
+
 	return
 }
 
@@ -459,7 +488,11 @@ func (a *API) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress string)
 	for _, c := range chs {
 		addrs = append(addrs, c.OurAddress.String())
 	}
-	channels, err = marshal(addrs)
+	if len(addrs) > 0 {
+		channels, err = marshal(addrs)
+	} else {
+		channels = "[]"
+	}
 	return
 
 }
@@ -535,7 +568,11 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	r, err = marshal(trs)
+	if len(trs) > 0 {
+		r, err = marshal(trs)
+	} else {
+		r = "[]"
+	}
 	return
 }
 
@@ -549,7 +586,11 @@ func (a *API) GetReceivedTransfers(from, to int64) (r string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	r, err = marshal(trs)
+	if len(trs) > 0 {
+		r, err = marshal(trs)
+	} else {
+		r = "[]"
+	}
 	return
 }
 
