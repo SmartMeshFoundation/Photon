@@ -2,6 +2,9 @@
 # The script runs automatic test case for smartraiden in ./cases
 # Start pwd : $GOPATH/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager
 
+# for server
+export GOPATH=/home/gotest/goproj
+
 echo HOME = $HOME
 echo GOPATH = $GOPATH
 export PATH=$PATH:$GOPATH/bin

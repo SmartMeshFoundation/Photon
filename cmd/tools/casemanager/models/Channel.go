@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Channel raiden chainnode
@@ -20,12 +21,31 @@ type Channel struct {
 	RevealTimeout       int32  `json:"reveal_timeout"`
 }
 
+// PrintDataBeforeTransfer :
+func (c *Channel) PrintDataBeforeTransfer() *Channel {
+	header := fmt.Sprintf("Channel data before transfer %sBeforeTransfer :", c.Name)
+	return c.Println(header)
+}
+
+// PrintDataAfterCrash :
+func (c *Channel) PrintDataAfterCrash() *Channel {
+	header := fmt.Sprintf("Channel data after crash %sAfterCrash :", c.Name)
+	return c.Println(header)
+}
+
+// PrintDataAfterRestart :
+func (c *Channel) PrintDataAfterRestart() *Channel {
+	header := fmt.Sprintf("Channel data after restart %sAfterRestart :", c.Name)
+	return c.Println(header)
+}
+
 // Println print data to console
-func (c *Channel) Println(header string) {
+func (c *Channel) Println(header string) *Channel {
 	Logger.Println(header)
 	buf, err := json.MarshalIndent(c, "", "\t")
 	if err != nil {
 		panic(err)
 	}
 	Logger.Println(string(buf))
+	return c
 }

@@ -54,6 +54,14 @@ func (node *RaidenNode) Start(env *TestEnv) {
 	}
 }
 
+// ReStartWithoutConditionquit : Restart start a raiden node
+func (node *RaidenNode) ReStartWithoutConditionquit(env *TestEnv) {
+	node.DebugCrash = false
+	node.ConditionQuit = nil
+	node.Name = "RestartNode"
+	node.Start(env)
+}
+
 func (node *RaidenNode) getParamStr(env *TestEnv) []string {
 	var param []string
 	param = append(param, "--datadir="+env.DataDir)

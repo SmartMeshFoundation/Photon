@@ -10,12 +10,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
-// CrashCase02 场景二：EventSendRevealSecretAfter
+// CrashCaseSend02 场景二：EventSendRevealSecretAfter
 // 节点2向节点6转账20token,发送revealsecret后，节点2崩，路由走2-3-6，查询节点6，节点3，交易未完成，锁定节点3 20个token,节点2 20个token，
 // 重启后，节点3和节点6的交易完成，节点2和节点3交易未完成，继续锁定20token。再次发送转账交易后，两次交易都完成。
 // 再次发转账会解锁第一笔交易，存在问题。
-func (cm *CaseManager) CrashCase02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCase02.ENV")
+func (cm *CaseManager) CrashCaseSend02() (err error) {
+	env, err := models.NewTestEnv("./cases/CrashCaseSend02.ENV")
 	if err != nil {
 		return
 	}
@@ -34,44 +34,31 @@ func (cm *CaseManager) CrashCase02() (err error) {
 	N3.Start(env)
 	N6.Start(env)
 
+	// 初始数据记录
+	utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataBeforeTransfer()
+	cd63 := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataBeforeTransfer()
+
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	if N2.IsRunning() {
-		panic("Node N2 should be exited,but it still running")
-	}
-	// 查询节点3，交易未完成，锁定节点2 20个token
-	cd32 := utils.GetChannelBetween(N3, N2, tokenAddress)
-	cd32.Println("Channel data after transfer send, cd32:")
-	if cd32.PartnerLockedAmount != transAmount {
-		msg := fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd32.PartnerLockedAmount)
+		msg := "Node " + N2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-	// 查询节点6，交易未完成，锁定节点3 20个token
-	cd63 := utils.GetChannelBetween(N6, N3, tokenAddress)
-	cd63.Println("Channel data after transfer send, cd63:")
-	if cd63.PartnerLockedAmount != transAmount {
-		msg := fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd63.PartnerLockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
+	// 中间数据记录
+	utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataAfterCrash()
+	utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
+
 	// 重启节点2，自动发送之前中断的交易
-	N2.DebugCrash = false
-	N2.ConditionQuit = nil
-	N2.Name = "RestartNode"
-	N2.Start(env)
+	N2.ReStartWithoutConditionquit(env)
+
 	// 查询结果并校验
-	cd32new := utils.GetChannelBetween(N3, N2, tokenAddress)
-	cd32new.Println("Channel data after transfer success, cd32new:")
-	if cd32new.Balance-cd32.Balance != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
-	}
-	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress)
-	cd63new.Println("Channel data after transfer success, cd63new:")
+	utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataAfterRestart()
+	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
 	if cd63new.Balance-cd63.Balance != transAmount {
+		models.Logger.Println("Expect transfer on" + cd63new.Name + " success,but got failed ,FAILED!!!")
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
