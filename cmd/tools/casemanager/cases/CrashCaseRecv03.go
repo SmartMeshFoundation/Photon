@@ -66,38 +66,32 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	// 校验cd12，锁定45
 	if cd12middle.LockedAmount != transAmount {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd12middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 	// 校验cd32，锁定对方45
 	if cd32middle.PartnerLockedAmount != transAmount {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd32middle.PartnerLockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 	// 校验cd42，无锁定
 	if cd42middle.PartnerLockedAmount != 0 {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd42middle.PartnerLockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 	// 校验cd36，无锁定
 	if cd36middle.LockedAmount != 0 {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd36middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 	// 校验cd45，无锁定
 	if cd45middle.LockedAmount != 0 {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd45middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 	// 校验cd56，无锁定
 	if cd56middle.LockedAmount != 0 {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd56middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
+		return cm.CaseFail(env.CaseName, msg)
 	}
 
 	// 6. 重启节点2，交易自动继续
@@ -112,33 +106,27 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	cd56new := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataAfterRestart()
 	// 校验cd12
 	if cd12.Balance-cd12new.Balance != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd12 data wrong")
 	}
 	// 校验cd32
 	if cd32new.Balance == cd32.Balance && cd32new.PartnerLockedAmount == 0 {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd32 data wrong")
 	}
 	// 校验cd42
 	if cd42.PartnerBalance-cd42new.PartnerBalance != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd42 data wrong")
 	}
 	// 校验cd36
 	if cd36new.Balance == cd36.Balance && cd36new.LockedAmount == 0 {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd36 data wrong")
 	}
 	// 校验cd45
 	if cd45.Balance-cd45new.Balance != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd45 data wrong")
 	}
 	// 校验cd56
 	if cd56.Balance-cd56new.Balance != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+		return cm.CaseFail(env.CaseName, "cd56 data wrong")
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

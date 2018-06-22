@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
 )
 
 // CaseManager include env and cases
@@ -76,4 +78,11 @@ func (c *CaseManager) RunOne(caseName string) {
 	} else {
 		fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}
+}
+
+// CaseFail :
+func (c *CaseManager) CaseFail(caseName string, msg string) error {
+	models.Logger.Println(msg)
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
