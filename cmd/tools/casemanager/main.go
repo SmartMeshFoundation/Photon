@@ -12,10 +12,20 @@ import (
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	app := cli.NewApp()
+	app.Commands = []cli.Command{
+		{
+			Name:  "caselist",
+			Usage: "list all cases",
+			Action: func(*cli.Context) error {
+				cases.NewCaseManager()
+				return nil
+			},
+		},
+	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "case",
-			Usage: "The case number that you want to run. For example, --case=01 will run Case01. --case=all run all cases in this path",
+			Usage: "The case number that you want to run. For example, --case=CrashCaseSend01 will run CrashCaseSend01. --case=all run all cases in this path",
 		},
 	}
 	app.Action = Main
@@ -34,6 +44,7 @@ func Main(ctx *cli.Context) (err error) {
 	if caseName != "" {
 		// load all cases
 		caseManager := cases.NewCaseManager()
+		fmt.Println("Start Crash Test...")
 		// run case
 		if caseName == "all" {
 			caseManager.RunAll()

@@ -52,13 +52,13 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	if cd23middle.LockedAmount != transAmount {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.LockedAmount)
-		return cm.CaseFail(env.CaseName, msg)
+		return cm.caseFail(env.CaseName, msg)
 	}
 	// 查询cd36，锁定45
 	cd36middle := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
 	if cd36middle.LockedAmount != transAmount {
 		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd36middle.LockedAmount)
-		return cm.CaseFail(env.CaseName, msg)
+		return cm.caseFail(env.CaseName, msg)
 	}
 
 	// 重启节点6，交易自动继续
@@ -66,12 +66,12 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 
 	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	if cd23new.LockedAmount != transAmount {
-		return cm.CaseFailWithWrongChannelData(env.CaseName, cd23new.Name)
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// 查询cd36，锁定45
 	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
 	if cd36new.LockedAmount != transAmount {
-		return cm.CaseFailWithWrongChannelData(env.CaseName, cd36new.Name)
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

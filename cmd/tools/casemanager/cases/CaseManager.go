@@ -30,7 +30,6 @@ func NewCaseManager() (caseManager *CaseManager) {
 		}
 	}
 	fmt.Printf("Total %d cases load success\n", len(caseManager.Cases))
-	fmt.Println("Start Crash Test...")
 	return
 }
 
@@ -80,15 +79,15 @@ func (c *CaseManager) RunOne(caseName string) {
 	}
 }
 
-// CaseFail :
-func (c *CaseManager) CaseFail(caseName string, msg string) error {
+// caseFail :
+func (c *CaseManager) caseFail(caseName string, msg string) error {
 	models.Logger.Println(msg)
 	models.Logger.Println(caseName + " END ====> FAILED")
 	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
 
-// CaseFail :
-func (c *CaseManager) CaseFailWithWrongChannelData(caseName string, channelName string) error {
+// caseFail :
+func (c *CaseManager) caseFailWithWrongChannelData(caseName string, channelName string) error {
 	models.Logger.Println(channelName + " data wrong !!!")
 	models.Logger.Println(caseName + " END ====> FAILED")
 	return fmt.Errorf("Case [%s] FAILED", caseName)
