@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport/xmpppass"
@@ -37,7 +38,7 @@ type XMPPTransport struct {
 NewXMPPTransport create xmpp transporter,
 if not success ,for example cannot connect to xmpp server, will try background
 */
-func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string) (x *XMPPTransport) {
+func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string, db *models.ModelDB) (x *XMPPTransport) {
 	x = &XMPPTransport{
 		quitChan:    make(chan struct{}),
 		NodeAddress: crypto.PubkeyToAddress(key.PublicKey),
@@ -56,7 +57,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 		for {
 			select {
 			case <-time.After(wait):
-				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan)
+				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, db, x.statusChan)
 				if !first {
 					first = true
 					wg.Done()

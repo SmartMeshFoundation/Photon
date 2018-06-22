@@ -104,7 +104,7 @@ type XMPPConnection struct {
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, db *models.ModelDB, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
@@ -132,6 +132,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
 		name:           name,
+		db:             db,
 	}
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
@@ -272,7 +273,7 @@ func (x *XMPPConnection) reConnect() {
 	}
 	x.changeStatus(netshare.Connected)
 	if x.db != nil && !x.hasSubscribed {
-		err := x.CollectNeighbors(x.db)
+		err := x.CollectNeighbors()
 		if err != nil {
 			log.Error(fmt.Sprintf("CollectNeighbors err %s", err))
 		}
@@ -372,11 +373,14 @@ func (x *XMPPConnection) Close() {
 	}
 }
 func (x *XMPPConnection) sendCloseMessage() {
-	x.sendPresence(&xmpp.Presence{
+	err := x.sendPresence(&xmpp.Presence{
 		From: x.options.User,
 		To:   x.options.User,
 		Type: "unavailable",
 	})
+	if err != nil {
+		log.Error(fmt.Sprintf("sendCloseMessage err %s", err))
+	}
 }
 
 //Connected returns true when this connection is ready for sent
@@ -490,8 +494,8 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 }
 
 //CollectNeighbors subscribe status change from database
-func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
-	x.db = db
+func (x *XMPPConnection) CollectNeighbors() error {
+	db := x.db
 	if x.status != netshare.Connected {
 		log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 		return nil

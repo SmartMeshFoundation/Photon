@@ -135,7 +135,7 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (srv *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, db *models.ModelDB) (srv *RaidenService, err error) {
 	if config.SettleTimeout < params.NettingChannelSettleTimeoutMin || config.SettleTimeout > params.NettingChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax)
@@ -170,16 +170,12 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		HealthCheckMap:                      make(map[common.Address]bool),
 		quitChan:                            make(chan struct{}),
 		EthConnectionStatus:                 make(chan netshare.Status, 10),
+		db:                                  db,
 	}
 	srv.BlockNumber.Store(int64(0))
 	srv.MessageHandler = newRaidenMessageHandler(srv)
 	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
 	srv.Protocol = network.NewRaidenProtocol(transport, privateKey, srv)
-	srv.db, err = models.OpenDb(config.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		return
-	}
 	srv.Protocol.SetReceivedMessageSaver(NewAckHelper(srv.db))
 	/*
 		only one instance for one data directory
@@ -1209,7 +1205,12 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	if !ok {
 		return fmt.Errorf("transport is not mix transpoter")
 	}
-	return mt.SubscribeNeighbor(rs.db)
+	err := mt.SubscribeNeighbor()
+	if err != nil && params.MobileMode {
+		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+		return nil
+	}
+	return err
 }
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *network.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
