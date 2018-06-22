@@ -5,5 +5,6 @@
 4. 日志在log目录下，其中
     case名.log如CrashCaseSend01.log    为case日志，包含channel数据等，方便查阅。
     case名-Nx.log如CrashCaseSend01-N1.log 为各smartraiden节点日志。
+    case名-Nx.log如CrashCaseSend01-RestartNode.log 为崩溃恢复case中重启节点重启后的日志。
 5. 各case场景描述，参考cases目录下各case源码第一行注释
 6. 如有问题，请咨询wuhan_53@163.com或联系我本人
