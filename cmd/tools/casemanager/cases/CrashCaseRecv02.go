@@ -48,7 +48,9 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	if N1.IsRunning() {
-		panic("Node N1 should be exited,but it still running")
+		msg = "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
+		models.Logger.Println(msg)
+		return fmt.Errorf(msg)
 	}
 
 	// 查询cd21，锁定对方20

@@ -142,6 +142,6 @@ func StartRaidenNode(RegistryAddress string) {
 		go ExecShell(exepath, pstr, logfile, false)
 	}
 	log.Println("Sleep 30 seconds to wait raiden nodes start ...")
-	time.Sleep(360 * time.Second)
+	time.Sleep(30 * time.Second)
 	log.Println("Raiden nodes start done")
 }

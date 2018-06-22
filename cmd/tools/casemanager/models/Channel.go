@@ -23,19 +23,19 @@ type Channel struct {
 
 // PrintDataBeforeTransfer :
 func (c *Channel) PrintDataBeforeTransfer() *Channel {
-	header := fmt.Sprintf("Channel data before transfer %sBeforeTransfer :", c.Name)
+	header := fmt.Sprintf("Channel data before transfer %s-BeforeTransfer :", c.Name)
 	return c.Println(header)
 }
 
 // PrintDataAfterCrash :
 func (c *Channel) PrintDataAfterCrash() *Channel {
-	header := fmt.Sprintf("Channel data after crash %sAfterCrash :", c.Name)
+	header := fmt.Sprintf("Channel data after crash %s-AfterCrash :", c.Name)
 	return c.Println(header)
 }
 
-// PrintDataAfterRestart :
+// PrintDataAfterRestart :b
 func (c *Channel) PrintDataAfterRestart() *Channel {
-	header := fmt.Sprintf("Channel data after restart %sAfterRestart :", c.Name)
+	header := fmt.Sprintf("Channel data after restart %s-AfterRestart :", c.Name)
 	return c.Println(header)
 }
 
