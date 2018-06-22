@@ -3,6 +3,7 @@ package cases
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -34,7 +35,14 @@ func NewCaseManager() (caseManager *CaseManager) {
 // RunAll run all
 func (c *CaseManager) RunAll() {
 	fmt.Println("Run all cases...")
-	for k, v := range c.Cases {
+	// 排序
+	var keys []string
+	for k := range c.Cases {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := c.Cases[k]
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
 			fmt.Printf("%s SUCCESS\n", k)

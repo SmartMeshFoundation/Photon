@@ -74,7 +74,7 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	env.DataDir = c.RdString("COMMON", "data_dir", ".smartraiden")
 	env.KeystorePath = c.RdString("COMMON", "keystore_path", "../../../testdata/casemanager-keystore")
 	env.PasswordFile = c.RdString("COMMON", "password_file", "../../../testdata/casemanager-keystore/pass")
-	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "182.254.155.208:5222")
+	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "")
 	env.EthRPCEndpoint = c.RdString("COMMON", "eth_rpc_endpoint", "ws://182.254.155.208:30306")
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
 	env.Debug = c.RdBool("COMMON", "debug", true)
