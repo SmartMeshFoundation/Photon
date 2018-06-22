@@ -86,3 +86,10 @@ func (c *CaseManager) CaseFail(caseName string, msg string) error {
 	models.Logger.Println(caseName + " END ====> FAILED")
 	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
+
+// CaseFail :
+func (c *CaseManager) CaseFailWithWrongChannelData(caseName string, channelName string) error {
+	models.Logger.Println(channelName + " data wrong !!!")
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
+}

@@ -106,27 +106,27 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	cd56new := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataAfterRestart()
 	// 校验cd12
 	if cd12.Balance-cd12new.Balance != transAmount {
-		return cm.CaseFail(env.CaseName, "cd12 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd12new.Name)
 	}
 	// 校验cd32
 	if cd32new.Balance == cd32.Balance && cd32new.PartnerLockedAmount == 0 {
-		return cm.CaseFail(env.CaseName, "cd32 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
 	// 校验cd42
 	if cd42.PartnerBalance-cd42new.PartnerBalance != transAmount {
-		return cm.CaseFail(env.CaseName, "cd42 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd42new.Name)
 	}
 	// 校验cd36
 	if cd36new.Balance == cd36.Balance && cd36new.LockedAmount == 0 {
-		return cm.CaseFail(env.CaseName, "cd36 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	// 校验cd45
 	if cd45.Balance-cd45new.Balance != transAmount {
-		return cm.CaseFail(env.CaseName, "cd45 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd45new.Name)
 	}
 	// 校验cd56
 	if cd56.Balance-cd56new.Balance != transAmount {
-		return cm.CaseFail(env.CaseName, "cd56 data wrong")
+		return cm.CaseFailWithWrongChannelData(env.CaseName, cd56new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
