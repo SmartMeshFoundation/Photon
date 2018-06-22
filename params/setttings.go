@@ -66,7 +66,7 @@ const UDPMaxMessageSize = 1200
 const DefaultXMPPServer = "193.112.248.133:5222"
 
 //DefaultTestXMPPServer xmpp server for test only
-const DefaultTestXMPPServer = "182.254.155.208:5222" //"182.254.155.208:5222"
+const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 
 func init() {
 	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
