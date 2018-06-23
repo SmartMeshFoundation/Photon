@@ -303,7 +303,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			Events:   nil,
 		}
 	}
-	if st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
+	if state.Route != nil && state.Transfer != nil && st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
 		/*
 					   next hop learned the secret, unlock the token locally and send the
 			         withdraw message to next hop
