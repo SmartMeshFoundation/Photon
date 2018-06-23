@@ -193,7 +193,7 @@ func (mh *raidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	var err error
 	nettingChannel, err = mh.raiden.findChannelByAddress(msg.Channel)
 	if err != nil {
-		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
+		return fmt.Errorf("Message for unknown channel: %s", err)
 	} else {
 		log.Trace(fmt.Sprintf("hashlock=%s,identifier=%d,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel))
 		if !params.TreatRefundTransferAsNormalMediatedTransfer {
@@ -201,7 +201,7 @@ func (mh *raidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 		} else {
 			err = nettingChannel.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 			if err != nil {
-				log.Error(fmt.Sprintf("messageSecret RegisterTransfer err=%s", err))
+				return fmt.Errorf("messageSecret RegisterTransfer err=%s", err)
 			}
 		}
 	}
