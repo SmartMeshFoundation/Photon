@@ -78,6 +78,7 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 	// 重启节点1，交易自动继续
 	N1.ReStartWithoutConditionquit(env)
 
+	time.Sleep(time.Second * 2)
 	// 查询cd21并校验
 	cd21new := utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataAfterRestart()
 	if cd21new.Balance-cd21.Balance != transAmount {
