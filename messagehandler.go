@@ -194,15 +194,14 @@ func (mh *raidenMessageHandler) messageSecret(msg *encoding.Secret) error {
 	nettingChannel, err = mh.raiden.findChannelByAddress(msg.Channel)
 	if err != nil {
 		return fmt.Errorf("Message for unknown channel: %s", err)
+	}
+	log.Trace(fmt.Sprintf("hashlock=%s,identifier=%d,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel))
+	if !params.TreatRefundTransferAsNormalMediatedTransfer {
+		mh.raiden.handleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
 	} else {
-		log.Trace(fmt.Sprintf("hashlock=%s,identifier=%d,nettingchannel=%s", utils.HPex(hashlock), identifer, nettingChannel))
-		if !params.TreatRefundTransferAsNormalMediatedTransfer {
-			mh.raiden.handleSecret(identifer, nettingChannel.TokenAddress, secret, msg, hashlock)
-		} else {
-			err = nettingChannel.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
-			if err != nil {
-				return fmt.Errorf("messageSecret RegisterTransfer err=%s", err)
-			}
+		err = nettingChannel.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
+		if err != nil {
+			return fmt.Errorf("messageSecret RegisterTransfer err=%s", err)
 		}
 	}
 	//mark balanceproof complete
