@@ -7,7 +7,7 @@ export GOPATH=/home/gotest/goproj
 
 echo HOME = $HOME
 echo GOPATH = $GOPATH
-export PATH=$PATH:$GOPATH/bin
+export PATH=$PATH:/home/gotest/go/bin
 cd $GOPATH/src/github.com/SmartMeshFoundation/SmartRaiden
 
 # get the lasted code
