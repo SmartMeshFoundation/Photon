@@ -58,7 +58,7 @@ func (node *RaidenNode) Start(env *TestEnv) {
 func (node *RaidenNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
 	node.ConditionQuit = nil
-	node.Name = "RestartNode"
+	node.Name = node.Name + "Restart"
 	node.Start(env)
 }
 
