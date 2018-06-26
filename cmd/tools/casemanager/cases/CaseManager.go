@@ -11,7 +11,8 @@ import (
 
 // CaseManager include env and cases
 type CaseManager struct {
-	Cases map[string]reflect.Value
+	Cases           map[string]reflect.Value
+	FailedCaseNames []string
 }
 
 // NewCaseManager constructor
@@ -56,8 +57,15 @@ func (c *CaseManager) RunAll(skip string) {
 				if skip != "true" {
 					panic(err)
 				}
+				c.FailedCaseNames = append(c.FailedCaseNames, k)
 			}
 		}
+	}
+	fmt.Println("Casemanager Result:")
+	fmt.Printf("Cases num : %d\n", len(keys))
+	fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
+	for _, v := range c.FailedCaseNames {
+		fmt.Println(v)
 	}
 }
 

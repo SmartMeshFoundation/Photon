@@ -38,7 +38,7 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 30)
 	//  崩溃判断
 	if N3.IsRunning() {
 		msg = "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"

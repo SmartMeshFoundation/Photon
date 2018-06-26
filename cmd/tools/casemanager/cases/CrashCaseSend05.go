@@ -61,6 +61,7 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 	utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataAfterCrash()
 	// 重启节点3，自动发送之前中断的交易
 	N3.ReStartWithoutConditionquit(env)
+	time.Sleep(time.Second * 30)
 	// 查询cd23并校验
 	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress)
 	cd23new.Println("Channel data after transfer success, cd23new:")

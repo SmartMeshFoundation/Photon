@@ -117,7 +117,6 @@ func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (regi
 	if err != nil {
 		Logger.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployNettingChannelLibrary complete...\n")
 	//DeployChannelManagerLibrary link nettingchannle library before deploy
 	contracts.ChannelManagerLibraryBin = strings.Replace(contracts.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
 	ChannelManagerLibraryAddress, tx, _, err := contracts.DeployChannelManagerLibrary(auth, conn)
@@ -129,7 +128,6 @@ func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (regi
 	if err != nil {
 		Logger.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployChannelManagerLibrary complete...\n")
 	//DeployRegistry link channelmanagerlibrary before deploy
 	contracts.RegistryBin = strings.Replace(contracts.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
 	RegistryContractAddress, tx, _, err := contracts.DeployRegistry(auth, conn)
@@ -141,7 +139,6 @@ func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (regi
 	if err != nil {
 		Logger.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployRegistry complete...\n")
 	fmt.Printf("RegistryAddress=%s\n", RegistryContractAddress.String())
 	registry, err = contracts.NewRegistry(RegistryContractAddress, conn)
 	if err != nil {
@@ -163,7 +160,6 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 			fmt.Printf("Enter the password to unlock")
 			fmt.Scanln(&globalPassword)
 		}
-		//fmt.Printf("\npassword is %s\n", password)
 		keybin, err := am.GetPrivateKey(addr, globalPassword)
 		if err != nil && i == 3 {
 			Logger.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
@@ -245,7 +241,6 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey,
 		}
 		env.Keys = append(env.Keys, keytemp)
 	}
-	fmt.Printf("key=%s\n", key)
 	transferMoneyForAccounts(key, conn, accounts, token)
 	return manager, token, tokenAddress
 }
@@ -255,7 +250,6 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	if err != nil {
 		Logger.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
-	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
@@ -271,7 +265,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 		Logger.Fatalf("failed to AddToken when mining :%v", err)
 	}
 	mgrAddress, err = registry.ChannelManagerByToken(nil, tokenAddr)
-	fmt.Printf("DeployHumanStandardToken complete... %s,mgr=%s\n", tokenAddr.String(), mgrAddress.String())
+	fmt.Printf("DeployHumanStandardToken complete... token=%s,mgr=%s\n", tokenAddr.String(), mgrAddress.String())
 	return
 }
 
@@ -285,7 +279,6 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
-			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
 			tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
 			if err != nil {
 				Logger.Fatalf("Failed to Transfer: %v", err)
@@ -347,13 +340,11 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
 	}
-	log.Printf("create channel gas %s:%d\n", tx.Hash().String(), tx.Gas())
 	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to NewChannel when mining :%v", err)
 	}
-	fmt.Printf("NewChannel complete...\n")
 	//step 2 deopsit
 	//step 2.1 aprove
 	channelAddress, err := manager.GetChannelWith(callAuth1, account2)
@@ -377,12 +368,10 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
-		fmt.Printf("Approve complete...\n")
 		tx, err = channel.Deposit(auth1, big.NewInt(amount1))
 		if err != nil {
 			log.Fatalf("Failed to Deposit: %v", err)
 		}
-		log.Printf("deposit %d, gas %s:%d\n", amount1, tx.Hash().String(), tx.Gas())
 		ctx = context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
@@ -402,12 +391,10 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
-		fmt.Printf("Approve complete...\n")
 		tx, err = channel.Deposit(auth2, big.NewInt(amount2))
 		if err != nil {
 			log.Fatalf("Failed to Deposit: %v", err)
 		}
-		log.Printf("deposit %d, gas %s:%d\n", amount2, tx.Hash().String(), tx.Gas())
 		ctx = context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
