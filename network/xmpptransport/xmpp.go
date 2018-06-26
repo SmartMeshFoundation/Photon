@@ -114,7 +114,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 			Password: passwordFn.GetPassWord(),
 			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:         true,
+			Debug:         false,
 			Session:       false,
 			Status:        "xa",
 			StatusMessage: name,
@@ -223,11 +223,7 @@ func (x *XMPPConnection) loop() {
 				}
 			} else {
 				var id, device string
-				ss := strings.Split(v.From, "/")
-				if len(ss) >= 2 {
-					device = ss[1]
-				}
-				id = ss[0]
+				id, device = x.getIDDevice(v.From)
 				bs := &NodeStatus{
 					DeviceType: device,
 					IsOnline:   len(v.Type) == 0,
@@ -242,6 +238,14 @@ func (x *XMPPConnection) loop() {
 			//log.Trace(fmt.Sprintf("recv %s", utils.StringInterface(v, 3)))
 		}
 	}
+}
+func (x *XMPPConnection) getIDDevice(from string) (id, device string) {
+	ss := strings.Split(from, "/")
+	if len(ss) >= 2 {
+		device = ss[1]
+	}
+	id = ss[0]
+	return
 }
 func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
 	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
@@ -399,20 +403,33 @@ func (x *XMPPConnection) SendData(addr common.Address, data []byte) error {
 	return x.send(chat)
 }
 
-//IsNodeOnline test node is online
+/*
+IsNodeOnline test node is online
+首先会尝试获取本地保存记录,如果有就返回没有就临时向服务器获取.
+这里面会自动检测当前服务器连接状态,如果连接失败,总是返回其他节点不在线.
+*/
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
 	id := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
+	if x.status != netshare.Connected {
+		return "", false, errors.New("connecion error")
+	}
 	ns, ok := x.nodesStatus[id]
 	if ok {
-		if x.status == netshare.Connected {
-			return ns.DeviceType, ns.IsOnline, nil
-		}
-		return ns.DeviceType, false, nil
+		return ns.DeviceType, ns.IsOnline, nil
+	}
+	err = x.SubscribeNeighbour(addr)
+	if err != nil {
+		return
+	}
+	//如何保证紧跟着的上下线消息一定收到呢
+	time.Sleep(time.Millisecond)
+	ns, ok = x.nodesStatus[id]
+	if ok {
+		return ns.DeviceType, ns.IsOnline, nil
 	}
 	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
 	return "", false, nil
-
 }
 func (x *XMPPConnection) sendPresence(msg *xmpp.Presence) error {
 	select {
