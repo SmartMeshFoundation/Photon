@@ -34,7 +34,7 @@ func NewCaseManager() (caseManager *CaseManager) {
 }
 
 // RunAll run all
-func (c *CaseManager) RunAll() {
+func (c *CaseManager) RunAll(skip string) {
 	fmt.Println("Run all cases...")
 	// 排序
 	var keys []string
@@ -53,7 +53,9 @@ func (c *CaseManager) RunAll() {
 				fmt.Printf("%s SUCCESS\n", k)
 			} else {
 				fmt.Printf("%s FAILED!!!\n", k)
-				panic(err)
+				if skip != "true" {
+					panic(err)
+				}
 			}
 		}
 	}

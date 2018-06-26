@@ -97,6 +97,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
 
+	time.Sleep(time.Second * 30)
 	// 7. 重启后数据校验，交易成功，全通道无锁定
 	cd12new := utils.GetChannelBetween(N1, N2, tokenAddress).PrintDataAfterRestart()
 	cd32new := utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataAfterRestart()
@@ -108,8 +109,8 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	if cd12.Balance-cd12new.Balance != transAmount {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd12new.Name)
 	}
-	// 校验cd32
-	if cd32new.Balance == cd32.Balance && cd32new.PartnerLockedAmount == 0 {
+	// 校验cd32,解锁
+	if cd32new.Balance != cd32.Balance || cd32new.PartnerLockedAmount != 0 {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
 	// 校验cd42
@@ -117,7 +118,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd42new.Name)
 	}
 	// 校验cd36
-	if cd36new.Balance == cd36.Balance && cd36new.LockedAmount == 0 {
+	if cd36new.Balance != cd36.Balance || cd36new.LockedAmount != 0 {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	// 校验cd45

@@ -27,6 +27,11 @@ func main() {
 			Name:  "case",
 			Usage: "The case number that you want to run. For example, --case=CrashCaseSend01 will run CrashCaseSend01. --case=all run all cases in this path",
 		},
+		cli.StringFlag{
+			Name:  "skip",
+			Usage: "true to skip failed cases,default false",
+			Value: "false",
+		},
 	}
 	app.Action = Main
 	app.Name = "case-manager"
@@ -47,7 +52,7 @@ func Main(ctx *cli.Context) (err error) {
 		fmt.Println("Start Crash Test...")
 		// run case
 		if caseName == "all" {
-			caseManager.RunAll()
+			caseManager.RunAll(ctx.String("skip"))
 		} else {
 			caseManager.RunOne(caseName)
 		}
