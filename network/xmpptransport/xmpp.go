@@ -405,7 +405,10 @@ func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, i
 	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
 	ns, ok := x.nodesStatus[id]
 	if ok {
-		return ns.DeviceType, ns.IsOnline, nil
+		if x.status == netshare.Connected {
+			return ns.DeviceType, ns.IsOnline, nil
+		}
+		return ns.DeviceType, false, nil
 	}
 	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
 	return "", false, nil
