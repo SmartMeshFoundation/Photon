@@ -371,11 +371,23 @@ func setPayeeStateAndCheckRevealOrder(transferPair []*mediatedtransfer.Mediation
 func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
 	pendingTransfersPairs := getPendingTransferPairs(transfersPairs)
 	for _, pair := range pendingTransfersPairs {
+		/*
+		   For safety, the correct behavior is:
+
+		   - If the payee has been paid, then the payer must pay too.
+
+		     And the corollary:
+
+		   - If the payer transfer has expired, then the payee transfer must
+		     have expired too.
+
+		   The problem is that this corollary cannot be asserted. If a user
+		   is running Raiden without a monitoring service, then it may go
+		   offline after having paid a transfer to a payee, but without
+		   getting a balance proof of the payer, and once it comes back
+		   online the transfer may have expired.
+		*/
 		if blockNumber > pair.PayerTransfer.Expiration {
-			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
-				log.Error("PayeeState!=mediatedtransfer.StatePayeeExpired")
-				return
-			}
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
 				log.Error("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 				return
@@ -390,28 +402,8 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 				}
 				events = append(events, withdrawFailed)
 			}
-		} else if blockNumber > pair.PayeeTransfer.Expiration {
-			/*
-			   For safety, the correct behavior is:
-
-			   - If the payee has been paid, then the payer must pay too.
-
-			     And the corollary:
-
-			   - If the payer transfer has expired, then the payee transfer must
-			     have expired too.
-
-			   The problem is that this corollary cannot be asserted. If a user
-			   is running Raiden without a monitoring service, then it may go
-			   offline after having paid a transfer to a payee, but without
-			   getting a balance proof of the payer, and once it comes back
-			   online the transfer may have expired.
-
-			   assert pair.payee_state == 'payee_expired'
-			*/
-			//if stateTransferPaidMaps[pair.PayeeState] {
-			//	panic("pair.payee_state should not in STATE_TRANSFER_PAID")
-			//}
+		}
+		if blockNumber > pair.PayeeTransfer.Expiration {
 			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 			}
