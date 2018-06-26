@@ -78,7 +78,7 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 	// 查询cd56并校验
 	cd56new := utils.GetChannelBetween(N5, N6, tokenAddress)
 	cd56new.Println("Channel data after transfer success, cd56new:")
-	if cd56new.Balance-cd56.Balance != transAmount {
+	if cd56.Balance-cd56new.Balance != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}

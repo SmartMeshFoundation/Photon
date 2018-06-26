@@ -34,6 +34,6 @@ go build
 if [ $? -ne 0 ]; then
     echo "casemanager run failed"
     tar -cvf /home/gotest/tmp/casemanager.log.tar /home/gotest/casemanage.log /home/gotest/goproj/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/log
-    nodemailer wuhan_53@163.com,1418420203@qq.com smartraiden@163.com 'casemanager失败,附件为全部日志,请尽快排查问题.场景重现请在服务器193.112.248.133上/home/gotest/goproj/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager目录下执行./casemanager --case=报错case名' -j 'Casenamager场景测试不通过,请尽快排查问题' --attachment '/home/gotest/tmp/casemanager.log.tar' -u smartraiden@163.com -p pass77 -s smtp.163.com
+    nodemailer wuhan_53@163.com,1418420203@qq.com,baizhenxuan@qq.com smartraiden@163.com 'casemanager失败,附件为全部日志,请尽快排查问题.场景重现请在服务器193.112.248.133上/home/gotest/goproj/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager目录下执行./casemanager --case=报错case名' -j 'Casenamager场景测试不通过,请尽快排查问题' --attachment '/home/gotest/tmp/casemanager.log.tar' -u smartraiden@163.com -p pass77 -s smtp.163.com
     exit -1
 fi
