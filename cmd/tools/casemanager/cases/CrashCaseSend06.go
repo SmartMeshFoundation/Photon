@@ -38,63 +38,41 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	if N3.IsRunning() {
 		msg = "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-
-	// 查询cd23，锁定45
-	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	if cd23middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-	// 查询cd63,cd27,cd73均无锁定
+	// 崩溃后数据校验
+	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	cd63middle := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
-	if cd63middle.LockedAmount != 0 || cd63middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd63middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-	cd27middle := utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterCrash()
-	if cd63middle.LockedAmount != 0 || cd27middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd27middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
-	cd73middle := utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterCrash()
-	if cd73middle.LockedAmount != 0 || cd73middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd73middle.LockedAmount)
-		models.Logger.Println(msg)
-		return fmt.Errorf(msg)
-	}
+	utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterCrash()
+	utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterCrash()
 
 	// 重启节点3，自动发送之前中断的交易
 	N3.ReStartWithoutConditionquit(env)
-
-	// 查询cd23并校验
+	time.Sleep(time.Second * 30)
+	// 查询cd23,双锁定
 	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
 	if cd23new.PartnerLockedAmount != transAmount || cd23new.LockedAmount != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
-	// 查询cd63并校验
+	// 查询cd63，无锁定
 	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
 	if cd63new.Balance-cd63middle.Balance != 0 {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
-	// 查询cd73并校验
+	// 查询cd73，7锁定45
 	cd73new := utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterRestart()
-	if cd73new.Balance-cd73middle.Balance != 0 {
+	if cd73new.LockedAmount != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
-	// 查询cd27并校验
+	// 查询cd27，2锁定45
 	cd27new := utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterRestart()
 	if cd27new.LockedAmount != transAmount {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
