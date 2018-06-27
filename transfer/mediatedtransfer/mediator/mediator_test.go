@@ -210,8 +210,8 @@ func TestIsValidRefund(t *testing.T) {
 		Hashlock:   utest.UnitHashLock,
 		Secret:     utils.EmptyHash,
 	}
-	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender), true)
-	assert(t, IsValidRefund(tr, refundLowerExpiration, target), false)
+	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender, validSender), true)
+	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender, target), false)
 
 	refundSameExpiration := &mediatedtransfer.LockedTransferState{
 		Identifier: 20,
@@ -223,7 +223,7 @@ func TestIsValidRefund(t *testing.T) {
 		Hashlock:   utest.UnitHashLock,
 		Secret:     utils.EmptyHash,
 	}
-	assert(t, IsValidRefund(tr, refundSameExpiration, validSender), false)
+	assert(t, IsValidRefund(tr, refundSameExpiration, validSender, validSender), false)
 }
 
 func TestGetTimeoutBlocks(t *testing.T) {

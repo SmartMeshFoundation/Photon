@@ -227,7 +227,7 @@ func handleRouteChange(state *mt.InitiatorState, stateChange *transfer.ActionRou
 	}
 }
 func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
-	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
+	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, state.Route.HopNode, stateChange.Sender) {
 		return cancelCurrentRoute(state)
 	}
 	return &transfer.TransitionResult{

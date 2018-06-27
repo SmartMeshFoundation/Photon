@@ -74,7 +74,7 @@ func IsSafeToWait(tr *mediatedtransfer.LockedTransferState, revealTimeout int, b
 }
 
 //IsValidRefund returns True if the refund transfer matches the original transfer.
-func IsValidRefund(originTr, refundTr *mediatedtransfer.LockedTransferState, refundSender common.Address) bool {
+func IsValidRefund(originTr, refundTr *mediatedtransfer.LockedTransferState, originalReceipt, refundSender common.Address) bool {
 	//Ignore a refund from the target
 	if refundSender == originTr.Target {
 		return false
@@ -90,7 +90,11 @@ func IsValidRefund(originTr, refundTr *mediatedtransfer.LockedTransferState, ref
 			         node, neverthless it's being ignored since the only reason for the
 			         other node to use an invalid expiration is to play the protocol.
 		*/
-		originTr.Expiration > refundTr.Expiration
+		originTr.Expiration > refundTr.Expiration &&
+		/*
+			有可能收到其他 StateManager 的 refund 消息,并不归自己处理.
+		*/
+		originalReceipt == refundSender
 }
 
 /*
@@ -682,6 +686,14 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *transfer
 	var transferPair *mediatedtransfer.MediationPairState
 	var events []transfer.Event
 	if params.TreatRefundTransferAsNormalMediatedTransfer {
+		/*
+				这种情况应该直接忽略,在正式发布的时候,在实际环境中仍然有可能发生这种情况,就是一个节点确实穷尽了可能的路径,仍然报错.
+			但是
+			1. 还是会从另一条路径上收到转账请求,这时候只要不是从同一个上家发来的请求应该同样处理,再次给这一个上家发送 refund.
+			2. 或者是崩溃重启以后再次收到下家发来的 refund 消息
+			重点是第二种情况,第一种应该判断为非法的 refund transfer, 由其他的state manager 处理,不归我管
+		*/
+
 		if state.HasRefunded {
 			panic("has rufuned mediated node should never receive another transfer.")
 		}
@@ -802,7 +814,7 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 	l := len(state.TransfersPair)
 	transferPair := state.TransfersPair[l-1]
 	payeeTransfer := transferPair.PayeeTransfer
-	if IsValidRefund(payeeTransfer, st.Transfer, st.Sender) {
+	if IsValidRefund(payeeTransfer, st.Transfer, transferPair.PayeeRoute.HopNode, st.Sender) {
 		//什么时候会产生多个transferpair，就是发生refund的时候。 从这里也可以看出把refund当成普通mediatedtransfer来处理。
 		return mediateTransfer(state, transferPair.PayeeRoute, st.Transfer)
 	}
