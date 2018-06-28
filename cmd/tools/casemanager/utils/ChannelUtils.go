@@ -11,19 +11,9 @@ import (
 )
 
 // CheckChannelNoLock :
-func CheckChannelNoLock(self *models.RaidenNode, partner *models.RaidenNode, tokenAddr string, printMethod func(*models.Channel) *models.Channel) bool {
-	c1 := GetChannelBetween(self, partner, tokenAddr)
-	c2 := GetChannelBetween(partner, self, tokenAddr)
-	if !IsEqualChannelData(c1, c2) {
-		models.Logger.Printf("Check failed because channel %s not equal %s !!!\n", c1.Name, c2.Name)
-		if printMethod != nil {
-			printMethod(c1)
-			printMethod(c2)
-		}
+func CheckChannelNoLock(env *models.TestEnv, c1 *models.Channel) bool {
+	if !checkByTwoSize(env, c1) {
 		return false
-	}
-	if printMethod != nil {
-		printMethod(c1)
 	}
 	if c1.LockedAmount != 0 || c1.PartnerLockedAmount != 0 {
 		models.Logger.Printf("Check failed because channel %s has lock but expect no lock !!!\n", c1.Name)
@@ -33,19 +23,9 @@ func CheckChannelNoLock(self *models.RaidenNode, partner *models.RaidenNode, tok
 }
 
 // CheckChannelLockPartner :
-func CheckChannelLockPartner(self *models.RaidenNode, partner *models.RaidenNode, tokenAddr string, lockAmt int32, printMethod func(*models.Channel) *models.Channel) bool {
-	c1 := GetChannelBetween(self, partner, tokenAddr)
-	c2 := GetChannelBetween(partner, self, tokenAddr)
-	if !IsEqualChannelData(c1, c2) {
-		models.Logger.Printf("Check failed because channel %s not equal %s !!!\n", c1.Name, c2.Name)
-		if printMethod != nil {
-			printMethod(c1)
-			printMethod(c2)
-		}
+func CheckChannelLockPartner(env *models.TestEnv, c1 *models.Channel, lockAmt int32) bool {
+	if !checkByTwoSize(env, c1) {
 		return false
-	}
-	if printMethod != nil {
-		printMethod(c1)
 	}
 	if c1.PartnerLockedAmount != lockAmt {
 		models.Logger.Printf("Check failed because channel %s PartnerLockedAmount=%d but expect PartnerLockedAmount=%d !!!\n", c1.Name, c1.PartnerLockedAmount, lockAmt)
@@ -55,19 +35,9 @@ func CheckChannelLockPartner(self *models.RaidenNode, partner *models.RaidenNode
 }
 
 // CheckChannelLockBoth :
-func CheckChannelLockBoth(self *models.RaidenNode, partner *models.RaidenNode, tokenAddr string, lockAmt int32, printMethod func(*models.Channel) *models.Channel) bool {
-	c1 := GetChannelBetween(self, partner, tokenAddr)
-	c2 := GetChannelBetween(partner, self, tokenAddr)
-	if !IsEqualChannelData(c1, c2) {
-		models.Logger.Printf("Check failed because channel %s not equal %s !!!\n", c1.Name, c2.Name)
-		if printMethod != nil {
-			printMethod(c1)
-			printMethod(c2)
-		}
+func CheckChannelLockBoth(env *models.TestEnv, c1 *models.Channel, lockAmt int32) bool {
+	if !checkByTwoSize(env, c1) {
 		return false
-	}
-	if printMethod != nil {
-		printMethod(c1)
 	}
 	if c1.PartnerLockedAmount != lockAmt && c1.LockedAmount != lockAmt {
 		models.Logger.Printf("Check failed because channel %s LockedAmount,PartnerLockedAmount=%d but expect LockedAmount,PartnerLockedAmount=%d !!!\n", c1.Name, c1.PartnerLockedAmount, lockAmt)
@@ -77,19 +47,9 @@ func CheckChannelLockBoth(self *models.RaidenNode, partner *models.RaidenNode, t
 }
 
 // CheckChannelPartnerBalance :
-func CheckChannelPartnerBalance(self *models.RaidenNode, partner *models.RaidenNode, tokenAddr string, balance int32, printMethod func(*models.Channel) *models.Channel) bool {
-	c1 := GetChannelBetween(self, partner, tokenAddr)
-	c2 := GetChannelBetween(partner, self, tokenAddr)
-	if !IsEqualChannelData(c1, c2) {
-		models.Logger.Printf("Check failed because channel %s not equal %s !!!\n", c1.Name, c2.Name)
-		if printMethod != nil {
-			printMethod(c1)
-			printMethod(c2)
-		}
+func CheckChannelPartnerBalance(env *models.TestEnv, c1 *models.Channel, balance int32) bool {
+	if !checkByTwoSize(env, c1) {
 		return false
-	}
-	if printMethod != nil {
-		printMethod(c1)
 	}
 	if c1.PartnerBalance != balance {
 		models.Logger.Printf("Check failed because channel %s PartnerBalance=%d but expect PartnerBalance=%d !!!\n", c1.Name, c1.PartnerBalance, balance)
@@ -149,20 +109,14 @@ func SwitchChannel(c1 *models.Channel) {
 	c1.LockedAmount, c1.PartnerLockedAmount = c1.PartnerLockedAmount, c1.LockedAmount
 }
 
-// PrintDataBeforeTransfer :
-func PrintDataBeforeTransfer(c *models.Channel) *models.Channel {
-	header := fmt.Sprintf("Channel data before transfer %s-BeforeTransfer :", c.Name)
-	return c.Println(header)
-}
-
-// PrintDataAfterCrash :
-func PrintDataAfterCrash(c *models.Channel) *models.Channel {
-	header := fmt.Sprintf("Channel data after crash %s-AfterCrash :", c.Name)
-	return c.Println(header)
-}
-
-// PrintDataAfterRestart :b
-func PrintDataAfterRestart(c *models.Channel) *models.Channel {
-	header := fmt.Sprintf("Channel data after restart %s-AfterRestart :", c.Name)
-	return c.Println(header)
+func checkByTwoSize(env *models.TestEnv, c1 *models.Channel) bool {
+	c2 := GetChannelBetween(env.GetNodeByAddress(c1.PartnerAddress), env.GetNodeByAddress(c1.SelfAddress), c1.TokenAddress)
+	if !IsEqualChannelData(c1, c2) {
+		models.Logger.Printf("Check failed because channel %s not equal %s !!!\n", c1.Name, c2.Name)
+		header := fmt.Sprintf("Channel data after case fail %s-CaseFail :", c1.Name)
+		c1.Println(header)
+		c2.Println(header)
+		return false
+	}
+	return true
 }

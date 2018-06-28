@@ -60,17 +60,27 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 	time.Sleep(time.Second * 30)
 
 	// 重启后校验
+	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
+	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
+	cd72new := utils.GetChannelBetween(N7, N2, tokenAddress).PrintDataAfterRestart()
+	cd37new := utils.GetChannelBetween(N3, N7, tokenAddress).PrintDataAfterRestart()
 	// cd23,双锁定
-	ar1 := utils.CheckChannelLockBoth(N2, N3, tokenAddress, transAmount, utils.PrintDataAfterRestart)
+	if !utils.CheckChannelLockBoth(env, cd23new, transAmount) {
+		models.Logger.Println(env.CaseName + " END ====> FAILED")
+		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	}
 	// cd63，无锁定
-	ar2 := utils.CheckChannelNoLock(N3, N6, tokenAddress, utils.PrintDataAfterRestart)
-	// cd73，7锁定45
-	ar3 := utils.CheckChannelLockPartner(N3, N7, tokenAddress, transAmount, utils.PrintDataAfterRestart)
+	if !utils.CheckChannelNoLock(env, cd63new) {
+		models.Logger.Println(env.CaseName + " END ====> FAILED")
+		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	}
 	// cd27，2锁定45
-	ar4 := utils.CheckChannelLockPartner(N7, N2, tokenAddress, transAmount, utils.PrintDataAfterRestart)
-
-	isSuccess := ar1 && ar2 && ar3 && ar4
-	if !isSuccess {
+	if !utils.CheckChannelLockPartner(env, cd72new, transAmount) {
+		models.Logger.Println(env.CaseName + " END ====> FAILED")
+		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	}
+	// cd37，7锁定45
+	if !utils.CheckChannelLockPartner(env, cd37new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}

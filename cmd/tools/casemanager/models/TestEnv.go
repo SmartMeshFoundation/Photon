@@ -473,6 +473,16 @@ func (env *TestEnv) GetNodeAddressByName(nodeName string) (index int, address co
 	return
 }
 
+// GetNodeByAddress :
+func (env *TestEnv) GetNodeByAddress(nodeAddress string) *RaidenNode {
+	for _, node := range env.Nodes {
+		if node.Address == nodeAddress {
+			return node
+		}
+	}
+	return nil
+}
+
 //Println print all
 func (env *TestEnv) Println(header string) {
 	Logger.Println(header)
