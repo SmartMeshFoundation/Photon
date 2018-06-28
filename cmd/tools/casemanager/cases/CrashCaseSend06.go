@@ -51,34 +51,26 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 	}
 	// 崩溃后数据校验
 	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	cd63middle := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
+	utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
 	utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterCrash()
 	utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterCrash()
 
 	// 重启节点3，自动发送之前中断的交易
 	N3.ReStartWithoutConditionquit(env)
 	time.Sleep(time.Second * 30)
-	// 查询cd23,双锁定
-	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
-	if cd23new.PartnerLockedAmount != transAmount || cd23new.LockedAmount != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
-	}
-	// 查询cd63，无锁定
-	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
-	if cd63new.Balance-cd63middle.Balance != 0 {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
-	}
-	// 查询cd73，7锁定45
-	cd73new := utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterRestart()
-	if cd73new.LockedAmount != transAmount {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
-	}
-	// 查询cd27，2锁定45
-	cd27new := utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterRestart()
-	if cd27new.LockedAmount != transAmount {
+
+	// 重启后校验
+	// cd23,双锁定
+	ar1 := utils.CheckChannelLockBoth(N2, N3, tokenAddress, transAmount, utils.PrintDataAfterRestart)
+	// cd63，无锁定
+	ar2 := utils.CheckChannelNoLock(N3, N6, tokenAddress, utils.PrintDataAfterRestart)
+	// cd73，7锁定45
+	ar3 := utils.CheckChannelLockPartner(N3, N7, tokenAddress, transAmount, utils.PrintDataAfterRestart)
+	// cd27，2锁定45
+	ar4 := utils.CheckChannelLockPartner(N7, N2, tokenAddress, transAmount, utils.PrintDataAfterRestart)
+
+	isSuccess := ar1 && ar2 && ar3 && ar4
+	if !isSuccess {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
