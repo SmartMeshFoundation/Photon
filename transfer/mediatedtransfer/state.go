@@ -74,17 +74,18 @@ InitiatorState is State of a node initiating a mediated transfer.
         random_generator (generator): A generator that yields valid secrets.
 */
 type InitiatorState struct {
-	OurAddress        common.Address             //This node address.
-	Transfer          *LockedTransferState       // The description of the mediated transfer.
-	Routes            *transfer.RoutesState      //Routes available for this transfer.
-	BlockNumber       int64                      //Latest known block number.
-	RandomGenerator   utils.SecretGenerator      //A generator that yields valid secrets.
-	Message           *EventSendMediatedTransfer // current message in-transit todo this type?
-	Route             *transfer.RouteState       //current route being used
-	SecretRequest     *encoding.SecretRequest
-	RevealSecret      *EventSendRevealSecret
-	CanceledTransfers []*EventSendMediatedTransfer
-	Db                channel.Db
+	OurAddress               common.Address             //This node address.
+	Transfer                 *LockedTransferState       // The description of the mediated transfer.
+	Routes                   *transfer.RoutesState      //Routes available for this transfer.
+	BlockNumber              int64                      //Latest known block number.
+	RandomGenerator          utils.SecretGenerator      //A generator that yields valid secrets.
+	Message                  *EventSendMediatedTransfer // current message in-transit todo this type?
+	Route                    *transfer.RouteState       //current route being used
+	SecretRequest            *encoding.SecretRequest
+	RevealSecret             *EventSendRevealSecret
+	CanceledTransfers        []*EventSendMediatedTransfer
+	LastRefundChannelAddress common.Address
+	Db                       channel.Db
 }
 
 /*

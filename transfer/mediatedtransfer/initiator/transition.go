@@ -27,6 +27,9 @@ func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
+	if state.Route != nil {
+		state.LastRefundChannelAddress = state.Route.ChannelAddress
+	}
 	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
 	state.CanceledTransfers = append(state.CanceledTransfers, state.Message)
 	state.Transfer.Secret = utils.EmptyHash
@@ -49,9 +52,10 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 	state.SecretRequest = nil
 	state.RevealSecret = nil
 	cancel := &transfer.EventTransferSentFailed{
-		Identifier: state.Transfer.Identifier,
-		Reason:     "user canceled transfer",
-		Target:     state.Transfer.Target,
+		Identifier:     state.Transfer.Identifier,
+		Reason:         "user canceled transfer",
+		Target:         state.Transfer.Target,
+		ChannelAddress: state.LastRefundChannelAddress,
 	}
 	return &transfer.TransitionResult{
 		NewState: nil,
@@ -120,9 +124,10 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			         not released.
 		*/
 		transferFailed := &transfer.EventTransferSentFailed{
-			Identifier: state.Transfer.Identifier,
-			Reason:     "no route available",
-			Target:     state.Transfer.Target,
+			Identifier:     state.Transfer.Identifier,
+			Reason:         "no route available",
+			Target:         state.Transfer.Target,
+			ChannelAddress: state.LastRefundChannelAddress,
 		}
 		events := []transfer.Event{transferFailed}
 		if unlockFailed != nil {

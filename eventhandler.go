@@ -252,6 +252,28 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
 		eh.finishOneTransfer(event)
+		/*
+						不可能是其他类型的 stateManager, 只能是发起方才会有失败消息
+					todo 这里实际上有一个 bug, 需要谨慎处理,应该像updateStateManagerFromEvent一样处理,否则这里发生了崩溃,就会造成状态不同步,从而必须关闭通道.
+				这里先简单处理,以后再完善.
+			例如CrashCaseSend06这个例子.
+		*/
+		///if stateManager.Name == initiator.NameInitiatorTransition {
+		//istate, ok := stateManager.CurrentState.(*mediatedtransfer.InitiatorState)
+		if e2.ChannelAddress != utils.EmptyAddress {
+			//if ok && istate.LastRefundChannelAddress != utils.EmptyAddress {
+			//因为 refund 导致的发送失败,需要记录
+			ch := eh.raiden.getChannelWithAddr(e2.ChannelAddress)
+			if ch == nil {
+				err = fmt.Errorf("receive EventTransferSentFailed,but channel not exist %s", utils.APex(e2.ChannelAddress))
+				return
+			}
+			err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			if err != nil {
+				log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
+			}
+		}
+		//}
 	case *transfer.EventTransferReceivedSuccess:
 		ch := eh.raiden.getChannelWithAddr(e2.ChannelAddress)
 		if ch == nil {
