@@ -12,11 +12,29 @@ import (
 
 // CheckChannelNoLock :
 func CheckChannelNoLock(env *models.TestEnv, c1 *models.Channel) bool {
+	if c1.LockedAmount != 0 || c1.PartnerLockedAmount != 0 {
+		models.Logger.Printf("Check failed because channel %s has lock but expect no lock !!!\n", c1.Name)
+		return false
+	}
+	return true
+}
+
+// CheckChannelNoLockByTwoSides :
+func CheckChannelNoLockByTwoSides(env *models.TestEnv, c1 *models.Channel) bool {
 	if !checkByTwoSize(env, c1) {
 		return false
 	}
-	if c1.LockedAmount != 0 || c1.PartnerLockedAmount != 0 {
-		models.Logger.Printf("Check failed because channel %s has lock but expect no lock !!!\n", c1.Name)
+	return  CheckChannelNoLock(env, c1)
+}
+
+
+// CheckChannelLockSelf :
+func CheckChannelLockSelf(env *models.TestEnv, c1 *models.Channel, lockAmt int32) bool {
+	if !checkByTwoSize(env, c1) {
+		return false
+	}
+	if c1.LockedAmount != lockAmt {
+		models.Logger.Printf("Check failed because channel %s LockedAmount=%d but expect LockedAmount=%d !!!\n", c1.Name, c1.PartnerLockedAmount, lockAmt)
 		return false
 	}
 	return true
@@ -45,7 +63,17 @@ func CheckChannelLockBoth(env *models.TestEnv, c1 *models.Channel, lockAmt int32
 	}
 	return true
 }
-
+// CheckChannelSelfBalance :
+func CheckChannelSelfBalance(env *models.TestEnv, c1 *models.Channel, balance int32) bool {
+	if !checkByTwoSize(env, c1) {
+		return false
+	}
+	if c1.Balance != balance {
+		models.Logger.Printf("Check failed because channel %s Balance=%d but expect Balance=%d !!!\n", c1.Name, c1.PartnerBalance, balance)
+		return false
+	}
+	return true
+}
 // CheckChannelPartnerBalance :
 func CheckChannelPartnerBalance(env *models.TestEnv, c1 *models.Channel, balance int32) bool {
 	if !checkByTwoSize(env, c1) {

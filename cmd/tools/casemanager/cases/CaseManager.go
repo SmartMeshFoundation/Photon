@@ -46,6 +46,7 @@ func (c *CaseManager) RunAll(skip string) {
 	for _, k := range keys {
 		v := c.Cases[k]
 		rs := v.Call(nil)
+		fmt.Println("----------------------------->Start to run case " + k + "...")
 		if rs[0].Interface() == nil {
 			fmt.Printf("%s SUCCESS\n", k)
 		} else {
@@ -55,7 +56,7 @@ func (c *CaseManager) RunAll(skip string) {
 			} else {
 				fmt.Printf("%s FAILED!!!\n", k)
 				if skip != "true" {
-					panic(err)
+					break
 				}
 				c.FailedCaseNames = append(c.FailedCaseNames, k)
 			}
@@ -64,6 +65,7 @@ func (c *CaseManager) RunAll(skip string) {
 	fmt.Println("Casemanager Result:")
 	fmt.Printf("Cases num : %d\n", len(keys))
 	fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
+	fmt.Println("Pelease check log in ./log")
 	for _, v := range c.FailedCaseNames {
 		fmt.Println(v)
 	}
@@ -72,6 +74,7 @@ func (c *CaseManager) RunAll(skip string) {
 // RunOne run one
 func (c *CaseManager) RunOne(caseName string) {
 	if v, ok := c.Cases[caseName]; ok {
+		fmt.Println("----------------------------->Start to run case " + caseName + "...")
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
 			fmt.Printf("%s SUCCESS\n", caseName)
@@ -81,12 +84,12 @@ func (c *CaseManager) RunOne(caseName string) {
 				fmt.Printf("%s SUCCESS\n", caseName)
 			} else {
 				fmt.Printf("%s FAILED!!!\n", caseName)
-				panic(err)
 			}
 		}
 	} else {
 		fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}
+	fmt.Println("Pelease check log in ./log")
 }
 
 // caseFail :

@@ -311,7 +311,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	for _, option := range options {
 		s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 		_, token := env.GetTokenByName(s[2])
-		if token == nil {
+		if token.Token == nil {
 			fmt.Println("use old token , do not create channel...")
 			return
 		}

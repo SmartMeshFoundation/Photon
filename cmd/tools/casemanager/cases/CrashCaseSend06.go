@@ -50,6 +50,7 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 		return fmt.Errorf(msg)
 	}
 	// 崩溃后数据校验
+	models.Logger.Println("------------ Data After Crash ------------")
 	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
 	utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
 	utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterCrash()
@@ -60,10 +61,13 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 	time.Sleep(time.Second * 30)
 
 	// 重启后校验
+	models.Logger.Println("------------ Data After Restart ------------")
 	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
 	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
-	cd72new := utils.GetChannelBetween(N7, N2, tokenAddress).PrintDataAfterRestart()
-	cd37new := utils.GetChannelBetween(N3, N7, tokenAddress).PrintDataAfterRestart()
+	cd27new := utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterRestart()
+	cd73new := utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterRestart()
+
+	models.Logger.Println("------------ Data After Fail ------------")
 	// cd23,双锁定
 	if !utils.CheckChannelLockBoth(env, cd23new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
@@ -75,12 +79,12 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
 	// cd27，2锁定45
-	if !utils.CheckChannelLockPartner(env, cd72new, transAmount) {
+	if !utils.CheckChannelLockSelf(env, cd27new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
 	// cd37，7锁定45
-	if !utils.CheckChannelLockPartner(env, cd37new, transAmount) {
+	if !utils.CheckChannelLockSelf(env, cd73new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
