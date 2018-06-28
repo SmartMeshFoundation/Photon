@@ -77,7 +77,7 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "")
 	env.EthRPCEndpoint = c.RdString("COMMON", "eth_rpc_endpoint", "ws://182.254.155.208:30306")
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
-	env.Debug = c.RdBool("COMMON", "debug", true)
+	env.Debug = c.RdBool("COMMON", "debug", false)
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
@@ -210,6 +210,11 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 				Manager: manager,
 				Token:   token,
 			})
+		} else {
+			tokens = append(tokens, &Token{
+				Name:    option,
+				Address: addr,
+			})
 		}
 	}
 	Logger.Println("Load Tokens SUCCESS")
@@ -307,7 +312,8 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 		s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 		_, token := env.GetTokenByName(s[2])
 		if token == nil {
-			panic("Can not find token")
+			fmt.Println("use old token , do not create channel...")
+			return
 		}
 		index1, account1 := env.GetNodeAddressByName(s[0])
 		key1 := env.Keys[index1]

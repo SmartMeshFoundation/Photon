@@ -19,7 +19,11 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 	if err != nil {
 		return
 	}
-	defer env.KillAllRaidenNodes()
+	defer func() {
+		if env.Debug == false {
+			env.KillAllRaidenNodes()
+		}
+	}()
 	// 源数据
 	var transAmount int32
 	transAmount = 20
