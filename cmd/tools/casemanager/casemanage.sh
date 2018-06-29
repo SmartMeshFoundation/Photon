@@ -28,6 +28,7 @@ fi
 # build casemaneger
 cd ../tools/casemanager
 go build
+rm log/*
 
 # run casemanager
 ./casemanager --case=all
