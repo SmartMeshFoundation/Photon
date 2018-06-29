@@ -43,6 +43,7 @@ func (c *CaseManager) RunAll(skip string) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	errorMsg := ""
 	for _, k := range keys {
 		v := c.Cases[k]
 		rs := v.Call(nil)
@@ -54,20 +55,24 @@ func (c *CaseManager) RunAll(skip string) {
 			if err == nil {
 				fmt.Printf("%s SUCCESS\n", k)
 			} else {
-				fmt.Printf("%s FAILED!!!\n", k)
+				errorMsg = fmt.Sprintf("%s FAILED!!!\n", k)
+				fmt.Printf(errorMsg)
+				c.FailedCaseNames = append(c.FailedCaseNames, k)
 				if skip != "true" {
 					break
 				}
-				c.FailedCaseNames = append(c.FailedCaseNames, k)
 			}
 		}
 	}
 	fmt.Println("Casemanager Result:")
 	fmt.Printf("Cases num : %d\n", len(keys))
 	fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
-	fmt.Println("Pelease check log in ./log")
 	for _, v := range c.FailedCaseNames {
 		fmt.Println(v)
+	}
+	fmt.Println("Pelease check log in ./log")
+	if errorMsg != "" {
+		panic(errorMsg)
 	}
 }
 

@@ -78,13 +78,13 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
-	// cd27，2锁定45
-	if !utils.CheckChannelLockSelf(env, cd27new, transAmount) {
+	// cd27，互锁
+	if !utils.CheckChannelLockBoth(env, cd27new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
-	// cd37，7锁定45
-	if !utils.CheckChannelLockSelf(env, cd73new, transAmount) {
+	// cd37，互锁
+	if !utils.CheckChannelLockBoth(env, cd73new, transAmount) {
 		models.Logger.Println(env.CaseName + " END ====> FAILED")
 		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
 	}
