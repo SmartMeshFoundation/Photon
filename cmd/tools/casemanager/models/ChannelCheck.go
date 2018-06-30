@@ -66,7 +66,7 @@ func (c1 *Channel) CheckEqualByPartnerNode(env *TestEnv) bool {
 	n1 := env.GetNodeByAddress(c1.SelfAddress)
 	n2 := env.GetNodeByAddress(c1.PartnerAddress)
 	c2 := n2.GetChannelWith(n1, c1.TokenAddress)
-	if c1.isEqualChannelData(c2) {
+	if !c1.isEqualChannelData(c2) {
 		if c1.SelfAddress == c2.SelfAddress {
 			c2.switchChannel()
 		}
