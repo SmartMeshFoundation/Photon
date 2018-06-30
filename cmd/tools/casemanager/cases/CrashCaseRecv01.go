@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
@@ -39,8 +38,8 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	})
 
 	// 记录初始数据
-	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataBeforeTransfer()
-	utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
@@ -51,30 +50,40 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-
-	// 查询cd23，锁定45
-	cd23middle := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	if cd23middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd23middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	// 中间数据记录
+	models.Logger.Println("------------ Data After Crash ------------")
+	cd23middle := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+	// cd23，锁定45
+	if !cd23middle.CheckLockSelf(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
-	// 查询cd36，锁定45
-	cd36middle := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
-	if cd36middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd36middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	// cd36，锁定45
+	if !cd36middle.CheckLockSelf(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
 	}
 
 	// 重启节点6，交易自动继续
 	N6.ReStartWithoutConditionquit(env)
+	time.Sleep(time.Second * 3)
 
-	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	if cd23new.LockedAmount != transAmount {
+	// 查询重启后数据
+	models.Logger.Println("------------ Data After Restart ------------")
+	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+
+	// 校验对等
+	models.Logger.Println("------------ Data After Fail ------------")
+	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+		return cm.caseFail(env.CaseName)
+	}
+
+	// cd23, 交易成功
+	if !cd23new.CheckPartnerBalance(cd23middle.Balance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
-	// 查询cd36，锁定45
-	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
-	if cd36new.LockedAmount != transAmount {
+	// cd36，成功
+	if !cd36new.CheckPartnerBalance(cd36middle.Balance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

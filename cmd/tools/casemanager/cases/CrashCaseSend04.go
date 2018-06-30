@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
@@ -39,8 +38,8 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 		QuitEvent: "EventSendSecretRequestAfter",
 	})
 	// 记录初始数据
-	cd23 := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataBeforeTransfer()
+	cd23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
@@ -51,23 +50,31 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 		return fmt.Errorf(msg)
 	}
 	// 记录中间数据,锁定节点2节点3 20个token
-	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
+	models.Logger.Println("------------ Data After Crash ------------")
+	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+
 	// 重启节点6，自动发送之前中断的交易
 	N6.ReStartWithoutConditionquit(env)
-	// 查询cd32并校验
-	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
-	if cd23new.PartnerBalance-cd23.PartnerBalance != transAmount {
-		models.Logger.Println("Expect transfer on" + cd23new.Name + " success,but got failed ,FAILED!!!")
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	time.Sleep(time.Second * 3)
+
+	// 查询重启后数据
+	models.Logger.Println("------------ Data After Restart ------------")
+	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+
+	// 校验对等
+	models.Logger.Println("------------ Data After Fail ------------")
+	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+		return cm.caseFail(env.CaseName)
+	}
+	// cd23, 交易成功
+	if !cd23new.CheckPartnerBalance(cd23.PartnerBalance + transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// 查询cd36并校验
-	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterRestart()
-	if cd36new.PartnerBalance-cd36.PartnerBalance != transAmount {
-		models.Logger.Println("Expect transfer on" + cd36new.Name + " success,but got failed ,FAILED!!!")
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

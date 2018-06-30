@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
@@ -44,12 +43,12 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	})
 
 	// 2. 记录所有通道历史数据
-	cd12 := utils.GetChannelBetween(N1, N2, tokenAddress).PrintDataBeforeTransfer()
-	cd32 := utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataBeforeTransfer()
-	cd42 := utils.GetChannelBetween(N4, N2, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataBeforeTransfer()
-	cd45 := utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataBeforeTransfer()
-	cd56 := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataBeforeTransfer()
+	cd12 := N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	cd42 := N4.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	cd45 := N4.GetChannelWith(N5, tokenAddress).PrintDataBeforeTransfer()
+	cd56 := N5.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 
 	// 3. 节点1向节点6转账45token
 	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
@@ -60,77 +59,81 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-	// 5. 崩溃后重启前数据校验
-	cd12middle := utils.GetChannelBetween(N1, N2, tokenAddress).PrintDataAfterCrash()
-	cd32middle := utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataAfterCrash()
-	cd42middle := utils.GetChannelBetween(N4, N2, tokenAddress).PrintDataAfterCrash()
-	cd36middle := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterCrash()
-	cd45middle := utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataAfterCrash()
-	cd56middle := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataAfterCrash()
+	// 中间数据记录
+	models.Logger.Println("------------ Data After Crash ------------")
+	cd12middle := N1.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	cd32middle := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	cd42middle := N4.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+	cd45middle := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
+	cd56middle := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 	// 校验cd12，锁定45
-	if cd12middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd12middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd12middle.CheckLockSelf(transAmount) {
+		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd32，双锁定45
-	if cd32middle.PartnerLockedAmount != transAmount && cd32middle.LockedAmount != transAmount {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", transAmount, cd32middle.PartnerLockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd32middle.CheckLockBoth(transAmount) {
+		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd42，无锁定
-	if cd42middle.PartnerLockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd42middle.PartnerLockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd42middle.CheckNoLock() {
+		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd36，无锁定
-	if cd36middle.LockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd36middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd36middle.CheckNoLock() {
+		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd45，无锁定
-	if cd45middle.LockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd45middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd45middle.CheckNoLock() {
+		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd56，无锁定
-	if cd56middle.LockedAmount != 0 {
-		msg = fmt.Sprintf("Expect locked amount = %d,but got %d ,FAILED!!!", 0, cd56middle.LockedAmount)
-		return cm.caseFail(env.CaseName, msg)
+	if !cd56middle.CheckNoLock() {
+		return cm.caseFail(env.CaseName)
 	}
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
-
 	time.Sleep(time.Second * 30)
-	// 7. 重启后数据校验，交易成功，全通道无锁定
-	cd12new := utils.GetChannelBetween(N1, N2, tokenAddress).PrintDataAfterRestart()
-	cd32new := utils.GetChannelBetween(N3, N2, tokenAddress).PrintDataAfterRestart()
-	cd42new := utils.GetChannelBetween(N4, N2, tokenAddress).PrintDataAfterRestart()
-	cd36new := utils.GetChannelBetween(N3, N6, tokenAddress).PrintDataAfterRestart()
-	cd45new := utils.GetChannelBetween(N4, N5, tokenAddress).PrintDataAfterRestart()
-	cd56new := utils.GetChannelBetween(N5, N6, tokenAddress).PrintDataAfterRestart()
-	// 校验cd12
-	if cd12.Balance-cd12new.Balance != transAmount {
+
+	// 查询重启后数据
+	models.Logger.Println("------------ Data After Restart ------------")
+	cd12new := N1.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
+	cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
+	cd42new := N4.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
+	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+	cd45new := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterRestart()
+	cd56new := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+
+	// 校验对等
+	models.Logger.Println("------------ Data After Fail ------------")
+	if !cd12new.CheckEqualByPartnerNode(env) || !cd32new.CheckEqualByPartnerNode(env) ||
+		!cd42new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) ||
+		!cd45new.CheckEqualByPartnerNode(env) || !cd56new.CheckEqualByPartnerNode(env) {
+		return cm.caseFail(env.CaseName)
+	}
+	// 校验cd12, 交易成功
+	if !cd12new.CheckPartnerBalance(cd12.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd12new.Name)
 	}
 	// 校验cd32,解锁
-	if cd32new.Balance != cd32.Balance || cd32new.PartnerLockedAmount != 0 {
+	if !cd32new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
-	// 校验cd42
-	if cd42.PartnerBalance-cd42new.PartnerBalance != transAmount {
+	// 校验cd42,交易成功
+	if !cd42new.CheckSelfBalance(cd42.Balance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd42new.Name)
 	}
-	// 校验cd36
-	if cd36new.Balance != cd36.Balance || cd36new.LockedAmount != 0 {
+	// 校验cd36,解锁
+	if !cd36new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
-	// 校验cd45
-	if cd45.Balance-cd45new.Balance != transAmount {
+	// 校验cd45, 交易成功
+	if !cd45new.CheckPartnerBalance(cd45.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd45new.Name)
 	}
-	// 校验cd56
-	if cd56.Balance-cd56new.Balance != transAmount {
+	// 校验cd56, 交易成功
+	if !cd56new.CheckPartnerBalance(cd56.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd56new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

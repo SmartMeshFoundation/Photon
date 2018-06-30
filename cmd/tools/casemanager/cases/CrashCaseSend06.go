@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
@@ -51,10 +50,10 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 	}
 	// 崩溃后数据校验
 	models.Logger.Println("------------ Data After Crash ------------")
-	utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterCrash()
-	utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterCrash()
-	utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterCrash()
-	utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterCrash()
+	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	N6.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	N2.GetChannelWith(N7, tokenAddress).PrintDataAfterCrash()
+	N7.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
 
 	// 重启节点3，自动发送之前中断的交易
 	N3.ReStartWithoutConditionquit(env)
@@ -62,31 +61,32 @@ func (cm *CaseManager) CrashCaseSend06() (err error) {
 
 	// 重启后校验
 	models.Logger.Println("------------ Data After Restart ------------")
-	cd23new := utils.GetChannelBetween(N2, N3, tokenAddress).PrintDataAfterRestart()
-	cd63new := utils.GetChannelBetween(N6, N3, tokenAddress).PrintDataAfterRestart()
-	cd27new := utils.GetChannelBetween(N2, N7, tokenAddress).PrintDataAfterRestart()
-	cd73new := utils.GetChannelBetween(N7, N3, tokenAddress).PrintDataAfterRestart()
+	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	cd63new := N6.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	cd27new := N2.GetChannelWith(N7, tokenAddress).PrintDataAfterRestart()
+	cd73new := N7.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
 
 	models.Logger.Println("------------ Data After Fail ------------")
+	// 校验通道双方相等
+	if !cd23new.CheckEqualByPartnerNode(env) || !cd63new.CheckEqualByPartnerNode(env) ||
+		!cd27new.CheckEqualByPartnerNode(env) || !cd73new.CheckEqualByPartnerNode(env) {
+		return cm.caseFail(env.CaseName)
+	}
 	// cd23,双锁定
-	if !utils.CheckChannelLockBoth(env, cd23new, transAmount) {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	if !cd23new.CheckLockBoth(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// cd63，无锁定
-	if !utils.CheckChannelNoLock(env, cd63new) {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	if !cd63new.CheckNoLock() {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd63new.Name)
 	}
 	// cd27，互锁
-	if !utils.CheckChannelLockBoth(env, cd27new, transAmount) {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	if !cd27new.CheckLockBoth(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd27new.Name)
 	}
 	// cd37，互锁
-	if !utils.CheckChannelLockBoth(env, cd73new, transAmount) {
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	if !cd73new.CheckLockBoth(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd73new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

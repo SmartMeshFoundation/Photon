@@ -2,7 +2,6 @@ package models
 
 import (
 	"log"
-	"net/http"
 	"time"
 
 	"bufio"
@@ -13,7 +12,6 @@ import (
 	"os/exec"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/go-errors/errors"
 )
 
 // RaidenNode a smartraiden node
@@ -95,55 +93,6 @@ func (node *RaidenNode) StartWithConditionQuit(env *TestEnv, c *params.Condition
 	node.ConditionQuit = c
 	node.DebugCrash = true
 	node.Start(env)
-}
-
-// IsRunning check by api address
-func (node *RaidenNode) IsRunning() bool {
-	req := &Req{
-		FullURL: node.Host + "/api/1/address",
-		Method:  http.MethodGet,
-		Payload: "",
-		Timeout: time.Second * 30,
-	}
-	statusCode, _, err := req.Invoke()
-	if err != nil {
-		return false
-	}
-	if statusCode != 200 {
-		Logger.Printf("Exception response:%d\n", statusCode)
-		panic("Exception response")
-	}
-	return true
-}
-
-// TransferPayload API  http body
-type TransferPayload struct {
-	Amount   int32 `json:"amount"`
-	Fee      int64 `json:"fee"`
-	IsDirect bool  `json:"is_direct"`
-}
-
-// SendTrans send a transfer
-func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddress string, isDirect bool) error {
-	p, _ := json.Marshal(TransferPayload{
-		Amount:   amount,
-		Fee:      0,
-		IsDirect: isDirect,
-	})
-	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
-		Method:  http.MethodPost,
-		Payload: string(p),
-		Timeout: time.Second * 180,
-	}
-	statusCode, _, err := req.Invoke()
-	if err != nil {
-		return err
-	}
-	if statusCode != 200 {
-		return errors.New(statusCode)
-	}
-	return nil
 }
 
 // ExecShell : run shell commands

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
@@ -37,7 +36,7 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	// 2. 启动节点2
 	N2.Start(env)
 	// 3. 初始数据记录
-	cd21 := utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataBeforeTransfer()
+	cd21 := N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	// 4. 从节点0发起到节点1的转账
 	N1.SendTrans(tokenAddress, transAmount, N2.Address, false)
 	time.Sleep(time.Second * 3)
@@ -48,16 +47,24 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 		return fmt.Errorf(msg)
 	}
 	// 6. 中间数据记录
-	utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataAfterCrash()
+	models.Logger.Println("------------ Data After Crash ------------")
+	N2.GetChannelWith(N1, tokenAddress).PrintDataAfterCrash()
 	// 6. 重启节点1，自动发送之前中断的交易
 	N1.ReStartWithoutConditionquit(env)
-	// 7. 重启后数据
-	cd21new := utils.GetChannelBetween(N2, N1, tokenAddress).PrintDataAfterCrash()
-	// 8. 验证
-	if cd21new.Balance-cd21.Balance != transAmount {
-		models.Logger.Println("Expect transfer on" + cd21new.Name + " success,but got failed ,FAILED!!!")
-		models.Logger.Println(env.CaseName + " END ====> FAILED")
-		return fmt.Errorf("Case [%s] FAILED", env.CaseName)
+	time.Sleep(time.Second * 3)
+
+	// 查询重启后数据
+	models.Logger.Println("------------ Data After Restart ------------")
+	cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
+	// 校验对等
+	models.Logger.Println("------------ Data After Fail ------------")
+	if !cd21new.CheckEqualByPartnerNode(env) {
+		return cm.caseFail(env.CaseName)
+	}
+	models.Logger.Println("------------ Data After Restart ------------")
+	// cd21,交易成功
+	if !cd21new.CheckSelfBalance(cd21.Balance + transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd21new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

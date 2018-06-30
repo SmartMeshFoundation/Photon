@@ -98,8 +98,7 @@ func (c *CaseManager) RunOne(caseName string) {
 }
 
 // caseFail :
-func (c *CaseManager) caseFail(caseName string, msg string) error {
-	models.Logger.Println(msg)
+func (c *CaseManager) caseFail(caseName string) error {
 	models.Logger.Println(caseName + " END ====> FAILED")
 	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
