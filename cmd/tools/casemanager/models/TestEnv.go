@@ -20,6 +20,8 @@ import (
 
 	"strconv"
 
+	"io"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -53,6 +55,17 @@ type TestEnv struct {
 var Logger *log.Logger
 var globalPassword = "123"
 
+type logTee struct {
+	w1 io.Writer
+	w2 io.Writer
+}
+
+func (t *logTee) Write(p []byte) (n int, err error) {
+	n, err = t.w1.Write(p)
+	t.w2.Write(p)
+	return
+}
+
 // NewTestEnv default contractor
 func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	c, err := config.ReadDefault(configFilePath)
@@ -68,7 +81,7 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	if err != nil {
 		log.Fatalln("Create log file error !", logfile)
 	}
-	Logger = log.New(logFile, "", log.LstdFlags|log.Lshortfile)
+	Logger = log.New(&logTee{logFile, os.Stderr}, "", log.LstdFlags|log.Lshortfile)
 	Logger.Println("Start to prepare env for " + env.CaseName + "...")
 	env.Main = c.RdString("COMMON", "main", "smartraiden")
 	env.DataDir = c.RdString("COMMON", "data_dir", ".smartraiden")
