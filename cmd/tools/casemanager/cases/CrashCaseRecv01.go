@@ -65,7 +65,7 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 
 	// 重启节点6，交易自动继续
 	N6.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 15)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")
@@ -79,11 +79,11 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	}
 
 	// cd23, 交易成功
-	if !cd23new.CheckPartnerBalance(cd23middle.Balance + transAmount) {
+	if !cd23new.CheckPartnerBalance(cd23middle.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// cd36，成功
-	if !cd36new.CheckPartnerBalance(cd36middle.Balance + transAmount) {
+	if !cd36new.CheckPartnerBalance(cd36middle.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

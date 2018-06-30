@@ -33,6 +33,7 @@ func (node *RaidenNode) Start(env *TestEnv) {
 	count := 0
 	t := time.Now()
 	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to start, sleep 3s...\n", node.Name)
 		time.Sleep(time.Second * 3)
 		count++
 		if count > 40 {

@@ -42,7 +42,7 @@ func (node *RaidenNode) IsRunning() bool {
 		FullURL: node.Host + "/api/1/address",
 		Method:  http.MethodGet,
 		Payload: "",
-		Timeout: time.Second * 30,
+		Timeout: time.Second * 3,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
@@ -73,7 +73,7 @@ func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 180,
+		Timeout: time.Second * 20,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
