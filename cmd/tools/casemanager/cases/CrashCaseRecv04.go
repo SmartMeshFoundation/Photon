@@ -92,8 +92,9 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 
 	// 校验对等
 	models.Logger.Println("------------ Data After Fail ------------")
+	// 这里cd73由于3余额不足无法refund，所以会卡死，通道状态双方不一致，只能等超时
 	if !cd12new.CheckEqualByPartnerNode(env) || !cd32new.CheckEqualByPartnerNode(env) ||
-		!cd36new.CheckEqualByPartnerNode(env) || !cd72new.CheckEqualByPartnerNode(env) || !cd73new.CheckEqualByPartnerNode(env) {
+		!cd36new.CheckEqualByPartnerNode(env) || !cd72new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd12, 1锁定
@@ -112,7 +113,7 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 	if !cd72new.CheckLockPartner(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd72new.Name)
 	}
-	// 校验cd72,7锁定45
+	// 校验cd73,7锁定45
 	if !cd73new.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd73new.Name)
 	}
