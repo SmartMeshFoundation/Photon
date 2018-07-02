@@ -95,7 +95,7 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// 查询cd36并校验
-	if !cd36new.CheckPartnerBalance(cd36.Balance + transAmount) {
+	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
