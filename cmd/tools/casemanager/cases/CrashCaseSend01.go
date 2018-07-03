@@ -51,7 +51,7 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	N2.GetChannelWith(N1, tokenAddress).PrintDataAfterCrash()
 	// 6. 重启节点1，自动发送之前中断的交易
 	N1.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 30)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")

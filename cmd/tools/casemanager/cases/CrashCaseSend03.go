@@ -59,7 +59,7 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 	}
 	// 重启节点2，自动发送之前中断的交易
 	N2.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 30)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")

@@ -73,7 +73,7 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 
 	// 重启节点1，交易自动继续
 	N1.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 15)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")
