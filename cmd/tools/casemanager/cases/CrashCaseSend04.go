@@ -72,7 +72,7 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 	if !cd23new.CheckPartnerBalance(cd23.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
-	// 查询cd36并校验
+	// cd36,交易成功
 	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
