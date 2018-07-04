@@ -49,7 +49,7 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-
+	time.Sleep(time.Second * 10)
 	// 查询cd23，锁定45,其余无锁定
 	models.Logger.Println("------------ Data After Crash ------------")
 	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
