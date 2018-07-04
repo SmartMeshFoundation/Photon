@@ -39,7 +39,12 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 	N3.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "EventSendRefundTransferAfter",
 	})
-
+	// 初始数据记录
+	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	cd24 := N2.GetChannelWith(N4, tokenAddress).PrintDataAfterCrash()
+	N6.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
+	cd45 := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
+	cd56 := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
@@ -53,10 +58,10 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 	// 查询cd23，锁定45,其余无锁定
 	models.Logger.Println("------------ Data After Crash ------------")
 	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
-	cd24middle := N2.GetChannelWith(N4, tokenAddress).PrintDataAfterCrash()
+	N2.GetChannelWith(N4, tokenAddress).PrintDataAfterCrash()
 	N6.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
-	cd45middle := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
-	cd56middle := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+	N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
+	N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 
 	// 重启节点3，自动发送之前中断的交易
 	N3.ReStartWithoutConditionquit(env)
@@ -85,15 +90,15 @@ func (cm *CaseManager) CrashCaseSend05() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd63new.Name)
 	}
 	// cd24,交易成功
-	if !cd24new.CheckPartnerBalance(cd24middle.PartnerBalance + transAmount) {
+	if !cd24new.CheckPartnerBalance(cd24.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd24new.Name)
 	}
 	// cd45,交易成功
-	if !cd45new.CheckPartnerBalance(cd45middle.PartnerBalance + transAmount) {
+	if !cd45new.CheckPartnerBalance(cd45.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd45new.Name)
 	}
 	// cd56,交易成功
-	if !cd56new.CheckPartnerBalance(cd56middle.PartnerBalance + transAmount) {
+	if !cd56new.CheckPartnerBalance(cd56.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd56new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
