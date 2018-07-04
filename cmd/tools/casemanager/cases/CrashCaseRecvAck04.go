@@ -62,12 +62,12 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	cd45middle := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
 	cd56middle := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 
-	// 校验cd23, 2锁定45
-	if !cd23middle.CheckLockSelf(transAmount) {
+	// 校验cd23, 双锁定
+	if !cd23middle.CheckLockBoth(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
-	// 校验cd36，3锁定45
-	if !cd63middle.CheckLockPartner(transAmount) {
+	// 校验cd36，无锁定
+	if !cd63middle.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd63middle.Name)
 	}
 	// 校验cd24，交易成功
@@ -102,12 +102,12 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 
-	// 校验cd23, 2锁定45
-	if !cd23new.CheckLockSelf(transAmount) {
+	// 校验cd23, 双锁定
+	if !cd23new.CheckLockBoth(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
-	// 校验cd36，3锁定45
-	if !cd63new.CheckLockPartner(transAmount) {
+	// 校验cd36，无锁定
+	if !cd63new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd63new.Name)
 	}
 	// 校验cd24，交易成功
