@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/slonzok/getpass"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -96,10 +95,6 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	addr = am.Accounts[0].Address
 	log.Printf("deploy account = %s", addr.String())
 	for i := 0; i < 3; i++ {
-		//retries three times
-		if len(globalPassword) <= 0 {
-			globalPassword = getpass.Prompt("Enter the password to unlock")
-		}
 		//fmt.Printf("\npassword is %s\n", password)
 		keybin, err := am.GetPrivateKey(addr, globalPassword)
 		if err != nil && i == 3 {
