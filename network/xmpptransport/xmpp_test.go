@@ -59,7 +59,7 @@ func TestSubscribe(t *testing.T) {
 	log.Trace(fmt.Sprintf("addr1=%s,addr2=%s,addr3=%s\n", addr1.String(), addr2.String(), addr3.String()))
 	x1handler := newTestDataHandler("x1")
 	x2handler := newTestDataHandler("x2")
-	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, nil, make(chan netshare.Status, 10))
+	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -78,7 +78,7 @@ func TestSubscribe(t *testing.T) {
 		return
 	}
 	log.Trace("client2 will login")
-	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, nil, make(chan netshare.Status, 10))
+	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -99,7 +99,7 @@ func TestSubscribe(t *testing.T) {
 		return
 	}
 	log.Trace("client3 will login")
-	x3, err := NewConnection(params.DefaultXMPPServer, addr3, &testPasswordGeter{key3}, nil, "client3", TypeOtherDevice, nil, make(chan netshare.Status, 10))
+	x3, err := NewConnection(params.DefaultXMPPServer, addr3, &testPasswordGeter{key3}, nil, "client3", TypeOtherDevice, make(chan netshare.Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -113,7 +113,7 @@ func TestSubscribe(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 100)
 	log.Trace("client2 will relogin")
-	x2, err = NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, nil, make(chan netshare.Status, 10))
+	x2, err = NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
 	if err != nil {
 		t.Error(err)
 		return
@@ -127,7 +127,7 @@ func BenchmarkNewXmpp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
 		addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, nil, make(chan netshare.Status, 10))
+		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10))
 		if err != nil {
 			return
 		}

@@ -29,7 +29,7 @@ func eventsForClose(state *mediatedtransfer.TargetState) (events []transfer.Even
 		state.State = mediatedtransfer.StateWaitingClose
 		channelClose := &mediatedtransfer.EventContractSendChannelClose{
 			ChannelAddress: fromRoute.ChannelAddress,
-			Token:          fromTransfer.Token,
+			Token:          fromTransfer.TokenNetworkAddres,
 		}
 		events = append(events, channelClose)
 	}
@@ -113,7 +113,7 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 		reveal := &mediatedtransfer.EventSendRevealSecret{
 			Identifier: tr.Identifier,
 			Secret:     tr.Secret,
-			Token:      tr.Token,
+			Token:      tr.TokenNetworkAddres,
 			Receiver:   route.HopNode,
 			Sender:     state.OurAddress,
 		}

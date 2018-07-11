@@ -42,7 +42,7 @@ func RegisteringOneToken(url string, Token string) (Status string, err error) {
 func RegisteringOneTokenTest(url string) {
 	start := time.Now()
 	ShowTime()
-	log.Println("Start Registering Token Test")
+	log.Println("Start Registering TokenNetworkAddres Test")
 	log.Println("Start Registering a already registered token")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	Status, err := RegisteringOneToken(url, Tokens[0])
@@ -54,7 +54,7 @@ func RegisteringOneTokenTest(url string) {
 		log.Println("Test pass:Registering a already registered token")
 
 	default:
-		log.Println("Test failed:Registering  a already registered Token:", Status)
+		log.Println("Test failed:Registering  a already registered TokenNetworkAddres:", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -70,7 +70,7 @@ func RegisteringOneTokenTest(url string) {
 		log.Fatalf("Test failed:register a nonexistent token")
 
 	default:
-		log.Println("Test success:Registering new Token:", Status)
+		log.Println("Test success:Registering new TokenNetworkAddres:", Status)
 	}
 	log.Println("Start Registering a new token")
 	c, err := config.ReadDefault("./apitest.ini")
@@ -98,7 +98,7 @@ func RegisteringOneTokenTest(url string) {
 		log.Println("Test pass:Success Registering a new token")
 
 	default:
-		log.Println("Test failed:Registering new Token:", Status)
+		log.Println("Test failed:Registering new TokenNetworkAddres:", Status)
 		if HalfLife {
 			log.Fatal("HalfLife,exit")
 		}
@@ -117,7 +117,7 @@ func ShowRegisteringOneTokenMsgDetail(Status string) {
 	case "201 Created":
 		log.Println("Success registering token")
 	case "409 Conflict":
-		log.Println("Token already registered")
+		log.Println("TokenNetworkAddres already registered")
 	case "504 TimeOut":
 		log.Println("No response,timeout")
 	default:

@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

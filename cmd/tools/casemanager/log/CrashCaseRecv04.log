@@ -1,0 +1,284 @@
+2018/07/02 19:43:51 TestEnv.go:85: Start to prepare env for CrashCaseRecv04...
+2018/07/02 19:43:52 TestEnv.go:118: Load RegistryContractAddress SUCCESS
+2018/07/02 19:43:52 TestEnv.go:207: Load Nodes SUCCESS
+2018/07/02 19:43:52 TestEnv.go:233: Load Tokens SUCCESS
+2018/07/02 19:43:52 TestEnv.go:441: Kill all raiden nodes SUCCESS
+2018/07/02 19:43:52 TestEnv.go:464: Clear history data SUCCESS
+2018/07/02 19:43:52 TestEnv.go:501: CrashCaseRecv04 env:
+2018/07/02 19:43:52 TestEnv.go:506: {
+	"CaseName": "CrashCaseRecv04",
+	"Main": "smartraiden",
+	"DataDir": ".smartraiden",
+	"KeystorePath": "../../../testdata/casemanager-keystore",
+	"PasswordFile": "../../../testdata/casemanager-keystore/pass",
+	"RegistryContractAddress": "0x2eec918d4269C833b2296d4653CD721d6Ba6cbF9",
+	"XMPPServer": "",
+	"EthRPCEndpoint": "ws://182.254.155.208:30306",
+	"Verbosity": 5,
+	"Debug": true,
+	"Nodes": [
+		{
+			"Host": "http://127.0.0.1:6001",
+			"Address": "0x97251dDfE70ea44be0E5156C4E3AaDD30328C6a5",
+			"Name": "N1",
+			"APIAddress": "127.0.0.1:6001",
+			"ListenAddress": "127.0.0.1:60010",
+			"ConditionQuit": null,
+			"DebugCrash": false
+		},
+		{
+			"Host": "http://127.0.0.1:6002",
+			"Address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+			"Name": "N2",
+			"APIAddress": "127.0.0.1:6002",
+			"ListenAddress": "127.0.0.1:60020",
+			"ConditionQuit": null,
+			"DebugCrash": false
+		},
+		{
+			"Host": "http://127.0.0.1:6003",
+			"Address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+			"Name": "N3",
+			"APIAddress": "127.0.0.1:6003",
+			"ListenAddress": "127.0.0.1:60030",
+			"ConditionQuit": null,
+			"DebugCrash": false
+		},
+		{
+			"Host": "http://127.0.0.1:6006",
+			"Address": "0xb02116A9D525dEbfa0D871418bD4954Bc77E2164",
+			"Name": "N6",
+			"APIAddress": "127.0.0.1:6006",
+			"ListenAddress": "127.0.0.1:60060",
+			"ConditionQuit": null,
+			"DebugCrash": false
+		},
+		{
+			"Host": "http://127.0.0.1:6007",
+			"Address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+			"Name": "N7",
+			"APIAddress": "127.0.0.1:6007",
+			"ListenAddress": "127.0.0.1:60070",
+			"ConditionQuit": null,
+			"DebugCrash": false
+		}
+	],
+	"Tokens": [
+		{
+			"Name": "T0",
+			"Address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+			"Manager": null,
+			"Token": null
+		}
+	],
+	"Channels": null,
+	"Keys": null
+}
+2018/07/02 19:43:52 TestEnv.go:108: Env Prepare SUCCESS
+2018/07/02 19:43:52 CrashCaseRecv04.go:33: CrashCaseRecv04 BEGIN ====>
+2018/07/02 19:43:52 RaidenNode.go:36: waiting for N1 to start, sleep 3s...
+2018/07/02 19:43:55 RaidenNode.go:36: waiting for N1 to start, sleep 3s...
+2018/07/02 19:43:58 RaidenNode.go:52: NODE 0x97251dDfE70ea44be0E5156C4E3AaDD30328C6a5 http://127.0.0.1:6001 start in 6.009130s
+2018/07/02 19:43:58 RaidenNode.go:36: waiting for N3 to start, sleep 3s...
+2018/07/02 19:44:01 RaidenNode.go:36: waiting for N3 to start, sleep 3s...
+2018/07/02 19:44:04 RaidenNode.go:36: waiting for N3 to start, sleep 3s...
+2018/07/02 19:44:07 RaidenNode.go:52: NODE 0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE http://127.0.0.1:6003 start in 9.013536s
+2018/07/02 19:44:07 RaidenNode.go:36: waiting for N6 to start, sleep 3s...
+2018/07/02 19:44:10 RaidenNode.go:36: waiting for N6 to start, sleep 3s...
+2018/07/02 19:44:13 RaidenNode.go:52: NODE 0xb02116A9D525dEbfa0D871418bD4954Bc77E2164 http://127.0.0.1:6006 start in 6.011707s
+2018/07/02 19:44:13 RaidenNode.go:36: waiting for N7 to start, sleep 3s...
+2018/07/02 19:44:16 RaidenNode.go:36: waiting for N7 to start, sleep 3s...
+2018/07/02 19:44:19 RaidenNode.go:52: NODE 0xd941d0268D9b41a0C7d3705a067CDe65b80456F3 http://127.0.0.1:6007 start in 6.007989s
+2018/07/02 19:44:19 RaidenNode.go:36: waiting for N2 to start, sleep 3s...
+2018/07/02 19:44:22 RaidenNode.go:36: waiting for N2 to start, sleep 3s...
+2018/07/02 19:44:25 RaidenNode.go:36: waiting for N2 to start, sleep 3s...
+2018/07/02 19:44:28 RaidenNode.go:50: NODE 0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724 http://127.0.0.1:6002 start with ReceiveTransferRefundStateChange in 9.017924s
+2018/07/02 19:44:51 CrashCaseRecv04.go:55: ------------ Data After Crash ------------
+2018/07/02 19:44:51 Channel.go:44: Channel data after crash CD-N1-N2-AfterCrash :
+2018/07/02 19:44:51 Channel.go:49: {
+	"name": "CD-N1-N2",
+	"self_address": "0x97251dDfE70ea44be0E5156C4E3AaDD30328C6a5",
+	"channel_address": "0xAE7783DFa0797391b361bC26f8BC84db50A8a819",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 300,
+	"locked_amount": 45,
+	"partner_balance": 300,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:44:51 Channel.go:44: Channel data after crash CD-N3-N2-AfterCrash :
+2018/07/02 19:44:51 Channel.go:49: {
+	"name": "CD-N3-N2",
+	"self_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"channel_address": "0x4ED5a3bfeC0733775Bb77B46C7B40b419C6019D2",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 50,
+	"locked_amount": 45,
+	"partner_balance": 50,
+	"partner_locked_amount": 45,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:44:51 Channel.go:44: Channel data after crash CD-N3-N6-AfterCrash :
+2018/07/02 19:44:51 Channel.go:49: {
+	"name": "CD-N3-N6",
+	"self_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"channel_address": "0xBAC7a664BbCA7799b9Ea82Ca3D41d8399420c6EB",
+	"partner_address": "0xb02116A9D525dEbfa0D871418bD4954Bc77E2164",
+	"balance": 30,
+	"locked_amount": 0,
+	"partner_balance": 320,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:44:51 Channel.go:44: Channel data after crash CD-N7-N2-AfterCrash :
+2018/07/02 19:44:51 Channel.go:49: {
+	"name": "CD-N7-N2",
+	"self_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"channel_address": "0xE216d0160546b779312bB149682D1cEFf78B59D7",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 70,
+	"locked_amount": 0,
+	"partner_balance": 70,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:44:51 Channel.go:44: Channel data after crash CD-N7-N3-AfterCrash :
+2018/07/02 19:44:51 Channel.go:49: {
+	"name": "CD-N7-N3",
+	"self_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"channel_address": "0xe5786De83d47b417890CF55145b8d8C122B13143",
+	"partner_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"balance": 90,
+	"locked_amount": 0,
+	"partner_balance": 30,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:44:51 RaidenNode.go:36: waiting for N2Restart to start, sleep 3s...
+2018/07/02 19:44:54 RaidenNode.go:36: waiting for N2Restart to start, sleep 3s...
+2018/07/02 19:44:57 RaidenNode.go:36: waiting for N2Restart to start, sleep 3s...
+2018/07/02 19:45:00 RaidenNode.go:52: NODE 0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724 http://127.0.0.1:6002 start in 9.015104s
+2018/07/02 19:47:00 CrashCaseRecv04.go:87: ------------ Data After Restart ------------
+2018/07/02 19:47:00 Channel.go:44: Channel data after restart CD-N1-N2Restart-AfterRestart :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N1-N2Restart",
+	"self_address": "0x97251dDfE70ea44be0E5156C4E3AaDD30328C6a5",
+	"channel_address": "0xAE7783DFa0797391b361bC26f8BC84db50A8a819",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 300,
+	"locked_amount": 45,
+	"partner_balance": 300,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 Channel.go:44: Channel data after restart CD-N3-N2Restart-AfterRestart :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N3-N2Restart",
+	"self_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"channel_address": "0x4ED5a3bfeC0733775Bb77B46C7B40b419C6019D2",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 50,
+	"locked_amount": 45,
+	"partner_balance": 50,
+	"partner_locked_amount": 45,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 Channel.go:44: Channel data after restart CD-N3-N6-AfterRestart :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N3-N6",
+	"self_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"channel_address": "0xBAC7a664BbCA7799b9Ea82Ca3D41d8399420c6EB",
+	"partner_address": "0xb02116A9D525dEbfa0D871418bD4954Bc77E2164",
+	"balance": 30,
+	"locked_amount": 0,
+	"partner_balance": 320,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 Channel.go:44: Channel data after restart CD-N7-N2Restart-AfterRestart :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N7-N2Restart",
+	"self_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"channel_address": "0xE216d0160546b779312bB149682D1cEFf78B59D7",
+	"partner_address": "0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724",
+	"balance": 70,
+	"locked_amount": 0,
+	"partner_balance": 70,
+	"partner_locked_amount": 45,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 Channel.go:44: Channel data after restart CD-N7-N3-AfterRestart :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N7-N3",
+	"self_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"channel_address": "0xe5786De83d47b417890CF55145b8d8C122B13143",
+	"partner_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"balance": 90,
+	"locked_amount": 45,
+	"partner_balance": 30,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 CrashCaseRecv04.go:95: ------------ Data After Fail ------------
+2018/07/02 19:47:00 ChannelCheck.go:73: Check failed because channel CD-N7-N3 not equal CD-N3-N7 !!!
+2018/07/02 19:47:00 Channel.go:44: Channel data after CheckByTwoSize fail :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N7-N3",
+	"self_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"channel_address": "0xe5786De83d47b417890CF55145b8d8C122B13143",
+	"partner_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"balance": 90,
+	"locked_amount": 45,
+	"partner_balance": 30,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 Channel.go:44: Channel data after CheckByTwoSize fail :
+2018/07/02 19:47:00 Channel.go:49: {
+	"name": "CD-N3-N7",
+	"self_address": "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+	"channel_address": "0xe5786De83d47b417890CF55145b8d8C122B13143",
+	"partner_address": "0xd941d0268D9b41a0C7d3705a067CDe65b80456F3",
+	"balance": 30,
+	"locked_amount": 0,
+	"partner_balance": 90,
+	"partner_locked_amount": 0,
+	"token_address": "0x75c98cc53754b40617A2C3E79F45ee6798a63910",
+	"state": "opened",
+	"settle_timeout": 600,
+	"reveal_timeout": 3
+}
+2018/07/02 19:47:00 CaseManager.go:102: CrashCaseRecv04 END ====> FAILED

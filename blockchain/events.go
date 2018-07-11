@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/monitoringcontracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -23,46 +24,52 @@ import (
 Events handles all contract events from blockchain
 */
 type Events struct {
-	client             *helper.SafeEthClient
-	lock               sync.RWMutex
-	LogChannelMap      map[string]chan types.Log
-	RegistryAddress    common.Address //this address is unique
-	Subscribes         map[string]ethereum.Subscription
-	StateChangeChannel chan transfer.StateChange
-	stopped            bool // has stopped?
-	quitChan           chan struct{}
+	client                *helper.SafeEthClient
+	lock                  sync.RWMutex
+	LogChannelMap         map[string]chan types.Log
+	RegistryAddress       common.Address //this address is unique
+	SecretRegistryAddress common.Address //get from db or from blockchain
+	Subscribes            map[string]ethereum.Subscription
+	StateChangeChannel    chan transfer.StateChange
+	stopped               bool // has stopped?
+	quitChan              chan struct{}
+	TokenNetworks         map[common.Address]bool
+	hasInited             bool
 }
 
 //NewBlockChainEvents create BlockChainEvents
-func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress common.Address) *Events {
-	be := &Events{client: client,
-		LogChannelMap:   make(map[string]chan types.Log),
-		Subscribes:      make(map[string]ethereum.Subscription),
-		RegistryAddress: registryAddress,
-		quitChan:        make(chan struct{}),
+func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRegistryAddress common.Address) *Events {
+	be := &Events{
+		client:                client,
+		LogChannelMap:         make(map[string]chan types.Log),
+		Subscribes:            make(map[string]ethereum.Subscription),
+		RegistryAddress:       registryAddress,
+		SecretRegistryAddress: secretRegistryAddress,
+		quitChan:              make(chan struct{}),
+		TokenNetworks:         make(map[common.Address]bool),
 	}
-	for _, name := range eventNames {
+	for name := range eventAbiMap {
 		be.LogChannelMap[name] = make(chan types.Log, 10)
 	}
 	return be
 }
 
-var eventNames = []string{params.NameTokenAdded,
-	params.NameChannelNew,
-	params.NameChannelNewBalance,
-	params.NameChannelClosed,
-	params.NameChannelSettled,
-	params.NameChannelSecretRevealed,
-	params.NameTransferUpdated,
-}
 var eventAbiMap = map[string]string{
-	params.NameChannelNew:            contracts.ChannelManagerContractABI,
-	params.NameTokenAdded:            contracts.RegistryABI,
-	params.NameChannelNewBalance:     contracts.NettingChannelContractABI,
-	params.NameChannelClosed:         contracts.NettingChannelContractABI,
-	params.NameChannelSettled:        contracts.NettingChannelContractABI,
-	params.NameChannelSecretRevealed: contracts.NettingChannelContractABI,
-	params.NameTransferUpdated:       contracts.NettingChannelContractABI,
+	params.NameTokenNetworkCreated:       contracts.TokenNetworkRegistryABI,
+	params.NameChannelOpened:             contracts.TokenNetworkABI,
+	params.NameChannelNewDeposit:         contracts.TokenNetworkABI,
+	params.NameChannelClosed:             contracts.TokenNetworkABI,
+	params.NameChannelSettled:            contracts.TokenNetworkABI,
+	params.NameChannelCooperativeSettled: contracts.TokenNetworkABI,
+	params.NameChannelWithdraw:           contracts.TokenNetworkABI,
+	params.NameChannelUnlocked:           contracts.TokenNetworkABI,
+	params.NameBalanceProofUpdated:       contracts.TokenNetworkABI,
+	params.NameSecretRevealed:            contracts.SecretRegistryABI,
+	//the following event is for 3rd party
+	params.NameNewDeposit:              monitoringcontracts.MonitoringServiceABI,
+	params.NameNewBalanceProofReceived: monitoringcontracts.MonitoringServiceABI,
+	params.NameRewardClaimed:           monitoringcontracts.MonitoringServiceABI,
+	params.NameWithdrawn:               monitoringcontracts.MonitoringServiceABI,
 }
 
 func (be *Events) installEventListener() (err error) {
@@ -95,10 +102,12 @@ func (be *Events) installEventListener() (err error) {
 			}()
 		}
 	}()
-	for _, name := range eventNames {
+	for name := range eventAbiMap {
 		contractAddr := utils.EmptyAddress
-		if name == params.NameTokenAdded { //only registry's contract address is only one
+		if name == params.NameTokenNetworkCreated { //only registry's contract address is only one
 			contractAddr = be.RegistryAddress
+		} else if name == params.NameSecretRevealed {
+			contractAddr = be.SecretRegistryAddress
 		}
 		sub, err = rpc.EventSubscribe(contractAddr, name, eventAbiMap[name], be.client, be.LogChannelMap[name])
 		if err != nil {
@@ -117,8 +126,112 @@ func (be *Events) uninstallEventListener() (err error) {
 	}
 	return nil
 }
+
+//EventChannelSettled2StateChange to stateChange
+func EventChannelSettled2StateChange(ev *contracts.TokenNetworkChannelSettled) *mediatedtransfer.ContractReceiveSettledStateChange {
+	return &mediatedtransfer.ContractReceiveSettledStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+		},
+		SettledBlock: int64(ev.Raw.BlockNumber),
+	}
+}
+
+//EventChannelCooperativeSettled2StateChange to stateChange
+func EventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChannelCooperativeSettled) *mediatedtransfer.ContractReceiveCooperativeSettledStateChange {
+	return &mediatedtransfer.ContractReceiveCooperativeSettledStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+		},
+		SettledBlock: int64(ev.Raw.BlockNumber),
+	}
+}
+
+//EventChannelWithdraw2StateChange to stateChange
+func EventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw) *mediatedtransfer.ContractReceiveChannelWithdrawStateChange {
+	return &mediatedtransfer.ContractReceiveChannelWithdrawStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+			OpenBlockNumber:     int64(ev.Raw.BlockNumber),
+		},
+		Participant1:        ev.Participant1,
+		Participant2:        ev.Participant2,
+		Participant1Balance: ev.Participant1_balance,
+		Participant2Balance: ev.Participant2_balance,
+	}
+}
+
+//EventTokenNetworkCreated2StateChange to statechange
+func EventTokenNetworkCreated2StateChange(ev *contracts.TokenNetworkRegistryTokenNetworkCreated) *mediatedtransfer.ContractReceiveTokenAddedStateChange {
+	return &mediatedtransfer.ContractReceiveTokenAddedStateChange{
+		RegistryAddress:     ev.Raw.Address,
+		TokenAddress:        ev.Token_address,
+		TokenNetworkAddress: ev.Token_network_address,
+	}
+}
+
+//EventChannelOpen2StateChange to statechange
+func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *mediatedtransfer.ContractReceiveNewChannelStateChange {
+	return &mediatedtransfer.ContractReceiveNewChannelStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			ChannelIdentifier:   ev.Channel_identifier,
+			TokenNetworkAddress: ev.Raw.Address,
+			OpenBlockNumber:     int64(ev.Raw.BlockNumber),
+		},
+		Participant1:  ev.Participant1,
+		Participant2:  ev.Participant2,
+		SettleTimeout: int(ev.Settle_timeout.Int64()),
+	}
+}
+
+//EventChannelNewBalance2StateChange to statechange
+func EventChannelNewBalance2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractReceiveBalanceStateChange {
+	return &mediatedtransfer.ContractReceiveBalanceStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   ev.Channel_identifier,
+		},
+		ParticipantAddress: ev.Participant,
+		BlockNumber:        int64(ev.Raw.BlockNumber),
+	}
+}
+
+//EventChannelClosed2StateChange to statechange
+func EventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *mediatedtransfer.ContractReceiveClosedStateChange {
+	return &mediatedtransfer.ContractReceiveClosedStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   ev.Channel_identifier,
+		},
+		ClosingAddress: ev.Closing_participant,
+		ClosedBlock:    int64(ev.Raw.BlockNumber),
+	}
+}
+
+//EventBalanceProofUpdated2StateChange to statechange
+func EventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProofUpdated) *mediatedtransfer.ContractBalanceProofUpdatedStateChange {
+	return &mediatedtransfer.ContractBalanceProofUpdatedStateChange{
+		ChannelAddress: &contracts.ChannelUniqueID{
+			TokenNetworkAddress: ev.Raw.Address,
+			ChannelIdentifier:   ev.Channel_identifier,
+		},
+		LocksRoot:         ev.Locksroot,
+		TransferredAmount: ev.Transferred_amount,
+		Participant:       ev.Participant,
+	}
+}
+
+//EventSecretRevealed2StateChange to statechange
+func EventSecretRevealed2StateChange(ev *contracts.SecretRegistrySecretRevealed) *mediatedtransfer.ContractSecretRevealStateChange {
+	return &mediatedtransfer.ContractSecretRevealStateChange{
+		Secret: ev.Secrethash,
+	}
+}
 func (be *Events) startListenEvent() {
-	for _, name := range eventNames {
+	for name := range eventAbiMap {
 		go func(name string) {
 			ch := be.LogChannelMap[name]
 			sub := be.Subscribes[name]
@@ -130,106 +243,103 @@ func (be *Events) startListenEvent() {
 						//channel closed
 						return
 					}
-					debugPrintLog(&l)
 					switch name {
-					case params.NameTokenAdded:
-						ev, err := newEventTokenAdded(&l)
+					case params.NameTokenNetworkCreated:
+						ev, err := newEventTokenNetworkCreated(&l)
 						if err != nil {
-							log.Error(fmt.Sprintf("newEventTokenAdded err=%s", err))
-							debugPrintLog(&l)
+							log.Error(fmt.Sprintf("newEventTokenNetworkCreated err=%s", err))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveTokenAddedStateChange{
-							RegistryAddress: ev.ContractAddress,
-							TokenAddress:    ev.TokenAddress,
-							ManagerAddress:  ev.ChannelManagerAddress,
-						})
-					case params.NameChannelNew:
-						ev, err := newEventEventChannelNew(&l)
+						be.TokenNetworks[ev.Token_network_address] = true
+						be.sendStateChange(EventTokenNetworkCreated2StateChange(ev))
+					case params.NameChannelOpened:
+						ev, err := newEventEventChannelOpen(&l)
 						if err != nil {
-							log.Error(fmt.Sprintf("newEventEventChannelNew err=%s", err))
-							debugPrintLog(&l)
+							log.Error(fmt.Sprintf("newEventEventChannelOpen err=%s", err))
 							continue
 						}
-						if ev.RegistryAddress != be.RegistryAddress {
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive event ChannelOpened, but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveNewChannelStateChange{
-							ManagerAddress: ev.ContractAddress,
-							ChannelAddress: ev.NettingChannelAddress,
-							Participant1:   ev.Participant1,
-							Participant2:   ev.Participant2,
-							SettleTimeout:  ev.SettleTimeout,
-						})
-					case params.NameChannelNewBalance:
+						be.sendStateChange(EventChannelOpen2StateChange(ev))
+					case params.NameChannelNewDeposit:
 						ev, err := newEventChannelNewBalance(&l)
 						if err != nil {
 							log.Error(fmt.Sprintf("newEventChannelNewBalance err=%s", err))
-							debugPrintLog(&l)
 							continue
 						}
-						if ev.RegistryAddress != be.RegistryAddress {
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive event channel new deposit ,but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveBalanceStateChange{
-							ChannelAddress:     ev.ContractAddress,
-							TokenAddress:       ev.TokenAddress,
-							ParticipantAddress: ev.ParticipantAddress,
-							Balance:            ev.Balance,
-							BlockNumber:        ev.BlockNumber,
-						})
+						be.sendStateChange(EventChannelNewBalance2StateChange(ev))
 					case params.NameChannelClosed:
 						ev, err := newEventChannelClosed(&l)
 						if err != nil {
 							log.Error(fmt.Sprintf("newEventChannelClosed err=%s", err))
-							debugPrintLog(&l)
 							continue
 						}
-						if ev.RegistryAddress != be.RegistryAddress {
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive NameChannelClosed ,but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveClosedStateChange{
-							ChannelAddress: ev.ContractAddress,
-							ClosingAddress: ev.ClosingAddress,
-							ClosedBlock:    ev.BlockNumber,
-						})
+						be.sendStateChange(EventChannelClosed2StateChange(ev))
 					case params.NameChannelSettled:
 						ev, err := newEventChannelSettled(&l)
 						if err != nil {
 							log.Error(fmt.Sprintf("newEventChannelSettled err=%s", err))
-							debugPrintLog(&l)
 							continue
 						}
-						if ev.RegistryAddress != be.RegistryAddress {
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive NameChannelSettled,but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveSettledStateChange{
-							ChannelAddress: ev.ContractAddress,
-							SettledBlock:   ev.BlockNumber,
-						})
-					case params.NameChannelSecretRevealed:
-						ev, err := newEventChannelSecretRevealed(&l)
+						be.sendStateChange(EventChannelSettled2StateChange(ev))
+					case params.NameChannelCooperativeSettled:
+						ev, err := newEventChannelCooperativeSettled(&l)
 						if err != nil {
-							log.Error(fmt.Sprintf("newEventChannelSecretRevealed err=%s", err))
-							debugPrintLog(&l)
+							log.Error(fmt.Sprintf("newEventChannelCooperativeSettled err %s", err))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractReceiveWithdrawStateChange{
-							ChannelAddress: ev.ContractAddress,
-							Secret:         ev.Secret,
-							Receiver:       ev.ReceiverAddress,
-						})
-					case params.NameTransferUpdated:
-						ev, err := newEventTransferUpdated(&l)
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive channel cooperative settledd,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventChannelCooperativeSettled2StateChange(ev))
+					case params.NameSecretRevealed:
+						ev, err := newEventSecretRevealed(&l)
 						if err != nil {
-							log.Error(fmt.Sprintf("newEventTransferUpdated err=%s", err))
-							debugPrintLog(&l)
+							log.Error(fmt.Sprintf("newEventSecretRevealed err=%s", err))
 							continue
 						}
-						be.sendStateChange(&mediatedtransfer.ContractTransferUpdatedStateChange{
-							ChannelAddress: ev.ContractAddress,
-							Participant:    ev.NodeAddress,
-						})
+						if ev.Raw.Address != be.SecretRegistryAddress {
+							log.Info(fmt.Sprintf("receive NameSecretRevealed,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventSecretRevealed2StateChange(ev))
+					case params.NameBalanceProofUpdated:
+						ev, err := newEventBalanceProofUpdated(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventBalanceProofUpdated err=%s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive channel balance proof updated ,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventBalanceProofUpdated2StateChange(ev))
+					case params.NameChannelWithdraw:
+						ev, err := newEventChannelWithdraw(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelWithdraw err=%s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive channel withdraw ,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventChannelWithdraw2StateChange(ev))
 					default:
 						log.Crit(fmt.Sprintf("receive unkown event %s,it must be a bug", name))
 					}
@@ -264,132 +374,105 @@ func (be *Events) sendStateChange(st transfer.StateChange) {
 	be.StateChangeChannel <- st
 }
 
-//GetAllRegistryEvents query all new token events
-func (be *Events) GetAllRegistryEvents(registryAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
-	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
-	if FromBlockNUmber < 0 {
-		FromBlockNUmber = 0
-	}
-	ToBlockNumber := ethrpc.BlockNumber(toBlock)
-	if toBlock < 0 {
-		ToBlockNumber = ethrpc.LatestBlockNumber
-	}
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), registryAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameTokenAdded, eventAbiMap[params.NameTokenAdded], be.client)
+//GetAllTokenNetworks returns all the token network
+func (be *Events) GetAllTokenNetworks(fromBlock int64) (tokens map[common.Address]common.Address, err error) {
+	var events []*contracts.TokenNetworkRegistryTokenNetworkCreated
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.RegistryAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameTokenNetworkCreated, eventAbiMap[params.NameTokenNetworkCreated], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := newEventTokenAdded(&l)
+		e, err := newEventTokenNetworkCreated(&l)
 		if err != nil {
+			log.Error(fmt.Sprintf("newEventTokenNetworkCreated err %s", err))
 			continue
 		}
 		events = append(events, e)
 	}
+	if len(events) > 0 {
+		tokens = make(map[common.Address]common.Address)
+	}
+	for _, e := range events {
+		tokens[e.Token_address] = e.Token_network_address
+		be.TokenNetworks[e.Token_network_address] = true
+	}
+	be.hasInited = true
 	return
 }
 
 /*
-GetAllChannelManagerEvents get all new channel events
+GetAllChannels return's a token network's channel since `fromBlock` on tokenNetworkAddress
+if tokenNetworkAddress is empty, return all events have this sigature
+如果 channel 特别多,比如十万个,怎么办
 */
-func (be *Events) GetAllChannelManagerEvents(mgrAddress common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
-	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
-	if FromBlockNUmber < 0 {
-		FromBlockNUmber = 0
+func (be *Events) GetAllChannels(fromBlock int64, tokenNetworkAddress ...common.Address) (channels []*contracts.ChannelUniqueID, err error) {
+	var events []*contracts.TokenNetworkChannelOpened
+	addr := utils.EmptyAddress
+	if len(tokenNetworkAddress) > 0 {
+		addr = tokenNetworkAddress[0]
 	}
-	ToBlockNumber := ethrpc.BlockNumber(toBlock)
-	if toBlock < 0 {
-		ToBlockNumber = ethrpc.LatestBlockNumber
-	}
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), mgrAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelNew, eventAbiMap[params.NameChannelNew], be.client)
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), addr, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameChannelOpened, eventAbiMap[params.NameChannelOpened], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err := newEventEventChannelNew(&l)
+		e, err := newEventEventChannelOpen(&l)
 		if err != nil {
+			log.Error(fmt.Sprintf("newEventEventChannelOpen err %s", err))
 			continue
 		}
 		events = append(events, e)
+	}
+	for _, e := range events {
+		c := &contracts.ChannelUniqueID{
+			ChannelIdentifier:   e.Channel_identifier,
+			TokenNetworkAddress: e.Raw.Address,
+		}
+		channels = append(channels, c)
 	}
 	return
-
 }
 
-//GetAllNettingChannelEvents get channel deposit,close,settle,withdraw,transferupdate events
-func (be *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, toBlock int64) (events []transfer.Event, err error) {
-	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
-	if FromBlockNUmber < 0 {
-		FromBlockNUmber = 0
+//GetAllChannelClosed return  channel closed events
+func (be *Events) GetAllChannelClosed(fromBlock int64, tokenNetworkAddress ...common.Address) (events []*contracts.TokenNetworkChannelClosed, err error) {
+	addr := utils.EmptyAddress
+	if len(tokenNetworkAddress) > 0 {
+		addr = tokenNetworkAddress[0]
 	}
-	ToBlockNumber := ethrpc.BlockNumber(toBlock)
-	if toBlock < 0 {
-		ToBlockNumber = ethrpc.LatestBlockNumber
-	}
-	/*
-				params.NameChannelNewBalance,
-				params.NameChannelClosed,
-				params.NameChannelSettled,
-				params.NameChannelSecretRevealed,
-		Use the font to determine the event name and combine the four queries into one, which is to get the Event Signature
-	*/
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelNewBalance, eventAbiMap[params.NameChannelNewBalance], be.client)
-	if err != nil {
-		return
-	}
-	for _, l := range logs {
-		e, err2 := newEventChannelNewBalance(&l)
-		if err2 != nil {
-			continue
-		}
-		events = append(events, e)
-	}
-	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), addr, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err2 := newEventChannelClosed(&l)
-		if err2 != nil {
+		e, err := newEventChannelClosed(&l)
+		if err != nil {
+			log.Error(fmt.Sprintf("newEventChannelClosed err %s", err))
 			continue
 		}
 		events = append(events, e)
 	}
-	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
+	return
+}
+
+//GetAllChannelSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
+//if tokenNetworkAddress is empty, return's all events have this signature
+func (be *Events) GetAllChannelSettled(fromBlock int64, tokenNetworkAddress ...common.Address) (events []*contracts.TokenNetworkChannelSettled, err error) {
+	addr := utils.EmptyAddress
+	if len(tokenNetworkAddress) > 0 {
+		addr = tokenNetworkAddress[0]
+	}
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), addr, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelSettled, eventAbiMap[params.NameChannelSettled], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err2 := newEventChannelSettled(&l)
-		if err2 != nil {
-			continue
-		}
-		events = append(events, e)
-	}
-	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], be.client)
-	if err != nil {
-		return
-	}
-	for _, l := range logs {
-		e, err2 := newEventChannelSecretRevealed(&l)
-		if err2 != nil {
-			continue
-		}
-		events = append(events, e)
-	}
-	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), chAddr, FromBlockNUmber, ToBlockNumber,
-		params.NameTransferUpdated, eventAbiMap[params.NameChannelSecretRevealed], be.client)
-	if err != nil {
-		return
-	}
-	for _, l := range logs {
-		e, err := newEventTransferUpdated(&l)
+		e, err := newEventChannelSettled(&l)
 		if err != nil {
+			log.Error(fmt.Sprintf("newEventChannelSettled err %s", err))
 			continue
 		}
 		events = append(events, e)
@@ -398,56 +481,69 @@ func (be *Events) GetAllNettingChannelEvents(chAddr common.Address, fromBlock, t
 }
 
 /*
-events ChannelClosed and ChannelSecretRevealed must be sent to channels's Channel
+GetAllChannelNonClosingBalanceProofUpdated returns all NonClosing balance proof events since `fromBlock`
 */
-func (be *Events) getAllNettingChannelCloseAndWithdrawEvent(fromBlock int64) (stateChanges []transfer.StateChange) {
-	FromBlockNUmber := ethrpc.BlockNumber(fromBlock)
-	if FromBlockNUmber < 0 {
-		FromBlockNUmber = 0
+func (be *Events) GetAllChannelNonClosingBalanceProofUpdated(fromBlock int64, tokenNetworkAddress ...common.Address) (events []*contracts.TokenNetworkBalanceProofUpdated, err error) {
+	addr := utils.EmptyAddress
+	if len(tokenNetworkAddress) > 0 {
+		addr = tokenNetworkAddress[0]
 	}
-
-	ToBlockNumber := ethrpc.LatestBlockNumber
-
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelClosed, eventAbiMap[params.NameChannelClosed], be.client)
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), addr, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameBalanceProofUpdated, eventAbiMap[params.NameBalanceProofUpdated], be.client)
 	if err != nil {
 		return
 	}
 	for _, l := range logs {
-		e, err2 := newEventChannelClosed(&l)
-		if err2 != nil {
-			continue
-		}
-		//ignore channel close event on other contracts
-		if e.RegistryAddress != be.RegistryAddress {
-			continue
-		}
-		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveClosedStateChange{
-			ChannelAddress: e.ContractAddress,
-			ClosingAddress: e.ClosingAddress,
-			ClosedBlock:    e.BlockNumber,
-		})
-	}
-
-	logs, err = rpc.EventGetInternal(rpc.GetQueryConext(), utils.EmptyAddress, FromBlockNUmber, ToBlockNumber,
-		params.NameChannelSecretRevealed, eventAbiMap[params.NameChannelSecretRevealed], be.client)
-	if err != nil {
-		return
-	}
-	for _, l := range logs {
-		e, err := newEventChannelSecretRevealed(&l)
+		e, err := newEventBalanceProofUpdated(&l)
 		if err != nil {
+			log.Error(fmt.Sprintf("newEventBalanceProofUpdated err %s", err))
 			continue
 		}
-		//ignore channel close event on other contracts
-		if e.RegistryAddress != be.RegistryAddress {
+		events = append(events, e)
+	}
+	return
+}
+
+/*
+GetAllSecretRevealed return all secret reveal events
+*/
+func (be *Events) GetAllSecretRevealed(fromBlock int64) (events []*contracts.SecretRegistrySecretRevealed, err error) {
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.SecretRegistryAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameSecretRevealed, eventAbiMap[params.NameSecretRevealed], be.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		e, err := newEventSecretRevealed(&l)
+		if err != nil {
+			log.Error(fmt.Sprintf("newEventSecretRevealed err %s", err))
 			continue
 		}
-		stateChanges = append(stateChanges, &mediatedtransfer.ContractReceiveWithdrawStateChange{
-			ChannelAddress: e.ContractAddress,
-			Secret:         e.Secret,
-			Receiver:       e.ReceiverAddress,
-		})
+		events = append(events, e)
+	}
+	return
+}
+
+/*
+GetAllStateChangeSince returns all the statechanges that raiden should know when it's offline
+*/
+func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []transfer.StateChange, err error) {
+	if !be.hasInited {
+		be.GetAllTokenNetworks(lastBlockNumber)
+	}
+	var events []*contracts.SecretRegistrySecretRevealed
+	events, err = be.GetAllSecretRevealed(lastBlockNumber)
+	if err != nil {
+		return
+	}
+	for _, e := range events {
+		stateChangs = append(stateChangs, EventSecretRevealed2StateChange(e))
+	}
+	events2, err := be.GetAllChannelNonClosingBalanceProofUpdated(lastBlockNumber)
+	for _, e := range events2 {
+		if be.TokenNetworks[e.Raw.Address] {
+			stateChangs = append(stateChangs, EventBalanceProofUpdated2StateChange(e))
+		}
 	}
 	return
 }
@@ -458,7 +554,11 @@ Start listening events send to  channel can duplicate but cannot lose.
 2. listen new events on blockchain
 */
 func (be *Events) Start(LastBlockNumber int64) error {
-	stateChanges := be.getAllNettingChannelCloseAndWithdrawEvent(LastBlockNumber)
+	stateChanges, err := be.GetAllStateChangeSince(LastBlockNumber)
+	if err != nil {
+		return err
+	}
+	//maybe too much state changes?
 	be.StateChangeChannel = make(chan transfer.StateChange, len(stateChanges)+20)
 	for _, st := range stateChanges {
 		be.sendStateChange(st)

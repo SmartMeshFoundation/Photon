@@ -10,7 +10,8 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -27,29 +28,44 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
+var testFuncRegisterChannelForHashlock = func(channel *Channel, hashlock common.Hash) {}
+
 func makeTestExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(os.Getenv("CHANNEL")))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, nil, 0, 0)
+	tokenNetwork, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
+	if err != nil {
+		panic(err)
+	}
+	channelID := common.HexToHash(os.Getenv("CHANNEL"))
+	channelIdentifer := &contracts.ChannelUniqueID{
+		ChannelIdentifier: channelID,
+		OpenBlockNumber:   3,
+	}
+	return NewChannelExternalState(testFuncRegisterChannelForHashlock,
+		tokenNetwork, channelIdentifer,
+		bcs.PrivKey, bcs.Client,
+		nil, 0,
+		bcs.NodeAddress, utils.NewRandomAddress(),
+	)
 }
 
 //MakeTestPairChannel for test
 func MakeTestPairChannel() (*Channel, *Channel) {
-	tokenAddress := utils.NewRandomAddress()
 	externState1 := makeTestExternState()
 	externState2 := makeTestExternState()
 	var balance1 = big.NewInt(330)
 	var balance2 = big.NewInt(110)
+	tokenAddr := utils.NewRandomAddress()
 	revealTimeout := 7
 	settleTimeout := 30
-	ourState := NewChannelEndState(externState1.bcs.NodeAddress, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(externState2.bcs.NodeAddress, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
 
-	testChannel, _ := NewChannel(ourState, partnerState, externState1, tokenAddress, externState1.ChannelAddress, externState1.bcs, revealTimeout, settleTimeout)
+	testChannel, _ := NewChannel(ourState, partnerState, externState1, tokenAddr, &externState1.ChannelIdentifier, revealTimeout, settleTimeout)
 
-	ourState = NewChannelEndState(externState1.bcs.NodeAddress, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState = NewChannelEndState(externState2.bcs.NodeAddress, balance2, nil, transfer.EmptyMerkleTreeState)
-	testChannel2, _ := NewChannel(partnerState, ourState, externState2, tokenAddress, externState2.ChannelAddress, externState2.bcs, revealTimeout, settleTimeout)
+	ourState = NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
+	partnerState = NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
+	testChannel2, _ := NewChannel(partnerState, ourState, externState2, tokenAddr, &externState2.ChannelIdentifier, revealTimeout, settleTimeout)
 	return testChannel, testChannel2
 }

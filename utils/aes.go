@@ -11,6 +11,7 @@ import (
 )
 
 // key for test
+/* #nosec */
 const passkey = "838e2Bf510eC7Ff49CC607b718Ce8401"
 
 /*

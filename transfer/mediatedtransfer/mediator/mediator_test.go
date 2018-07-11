@@ -191,39 +191,39 @@ func TestIsValidRefund(t *testing.T) {
 	target := utest.HOP1
 	validSender := utest.HOP2
 	tr := &mediatedtransfer.LockedTransferState{
-		Identifier: 20,
-		Amount:     big.NewInt(30),
-		Token:      utest.UnitTokenAddress,
-		Initiator:  initiator,
-		Target:     target,
-		Expiration: 50,
-		Hashlock:   utest.UnitHashLock,
-		Secret:     utils.EmptyHash,
+		Identifier:         20,
+		Amount:             big.NewInt(30),
+		TokenNetworkAddres: utest.UnitTokenAddress,
+		Initiator:          initiator,
+		Target:             target,
+		Expiration:         50,
+		Hashlock:           utest.UnitHashLock,
+		Secret:             utils.EmptyHash,
 	}
 	refundLowerExpiration := &mediatedtransfer.LockedTransferState{
-		Identifier: 20,
-		Amount:     big.NewInt(30),
-		Token:      utest.UnitTokenAddress,
-		Initiator:  initiator,
-		Target:     target,
-		Expiration: 35,
-		Hashlock:   utest.UnitHashLock,
-		Secret:     utils.EmptyHash,
+		Identifier:         20,
+		Amount:             big.NewInt(30),
+		TokenNetworkAddres: utest.UnitTokenAddress,
+		Initiator:          initiator,
+		Target:             target,
+		Expiration:         35,
+		Hashlock:           utest.UnitHashLock,
+		Secret:             utils.EmptyHash,
 	}
-	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender, validSender), true)
-	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender, target), false)
+	assert(t, IsValidRefund(tr, refundLowerExpiration, validSender), true)
+	assert(t, IsValidRefund(tr, refundLowerExpiration, target), false)
 
 	refundSameExpiration := &mediatedtransfer.LockedTransferState{
-		Identifier: 20,
-		Amount:     big.NewInt(30),
-		Token:      utest.UnitTokenAddress,
-		Initiator:  initiator,
-		Target:     target,
-		Expiration: 50,
-		Hashlock:   utest.UnitHashLock,
-		Secret:     utils.EmptyHash,
+		Identifier:         20,
+		Amount:             big.NewInt(30),
+		TokenNetworkAddres: utest.UnitTokenAddress,
+		Initiator:          initiator,
+		Target:             target,
+		Expiration:         50,
+		Hashlock:           utest.UnitHashLock,
+		Secret:             utils.EmptyHash,
 	}
-	assert(t, IsValidRefund(tr, refundSameExpiration, validSender, validSender), false)
+	assert(t, IsValidRefund(tr, refundSameExpiration, validSender), false)
 }
 
 func TestGetTimeoutBlocks(t *testing.T) {
@@ -342,7 +342,7 @@ func TestNextTransferPair(t *testing.T) {
 	tr, ok := events[0].(*mediatedtransfer.EventSendMediatedTransfer)
 	assert(t, ok, true)
 	assert(t, tr.Identifier, payerTransfer.Identifier)
-	assert(t, tr.Token, payerTransfer.Token)
+	assert(t, tr.Token, payerTransfer.TokenNetworkAddres)
 	assert(t, tr.Amount, payerTransfer.Amount)
 	assert(t, tr.HashLock, payerTransfer.Hashlock)
 	assert(t, tr.Initiator, payerTransfer.Initiator)
@@ -753,7 +753,7 @@ func TestMediateTransfer(t *testing.T) {
 	assert(t, len(eventsMediated), 1)
 	tr := eventsMediated[0]
 	assert(t, tr.Identifier, payertransfer.Identifier)
-	assert(t, tr.Token, payertransfer.Token)
+	assert(t, tr.Token, payertransfer.TokenNetworkAddres)
 	assert(t, tr.Amount, payertransfer.Amount)
 	assert(t, tr.HashLock, payertransfer.Hashlock)
 	assert(t, tr.Target, payertransfer.Target)
@@ -785,7 +785,7 @@ func TestInitMediator(t *testing.T) {
 	}
 	assert(t, len(mediatedTransfers), 1, "mediatedtransfer should /not/ split the transfer")
 	mtr := mediatedTransfers[0]
-	assert(t, mtr.Token, FromTransfer.Token)
+	assert(t, mtr.Token, FromTransfer.TokenNetworkAddres)
 	assert(t, mtr.Amount, FromTransfer.Amount)
 	assert(t, mtr.Expiration < FromTransfer.Expiration, true)
 	assert(t, mtr.HashLock, FromTransfer.Hashlock)

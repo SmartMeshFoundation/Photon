@@ -8,14 +8,17 @@ import (
 
 	"math/big"
 
-	"io"
-
 	"errors"
 	"fmt"
 
 	"encoding/gob"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,29 +27,53 @@ import (
 //MessageType is the type of message for receive and send
 type MessageType int
 
-//AckCmdID id of Ack message
+//消息设计原则: 只要引起balanceproof 变化,那么 nonce 就应该加1
 const (
+	//AckCmdID id of Ack message
 	AckCmdID = 0
 	//PingCmdID id of ping message
-	PingCmdID = 1
+	PingCmdID = iota*2 + 1
 	//SecretRequestCmdID id of SecretRequest message
-	SecretRequestCmdID = 3
-	//SecretCmdID id of Secret message
-	SecretCmdID = 4
+	SecretRequestCmdID
+	//UnlockCmdID id of Secret message
+	UnlockCmdID
 	//DirectTransferCmdID id of DirectTransfer, it's now deprecated
-	DirectTransferCmdID = 5
+	DirectTransferCmdID
 	//MediatedTransferCmdID id of MediatedTransfer
-	MediatedTransferCmdID = 7
-	//RefundTransferCmdID id of RefundTransfer message
-	RefundTransferCmdID = 8
+	MediatedTransferCmdID
+	//AnnounceDisposedTransferCmdID id of AnnounceDisposed message
+	AnnounceDisposedTransferCmdID
 	//RevealSecretCmdID id of RevealSecret message
-	RevealSecretCmdID = 11
-	//RemoveExpiredHashLockCmdID id of RemoveExpiredHashlock message
-	RemoveExpiredHashLockCmdID = 13
+	RevealSecretCmdID
+	//RemoveExpiredLockCmdID id of RemoveExpiredHashlock message
+	RemoveExpiredLockCmdID
+	/*
+		发起合作关闭通道请求
+	*/
+	SettleRequestCmdID
+	/*
+		合作关闭通道响应.
+	*/
+	SettleResponseCmdID
+	/*
+		发起提现请求
+	*/
+	WithdrawRequestCmdID
+	/*
+		提现响应
+	*/
+	WithdrawResponseCmdID
+	/*
+		refund 响应,
+	*/
+	AnnounceDisposedTransferResponseCmdID
 )
 
 const signatureLength = 65
-const tokenLength = 20
+
+func init() {
+
+}
 
 var errPacketLength = errors.New("packet length error")
 
@@ -133,18 +160,28 @@ func (t MessageType) String() string {
 		return "Ping"
 	case SecretRequestCmdID:
 		return "SecretRequest"
-	case SecretCmdID:
+	case UnlockCmdID:
 		return "Secret"
 	case DirectTransferCmdID:
 		return "DirectTransfer"
 	case MediatedTransferCmdID:
 		return "MediatedTransfer"
-	case RefundTransferCmdID:
-		return "RefundTransfer"
+	case AnnounceDisposedTransferCmdID:
+		return "AnnounceDisposed"
+	case AnnounceDisposedTransferResponseCmdID:
+		return "AnnounceDisposedResponse"
 	case RevealSecretCmdID:
 		return "RevealSecret"
-	case RemoveExpiredHashLockCmdID:
+	case RemoveExpiredLockCmdID:
 		return "RemoveExpiredHashlock"
+	case SettleRequestCmdID:
+		return "SettleRequest"
+	case SettleResponseCmdID:
+		return "SettleResponse"
+	case WithdrawRequestCmdID:
+		return "WithdrawRequest"
+	case WithdrawResponseCmdID:
+		return "WithdrawResponse"
 	default:
 		return "<unknown>"
 	}
@@ -174,23 +211,28 @@ func NewAck(sender common.Address, echo common.Hash) *Ack {
 
 //Pack implements of MessagePacker
 func (ack *Ack) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, ack.CmdID)
-	buf.Write(ack.Sender[:])
-	buf.Write(ack.Echo[:])
+	err = binary.Write(buf, binary.LittleEndian, ack.CmdID)
+	_, err = buf.Write(ack.Sender[:])
+	_, err = buf.Write(ack.Echo[:])
+	if err != nil {
+		log.Crit(fmt.Sprintf("Ack Pack err %s", err))
+	}
 	return buf.Bytes()
 }
 
 //UnPack is implements of MessageUnpacker
 func (ack *Ack) UnPack(data []byte) error {
+	var err error
 	var t int32
 	ack.CmdID = AckCmdID
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
+	err = binary.Read(buf, binary.LittleEndian, &t)
 	if t != ack.CmdID {
 		panic(fmt.Sprintf("Ack Unpack cmdid should be 0,but get %d", t))
 	}
-	buf.Read(ack.Sender[:])
+	_, err = buf.Read(ack.Sender[:])
 	n, err := buf.Read(ack.Echo[:])
 	if err != nil {
 		return err
@@ -289,30 +331,35 @@ func NewPing(nonce int64) *Ping {
 
 //Pack is MessagePacker
 func (p *Ping) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, p.CmdID) //only one byte
-	binary.Write(buf, binary.BigEndian, p.Nonce)
-	buf.Write(p.Signature)
+	err = binary.Write(buf, binary.LittleEndian, p.CmdID) //only one byte
+	err = binary.Write(buf, binary.BigEndian, p.Nonce)
+	_, err = buf.Write(p.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("Ping Pack err %s", err))
+	}
 	return buf.Bytes()
 }
 
 //UnPack is MessageUnPacker
 func (p *Ping) UnPack(data []byte) error {
 	var t int32
+	var err error
 	p.CmdID = PingCmdID
 	if len(data) != 77 { //stun response here
 		return errPacketLength
 	}
 
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
+	err = binary.Read(buf, binary.LittleEndian, &t)
 	if t != p.CmdID {
 		return fmt.Errorf("Ping Unpack cmdid should be  1,but get %d", t)
 	}
-	binary.Read(buf, binary.BigEndian, &p.Nonce)
+	err = binary.Read(buf, binary.BigEndian, &p.Nonce)
 	p.Signature = make([]byte, signatureLength)
-	buf.Read(p.Signature)
-	err := p.SignedMessage.verifySignature(data)
+	_, err = buf.Read(p.Signature)
+	err = p.SignedMessage.verifySignature(data)
 	if err != nil {
 		return err
 	}
@@ -327,17 +374,15 @@ func (p *Ping) String() string {
 //SecretRequest Requests the secret which unlocks a hashlock.
 type SecretRequest struct {
 	SignedMessage
-	Identifier uint64
-	HashLock   common.Hash
-	Amount     *big.Int
+	LockSecretHash common.Hash
+	PaymentAmount  *big.Int
 }
 
 //NewSecretRequest create SecretRequest
-func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount *big.Int) *SecretRequest {
+func NewSecretRequest(lockSecretHash common.Hash, paymentAmount *big.Int) *SecretRequest {
 	p := &SecretRequest{
-		Identifier: Identifier,
-		HashLock:   hashLock,
-		Amount:     new(big.Int).Set(amount),
+		LockSecretHash: lockSecretHash,
+		PaymentAmount:  new(big.Int).Set(paymentAmount),
 	}
 	p.CmdID = SecretRequestCmdID
 	return p
@@ -345,34 +390,30 @@ func NewSecretRequest(Identifier uint64, hashLock common.Hash, amount *big.Int) 
 
 //Pack is MessagePacker
 func (sr *SecretRequest) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, sr.CmdID) //only one byte..
-	binary.Write(buf, binary.BigEndian, sr.Identifier)
-	buf.Write(sr.HashLock[:])
-	buf.Write(utils.BigIntTo32Bytes(sr.Amount))
-	buf.Write(sr.Signature)
+	err = binary.Write(buf, binary.LittleEndian, sr.CmdID) //only one byte..
+	_, err = buf.Write(sr.LockSecretHash[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(sr.PaymentAmount))
+	_, err = buf.Write(sr.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("SecretRequest Pack err %s", err))
+	}
 	return buf.Bytes()
-}
-func readBigInt(reader io.Reader) *big.Int {
-	bi := new(big.Int)
-	tmpbuf := make([]byte, 32)
-	reader.Read(tmpbuf)
-	bi.SetBytes(tmpbuf)
-	return bi
 }
 
 //UnPack is MessageUnpacker
 func (sr *SecretRequest) UnPack(data []byte) error {
 	var t int32
+	var err error
 	sr.CmdID = SecretRequestCmdID
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
+	err = binary.Read(buf, binary.LittleEndian, &t)
 	if t != sr.CmdID {
 		return fmt.Errorf("SecretRequest Unpack cmdid should be  3,but get %d", t)
 	}
-	binary.Read(buf, binary.BigEndian, &sr.Identifier)
-	buf.Read(sr.HashLock[:])
-	sr.Amount = readBigInt(buf)
+	_, err = buf.Read(sr.LockSecretHash[:])
+	sr.PaymentAmount = utils.ReadBigInt(buf)
 	sr.Signature = make([]byte, signatureLength)
 	n, err := buf.Read(sr.Signature)
 	if err != nil {
@@ -387,8 +428,8 @@ func (sr *SecretRequest) UnPack(data []byte) error {
 
 //String is fmt.Stringer
 func (sr *SecretRequest) String() string {
-	return fmt.Sprintf("Message{type=SecretRequest identifier=%d,hashlock=%s,amount=%s,sender=%s,has signature=%v}", sr.Identifier,
-		utils.HPex(sr.HashLock), sr.Amount.String(), utils.APex2(sr.Sender), len(sr.Signature) != 0)
+	return fmt.Sprintf("Message{type=SecretRequest LockSecretHash=%s,paymentAmount=%s,sender=%s,has signature=%v}",
+		utils.HPex(sr.LockSecretHash), sr.PaymentAmount.String(), utils.APex2(sr.Sender), len(sr.Signature) != 0)
 }
 
 /*
@@ -401,14 +442,14 @@ that must not update the internal channel state.
 */
 type RevealSecret struct {
 	SignedMessage
-	Secret   common.Hash
-	hashLock common.Hash
+	LockSecret     common.Hash
+	lockSecretHash common.Hash
 }
 
 //NewRevealSecret create RevealSecret
-func NewRevealSecret(secret common.Hash) *RevealSecret {
+func NewRevealSecret(lockSecret common.Hash) *RevealSecret {
 	p := &RevealSecret{
-		Secret: secret,
+		LockSecret: lockSecret,
 	}
 	p.CmdID = RevealSecretCmdID
 	return p
@@ -420,33 +461,38 @@ func CloneRevealSecret(rs *RevealSecret) *RevealSecret {
 	return &rs2
 }
 
-//HashLock return hash of secret
-func (rs *RevealSecret) HashLock() common.Hash {
-	if bytes.Equal(rs.hashLock[:], utils.EmptyHash[:]) {
-		rs.hashLock = utils.Sha3(rs.Secret[:])
+//LockSecretHash return hash of secret
+func (rs *RevealSecret) LockSecretHash() common.Hash {
+	if bytes.Equal(rs.lockSecretHash[:], utils.EmptyHash[:]) {
+		rs.lockSecretHash = utils.Sha3(rs.LockSecret[:])
 	}
-	return rs.hashLock
+	return rs.lockSecretHash
 }
 
 //Pack is MessagePacker
 func (rs *RevealSecret) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, rs.CmdID) //only one byte.
-	buf.Write(rs.Secret[:])
-	buf.Write(rs.Signature)
+	err = binary.Write(buf, binary.LittleEndian, rs.CmdID) //only one byte.
+	_, err = buf.Write(rs.LockSecret[:])
+	_, err = buf.Write(rs.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("RevealSecret Pack err %s", err))
+	}
 	return buf.Bytes()
 }
 
 //UnPack is MessageUnPacker
 func (rs *RevealSecret) UnPack(data []byte) error {
 	var t int32
+	var err error
 	rs.CmdID = RevealSecretCmdID
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
+	err = binary.Read(buf, binary.LittleEndian, &t)
 	if t != rs.CmdID {
 		return fmt.Errorf("RevealSecret Unpack cmdid should be  11,but get %d", t)
 	}
-	buf.Read(rs.Secret[:])
+	_, err = buf.Read(rs.LockSecret[:])
 	rs.Signature = make([]byte, signatureLength)
 	n, err := buf.Read(rs.Signature)
 	if err != nil {
@@ -460,32 +506,53 @@ func (rs *RevealSecret) UnPack(data []byte) error {
 
 //String fmt.Stringer
 func (rs *RevealSecret) String() string {
-	return fmt.Sprintf("Message{type=RevealSecret,hashlock=%s,secret=%s,sender=%s,has signature=%v}", utils.HPex(rs.hashLock),
-		utils.HPex(rs.Secret), utils.APex2(rs.Sender), len(rs.Signature) != 0)
+	return fmt.Sprintf("Message{type=RevealSecret,hashlock=%s,secret=%s,sender=%s,has signature=%v}", utils.HPex(rs.lockSecretHash),
+		utils.HPex(rs.LockSecret), utils.APex2(rs.Sender), len(rs.Signature) != 0)
+}
+
+//BalanceProof in the message ,not the same as data need by the contract
+type BalanceProof struct {
+	Nonce             int64
+	ChannelIdentifier common.Hash
+	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识
+	TransferAmount    *big.Int //The number has been transferred to the other party
+	Locksroot         common.Hash
+}
+
+func NewBalanceProof(nonce int64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
+	return &BalanceProof{
+		Nonce:             nonce,
+		TransferAmount:    transferredAmount,
+		Locksroot:         locksRoot,
+		ChannelIdentifier: channelID.ChannelIdentifier,
+		OpenBlockNumber:   channelID.OpenBlockNumber,
+	}
 }
 
 //EnvelopMessage is general part of message that contains a new balanceproof
 type EnvelopMessage struct {
 	SignedMessage
-	Nonce          int64
-	Channel        common.Address
-	TransferAmount *big.Int //The number has been transferred to the other party
-	Locksroot      common.Hash
-	Identifier     uint64
+	BalanceProof
 }
 
 //String is fmt.Stringer
 func (m *EnvelopMessage) String() string {
-	return fmt.Sprintf("EnvelopMessage{nonce=%d,Channel=%s,TransferAmount=%s,Locksroot=%s,Identifier=%d sender=%s,has signature=%v}", m.Nonce,
-		utils.APex2(m.Channel), m.TransferAmount, utils.HPex(m.Locksroot), m.Identifier, utils.APex2(m.Sender), len(m.Signature) != 0)
+	return fmt.Sprintf("EnvelopMessage{nonce=%d,Channel=%s,openBlockNumber=%d,TransferAmount=%s,Locksroot=%s, sender=%s,has signature=%v}", m.Nonce,
+		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber, m.TransferAmount, utils.HPex(m.Locksroot), utils.APex2(m.Sender), len(m.Signature) != 0)
 }
 func (m *EnvelopMessage) signData(datahash common.Hash) []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, m.Nonce)
-	buf.Write(utils.BigIntTo32Bytes(m.TransferAmount))
-	buf.Write(m.Locksroot[:])
-	buf.Write(m.Channel[:])
-	buf.Write(datahash[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.TransferAmount))
+	_, err = buf.Write(m.Locksroot[:])
+	err = binary.Write(buf, binary.BigEndian, m.Nonce)
+	_, err = buf.Write(datahash[:])
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Error(fmt.Sprintf("signData err %s", err))
+	}
 	dataToSign := buf.Bytes()
 	return dataToSign
 }
@@ -532,6 +599,9 @@ func (m *EnvelopMessage) checkValid() error {
 	if !utils.IsValidUint256(m.TransferAmount) {
 		return fmt.Errorf("transfer amount must not be negative %s", m.TransferAmount)
 	}
+	if m.OpenBlockNumber <= 0 || m.ChannelIdentifier == utils.EmptyHash {
+		return fmt.Errorf("channel id error, openBlockNumber=%d,channelIdentifier=%s", m.OpenBlockNumber, utils.HPex(m.ChannelIdentifier))
+	}
 	return nil
 }
 
@@ -540,85 +610,108 @@ func (m *EnvelopMessage) GetEnvelopMessage() *EnvelopMessage {
 	return m
 }
 
-/*
-Secret Message used to do state changes on a partner Raiden Channel.
-
-Locksroot changes need to be synchronized among both participants, the
-protocol is for only the side unlocking to send the Secret message allowing
-the other party to withdraw.
-*/
-type Secret struct {
-	EnvelopMessage
-	Secret common.Hash
-}
-
-//HashLock is Hash of secret
-func (s *Secret) HashLock() common.Hash {
-	return utils.Sha3(s.Secret[:])
-}
-
-//NewSecret create Secret message
-func NewSecret(Identifier uint64, nonce int64, channel common.Address,
-	transferamount *big.Int, locksroot common.Hash, secret common.Hash) *Secret {
-	p := &Secret{
-		Secret: secret,
+func (m *EnvelopMessage) pack(buf *bytes.Buffer) {
+	var err error
+	err = binary.Write(buf, binary.BigEndian, m.Nonce)
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.TransferAmount))
+	_, err = buf.Write(m.Locksroot[:])
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Error(fmt.Sprintf("EnvelopMessage pack err %s", err))
 	}
-	p.Identifier = Identifier
-	p.CmdID = SecretCmdID
-	p.Nonce = nonce
-	p.Channel = channel
-	p.TransferAmount = new(big.Int).Set(transferamount)
-	p.Locksroot = locksroot
-	return p
 }
-
-//Pack is MessagePacker
-func (s *Secret) Pack() []byte {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, s.CmdID) //only one byte.
-	binary.Write(buf, binary.BigEndian, s.Identifier)
-	buf.Write(s.Secret[:])
-	binary.Write(buf, binary.BigEndian, s.Nonce)
-	buf.Write(s.Channel[:])
-	buf.Write(utils.BigIntTo32Bytes(s.TransferAmount))
-	buf.Write(s.Locksroot[:])
-	buf.Write(s.Signature)
-	return buf.Bytes()
-}
-
-//UnPack is MessageUnPacker
-func (s *Secret) UnPack(data []byte) error {
-	var t int32
-	s.CmdID = SecretCmdID
-	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
-	if t != s.CmdID {
-		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
-	}
-	binary.Read(buf, binary.BigEndian, &s.Identifier)
-	buf.Read(s.Secret[:])
-
-	binary.Read(buf, binary.BigEndian, &s.Nonce)
-	buf.Read(s.Channel[:])
-	s.TransferAmount = readBigInt(buf)
-	buf.Read(s.Locksroot[:])
-	s.Signature = make([]byte, signatureLength)
-	n, err := buf.Read(s.Signature)
+func (m *EnvelopMessage) unpack(buf *bytes.Buffer) error {
+	var err error
+	err = binary.Read(buf, binary.BigEndian, &m.Nonce)
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	m.TransferAmount = utils.ReadBigInt(buf)
+	_, err = buf.Read(m.Locksroot[:])
+	m.Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Signature)
 	if err != nil {
 		return err
 	}
 	if n != signatureLength {
 		return errors.New("packet length error")
 	}
-	if err := s.checkValid(); err != nil {
+	if err := m.checkValid(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *EnvelopMessage) fromBalanceProof(bp *BalanceProof) {
+	m.Nonce = bp.Nonce
+	m.ChannelIdentifier = bp.ChannelIdentifier
+	m.OpenBlockNumber = bp.OpenBlockNumber
+	m.TransferAmount = new(big.Int).Set(bp.TransferAmount)
+	m.Locksroot = bp.Locksroot
+}
+
+/*
+UnLock Message used to do state changes on a partner Raiden Channel.
+
+Locksroot changes need to be synchronized among both participants, the
+protocol is for only the side unlocking to send the Secret message allowing
+the other party to withdraw.
+*/
+type UnLock struct {
+	EnvelopMessage
+	LockSecret common.Hash
+}
+
+//LockSecretHash is Hash of secret
+func (s *UnLock) LockSecretHash() common.Hash {
+	return utils.Sha3(s.LockSecret[:])
+}
+
+//NewUnlock create Secret message
+func NewUnlock(bp *BalanceProof, lockSecret common.Hash) *UnLock {
+	p := &UnLock{
+		LockSecret: lockSecret,
+	}
+	p.CmdID = UnlockCmdID
+	p.EnvelopMessage.fromBalanceProof(bp)
+	return p
+}
+
+//Pack is MessagePacker
+func (s *UnLock) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, s.CmdID) //only one byte.
+	_, err = buf.Write(s.LockSecret[:])
+	s.EnvelopMessage.pack(buf)
+	if err != nil {
+		log.Crit(fmt.Sprintf("UnLock Pack err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (s *UnLock) UnPack(data []byte) error {
+	var t int32
+	var err error
+	s.CmdID = UnlockCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != s.CmdID {
+		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
+	}
+	_, err = buf.Read(s.LockSecret[:])
+	err = s.EnvelopMessage.unpack(buf)
+	if err != nil {
 		return err
 	}
 	return s.EnvelopMessage.verifySignature(data)
 }
 
 //String is fmt.Stringer
-func (s *Secret) String() string {
-	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(s.Secret), s.EnvelopMessage.String())
+func (s *UnLock) String() string {
+	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(s.LockSecret), s.EnvelopMessage.String())
 }
 
 /*
@@ -633,77 +726,53 @@ signature 	    bytes 	              Elliptic Curve 256k1 signature
 */
 type RemoveExpiredHashlockTransfer struct {
 	EnvelopMessage
-	HashLock common.Hash
+	LockSecretHash common.Hash
 }
 
 //NewRemoveExpiredHashlockTransfer create  RemoveExpiredHashlockTransfer
-func NewRemoveExpiredHashlockTransfer(Identifier uint64, nonce int64, channel common.Address,
-	transferamount *big.Int, locksroot common.Hash, hashlock common.Hash) *RemoveExpiredHashlockTransfer {
+func NewRemoveExpiredHashlockTransfer(bp *BalanceProof, lockSecretHash common.Hash) *RemoveExpiredHashlockTransfer {
 	p := &RemoveExpiredHashlockTransfer{
-		HashLock: hashlock,
+		LockSecretHash: lockSecretHash,
 	}
-	if Identifier != 0 {
-		panic("identifier is useless")
-	}
-	p.Identifier = Identifier
-	p.CmdID = RemoveExpiredHashLockCmdID
-	p.Nonce = nonce
-	p.Channel = channel
-	p.TransferAmount = new(big.Int).Set(transferamount)
-	p.Locksroot = locksroot
+	p.CmdID = RemoveExpiredLockCmdID
+	p.EnvelopMessage.fromBalanceProof(bp)
 	return p
 }
 
 //Pack is MessagePacker
-func (reht *RemoveExpiredHashlockTransfer) Pack() []byte {
+func (m *RemoveExpiredHashlockTransfer) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, reht.CmdID) //only one byte.
-	binary.Write(buf, binary.BigEndian, reht.Identifier)
-	buf.Write(reht.HashLock[:])
-	binary.Write(buf, binary.BigEndian, reht.Nonce)
-	buf.Write(reht.Channel[:])
-	buf.Write(utils.BigIntTo32Bytes(reht.TransferAmount))
-	buf.Write(reht.Locksroot[:])
-	buf.Write(reht.Signature)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	_, err = buf.Write(m.LockSecretHash[:])
+	m.EnvelopMessage.pack(buf)
+	if err != nil {
+		log.Crit(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
+	}
 	return buf.Bytes()
 }
 
 //UnPack is MessageUnPacker
-func (reht *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
+func (m *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
 	var t int32
-	reht.CmdID = RemoveExpiredHashLockCmdID
+	var err error
+	m.CmdID = RemoveExpiredLockCmdID
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
-	if t != reht.CmdID {
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
 		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
 	}
-	binary.Read(buf, binary.BigEndian, &reht.Identifier)
-	if reht.Identifier != 0 {
-		panic("identifier should be 0")
-	}
-	buf.Read(reht.HashLock[:])
-
-	binary.Read(buf, binary.BigEndian, &reht.Nonce)
-	buf.Read(reht.Channel[:])
-	reht.TransferAmount = readBigInt(buf)
-	buf.Read(reht.Locksroot[:])
-	reht.Signature = make([]byte, signatureLength)
-	n, err := buf.Read(reht.Signature)
+	_, err = buf.Read(m.LockSecretHash[:])
+	err = m.EnvelopMessage.unpack(buf)
 	if err != nil {
 		return err
 	}
-	if n != signatureLength {
-		return errors.New("packet length error")
-	}
-	if err := reht.checkValid(); err != nil {
-		return err
-	}
-	return reht.EnvelopMessage.verifySignature(data)
+	return m.EnvelopMessage.verifySignature(data)
 }
 
 //String is fmt.Stringer
-func (reht *RemoveExpiredHashlockTransfer) String() string {
-	return fmt.Sprintf("Message{type=RemoveExpiredHashlockTransfer secret=%s,%s}", utils.HPex(reht.HashLock), reht.EnvelopMessage.String())
+func (m *RemoveExpiredHashlockTransfer) String() string {
+	return fmt.Sprintf("Message{type=RemoveExpiredHashlockTransfer LockSecretHash=%s,%s}", utils.HPex(m.LockSecretHash), m.EnvelopMessage.String())
 }
 
 /*
@@ -732,100 +801,46 @@ Args:
 */
 type DirectTransfer struct {
 	EnvelopMessage
-	Token     common.Address //20bytes
-	Recipient common.Address //20bytes
 }
 
 //String is fmt.Stringer
-func (dt *DirectTransfer) String() string {
-	return fmt.Sprintf("Message{type=DirectTransfer token=%s,recipient=%s,%s}", utils.APex2(dt.Token),
-		utils.APex2(dt.Recipient), dt.EnvelopMessage.String())
+func (m *DirectTransfer) String() string {
+	return fmt.Sprintf("Message{type=DirectTransfer %s}", m.EnvelopMessage.String())
 }
 
 //NewDirectTransfer create DirectTransfer
-func NewDirectTransfer(identifier uint64, nonce int64, token common.Address,
-	channel common.Address, transferAmount *big.Int,
-	recipient common.Address, locksroot common.Hash) *DirectTransfer {
-	p := &DirectTransfer{
-		Token:     token,
-		Recipient: recipient,
-	}
-	p.Identifier = identifier
+func NewDirectTransfer(bp *BalanceProof) *DirectTransfer {
+	p := &DirectTransfer{}
 	p.CmdID = DirectTransferCmdID
-	p.Nonce = nonce
-	p.Channel = channel
-	p.TransferAmount = new(big.Int).Set(transferAmount)
-	p.Locksroot = locksroot
+	p.EnvelopMessage.fromBalanceProof(bp)
 	return p
 }
 
 //Pack is MessagePacker
-func (dt *DirectTransfer) Pack() []byte {
+func (m *DirectTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, dt.CmdID) //only one byte.
-	binary.Write(buf, binary.BigEndian, dt.Nonce)
-	binary.Write(buf, binary.BigEndian, dt.Identifier)
-	buf.Write(dt.Token[:])
-	buf.Write(dt.Channel[:])
-	buf.Write(dt.Recipient[:])
-	buf.Write(utils.BigIntTo32Bytes(dt.TransferAmount))
-	buf.Write(dt.Locksroot[:]) //todo locksroot pack unpack maybe error
-	buf.Write(dt.Signature)
+	err := binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	if err != nil {
+		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
+	}
+	m.EnvelopMessage.pack(buf)
 	return buf.Bytes()
 }
 
 //UnPack is MessageUnPacker
-func (dt *DirectTransfer) UnPack(data []byte) error {
+func (m *DirectTransfer) UnPack(data []byte) error {
 	var t int32
-	dt.CmdID = DirectTransferCmdID
+	m.CmdID = DirectTransferCmdID
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
-	if t != dt.CmdID {
+	err := binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
 		return errors.New("DirectTransfer unpack cmdid error")
 	}
-	binary.Read(buf, binary.BigEndian, &dt.Nonce)
-	binary.Read(buf, binary.BigEndian, &dt.Identifier)
-	buf.Read(dt.Token[:])
-	buf.Read(dt.Channel[:])
-	buf.Read(dt.Recipient[:])
-	dt.TransferAmount = readBigInt(buf)
-	buf.Read(dt.Locksroot[:])
-	dt.Signature = make([]byte, signatureLength)
-	n, err := buf.Read(dt.Signature)
+	err = m.EnvelopMessage.unpack(buf)
 	if err != nil {
 		return err
 	}
-	if n != signatureLength {
-		return errPacketLength
-	}
-	if err := dt.checkValid(); err != nil {
-		return err
-	}
-	return dt.EnvelopMessage.verifySignature(data)
-}
-
-//Lock of HTLC
-type Lock struct {
-	Expiration int64 //expiration block number
-	Amount     *big.Int
-	HashLock   common.Hash
-}
-
-//AsBytes serialize Lock
-func (l *Lock) AsBytes() []byte {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, l.Expiration)
-	buf.Write(utils.BigIntTo32Bytes(l.Amount))
-	buf.Write(l.HashLock[:])
-	return buf.Bytes()
-}
-
-//FromBytes deserialize Lock
-func (l *Lock) FromBytes(locksencoded []byte) {
-	buf := bytes.NewBuffer(locksencoded)
-	binary.Read(buf, binary.BigEndian, &l.Expiration)
-	l.Amount = readBigInt(buf)
-	buf.Read(l.HashLock[:])
+	return m.EnvelopMessage.verifySignature(data)
 }
 
 /*
@@ -848,184 +863,852 @@ Fees are always payable by the initiator.
 */
 type MediatedTransfer struct {
 	EnvelopMessage
-	Expiration int64
-	Token      common.Address
-	Recipient  common.Address
-	Target     common.Address
-	Initiator  common.Address
-	HashLock   common.Hash
-	Amount     *big.Int //The number transferred to party
-	Fee        *big.Int
+	Expiration     int64
+	LockSecretHash common.Hash
+	PaymentAmount  *big.Int //The number transferred to party
+	Target         common.Address
+	Initiator      common.Address
+	Fee            *big.Int
 }
 
 //String is fmt.Stringer
-func (mt *MediatedTransfer) String() string {
-	return fmt.Sprintf("Message{type=MediatedTransfer expiration=%d,token=%s,recipient=%s,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
-		mt.Expiration, utils.APex2(mt.Token), utils.APex2(mt.Recipient), utils.APex2(mt.Target), utils.APex2(mt.Initiator),
-		utils.HPex(mt.HashLock), mt.Amount, mt.Fee, mt.EnvelopMessage.String())
+func (m *MediatedTransfer) String() string {
+	return fmt.Sprintf("Message{type=MediatedTransfer expiration=%d,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
+		m.Expiration, utils.APex2(m.Target), utils.APex2(m.Initiator),
+		utils.HPex(m.LockSecretHash), m.PaymentAmount, m.Fee, m.EnvelopMessage.String())
 }
 
 //NewMediatedTransfer create MediatedTransfer
-func NewMediatedTransfer(identifier uint64, nonce int64, token common.Address,
-	channel common.Address, transferAmount *big.Int,
-	recipient common.Address, locksroot common.Hash, lock *Lock,
-	target common.Address, initiator common.Address, fee *big.Int) *MediatedTransfer {
+func NewMediatedTransfer(bp *BalanceProof, lock *mtree.Lock,
+	target, initiator common.Address, fee *big.Int) *MediatedTransfer {
 	p := &MediatedTransfer{
-		Token:     token,
-		Recipient: recipient,
-		Target:    target,
-		Initiator: initiator,
-		Fee:       new(big.Int).Set(fee),
+		Target:         target,
+		Initiator:      initiator,
+		Fee:            new(big.Int).Set(fee),
+		PaymentAmount:  lock.Amount,
+		LockSecretHash: lock.LockSecretHash,
+		Expiration:     lock.Expiration,
 	}
-	p.Identifier = identifier
-	p.Nonce = nonce
-	p.TransferAmount = new(big.Int).Set(transferAmount)
-	p.Locksroot = locksroot //Including the merkletree root of the incomplete  transaction
 	p.CmdID = MediatedTransferCmdID
-	p.Channel = channel
-	p.Expiration = lock.Expiration
-	p.HashLock = lock.HashLock
-	p.Amount = new(big.Int).Set(lock.Amount)
+	p.EnvelopMessage.fromBalanceProof(bp)
 	return p
 }
 
 //GetLock returns Lock of this Transfer
-func (mt *MediatedTransfer) GetLock() *Lock {
-	return &Lock{
-		Expiration: mt.Expiration,
-		Amount:     mt.Amount,
-		HashLock:   mt.HashLock,
+func (m *MediatedTransfer) GetLock() *mtree.Lock {
+	return &mtree.Lock{
+		Expiration:     m.Expiration,
+		Amount:         m.PaymentAmount,
+		LockSecretHash: m.LockSecretHash,
 	}
 }
 
 //Pack is MessagePacker
-func (mt *MediatedTransfer) Pack() []byte {
+func (m *MediatedTransfer) Pack() []byte {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, mt.CmdID) //one byte
-	binary.Write(buf, binary.BigEndian, mt.Nonce)
-	binary.Write(buf, binary.BigEndian, mt.Identifier)
-	binary.Write(buf, binary.BigEndian, mt.Expiration)
-	buf.Write(mt.Token[:])
-	buf.Write(mt.Channel[:])
-	buf.Write(mt.Recipient[:])
-	buf.Write(mt.Target[:])
-	buf.Write(mt.Initiator[:])
-	buf.Write(mt.Locksroot[:])
-	buf.Write(mt.HashLock[:])
-	buf.Write(utils.BigIntTo32Bytes(mt.TransferAmount))
-	buf.Write(utils.BigIntTo32Bytes(mt.Amount))
-	buf.Write(utils.BigIntTo32Bytes(mt.Fee))
-	buf.Write(mt.Signature)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //one byte
+	//HTLC
+	err = binary.Write(buf, binary.BigEndian, m.Expiration)
+	_, err = buf.Write(m.LockSecretHash[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.PaymentAmount))
+
+	_, err = buf.Write(m.Target[:])
+	_, err = buf.Write(m.Initiator[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Fee))
+	m.EnvelopMessage.pack(buf)
+	if err != nil {
+		log.Crit(fmt.Sprintf("MediatedTransfer Pack err %s", err))
+	}
 	return buf.Bytes()
 }
 
 //UnPack is MessageUnPacker
-func (mt *MediatedTransfer) UnPack(data []byte) error {
+func (m *MediatedTransfer) UnPack(data []byte) error {
 	var t int32
-	//mt.CmdID = MEDIATEDTRANSFER_CMDID
+	var err error
 	buf := bytes.NewBuffer(data)
-	binary.Read(buf, binary.LittleEndian, &t)
-	mt.CmdID = t
-	if mt.CmdID != MediatedTransferCmdID && mt.CmdID != RefundTransferCmdID {
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	m.CmdID = t
+	if m.CmdID != MediatedTransferCmdID && m.CmdID != AnnounceDisposedTransferCmdID {
 		return errors.New("MediatedTransfer unpack cmd error")
 	}
-	binary.Read(buf, binary.BigEndian, &mt.Nonce)
-	binary.Read(buf, binary.BigEndian, &mt.Identifier)
-	binary.Read(buf, binary.BigEndian, &mt.Expiration)
-	buf.Read(mt.Token[:])
-	buf.Read(mt.Channel[:])
-	buf.Read(mt.Recipient[:])
-	buf.Read(mt.Target[:])
-	buf.Read(mt.Initiator[:])
-	buf.Read(mt.Locksroot[:])
-	buf.Read(mt.HashLock[:])
-	mt.TransferAmount = readBigInt(buf)
-	mt.Amount = readBigInt(buf)
-	mt.Fee = readBigInt(buf)
-	mt.Signature = make([]byte, signatureLength)
-	n, err := buf.Read(mt.Signature)
+	//HTLC
+	err = binary.Read(buf, binary.BigEndian, &m.Expiration)
+	_, err = buf.Read(m.LockSecretHash[:])
+	m.PaymentAmount = utils.ReadBigInt(buf)
+
+	_, err = buf.Read(m.Target[:])
+	_, err = buf.Read(m.Initiator[:])
+	m.Fee = utils.ReadBigInt(buf)
+	err = m.EnvelopMessage.unpack(buf)
 	if err != nil {
 		return err
 	}
-	if n != signatureLength {
-		return errPacketLength
-	}
-	if err := mt.checkValid(); err != nil {
-		return err
-	}
-	if mt.Expiration <= 0 {
-		return fmt.Errorf("expiration must be positive %d", mt.Expiration)
-	}
-	if !utils.IsValidPositiveInt256(mt.Amount) {
-		return fmt.Errorf("amount must be positive %s", mt.Amount)
-	}
-	return mt.verifySignature(data)
-}
-
-//RefundTransfer is used for a mediated node who cannot find any next node to send the mediatedTransfer
-type RefundTransfer struct {
-	MediatedTransfer
-}
-
-//String is fmt.Stringer
-func (rt *RefundTransfer) String() string {
-	return fmt.Sprintf("Message{type=RefundTransfer expiration=%d,token=%s,recipient=%s,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
-		rt.Expiration, utils.APex2(rt.Token), utils.APex2(rt.Recipient), utils.APex2(rt.Target), utils.APex2(rt.Initiator),
-		utils.HPex(rt.HashLock), rt.Amount, rt.Fee, rt.EnvelopMessage.String())
-}
-
-//NewRefundTransfer create RefundTransfer
-func NewRefundTransfer(identifier uint64, nonce int64, token common.Address,
-	channel common.Address, transferAmount *big.Int,
-	recipient common.Address, locksroot common.Hash, lock *Lock,
-	target common.Address, initiator common.Address, fee *big.Int) *RefundTransfer {
-	p := &RefundTransfer{}
-	p.MediatedTransfer = *(NewMediatedTransfer(identifier, nonce, token, channel, transferAmount, recipient,
-		locksroot, lock, target, initiator, fee))
-	p.CmdID = RefundTransferCmdID
-	return p
-}
-
-//NewRefundTransferFromMediatedTransfer create  RefundTransfer from a MediatedTransfer
-func NewRefundTransferFromMediatedTransfer(mtr *MediatedTransfer) *RefundTransfer {
-	p := &RefundTransfer{}
-	p.MediatedTransfer = *mtr
-	p.CmdID = RefundTransferCmdID
-	return p
-}
-
-//IsLockedTransfer return true when this message is a RefundTransfer or MediatedTransfer
-func IsLockedTransfer(msg Messager) bool {
-	return msg.Cmd() == RefundTransferCmdID || msg.Cmd() == MediatedTransferCmdID
+	return m.verifySignature(data)
 }
 
 //GetMtrFromLockedTransfer returns the MediatedTransfer ,the caller must maker sure this message is a  locked transfer
 func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
-	if !IsLockedTransfer(tr) {
+	if !(tr.Cmd() == MediatedTransferCmdID) {
 		panic("getmtr should never panic")
 	}
 	mtr, ok := tr.(*MediatedTransfer)
 	if !ok {
-		rtr, ok := tr.(*RefundTransfer)
-		if ok {
-			mtr = &rtr.MediatedTransfer
-		}
+		log.Crit(fmt.Sprintf("GetMtrFromLockedTransfer from message=%s", utils.StringInterface(tr, 3)))
 	}
+	return
+}
+
+type ChannelIDInMessage struct {
+	ChannelIdentifier common.Hash
+	OpenBlockNumber   int64
+}
+
+/*
+AnnounceDisposedProof is proof used for contracts
+*/
+type AnnounceDisposedProof struct {
+	Lock *mtree.Lock
+	ChannelIDInMessage
+}
+
+//AnnounceDisposed is used for a mediated node who cannot find any next node to send the mediatedTransfer
+type AnnounceDisposed struct {
+	SignedMessage
+	AnnounceDisposedProof
+}
+
+//String is fmt.Stringer
+func (m *AnnounceDisposed) String() string {
+	return fmt.Sprintf("Message{type=AnnounceDisposed Lock=%s,"+
+		"ChannelIdentifier=%s-%d}",
+		m.Lock,
+		utils.HPex(m.ChannelIdentifier),
+		m.OpenBlockNumber,
+	)
+}
+
+//NewAnnounceDisposed create AnnounceDisposed
+func NewAnnounceDisposed(rp *AnnounceDisposedProof) *AnnounceDisposed {
+	p := &AnnounceDisposed{
+		AnnounceDisposedProof: *rp,
+	}
+	p.CmdID = AnnounceDisposedTransferCmdID
+	return p
+}
+
+//Pack implemnts Messager interface
+func (m *AnnounceDisposed) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	_, err = buf.Write(m.Lock.AsBytes())
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack implements MessageUnPacker
+func (m *AnnounceDisposed) UnPack(data []byte) error {
+	var t int32
+	var err error
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != AnnounceDisposedTransferCmdID {
+		return fmt.Errorf("AnnounceDisposed UnPack cmd error,expect=%d,got=%d", AnnounceDisposedTransferCmdID, t)
+	}
+	m.CmdID = t
+	m.Lock = new(mtree.Lock)
+	m.Lock.FromReader(buf)
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	m.Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Signature)
+	if err != nil || n != signatureLength {
+		return fmt.Errorf("AnnounceDisposed UnPack err=%v,read length=%d", err, n)
+	}
+	return m.verifySignature(data)
+}
+func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	lockhash := m.Lock.Hash()
+	_, err = buf.Write(lockhash[:])
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(datahash[:])
+	if err != nil {
+		log.Error(fmt.Sprintf("signData err %s", err))
+	}
+	dataToSign := buf.Bytes()
+	return dataToSign
+}
+
+/*
+Sign data=(once+transferamount+locksroot+channel+hash(data))
+*/
+func (m *AnnounceDisposed) Sign(privKey *ecdsa.PrivateKey, msg MessagePacker) error {
+	data := msg.Pack() //before signed, Sign twice will be error
+	datahash := utils.Sha3(data)
+	//compute data to Sign
+	dataToSign := m.signData(datahash)
+	sig, err := utils.SignData(privKey, dataToSign)
+	if err != nil {
+		return err
+	}
+	m.Signature = sig
+	m.Sender = crypto.PubkeyToAddress(privKey.PublicKey)
+	return nil
+}
+
+func (m *AnnounceDisposed) verifySignature(data []byte) error {
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	datatosign := m.signData(datahash)
+	//should not change data's content,because its name is verify.
+	var signature = make([]byte, signatureLength)
+	copy(signature, data[len(data)-signatureLength:])
+	hash := utils.Sha3(datatosign)
+	signature[len(signature)-1] -= 27 //why?
+	pubkey, err := crypto.Ecrecover(hash[:], signature)
+	if err != nil {
+		return err
+	}
+	m.Sender = utils.PubkeyToAddress(pubkey)
+	return nil
+
+}
+
+/*
+AnnounceDisposedResponse 收到 RefundTransfer为对方提供新的权益证明.
+*/
+type AnnounceDisposedResponse struct {
+	EnvelopMessage
+	LockSecretHash common.Hash //这个不是密码的 hash, 而是整个锁的 hash 值.
+}
+
+//NewAnnounceDisposedResponse create
+func NewAnnounceDisposedResponse(bp *BalanceProof, lockSecretHash common.Hash) *AnnounceDisposedResponse {
+	p := &AnnounceDisposedResponse{
+		LockSecretHash: lockSecretHash,
+	}
+	p.CmdID = AnnounceDisposedTransferResponseCmdID
+	p.EnvelopMessage.fromBalanceProof(bp)
+	return p
+}
+
+//Pack is MessagePacker
+func (m *AnnounceDisposedResponse) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	_, err = buf.Write(m.LockSecretHash[:])
+	m.EnvelopMessage.pack(buf)
+	if err != nil {
+		log.Crit(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (m *AnnounceDisposedResponse) UnPack(data []byte) error {
+	var t int32
+	var err error
+	m.CmdID = AnnounceDisposedTransferResponseCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
+		return fmt.Errorf("AnnounceDisposedResponse UnPack cmdid should be  4,but get %d", t)
+	}
+	_, err = buf.Read(m.LockSecretHash[:])
+	err = m.EnvelopMessage.unpack(buf)
+	if err != nil {
+		return err
+	}
+	return m.EnvelopMessage.verifySignature(data)
+}
+
+//String is fmt.Stringer
+func (m *AnnounceDisposedResponse) String() string {
+	return fmt.Sprintf("Message{type=AnnounceDisposedResponse LockSecretHash=%s,%s}", utils.HPex(m.LockSecretHash), m.EnvelopMessage.String())
+}
+
+type SettleDataInMessage struct {
+	ChannelIDInMessage
+	Participant1        common.Address
+	Participant1Balance *big.Int
+	Participant2        common.Address
+	Participant2Balance *big.Int
+}
+
+//WithdrawRequestData for contract
+type WithdrawRequestData struct {
+	SettleDataInMessage
+	Participant1Withdraw  *big.Int
+	Participant1Signature []byte
+}
+
+/*
+WithdrawRequest 向对方提出我要不关闭通道取现,节点应该标注通道不可用,然后再发送消息
+*/
+type WithdrawRequest struct {
+	SignedMessage
+	WithdrawRequestData
+}
+
+//NewWithdrawRequest create withdraw request from `WithdrawRequestData`
+func NewWithdrawRequest(wd *WithdrawRequestData) *WithdrawRequest {
+	m := &WithdrawRequest{
+		WithdrawRequestData: *wd,
+	}
+	m.CmdID = WithdrawRequestCmdID
+	return m
+}
+func (m *WithdrawRequest) String() string {
+	return fmt.Sprintf("Message{type=WithdrawRequest Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
+		"Participant1Withdraw=%s,"+
+		"Participant2=%s,Participant2Balance=%s}",
+		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
+		utils.APex2(m.Participant1), m.Participant1Balance, m.Participant1Withdraw,
+		utils.APex2(m.Participant2), m.Participant2Balance,
+	)
+}
+
+//Pack is MessagePacker
+func (m *WithdrawRequest) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(m.Participant1Signature)
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (m *WithdrawRequest) UnPack(data []byte) error {
+	var t int32
+	var err error
+	m.CmdID = WithdrawRequestCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
+		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, t)
+	}
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	_, err = buf.Read(m.Participant1[:])
+	m.Participant1Balance = utils.ReadBigInt(buf)
+	m.Participant1Withdraw = utils.ReadBigInt(buf)
+	_, err = buf.Read(m.Participant2[:])
+	m.Participant2Balance = utils.ReadBigInt(buf)
+	m.Participant1Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Participant1Signature)
+	if err != nil || n != signatureLength {
+		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+	}
+	m.Signature = make([]byte, signatureLength)
+	n, err = buf.Read(m.Signature)
+	if err != nil || (n != signatureLength) {
+		return fmt.Errorf("WithdrawRequest UnPack Signature err=%v,n=%d", err, n)
+	}
+	return m.verifySignature(data)
+}
+func (m *WithdrawRequest) verifySignature(data []byte) error {
+	var err error
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	//should not change data's content,because its name is verify.
+	var signature = data[len(dataWithoutSignature):]
+	m.Sender, err = utils.Ecrecover(datahash, signature)
+	if err != nil {
+		return err
+	}
+	if m.Sender != m.Participant1 {
+		return fmt.Errorf("WithdrawRequest signature error ,sender=%s,participant1=%s",
+			utils.APex2(m.Sender), utils.APex2(m.Participant1))
+	}
+	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant1Signature))
+	datahash = utils.Sha3(m.signDataForContract())
+	addr, err := utils.Ecrecover(datahash, m.Participant1Signature)
+	if err != nil {
+		return err
+	}
+	if m.Participant1 != addr {
+		return fmt.Errorf("Participant1Signature err, Participant1=%s,but signed with other address=%s",
+			utils.APex2(m.Participant1), addr.String())
+	}
+	return nil
+}
+func (m *WithdrawRequest) signDataForContract() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//Sign is SignedMessager
+func (m *WithdrawRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
+	m.Participant1Signature, err = utils.SignData(key, m.signDataForContract())
+	if err != nil {
+		return
+	}
+	data := msg.Pack()
+	m.Signature, err = utils.SignData(key, data)
+	if err != nil {
+		return
+	}
+	m.Sender = crypto.PubkeyToAddress(key.PublicKey)
+	return
+}
+
+//WithdrawReponseData data for withdrawResponse
+type WithdrawReponseData struct {
+	SettleDataInMessage
+	Participant1Withdraw  *big.Int
+	Participant2Withdraw  *big.Int
+	Participant2Signature []byte
+}
+
+//WithdrawResponse is response for partner's withdraw request
+type WithdrawResponse struct {
+	SignedMessage
+	WithdrawReponseData
+}
+
+//NewWithdrawResponse create withdraw response from `WithdrawReponseData`
+func NewWithdrawResponse(wd *WithdrawReponseData) *WithdrawResponse {
+	m := &WithdrawResponse{
+		WithdrawReponseData: *wd,
+	}
+	m.CmdID = WithdrawResponseCmdID
+	return m
+}
+func (m *WithdrawResponse) String() string {
+	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
+		"Participant1Withdraw=%s,"+
+		"Participant2=%s,Participant2Balance=%s}",
+		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
+		utils.APex2(m.Participant1), m.Participant1Balance, m.Participant1Withdraw,
+		utils.APex2(m.Participant2), m.Participant2Balance,
+	)
+}
+
+//Pack is MessagePacker
+func (m *WithdrawResponse) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Withdraw))
+	_, err = buf.Write(m.Participant2Signature)
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (m *WithdrawResponse) UnPack(data []byte) error {
+	var t int32
+	var err error
+	m.CmdID = WithdrawResponseCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
+		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, t)
+	}
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	_, err = buf.Read(m.Participant1[:])
+	m.Participant1Balance = utils.ReadBigInt(buf)
+	m.Participant1Withdraw = utils.ReadBigInt(buf)
+	_, err = buf.Read(m.Participant2[:])
+	m.Participant2Balance = utils.ReadBigInt(buf)
+	m.Participant2Withdraw = utils.ReadBigInt(buf)
+	m.Participant2Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Participant2Signature)
+	if err != nil || n != signatureLength {
+		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+	}
+	m.Signature = make([]byte, signatureLength)
+	n, err = buf.Read(m.Signature)
+	if err != nil || (n != signatureLength) {
+		return fmt.Errorf("WithdrawRequest UnPack Signature err=%v,n=%d", err, n)
+	}
+	return m.verifySignature(data)
+}
+func (m *WithdrawResponse) verifySignature(data []byte) error {
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	//should not change data's content,because its name is verify.
+	var signature = data[len(dataWithoutSignature):]
+	addr, err := utils.Ecrecover(datahash, signature)
+	if err != nil {
+		return err
+	}
+	m.Sender = addr
+	if m.Sender != m.Participant2 {
+		return fmt.Errorf("WithdrawResponse signature error ,sender=%s,participant2=%s",
+			utils.APex2(m.Sender), utils.APex2(m.Participant2))
+	}
+	datahash = utils.Sha3(m.signDataForContract())
+	addr, err = utils.Ecrecover(datahash, m.Participant2Signature)
+	if m.Participant2 != addr {
+		return fmt.Errorf("Participant2Signature err, Participant2=%s,but signed with other address=%s",
+			utils.APex2(m.Participant1), addr.String())
+	}
+	return nil
+}
+func (m *WithdrawResponse) signDataForContract() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Withdraw))
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//Sign is SignedMessager
+func (m *WithdrawResponse) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
+	m.Participant2Signature, err = utils.SignData(key, m.signDataForContract())
+	if err != nil {
+		return
+	}
+	data := msg.Pack()
+	m.Signature, err = utils.SignData(key, data)
+	m.Sender = crypto.PubkeyToAddress(key.PublicKey)
+	return
+}
+
+//SettleRequestData for contract
+type SettleRequestData struct {
+	SettleDataInMessage
+	Participant1Signature []byte
+}
+
+/*
+SettleRequest 向对方提出我要合作关闭通道.
+*/
+type SettleRequest struct {
+	SignedMessage
+	SettleRequestData
+}
+
+//NewSettleRequest create  settle request from `SettleRequestData`
+func NewSettleRequest(wd *SettleRequestData) *SettleRequest {
+	m := &SettleRequest{
+		SettleRequestData: *wd,
+	}
+	m.CmdID = SettleRequestCmdID
+	return m
+}
+func (m *SettleRequest) String() string {
+	return fmt.Sprintf("Message{type=SettleRequest Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
+		"Participant2=%s,Participant2Balance=%s}",
+		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
+		utils.APex2(m.Participant1), m.Participant1Balance,
+		utils.APex2(m.Participant2), m.Participant2Balance,
+	)
+}
+
+//Pack is MessagePacker
+func (m *SettleRequest) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(m.Participant1Signature)
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (m *SettleRequest) UnPack(data []byte) error {
+	var t int32
+	var err error
+	m.CmdID = SettleRequestCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
+		return fmt.Errorf("SettleRequest UnPack cmdid expect=%d,got=%d", SettleRequestCmdID, t)
+	}
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	_, err = buf.Read(m.Participant1[:])
+	m.Participant1Balance = utils.ReadBigInt(buf)
+	_, err = buf.Read(m.Participant2[:])
+	m.Participant2Balance = utils.ReadBigInt(buf)
+	m.Participant1Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Participant1Signature)
+	if err != nil || n != signatureLength {
+		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+	}
+	m.Signature = make([]byte, signatureLength)
+	n, err = buf.Read(m.Signature)
+	if err != nil || (n != signatureLength) {
+		return fmt.Errorf("WithdrawRequest UnPack Signature err=%v,n=%d", err, n)
+	}
+	return m.verifySignature(data)
+}
+func (m *SettleRequest) verifySignature(data []byte) error {
+	var err error
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	//should not change data's content,because its name is verify.
+	var signature = data[len(dataWithoutSignature):]
+	m.Sender, err = utils.Ecrecover(datahash, signature)
+	if err != nil {
+		return err
+	}
+	if m.Sender != m.Participant1 {
+		return fmt.Errorf("SettleRequest signature error ,sender=%s,participant1=%s",
+			utils.APex2(m.Sender), utils.APex2(m.Participant1))
+	}
+	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant1Signature))
+	datahash = utils.Sha3(m.signDataForContract())
+	addr, err := utils.Ecrecover(datahash, m.Participant1Signature)
+	if err != nil {
+		return err
+	}
+	if m.Participant1 != addr {
+		return fmt.Errorf("Participant1Signature err, Participant1=%s,but signed with other address=%s",
+			utils.APex2(m.Participant1), addr.String())
+	}
+	return nil
+}
+func (m *SettleRequest) signDataForContract() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//Sign is SignedMessager
+func (m *SettleRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
+	m.Participant1Signature, err = utils.SignData(key, m.signDataForContract())
+	if err != nil {
+		return
+	}
+	data := msg.Pack()
+	m.Signature, err = utils.SignData(key, data)
+	if err != nil {
+		return
+	}
+	m.Sender = crypto.PubkeyToAddress(key.PublicKey)
+	return
+}
+
+//SettleResponseData for contract
+type SettleResponseData struct {
+	SettleDataInMessage
+	Participant2Signature []byte
+}
+
+/*
+SettleResponse 相应对方合作关闭通道要求
+*/
+type SettleResponse struct {
+	SignedMessage
+	SettleResponseData
+}
+
+//NewSettleResponse create settle response from `SettleResponseData`
+func NewSettleResponse(wd *SettleResponseData) *SettleResponse {
+	m := &SettleResponse{
+		SettleResponseData: *wd,
+	}
+	m.CmdID = SettleResponseCmdID
+	return m
+}
+func (m *SettleResponse) String() string {
+	return fmt.Sprintf("Message{type=SettleResponse Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
+		"Participant2=%s,Participant2Balance=%s}",
+		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
+		utils.APex2(m.Participant1), m.Participant1Balance,
+		utils.APex2(m.Participant2), m.Participant2Balance,
+	)
+}
+
+//Pack is MessagePacker
+func (m *SettleResponse) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(m.Participant2Signature)
+	_, err = buf.Write(m.Signature)
+	if err != nil {
+		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnPacker
+func (m *SettleResponse) UnPack(data []byte) error {
+	var t int32
+	var err error
+	m.CmdID = SettleResponseCmdID
+	buf := bytes.NewBuffer(data)
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if t != m.CmdID {
+		return fmt.Errorf("SettleResponse UnPack cmdid expect=%d,got=%d", SettleResponseCmdID, t)
+	}
+	_, err = buf.Read(m.ChannelIdentifier[:])
+	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	_, err = buf.Read(m.Participant1[:])
+	m.Participant1Balance = utils.ReadBigInt(buf)
+	_, err = buf.Read(m.Participant2[:])
+	m.Participant2Balance = utils.ReadBigInt(buf)
+	m.Participant2Signature = make([]byte, signatureLength)
+	n, err := buf.Read(m.Participant2Signature)
+	if err != nil || n != signatureLength {
+		return fmt.Errorf("SettleResponse UnPack Participant2Signature err=%v,n=%d", err, n)
+	}
+	m.Signature = make([]byte, signatureLength)
+	n, err = buf.Read(m.Signature)
+	if err != nil || (n != signatureLength) {
+		return fmt.Errorf("SettleResponse UnPack Signature err=%v,n=%d", err, n)
+	}
+	return m.verifySignature(data)
+}
+func (m *SettleResponse) verifySignature(data []byte) error {
+	var err error
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	//should not change data's content,because its name is verify.
+	var signature = data[len(dataWithoutSignature):]
+	m.Sender, err = utils.Ecrecover(datahash, signature)
+	if err != nil {
+		return err
+	}
+	if m.Sender != m.Participant2 {
+		return fmt.Errorf("SettleResponse signature error ,sender=%s,participant2=%s",
+			utils.APex2(m.Sender), utils.APex2(m.Participant2))
+	}
+	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant2Signature))
+	datahash = utils.Sha3(m.signDataForContract())
+	addr, err := utils.Ecrecover(datahash, m.Participant2Signature)
+	if err != nil {
+		return err
+	}
+	if m.Participant2 != addr {
+		return fmt.Errorf("Participant2Signature err, Participant2=%s,but signed with other address=%s",
+			utils.APex2(m.Participant1), addr.String())
+	}
+	return nil
+}
+func (m *SettleResponse) signDataForContract() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
+	_, err = buf.Write(m.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
+	_, err = buf.Write(m.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//Sign is SignedMessager
+func (m *SettleResponse) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
+	m.Participant2Signature, err = utils.SignData(key, m.signDataForContract())
+	if err != nil {
+		return
+	}
+	data := msg.Pack()
+	m.Signature, err = utils.SignData(key, data)
+	if err != nil {
+		return
+	}
+	m.Sender = crypto.PubkeyToAddress(key.PublicKey)
 	return
 }
 
 //MessageMap contains all message can send and receive.
 //DirectTransfer has been deprecated
 var MessageMap = map[int]Messager{
-	PingCmdID:                  new(Ping),
-	AckCmdID:                   new(Ack),
-	SecretRequestCmdID:         new(SecretRequest),
-	SecretCmdID:                new(Secret),
-	DirectTransferCmdID:        new(DirectTransfer),
-	RevealSecretCmdID:          new(RevealSecret),
-	MediatedTransferCmdID:      new(MediatedTransfer),
-	RefundTransferCmdID:        new(RefundTransfer),
-	RemoveExpiredHashLockCmdID: new(RemoveExpiredHashlockTransfer),
+	PingCmdID:                             new(Ping),
+	AckCmdID:                              new(Ack),
+	SecretRequestCmdID:                    new(SecretRequest),
+	UnlockCmdID:                           new(UnLock),
+	DirectTransferCmdID:                   new(DirectTransfer),
+	RevealSecretCmdID:                     new(RevealSecret),
+	MediatedTransferCmdID:                 new(MediatedTransfer),
+	AnnounceDisposedTransferCmdID:         new(AnnounceDisposed),
+	RemoveExpiredLockCmdID:                new(RemoveExpiredHashlockTransfer),
+	AnnounceDisposedTransferResponseCmdID: new(AnnounceDisposedResponse),
+	WithdrawRequestCmdID:                  new(WithdrawRequest),
+	WithdrawResponseCmdID:                 new(WithdrawResponse),
+	SettleRequestCmdID:                    new(SettleRequest),
+	SettleResponseCmdID:                   new(SettleResponse),
 }
 
 func init() {
@@ -1033,11 +1716,10 @@ func init() {
 	gob.Register(&CmdStruct{})
 	gob.Register(&DirectTransfer{})
 	gob.Register(&EnvelopMessage{})
-	gob.Register(&Lock{})
 	gob.Register(&MediatedTransfer{})
 	gob.Register(&Ping{})
-	gob.Register(&RefundTransfer{})
-	gob.Register(&Secret{})
+	gob.Register(&AnnounceDisposed{})
+	gob.Register(&UnLock{})
 	gob.Register(&SecretRequest{})
 	gob.Register(&RemoveExpiredHashlockTransfer{})
 }

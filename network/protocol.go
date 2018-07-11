@@ -37,18 +37,9 @@ type MessageToRaiden struct {
 	EchoHash common.Hash
 }
 
-/*
-AsyncResult is designed for async notify
-and Tag can be save anything by user.
-*/
-type AsyncResult struct {
-	Result chan error
-	Tag    interface{}
-}
-
 //SentMessageState is the state of message on sending
 type SentMessageState struct {
-	AsyncResult     *AsyncResult
+	AsyncResult     *utils.AsyncResult
 	AckChannel      chan error
 	ReceiverAddress common.Address
 	Success         bool
@@ -80,11 +71,6 @@ message secret,secretRequest,revealSecret won't allow error
 type BlockNumberGetter interface {
 	//GetBlockNumber return latest block number
 	GetBlockNumber() int64
-}
-
-//NewAsyncResult create a AsyncResult
-func NewAsyncResult() *AsyncResult {
-	return &AsyncResult{Result: make(chan error, 1)}
 }
 
 type timeoutGenerator func() time.Duration
@@ -210,7 +196,7 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	switch msg2 := msg.(type) {
 	case *encoding.MediatedTransfer:
 		expired = msg2.Expiration
-	case *encoding.RefundTransfer:
+	case *encoding.AnnounceDisposed:
 		expired = msg2.Expiration
 	}
 	if expired > 0 && expired <= p.BlockNumberGetter.GetBlockNumber() {
@@ -306,7 +292,7 @@ func getMessageTokenAddress(msg encoding.Messager) common.Address {
 		tokenAddress = msg2.Token
 	case *encoding.MediatedTransfer:
 		tokenAddress = msg2.Token
-	case *encoding.RefundTransfer:
+	case *encoding.AnnounceDisposed:
 		tokenAddress = msg2.Token
 	}
 	return tokenAddress
@@ -318,9 +304,9 @@ func getMessageChannelAddress(msg encoding.Messager) common.Address {
 		channelAddress = msg2.Channel
 	case *encoding.MediatedTransfer:
 		channelAddress = msg2.Channel
-	case *encoding.RefundTransfer:
+	case *encoding.AnnounceDisposed:
 		channelAddress = msg2.Channel
-	case *encoding.Secret:
+	case *encoding.UnLock:
 		channelAddress = msg2.Channel
 	}
 	return channelAddress

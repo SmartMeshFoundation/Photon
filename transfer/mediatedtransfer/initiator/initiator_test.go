@@ -27,11 +27,11 @@ func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{
 }
 func makeInitStateChange(routes []*transfer.RouteState, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) *mediatedtransfer.ActionInitInitiatorStateChange {
 	tr := &mediatedtransfer.LockedTransferState{
-		Identifier: identifier,
-		Amount:     amount,
-		Initiator:  ourAddress,
-		Target:     target,
-		Token:      token,
+		Identifier:         identifier,
+		Amount:             amount,
+		Initiator:          ourAddress,
+		Target:             target,
+		TokenNetworkAddres: token,
 	}
 	initStateChange := &mediatedtransfer.ActionInitInitiatorStateChange{
 		OurAddress:      ourAddress,

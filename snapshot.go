@@ -65,31 +65,31 @@ func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 	log.Info("restore channel...")
 	for _, g := range rs.Token2ChannelGraph {
 		for _, c := range g.ChannelAddress2Channel {
-			cs, err := rs.db.GetChannelByAddress(c.MyAddress)
+			cs, err := rs.db.GetChannelByAddress(c.ChannelIdentifier)
 			if err != nil {
 				if err == storm.ErrNotFound {
-					log.Info(fmt.Sprintf("new channel created when shutdown %s ", c.MyAddress.String()))
+					log.Info(fmt.Sprintf("new channel created when shutdown %s ", c.ChannelIdentifier.String()))
 					rs.db.NewChannel(channel.NewChannelSerialization(c))
 					continue //new channel when shutdown
 				} else {
-					panic(fmt.Sprintf("get channel %s from db err %s", c.MyAddress.String(), err))
+					panic(fmt.Sprintf("get channel %s from db err %s", c.ChannelIdentifier.String(), err))
 				}
 			}
 			//found a channel,maybe channel settled or new channel opened when i'm down
-			if cs.ChannelAddress == c.MyAddress {
+			if cs.ChannelAddress == c.ChannelIdentifier {
 				if cs.TokenAddress != c.TokenAddress || cs.OurAddress != c.OurState.Address ||
 					cs.PartnerAddress != c.PartnerState.Address ||
 					c.RevealTimeout != cs.RevealTimeout {
-					log.Error("snapshot data error, channel data error for ", c.MyAddress)
+					log.Error("snapshot data error, channel data error for ", c.ChannelIdentifier)
 					continue
 				} else {
 					log.Trace(fmt.Sprintf("retore channel %s\n", utils.APex2(cs.ChannelAddress)))
 					c.OurState.BalanceProofState = cs.OurBalanceProof
-					c.OurState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
+					c.OurState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
 					c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
 					c.OurState.Lock2UnclaimedLocks = cs.OurLock2UnclaimedLocks
 					c.PartnerState.BalanceProofState = cs.PartnerBalanceProof
-					c.PartnerState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
+					c.PartnerState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
 					c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
 					c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
 				}

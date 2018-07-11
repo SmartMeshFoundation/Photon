@@ -35,7 +35,7 @@ func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []
 		ok = true
 	case *encoding.DirectTransfer:
 		ok = true
-	case *encoding.RefundTransfer:
+	case *encoding.AnnounceDisposed:
 		ok = true
 	case *encoding.RemoveExpiredHashlockTransfer:
 		ok = true

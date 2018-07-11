@@ -99,16 +99,16 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 		hashlock = UnitHashLock
 	}
 	return &mediatedtransfer.LockedTransferState{
-		Identifier:   identifier,
-		TargetAmount: new(big.Int).Set(amount),
-		Amount:       new(big.Int).Set(amount),
-		Token:        token,
-		Initiator:    initiator,
-		Target:       target,
-		Expiration:   expiration,
-		Hashlock:     hashlock,
-		Secret:       secret,
-		Fee:          utils.BigInt0,
+		Identifier:         identifier,
+		TargetAmount:       new(big.Int).Set(amount),
+		Amount:             new(big.Int).Set(amount),
+		TokenNetworkAddres: token,
+		Initiator:          initiator,
+		Target:             target,
+		Expiration:         expiration,
+		Hashlock:           hashlock,
+		Secret:             secret,
+		Fee:                utils.BigInt0,
 	}
 }
 

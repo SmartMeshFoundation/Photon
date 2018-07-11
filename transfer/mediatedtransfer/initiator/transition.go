@@ -27,9 +27,6 @@ func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
-	if state.Route != nil {
-		state.LastRefundChannelAddress = state.Route.ChannelAddress
-	}
 	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
 	state.CanceledTransfers = append(state.CanceledTransfers, state.Message)
 	state.Transfer.Secret = utils.EmptyHash
@@ -52,10 +49,9 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 	state.SecretRequest = nil
 	state.RevealSecret = nil
 	cancel := &transfer.EventTransferSentFailed{
-		Identifier:     state.Transfer.Identifier,
-		Reason:         "user canceled transfer",
-		Target:         state.Transfer.Target,
-		ChannelAddress: state.LastRefundChannelAddress,
+		Identifier: state.Transfer.Identifier,
+		Reason:     "user canceled transfer",
+		Target:     state.Transfer.Target,
 	}
 	return &transfer.TransitionResult{
 		NewState: nil,
@@ -124,10 +120,9 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			         not released.
 		*/
 		transferFailed := &transfer.EventTransferSentFailed{
-			Identifier:     state.Transfer.Identifier,
-			Reason:         "no route available",
-			Target:         state.Transfer.Target,
-			ChannelAddress: state.LastRefundChannelAddress,
+			Identifier: state.Transfer.Identifier,
+			Reason:     "no route available",
+			Target:     state.Transfer.Target,
 		}
 		events := []transfer.Event{transferFailed}
 		if unlockFailed != nil {
@@ -160,21 +155,21 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		lockExpiration = state.Transfer.Expiration
 	}
 	tr := &mt.LockedTransferState{
-		Identifier:   state.Transfer.Identifier,
-		TargetAmount: state.Transfer.TargetAmount,
-		Amount:       new(big.Int).Add(state.Transfer.TargetAmount, tryRoute.TotalFee),
-		Token:        state.Transfer.Token,
-		Initiator:    state.Transfer.Initiator,
-		Target:       state.Transfer.Target,
-		Expiration:   lockExpiration,
-		Hashlock:     hashlock,
-		Secret:       secret,
-		Fee:          tryRoute.TotalFee,
+		Identifier:         state.Transfer.Identifier,
+		TargetAmount:       state.Transfer.TargetAmount,
+		Amount:             new(big.Int).Add(state.Transfer.TargetAmount, tryRoute.TotalFee),
+		TokenNetworkAddres: state.Transfer.TokenNetworkAddres,
+		Initiator:          state.Transfer.Initiator,
+		Target:             state.Transfer.Target,
+		Expiration:         lockExpiration,
+		Hashlock:           hashlock,
+		Secret:             secret,
+		Fee:                tryRoute.TotalFee,
 	}
 	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode)
 	state.Transfer = tr
 	state.Message = msg
-	log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", tr.Identifier, tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
+	log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", tr.Identifier, tr.Amount, utils.APex(tr.TokenNetworkAddres), utils.APex(tr.Target), tr.Secret.String()))
 	events := []transfer.Event{msg}
 	if unlockFailed != nil {
 		events = append(events, unlockFailed)
@@ -232,7 +227,7 @@ func handleRouteChange(state *mt.InitiatorState, stateChange *transfer.ActionRou
 	}
 }
 func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
-	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, state.Route.HopNode, stateChange.Sender) {
+	if stateChange.Sender == state.Route.HopNode && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
 		return cancelCurrentRoute(state)
 	}
 	return &transfer.TransitionResult{
@@ -275,7 +270,7 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 		revealSecret := &mt.EventSendRevealSecret{
 			Identifier: tr.Identifier,
 			Secret:     tr.Secret,
-			Token:      tr.Token,
+			Token:      tr.TokenNetworkAddres,
 			Receiver:   tr.Target,
 			Sender:     state.OurAddress,
 		}
@@ -308,7 +303,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			Events:   nil,
 		}
 	}
-	if state.Route != nil && state.Transfer != nil && st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
+	if st.Sender == state.Route.HopNode && st.Secret == state.Transfer.Secret {
 		/*
 					   next hop learned the secret, unlock the token locally and send the
 			         withdraw message to next hop
@@ -317,7 +312,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 		unlockLock := &mt.EventSendBalanceProof{
 			Identifier:     tr.Identifier,
 			ChannelAddress: state.Route.ChannelAddress,
-			Token:          tr.Token,
+			Token:          tr.TokenNetworkAddres,
 			Receiver:       state.Route.HopNode,
 			Secret:         tr.Secret,
 		}

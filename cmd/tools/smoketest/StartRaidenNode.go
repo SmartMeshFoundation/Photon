@@ -126,9 +126,9 @@ func StartRaidenNode(RegistryAddress string) {
 	}
 
 	param.passwordFile = c.RdString(paramsSection, "password_file", "")
-	param.ethRPCEndpoint = c.RdString(paramsSection, "eth_rpc_endpoint", "ws://182.254.155.208:30306")
+	param.ethRPCEndpoint = c.RdString(paramsSection, "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 	param.debug = c.RdBool(paramsSection, "debug", true)
-	param.xmppServer = c.RdString(paramsSection, "xmpp-server", "34.204.177.48:5222")
+	param.xmppServer = c.RdString(paramsSection, "xmpp-server", "182.254.155.208:5222")
 	//start 6 raiden node
 	var NODE string
 	exepath := c.RdString(paramsSection, "raidenpath", "")
@@ -141,7 +141,7 @@ func StartRaidenNode(RegistryAddress string) {
 		logfile := fmt.Sprintf("./log/N%d.log", i)
 		go ExecShell(exepath, pstr, logfile, false)
 	}
-	log.Println("Sleep 60 seconds to wait raiden nodes start ...")
-	time.Sleep(60 * time.Second)
+	log.Println("Sleep 30 seconds to wait raiden nodes start ...")
+	time.Sleep(30 * time.Second)
 	log.Println("Raiden nodes start done")
 }

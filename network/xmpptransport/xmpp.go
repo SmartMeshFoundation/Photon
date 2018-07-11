@@ -104,7 +104,7 @@ type XMPPConnection struct {
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, db *models.ModelDB, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
@@ -114,7 +114,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 			Password: passwordFn.GetPassWord(),
 			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:         false,
+			Debug:         true,
 			Session:       false,
 			Status:        "xa",
 			StatusMessage: name,
@@ -132,7 +132,6 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
 		name:           name,
-		db:             db,
 	}
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
@@ -142,29 +141,8 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 	}
 	x.changeStatus(netshare.Connected)
 	go x.loop()
-	go x.keepalive()
 	x2 = x
 	return
-}
-func (x *XMPPConnection) keepalive() {
-	for {
-		if x.status == netshare.Closed {
-			break
-		}
-		select {
-		case <-time.After(time.Second * 20):
-			if x.status == netshare.Connected {
-				log.Trace("send keep alive....")
-				//_, err := x.client.SendKeepAlive()
-				err := x.client.SendOnlinePing(utils.RandomString(10), x.options.User, x.options.User)
-				if err != nil {
-					log.Error(fmt.Sprintf("send keep alive error %s", err))
-				}
-			}
-		case <-x.closed:
-			return
-		}
-	}
 }
 func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
@@ -223,7 +201,11 @@ func (x *XMPPConnection) loop() {
 				}
 			} else {
 				var id, device string
-				id, device = x.getIDDevice(v.From)
+				ss := strings.Split(v.From, "/")
+				if len(ss) >= 2 {
+					device = ss[1]
+				}
+				id = ss[0]
 				bs := &NodeStatus{
 					DeviceType: device,
 					IsOnline:   len(v.Type) == 0,
@@ -238,14 +220,6 @@ func (x *XMPPConnection) loop() {
 			//log.Trace(fmt.Sprintf("recv %s", utils.StringInterface(v, 3)))
 		}
 	}
-}
-func (x *XMPPConnection) getIDDevice(from string) (id, device string) {
-	ss := strings.Split(from, "/")
-	if len(ss) >= 2 {
-		device = ss[1]
-	}
-	id = ss[0]
-	return
 }
 func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
 	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
@@ -275,13 +249,13 @@ func (x *XMPPConnection) reConnect() {
 		x.mutex.Unlock()
 		break
 	}
-	x.changeStatus(netshare.Connected)
 	if x.db != nil && !x.hasSubscribed {
-		err := x.CollectNeighbors()
+		err := x.CollectNeighbors(x.db)
 		if err != nil {
 			log.Error(fmt.Sprintf("CollectNeighbors err %s", err))
 		}
 	}
+	x.changeStatus(netshare.Connected)
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
 	uid := msg.ID
@@ -368,22 +342,11 @@ func (x *XMPPConnection) wait(ch chan interface{}) (response interface{}, err er
 
 //Close this connection
 func (x *XMPPConnection) Close() {
-	x.sendCloseMessage()
 	x.changeStatus(netshare.Closed)
 	close(x.closed)
 	err := x.client.Close()
 	if err != nil {
 		log.Error(fmt.Sprintf("close err %s", err))
-	}
-}
-func (x *XMPPConnection) sendCloseMessage() {
-	err := x.sendPresence(&xmpp.Presence{
-		From: x.options.User,
-		To:   x.options.User,
-		Type: "unavailable",
-	})
-	if err != nil {
-		log.Error(fmt.Sprintf("sendCloseMessage err %s", err))
 	}
 }
 
@@ -403,33 +366,27 @@ func (x *XMPPConnection) SendData(addr common.Address, data []byte) error {
 	return x.send(chat)
 }
 
-/*
-IsNodeOnline test node is online
-首先会尝试获取本地保存记录,如果有就返回没有就临时向服务器获取.
-这里面会自动检测当前服务器连接状态,如果连接失败,总是返回其他节点不在线.
-*/
+const (
+	resultOnline  = "pong"
+	resultOffline = "pang"
+)
+
+type iqResult struct {
+	Result   string
+	Resource string
+}
+
+//IsNodeOnline test node is online
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
 	id := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
-	if x.status != netshare.Connected {
-		return "", false, errors.New("connecion error")
-	}
 	ns, ok := x.nodesStatus[id]
-	if ok {
-		return ns.DeviceType, ns.IsOnline, nil
-	}
-	err = x.SubscribeNeighbour(addr)
-	if err != nil {
-		return
-	}
-	//如何保证紧跟着的上下线消息一定收到呢
-	time.Sleep(time.Millisecond)
-	ns, ok = x.nodesStatus[id]
 	if ok {
 		return ns.DeviceType, ns.IsOnline, nil
 	}
 	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
 	return "", false, nil
+
 }
 func (x *XMPPConnection) sendPresence(msg *xmpp.Presence) error {
 	select {
@@ -514,12 +471,9 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 }
 
 //CollectNeighbors subscribe status change from database
-func (x *XMPPConnection) CollectNeighbors() error {
-	db := x.db
-	if x.status != netshare.Connected {
-		log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
-		return nil
-	}
+func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
+	x.db = db
+	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
@@ -533,9 +487,6 @@ func (x *XMPPConnection) CollectNeighbors() error {
 		err = x.SubscribeNeighbour(addr)
 		if err == nil && !db.XMPPIsAddrSubed(addr) {
 			db.XMPPMarkAddrSubed(addr)
-		}
-		if err != nil {
-			return err
 		}
 	}
 	db.RegisterNewChannellCallback(func(c *channel.Serialization) (remove bool) {

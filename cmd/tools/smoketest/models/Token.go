@@ -1,6 +1,6 @@
 package models
 
-// Token : save raiden token info
+// TokenNetworkAddres : save raiden token info
 type Token struct {
 	Address      string    `json:"address"`       // token地址
 	Channels     []Channel `json:"channels"`      // 该token下所有Channel信息

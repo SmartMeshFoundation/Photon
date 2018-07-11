@@ -107,6 +107,11 @@ func NewRandomAddress() common.Address {
 	return common.BytesToAddress(hash[12:])
 }
 
+//NewRandomHash generate random hash,for testonly
+func NewRandomHash() common.Hash {
+	return Sha3([]byte(Random(10)))
+}
+
 //MakePrivateKeyAddress generate a private key and it's address
 func MakePrivateKeyAddress() (*ecdsa.PrivateKey, common.Address) {
 	key, _ := crypto.GenerateKey()
@@ -136,7 +141,7 @@ func StringInterface1(i interface{}) string {
 		return stringer.String()
 	}
 	c := spew.Config
-	spew.Config.DisableMethods = true
+	spew.Config.DisableMethods = false
 	spew.Config.MaxDepth = 1
 	s := spew.Sdump(i)
 	spew.Config = c

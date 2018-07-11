@@ -26,7 +26,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -148,11 +147,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	db, err := models.OpenDb(cfg.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		return
-	}
 	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	client, err := helper.NewSafeClient(ethEndpoint)
@@ -161,11 +155,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
-	transport, err := buildTransportAndDiscovery(cfg, bcs, db)
+	transport, err := buildTransportAndDiscovery(cfg, bcs)
 	if err != nil {
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, db)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg)
 	if err != nil {
 		transport.Stop()
 		return
@@ -194,7 +188,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService, db *models.ModelDB) (transport network.Transporter, err error) {
+func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
@@ -210,14 +204,14 @@ func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService, 
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, nil, policy)
 	case params.XMPPOnly:
-		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther, db)
+		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, db)
+		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }

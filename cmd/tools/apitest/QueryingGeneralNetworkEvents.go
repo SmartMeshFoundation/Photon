@@ -56,7 +56,7 @@ func QueryingGeneralNetworkEventsTest(url string) {
 	ShowQueryingGeneralNetworkEventsMsgDetail(Status)
 	if Events != nil {
 		//for i := 0; i < len(Events); i++ {
-		//	log.Println("EventType:", Events[i].EventType, " TokenAddress:", Events[i].TokenAddress, " ChannelManagerAddress:", Events[i].ChannelManagerAddress)
+		//	log.Println("EventType:", Events[i].EventType, " TokenAddress:", Events[i].TokenAddress, " TokenAddress:", Events[i].TokenAddress)
 		//}
 	}
 

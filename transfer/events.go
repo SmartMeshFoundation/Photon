@@ -45,10 +45,9 @@ EventTransferSentFailed emitted by the payer when a transfer has failed.
         has failed, they may infer about lock successes and failures.
 */
 type EventTransferSentFailed struct {
-	Identifier     uint64
-	Reason         string
-	Target         common.Address //transfer's target, may be not the same as receipient
-	ChannelAddress common.Address //收到 refund transfer 而失败的那个 channel 地址
+	Identifier uint64
+	Reason     string
+	Target     common.Address //transfer's target, may be not the same as receipient
 }
 
 /*

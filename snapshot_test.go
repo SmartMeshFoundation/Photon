@@ -16,9 +16,9 @@ import (
 func TestStateManager(t *testing.T) {
 	stateManager := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, 1, utils.NewRandomAddress())
 	lock := &encoding.Lock{
-		Amount:     big.NewInt(34),
-		Expiration: 4589895, //expiration block number
-		HashLock:   utils.Sha3([]byte("hashlock")),
+		Amount:         big.NewInt(34),
+		Expiration:     4589895, //expiration block number
+		LockSecretHash: utils.Sha3([]byte("hashlock")),
 	}
 	m1 := encoding.NewMediatedTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
 		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))

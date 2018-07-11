@@ -62,11 +62,7 @@ func (a *API) GetChannelList() (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	if len(datas) > 0 {
-		channels, err = marshal(datas)
-	} else {
-		channels = "[]"
-	}
+	channels, err = marshal(datas)
 	return
 }
 
@@ -256,12 +252,7 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 		log.Error(err.Error())
 		return
 	}
-	if len(events) > 0 {
-		eventsString, err = marshal(events)
-	} else {
-		eventsString = "[]"
-	}
-
+	eventsString, err = marshal(events)
 	return
 }
 
@@ -273,11 +264,7 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 		log.Error(err.Error())
 		return
 	}
-	if len(events) > 0 {
-		eventsString, err = marshal(events)
-	} else {
-		eventsString = "[]"
-	}
+	eventsString, err = marshal(events)
 	return
 }
 
@@ -289,11 +276,7 @@ func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (ev
 		log.Error(err.Error())
 		return
 	}
-	if len(events) > 0 {
-		eventsString, err = marshal(events)
-	} else {
-		eventsString = "[]"
-	}
+	eventsString, err = marshal(events)
 	return
 }
 
@@ -304,17 +287,10 @@ func (a *API) Address() (addr string) {
 
 //Tokens GET /api/1/tokens
 func (a *API) Tokens() (tokens string) {
-	var err error
-	ts := a.api.Tokens()
-	if len(ts) > 0 {
-		tokens, err = marshal(ts)
-		if err != nil {
-			log.Error(fmt.Sprintf("marshal tokens error %s", err))
-		}
-	} else {
-		tokens = "[]"
+	tokens, err := marshal(a.api.Tokens())
+	if err != nil {
+		log.Error(fmt.Sprintf("marshal tokens error %s", err))
 	}
-
 	return
 }
 
@@ -339,16 +315,11 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	if len(datas) > 0 {
-		channels, err = marshal(datas)
-	} else {
-		channels = "[]"
-	}
-
+	channels, err = marshal(datas)
 	return
 }
 
-//RegisterToken PUT /api/1/tokens/0xea674fdde714fd979de3edf0f56aa9716b898ec8 Registering a Token
+//RegisterToken PUT /api/1/tokens/0xea674fdde714fd979de3edf0f56aa9716b898ec8 Registering a TokenNetworkAddres
 func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api RegisterToken tokenAddress=%s,managerAddress=%s,err=%v",
@@ -488,11 +459,7 @@ func (a *API) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress string)
 	for _, c := range chs {
 		addrs = append(addrs, c.OurAddress.String())
 	}
-	if len(addrs) > 0 {
-		channels, err = marshal(addrs)
-	} else {
-		channels = "[]"
-	}
+	channels, err = marshal(addrs)
 	return
 
 }
@@ -568,11 +535,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	if len(trs) > 0 {
-		r, err = marshal(trs)
-	} else {
-		r = "[]"
-	}
+	r, err = marshal(trs)
 	return
 }
 
@@ -586,11 +549,7 @@ func (a *API) GetReceivedTransfers(from, to int64) (r string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	if len(trs) > 0 {
-		r, err = marshal(trs)
-	} else {
-		r = "[]"
-	}
+	r, err = marshal(trs)
 	return
 }
 

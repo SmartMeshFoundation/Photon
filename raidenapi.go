@@ -16,7 +16,7 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
+	"github.com/SmartMeshFoundation/SmartRaiden/blockchainold"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
@@ -100,7 +100,7 @@ RegisterToken Will register the token at `token_address` with raiden. If it's al
 func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
 	mgrAddr, err = r.Raiden.Registry.ChannelManagerByToken(tokenAddress)
 	if err == nil && mgrAddr != utils.EmptyAddress {
-		err = errors.New("Token already registered")
+		err = errors.New("TokenNetworkAddres already registered")
 		return
 	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
@@ -512,7 +512,7 @@ func (r *RaidenAPI) GetTokenNetworkEvents(tokenAddress common.Address, fromBlock
 				return nil, err
 			}
 			for _, e := range events {
-				e2 := e.(*blockchain.EventChannelNew)
+				e2 := e.(*blockchainold.EventChannelOpen)
 				ed := &eventData{
 					EventType:      e2.EventName,
 					SettleTimeout:  e2.SettleTimeout,
@@ -546,11 +546,11 @@ func (r *RaidenAPI) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, e
 	}
 	var data []interface{}
 	for _, e := range events {
-		e2 := e.(*blockchain.EventTokenAdded)
+		e2 := e.(*blockchainold.EventTokenNetworkCreated)
 		ed := &eventData{
 			EventType:             e2.EventName,
 			TokenAddress:          e2.TokenAddress.String(),
-			ChannelManagerAddress: e2.ChannelManagerAddress.String(),
+			ChannelManagerAddress: e2.TokenNetworkAddress.String(),
 		}
 		data = append(data, ed)
 	}
@@ -568,31 +568,31 @@ func (r *RaidenAPI) GetChannelEvents(channelAddress common.Address, fromBlock, t
 	for _, e := range events {
 		m := make(map[string]interface{})
 		switch e2 := e.(type) {
-		case *blockchain.EventChannelNewBalance:
+		case *blockchainold.EventChannelNewBalance:
 			m["event_type"] = e2.EventName
 			m["participant"] = e2.ParticipantAddress.String()
 			m["balance"] = e2.Balance
 			m["block_number"] = e2.BlockNumber
 			data = append(data, m)
-		case *blockchain.EventChannelClosed:
+		case *blockchainold.EventChannelClosed:
 			m["event_type"] = e2.EventName
 			m["netting_channel_address"] = e2.ContractAddress.String()
 			m["closing_address"] = e2.ClosingAddress.String()
 			data = append(data, m)
-		case *blockchain.EventChannelSettled:
+		case *blockchainold.EventChannelSettled:
 			m["event_type"] = e2.EventName
 			m["netting_channel_address"] = e2.ContractAddress.String()
 			m["block_number"] = e2.BlockNumber
 			data = append(data, m)
-		case *blockchain.EventChannelSecretRevealed:
+		case *blockchainold.EventSecretRevealed:
 			m["event_type"] = e2.EventName
 			m["netting_channel_address"] = e2.ContractAddress.String()
 			m["secret"] = e2.Secret.String()
 			data = append(data, m)
-			//case *blockchain.EventTransferUpdated:
+			//case *blockchain.EventNonClosingBalanceProofUpdated:
 			//	m["event_type"] = e2.EventName
 			//	m["token_address"] = t.String()
-			//	m["channel_manager_address"] = graph.ChannelManagerAddress.String()
+			//	m["channel_manager_address"] = graph.TokenAddress.String()
 		}
 
 	}

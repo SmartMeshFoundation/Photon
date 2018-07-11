@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -47,12 +46,7 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	os.MkdirAll(config.DataDir, os.ModePerm)
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	db, err := models.OpenDb(config.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		panic(err)
-	}
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, db)
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
 	if err != nil {
 		log.Error(err.Error())
 	}

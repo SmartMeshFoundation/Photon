@@ -47,7 +47,7 @@ func NewScene() (NewTokenName string) {
 	}
 	registryAddress := c.RdString("common", "registry_contract_address", "")
 	NewTokenName = CreateTokenAndChannels(KeyStorePath, conn, common.HexToAddress(registryAddress), true)
-	log.Println("New Token=", NewTokenName)
+	log.Println("New TokenNetworkAddres=", NewTokenName)
 
 	//start the raiden client
 	datadir := c.RdString("common", "datadir", "/smtwork/share/.smartraiden")
@@ -65,7 +65,7 @@ func NewScene() (NewTokenName string) {
 	//case "201 Created":
 	//	log.Println("Success Registering a new token:", NewTokenName)
 	//default:
-	//	log.Println("Failed  Registering new Token:", Status)
+	//	log.Println("Failed  Registering new TokenNetworkAddres:", Status)
 	//	os.Exit(-1)
 	//}
 

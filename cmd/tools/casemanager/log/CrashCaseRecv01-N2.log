@@ -1,0 +1,292 @@
+os.args=["smartraiden" "--datadir=.smartraiden" "--api-address=127.0.0.1:6002" "--listen-address=127.0.0.1:60020" "--address=0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724" "--keystore-path=../../../testdata/casemanager-keystore" "--registry-contract-address=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372" "--password-file=../../../testdata/casemanager-keystore/pass" "--eth-rpc-endpoint=ws://182.254.155.208:30306" "--verbosity=5" "--debug"]
+
+INFO [06-30|15:49:17.813|cmd/smartraiden/mainimpl/impl.go:145] Welcom to smartraiden,version 0.3
+
+ 
+
+INFO [06-30|15:49:17.813|cmd/smartraiden/mainimpl/impl.go:146] os.args=["smartraiden" "--datadir=.smartraiden" "--api-address=127.0.0.1:6002" "--listen-address=127.0.0.1:60020" "--address=0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724" "--keystore-path=../../../testdata/casemanager-keystore" "--registry-contract-address=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372" "--password-file=../../../testdata/casemanager-keystore/pass" "--eth-rpc-endpoint=ws://182.254.155.208:30306" "--verbosity=5" "--debug"] 
+
+TRACE[06-30|15:49:17.813|cmd/smartraiden/mainimpl/impl.go:281] password is 123 
+
+TRACE[06-30|15:49:18.637|models/db.go:86]                      dbpath=.smartraiden/2b0c1545/log.db 
+
+2018/06/30 15:49:18 [impl.go:158] [I] ethclient connection status changed from 0 to 1
+
+TRACE[06-30|15:49:18.833|network/xmpptransport/xmpp.go:137]    2b0c new xmpp user 0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724 password 6ee2f2182e090a49b9b5f63b3516d1f1a19ccdd29cf5fae305744f674249175d04c5e3fe26a8de7354efbc5260faf6bed909a9c41332e0bb67cc9951bbefcdf300 
+
+INFO [06-30|15:49:21.163|network/xmpptransport/xmpp.go:251]    changeStatus from 0 to 1 
+
+INFO [06-30|15:49:21.164|raidenService.go:190]                 create raiden service registry=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372,node=0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724 
+
+DEBUG[06-30|15:49:21.202|blockchain/alarmtask.go:74]           starting block number blocknubmer=2551370 
+
+WARN [06-30|15:49:21.28|blockchain/alarmtask.go:114]          alarm missed 0 blocks 
+
+TRACE[06-30|15:49:21.28|blockchain/alarmtask.go:118]          new block :2551370 
+
+TRACE[06-30|15:49:21.641|network/xmpptransport/xmpp.go:235]    node status change 0x2b0c1545dbbec6bfe7b26c699b74eb3513e52724@mobileraiden, deviceType=other,isonline=true 
+
+                   2b0c: 0     aaaa: 1     b021: 2
+
+       2b0c: 0           0           1           0
+
+       aaaa: 1           1           0           1
+
+       b021: 2           0           1           0
+
+INFO [06-30|15:49:22.655|snapshot.go:26]                       restoreSnapshot... 
+
+INFO [06-30|15:49:22.655|snapshot.go:65]                       restore channel... 
+
+INFO [06-30|15:49:22.655|snapshot.go:71]                       new channel created when shutdown 0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A  
+
+TRACE[06-30|15:49:22.655|models/channels.go:19]                new channel 0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A 
+
+TRACE[06-30|15:49:22.656|snapshot.go:217]                      restoreToken2Hash2Channels... 
+
+INFO [06-30|15:49:22.656|snapshot.go:120]                      restore statemanager ,last close correct=false 
+
+TRACE[06-30|15:49:22.656|snapshot.go:205]                      restoreRevealSecret...  
+
+TRACE[06-30|15:49:22.656|models/revealsecret.go:129]           GetAllUncompleteSentRevealSecret=([]*models.SentRevealSecret) <nil>
+
+ 
+
+TRACE[06-30|15:49:22.656|models/channels.go:31]                save channel 0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A 
+
+INFO [06-30|15:49:22.658|network/transport.go:166]             udp server listening on 127.0.0.1:60020 
+
+INFO [06-30|15:49:22.658|network/transport.go:168]              listen udp on 127.0.0.1:60020           name=2b0c
+
+TRACE[06-30|15:49:22.659|network/xmpptransport/xmpp.go:442]    2b0c send msg 0x2b0c1545dbbec6bfe7b26c699b74eb3513e52724@mobileraiden:0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden HEUE46PAVL 
+
+TRACE[06-30|15:49:23.815|network/xmpptransport/xmpp.go:219]    2b0c HEUE46PAVL received response 
+
+TRACE[06-30|15:49:23.815|network/xmpptransport/xmpp.go:235]    node status change 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden, deviceType=,isonline=false 
+
+30/Jun/2018:15:49:26 +0800 [0;32m200[0m [36;1m50μs[0m "GET /api/1/address HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+
+TRACE[06-30|15:49:31.501|network/xmpptransport/xmpp.go:235]    node status change 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden, deviceType=other,isonline=true 
+
+INFO [06-30|15:49:38.059|network/xmpptransport/xmpp.go:222]    receive unkonwn iq message (xmpp.Presence) {
+
+ From: (string) (len=55) "0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden",
+
+ To: (string) (len=61) "0x2b0c1545dbbec6bfe7b26c699b74eb3513e52724@mobileraiden/other",
+
+ Type: (string) (len=9) "subscribe",
+
+ Show: (string) "",
+
+ Status: (string) "",
+
+ ID: (string) (len=10) "36T6FCUZSO"
+
+}
+
+ 
+
+TRACE[06-30|15:49:40.205|blockchain/alarmtask.go:118]          new block :2551380 
+
+TRACE[06-30|15:49:41.167|network/xmpptransport/xmpp.go:157]    send keep alive.... 
+
+30/Jun/2018:15:49:50 +0800 [0;32m200[0m [36;1m324μs[0m "GET /api/1/channels HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+
+DEBUG[06-30|15:49:50.867|raidenapi.go:421]                     initiating transfer initiator=0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724 target=0xb02116A9D525dEbfa0D871418bD4954Bc77E2164 token=0xe945De68f77F6b8EA826A68be80B41af90FFC5ff amount=45 identifier=9859068678903411547 
+
+TRACE[06-30|15:49:50.867|network/xmpptransport/xmpp.go:413]    query nodeonline 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe 
+
+TRACE[06-30|15:49:50.871|transfer/mediatedtransfer/initiator/transition.go:177] send mediated transfer id=9859068678903411547,amount=45,token=e945de68,target=b02116a9,secret=0xf30cef4db345ca8cf9019bd1bbca45b593899ac3a78aef19d848c6792b57d8ad 
+
+DEBUG[06-30|15:49:50.872|channel/channel.go:525]                                REGISTERED LOCK node=2b0c1545,from=2b0c1545,to=aaaa7f67,currentlocksroot=00000000,lockamouont=45,lock_expiration=2551485,lock_hashlock=0xe89812146874f4a796d4f073562a4b0190f39148b6ad6681e850316430cdeb4f 
+
+DEBUG[06-30|15:49:50.872|channel/channel.go:551]                                'REGISTERED TRANSFER node=2b0c1545,from=2b0c1545,to=aaaa7f67,transfer_amount=0,nonce=1,current_locksroot=372658d8,
+
+transfer=Message{type=MediatedTransfer expiration=2551485,token=e945,recipient=aaaa,target=b021,initiator=2b0c,hashlock=e898,amount=45,fee=0,EnvelopMessage{nonce=1,Channel=4c35,TransferAmount=0,Locksroot=3726,Identifier=9859068678903411547 sender=2b0c,has signature=true}} 
+
+TRACE[06-30|15:49:50.872|models/channels.go:66]                                 statemanager save channel status =(*channel.Serialization)(0xc4203de840)({
+
+ ChannelAddress: (common.Address) (len=20 cap=20) 0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A,
+
+ ChannelAddressString: (string) (len=42) "0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A",
+
+ TokenAddress: (common.Address) (len=20 cap=20) 0xe945De68f77F6b8EA826A68be80B41af90FFC5ff,
+
+ PartnerAddress: (common.Address) (len=20 cap=20) 0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE,
+
+ TokenAddressString: (string) (len=42) "0xe945De68f77F6b8EA826A68be80B41af90FFC5ff",
+
+ PartnerAddressString: (string) (len=42) "0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE",
+
+ OurAddress: (common.Address) (len=20 cap=20) 0x2b0C1545DBBEC6BFe7B26c699b74EB3513e52724,
+
+ RevealTimeout: (int) 3,
+
+ OurBalanceProof: (*transfer.BalanceProofState)(0xc4200ee600)({
+
+  Nonce: (int64) 1,
+
+  TransferAmount: (*big.Int)(0xc420387580)(0),
+
+  LocksRoot: (common.Hash) (len=32 cap=32) 0x372658d8e8f0e0563f9a904dbb5ff2f6f28dd3952a3ef9edb768e15f4c0f1a58,
+
+  ChannelAddress: (common.Address) (len=20 cap=20) 0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A,
+
+  MessageHash: (common.Hash) (len=32 cap=32) 0x3ae33625811796faed16bc65fe77589230153356fae0ecf9fff72694b9584a91,
+
+  Signature: ([]uint8) (len=65 cap=65) {
+
+   00000000  4d d6 ff bf 6b cc 35 a6  a0 d3 8b 51 22 b7 32 67  |M...k.5....Q".2g|
+
+   00000010  0a e0 21 ea 57 43 8f ca  9a a6 8b 8e c7 b6 e8 22  |..!.WC........."|
+
+   00000020  35 92 33 82 11 d5 ac 65  ff c3 53 f5 29 10 6c eb  |5.3....e..S.).l.|
+
+   00000030  cb 0b b7 88 84 d6 59 ee  3e b4 dd e8 8a 30 6c 11  |......Y.>....0l.|
+
+   00000040  1b                                                |.|
+
+  }
+
+ }),
+
+ PartnerBalanceProof: (*transfer.BalanceProofState)(<nil>),
+
+ OurLeaves: ([]common.Hash) (len=1 cap=1) {
+
+  (common.Hash) (len=32 cap=32) 0x372658d8e8f0e0563f9a904dbb5ff2f6f28dd3952a3ef9edb768e15f4c0f1a58
+
+ },
+
+ PartnerLeaves: ([]common.Hash) <nil>,
+
+ OurLock2PendingLocks: (map[common.Hash]channel.PendingLock) (len=1) {
+
+  (common.Hash) (len=32 cap=32) 0xe89812146874f4a796d4f073562a4b0190f39148b6ad6681e850316430cdeb4f: (channel.PendingLock) {
+
+   Lock: (*encoding.Lock)(0xc430673ad0)({
+
+    Expiration: (int64) 2551485,
+
+    Amount: (*big.Int)(0xc4203871c0)(45),
+
+    HashLock: (common.Hash) (len=32 cap=32) 0xe89812146874f4a796d4f073562a4b0190f39148b6ad6681e850316430cdeb4f
+
+   }),
+
+   LockHashed: (common.Hash) (len=32 cap=32) 0x372658d8e8f0e0563f9a904dbb5ff2f6f28dd3952a3ef9edb768e15f4c0f1a58
+
+  }
+
+ },
+
+ OurLock2UnclaimedLocks: (map[common.Hash]channel.UnlockPartialProof) {
+
+ },
+
+ PartnerLock2PendingLocks: (map[common.Hash]channel.PendingLock) {
+
+ },
+
+ PartnerLock2UnclaimedLocks: (map[common.Hash]channel.UnlockPartialProof) {
+
+ },
+
+ State: (string) (len=6) "opened",
+
+ OurBalance: (*big.Int)(0xc42016f100)(50),
+
+ PartnerBalance: (*big.Int)(0xc42016f140)(50),
+
+ OurContractBalance: (*big.Int)(0xc420386180)(50),
+
+ PartnerContractBalance: (*big.Int)(0xc4203861a0)(50),
+
+ OurAmountLocked: (*big.Int)(0xc42016f180)(45),
+
+ PartnerAmountLocked: (*big.Int)(0xc42016f1a0)(0),
+
+ ClosedBlock: (int64) 0,
+
+ SettledBlock: (int64) 0,
+
+ SettleTimeout: (int) 100
+
+})
+
+
+
+ 
+
+DEBUG[06-30|15:49:50.873|network/protocol.go:355]                               send msg=MediatedTransfer to=aaaa,expected hash=7d48 name=2b0c
+
+TRACE[06-30|15:49:50.873|network/protocol.go:254]                               queue 0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE-0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A try send next message name=2b0c
+
+TRACE[06-30|15:49:50.873|network/protocol.go:266]                               send to aaaa,msg=Message{type=MediatedTransfer expiration=2551485,token=e945,recipient=aaaa,target=b021,initiator=2b0c,hashlock=e898,amount=45,fee=0,EnvelopMessage{nonce=1,Channel=4c35,TransferAmount=0,Locksroot=3726,Identifier=9859068678903411547 sender=2b0c,has signature=true}}, echoash=7d48 name=2b0c
+
+TRACE[06-30|15:49:50.873|network/xmpptransport.go:98]                           send to aaaa, message=MediatedTransfer   name=2b0c
+
+TRACE[06-30|15:49:50.873|network/xmpptransport/xmpp.go:314]                     2b0c send msg 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden: BwAAAAAAAAAAAAABiNJyulY3s1sAAAAAACbuvelF3mj3f2uOqCami+gLQa+Q/8X/TDXS7Nyx3cGypt/hIjfDla1LETqqqn9namd8CzyOS7FK7HvmE2Ws/rAhFqnVJd6/oNhxQYvUlUvHfiFkKwwVRdu+xr/nsmxpm3TrNRPlJyQ3JljY6PDgVj+akE27X/L28o3TlSo++e23aOFfTA8aWOiYEhRodPSnltTwc1YqSwGQ85FItq1mgehQMWQwzetPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATdb/v2vMNaag04tRIrcyZwrgIepXQ4/KmqaLjse26CI1kjOCEdWsZf/DU/UpEGzrywu3iITWWe4+tN3oijBsERs= 
+
+TRACE[06-30|15:49:51.839|network/xmpptransport.go:107]                          received from aaaa, message=Ack          name=2b0c
+
+DEBUG[06-30|15:49:51.839|network/protocol.go:454]                               receive ack ,hash=7d48                   name=2b0c
+
+TRACE[06-30|15:49:51.839|network/protocol.go:284]                               msg=MediatedTransfer, sent success :7d48 name=2b0c
+
+TRACE[06-30|15:49:51.839|network/protocol.go:254]                               queue 0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE-0x4C35D2ECdcB1DdC1B2a6DFE12237c395aD4B113A try send next message name=2b0c
+
+TRACE[06-30|15:49:51.839|raidenService.go:1470]                                 msg receive ack :(*smartraiden.protocolMessage)(0xc4200118c0)({
+
+ receiver: (common.Address) (len=20 cap=20) 0xaaAA7F676a677c0B3C8E4Bb14aEC7Be61365acfE,
+
+ Message: (*encoding.MediatedTransfer)(0xc42008c480)(Message{type=MediatedTransfer expiration=2551485,token=e945,recipient=aaaa,target=b021,initiator=2b0c,hashlock=e898,amount=45,fee=0,EnvelopMessage{nonce=1,Channel=4c35,TransferAmount=0,Locksroot=3726,Identifier=9859068678903411547 sender=2b0c,has signature=true}})
+
+})
+
+ 
+
+TRACE[06-30|15:50:00.023|blockchain/alarmtask.go:118]                           new block :2551390 
+
+TRACE[06-30|15:50:01.17|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:50:20.031|blockchain/alarmtask.go:118]                           new block :2551400 
+
+TRACE[06-30|15:50:21.175|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:50:40.043|blockchain/alarmtask.go:118]                           new block :2551410 
+
+TRACE[06-30|15:50:41.178|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:51:00.037|blockchain/alarmtask.go:118]                           new block :2551420 
+
+TRACE[06-30|15:51:01.18|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:51:20.04|blockchain/alarmtask.go:118]                           new block :2551430 
+
+TRACE[06-30|15:51:21.189|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:51:40.032|blockchain/alarmtask.go:118]                           new block :2551440 
+
+TRACE[06-30|15:51:41.194|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:52:00.065|blockchain/alarmtask.go:118]                           new block :2551450 
+
+TRACE[06-30|15:52:01.198|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:52:20.041|blockchain/alarmtask.go:118]                           new block :2551460 
+
+TRACE[06-30|15:52:21.201|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+TRACE[06-30|15:52:40.046|blockchain/alarmtask.go:118]                           new block :2551470 
+
+TRACE[06-30|15:52:41.206|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+30/Jun/2018:15:52:53 +0800 [0;32m200[0m [36;1m381μs[0m "GET /api/1/channels HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+
+TRACE[06-30|15:53:00.043|blockchain/alarmtask.go:118]                           new block :2551480 
+
+TRACE[06-30|15:53:01.209|network/xmpptransport/xmpp.go:157]                     send keep alive.... 
+
+30/Jun/2018:15:53:05 +0800 [0;32m200[0m [36;1m288μs[0m "GET /api/1/channels HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+

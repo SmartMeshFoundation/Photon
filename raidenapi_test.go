@@ -199,7 +199,7 @@ func findAValidChannel(ra, rb *RaidenAPI) (addr common.Address, money *big.Int) 
 	for _, g := range ra.Raiden.Token2ChannelGraph {
 		c := g.GetPartenerAddress2Channel(rb.Raiden.NodeAddress)
 		if c != nil && c.Balance().Cmp(big.NewInt(10)) > 0 && c.State() == transfer.ChannelStateOpened {
-			return c.MyAddress, c.Balance()
+			return c.ChannelIdentifier, c.Balance()
 		}
 	}
 	return

@@ -150,7 +150,7 @@ func TransferParmReader(IniFile string) (SChannels []TransferCaseChannel, TransC
 		return
 	}
 	ChannelCount, _ := c.Int("MAIN", "ChannelCount")
-	TransCase.Balance, _ = c.Int32("MAIN", "Amount")
+	TransCase.Balance, _ = c.Int32("MAIN", "PaymentAmount")
 	TransCase.Node1Url, _ = c.String("MAIN", "NOTE1")
 	TransCase.Node2Url, _ = c.String("MAIN", "NOTE2")
 	Result, _ = c.Bool("MAIN", "Result")

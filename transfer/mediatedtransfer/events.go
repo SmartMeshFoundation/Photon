@@ -24,8 +24,7 @@ type EventSendMediatedTransfer struct {
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
 func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
 	return &EventSendMediatedTransfer{
-		Identifier: transfer.Identifier,
-		Token:      transfer.Token,
+		Token:      transfer.TokenNetworkAddres,
 		Amount:     new(big.Int).Set(transfer.Amount),
 		HashLock:   transfer.Hashlock,
 		Initiator:  transfer.Initiator,

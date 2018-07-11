@@ -1,0 +1,98 @@
+os.args=["smartraiden" "--datadir=.smartraiden" "--api-address=127.0.0.1:6006" "--listen-address=127.0.0.1:60060" "--address=0xb02116A9D525dEbfa0D871418bD4954Bc77E2164" "--keystore-path=../../../testdata/casemanager-keystore" "--registry-contract-address=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372" "--password-file=../../../testdata/casemanager-keystore/pass" "--eth-rpc-endpoint=ws://182.254.155.208:30306" "--verbosity=5" "--debug"]
+
+INFO [06-30|15:52:53.89|cmd/smartraiden/mainimpl/impl.go:145] Welcom to smartraiden,version 0.3
+
+ 
+
+INFO [06-30|15:52:53.89|cmd/smartraiden/mainimpl/impl.go:146] os.args=["smartraiden" "--datadir=.smartraiden" "--api-address=127.0.0.1:6006" "--listen-address=127.0.0.1:60060" "--address=0xb02116A9D525dEbfa0D871418bD4954Bc77E2164" "--keystore-path=../../../testdata/casemanager-keystore" "--registry-contract-address=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372" "--password-file=../../../testdata/casemanager-keystore/pass" "--eth-rpc-endpoint=ws://182.254.155.208:30306" "--verbosity=5" "--debug"] 
+
+TRACE[06-30|15:52:53.891|cmd/smartraiden/mainimpl/impl.go:281] password is 123 
+
+TRACE[06-30|15:52:54.71|models/db.go:86]                      dbpath=.smartraiden/b02116a9/log.db 
+
+ERROR[06-30|15:52:54.718|models/db.go:127]                     database not closed  last..., try to restore? 
+
+2018/06/30 15:52:54 [impl.go:158] [I] ethclient connection status changed from 0 to 1
+
+TRACE[06-30|15:52:54.803|network/xmpptransport/xmpp.go:137]    b021 new xmpp user 0xb02116A9D525dEbfa0D871418bD4954Bc77E2164 password bfaa730444587939cdaa8a89c0de23747d169900e5ba596a8434354993ea807813b43e929445eaed153b1a83ecd08c3492f3e7afca89457bf6199e994400648e01 
+
+INFO [06-30|15:52:58.682|network/xmpptransport/xmpp.go:251]    changeStatus from 0 to 1 
+
+INFO [06-30|15:52:58.683|raidenService.go:190]                 create raiden service registry=0xe98D5391858e6b0487C06e2FE8eBF0EDd8251372,node=0xb02116A9D525dEbfa0D871418bD4954Bc77E2164 
+
+DEBUG[06-30|15:52:58.739|blockchain/alarmtask.go:74]           starting block number blocknubmer=2551479 
+
+TRACE[06-30|15:52:59.122|network/xmpptransport/xmpp.go:235]    node status change 0xb02116a9d525debfa0d871418bd4954bc77e2164@mobileraiden, deviceType=other,isonline=true 
+
+WARN [06-30|15:52:59.149|blockchain/alarmtask.go:114]          alarm missed 0 blocks 
+
+                   2b0c: 0     aaaa: 1     b021: 2
+
+       2b0c: 0           0           1           0
+
+       aaaa: 1           1           0           1
+
+       b021: 2           0           1           0
+
+INFO [06-30|15:52:59.868|models/tokens.go:34]                  AddToken ,but already exists,should be ignored when startup... 
+
+INFO [06-30|15:52:59.869|snapshot.go:26]                       restoreSnapshot... 
+
+INFO [06-30|15:52:59.87|snapshot.go:65]                       restore channel... 
+
+TRACE[06-30|15:52:59.87|snapshot.go:86]                       retore channel 5676
+
+ 
+
+TRACE[06-30|15:52:59.87|snapshot.go:217]                      restoreToken2Hash2Channels... 
+
+INFO [06-30|15:52:59.87|snapshot.go:120]                      restore statemanager ,last close correct=false 
+
+TRACE[06-30|15:52:59.871|snapshot.go:205]                      restoreRevealSecret...  
+
+TRACE[06-30|15:52:59.871|models/revealsecret.go:129]           GetAllUncompleteSentRevealSecret=([]*models.SentRevealSecret) <nil>
+
+ 
+
+TRACE[06-30|15:52:59.871|models/channels.go:31]                save channel 0x5676C2309dD4dc0f5afDbE69d7550DbAA49d8194 
+
+INFO [06-30|15:52:59.875|network/transport.go:166]             udp server listening on 127.0.0.1:60060 
+
+INFO [06-30|15:52:59.875|network/transport.go:168]              listen udp on 127.0.0.1:60060           name=b021
+
+TRACE[06-30|15:52:59.876|network/xmpptransport/xmpp.go:442]    b021 send msg 0xb02116a9d525debfa0d871418bd4954bc77e2164@mobileraiden:0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden VNIGTHMJ5P 
+
+TRACE[06-30|15:53:00.043|blockchain/alarmtask.go:118]          new block :2551480 
+
+TRACE[06-30|15:53:00.372|network/xmpptransport/xmpp.go:219]    b021 VNIGTHMJ5P received response 
+
+TRACE[06-30|15:53:00.372|network/xmpptransport/xmpp.go:235]    node status change 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden, deviceType=other,isonline=true 
+
+TRACE[06-30|15:53:02.562|network/xmpptransport.go:107]         received from aaaa, message=RemoveExpiredHashlock name=b021
+
+TRACE[06-30|15:53:02.563|models/statemanager.go:60]            get ack 6418 from db,result=0 
+
+TRACE[06-30|15:53:02.563|network/protocol.go:467]              received msg=Message{type=RemoveExpiredHashlockTransfer secret=e898,EnvelopMessage{nonce=2,Channel=5676,TransferAmount=0,Locksroot=0000,Identifier=0 sender=aaaa,has signature=true}} from=aaaa,expect ack=6418 name=b021
+
+TRACE[06-30|15:53:02.563|network/protocol.go:476]              protocol send message to raiden... Message{type=RemoveExpiredHashlockTransfer secret=e898,EnvelopMessage{nonce=2,Channel=5676,TransferAmount=0,Locksroot=0000,Identifier=0 sender=aaaa,has signature=true}} name=b021
+
+WARN [06-30|15:53:02.569|messagehandler.go:224]                RegisterRemoveExpiredHashlockTransfer err %s LOG15_ERROR= LOG15_ERROR="Normalized odd number of arguments by adding nil"
+
+TRACE[06-30|15:53:02.569|models/channels.go:31]                save channel 0x5676C2309dD4dc0f5afDbE69d7550DbAA49d8194 
+
+TRACE[06-30|15:53:02.57|network/protocol.go:484]              protocol receive message response from raiden ok=true,err=<nil> name=b021
+
+TRACE[06-30|15:53:02.57|network/protocol.go:186]              send to aaaa, ack=Message{type=Ack sender=b021,echo=6418} name=b021
+
+TRACE[06-30|15:53:02.57|network/xmpptransport.go:98]          send to aaaa, message=Ack                name=b021
+
+TRACE[06-30|15:53:02.57|network/xmpptransport/xmpp.go:314]    b021 send msg 0xaaaa7f676a677c0b3c8e4bb14aec7be61365acfe@mobileraiden: AAAAALAhFqnVJd6/oNhxQYvUlUvHfiFkZBgN1lUv//MjbwL1vla61cSfrBbjrdriz5Lo5ZY1KOA= 
+
+TRACE[06-30|15:53:02.57|models/statemanager.go:60]            get ack 6418 from db,result=0 
+
+TRACE[06-30|15:53:02.57|models/statemanager.go:66]            save ack 6418 to db 
+
+30/Jun/2018:15:53:02 +0800 [0;32m200[0m [36;1m63μs[0m "GET /api/1/address HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+
+30/Jun/2018:15:53:05 +0800 [0;32m200[0m [36;1m284μs[0m "GET /api/1/channels HTTP/1.1" [1;30m- "Go-http-client/1.1"[0m
+

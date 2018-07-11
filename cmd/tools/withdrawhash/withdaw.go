@@ -205,7 +205,7 @@ func promptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	return
 }
 
-func (w *withDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
+func (w *withDraw) getChannelDetail(proxy *rpc.TokenNetworkProxy) *network.ChannelDetails {
 	addr1, b1, addr2, b2, err := proxy.AddressAndBalance()
 	if err != nil {
 		log.Error(fmt.Sprintf("AddressAndBalance err %s", err))
@@ -240,7 +240,7 @@ func (w *withDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *net
 		BlockChainService: w.bcs,
 		RevealTimeout:     params.DefaultRevealTimeout,
 	}
-	channelDetail.SettleTimeout, err = externState.NettingChannel.SettleTimeout()
+	channelDetail.SettleTimeout, err = externState.TokenNetwork.SettleTimeout()
 	if err != nil {
 		log.Error(fmt.Sprintf("SettleTimeout query err %s", err))
 	}
@@ -248,7 +248,7 @@ func (w *withDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *net
 }
 
 func (w *withDraw) NewChannel(channelAddress common.Address) (c *channel.Channel, err error) {
-	proxy, err := w.bcs.NettingChannel(channelAddress)
+	proxy, err := w.bcs.TokenNetwork(channelAddress)
 	if err != nil {
 		return
 	}
@@ -289,11 +289,11 @@ func (w *withDraw) restoreChannel() error {
 			continue
 		} else {
 			c.OurState.BalanceProofState = cs.OurBalanceProof
-			c.OurState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
+			c.OurState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
 			c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
 			c.OurState.Lock2UnclaimedLocks = cs.OurLock2UnclaimedLocks
 			c.PartnerState.BalanceProofState = cs.PartnerBalanceProof
-			c.PartnerState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
+			c.PartnerState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
 			c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
 			c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
 		}
@@ -311,11 +311,11 @@ func (w *withDraw) WithDrawOnChannel() {
 			}
 			err = c.ExternState.Close(c.PartnerState.BalanceProofState)
 			if err != nil {
-				log.Error(fmt.Sprintf("close channel %s error %s", utils.APex(c.MyAddress), err))
+				log.Error(fmt.Sprintf("close channel %s error %s", utils.APex(c.ChannelIdentifier), err))
 				break
 			}
 			unlockProofs2 := c.PartnerState.GetKnownUnlocks()
-			err = c.ExternState.WithDraw(unlockProofs2)
+			err = c.ExternState.Unlock(unlockProofs2)
 			if err != nil {
 				log.Error(err.Error())
 			}

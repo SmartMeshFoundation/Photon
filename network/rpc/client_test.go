@@ -25,16 +25,6 @@ func init() {
 	spew.Config.DisableMethods = true
 	spew.Config.MaxDepth = 7
 }
-func TestToken(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	reg := bcs.Registry(bcs.RegistryAddress)
-	address, err := reg.TokenAddresses()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Logf("address:%v", address)
-}
 
 func TestAddToken(t *testing.T) {
 	bcs := MakeTestBlockChainService()
@@ -50,7 +40,7 @@ func TestAddToken(t *testing.T) {
 func TestGetAddTokenLog(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	logs, err := EventGetInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenAdded", contracts.RegistryABI, bcs.Client)
+		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -62,7 +52,7 @@ func TestEventSubscribe(t *testing.T) {
 	ch := make(chan types.Log, 1)
 	t.Log("wait for tokenadded event")
 	sub, err := EventSubscribeInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenAdded", contracts.RegistryABI, bcs.Client.Client, ch)
+		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client.Client, ch)
 	if err != nil {
 		t.Error(err)
 		return
@@ -80,9 +70,9 @@ func TestEventSubscribe(t *testing.T) {
 
 func TestEventGetChannelNew(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	oneChannelManagerAddress := common.HexToAddress("0x2a00314c128855512ce77c16c839c7f263bbe99")
-	logs, err := EventGetInternal(context.Background(), oneChannelManagerAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameChannelNew, contracts.ChannelManagerContractABI, bcs.Client)
+	tokenNetworkAddress := TestGetTokenNetworkAddress()
+	logs, err := EventGetInternal(context.Background(), tokenNetworkAddress, rpc.EarliestBlockNumber,
+		rpc.LatestBlockNumber, params.NameChannelOpened, contracts.TokenNetworkABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -94,7 +84,7 @@ func TestCodeAt(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	addrNotExist := common.HexToAddress("0x0000000000000000000000000000000000000000")
 	addrHasContract := common.HexToAddress(os.Getenv("REGISTRY"))
-
+	t.Logf("token network registry=%s\n", addrHasContract.String())
 	code, err := bcs.Client.CodeAt(context.Background(), addrNotExist, nil)
 	if err != nil {
 		t.Error(err)

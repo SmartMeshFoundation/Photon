@@ -74,17 +74,17 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 		t.Errorf("recevied message type error")
 		return
 	}
-	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
+	if revealSecretMsg.LockSecret != revealSecretMsg2.LockSecret {
 		t.Errorf("secret not match")
 	}
 }
 
 func TestNew(t *testing.T) {
-	msger := encoding.MessageMap[encoding.SecretCmdID]
+	msger := encoding.MessageMap[encoding.UnlockCmdID]
 	msg := New(msger)
 	spew.Dump(msg)
 	switch m2 := msg.(type) {
-	case *encoding.Secret:
+	case *encoding.UnLock:
 		t.Log("m2 type correct ", m2.CmdID)
 	default:
 		t.Error("type convert error")
@@ -130,7 +130,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		t.Errorf("recevied message type error")
 		return
 	}
-	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
+	if revealSecretMsg.LockSecret != revealSecretMsg2.LockSecret {
 		t.Errorf("secret not match")
 	}
 	wg.Wait()
@@ -142,9 +142,9 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	p1.Start()
 	expiration := 7 //7 second
 	lock := encoding.Lock{
-		Expiration: int64(expiration),
-		Amount:     big.NewInt(10),
-		HashLock:   utils.Sha3([]byte("test")),
+		Expiration:     int64(expiration),
+		Amount:         big.NewInt(10),
+		LockSecretHash: utils.Sha3([]byte("test")),
 	}
 	reciever := utils.NewRandomAddress()
 	mtr := encoding.NewMediatedTransfer(1, 1, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, reciever, utils.EmptyHash, &lock,

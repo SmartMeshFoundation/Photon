@@ -10,10 +10,17 @@ import (
 )
 
 func TestNewBalanceProofStateFromEnvelopMessage(t *testing.T) {
-	var id uint64 = 32
 	var nonce int64 = 78
 	var transferAmount = big.NewInt(9999)
-	secret := encoding.NewSecret(id, nonce, utils.EmptyAddress, transferAmount, utils.EmptyHash, utils.EmptyHash)
+	bp := &encoding.BalanceProof{
+		TokenAddress:      utils.NewRandomAddress(),
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   3,
+		Nonce:             30,
+		TransferAmount:    big.NewInt(10),
+		Locksroot:         utils.NewRandomHash(),
+	}
+	secret := encoding.NewUnlock(bp, utils.NewRandomHash())
 	state := NewBalanceProofStateFromEnvelopMessage(secret)
 	if state.Nonce != nonce || state.TransferAmount.Cmp(transferAmount) != 0 || state.LocksRoot != utils.EmptyHash {
 		t.Error("NewBalanceProofStateFromEnvelopMessage error")

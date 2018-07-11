@@ -11,7 +11,6 @@ import (
 
 	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

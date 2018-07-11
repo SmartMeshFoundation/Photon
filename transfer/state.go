@@ -1,8 +1,6 @@
 package transfer
 
 import (
-	"fmt"
-
 	"encoding/gob"
 
 	"math/big"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -81,25 +80,32 @@ func (rs *RouteState) StateName() string {
 
 //BalanceProofState is   proof need by contract
 type BalanceProofState struct {
-	Nonce          int64
-	TransferAmount *big.Int
-	LocksRoot      common.Hash
-	ChannelAddress common.Address
-	MessageHash    common.Hash
+	Nonce             int64
+	TransferAmount    *big.Int
+	LocksRoot         common.Hash
+	ChannelIdentifier contracts.ChannelUniqueID
+	MessageHash       common.Hash
 	//signature is nonce + transferred_amount + locksroot + channel_address + message_hash
 	Signature []byte
+
+	/*
+		由于合约上并没有存储transferamount 和 locksroot,
+		而用户 unlock 的时候会改变对方的 TransferAmount, 虽然说这个没有对方的签名,但是必须凭此在合约上settle 以及 unlock
+	*/
+	ContractTransferAmount *big.Int
 }
 
 //NewBalanceProofState create BalanceProofState
 func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common.Hash,
-	channelAddress common.Address, messageHash common.Hash, signature []byte) *BalanceProofState {
+	channelAddress contracts.ChannelUniqueID, messageHash common.Hash, signature []byte) *BalanceProofState {
 	s := &BalanceProofState{
-		Nonce:          nonce,
-		TransferAmount: new(big.Int).Set(transferAmount),
-		LocksRoot:      locksRoot,
-		ChannelAddress: channelAddress,
-		MessageHash:    messageHash,
-		Signature:      signature,
+		Nonce:                  nonce,
+		TransferAmount:         new(big.Int).Set(transferAmount),
+		LocksRoot:              locksRoot,
+		ChannelIdentifier:      channelAddress,
+		MessageHash:            messageHash,
+		ContractTransferAmount: new(big.Int).Set(transferAmount),
+		Signature:              signature,
 	}
 	return s
 }
@@ -109,18 +115,23 @@ func NewBalanceProofStateFromEnvelopMessage(msg encoding.EnvelopMessager) *Balan
 	envmsg := msg.GetEnvelopMessage()
 	msgHash := encoding.HashMessageWithoutSignature(msg)
 	return NewBalanceProofState(envmsg.Nonce, envmsg.TransferAmount,
-		envmsg.Locksroot, envmsg.Channel,
+		envmsg.Locksroot,
+		contracts.ChannelUniqueID{
+			ChannelIdentifier: envmsg.ChannelIdentifier,
+			OpenBlockNumber:   envmsg.OpenBlockNumber,
+		},
 		msgHash, envmsg.Signature)
 }
 
 //IsBalanceProofValid true if valid
 func (bpf *BalanceProofState) IsBalanceProofValid() bool {
+	var err error
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, bpf.Nonce)
-	buf.Write(utils.BigIntTo32Bytes(bpf.TransferAmount))
-	buf.Write(bpf.LocksRoot[:])
-	buf.Write(bpf.ChannelAddress[:])
-	buf.Write(bpf.MessageHash[:])
+	err = binary.Write(buf, binary.BigEndian, bpf.Nonce)
+	_, err = buf.Write(utils.BigIntTo32Bytes(bpf.TransferAmount))
+	_, err = buf.Write(bpf.LocksRoot[:])
+	_, err = buf.Write(bpf.ChannelIdentifier.ChannelIdentifier[:])
+	_, err = buf.Write(bpf.MessageHash[:])
 	dataToSign := buf.Bytes()
 
 	hash := utils.Sha3(dataToSign)
@@ -135,42 +146,6 @@ func (bpf *BalanceProofState) IsBalanceProofValid() bool {
 //StateName name of state
 func (bpf *BalanceProofState) StateName() string {
 	return "BalanceProofState"
-}
-
-//MerkleTreeState need by channel
-type MerkleTreeState struct {
-	Tree *Merkletree
-}
-
-//EmptyMerkleTreeState a empty tree
-var EmptyMerkleTreeState *MerkleTreeState
-
-func init() {
-	tree, _ := NewMerkleTree(nil)
-	EmptyMerkleTreeState = NewMerkleTreeState(tree)
-}
-
-//NewMerkleTreeState  create MerkleTreeState from MerkleTree
-func NewMerkleTreeState(tree *Merkletree) *MerkleTreeState {
-	return &MerkleTreeState{
-		tree,
-	}
-}
-
-//NewMerkleTreeStateFromLeaves create MerkleTreeState from leaves
-func NewMerkleTreeStateFromLeaves(leaves []common.Hash) *MerkleTreeState {
-	tree, _ := NewMerkleTree(leaves)
-	return &MerkleTreeState{
-		tree,
-	}
-}
-
-//StateName state  name of MerkleTreeState
-func (mt *MerkleTreeState) StateName() string {
-	return "MerkleTreeState"
-}
-func (mt *MerkleTreeState) String() string {
-	return fmt.Sprintf("MerkleTreeState{root:%s,layer level:%d}", mt.Tree.MerkleRoot(), len(mt.Tree.Layers))
 }
 
 /*
@@ -202,6 +177,5 @@ func NewRoutesState(availables []*RouteState) *RoutesState {
 func init() {
 	gob.Register(&RouteState{})
 	gob.Register(&RoutesState{})
-	gob.Register(&MerkleTreeState{})
 	gob.Register(&BalanceProofState{})
 }

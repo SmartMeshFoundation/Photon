@@ -419,7 +419,7 @@ func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amou
 	return &transfer.RouteState{
 		State:          c.State(),
 		HopNode:        partenerAddress,
-		ChannelAddress: c.MyAddress,
+		ChannelAddress: c.ChannelIdentifier,
 		AvaibleBalance: c.Distributable(),
 		SettleTimeout:  c.SettleTimeout,
 		RevealTimeout:  c.RevealTimeout,

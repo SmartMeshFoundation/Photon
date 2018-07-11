@@ -41,7 +41,7 @@ func MakeTestUDPTransport(name string, port int) *UDPTransport {
 
 //MakeTestXMPPTransport create a test xmpp transport
 func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
-	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther, nil)
+	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
 }
 
 type testBlockNumberGetter struct{}

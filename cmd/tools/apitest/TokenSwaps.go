@@ -70,7 +70,7 @@ func TokenSwapsTest(url1 string, url2 string) {
 	var id int64
 	start := time.Now()
 	ShowTime()
-	log.Println("Start Token Swaps")
+	log.Println("Start TokenNetworkAddres Swaps")
 	Address, _, _ := QueryingNodeAddress(url2)
 	Tokens, _, _ := QueryingRegisteredTokens(url1)
 	if len(Tokens) < 2 {
