@@ -65,7 +65,7 @@ func NewScene() (NewTokenName string) {
 	//case "201 Created":
 	//	log.Println("Success Registering a new token:", NewTokenName)
 	//default:
-	//	log.Println("Failed  Registering new TokenNetworkAddres:", Status)
+	//	log.Println("Failed  Registering new Token:", Status)
 	//	os.Exit(-1)
 	//}
 

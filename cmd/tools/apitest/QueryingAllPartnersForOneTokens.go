@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//query the Partner address in the channel of special TokenNetworkAddres
+//query the Partner address in the channel of special Token
 func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenPartnerPayload, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -43,13 +43,13 @@ func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenP
 	return
 }
 
-//test for querying the Partner address in the channel of special TokenNetworkAddres
+//test for querying the Partner address in the channel of special Token
 func QueryingAllPartnersForOneTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
 	log.Println("Start Querying All Partners For a Existent TokenNetworkAddres")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
-	//fmt.Printf("!!!!!!!!!!!!TokenNetworkAddres:%s\n", Tokens[0])
+	//fmt.Printf("!!!!!!!!!!!!Token:%s\n", Tokens[0])
 	if Tokens == nil {
 		log.Println("Warning:No registered TokenNetworkAddres!")
 	} else {

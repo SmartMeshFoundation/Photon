@@ -76,7 +76,7 @@ func NewRoutesState(availables []*State) *RoutesState {
 	rs := &RoutesState{}
 	m := make(map[common.Address]bool)
 	for _, r := range availables {
-		_, ok := m[r.GetHopNode()]
+		_, ok := m[r.HopNode()]
 		if ok {
 			log.Warn("duplicate route for the same address supplied.")
 			continue

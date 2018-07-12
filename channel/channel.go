@@ -19,7 +19,7 @@ import (
 )
 
 /*
-Channel is the living representation of  channel on blockchain.
+ch is the living representation of  channel on blockchain.
 it contains all the transfers between two participants.
 */
 type Channel struct {
@@ -294,7 +294,7 @@ PreCheckRecievedTransfer pre check received message(directtransfer,mediatedtrans
 func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromState *EndState, toState *EndState, err error) {
 	evMsg := tr.GetEnvelopMessage()
 	if !c.isValidEnvelopMessage(evMsg) {
-		err = fmt.Errorf("Channel address mismatch,expect=%s,got=%s", c.ChannelIdentifier, evMsg)
+		err = fmt.Errorf("ch address mismatch,expect=%s,got=%s", c.ChannelIdentifier, evMsg)
 		return
 	}
 	if tr.GetSender() == c.OurState.Address {
@@ -917,6 +917,7 @@ func (c *Channel) CancelWithdrawOrCooperativeSettle() error {
 		return fmt.Errorf("state is %s,cannot cancel withdraw or cooperative", c.State)
 	}
 	c.State = channeltype.StateOpened
+	return nil
 }
 
 /*

@@ -91,14 +91,14 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result 
 		var Nonce int64
 		TransferAmount := utils.BigInt0
 		var LocksRoot = utils.EmptyHash
-		//var ChannelAddress common.Address = utils.EmptyAddress
+		//var ChannelIdentifier common.Address = utils.EmptyAddress
 		var MessageHash = utils.EmptyHash
 		var Signature []byte
 		if balanceProof != nil {
 			Nonce = balanceProof.Nonce
 			TransferAmount = balanceProof.TransferAmount
 			LocksRoot = balanceProof.LocksRoot
-			//ChannelAddress = balanceProof.ChannelAddress
+			//ChannelIdentifier = balanceProof.ChannelIdentifier
 			MessageHash = balanceProof.MessageHash
 			Signature = balanceProof.Signature
 		}
@@ -237,7 +237,7 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 			result.Result <- err
 			return
 		}
-		log.Info(fmt.Sprintf("Settle Channel %s, err %s", e.ChannelIdentifier.String(), tx.Hash().String()))
+		log.Info(fmt.Sprintf("Settle ch %s, err %s", e.ChannelIdentifier.String(), tx.Hash().String()))
 		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
 		if err != nil {
 			err = fmt.Errorf("%s settle WaitMined failed with error:%s", e.ChannelIdentifier, err)

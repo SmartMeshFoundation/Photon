@@ -130,22 +130,18 @@ func (be *Events) uninstallEventListener() (err error) {
 //EventChannelSettled2StateChange to stateChange
 func EventChannelSettled2StateChange(ev *contracts.TokenNetworkChannelSettled) *mediatedtransfer.ContractReceiveSettledStateChange {
 	return &mediatedtransfer.ContractReceiveSettledStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
-		},
-		SettledBlock: int64(ev.Raw.BlockNumber),
+		ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+		TokenNetworkAddress: ev.Raw.Address,
+		SettledBlock:        int64(ev.Raw.BlockNumber),
 	}
 }
 
 //EventChannelCooperativeSettled2StateChange to stateChange
 func EventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChannelCooperativeSettled) *mediatedtransfer.ContractReceiveCooperativeSettledStateChange {
 	return &mediatedtransfer.ContractReceiveCooperativeSettledStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
-		},
-		SettledBlock: int64(ev.Raw.BlockNumber),
+		ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+		TokenNetworkAddress: ev.Raw.Address,
+		SettledBlock:        int64(ev.Raw.BlockNumber),
 	}
 }
 
@@ -153,10 +149,11 @@ func EventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChanne
 func EventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw) *mediatedtransfer.ContractReceiveChannelWithdrawStateChange {
 	return &mediatedtransfer.ContractReceiveChannelWithdrawStateChange{
 		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   common.Hash(ev.Channel_identifier),
-			OpenBlockNumber:     int64(ev.Raw.BlockNumber),
+
+			ChannelIdentifier: common.Hash(ev.Channel_identifier),
+			OpenBlockNumber:   int64(ev.Raw.BlockNumber),
 		},
+		TokenNetworkAddress: ev.Raw.Address,
 		Participant1:        ev.Participant1,
 		Participant2:        ev.Participant2,
 		Participant1Balance: ev.Participant1_balance,
@@ -176,51 +173,47 @@ func EventTokenNetworkCreated2StateChange(ev *contracts.TokenNetworkRegistryToke
 //EventChannelOpen2StateChange to statechange
 func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *mediatedtransfer.ContractReceiveNewChannelStateChange {
 	return &mediatedtransfer.ContractReceiveNewChannelStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			ChannelIdentifier:   ev.Channel_identifier,
-			TokenNetworkAddress: ev.Raw.Address,
-			OpenBlockNumber:     int64(ev.Raw.BlockNumber),
+		ChannelIdentifier: &contracts.ChannelUniqueID{
+			ChannelIdentifier: ev.Channel_identifier,
+
+			OpenBlockNumber: int64(ev.Raw.BlockNumber),
 		},
-		Participant1:  ev.Participant1,
-		Participant2:  ev.Participant2,
-		SettleTimeout: int(ev.Settle_timeout.Int64()),
+		TokenNetworkAddress: ev.Raw.Address,
+		Participant1:        ev.Participant1,
+		Participant2:        ev.Participant2,
+		SettleTimeout:       int(ev.Settle_timeout.Int64()),
 	}
 }
 
 //EventChannelNewBalance2StateChange to statechange
 func EventChannelNewBalance2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractReceiveBalanceStateChange {
 	return &mediatedtransfer.ContractReceiveBalanceStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   ev.Channel_identifier,
-		},
-		ParticipantAddress: ev.Participant,
-		BlockNumber:        int64(ev.Raw.BlockNumber),
+
+		ChannelIdentifier:   ev.Channel_identifier,
+		TokenNetworkAddress: ev.Raw.Address,
+		ParticipantAddress:  ev.Participant,
+		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 }
 
 //EventChannelClosed2StateChange to statechange
 func EventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *mediatedtransfer.ContractReceiveClosedStateChange {
 	return &mediatedtransfer.ContractReceiveClosedStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   ev.Channel_identifier,
-		},
-		ClosingAddress: ev.Closing_participant,
-		ClosedBlock:    int64(ev.Raw.BlockNumber),
+		TokenNetworkAddress: ev.Raw.Address,
+		ChannelIdentifier:   ev.Channel_identifier,
+		ClosingAddress:      ev.Closing_participant,
+		ClosedBlock:         int64(ev.Raw.BlockNumber),
 	}
 }
 
 //EventBalanceProofUpdated2StateChange to statechange
 func EventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProofUpdated) *mediatedtransfer.ContractBalanceProofUpdatedStateChange {
 	return &mediatedtransfer.ContractBalanceProofUpdatedStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
-			TokenNetworkAddress: ev.Raw.Address,
-			ChannelIdentifier:   ev.Channel_identifier,
-		},
-		LocksRoot:         ev.Locksroot,
-		TransferredAmount: ev.Transferred_amount,
-		Participant:       ev.Participant,
+		TokenNetworkAddress: ev.Raw.Address,
+		ChannelIdentifier:   ev.Channel_identifier,
+		LocksRoot:           ev.Locksroot,
+		TransferredAmount:   ev.Transferred_amount,
+		Participant:         ev.Participant,
 	}
 }
 
@@ -427,8 +420,8 @@ func (be *Events) GetAllChannels(fromBlock int64, tokenNetworkAddress ...common.
 	}
 	for _, e := range events {
 		c := &contracts.ChannelUniqueID{
-			ChannelIdentifier:   e.Channel_identifier,
-			TokenNetworkAddress: e.Raw.Address,
+			ChannelIdentifier: e.Channel_identifier,
+			OpenBlockNumber:   int64(e.Raw.BlockNumber),
 		}
 		channels = append(channels, c)
 	}

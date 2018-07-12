@@ -233,7 +233,7 @@ func (w *withDraw) getChannelDetail(proxy *rpc.TokenNetworkProxy) *network.Chann
 	closed, _ := proxy.Closed()
 	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, w.bcs, w.db, opened, closed)
 	channelDetail := &network.ChannelDetails{
-		ChannelAddress:    channelAddress,
+		ChannelIdentifier: channelAddress,
 		OurState:          ourState,
 		PartenerState:     partenerState,
 		ExternState:       externState,

@@ -169,7 +169,7 @@ func (env *RaidenEnvReader) RandomNode() *RaidenNode {
 	return env.RaidenNodes[r.Intn(num)]
 }
 
-// RandomToken : get a random TokenNetworkAddres
+// RandomToken : get a random Token
 func (env *RaidenEnvReader) RandomToken() *Token {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	num := len(env.Tokens)

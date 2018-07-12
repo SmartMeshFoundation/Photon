@@ -38,6 +38,12 @@ const (
 		已开始交易,可以继续
 	*/
 	StatePrepareForWithdraw
+	/*
+		   StateError 比如收到了明显错误的消息,又是对方签名的,如何处理?
+		   比如自己未发送 withdrawRequest,但是收到了 withdrawResponse
+			todo 这种情况应该的实现是关闭通道.这样真的合理吗?
+	*/
+	StateError
 )
 
 var TransferCannotBeContinuedMap map[State]bool

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//query the details of the TokenNetworkAddres network connection
+//query the details of the Token network connection
 func QueryingConnectionsDetails(url string) (Infos map[string]*ConnectionsDetails, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -45,7 +45,7 @@ func QueryingConnectionsDetails(url string) (Infos map[string]*ConnectionsDetail
 	return
 }
 
-//test for querying the details of the TokenNetworkAddres network connection
+//test for querying the details of the Token network connection
 func QueryingConnectionsDetailsTest(url string) {
 	var err error
 	var Status string
@@ -59,7 +59,7 @@ func QueryingConnectionsDetailsTest(url string) {
 	ShowQueryingConnectionsDetailsMsgDetail(Status)
 	if Infos != nil {
 		//for k, v := range Infos {
-		//	log.Println("TokenNetworkAddres:", k, " Funds:", v.Funds, " SumDeposits:", v.SumDeposits, " Channels:", v.Channels)
+		//	log.Println("Token:", k, " Funds:", v.Funds, " SumDeposits:", v.SumDeposits, " Channels:", v.Channels)
 		//}
 	}
 	switch Status {

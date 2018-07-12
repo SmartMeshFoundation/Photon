@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//query registered TokenNetworkAddres
+//query registered Token
 func QueryingRegisteredTokens(url string) (Tokens []string, Status string, err error) {
 	var resp *http.Response
 	var count int
@@ -35,7 +35,7 @@ func QueryingRegisteredTokens(url string) (Tokens []string, Status string, err e
 	return
 }
 
-//test for querying registered TokenNetworkAddres
+//test for querying registered Token
 func QueryingRegisteredTokensTest(url string) {
 	start := time.Now()
 	ShowTime()

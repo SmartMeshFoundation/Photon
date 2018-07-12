@@ -37,15 +37,15 @@ func APITest() {
 	QueryingNodeAllChannelsTest(Node1Url)
 	//test for querying a node specified channel
 	QueryingNodeSpecificChannelTest(Node1Url)
-	//test for querying registered TokenNetworkAddres
+	//test for querying registered Token
 	QueryingRegisteredTokensTest(Node1Url)
-	//test for querying the Partner address in the channel of special TokenNetworkAddres
+	//test for querying the Partner address in the channel of special Token
 	QueryingAllPartnersForOneTokensTest(Node1Url)
-	//test for registering  new TokenNetworkAddres to Raiden Network
+	//test for registering  new Token to Raiden Network
 	RegisteringOneTokenTest(Node1Url)
 	//test for exchanging the token,token number in each node is indefinite,but the ratio 2:1.
 	TokenSwapsTest(Node1Url, Node2Url)
-	//test for establishing Channel between node 1 and node 2
+	//test for establishing ch between node 1 and node 2
 	OpenChannelTest(Node1Url)
 	//test for closing the specified channel for the node
 	CloseChannelTest(Node1Url)
@@ -57,9 +57,9 @@ func APITest() {
 	Connecting2TokenNetworkTest(Node1Url, 2000)
 	//test for leaving the TokenNetwork
 	LeavingTokenNetworkTest(Node1Url)
-	//test for querying the details of the TokenNetworkAddres network connection
+	//test for querying the details of the Token network connection
 	QueryingConnectionsDetailsTest(Node1Url)
-	//test for TokenNetworkAddres transaction between node 1 and other node
+	//test for Token transaction between node 1 and other node
 	InitiatingTransferTest(Node1Url, Node2Url)
 	InitiatingTransferTest(Node1Url, Node3Url)
 	InitiatingTransferTest(Node1Url, Node4Url)
@@ -67,7 +67,7 @@ func APITest() {
 	InitiatingTransferTest(Node1Url, Node6Url)
 	//test for querying network events
 	QueryingGeneralNetworkEventsTest(Node1Url)
-	//test for querying TokenNetworkAddres network events
+	//test for querying Token network events
 	QueryingTokenNetworkEventsTest(Node1Url)
 	//test for querying channel event
 	QueryingChannelEventsTest(Node1Url)
