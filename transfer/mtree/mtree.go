@@ -257,8 +257,7 @@ func (m *Merkletree) ComputeMerkleRootWithout(without *Lock) (newm *Merkletree, 
 		newm = NewMerkleTree(leaves)
 		return
 	}
-	newm = new(Merkletree)
-	m.buildMerkleTreeLayers(nil)
+	newm = NewMerkleTree(nil)
 	return
 }
 

@@ -331,7 +331,6 @@ func TestPythonChannel(t *testing.T) {
 	hashlock := utils.Sha3(secret[:])
 	var amount2 = big.NewInt(10)
 	expiration := blockNumber + int64(settleTimeout) - 5
-	var identifier uint64 = 2
 	mediatedTransfer, _ := testchannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount2, expiration, hashlock)
 	mediatedTransfer.Sign(privkey1, mediatedTransfer)
 	testchannel.RegisterTransfer(blockNumber, mediatedTransfer)
@@ -346,7 +345,7 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 3)
 
-	secretMessage, _ := testchannel.CreateUnlock(identifier, secret)
+	secretMessage, _ := testchannel.CreateUnlock(secret)
 	secretMessage.Sign(privkey1, secretMessage)
 	log.Info(fmt.Sprintf("secret message=%s", utils.StringInterface(secretMessage, 4)))
 	log.Info("bofore reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2))
@@ -543,7 +542,6 @@ func TestInterwovenTransfers(t *testing.T) {
 		amount := transfersAmount[i]
 		secret := transfersSecret[i]
 		expiration := blockNumber + settleTimeout - 1
-		identifier := uint64(i)
 		var mtr *encoding.MediatedTransfer
 		mtr, err = ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, utils.Sha3(secret[:]))
 		assert.Equal(t, err, nil)
@@ -567,7 +565,7 @@ func TestInterwovenTransfers(t *testing.T) {
 			transfer := transfersList[i-1]
 			secret := transfersSecret[i-1]
 			//synchronized claiming
-			secretMessage, _ := ch0.CreateUnlock(identifier, secret)
+			secretMessage, _ := ch0.CreateUnlock(secret)
 			secretMessage.Sign(ch0.ExternState.privKey, secretMessage)
 			err = ch0.RegisterTransfer(blockNumber, secretMessage)
 			assert.Equal(t, err, nil)
@@ -800,7 +798,7 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 	var blockNumber int64 = 7
 	ch0, ch1 := makePairChannel()
 	expiration := blockNumber + int64(ch0.SettleTimeout)
-	lockSecretHash := utils.NewRandomHash()
+	lockSecretHash := utils.Sha3([]byte("123"))
 	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
 	err := smtr.Sign(ch0.ExternState.privKey, smtr)
 	if err != nil {
@@ -828,7 +826,11 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	req.Sign(ch1.ExternState.privKey, req)
+	err = req.Sign(ch1.ExternState.privKey, req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	err = ch0.RegisterAnnouceDisposed(req)
 	if err != nil {
 		t.Error(err)
@@ -844,7 +846,11 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	res.Sign(ch0.ExternState.privKey, res)
+	err = res.Sign(ch0.ExternState.privKey, res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	err = ch0.RegisterAnnounceDisposedTransferResponse(res, blockNumber)
 	if err != nil {
 		t.Error(err)
@@ -856,4 +862,194 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 		return
 	}
 	assertMirror(ch0, ch1, t)
+}
+
+func TestChannel_RegisterWithdrawRequest(t *testing.T) {
+	var blockNumber int64 = 7
+	ch0, ch1 := makePairChannel()
+	expiration := blockNumber + int64(ch0.SettleTimeout)
+	secret := utils.Sha3([]byte("123"))
+	lockSecretHash := utils.Sha3(secret[:])
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	err := smtr.Sign(ch0.ExternState.privKey, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log("after tr1 channel=", ch0.String())
+	err = ch1.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ch0.CreateWithdrawRequest(big.NewInt(1))
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	_, err = ch1.CreateWithdrawRequest(big.NewInt(1))
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	unlock, err := ch0.CreateUnlock(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock.Sign(ch0.ExternState.privKey, unlock)
+	err = ch0.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), true)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), true)
+	assert.EqualValues(t, ch1.CanTransfer(), true)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), true)
+
+	req, err := ch0.CreateWithdrawRequest(big.NewInt(1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
+	log.Trace(fmt.Sprintf("req=%s", req))
+	req.Sign(ch0.ExternState.privKey, req)
+	err = ch0.RegisterWithdrawRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterWithdrawRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), false)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), false)
+	assert.EqualValues(t, ch1.CanTransfer(), false)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
+	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
+	res, err := ch1.CreateWithdrawResponse(req, big.NewInt(1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res.Sign(ch1.ExternState.privKey, res)
+	err = ch0.RegisterWithdrawResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterWithdrawResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
+	var blockNumber int64 = 7
+	ch0, ch1 := makePairChannel()
+	expiration := blockNumber + int64(ch0.SettleTimeout)
+	secret := utils.Sha3([]byte("123"))
+	lockSecretHash := utils.Sha3(secret[:])
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	err := smtr.Sign(ch0.ExternState.privKey, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log("after tr1 channel=", ch0.String())
+	err = ch1.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ch0.CreateCooperativeSettleRequest()
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	_, err = ch1.CreateCooperativeSettleRequest()
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	unlock, err := ch0.CreateUnlock(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock.Sign(ch0.ExternState.privKey, unlock)
+	err = ch0.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), true)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), true)
+	assert.EqualValues(t, ch1.CanTransfer(), true)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), true)
+
+	req, err := ch0.CreateCooperativeSettleRequest()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
+	log.Trace(fmt.Sprintf("req=%s", req))
+	req.Sign(ch0.ExternState.privKey, req)
+	err = ch0.RegisterCooperativeSettleRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterCooperativeSettleRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), false)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), false)
+	assert.EqualValues(t, ch1.CanTransfer(), false)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
+	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
+	res, err := ch1.CreateCooperativeSettleResponse(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res.Sign(ch1.ExternState.privKey, res)
+	err = ch0.RegisterCooperativeSettleResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterCooperativeSettleResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }

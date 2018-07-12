@@ -7,6 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -37,37 +38,65 @@ type UnlockProof struct {
 
 // Serialization is the living channel in the database
 type Serialization struct {
-	ChannelIdentifier          *contracts.ChannelUniqueID
-	ChannelAddressString       string `storm:"id"` //only for storm, because of save bug
-	TokenAddress               common.Address
-	PartnerAddress             common.Address
-	TokenAddressString         string `storm:"index"`
-	PartnerAddressString       string `storm:"index"`
-	OurAddress                 common.Address
-	RevealTimeout              int
-	OurBalanceProof            *transfer.BalanceProofState
-	PartnerBalanceProof        *transfer.BalanceProofState
-	OurLeaves                  []common.Hash
-	PartnerLeaves              []common.Hash
-	OurLock2PendingLocks       map[common.Hash]PendingLock
-	OurLock2UnclaimedLocks     map[common.Hash]UnlockPartialProof
-	PartnerLock2PendingLocks   map[common.Hash]PendingLock
-	PartnerLock2UnclaimedLocks map[common.Hash]UnlockPartialProof
-	State                      State
-	OurBalance                 *big.Int
-	PartnerBalance             *big.Int
-	OurContractBalance         *big.Int
-	PartnerContractBalance     *big.Int
-	OurAmountLocked            *big.Int
-	PartnerAmountLocked        *big.Int
-	ClosedBlock                int64
-	SettledBlock               int64
-	SettleTimeout              int
+	ChannelIdentifier      *contracts.ChannelUniqueID
+	ChannelAddressString   string `storm:"id"` //only for storm, because of save bug
+	TokenAddress           common.Address
+	PartnerAddress         common.Address
+	TokenAddressString     string `storm:"index"`
+	PartnerAddressString   string `storm:"index"`
+	OurAddress             common.Address
+	RevealTimeout          int
+	OurBalanceProof        *transfer.BalanceProofState
+	PartnerBalanceProof    *transfer.BalanceProofState
+	OurLeaves              []*mtree.Lock
+	PartnerLeaves          []*mtree.Lock
+	OurKnownSecrets        []common.Hash
+	PartnerKnownSecrets    []common.Hash
+	State                  State
+	OurContractBalance     *big.Int
+	PartnerContractBalance *big.Int
+	ClosedBlock            int64
+	SettledBlock           int64
+	SettleTimeout          int
 }
 
+func (s *Serialization) transferAmount(bp *transfer.BalanceProofState) *big.Int {
+	if bp != nil {
+		return bp.TransferAmount
+	}
+	return utils.BigInt0
+}
+func (s *Serialization) OurBalance() *big.Int {
+	x := new(big.Int)
+	x.Sub(s.OurContractBalance, s.transferAmount(s.OurBalanceProof))
+	x.Add(x, s.transferAmount(s.PartnerBalanceProof))
+	return x
+}
+func (s *Serialization) OurAmountLocked() *big.Int {
+	x := new(big.Int)
+	for _, l := range s.OurLeaves {
+		x = x.Add(x, l.Amount)
+	}
+	return x
+}
+func (s *Serialization) PartnerAmountLocked() *big.Int {
+	x := new(big.Int)
+	for _, l := range s.PartnerLeaves {
+		x = x.Add(x, l.Amount)
+	}
+	return x
+}
+func (s *Serialization) PartnerBalance() *big.Int {
+	x := new(big.Int)
+	x.Sub(s.PartnerContractBalance, s.transferAmount(s.PartnerBalanceProof))
+	x.Add(x, s.transferAmount(s.OurBalanceProof))
+	return x
+}
 func init() {
 	gob.Register(&PendingLock{})
 	gob.Register(&UnlockPartialProof{})
+	gob.Register(&Serialization{})
+
 	//make sure don't save this data
 	//gob.Register(&UnlockProof{})
 }

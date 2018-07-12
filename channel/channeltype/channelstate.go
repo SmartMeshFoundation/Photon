@@ -29,10 +29,10 @@ const (
 	//StateCooprativeSettle 用户收到或者发出了 cooperative settle 请求,这时候正在进行的交易只能立即放弃,因为没有任何意义了
 	StateCooprativeSettle
 	/*
-		StatePrepareForSettling 收到了用户 cooperative 请求,但是有正在处理的交易,这时候不再接受新的交易了,可以等待一段时间,然后settle
+		StatePrepareForSettle 收到了用户 cooperative 请求,但是有正在处理的交易,这时候不再接受新的交易了,可以等待一段时间,然后settle
 		已开始交易,可以继续
 	*/
-	StatePrepareForSettling
+	StatePrepareForSettle
 	/*
 		StatePrepareForWithdraw收到用户请求,要发起 withdraw, 但是目前还持有锁,不再发起或者接受任何交易,可以等待一段时间进行 withdraw
 		已开始交易,可以继续
@@ -71,6 +71,10 @@ func (s State) String() string {
 		return "withdrawing"
 	case StateCooprativeSettle:
 		return "cooperativeSettling"
+	case StatePrepareForWithdraw:
+		return "prepareForWithdraw"
+	case StatePrepareForSettle:
+		return "prepareForSettle"
 	default:
 		return "unkown"
 	}

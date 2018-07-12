@@ -333,19 +333,11 @@ func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (e
 /*
 TryRemoveHashLock try to remomve a expired hashlock
 */
-func (node *EndState) TryRemoveHashLock(hashlock common.Hash, blockNumber int64, mustExpired bool) (lock *mtree.Lock, newtree *mtree.Merkletree, newlocksroot common.Hash, err error) {
-	if !node.IsKnown(hashlock) {
-		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(hashlock))
+func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber int64, mustExpired bool) (lock *mtree.Lock, newtree *mtree.Merkletree, newlocksroot common.Hash, err error) {
+	lock = node.getLockByHashlock(lockSecretHash)
+	if lock == nil {
+		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
 		return
-	}
-	pendingLock, ok := node.Lock2PendingLocks[hashlock]
-	if ok {
-		lock = pendingLock.Lock
-	} else {
-		unclaimedLock, ok := node.Lock2UnclaimedLocks[hashlock]
-		if ok {
-			lock = unclaimedLock.Lock
-		}
 	}
 	if mustExpired && (lock.Expiration > blockNumber) {
 		err = fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)

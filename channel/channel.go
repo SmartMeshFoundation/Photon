@@ -7,8 +7,6 @@ import (
 
 	"math/big"
 
-	"encoding/gob"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -106,6 +104,10 @@ transfer tokens to partner.
 */
 func (c *Channel) CanTransfer() bool {
 	return channeltype.CanTransferMap[c.State] && c.Distributable().Cmp(utils.BigInt0) > 0
+}
+
+func (c *Channel) CanContinueTransfer() bool {
+	return !channeltype.TransferCannotBeContinuedMap[c.State]
 }
 
 /*
@@ -558,7 +560,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 }
 
 //CreateUnlock creates  a unlock message
-func (c *Channel) CreateUnlock(identifer uint64, secret common.Hash) (tr *encoding.UnLock, err error) {
+func (c *Channel) CreateUnlock(secret common.Hash) (tr *encoding.UnLock, err error) {
 	lockSecretHash := utils.Sha3(secret[:])
 	from := c.OurState
 	lock := from.getLockByHashlock(lockSecretHash)
@@ -654,9 +656,9 @@ func (c *Channel) RegisterAnnouceDisposed(tr *encoding.AnnounceDisposed) (err er
 	if err != nil {
 		return
 	}
-	var state = c.OurState
+	var state = c.PartnerState
 	if tr.GetSender() == c.PartnerState.Address {
-		state = c.PartnerState
+		state = c.OurState
 	}
 	mlock := tr.Lock
 	lock := state.getLockByHashlock(mlock.LockSecretHash)
@@ -690,9 +692,9 @@ func (c *Channel) CreateWithdrawRequest(withdrawAmount *big.Int) (w *encoding.Wi
 	d.Participant1 = c.OurState.Address
 	d.Participant1Balance = c.OurState.Balance(c.PartnerState)
 	d.Participant2 = c.PartnerState.Address
-	d.Participant2Balance = c.OurState.Balance(c.PartnerState)
+	d.Participant2Balance = c.PartnerState.Balance(c.OurState)
 	d.Participant1Withdraw = withdrawAmount
-	if withdrawAmount.Cmp(w.Participant1Balance) > 0 {
+	if withdrawAmount.Cmp(d.Participant1Balance) > 0 {
 		err = fmt.Errorf("withdraw amount too large,current=%s,withdraw=%s", w.Participant1Balance, withdrawAmount)
 		return
 	}
@@ -715,14 +717,26 @@ func (c *Channel) preCheckSettleDataInMessage(tr encoding.SignedMessager, sd *en
 	} else {
 		return errInvalidSender
 	}
-	if state1.Address != sd.Participant1 ||
-		state2.Address != sd.Participant2 {
+	/*
+		state1 ,state2和 participant1,participant2没有对应关系,需要自己找出来.
+	*/
+	if (state1.Address != sd.Participant1 && state1.Address != sd.Participant2) ||
+		(state2.Address != sd.Participant1 && state2.Address != sd.Participant2) ||
+		sd.Participant1 == sd.Participant2 {
 		return errParticipant
 	}
-	if state1.Balance(state2) != sd.Participant1Balance ||
-		state2.Balance(state1) != sd.Participant2Balance {
-		return errBalance
+	if state1.Address == sd.Participant1 {
+		if state1.Balance(state2).Cmp(sd.Participant1Balance) != 0 ||
+			state2.Balance(state1).Cmp(sd.Participant2Balance) != 0 {
+			return errBalance
+		}
+	} else {
+		if state2.Balance(state1).Cmp(sd.Participant1Balance) != 0 ||
+			state1.Balance(state2).Cmp(sd.Participant2Balance) != 0 {
+			return errBalance
+		}
 	}
+
 	return nil
 }
 
@@ -766,7 +780,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdraw
 	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
 	wd.Participant1Withdraw = req.Participant1Withdraw
 	wd.Participant2Withdraw = withdrawAmount
-	if withdrawAmount.Cmp(w.Participant2Balance) > 0 {
+	if withdrawAmount.Cmp(wd.Participant2Balance) > 0 {
 		err = fmt.Errorf("withdraw amount too large,current=%s,withdraw=%s", w.Participant2Balance, withdrawAmount)
 		return
 	}
@@ -808,10 +822,10 @@ func (c *Channel) CreateCooperativeSettleRequest() (s *encoding.SettleRequest, e
 	wd := new(encoding.SettleRequestData)
 	wd.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	wd.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	wd.Participant2 = c.OurState.Address
-	wd.Participant1 = c.PartnerState.Address
-	wd.Participant2Balance = c.OurState.Balance(c.PartnerState)
-	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
+	wd.Participant1 = c.OurState.Address
+	wd.Participant2 = c.PartnerState.Address
+	wd.Participant1Balance = c.OurState.Balance(c.PartnerState)
+	wd.Participant2Balance = c.PartnerState.Balance(c.OurState)
 	s = encoding.NewSettleRequest(wd)
 	return
 }
@@ -843,10 +857,10 @@ func (c *Channel) CreateCooperativeSettleResponse(req *encoding.SettleRequest) (
 	d := new(encoding.SettleResponseData)
 	d.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	d.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	d.Participant1 = c.OurState.Address
-	d.Participant1Balance = c.OurState.Balance(c.PartnerState)
-	d.Participant2 = c.PartnerState.Address
+	d.Participant2 = c.OurState.Address
 	d.Participant2Balance = c.OurState.Balance(c.PartnerState)
+	d.Participant1 = c.PartnerState.Address
+	d.Participant1Balance = c.PartnerState.Balance(c.OurState)
 
 	res = encoding.NewSettleResponse(d)
 	/*
@@ -867,44 +881,96 @@ func (c *Channel) RegisterCooperativeSettleResponse(msg *encoding.SettleResponse
 	return nil
 }
 
+/*
+由于 withdraw 和 合作settle 需要事先没有任何锁,因此必须先标记不进行任何交易
+等现有交易完成以后再
+*/
+func (c *Channel) PrepareForWithdraw() error {
+	if c.State != channeltype.StateOpened {
+		return fmt.Errorf("state must be opened when withdraw, but state is %s", c.State)
+	}
+	c.State = channeltype.StatePrepareForWithdraw
+	return nil
+}
+
+/*
+由于 withdraw 和 合作settle 需要事先没有任何锁,因此必须先标记不进行任何交易
+等现有交易完成以后再
+*/
+func (c *Channel) PrepareForCooperativeSettle() error {
+	if c.State != channeltype.StateOpened {
+		return fmt.Errorf("state must be opened when cooperative settle, but state is %s", c.State)
+	}
+	c.State = channeltype.StatePrepareForSettle
+	return nil
+}
+
+/*
+等待一段时间以后发现不能合作关闭通道,可以撤销
+也可以直接选择调用 close
+*/
+func (c *Channel) CancelWithdrawOrCooperativeSettle() error {
+	if c.ExternState.ClosedBlock != 0 {
+		return fmt.Errorf("no need cancel because of channel is closed")
+	}
+	if c.State != channeltype.StatePrepareForSettle && c.State != channeltype.StatePrepareForWithdraw {
+		return fmt.Errorf("state is %s,cannot cancel withdraw or cooperative", c.State)
+	}
+	c.State = channeltype.StateOpened
+}
+
+/*
+只有在任何锁的情况下才能进行 withdraw 和cooperative settle
+*/
+func (c *Channel) CanWithdrawOrCooperativeSettle() bool {
+	if len(c.OurState.Lock2PendingLocks) > 0 ||
+		len(c.OurState.Lock2PendingLocks) > 0 ||
+		len(c.PartnerState.Lock2PendingLocks) > 0 ||
+		len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
+		return false
+	}
+	return true
+}
+
 // String fmt.Stringer
 func (c *Channel) String() string {
 	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
 		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
 }
 
+/*
+todo 优化保存在数据库中的 channel 信息,不必要保存这么多
+*/
 // NewChannelSerialization serialize the channel to save to database
 func NewChannelSerialization(c *Channel) *channeltype.Serialization {
+	var ourSecrets, partnerSecrets []common.Hash
+	for _, s := range c.OurState.Lock2UnclaimedLocks {
+		ourSecrets = append(ourSecrets, s.Secret)
+	}
+	for _, s := range c.PartnerState.Lock2UnclaimedLocks {
+		partnerSecrets = append(partnerSecrets, s.Secret)
+	}
 	s := &channeltype.Serialization{
-		ChannelIdentifier:          &c.ChannelIdentifier,
-		ChannelAddressString:       c.ChannelIdentifier.String(),
-		TokenAddress:               c.TokenAddress,
-		TokenAddressString:         c.TokenAddress.String(),
-		PartnerAddress:             c.PartnerState.Address,
-		PartnerAddressString:       c.PartnerState.Address.String(),
-		OurAddress:                 c.OurState.Address,
-		RevealTimeout:              c.RevealTimeout,
-		OurBalanceProof:            c.OurState.BalanceProofState,
-		PartnerBalanceProof:        c.PartnerState.BalanceProofState,
-		OurLeaves:                  c.OurState.tree.Layers[mtree.LayerLeaves],
-		PartnerLeaves:              c.PartnerState.tree.Layers[mtree.LayerLeaves],
-		OurLock2PendingLocks:       c.OurState.Lock2PendingLocks,
-		OurLock2UnclaimedLocks:     c.OurState.Lock2UnclaimedLocks,
-		PartnerLock2PendingLocks:   c.PartnerState.Lock2PendingLocks,
-		PartnerLock2UnclaimedLocks: c.PartnerState.Lock2UnclaimedLocks,
+		ChannelIdentifier:      &c.ChannelIdentifier,
+		ChannelAddressString:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		TokenAddress:           c.TokenAddress,
+		TokenAddressString:     c.TokenAddress.String(),
+		PartnerAddress:         c.PartnerState.Address,
+		PartnerAddressString:   c.PartnerState.Address.String(),
+		OurAddress:             c.OurState.Address,
+		RevealTimeout:          c.RevealTimeout,
+		OurBalanceProof:        c.OurState.BalanceProofState,
+		PartnerBalanceProof:    c.PartnerState.BalanceProofState,
+		OurLeaves:              c.OurState.tree.Leaves,
+		PartnerLeaves:          c.PartnerState.tree.Leaves,
+		OurKnownSecrets:        ourSecrets,
+		PartnerKnownSecrets:    partnerSecrets,
 		State:                  c.State,
-		OurBalance:             c.Balance(),
-		PartnerBalance:         c.PartnerBalance(),
 		SettleTimeout:          c.SettleTimeout,
-		OurContractBalance:     c.ContractBalance(),
+		OurContractBalance:     c.OurState.ContractBalance,
 		PartnerContractBalance: c.PartnerState.ContractBalance,
-		OurAmountLocked:        c.OurState.amountLocked(),
-		PartnerAmountLocked:    c.PartnerState.amountLocked(),
 		ClosedBlock:            c.ExternState.ClosedBlock,
 		SettledBlock:           c.ExternState.SettledBlock,
 	}
 	return s
-}
-func init() {
-	gob.Register(&channeltype.Serialization{})
 }
