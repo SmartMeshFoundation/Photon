@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -39,8 +40,8 @@ func (model *ModelDB) AddToken(token common.Address, manager common.Address) err
 	model.handleTokenCallback(model.newTokenCallbacks, token)
 	return err
 }
-func (model *ModelDB) handleTokenCallback(m map[*NewTokenCb]bool, token common.Address) {
-	var cbs []*NewTokenCb
+func (model *ModelDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
+	var cbs []*cb.NewTokenCb
 	model.mlock.Lock()
 	for f := range m {
 		remove := (*f)(token)

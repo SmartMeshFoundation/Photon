@@ -6,18 +6,17 @@ import (
 	"bytes"
 	"encoding/hex"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // NewChannel save a just created channel to db
-func (model *ModelDB) NewChannel(c *channel.Serialization) error {
-	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddress.String()))
+func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
+	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddressString))
 	err := model.db.Save(c)
 	//notify new channel added
 	model.handleChannelCallback(model.newChannelCallbacks, c)
@@ -28,16 +27,16 @@ func (model *ModelDB) NewChannel(c *channel.Serialization) error {
 }
 
 //UpdateChannelNoTx update channel status without a Tx
-func (model *ModelDB) UpdateChannelNoTx(c *channel.Serialization) error {
-	log.Trace(fmt.Sprintf("save channel %s", c.ChannelAddress.String()))
+func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
+	log.Trace(fmt.Sprintf("save channel %s", c.ChannelAddressString))
 	err := model.db.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
 	}
 	return err
 }
-func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.Serialization) {
-	var cbs []*ChannelCb
+func (model *ModelDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
+	var cbs []*cb.ChannelCb
 	model.mlock.Lock()
 	for f := range m {
 		remove := (*f)(c)
@@ -52,7 +51,7 @@ func (model *ModelDB) handleChannelCallback(m map[*ChannelCb]bool, c *channel.Se
 }
 
 //UpdateChannelContractBalance update channel balance
-func (model *ModelDB) UpdateChannelContractBalance(c *channel.Serialization) error {
+func (model *ModelDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -63,7 +62,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channel.Serialization) err
 }
 
 //UpdateChannel update channel status in a Tx
-func (model *ModelDB) UpdateChannel(c *channel.Serialization, tx storm.Node) error {
+func (model *ModelDB) UpdateChannel(c *channeltype.Serialization, tx storm.Node) error {
 	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
 	err := tx.Save(c)
 	if err != nil {
@@ -73,7 +72,7 @@ func (model *ModelDB) UpdateChannel(c *channel.Serialization, tx storm.Node) err
 }
 
 //UpdateChannelState update channel state ,close settle
-func (model *ModelDB) UpdateChannelState(c *channel.Serialization) error {
+func (model *ModelDB) UpdateChannelState(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -84,8 +83,8 @@ func (model *ModelDB) UpdateChannelState(c *channel.Serialization) error {
 }
 
 //GetChannel return a channel queried by (token,partner),this channel must not settled
-func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Serialization, err error) {
-	var cs []*channel.Serialization
+func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error) {
+	var cs []*channeltype.Serialization
 	if token == utils.EmptyAddress {
 		panic("token is empty")
 	}
@@ -97,7 +96,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Seri
 		return
 	}
 	for _, c2 := range cs {
-		if c2.PartnerAddress == partner && c2.State != transfer.ChannelStateSettled {
+		if c2.PartnerAddress == partner && c2.State != channeltype.StateSettled {
 			c = c2
 			return
 		}
@@ -106,8 +105,8 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channel.Seri
 }
 
 //GetChannelByAddress return a channel queried by channel address
-func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channel.Serialization, err error) {
-	var c2 channel.Serialization
+func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channeltype.Serialization, err error) {
+	var c2 channeltype.Serialization
 	err = model.db.One("ChannelAddressString", channelAddress.String(), &c2)
 	if err == nil {
 		c = &c2

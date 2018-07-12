@@ -16,9 +16,9 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -37,56 +37,6 @@ func setupDb(t *testing.T) (model *ModelDB) {
 	}
 	t.Log(model.db)
 	return
-}
-
-func TestNewStateChangeLog(t *testing.T) {
-	model := setupDb(t)
-	defer func() {
-		model.CloseDB()
-	}()
-	st := &transfer.BlockStateChange{BlockNumber: 3}
-	id, err := model.LogStateChange(st)
-	if err != nil {
-		t.Error(err)
-	}
-	//if id != 1 {
-	//	t.Error("id not equal 1, ", id)
-	//}
-	st2, err := model.GetStateChangeByID(id)
-	if err != nil {
-		t.Error(err)
-	}
-	if !reflect.DeepEqual(st, st2) {
-		t.Error("data not equal")
-	}
-	s := &SnapshotToWrite{
-		StateChangeID: 1,
-		State:         st,
-	}
-	_, err = model.Snapshot(s.StateChangeID, s)
-	if err != nil {
-		t.Error(err)
-	}
-	s2, err := model.LoadSnapshot()
-	if err != nil {
-		t.Error(err)
-	}
-	if reflect.DeepEqual(st, s2) {
-		t.Error("data3 not equal")
-	}
-	number := utils.RandSrc.Int63()
-	err = model.LogEvents(id, []transfer.Event{st}, number)
-	if err != nil {
-		t.Error(err)
-	}
-	events2, err := model.GetEventsInBlockRange(number, number+1)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(events2) != 1 {
-		t.Error("events length error")
-	}
-	t.Logf("events2=%#v", events2[0])
 }
 
 func TestToken(t *testing.T) {
@@ -127,19 +77,16 @@ func TestChannel(t *testing.T) {
 	defer func() {
 		model.CloseDB()
 	}()
-	var newaddrs []common.Address
-	var updateContractBalanceAddrs []common.Address
-	var UpdateChannelStateAddrs []common.Address
-	newchannelcb := func(c *channel.Serialization) bool {
-		newaddrs = append(newaddrs, c.ChannelAddress)
+	newchannelcb := func(c *channeltype.Serialization) bool {
+
 		return true
 	}
-	updateContractBalancechannelcb := func(c *channel.Serialization) bool {
-		updateContractBalanceAddrs = append(updateContractBalanceAddrs, c.ChannelAddress)
+	updateContractBalancechannelcb := func(c *channeltype.Serialization) bool {
+
 		return true
 	}
-	UpdateChannelStatecb := func(c *channel.Serialization) bool {
-		UpdateChannelStateAddrs = append(UpdateChannelStateAddrs, c.ChannelAddress)
+	UpdateChannelStatecb := func(c *channeltype.Serialization) bool {
+
 		return true
 	}
 	model.RegisterNewChannellCallback(newchannelcb)
@@ -189,15 +136,6 @@ func TestChannel(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	//if len(newaddrs) != 1 || newaddrs[0] != c.ChannelIdentifier {
-	//	t.Error("new channel error")
-	//}
-	//if len(updateContractBalanceAddrs) != 1 || updateContractBalanceAddrs[0] != c.ChannelIdentifier {
-	//	t.Error("new channel error")
-	//}
-	//if len(UpdateChannelStateAddrs) != 1 || UpdateChannelStateAddrs[0] != c.ChannelIdentifier {
-	//	t.Error("new channel error")
-	//}
 }
 func TestChannelTwice(t *testing.T) {
 	TestChannel(t)
