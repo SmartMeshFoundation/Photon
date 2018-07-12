@@ -859,7 +859,21 @@ contract TokenNetwork is Utils {
         channel.settle_timeout
         );
     }
+    function getChannelInfoByChannelIdentifier( bytes32 channel_identifier )
+    view
+    external
+    returns (bytes32, uint64, uint64, uint8,uint64)
+    {
+        Channel storage channel = channels[channel_identifier];
 
+        return (
+        channel_identifier,
+        channel.settle_block_number,
+        channel.open_block_number,
+        channel.state,
+        channel.settle_timeout
+        );
+    }
     function getChannelParticipantInfo(address participant, address partner)
     view
     external

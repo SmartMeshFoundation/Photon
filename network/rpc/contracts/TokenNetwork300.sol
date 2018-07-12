@@ -59,7 +59,7 @@ contract TokenNetwork is Utils {
     /*
     用于惩罚不诚实节点,让自己的nonce最大, transferamount 为0,locksroot 为0,
     */
-    bytes24 constant public invalid_balance_hash = bytes24(keccak256(bytes32(0), uint256(0)));
+    bytes24 constant public invalid_balance_hash = bytes24(keccak256(abi.encodePacked(bytes32(0), uint256(0))));
 
     // Instance of the token used as digital currency by the channels
     Token public token;
@@ -511,14 +511,14 @@ contract TokenNetwork is Utils {
         /*
         验证授权签名有效
         */
-        message_hash = keccak256(
+        message_hash = keccak256(abi.encodePacked(
             msg.sender,
             expiration,
             amount,
             secret_hash,
             channel_identifier,
             channel.open_block_number,
-            chain_id);
+            chain_id));
         require(participant == ECVerify.ecverify(message_hash, participant_signature));
         /*
         真正的去 unlock
@@ -576,13 +576,13 @@ contract TokenNetwork is Utils {
         /*
         证明这个所包含在 locksroot 中
         */
-        lockhash = keccak256(expiration, amount, secret_hash);
+        lockhash = keccak256(abi.encodePacked(expiration, amount, secret_hash));
         locksroot = computeMerkleRoot(lockhash, merkle_proof);
         require(partner_state.balance_hash == calceBalanceHash(transferered_amount, locksroot));
 
 
         //不允许重复 unlock 同一个锁,同时 nonce 变化以后还可以 再次 unlock 同一个锁
-        lockhash_hash = keccak256(partner_state.nonce, lockhash);
+        lockhash_hash = keccak256(abi.encodePacked(partner_state.nonce, lockhash));
 
         require(partner_state.unlocked_locks[lockhash_hash] == false);
         partner_state.unlocked_locks[lockhash_hash] = true;
@@ -652,9 +652,9 @@ contract TokenNetwork is Utils {
         /*
         证明这个 lockhash 被对方提交了.
         */
-        lockhash_hash = keccak256(beneficiary_state.nonce, lockhash);
+        lockhash_hash = keccak256(abi.encodePacked(beneficiary_state.nonce, lockhash));
         require(beneficiary_state.unlocked_locks[lockhash_hash]);
-
+        delete beneficiary_state.unlocked_locks[lockhash_hash];
         /*
         punish the cheater.
         */
@@ -838,7 +838,7 @@ contract TokenNetwork is Utils {
         if (locksroot == 0 && transferred_amount == 0) {
             return 0;
         }
-        return bytes24(keccak256(locksroot, transferred_amount));
+        return bytes24(keccak256(abi.encodePacked(locksroot, transferred_amount)));
     }
 
     function getChannelInfo(address participant1, address participant2)
@@ -859,7 +859,21 @@ contract TokenNetwork is Utils {
         channel.settle_timeout
         );
     }
+    function getChannelInfoByChannelIdentifier( bytes32 channel_identifier )
+    view
+    external
+    returns (bytes32, uint64, uint64, uint8,uint64)
+    {
+        Channel storage channel = channels[channel_identifier];
 
+        return (
+        channel_identifier,
+        channel.settle_block_number,
+        channel.open_block_number,
+        channel.state,
+        channel.settle_timeout
+        );
+    }
     function getChannelParticipantInfo(address participant, address partner)
     view
     external
@@ -995,7 +1009,7 @@ contract TokenNetwork is Utils {
 
     function recoverAddressFromUnlockProof(
         bytes32 channel_identifier,
-        bytes32 locksroot,
+        bytes32 lockhash,
         uint64 open_blocknumber,
         bytes32 additional_hash,
         bytes signature
@@ -1005,7 +1019,7 @@ contract TokenNetwork is Utils {
     returns (address signature_address)
     {
         bytes32 message_hash = keccak256(abi.encodePacked(
-                locksroot,
+                lockhash,
                 channel_identifier,
                 open_blocknumber,
             // address(this),
@@ -1020,10 +1034,4 @@ contract TokenNetwork is Utils {
     {
         return a > b ? b : a;
     }
-
-    function max(uint256 a, uint256 b) pure internal returns (uint256)
-    {
-        return a > b ? a : b;
-    }
-
 }
