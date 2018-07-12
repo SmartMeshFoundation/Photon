@@ -271,12 +271,14 @@ contract TokenNetwork is Utils {
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
         total_deposit = participant_state.deposit;
-        // Update the participant's channel deposit
-        total_deposit += amount;
-        participant_state.deposit = total_deposit;
+
         // Do the transfer
         require(token.transferFrom(msg.sender, address(this), amount));
         require(channel.state == 1);
+        // Update the participant's channel deposit
+        total_deposit += amount;
+        participant_state.deposit = total_deposit;
+
         emit ChannelNewDeposit(channel_identifier, participant, total_deposit);
         //如果 token 可能的 totalSupply 大于 uint256,说明这个 token 分文不值,分文不值的 token 发生什么都无所谓.
         //require(participant_state.deposit >= added_deposit);
@@ -342,6 +344,16 @@ contract TokenNetwork is Utils {
         require(participant1_balance <= total_deposit);
         require(participant2_balance <= total_deposit);
         require((participant1_balance + participant2_balance) == total_deposit);
+        /*
+        谨慎一点,应该先扣钱再转账, ERC20TOKEN 可能是一个以太坊 Wrapper. 否则这就是一个 the dao 攻击
+        */
+        require(participant1_withdraw <= participant1_balance);
+        require(participant2_withdraw <= participant2_balance);
+        participant1_state.deposit = participant1_balance - participant1_withdraw;
+        participant2_state.deposit = participant2_balance - participant2_withdraw;
+
+        //相当于 通道 settle 有新开了.老的签名都作废了.
+        channel.open_block_number = uint64(block.number);
 
         // Do the token transfers
         if (participant1_withdraw > 0) {
@@ -350,12 +362,6 @@ contract TokenNetwork is Utils {
         if (participant2_withdraw > 0) {
             require(token.transfer(participant2, participant2_withdraw));
         }
-        require(participant1_withdraw <= participant1_balance);
-        require(participant2_withdraw <= participant2_balance);
-        participant1_state.deposit = participant1_balance - participant1_withdraw;
-        participant2_state.deposit = participant2_balance - participant2_withdraw;
-        //相当于 通道 settle 有新开了.老的签名都作废了.
-        channel.open_block_number = uint64(block.number);
 
         emit ChannelWithdraw(channel_identifier, participant1, participant1_balance, participant2, participant2_balance);
 
