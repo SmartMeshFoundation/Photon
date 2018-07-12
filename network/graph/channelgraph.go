@@ -14,7 +14,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/dijkstra"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -25,23 +25,23 @@ import (
 ChannelDetails represents all channel info
 */
 type ChannelDetails struct {
-	ChannelAddress    common.Address
+	ChannelIdentifier common.Hash
+	OpenBlockNumber   int64
 	OurState          *channel.EndState
 	PartenerState     *channel.EndState
 	ExternState       *channel.ExternalState
-	BlockChainService *rpc.BlockChainService
 	RevealTimeout     int
 	SettleTimeout     int
 }
 
 //ChannelGraph is a Graph based on the channels and can find path between participants.
+//整个 ChannelGraph 只能单线程访问
 type ChannelGraph struct {
 	g                       *dijkstra.Graph
 	OurAddress              common.Address
 	TokenAddress            common.Address
-	ChannelManagerAddress   common.Address
-	PartenerAddress2Channel map[common.Address]*channel.Channel //multithread
-	ChannelAddress2Channel  map[common.Address]*channel.Channel //multithread
+	PartenerAddress2Channel map[common.Address]*channel.Channel
+	ChannelAddress2Channel  map[common.Hash]*channel.Channel
 	address2index           map[common.Address]int
 	index2address           map[int]common.Address
 }
@@ -54,7 +54,7 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edgeList []common.
 		OurAddress:              ourAddress,
 		TokenAddress:            tokenAddress,
 		PartenerAddress2Channel: make(map[common.Address]*channel.Channel),
-		ChannelAddress2Channel:  make(map[common.Address]*channel.Channel),
+		ChannelAddress2Channel:  make(map[common.Hash]*channel.Channel),
 		address2index:           make(map[common.Address]int),
 		index2address:           make(map[int]common.Address),
 		g:                       dijkstra.NewGraph(),
@@ -64,7 +64,7 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edgeList []common.
 		err := cg.AddChannel(d)
 		if err != nil {
 			log.Error(fmt.Sprintf("'Error at registering opened channel contract. Perhaps contract is invalid? err=%s, channeladdress=%s",
-				err, utils.APex(d.ChannelAddress)))
+				err, utils.HPex(d.ChannelIdentifier)))
 			cg.RemovePath(d.OurState.Address, d.PartenerState.Address)
 		}
 	}
@@ -163,10 +163,14 @@ func (cg *ChannelGraph) AddChannel(details *ChannelDetails) error {
 	if details.OurState.Address != cg.OurAddress {
 		return errors.New("Address mismatch, our_address doesn't match the channel details")
 	}
-	channelAddress := details.ChannelAddress
-	if ch := cg.GetChannelAddress2Channel(channelAddress); ch == nil {
+	channelIdentifier := &contracts.ChannelUniqueID{
+		ChannelIdentifier: details.ChannelIdentifier,
+		OpenBlockNumber:   details.OpenBlockNumber,
+	}
+	channelAddress := details.ChannelIdentifier
+	if ch := cg.GetChannelAddress2Channel(channelIdentifier.ChannelIdentifier); ch == nil {
 		ch, err := channel.NewChannel(details.OurState, details.PartenerState,
-			details.ExternState, cg.TokenAddress, channelAddress, details.BlockChainService,
+			details.ExternState, cg.TokenAddress, channelIdentifier,
 			details.RevealTimeout, details.SettleTimeout)
 		if err != nil {
 			return err
@@ -363,8 +367,8 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 		if nw.neighbor == previousAddress {
 			continue
 		}
-		if c.State() != transfer.ChannelStateOpened {
-			log.Debug(fmt.Sprintf("channel %s-%s is not opened ,ignoring ..", utils.APex(ourAddress), utils.APex(nw.neighbor)))
+		if !c.CanTransfer() {
+			log.Debug(fmt.Sprintf("channel %s-%s cannot transfer ,ignoring ..", utils.APex(ourAddress), utils.APex(nw.neighbor)))
 			continue
 		}
 		if amount.Cmp(c.Distributable()) > 0 {
@@ -409,7 +413,7 @@ func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *c
 }
 
 //GetChannelAddress2Channel return a channel by address,maybe nil if not exist
-func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Address) (c *channel.Channel) {
+func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Hash) (c *channel.Channel) {
 	c = cg.ChannelAddress2Channel[address]
 	return
 }
@@ -417,13 +421,7 @@ func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Address) (c *ch
 //Channel2RouteState create a routeState from a channel
 func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *transfer.RouteState {
 	return &transfer.RouteState{
-		State:          c.State(),
-		HopNode:        partenerAddress,
-		ChannelAddress: c.ChannelIdentifier,
-		AvaibleBalance: c.Distributable(),
-		SettleTimeout:  c.SettleTimeout,
-		RevealTimeout:  c.RevealTimeout,
-		ClosedBlock:    c.ExternState.ClosedBlock, //default is 0
-		Fee:            charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount),
+		Channel: c,
+		Fee:     charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount),
 	}
 }

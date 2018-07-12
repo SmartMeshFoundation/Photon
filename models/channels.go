@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -116,7 +117,7 @@ func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *cha
 
 //GetChannelList returns all related channels
 //one of token and partner must be empty
-func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channel.Serialization, err error) {
+func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
 	} else if token == utils.EmptyAddress {

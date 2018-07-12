@@ -17,7 +17,7 @@ type ChannelUniqueID struct {
 }
 
 func (c ChannelUniqueID) String() string {
-	return fmt.Sprintf("{Channel=%s,OpenBlockNumber=%d}",
+	return fmt.Sprintf("{ch=%s,OpenBlockNumber=%d}",
 		utils.HPex(c.ChannelIdentifier), c.OpenBlockNumber)
 }
 

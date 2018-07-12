@@ -189,13 +189,13 @@ func TestChannel(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	//if len(newaddrs) != 1 || newaddrs[0] != c.ChannelAddress {
+	//if len(newaddrs) != 1 || newaddrs[0] != c.ChannelIdentifier {
 	//	t.Error("new channel error")
 	//}
-	//if len(updateContractBalanceAddrs) != 1 || updateContractBalanceAddrs[0] != c.ChannelAddress {
+	//if len(updateContractBalanceAddrs) != 1 || updateContractBalanceAddrs[0] != c.ChannelIdentifier {
 	//	t.Error("new channel error")
 	//}
-	//if len(UpdateChannelStateAddrs) != 1 || UpdateChannelStateAddrs[0] != c.ChannelAddress {
+	//if len(UpdateChannelStateAddrs) != 1 || UpdateChannelStateAddrs[0] != c.ChannelIdentifier {
 	//	t.Error("new channel error")
 	//}
 }

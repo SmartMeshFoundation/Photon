@@ -20,6 +20,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -76,7 +77,6 @@ func mainctx(ctx *cli.Context) error {
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
 	registryAddress := deployContract(key, conn)
-	//registryAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
 	registry, err := contracts.NewTokenNetworkRegistry(registryAddress, conn)
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 }
 func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry) (tokenNetworkAddress common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := contractstest.DeployHumanStandardToken(auth, conn, big.NewInt(500000000000000000), 0, "test", "test symoble")
+	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(500000000000000000), 0, "test", "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}

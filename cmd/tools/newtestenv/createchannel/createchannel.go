@@ -75,7 +75,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	if err != nil {
 		log.Fatalf("failed to NewChannel when mining :%v", err)
 	}
-	channelID, _, _, _, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
 	log.Printf("create channel gas %s:%d,channel identifier=0x%s,tokennetworkaddress=%s\n", tx.Hash().String(), tx.Gas(), hex.EncodeToString(channelID[:]), tokenNetworkAddres.String())
 	fmt.Printf("NewChannel complete...\n")
 	//step 2 deopsit
@@ -95,7 +95,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.SetTotalDeposit(auth1, account1, account2, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth1, account1, account2, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Deposit1: %v", err)
 		}
@@ -120,7 +120,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.SetTotalDeposit(auth2, account2, account1, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth2, account2, account1, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Deposit2: %v", err)
 		}

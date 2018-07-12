@@ -18,7 +18,7 @@ type ChannelUniqueID struct {
 }
 
 func (c ChannelUniqueID) String() string {
-	return fmt.Sprintf("{tokenNetwork=%s,Channel=%s,OpenBlockNumber=%d}",
+	return fmt.Sprintf("{tokenNetwork=%s,ch=%s,OpenBlockNumber=%d}",
 		utils.APex2(c.TokenNetworkAddress), utils.HPex(c.ChannelIdentifier), c.OpenBlockNumber)
 }
 
