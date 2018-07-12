@@ -9,7 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -19,20 +19,21 @@ ActionInitInitiatorStateChange start a mediated transfer
  useful work, ie. there must /not/ be an event for requesting new data.
 */
 type ActionInitInitiatorStateChange struct {
-	OurAddress      common.Address        //This node address.
-	Tranfer         *LockedTransferState  //A state object containing the transfer details.
-	Routes          *transfer.RoutesState //The current available routes.
-	RandomGenerator utils.SecretGenerator //A generator for secrets.
-	BlockNumber     int64                 //The current block number.
-	Db              channeltype.Db        //get the latest channel state
+	OurAddress     common.Address       //This node address.
+	Tranfer        *LockedTransferState //A state object containing the transfer details.
+	Routes         *route.RoutesState   //The current available routes.
+	BlockNumber    int64                //The current block number.
+	Db             channeltype.Db       //get the latest channel state
+	LockSecretHash common.Hash
+	Secret         common.Hash
 }
 
 //ActionInitMediatorStateChange  Initial state for a new mediator.
 type ActionInitMediatorStateChange struct {
 	OurAddress  common.Address             //This node address.
 	FromTranfer *LockedTransferState       //The received MediatedTransfer.
-	Routes      *transfer.RoutesState      //The current available routes.
-	FromRoute   *transfer.RouteState       //The route from which the MediatedTransfer was received.
+	Routes      *route.RoutesState         //The current available routes.
+	FromRoute   *route.State               //The route from which the MediatedTransfer was received.
 	BlockNumber int64                      //The current block number.
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
 	Db          channeltype.Db             //get the latest channel state
@@ -42,7 +43,7 @@ type ActionInitMediatorStateChange struct {
 type ActionInitTargetStateChange struct {
 	OurAddress  common.Address       //This node address.
 	FromTranfer *LockedTransferState //The received MediatedTransfer.
-	FromRoute   *transfer.RouteState //The route from which the MediatedTransfer was received.
+	FromRoute   *route.State         //The route from which the MediatedTransfer was received.
 	BlockNumber int64
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
 	Db          channeltype.Db             //get the latest channel state
@@ -55,16 +56,15 @@ ActionCancelRouteStateChange Cancel the current route.
         timeouts.
 */
 type ActionCancelRouteStateChange struct {
-	Identifier uint64
+	LockSecretHash common.Hash
 }
 
 //ReceiveSecretRequestStateChange A SecretRequest message received.
 type ReceiveSecretRequestStateChange struct {
-	Identifier uint64
-	Amount     *big.Int
-	Hashlock   common.Hash
-	Sender     common.Address
-	Message    *encoding.SecretRequest //the message trigger this statechange
+	Amount         *big.Int
+	LockSecretHash common.Hash
+	Sender         common.Address
+	Message        *encoding.SecretRequest //the message trigger this statechange
 }
 
 //ReceiveSecretRevealStateChange A SecretReveal message received
@@ -83,28 +83,20 @@ type ReceiveTransferRefundStateChange struct {
 
 //ReceiveBalanceProofStateChange A balance proof `identifier` was received.
 type ReceiveBalanceProofStateChange struct {
-	Identifier   uint64
-	NodeAddress  common.Address
-	BalanceProof *transfer.BalanceProofState
-	Message      encoding.EnvelopMessager //the message trigger this statechange
+	LockSecretHash common.Hash
+	NodeAddress    common.Address
+	BalanceProof   *transfer.BalanceProofState
+	Message        encoding.EnvelopMessager //the message trigger this statechange
 }
 
 /*
-ContractSecretRevealStateChange A lock was withdrawn via the blockchain.
-
-    Used when a hash time lock was withdrawn and a log ChannelSecretRevealed is
-    emited by the netting channel.
-
-    Note:
-        For this state change the contract caller is not important but only the
-        receiving address. `receiver` is the address to which the lock's token
-        was transferred, this may be either of the channel participants.
-
-        If the channel was used for a mediated transfer that was refunded, this
-        event must be used twice, once for each receiver.
+密码在链上注册了
+1.诚实的节点在检查对方可以在链上unlock 这个锁的时候,应该主动发送unloc消息,移除此锁
+2.自己应该把密码保存在本地,然后在需要的时候链上兑现
 */
 type ContractSecretRevealStateChange struct {
-	Secret common.Hash
+	Secret      common.Hash
+	BlockNumber int64
 }
 
 type ContractReceiveChannelWithdrawStateChange struct {
@@ -114,43 +106,49 @@ type ContractReceiveChannelWithdrawStateChange struct {
 	Participant1Balance *big.Int
 	Participant2        common.Address
 	Participant2Balance *big.Int
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveClosedStateChange a channel was closed
 type ContractReceiveClosedStateChange struct {
-	ChannelAddress    *contracts.ChannelUniqueID
-	ClosingAddress    common.Address
-	ClosedBlock       int64 //block number when close
-	LocksRoot         common.Hash
-	TransferredAmount *big.Int
+	ChannelIdentifier   common.Hash
+	ClosingAddress      common.Address
+	ClosedBlock         int64 //block number when close
+	LocksRoot           common.Hash
+	TransferredAmount   *big.Int
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveSettledStateChange a channel was settled
 type ContractReceiveSettledStateChange struct {
-	ChannelAddress *contracts.ChannelUniqueID
-	SettledBlock   int64
+	ChannelIdentifier   common.Hash
+	SettledBlock        int64
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveCooperativeSettledStateChange a channel was cooperatively settled
 type ContractReceiveCooperativeSettledStateChange struct {
-	ChannelAddress *contracts.ChannelUniqueID
-	SettledBlock   int64
+	ChannelIdentifier   common.Hash
+	SettledBlock        int64
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveBalanceStateChange new deposit on channel
 type ContractReceiveBalanceStateChange struct {
-	ChannelAddress     *contracts.ChannelUniqueID
-	ParticipantAddress common.Address
-	Balance            *big.Int
-	BlockNumber        int64
+	ChannelIdentifier   common.Hash
+	ParticipantAddress  common.Address
+	Balance             *big.Int
+	BlockNumber         int64
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveNewChannelStateChange new channel created on block chain
 type ContractReceiveNewChannelStateChange struct {
-	ChannelAddress *contracts.ChannelUniqueID
-	Participant1   common.Address
-	Participant2   common.Address
-	SettleTimeout  int
+	ChannelIdentifier   *contracts.ChannelUniqueID
+	Participant1        common.Address
+	Participant2        common.Address
+	SettleTimeout       int
+	TokenNetworkAddress common.Address
 }
 
 //ContractReceiveTokenAddedStateChange a new token registered
@@ -162,10 +160,11 @@ type ContractReceiveTokenAddedStateChange struct {
 
 //ContractBalanceProofUpdatedStateChange contrct TransferUpdated event
 type ContractBalanceProofUpdatedStateChange struct {
-	ChannelAddress    *contracts.ChannelUniqueID
-	Participant       common.Address
-	LocksRoot         common.Hash
-	TransferredAmount *big.Int
+	ChannelIdentifier   common.Hash
+	Participant         common.Address
+	LocksRoot           common.Hash
+	TransferredAmount   *big.Int
+	TokenNetworkAddress common.Address
 }
 
 func init() {

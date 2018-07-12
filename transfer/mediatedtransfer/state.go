@@ -7,8 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -18,45 +17,45 @@ LockedTransferState is State of a transfer that is time hash locked.
     Args:
         identifier (int): A unique identifer for the transfer.
         amount (int): Amount of `token` being transferred.
-        token (address): TokenNetworkAddres being transferred.
+        token (address): Token being transferred.
         target (address): Transfer target address.
         expiration (int): The absolute block number that the lock expires.
         hashlock (bin): The hashlock.
         secret (bin): The secret that unlocks the lock, may be None.
 */
 type LockedTransferState struct {
-	TargetAmount       *big.Int       //amount target should recevied
-	Amount             *big.Int       // Amount of `token` being transferred.
-	TokenNetworkAddres common.Address //TokenNetworkAddres being transferred.
-	Initiator          common.Address //Transfer initiator
-	Target             common.Address //Transfer target address.
-	Expiration         int64          //The absolute block number that the lock expires.
-	Hashlock           common.Hash    // The hashlock.
-	Secret             common.Hash    //The secret that unlocks the lock, may be None.
-	Fee                *big.Int       // how much fee left for other hop node.
+	TargetAmount   *big.Int       //amount target should recevied
+	Amount         *big.Int       // Amount of `token` being transferred.
+	Token          common.Address //Token being transferred.
+	Initiator      common.Address //Transfer initiator
+	Target         common.Address //Transfer target address.
+	Expiration     int64          //The absolute block number that the lock expires.
+	LockSecretHash common.Hash    // The hashlock.
+	Secret         common.Hash    //The secret that unlocks the lock, may be None.
+	Fee            *big.Int       // how much fee left for other hop node.
 }
 
 //AlmostEqual if two state equals?
 func (l *LockedTransferState) AlmostEqual(other *LockedTransferState) bool {
 	//expiration maybe different
 	return l.TargetAmount.Cmp(other.TargetAmount) == 0 &&
-		l.TokenNetworkAddres == other.TokenNetworkAddres &&
+		l.Token == other.Token &&
 		l.Target == other.Target &&
-		l.Hashlock == other.Hashlock &&
+		l.LockSecretHash == other.LockSecretHash &&
 		l.Secret == other.Secret
 }
 
 //LockedTransferFromMessage Create LockedTransferState from a MediatedTransfer message.
-func LockedTransferFromMessage(msg *encoding.MediatedTransfer) *LockedTransferState {
+func LockedTransferFromMessage(msg *encoding.MediatedTransfer, tokenAddress common.Address) *LockedTransferState {
 	return &LockedTransferState{
-		TargetAmount:       new(big.Int).Sub(msg.PaymentAmount, msg.Fee),
-		Amount:             new(big.Int).Set(msg.PaymentAmount),
-		TokenNetworkAddres: msg.TokenAddress,
-		Initiator:          msg.Initiator,
-		Target:             msg.Target,
-		Expiration:         msg.Expiration,
-		Hashlock:           msg.LockSecretHash,
-		Fee:                msg.Fee,
+		TargetAmount:   new(big.Int).Sub(msg.PaymentAmount, msg.Fee),
+		Amount:         new(big.Int).Set(msg.PaymentAmount),
+		Initiator:      msg.Initiator,
+		Target:         msg.Target,
+		Expiration:     msg.Expiration,
+		LockSecretHash: msg.LockSecretHash,
+		Fee:            msg.Fee,
+		Token:          tokenAddress,
 	}
 }
 
@@ -71,13 +70,14 @@ InitiatorState is State of a node initiating a mediated transfer.
         random_generator (generator): A generator that yields valid secrets.
 */
 type InitiatorState struct {
-	OurAddress        common.Address             //This node address.
-	Transfer          *LockedTransferState       // The description of the mediated transfer.
-	Routes            *transfer.RoutesState      //Routes available for this transfer.
-	BlockNumber       int64                      //Latest known block number.
-	RandomGenerator   utils.SecretGenerator      //A generator that yields valid secrets.
+	OurAddress        common.Address       //This node address.
+	Transfer          *LockedTransferState // The description of the mediated transfer.
+	Routes            *route.RoutesState   //Routes available for this transfer.
+	BlockNumber       int64                //Latest known block number.
+	LockSecretHash    common.Hash
+	Secret            common.Hash
 	Message           *EventSendMediatedTransfer // current message in-transit todo this type?
-	Route             *transfer.RouteState       //current route being used
+	Route             *route.State               //current route being used
 	SecretRequest     *encoding.SecretRequest
 	RevealSecret      *EventSendRevealSecret
 	CanceledTransfers []*EventSendMediatedTransfer
@@ -94,10 +94,10 @@ MediatorState is State of a node mediating a transfer.
         hashlock (bin): The hashlock used for this transfer.
 */
 type MediatorState struct {
-	OurAddress  common.Address        //This node address.
-	Routes      *transfer.RoutesState //Routes available for this transfer.
-	BlockNumber int64                 //Latest known block number.
-	Hashlock    common.Hash           //  The hashlock used for this transfer.
+	OurAddress  common.Address     //This node address.
+	Routes      *route.RoutesState //Routes available for this transfer.
+	BlockNumber int64              //Latest known block number.
+	Hashlock    common.Hash        //  The hashlock used for this transfer.
 	Secret      common.Hash
 	/*
 			keeping all transfers in a single list byzantine behavior for secret
@@ -137,7 +137,7 @@ const StateWaitingClose = "waiting_close"
 //TargetState State of mediated transfer target.
 type TargetState struct {
 	OurAddress   common.Address
-	FromRoute    *transfer.RouteState
+	FromRoute    *route.State
 	FromTransfer *LockedTransferState
 	BlockNumber  int64
 	Secret       common.Hash
@@ -153,10 +153,10 @@ MediationPairState State for a mediated transfer.
     the payer and payee, and the current state of the payment.
 */
 type MediationPairState struct {
-	PayeeRoute    *transfer.RouteState
+	PayeeRoute    *route.State
 	PayeeTransfer *LockedTransferState
 	PayeeState    string
-	PayerRoute    *transfer.RouteState
+	PayerRoute    *route.State
 	PayerTransfer *LockedTransferState
 	PayerState    string
 }
@@ -250,7 +250,7 @@ NewMediationPairState create mediated state
            payee_transfer (LockedTransferState): The transfer this node *sent*
                that will be withdrawn by the payee.
 */
-func NewMediationPairState(payerRoute, payeeRoute *transfer.RouteState, payerTransfer, payeeTransfer *LockedTransferState) *MediationPairState {
+func NewMediationPairState(payerRoute, payeeRoute *route.State, payerTransfer, payeeTransfer *LockedTransferState) *MediationPairState {
 	return &MediationPairState{
 		PayerRoute:    payerRoute,
 		PayerTransfer: payerTransfer,

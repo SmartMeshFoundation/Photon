@@ -50,7 +50,7 @@ func makeTargetState(ouraddress common.Address, amount, blocknumber int64, initi
 	return state
 }
 
-//" Channel must be closed when the unsafe region is reached and the secret is known.
+//" ch must be closed when the unsafe region is reached and the secret is known.
 func TestEventsForClose(t *testing.T) {
 	var amount int64 = 3
 	var expire int64 = 10
@@ -75,11 +75,11 @@ func TestEventsForClose(t *testing.T) {
 	ev, ok := events[0].(*mediatedtransfer.EventContractSendChannelClose)
 	assert(t, ok, true)
 	assert(t, fromTransfer.Secret != utils.EmptyHash, true)
-	assert(t, ev.ChannelAddress, fromRoute.ChannelAddress)
+	assert(t, ev.ChannelIdentifier, fromRoute.ChannelAddress)
 }
 
 /*
-Channel must not be closed when the unsafe region is reached and the
+ch must not be closed when the unsafe region is reached and the
     secret is not known.
 */
 func TestEventsForCloseSecretUnkown(t *testing.T) {
@@ -124,7 +124,7 @@ func TestEventsForWithDraw(t *testing.T) {
 	assert(t, len(events) > 0, true)
 	ev, ok := events[0].(*mediatedtransfer.EventContractSendWithdraw)
 	assert(t, ok, true)
-	assert(t, ev.ChannelAddress, route.ChannelAddress)
+	assert(t, ev.ChannelIdentifier, route.ChannelAddress)
 }
 
 /*
@@ -143,9 +143,9 @@ func TestHandleInitTarget(t *testing.T) {
 	assert(t, len(it.Events) > 0, true)
 	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
-	assert(t, ev.Identifer, fromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, fromTransfer.Identifier)
 	assert(t, ev.Amount, fromTransfer.Amount)
-	assert(t, ev.Hashlock, fromTransfer.Hashlock)
+	assert(t, ev.Hashlock, fromTransfer.LockSecretHash)
 	assert(t, ev.Receiver, initiator)
 }
 
@@ -188,7 +188,7 @@ func TestHandleSecretReveal(t *testing.T) {
 	assert(t, len(it.Events), 1)
 	ev := it.Events[0].(*mediatedtransfer.EventSendRevealSecret)
 	assert(t, state.State, mediatedtransfer.StateRevealSecret)
-	assert(t, ev.Identifier, state.FromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, state.FromTransfer.Identifier)
 	assert(t, ev.Secret, secret)
 	assert(t, ev.Receiver, state.FromRoute.HopNode)
 	assert(t, ev.Sender, ourAddress)

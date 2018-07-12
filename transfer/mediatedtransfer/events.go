@@ -10,28 +10,27 @@ import (
 
 // EventSendMediatedTransfer A mediated transfer that must be sent to `node_address`.
 type EventSendMediatedTransfer struct {
-	Identifier uint64
-	Token      common.Address
-	Amount     *big.Int
-	HashLock   common.Hash
-	Initiator  common.Address
-	Target     common.Address
-	Expiration int64
-	Receiver   common.Address
-	Fee        *big.Int // target should get amount-fee.
+	Token          common.Address
+	Amount         *big.Int
+	LockSecretHash common.Hash
+	Initiator      common.Address
+	Target         common.Address
+	Expiration     int64
+	Receiver       common.Address
+	Fee            *big.Int // target should get amount-fee.
 }
 
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
 func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
 	return &EventSendMediatedTransfer{
-		Token:      transfer.TokenNetworkAddres,
-		Amount:     new(big.Int).Set(transfer.Amount),
-		HashLock:   transfer.Hashlock,
-		Initiator:  transfer.Initiator,
-		Target:     transfer.Target,
-		Expiration: transfer.Expiration,
-		Receiver:   receiver,
-		Fee:        transfer.Fee,
+		Token:          transfer.Token,
+		Amount:         new(big.Int).Set(transfer.Amount),
+		LockSecretHash: transfer.LockSecretHash,
+		Initiator:      transfer.Initiator,
+		Target:         transfer.Target,
+		Expiration:     transfer.Expiration,
+		Receiver:       receiver,
+		Fee:            transfer.Fee,
 	}
 }
 
@@ -65,11 +64,11 @@ EventSendRevealSecret Sends a RevealSecret to another node.
         update the balance.
 */
 type EventSendRevealSecret struct {
-	Identifier uint64
-	Secret     common.Hash
-	Token      common.Address
-	Receiver   common.Address
-	Sender     common.Address
+	LockSecretHash common.Hash
+	Secret         common.Hash
+	Token          common.Address
+	Receiver       common.Address
+	Sender         common.Address
 }
 
 /*
@@ -90,11 +89,11 @@ EventSendBalanceProof send a balance-proof to the counter-party, used after a lo
         updated by the receiver once a balance proof message is received.
 */
 type EventSendBalanceProof struct {
-	Identifier     uint64
-	ChannelAddress common.Address
-	Token          common.Address
-	Receiver       common.Address
-	Secret         common.Hash //Secret is not required for the balance proof to dispatch the message
+	LockSecretHash    common.Hash
+	ChannelIdentifier common.Hash
+	Token             common.Address
+	Receiver          common.Address
+	Secret            common.Hash //Secret is not required for the balance proof to dispatch the message
 }
 
 /*
@@ -102,10 +101,9 @@ EventSendSecretRequest used by a target node to request the secret from the init
     (`receiver`).
 */
 type EventSendSecretRequest struct {
-	Identifer uint64
-	Amount    *big.Int
-	Hashlock  common.Hash
-	Receiver  common.Address
+	LockSecretHash common.Hash
+	Amount         *big.Int
+	Receiver       common.Address
 }
 
 /*
@@ -116,16 +114,11 @@ EventSendRefundTransfer used to cleanly backtrack the current node in the route.
     of losing token.
 */
 type EventSendRefundTransfer struct {
-	Identifier   uint64
-	Token        common.Address
-	TargetAmount *big.Int
-	Amount       *big.Int
-	Fee          *big.Int
-	HashLock     common.Hash
-	Initiator    common.Address
-	Target       common.Address
-	Expiration   int64
-	Receiver     common.Address
+	Amount         *big.Int
+	LockSecretHash common.Hash
+	Expiration     int64
+	Token          common.Address
+	Receiver       common.Address
 }
 
 /*
@@ -135,8 +128,8 @@ EventContractSendChannelClose emitted to close the netting channel.
     on-chain.
 */
 type EventContractSendChannelClose struct {
-	ChannelAddress common.Address
-	Token          common.Address
+	ChannelIdentifier common.Hash
+	Token             common.Address
 }
 
 /*
@@ -146,14 +139,13 @@ channel 自己会关注是否要提现，但是如果是在关闭以后才获取
 
 //EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 type EventContractSendWithdraw struct {
-	Transfer       *LockedTransferState
-	ChannelAddress common.Address
+	Transfer          *LockedTransferState
+	ChannelIdentifier common.Hash
 }
 
 //EventUnlockSuccess emitted when a lock unlock succeded ,emit this event after receive a revealsecret message
 type EventUnlockSuccess struct {
-	Identifier uint64
-	Hashlock   common.Hash
+	LockSecretHash common.Hash
 }
 
 /*
@@ -163,16 +155,14 @@ type EventUnlockSuccess struct {
 
 //EventUnlockFailed emitted when a lock unlock failed.
 type EventUnlockFailed struct {
-	Identifier     uint64
-	Hashlock       common.Hash
-	ChannelAddress common.Address
-	Reason         string
+	LockSecretHash    common.Hash
+	ChannelIdentifier common.Hash
+	Reason            string
 }
 
 //EventWithdrawSuccess emitted when a lock withdraw succeded.
 type EventWithdrawSuccess struct {
-	Identifier uint64
-	Hashlock   common.Hash
+	LockSecretHash common.Hash
 }
 
 /*
@@ -182,10 +172,9 @@ type EventWithdrawSuccess struct {
 
 //EventWithdrawFailed emitted when a lock withdraw failed.
 type EventWithdrawFailed struct {
-	Identifier     uint64
-	Hashlock       common.Hash
-	ChannelAddress common.Address
-	Reason         string
+	LockSecretHash    common.Hash
+	ChannelIdentifier common.Hash
+	Reason            string
 }
 
 func init() {

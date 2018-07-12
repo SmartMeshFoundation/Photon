@@ -3,10 +3,11 @@ package target
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
@@ -23,13 +24,13 @@ Emits the event for closing the netting channel if from_transfer needs
 func eventsForClose(state *mediatedtransfer.TargetState) (events []transfer.Event) {
 	fromTransfer := state.FromTransfer
 	fromRoute := state.FromRoute
-	safeToWait := mediator.IsSafeToWait(fromTransfer, fromRoute.RevealTimeout, state.BlockNumber)
+	safeToWait := mediator.IsSafeToWait(fromTransfer, fromRoute.RevealTimeout(), state.BlockNumber)
 	secretKnown := fromTransfer.Secret != utils.EmptyHash
 	if !safeToWait && secretKnown {
 		state.State = mediatedtransfer.StateWaitingClose
 		channelClose := &mediatedtransfer.EventContractSendChannelClose{
-			ChannelAddress: fromRoute.ChannelAddress,
-			Token:          fromTransfer.TokenNetworkAddres,
+			ChannelIdentifier: fromRoute.ChannelIdentifier,
+			Token:             fromTransfer.Token,
 		}
 		events = append(events, channelClose)
 	}
@@ -37,28 +38,18 @@ func eventsForClose(state *mediatedtransfer.TargetState) (events []transfer.Even
 }
 
 //Withdraw from the from_channel if it is closed and the secret is known.
-func eventsForWithdraw(state *mediatedtransfer.TargetState, fromRoute *transfer.RouteState) (events []transfer.Event) {
+func eventsForWithdraw(state *mediatedtransfer.TargetState, fromRoute *route.State) (events []transfer.Event) {
 	fromTransfer := state.FromTransfer
-	if state.Db != nil {
-		ch, err := state.Db.GetChannelByAddress(fromRoute.ChannelAddress)
-		if err != nil {
-			log.Error(fmt.Sprintf("get channel %s from db err %s", utils.APex(fromRoute.ChannelAddress), err))
-		} else {
-			fromRoute.State = ch.State
-		}
-	} else {
-		log.Error(" db is nil can only be ignored when you are run testing...")
-	}
-	isChannelOpen := fromRoute.State == transfer.ChannelStateOpened
+	isChannelOpen := fromRoute.State() == channeltype.StateOpened
 	if !isChannelOpen && fromTransfer.Secret != utils.EmptyHash { //重复发送，直到取现成功？或者expired？
 		if state.Db != nil {
-			if state.Db.IsThisLockHasWithdraw(fromRoute.ChannelAddress, fromTransfer.Secret) {
+			if state.Db.IsThisLockHasWithdraw(fromRoute.ChannelIdentifier, fromTransfer.Secret) {
 				return
 			}
 		}
 		withdraw := &mediatedtransfer.EventContractSendWithdraw{
-			Transfer:       fromTransfer,
-			ChannelAddress: fromRoute.ChannelAddress,
+			Transfer:          fromTransfer,
+			ChannelIdentifier: fromRoute.ChannelIdentifier,
 		}
 		events = append(events, withdraw)
 	}
@@ -77,17 +68,16 @@ func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfe
 		BlockNumber:  blockNumber,
 		Db:           st.Db,
 	}
-	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout, blockNumber)
+	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout(), blockNumber)
 	/*
 			  if there is not enough time to safely withdraw the token on-chain
 		     silently let the transfer expire.
 	*/
 	if safeToWait {
 		secretRequest := &mediatedtransfer.EventSendSecretRequest{
-			Identifer: tr.Identifier,
-			Amount:    tr.Amount,
-			Hashlock:  tr.Hashlock,
-			Receiver:  tr.Initiator,
+			LockSecretHash: tr.LockSecretHash,
+			Amount:         tr.Amount,
+			Receiver:       tr.Initiator,
 		}
 		return &transfer.TransitionResult{
 			NewState: state,
@@ -103,7 +93,7 @@ func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfe
 
 // Validate and handle a ReceiveSecretReveal state change.
 func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveSecretRevealStateChange) (it *transfer.TransitionResult) {
-	validSecret := utils.Sha3(st.Secret[:]) == state.FromTransfer.Hashlock
+	validSecret := utils.Sha3(st.Secret[:]) == state.FromTransfer.LockSecretHash
 	var events []transfer.Event
 	if validSecret {
 		tr := state.FromTransfer
@@ -111,11 +101,11 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 		state.State = mediatedtransfer.StateRevealSecret
 		tr.Secret = st.Secret
 		reveal := &mediatedtransfer.EventSendRevealSecret{
-			Identifier: tr.Identifier,
-			Secret:     tr.Secret,
-			Token:      tr.TokenNetworkAddres,
-			Receiver:   route.HopNode,
-			Sender:     state.OurAddress,
+			LockSecretHash: tr.LockSecretHash,
+			Secret:         tr.Secret,
+			Token:          tr.Token,
+			Receiver:       route.HopNode(),
+			Sender:         state.OurAddress,
 		}
 		events = append(events, reveal)
 	} else {
@@ -134,7 +124,7 @@ func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfe
 		Events:   nil,
 	}
 	//TODO: byzantine behavior event when the sender doesn't match
-	if st.NodeAddress == state.FromRoute.HopNode {
+	if st.NodeAddress == state.FromRoute.HopNode() {
 		state.State = mediatedtransfer.StateBalanceProof
 	}
 	return
@@ -165,22 +155,6 @@ func handleBlock(state *mediatedtransfer.TargetState, st *transfer.BlockStateCha
 	return
 }
 
-func handleRouteChange(state *mediatedtransfer.TargetState, st *transfer.ActionRouteChangeStateChange) (it *transfer.TransitionResult) {
-	if st.Route.HopNode != state.FromRoute.HopNode {
-		panic("updated_route.node_address == state.from_route.node_address")
-	}
-	/*
-		the route might be closed by another task
-	*/
-	state.FromRoute = st.Route
-	withdrawEvents := eventsForWithdraw(state, state.FromRoute)
-	it = &transfer.TransitionResult{
-		NewState: state,
-		Events:   withdrawEvents,
-	}
-	return
-}
-
 //Clear the state if the transfer was either completed or failed
 func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.TransitionResult) {
 	if previt.NewState == nil {
@@ -193,10 +167,9 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 	it = previt
 	if state.FromTransfer.Secret == utils.EmptyHash && state.BlockNumber > state.FromTransfer.Expiration {
 		failed := &mediatedtransfer.EventWithdrawFailed{
-			Identifier:     state.FromTransfer.Identifier,
-			Hashlock:       state.FromTransfer.Hashlock,
-			ChannelAddress: state.FromRoute.ChannelAddress,
-			Reason:         "lock expired",
+			LockSecretHash:    state.FromTransfer.LockSecretHash,
+			ChannelIdentifier: state.FromRoute.ChannelIdentifier,
+			Reason:            "lock expired",
 		}
 		it = &transfer.TransitionResult{
 			NewState: nil,
@@ -205,14 +178,13 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 	} else if state.State == mediatedtransfer.StateBalanceProof {
 		//这些事件对应的处理都没有
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
-			Identifier:     state.FromTransfer.Identifier,
-			Amount:         state.FromTransfer.Amount,
-			Initiator:      state.FromTransfer.Initiator,
-			ChannelAddress: state.FromRoute.ChannelAddress,
+			LockSecretHash:    state.FromTransfer.LockSecretHash,
+			Amount:            state.FromTransfer.Amount,
+			Initiator:         state.FromTransfer.Initiator,
+			ChannelIdentifier: state.FromRoute.ChannelIdentifier,
 		}
 		unlockSuccess := &mediatedtransfer.EventWithdrawSuccess{
-			Identifier: state.FromTransfer.Identifier,
-			Hashlock:   state.FromTransfer.Hashlock,
+			LockSecretHash: state.FromTransfer.LockSecretHash,
 		}
 		it = &transfer.TransitionResult{
 			NewState: nil,
@@ -249,9 +221,6 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 			switch st2 := stateChange.(type) {
 			case *mediatedtransfer.ReceiveBalanceProofStateChange:
 				it = handleBalanceProof(state, st2)
-				//目前没用
-			case *transfer.ActionRouteChangeStateChange:
-				it = handleRouteChange(state, st2)
 			case *transfer.BlockStateChange:
 				it = handleBlock(state, st2)
 			}

@@ -19,15 +19,13 @@ ActionRouteChangeStateChange is A route change.
 
     State change used for:
         - when a new route is added.
-        - when the counter party is unresponsive (fails the healthcheck) and the
-          route cannot be used.
-        - when a different transfer uses the channel, changing the available
-          balance.
+	 我们不考虑路由已经建立以后新添加的通道,简化实现,
+至于通道状态的改变,我们本来用的就是 channel 本身,所以没什么问题
 */
-type ActionRouteChangeStateChange struct {
-	Route      *RouteState
-	Identifier uint64
-}
+//type ActionRouteChangeStateChange struct {
+//	Route      *RouteState
+//	LockSecretHash uint64
+//}
 
 /*
 ActionCancelTransferStateChange The user requests the transfer to be cancelled.
@@ -36,12 +34,11 @@ ActionCancelTransferStateChange The user requests the transfer to be cancelled.
     state of the transfer.
 */
 type ActionCancelTransferStateChange struct {
-	Identifier uint64
+	LockSecretHash common.Hash
 }
 
 //ActionTransferDirectStateChange send a direct transfer
 type ActionTransferDirectStateChange struct {
-	Identifier   uint64
 	Amount       *big.Int
 	TokenAddress common.Address
 	NodeAddress  common.Address
@@ -49,7 +46,6 @@ type ActionTransferDirectStateChange struct {
 
 //ReceiveTransferDirectStateChange receive a direct transfer
 type ReceiveTransferDirectStateChange struct {
-	Identifier   uint64
 	Amount       *big.Int
 	TokenAddress common.Address
 	Sender       common.Address
@@ -58,7 +54,6 @@ type ReceiveTransferDirectStateChange struct {
 
 func init() {
 	gob.Register(&BlockStateChange{})
-	gob.Register(&ActionRouteChangeStateChange{})
 	gob.Register(&ActionCancelTransferStateChange{})
 	gob.Register(&ActionTransferDirectStateChange{})
 	gob.Register(&ReceiveTransferDirectStateChange{})

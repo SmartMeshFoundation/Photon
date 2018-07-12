@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,37 +26,37 @@ var x = big.NewInt(0)
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
 }
-func makeInitStateChange(routes []*transfer.RouteState, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) *mediatedtransfer.ActionInitInitiatorStateChange {
+func makeInitStateChange(routes []*route.State, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, token common.Address) *mediatedtransfer.ActionInitInitiatorStateChange {
 	tr := &mediatedtransfer.LockedTransferState{
-		Identifier:         identifier,
-		Amount:             amount,
-		Initiator:          ourAddress,
-		Target:             target,
-		TokenNetworkAddres: token,
+		Amount:    amount,
+		Initiator: ourAddress,
+		Target:    target,
+		Token:     token,
 	}
 	initStateChange := &mediatedtransfer.ActionInitInitiatorStateChange{
-		OurAddress:      ourAddress,
-		Tranfer:         tr,
-		Routes:          transfer.NewRoutesState(routes),
-		RandomGenerator: utils.RandomSecretGenerator,
-		BlockNumber:     blocknumber,
+		OurAddress:  ourAddress,
+		Tranfer:     tr,
+		Routes:      route.NewRoutesState(routes),
+		BlockNumber: blocknumber,
 	}
+	initStateChange.Secret = utils.NewRandomHash()
+	initStateChange.LockSecretHash = utils.Sha3(initStateChange.Secret[:])
 	return initStateChange
 }
-func makeInitiatorState(routes []*transfer.RouteState, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, identifier uint64, token common.Address) (initState *mediatedtransfer.InitiatorState) {
-	initStateChange := makeInitStateChange(routes, target, amount, blocknumber, ourAddress, identifier, token)
+func makeInitiatorState(routes []*route.State, target common.Address, amount *big.Int, blocknumber int64, ourAddress common.Address, token common.Address) (initState *mediatedtransfer.InitiatorState) {
+	initStateChange := makeInitStateChange(routes, target, amount, blocknumber, ourAddress, token)
 	it := StateTransition(nil, initStateChange)
 	initState = it.NewState.(*mediatedtransfer.InitiatorState)
 	return initState
 }
 func TestNextRoute(t *testing.T) {
 	target := utest.HOP1
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(utest.HOP2, utest.UnitTransferAmount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP3, x.Sub(utest.UnitTransferAmount, big.NewInt(1)), utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP4, utest.UnitTransferAmount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	state := makeInitiatorState(routes, target, utest.UnitTransferAmount, 0, utest.ADDR, 0, utest.UnitTokenAddress)
+	state := makeInitiatorState(routes, target, utest.UnitTransferAmount, 0, utest.ADDR, utest.UnitTokenAddress)
 	assert(t, state.Route, routes[0])
 	assert(t, state.Routes.AvailableRoutes, routes[1:])
 	assert(t, state.Routes.IgnoredRoutes == nil, true)
@@ -83,10 +84,10 @@ func TestInitWithUsableRoutes(t *testing.T) {
 	mediatorAddress := utest.HOP1
 	targetAddress := utest.HOP2
 	ourAddrses := utest.ADDR
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	initStateChange := makeInitStateChange(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddrses, 0, utest.UnitTokenAddress)
+	initStateChange := makeInitStateChange(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddrses, utest.UnitTokenAddress)
 	expiration := blockNumber + int64(utest.Hop1Timeout)
 	initiatorStateMachine := transfer.NewStateManager(StateTransition, nil, NameInitiatorTransition, 3, utils.NewRandomAddress())
 	assert(t, initiatorStateMachine.CurrentState, nil)
@@ -96,7 +97,7 @@ func TestInitWithUsableRoutes(t *testing.T) {
 	tr := initiatorState.Transfer
 	assert(t, tr.Amount, amount)
 	assert(t, tr.Target, targetAddress)
-	assert(t, tr.Hashlock, utils.Sha3(tr.Secret[:]))
+	assert(t, tr.LockSecretHash, utils.Sha3(tr.Secret[:]))
 	assert(t, len(events) > 0, true)
 
 	var mtrs []*mediatedtransfer.EventSendMediatedTransfer
@@ -111,7 +112,7 @@ func TestInitWithUsableRoutes(t *testing.T) {
 	assert(t, mtr.Token, utest.UnitTokenAddress)
 	assert(t, mtr.Amount, amount, "transfer amount mismatch")
 	assert(t, mtr.Expiration, expiration, "transfer expiration mismatch")
-	assert(t, mtr.HashLock != utils.EmptyHash, true)
+	assert(t, mtr.LockSecretHash != utils.EmptyHash, true)
 	assert(t, mtr.Receiver, mediatorAddress)
 	assert(t, initiatorState.Route, routes[0])
 	assert(t, len(initiatorState.Routes.AvailableRoutes), 0)
@@ -124,8 +125,8 @@ func TestInitWithoutRoutes(t *testing.T) {
 	blockNumber := utest.UnitBlockNumber
 	targetAddress := utest.HOP2
 	ourAddrses := utest.ADDR
-	routes := []*transfer.RouteState{}
-	initStateChange := makeInitStateChange(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddrses, 0, utest.UnitTokenAddress)
+	routes := []*route.State{}
+	initStateChange := makeInitStateChange(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddrses, utest.UnitTokenAddress)
 	initiatorStateMachine := transfer.NewStateManager(StateTransition, nil, NameInitiatorTransition, 3, utils.NewRandomAddress())
 	assert(t, initiatorStateMachine.CurrentState, nil)
 	events := initiatorStateMachine.Dispatch(initStateChange)
@@ -137,23 +138,21 @@ func TestInitWithoutRoutes(t *testing.T) {
 }
 
 func TestStateWaitSecretRequestValid(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
 	targetAddress := utest.HOP2
 	ourAddress := utest.ADDR
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, utest.UnitTokenAddress)
-	hashlock := currentState.Transfer.Hashlock
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, utest.UnitTokenAddress)
+	hashlock := currentState.Transfer.LockSecretHash
 	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
-		Identifier: identifier,
-		Amount:     amount,
-		Hashlock:   hashlock,
-		Sender:     targetAddress,
+		Amount:         amount,
+		LockSecretHash: hashlock,
+		Sender:         targetAddress,
 	}
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, 3, utils.NewRandomAddress())
 	events := sm.Dispatch(stateChange)
@@ -162,7 +161,6 @@ func TestStateWaitSecretRequestValid(t *testing.T) {
 	assert(t, ok, true)
 }
 func TestStateWaitUnlockValid(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -170,20 +168,19 @@ func TestStateWaitUnlockValid(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	secret := currentState.Transfer.Secret
 	assert(t, secret != utils.EmptyHash, true)
 
 	//setup the state for the wait unlock
 	currentState.RevealSecret = &mediatedtransfer.EventSendRevealSecret{
-		Identifier: identifier,
-		Secret:     secret,
-		Token:      token,
-		Receiver:   targetAddress,
-		Sender:     ourAddress,
+		Secret:   secret,
+		Token:    token,
+		Receiver: targetAddress,
+		Sender:   ourAddress,
 	}
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, 3, utils.NewRandomAddress())
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{
@@ -210,12 +207,10 @@ func TestStateWaitUnlockValid(t *testing.T) {
 	assert(t, EventUnlockSuccess != nil, true)
 
 	assert(t, EventSendBalanceProof.Receiver, mediatorAddress)
-	assert(t, EventTransferSentSuccess.Identifier, identifier)
 	assert(t, sm.CurrentState, nil, "state must be cleaned")
 }
 
 func TestStateWaitUnlockInvalid(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -223,20 +218,20 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	secret := currentState.Transfer.Secret
 	assert(t, secret != utils.EmptyHash, true)
 
 	//setup the state for the wait unlock
 	currentState.RevealSecret = &mediatedtransfer.EventSendRevealSecret{
-		Identifier: identifier,
-		Secret:     secret,
-		Token:      token,
-		Receiver:   targetAddress,
-		Sender:     ourAddress,
+		LockSecretHash: currentState.LockSecretHash,
+		Secret:         secret,
+		Token:          token,
+		Receiver:       targetAddress,
+		Sender:         ourAddress,
 	}
 	var beforeState mediatedtransfer.InitiatorState
 	utils.DeepCopy(&beforeState, currentState)
@@ -253,7 +248,6 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 	assertStateEqual(t, currentState, &beforeState)
 }
 func TestRefundTransferNextRoute(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -261,12 +255,12 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
-	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, identifier, utest.UnitTokenAddress)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
+	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
 		Sender:   mediatorAddress,
 		Transfer: tr,
@@ -283,7 +277,6 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	assert(t, currentState.Routes.CanceledRoutes[0], priorState.Route)
 }
 func TestRefundTransferNoMoreRoutes(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -291,11 +284,11 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
-	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, identifier, utest.UnitTokenAddress)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
+	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
 		Sender:   mediatorAddress,
 		Transfer: tr,
@@ -309,7 +302,6 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	assert(t, sm.CurrentState == nil, true)
 }
 func TestRefundTransferInvalidSender(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -317,12 +309,12 @@ func TestRefundTransferInvalidSender(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
-	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, identifier, utest.UnitTokenAddress)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
+	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
 		Sender:   ourAddress,
 		Transfer: tr,
@@ -338,7 +330,6 @@ func TestRefundTransferInvalidSender(t *testing.T) {
 }
 
 func TestCancelTransfer(t *testing.T) {
-	identifier := utest.UnitIdentifier
 	amount := utest.UnitTransferAmount
 	blockNumber := utest.UnitBlockNumber
 	mediatorAddress := utest.HOP1
@@ -346,14 +337,14 @@ func TestCancelTransfer(t *testing.T) {
 	ourAddress := utest.ADDR
 	token := utest.UnitTokenAddress
 
-	routes := []*transfer.RouteState{
+	routes := []*route.State{
 		utest.MakeRoute(mediatorAddress, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 		utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress()),
 	}
-	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, identifier, token)
+	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 
 	stateChange := &transfer.ActionCancelTransferStateChange{
-		Identifier: identifier,
+		LockSecretHash: currentState.LockSecretHash,
 	}
 
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, 3, utils.NewRandomAddress())
