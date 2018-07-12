@@ -10,6 +10,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -79,4 +80,9 @@ func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
 	return rp
+}
+
+func SubscribeNeighbor(p *RaidenProtocol, addr common.Address) error {
+	xt := p.Transport.(*XMPPTransport)
+	return xt.conn.SubscribeNeighbour(addr)
 }

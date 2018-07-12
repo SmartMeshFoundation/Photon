@@ -130,7 +130,7 @@ func (bcs *BlockChainService) nextBlock() (currentBlock *big.Int, err error) {
 	return
 }
 
-// TokenNetworkAddres return a proxy to interact with a token.
+// Token return a proxy to interact with a token.
 func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy) {
 	_, ok := bcs.addressTokens[tokenAddress]
 	if !ok {
@@ -259,7 +259,7 @@ func (t *TokenNetworkProxy) NewChannel(partnerAddress common.Address, settleTime
 /*GetChannelInfo Returns the channel specific data.
 @param participant1 Address of one of the channel participants.
 @param participant2 Address of the other channel participant.
-@return Channel state and settle_block_number.
+@return ch state and settle_block_number.
 if state is 1, settleBlockNumber is settle timeout, if state is 2,settleBlockNumber is the min block number ,settle can be called.
 */
 func (t *TokenNetworkProxy) GetChannelInfo(participant1, participant2 common.Address) (channelID common.Hash, settleBlockNumber, openBlockNumber uint64, state uint8, settleTimeout uint64, err error) {

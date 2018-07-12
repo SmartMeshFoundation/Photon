@@ -55,6 +55,21 @@ func TestNewMixTransport(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	err = m1.xmpp.conn.SubscribeNeighbour(m2.xmpp.NodeAddress)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = m1.xmpp.conn.SubscribeNeighbour(m3.xmpp.NodeAddress)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = m3.xmpp.conn.SubscribeNeighbour(m1.xmpp.NodeAddress)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	deviceType, isOnline := m1.NodeStatus(m2.xmpp.NodeAddress)
 	if !isOnline || deviceType != DeviceTypeOther {
 		t.Error("type error")

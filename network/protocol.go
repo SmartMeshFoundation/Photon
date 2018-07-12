@@ -49,12 +49,6 @@ type SentMessageState struct {
 	Data     []byte            //packed message
 }
 
-//NodesStatusGetter for route service
-type NodesStatusGetter interface {
-	//GetNetworkStatus return addr's status
-	GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool)
-}
-
 //PingSender do send ping task
 type PingSender interface {
 	//SendPing send a ping to receiver,and not block
@@ -189,14 +183,13 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 }
 
 /*
-message mediatedTransfer and refundTransfer can safely be discarded when expired.
+message mediatedTransfer  can safely be discarded when expired.
+如果丢弃,意味着通道状态将不再同步,通道只能关闭,无法起作用了.
 */
 func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	var expired int64
 	switch msg2 := msg.(type) {
 	case *encoding.MediatedTransfer:
-		expired = msg2.Expiration
-	case *encoding.AnnounceDisposed:
 		expired = msg2.Expiration
 	}
 	if expired > 0 && expired <= p.BlockNumberGetter.GetBlockNumber() {
@@ -204,7 +197,7 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	}
 	return true
 }
-func (p *RaidenProtocol) getChannelQueue(receiver, channelAddr common.Address) chan<- *SentMessageState {
+func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr common.Hash) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
@@ -216,7 +209,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver, channelAddr common.Address) c
 		if  channel address is not nil,it must contain a new balance proof.
 		balance proof must be sent ordered
 	*/
-	if channelAddr == utils.EmptyAddress {
+	if channelAddr == utils.EmptyHash {
 		sendingChan = make(chan *SentMessageState, 1) //should not block sender
 	} else {
 		sendingChan, ok = p.sendingQueueMap[key]
@@ -285,29 +278,20 @@ func (p *RaidenProtocol) getChannelQueue(receiver, channelAddr common.Address) c
 	}()
 	return sendingChan
 }
-func getMessageTokenAddress(msg encoding.Messager) common.Address {
-	var tokenAddress common.Address
+
+func getMessageChannelAddress(msg encoding.Messager) common.Hash {
+	var channelAddress common.Hash
 	switch msg2 := msg.(type) {
 	case *encoding.DirectTransfer:
-		tokenAddress = msg2.Token
+		channelAddress = msg2.ChannelIdentifier
 	case *encoding.MediatedTransfer:
-		tokenAddress = msg2.Token
-	case *encoding.AnnounceDisposed:
-		tokenAddress = msg2.Token
-	}
-	return tokenAddress
-}
-func getMessageChannelAddress(msg encoding.Messager) common.Address {
-	var channelAddress common.Address
-	switch msg2 := msg.(type) {
-	case *encoding.DirectTransfer:
-		channelAddress = msg2.Channel
-	case *encoding.MediatedTransfer:
-		channelAddress = msg2.Channel
-	case *encoding.AnnounceDisposed:
-		channelAddress = msg2.Channel
+		channelAddress = msg2.ChannelIdentifier
+	case *encoding.AnnounceDisposedResponse:
+		channelAddress = msg2.ChannelIdentifier
 	case *encoding.UnLock:
-		channelAddress = msg2.Channel
+		channelAddress = msg2.ChannelIdentifier
+	case *encoding.RemoveExpiredHashlockTransfer:
+		channelAddress = msg2.ChannelIdentifier
 	}
 	return channelAddress
 }
@@ -317,10 +301,10 @@ msg should be signed.
 msg must be sent success.
 */
 func (p *RaidenProtocol) sendWithResult(receiver common.Address,
-	msg encoding.Messager) (result *AsyncResult) {
+	msg encoding.Messager) (result *utils.AsyncResult) {
 	//no more message...
 	if p.onStop {
-		return NewAsyncResult()
+		return utils.NewAsyncResult()
 	}
 	if true {
 		signed, ok := msg.(encoding.SignedMessager)
@@ -340,7 +324,7 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	}
 	p.log.Debug(fmt.Sprintf("send msg=%s to=%s,expected hash=%s", encoding.MessageType(msg.Cmd()), utils.APex2(receiver), utils.HPex(echohash)))
 	msgState = &SentMessageState{
-		AsyncResult:     NewAsyncResult(),
+		AsyncResult:     utils.NewAsyncResult(),
 		ReceiverAddress: receiver,
 		AckChannel:      make(chan error, 1),
 		Message:         msg,
@@ -372,7 +356,7 @@ func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messa
 }
 
 //SendAsync send a message asynchronize ,notify by `AsyncResult`
-func (p *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *AsyncResult {
+func (p *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *utils.AsyncResult {
 	return p.sendWithResult(receiver, msg)
 }
 

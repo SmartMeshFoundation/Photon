@@ -1,4 +1,4 @@
-package network
+package graph
 
 import (
 	"errors"
@@ -16,10 +16,17 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/dijkstra"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+//NodesStatusGetter for route service
+type NodesStatusGetter interface {
+	//GetNetworkStatus return addr's status
+	GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool)
+}
 
 /*
 ChannelDetails represents all channel info
@@ -344,7 +351,7 @@ func (cg *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Addre
 GetBestRoutes returns all neighbor nodes order by weight from it to target.
 */
 func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
-	targetAdress common.Address, amount *big.Int, previousAddress common.Address, feeCharger fee.Charger) (onlineNodes []*transfer.RouteState) {
+	targetAdress common.Address, amount *big.Int, previousAddress common.Address, feeCharger fee.Charger) (onlineNodes []*route.State) {
 	/*
 
 	   XXX: consider using multiple channels for a single transfer. Useful
@@ -376,7 +383,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			continue
 		}
 		deviceType, isOnline := nodesStatus.GetNetworkStatus(nw.neighbor)
-		if !isOnline || (deviceType == DeviceTypeMobile && nw.neighbor != targetAdress) {
+		if !isOnline || (deviceType == xmpptransport.TypeMobile && nw.neighbor != targetAdress) {
 			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}
@@ -419,8 +426,8 @@ func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Hash) (c *chann
 }
 
 //Channel2RouteState create a routeState from a channel
-func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *transfer.RouteState {
-	return &transfer.RouteState{
+func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *route.State {
+	return &route.State{
 		Channel: c,
 		Fee:     charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount),
 	}

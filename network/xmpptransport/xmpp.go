@@ -11,12 +11,11 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-xmpp"
@@ -96,7 +95,7 @@ type XMPPConnection struct {
 	dataHandler    DataHandler
 	name           string
 	nodesStatus    map[string]*NodeStatus
-	db             *models.ModelDB
+	db             XMPPDb
 	hasSubscribed  bool                   //是否初始化过订阅信息
 	addrMap        map[common.Address]int //addr neighbor count
 }
@@ -470,8 +469,20 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 	return nil
 }
 
+/*
+解耦 db 依赖
+*/
+type XMPPDb interface {
+	XMPPIsAddrSubed(addr common.Address) bool
+	XMPPMarkAddrSubed(addr common.Address)
+	GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error)
+	RegisterNewChannellCallback(f cb.ChannelCb)
+	RegisterChannelStateCallback(f cb.ChannelCb)
+	XMPPUnMarkAddr(addr common.Address)
+}
+
 //CollectNeighbors subscribe status change from database
-func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
+func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 	x.db = db
 	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
@@ -479,7 +490,7 @@ func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 		return err
 	}
 	for _, c := range cs {
-		if c.State == transfer.ChannelStateOpened {
+		if c.State == channeltype.StateOpened {
 			x.addrMap[c.PartnerAddress]++
 		}
 	}
@@ -489,7 +500,7 @@ func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 			db.XMPPMarkAddrSubed(addr)
 		}
 	}
-	db.RegisterNewChannellCallback(func(c *channel.Serialization) (remove bool) {
+	db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
 		if x.status == netshare.Closed {
 			return true
 		}
@@ -501,11 +512,11 @@ func (x *XMPPConnection) CollectNeighbors(db *models.ModelDB) error {
 		}
 		return false
 	})
-	db.RegisterChannelStateCallback(func(c *channel.Serialization) (remove bool) {
+	db.RegisterChannelStateCallback(func(c *channeltype.Serialization) (remove bool) {
 		if x.status == netshare.Closed {
 			return true
 		}
-		if c.State == transfer.ChannelStateSettled {
+		if c.State == channeltype.StateSettled {
 			x.addrMap[c.PartnerAddress]--
 			if x.addrMap[c.PartnerAddress] <= 0 {
 				err = x.Unsubscribe(c.PartnerAddress)

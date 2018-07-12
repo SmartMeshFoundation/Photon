@@ -9,8 +9,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -118,7 +118,7 @@ func (t *MixTransporter) GetNotify() (notify <-chan netshare.Status, err error) 
 }
 
 //SubscribeNeighbor get the status change notification of partner node
-func (t *MixTransporter) SubscribeNeighbor(db *models.ModelDB) error {
+func (t *MixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 	if t.xmpp.conn == nil {
 		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
 	}
