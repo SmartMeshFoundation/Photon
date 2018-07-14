@@ -345,7 +345,7 @@ contract TokenNetwork is Utils {
         require(participant2_balance <= total_deposit);
         require((participant1_balance + participant2_balance) == total_deposit);
         /*
-        谨慎一点,应该先扣钱再转账, ERC20TOKEN 可能是一个以太坊 Wrapper. 否则这就是一个 the dao 攻击
+        谨慎一点,应该先扣钱再转账,尽量按照规范来,如果有的话.
         */
         require(participant1_withdraw <= participant1_balance);
         require(participant2_withdraw <= participant2_balance);
