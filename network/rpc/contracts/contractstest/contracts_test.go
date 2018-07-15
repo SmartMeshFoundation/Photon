@@ -72,7 +72,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokenNetworkAddress = common.HexToAddress("0x874d03de0c44334d58f54590fc22823256d8adc1")
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKENNETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -114,6 +114,7 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 	if err != nil {
 		return fmt.Errorf("failed to suggest gas price: %v", err)
 	}
+	log.Info(fmt.Sprintf("gasLimit=%d,gasPrice=%s", gasLimit, gasPrice.String()))
 	rawTx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
 	// Create the transaction, sign it and schedule it for execution
 
@@ -149,7 +150,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1 *ecdsa.Priv
 		return fmt.Errorf("failed to NewChannel when mining :%v", err)
 	}
 	log.Info(fmt.Sprintf("OpenChannel gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	channelID, settleBlock, _, state, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
+	channelID, _, _, state, settleBlock, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
 	if err != nil {
 		return fmt.Errorf("GetChannelInfo %s-%s err %s", utils.APex2(account1), utils.APex2(account2), err)
 	}
@@ -161,7 +162,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1 *ecdsa.Priv
 	if state != 1 {
 		return fmt.Errorf("")
 	}
-	tx, err = tokenNetwork.SetTotalDeposit(auth1, account1, account2, big.NewInt(amount))
+	tx, err = tokenNetwork.Deposit(auth1, account1, account2, big.NewInt(amount))
 	if err != nil {
 		return fmt.Errorf("Failed to Deposit1: %v", err)
 
@@ -174,7 +175,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1 *ecdsa.Priv
 	}
 	log.Info("Deposit1 complete...\n")
 
-	tx, err = tokenNetwork.SetTotalDeposit(auth1, account2, account1, big.NewInt(amount))
+	tx, err = tokenNetwork.Deposit(auth1, account2, account1, big.NewInt(amount))
 	if err != nil {
 		return fmt.Errorf("Failed to Deposit2: %v", err)
 
@@ -204,7 +205,7 @@ func creatAChannelAndDeposit2(account1, account2 common.Address, key1 *ecdsa.Pri
 		return fmt.Errorf("failed to NewChannel when mining :%v", err)
 	}
 	log.Info(fmt.Sprintf("OpenChannelWithDeposit gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	channelID, settleBlock, _, state, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
+	channelID, _, _, state, settleBlock, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
 	if err != nil {
 		return fmt.Errorf("GetChannelInfo %s-%s err %s", utils.APex2(account1), utils.APex2(account2), err)
 	}
@@ -216,7 +217,7 @@ func creatAChannelAndDeposit2(account1, account2 common.Address, key1 *ecdsa.Pri
 	if state != 1 {
 		return fmt.Errorf("")
 	}
-	tx, err = tokenNetwork.SetTotalDeposit(auth1, account2, account1, big.NewInt(amount))
+	tx, err = tokenNetwork.Deposit(auth1, account2, account1, big.NewInt(amount))
 	if err != nil {
 		return fmt.Errorf("Failed to Deposit2: %v", err)
 
@@ -271,7 +272,7 @@ func getTestOpenChannel(t *testing.T) (channelID contracts.ChannelIdentifier, pa
 		t.Error(err)
 		return
 	}
-	channelID, settleBlockNumber, openBlockNumber, state, err = tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, settleBlockNumber, openBlockNumber, state, _, err = tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -299,7 +300,7 @@ func TestOpenChannel2(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	channelID, settleBlockNumber, _, state, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, settleBlockNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -376,15 +377,6 @@ func createPartnerBalanceProof(key *ecdsa.PrivateKey, channelID contracts.Channe
 	return bp
 }
 
-func encodingLocks(locks []*mtree.Lock) []byte {
-	buf := new(bytes.Buffer)
-	for _, l := range locks {
-		buf.Write(utils.BigIntTo32Bytes(big.NewInt(l.Expiration)))
-		buf.Write(utils.BigIntTo32Bytes(l.Amount))
-		buf.Write(l.LockSecretHash[:])
-	}
-	return buf.Bytes()
-}
 func createPartnerBalanceProofWithLocks(key *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofForContract, locks []*mtree.Lock, secrets []common.Hash) {
 	for i := 0; i < lockNumber; i++ {
 		secret := utils.Sha3([]byte(utils.RandomString(10)))
@@ -435,7 +427,7 @@ func TestCloseChannel2(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	channelID, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -514,34 +506,10 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		t.Errorf("receipient err ,r=%s", r)
 		return
 	}
-	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
-	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
-		auth.From.String(),
-		partnerAddr.String(),
-		bp2.TransferAmount.String(),
-		bp2.LocksRoot.String(),
-		bp2.Nonce,
-		utils.BigInt0, utils.EmptyHash.String(), utils.BigInt0,
-		bp2.AdditionalHash.String(),
-		hex.EncodeToString(bp2.Signature),
-		hex.EncodeToString(bp2.NonClosingSignature),
-	))
-	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	r, err = bind.WaitMined(context.Background(), client, tx)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
-		return
-	}
-	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	_, blokNumber, _, state, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	/*
+	   updatebalanceproof delegate 只能在结算时间的后半段
+	*/
+	_, settleBlockNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -557,7 +525,49 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		if h.Number.Int64() > int64(blokNumber+punishBlockNumber) {
+		if h.Number.Int64() >= int64(settleBlockNumber-uint64(settleTimeout)/2) {
+			//could updatebalance proof
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
+	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
+		auth.From.String(),
+		partnerAddr.String(),
+		bp2.TransferAmount.String(),
+		bp2.LocksRoot.String(),
+		bp2.Nonce,
+		utils.BigInt0, utils.EmptyHash.String(), utils.BigInt0,
+		bp2.AdditionalHash.String(),
+		hex.EncodeToString(bp2.Signature),
+		hex.EncodeToString(bp2.NonClosingSignature),
+	))
+
+	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	r, err = bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
+
+	for {
+		var h *types.Header
+		h, err = client.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if h.Number.Int64() > int64(settleBlockNumber+punishBlockNumber) {
 			//could settle
 			break
 		}
@@ -652,7 +662,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProof gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	_, blokNumber, _, state, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -838,7 +848,7 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	expiredBlock := h.Number.Int64() + 40
-	channelID, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -908,7 +918,7 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProof successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
-	_, blokNumber, _, state, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -917,10 +927,20 @@ func TestUnlock(t *testing.T) {
 		t.Errorf("channel state err expect=%d,got=%d", contracts.ChannelStateClosed, state)
 		return
 	}
-	lockbytes := encodingLocks(locks)
-	log.Info(fmt.Sprintf("unlockarg,partnerAddr=%s,part2=%s,locks=%s", partnerAddr.String(),
-		auth.From.String(), hex.EncodeToString(lockbytes)))
-	tx, err = tokenNetwork.Unlock(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, lockbytes)
+	mp := mtree.NewMerkleTree(locks)
+	lock := locks[0]
+	proof := mp.MakeProof(lock.Hash())
+	log.Info(fmt.Sprintf("unlockarg,partnerAddr=%s,part2=%s,lock=%s,merkle_proof=%s", partnerAddr.String(),
+		auth.From.String(), locks[0], hex.EncodeToString(mtree.Proof2Bytes(proof))))
+	tx, err = tokenNetwork.Unlock(
+		partnerAuth,
+		auth.From,
+		bp2.TransferAmount,
+		big.NewInt(lock.Expiration),
+		lock.Amount,
+		lock.LockSecretHash,
+		mtree.Proof2Bytes(proof),
+	)
 	if err != nil {
 		t.Error(err)
 		return
@@ -962,7 +982,7 @@ func TestUnlock(t *testing.T) {
 		bp.LocksRoot,
 		auth.From,
 		//要用更新后的 transfer amount 了.
-		bp2.TransferAmount.Add(bp2.TransferAmount, big.NewInt(int64(maxLocks))),
+		bp2.TransferAmount.Add(bp2.TransferAmount, big.NewInt(int64(1))),
 		bp2.LocksRoot,
 	)
 	if err != nil {
@@ -1130,6 +1150,33 @@ func TestSignature(t *testing.T) {
 	log.Trace(fmt.Sprintf("from=%s,sig=%s", auth.From.String(), hex.EncodeToString(sig)))
 }
 
+type unlockDelegateForContract struct {
+	Agent             common.Address
+	Expiraition       int64
+	Amount            *big.Int
+	SecretHash        common.Hash
+	ChannelIdentifier contracts.ChannelIdentifier
+	OpenBlockNumber   uint64
+	MerkleProof       []byte
+}
+
+func (u *unlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
+	buf := new(bytes.Buffer)
+	buf.Write(u.Agent[:])
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
+	buf.Write(utils.BigIntTo32Bytes(u.Amount))
+	buf.Write(u.SecretHash[:])
+	buf.Write(u.ChannelIdentifier[:])
+	binary.Write(buf, binary.BigEndian, u.OpenBlockNumber)
+	//buf.Write(u.MerkleProof)
+	buf.Write(utils.BigIntTo32Bytes(ChainID))
+	sig, err := utils.SignData(key, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	return sig
+}
+
 type ObseleteUnlockForContract struct {
 	ChannelIdentifier            contracts.ChannelIdentifier
 	BeneficiaryAddress           common.Address
@@ -1175,6 +1222,11 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(params.Ether))
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	log.Info(fmt.Sprintf("before settle partner balance=%s", partnerBalance))
 	secretRegistAddress, err := tokenNetwork.Secret_registry(nil)
 	if err != nil {
@@ -1207,6 +1259,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("close channel successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
+
 	//锁最多是2两个,三个就会失败
 	bp2, locks, secrets := NewBalanceProofUpdateForContractsWithLocks(TestPrivKey, partnerKey, channelID, totalLockNumber, expiredBlock)
 	//注册密码
@@ -1232,7 +1285,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 	}
 	log.Info(fmt.Sprintf("locksroot=%s", bp2.LocksRoot.String()))
 	//提交对方的证据
-	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
+	tx, err = tokenNetwork.UpdateBalanceProof(bind.NewKeyedTransactor(partnerKey), auth.From, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1247,8 +1300,57 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
+	/*
+			unlock delegate
+		只解锁第一个锁
+	*/
+	lock := locks[0]
 	m := mtree.NewMerkleTree(locks)
-	lockhash := calcLockHash(locks[0])
+	uf := &unlockDelegateForContract{
+		Agent:             auth.From,
+		Expiraition:       lock.Expiration,
+		Amount:            lock.Amount,
+		SecretHash:        lock.LockSecretHash,
+		ChannelIdentifier: channelID,
+		OpenBlockNumber:   openBlockNumber,
+		MerkleProof:       mtree.Proof2Bytes(m.MakeProof(lock.Hash())),
+	}
+	log.Info(fmt.Sprintf("UnlockDelegate arg ,participant=%s,delegator=%s,transferAmount=%s,expiration=%d,amount=%s,"+
+		"locksecret=%s,merkleproof=%s,signature=%s",
+		auth.From.String(),
+		partnerAddr.String(),
+		bp2.TransferAmount,
+		lock.Expiration,
+		lock.Amount,
+		lock.LockSecretHash.String(),
+		hex.EncodeToString(uf.MerkleProof),
+		hex.EncodeToString(uf.sign(partnerKey)),
+	))
+	tx, err = tokenNetwork.UnlockDelegate(auth,
+		auth.From,
+		partnerAddr,
+		bp2.TransferAmount,
+		big.NewInt(lock.Expiration),
+		lock.Amount,
+		lock.LockSecretHash,
+		uf.MerkleProof,
+		uf.sign(partnerKey),
+	)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	r, err = bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("unlockdelegate gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
+	lockhash := calcLockHash(lock)
 	ou := &ObseleteUnlockForContract{
 		ChannelIdentifier:   channelID,
 		OpenBlockNumber:     openBlockNumber,
@@ -1259,17 +1361,15 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		AdditionalHash:      utils.EmptyHash,
 		MerkleProof:         mtree.Proof2Bytes(m.MakeProof(lockhash)),
 	}
-	log.Info(fmt.Sprintf("unlockarg,channelid=%s,partnerAddr=%s,part2=%s,locksroot=%s", common.Hash(channelID).String(), partnerAddr.String(),
+	log.Info(fmt.Sprintf("PunishObsoleteUnlock,channelid=%s,partnerAddr=%s,part2=%s,locksroot=%s", common.Hash(channelID).String(), partnerAddr.String(),
 		auth.From.String(), ou.LockHash.String()))
 	tx, err = tokenNetwork.PunishObsoleteUnlock(
 		auth,
 		auth.From,
 		partnerAddr,
 		lockhash,
-		bp2.TransferAmount,
 		ou.AdditionalHash,
 		ou.sign(partnerKey),
-		ou.MerkleProof,
 	)
 	if err != nil {
 		t.Error(err)

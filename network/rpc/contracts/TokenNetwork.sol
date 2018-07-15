@@ -4,51 +4,7 @@ import "./Token.sol";
 import "./Utils.sol";
 import "./ECVerify.sol";
 import "./SecretRegistry.sol";
-/*
-合约依据原理:
-https://raiden.network/101.html
 
-新版本合约主要解决以下几个问题：
-1. 在不关闭通道的情况下取现
-2. 合作关闭通道，不用等待
-3. 加上惩罚不诚实中间路由节点机制。
-
-主要考虑以下安全问题:
-1. 双方不能共谋侵占 tokenNetwork 中的 token
-2. AB 双方无论谁提供了错误的,虚假的数据不能给对方造成损害
-3. AB 双方无论谁提供了错误的,虚假的数据不能给自己带来不当收益
-4. AB 双方无论谁都不能因为不配合,不作为而给对方造成损害.
-    比如因为某个人不配合而造成 channel 无法 settle,
-
-优化问题:
-1. 有更节省 gas 的写法?
-2. 有逻辑更清晰简单的写法?
-3. 其他更好的思路
-
-假设前提:
-TokenNetwork 是要形成一个关于某个 token 的链下交易网络.
-1. token 本身如果有问题,那么 tokennetwork 就毫无价值,必须重新创建了.
-2. 任何一个 token 的totalSupply 不可能大于 uint256,实际上应该是远小于这个数字
-3. 正常交易积累的金额不应该很大,也就是不会出现transferAmount+deposit 超过 uint256的情况. 如果出现这个情况,那一定是双方合作诈骗.
-*/
-
-/*
-204存在严重 bug:
-惩罚 locksroot 是没有意义的,因为我们允许交易是并发的.
-假设一笔交易
-F-A-B-C 金额200token
-G-A-B-C 金额10token
-同时进行,假设 B 收到第一笔交易以后,通过 refund 声明放弃,但是随后收到了来自 A 的第二笔交易.
-假设 第一笔交易的 locksroot=l(200),第二笔交易的locksroot=l(200,10)
-B 声明放弃了 l(200),但是有A有效签名的l(200,10)并未声明放弃,因此 B 可以在其他地方搞到200token 那笔交易的密码,然后将l(200,10)解锁
-*/
-
-/*
-本版本限制:
-只能一次解锁一个锁,支持委托解锁.
-委托解锁前提是:
-必须自己知道密码,否则不应该委托.
-*/
 contract TokenNetwork is Utils {
 
     /*
@@ -68,9 +24,8 @@ contract TokenNetwork is Utils {
     /*
     留给惩罚对手的时间,这个时间专门开辟出来,settle time 之后,可以提交证据而不用担心对手是在临近 settle 之时提交 updatetransfer 和 进行 unlock,
     从而导致自己没有机会提交惩罚证据.
-    这个时间多少合适呢?100块?
     */
-    uint64 constant public punish_block_number = 10;
+    uint64 constant public punish_block_number = 100;
     // Chain ID as specified by EIP155 used in balance proof signatures to avoid replay attacks
     uint256 public chain_id;
     // Channel identifier is sha3(participant1,participant2,tokenNetworkAddress)
@@ -80,19 +35,12 @@ contract TokenNetwork is Utils {
         // Total amount of token transferred to this smart contract
         uint256 deposit;
         /*
-        nonce,locksroot,transferred_amount 的 hash
-        主要是出于节省 gas 的目的,真正的 nonce,locksroot,transferred_amount都通过参数传递,可以较大幅度降低 gas
-        */
-        //bytes32 balance_hash;
-
-        /*
         locksroot,transferred_amount 的 hash
         主要是出于节省 gas 的目的,真正的locksroot,transferred_amount都通过参数传递,可以较大幅度降低 gas
         */
         bytes24 balance_hash;
         //交易编号
         uint64 nonce;
-
         /*
         解锁结果
         */
@@ -110,14 +58,9 @@ contract TokenNetwork is Utils {
         uint64 settle_block_number;
         /*
         通道打开时间,主要用于防止重放攻击
-        每个通道的真实 id, 相当于 channel id+open_blocknumber
+        用户关于通道的任何签名都应该包含channel id+open_blocknumber
         */
         uint64 open_block_number;
-        /*
-        不关心是谁关闭了通道,关闭通道一方也可以再次更新证据,只要他能提供更新的 nonce 就可以了
-        目前设计是允许 close一方再次 update balance proof.
-        address closing_participant;
-        */
 
         // Channel state
         // 1 = open, 2 = closed
@@ -127,8 +70,8 @@ contract TokenNetwork is Utils {
     }
 
     /*
-*  Events
-*/
+    *  Events
+    */
     event ChannelOpened(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -150,7 +93,7 @@ contract TokenNetwork is Utils {
         bytes32 lockhash, //解锁的lock
         uint256 transferred_amount
     );
-    //如果改变 balance_hash, 那么应该通过 event 把三个变量都暴露出来.
+    //如果改变 balance_hash, 那么应该通过 event 把相关变量都暴露出来.
     event BalanceProofUpdated(
         bytes32 indexed channel_identifier,
         address participant,
@@ -280,15 +223,9 @@ contract TokenNetwork is Utils {
         participant_state.deposit = total_deposit;
 
         emit ChannelNewDeposit(channel_identifier, participant, total_deposit);
-        //如果 token 可能的 totalSupply 大于 uint256,说明这个 token 分文不值,分文不值的 token 发生什么都无所谓.
-        //require(participant_state.deposit >= added_deposit);
-        //防止溢出,有必要么?我是想不到原因.
-        //require(channel_deposit >= participant_state.deposit);
-        //require(channel_deposit >= partner_state.deposit);
     }
     /*
-    功能:在不关闭通道的情况下提现,
-    任何人都可以调用,调用一次相当于新创建了通道,所以无法重放攻击
+    功能:在不关闭通道的情况下提现,任何人都可以调用
 
     一旦一方提出 withdraw, 实际上和提出 cooperative settle 效果是一样的,就是不能再进行任何交易了.
     必须等待 withdraw 完成才能重置数据,重新开始交易
@@ -319,7 +256,6 @@ contract TokenNetwork is Utils {
                 participant1_withdraw,
                 channel_identifier,
                 channel.open_block_number,
-            //address(this),
                 chain_id
             ));
         require(participant1 == ECVerify.ecverify(message_hash, participant1_signature));
@@ -333,10 +269,10 @@ contract TokenNetwork is Utils {
                 participant2_withdraw,
                 channel_identifier,
                 channel.open_block_number,
-            // address(this),
                 chain_id
             ));
         require(participant2 == ECVerify.ecverify(message_hash, participant2_signature));
+
         Participant storage participant1_state = channel.participants[participant1];
         Participant storage participant2_state = channel.participants[participant2];
         //The sum of the provided deposit must be equal to the total available deposit
@@ -349,12 +285,13 @@ contract TokenNetwork is Utils {
         */
         require(participant1_withdraw <= participant1_balance);
         require(participant2_withdraw <= participant2_balance);
-        participant1_state.deposit = participant1_balance - participant1_withdraw;
-        participant2_state.deposit = participant2_balance - participant2_withdraw;
+        participant1_balance = participant1_balance - participant1_withdraw;
+        participant2_balance = participant2_balance - participant2_withdraw;
+        participant1_state.deposit = participant1_balance;
+        participant2_state.deposit = participant2_balance;
 
         //相当于 通道 settle 有新开了.老的签名都作废了.
         channel.open_block_number = uint64(block.number);
-
         // Do the token transfers
         if (participant1_withdraw > 0) {
             require(token.transfer(participant1, participant1_withdraw));
@@ -362,7 +299,7 @@ contract TokenNetwork is Utils {
         if (participant2_withdraw > 0) {
             require(token.transfer(participant2, participant2_withdraw));
         }
-
+        //channel's status right now
         emit ChannelWithdraw(channel_identifier, participant1, participant1_balance, participant2, participant2_balance);
 
     }
@@ -387,7 +324,7 @@ contract TokenNetwork is Utils {
         // Mark the channel as closed and mark the closing participant
         channel.state = 2;
         // This is the block number at which the channel can be settled.
-        channel.settle_block_number =channel.settle_timeout+ uint64(block.number);
+        channel.settle_block_number = channel.settle_timeout + uint64(block.number);
         // Nonce 0 means that the closer never received a transfer, therefore never received a
         // balance proof, or he is intentionally not providing the latest transfer, in which case
         // the closing party is going to lose the tokens that were transferred to him.
@@ -433,9 +370,9 @@ contract TokenNetwork is Utils {
         /*
         被委托人只能在结算时间的后一半进行
         */
-        settle_block_number=channel.settle_block_number;
-        require( settle_block_number>= block.number);
-        require(  block.number>=settle_block_number-channel.settle_timeout/2);
+        settle_block_number = channel.settle_block_number;
+        require(settle_block_number >= block.number);
+        require(block.number >= settle_block_number - channel.settle_timeout / 2);
         require(nonce > partner_state.nonce);
 
         require(participant == recoverAddressFromBalanceProofUpdateMessage(
@@ -497,6 +434,7 @@ contract TokenNetwork is Utils {
         emit BalanceProofUpdated(channel_identifier, partner, locksroot, transferred_amount);
     }
     /*
+    任何人都可以调用,可以反复调用多次
     存在第三方和对手串谋 unlock 的可能,导致委托人损失所有金额
     所以必须有委托人签名
     */
@@ -518,13 +456,13 @@ contract TokenNetwork is Utils {
         验证授权签名有效
         */
         message_hash = keccak256(abi.encodePacked(
-            msg.sender,
-            expiration,
-            amount,
-            secret_hash,
-            channel_identifier,
-            channel.open_block_number,
-            chain_id));
+                msg.sender,
+                expiration,
+                amount,
+                secret_hash,
+                channel_identifier,
+                channel.open_block_number,
+                chain_id));
         require(participant == ECVerify.ecverify(message_hash, participant_signature));
         /*
         真正的去 unlock
@@ -621,7 +559,6 @@ contract TokenNetwork is Utils {
 
     /*
     给 punish 一方留出了专门的 punishBlock 时间,punish 一方可以选择在那个时候提交证据,也可以在这之前.
-    如果能够提供 old beneficiary_transferred_amount,也就是加 unlock 之前的,可以将unlocked_locksroot中的删除,从而再节省 gas, 不过意义好像并不大.
     */
     function punishObsoleteUnlock(
         address beneficiary,
@@ -646,10 +583,10 @@ contract TokenNetwork is Utils {
         /*
         the cheater provides his signature of lockhash to annouce that he has already abandon this transfer.
         */
-        require(cheater == recoverAddressFromUnlockProof(
+        require(cheater == recoverAddressFromDisposedProof(
             channel_identifier,
             lockhash,
-            uint64(channel.open_block_number),
+            channel.open_block_number,
             additional_hash,
             cheater_signature
         ));
@@ -666,7 +603,7 @@ contract TokenNetwork is Utils {
         */
         beneficiary_state.balance_hash = invalid_balance_hash;
         beneficiary_state.nonce = 0xffffffffffffffff;
-        beneficiary_state.deposit = beneficiary_state.deposit + cheater_state.deposit;
+        beneficiary_state.deposit += cheater_state.deposit;
         cheater_state.deposit = 0;
     }
     /*
@@ -738,8 +675,7 @@ contract TokenNetwork is Utils {
         // At this point `participant1_amount` is between [0,total_deposit], so this is safe.
         //变量复用是因为局部变量不能超过16个
         participant2_transferred_amount = total_deposit - participant1_amount;
-        // participant1_amount is the amount of tokens that participant1 will receive
-        // participant2_amount is the amount of tokens that participant2 will receive
+
         // Remove the channel data from storage
         delete channel.participants[participant1];
         delete channel.participants[participant2];
@@ -764,65 +700,61 @@ contract TokenNetwork is Utils {
     任何人都可以调用,只能调用一次.
     */
     function cooperativeSettle(
-        address participant1_address,
+        address participant1,
         uint256 participant1_balance,
-        address participant2_address,
+        address participant2,
         uint256 participant2_balance,
         bytes participant1_signature,
-        bytes participant2_signature //这里参数顺序和上面不一致,是因为不同的参数顺序会造成额外的 stack 占用,从而导致局部变量超过16个字
+        bytes participant2_signature
     )
     public
     {
-        address participant;
         uint256 total_deposit;
         bytes32 channel_identifier;
         uint64 open_blocknumber;
-        channel_identifier = getChannelIdentifier(participant1_address, participant2_address);
+        channel_identifier = getChannelIdentifier(participant1, participant2);
         Channel storage channel = channels[channel_identifier];
         // The channel must be open
         require(channel.state == 1);
 
         open_blocknumber = channel.open_block_number;
-        participant = recoverAddressFromCooperativeSettleSignature(
+        require(participant1 == recoverAddressFromCooperativeSettleSignature(
             channel_identifier,
-            participant1_address,
+            participant1,
             participant1_balance,
-            participant2_address,
+            participant2,
             participant2_balance,
             open_blocknumber,
             participant1_signature
-        );
-        require(participant1_address == participant);
-        participant = recoverAddressFromCooperativeSettleSignature(
+        ));
+        require(participant2== recoverAddressFromCooperativeSettleSignature(
             channel_identifier,
-            participant1_address,
+            participant1,
             participant1_balance,
-            participant2_address,
+            participant2,
             participant2_balance,
             open_blocknumber,
             participant2_signature
-        );
-        require(participant2_address == participant);
+        ));
 
-        Participant storage participant1_state = channel.participants[participant1_address];
-        Participant storage participant2_state = channel.participants[participant2_address];
+        Participant storage participant1_state = channel.participants[participant1];
+        Participant storage participant2_state = channel.participants[participant2];
 
 
         total_deposit = participant1_state.deposit + participant2_state.deposit;
 
         // Remove channel data from storage before doing the token transfers
-        delete channel.participants[participant1_address];
-        delete channel.participants[participant2_address];
+        delete channel.participants[participant1];
+        delete channel.participants[participant2];
         delete channels[channel_identifier];
         // Do the token transfers
         if (participant1_balance > 0) {
-            require(token.transfer(participant1_address, participant1_balance));
+            require(token.transfer(participant1, participant1_balance));
         }
 
         if (participant2_balance > 0) {
-            require(token.transfer(participant2_address, participant2_balance));
+            require(token.transfer(participant2, participant2_balance));
         }
-
 
         // The sum of the provided balances must be equal to the total available deposit
         //一定要严防双方互相配合,侵占tokennetwork 资产的行为
@@ -850,7 +782,7 @@ contract TokenNetwork is Utils {
     function getChannelInfo(address participant1, address participant2)
     view
     external
-    returns (bytes32, uint64, uint64, uint8,uint64)
+    returns (bytes32, uint64, uint64, uint8, uint64)
     {
 
         bytes32 channel_identifier;
@@ -865,10 +797,11 @@ contract TokenNetwork is Utils {
         channel.settle_timeout
         );
     }
-    function getChannelInfoByChannelIdentifier( bytes32 channel_identifier )
+
+    function getChannelInfoByChannelIdentifier(bytes32 channel_identifier)
     view
     external
-    returns (bytes32, uint64, uint64, uint8,uint64)
+    returns (bytes32, uint64, uint64, uint8, uint64)
     {
         Channel storage channel = channels[channel_identifier];
 
@@ -880,6 +813,7 @@ contract TokenNetwork is Utils {
         channel.settle_timeout
         );
     }
+
     function getChannelParticipantInfo(address participant, address partner)
     view
     external
@@ -897,12 +831,9 @@ contract TokenNetwork is Utils {
         );
     }
 
-
-
     /*
      * Internal Functions
      */
-
 
     function recoverAddressFromBalanceProof(
         bytes32 channel_identifier,
@@ -924,7 +855,6 @@ contract TokenNetwork is Utils {
                 additional_hash,
                 channel_identifier,
                 open_blocknumber,
-            // address(this),
                 chain_id
             ));
 
@@ -953,7 +883,6 @@ contract TokenNetwork is Utils {
                 additional_hash,
                 channel_identifier,
                 open_blocknumber,
-            //address(this),
                 chain_id,
                 closing_signature
             ));
@@ -988,6 +917,28 @@ contract TokenNetwork is Utils {
         signature_address = ECVerify.ecverify(message_hash, signature);
     }
 
+    function recoverAddressFromDisposedProof(
+        bytes32 channel_identifier,
+        bytes32 lockhash,
+        uint64 open_blocknumber,
+        bytes32 additional_hash,
+        bytes signature
+    )
+    view
+    internal
+    returns (address signature_address)
+    {
+        bytes32 message_hash = keccak256(abi.encodePacked(
+                lockhash,
+                channel_identifier,
+                open_blocknumber,
+                chain_id,
+                additional_hash
+            ));
+
+        signature_address = ECVerify.ecverify(message_hash, signature);
+    }
+
     function computeMerkleRoot(bytes32 lockhash, bytes merkle_proof)
     pure
     internal
@@ -1011,29 +962,6 @@ contract TokenNetwork is Utils {
         }
 
         return lockhash;
-    }
-
-    function recoverAddressFromUnlockProof(
-        bytes32 channel_identifier,
-        bytes32 lockhash,
-        uint64 open_blocknumber,
-        bytes32 additional_hash,
-        bytes signature
-    )
-    view
-    internal
-    returns (address signature_address)
-    {
-        bytes32 message_hash = keccak256(abi.encodePacked(
-                lockhash,
-                channel_identifier,
-                open_blocknumber,
-            // address(this),
-                chain_id,
-                additional_hash
-            ));
-
-        signature_address = ECVerify.ecverify(message_hash, signature);
     }
 
     function min(uint256 a, uint256 b) pure internal returns (uint256)
