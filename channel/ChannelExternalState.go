@@ -122,6 +122,7 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result 
 			return
 		}
 		result.Result <- nil
+		log.Info(fmt.Sprintf("channel %s closed success", e.ChannelIdentifier))
 		return
 	}()
 	return

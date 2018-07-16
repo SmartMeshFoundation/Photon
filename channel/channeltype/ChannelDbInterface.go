@@ -14,19 +14,19 @@ type Db interface {
 	/*
 		is secret has withdrawed on channel?
 	*/
-	IsThisLockHasWithdraw(channel common.Hash, secretHash common.Hash) bool
+	IsThisLockHasWithdraw(channel common.Hash, lockHash common.Hash) bool
 	/*
 	 I have withdrawed this secret on channel.
 	*/
-	WithdrawThisLock(channel common.Hash, secretHash common.Hash)
+	WithdrawThisLock(channel common.Hash, lockHash common.Hash)
 	/*
 		is a expired hashlock has been removed from channel status.
 	*/
-	IsThisLockRemoved(channel common.Hash, sender common.Address, secretHash common.Hash) bool
+	IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool
 	/*
 		remember this lock has been removed from channel status.
 	*/
-	RemoveLock(channel common.Hash, sender common.Address, secretHash common.Hash)
+	RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash)
 	/*
 		get the latest channel status
 	*/
@@ -36,6 +36,8 @@ type Db interface {
 	 要记录自己放在某个 channel 上放弃了某个锁,到时候一定不能unlock
 	*/
 	//CanUnlockThisLock(LockSecretHash common.Hash, channelIdentifier common.Hash) bool
+	//IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool
+	//MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error
 }
 
 //MockChannelDb for test only
@@ -52,8 +54,8 @@ func NewMockChannelDb() Db {
 /*
 	is secret has withdrawed on channel?
 */
-func (f *MockChannelDb) IsThisLockHasWithdraw(channel common.Hash, secretHash common.Hash) bool {
-	hash := utils.Sha3(channel[:], secretHash[:])
+func (f *MockChannelDb) IsThisLockHasWithdraw(channel common.Hash, lockhash common.Hash) bool {
+	hash := utils.Sha3(channel[:], lockhash[:])
 	return f.Keys[hash]
 }
 
@@ -87,3 +89,13 @@ func (f *MockChannelDb) RemoveLock(channel common.Hash, sender common.Address, s
 func (f *MockChannelDb) GetChannelByAddress(channelAddress common.Hash) (c *Serialization, err error) {
 	return nil, errors.New("not found")
 }
+
+//func (f *MockChannelDb) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
+//	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
+//	return f.Keys[key]
+//}
+//func (f *MockChannelDb) MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error {
+//	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
+//	f.Keys[key] = true
+//	return nil
+//}

@@ -39,11 +39,9 @@ type UnlockProof struct {
 // Serialization is the living channel in the database
 type Serialization struct {
 	ChannelIdentifier      *contracts.ChannelUniqueID
-	ChannelAddressString   string `storm:"id"` //only for storm, because of save bug
-	TokenAddress           common.Address
-	PartnerAddress         common.Address
-	TokenAddressString     string `storm:"index"`
-	PartnerAddressString   string `storm:"index"`
+	Key                    common.Hash    `storm:"id"` //only for storm, because of save bug
+	TokenAddress           common.Address `storm:"index"`
+	PartnerAddress         common.Address `storm:"index"`
 	OurAddress             common.Address
 	RevealTimeout          int
 	OurBalanceProof        *transfer.BalanceProofState
@@ -91,6 +89,18 @@ func (s *Serialization) PartnerBalance() *big.Int {
 	x.Sub(s.PartnerContractBalance, s.transferAmount(s.PartnerBalanceProof))
 	x.Add(x, s.transferAmount(s.OurBalanceProof))
 	return x
+}
+func (s *Serialization) PartnerLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
+	return nil
+}
+func (s *Serialization) OurLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
+	return nil
+}
+func (s *Serialization) OurLock2PendingLocks() map[common.Hash]PendingLock {
+	return nil
+}
+func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
+	return nil
 }
 func init() {
 	gob.Register(&PendingLock{})

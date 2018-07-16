@@ -279,7 +279,7 @@ func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessage
 	case *encoding.UnLock:
 		err = c.registerUnlock(msg, blocknumber)
 	case *encoding.AnnounceDisposedResponse:
-		err = c.RegisterAnnounceDisposedTransferResponse(msg, blocknumber)
+		err = c.RegisterAnnounceDisposedResponse(msg, blocknumber)
 	case *encoding.RemoveExpiredHashlockTransfer:
 		err = c.RegisterRemoveExpiredHashlockTransfer(msg, blocknumber)
 	default:
@@ -442,10 +442,10 @@ func (c *Channel) RegisterRemoveExpiredHashlockTransfer(tr *encoding.RemoveExpir
 }
 
 /*
-RegisterAnnounceDisposedTransferResponse 从我这里发出或者收到来自对方的announceDisposedTransferResponse,
+RegisterAnnounceDisposedResponse 从我这里发出或者收到来自对方的announceDisposedTransferResponse,
 注意收到对方消息的话,一定要验证事先发出去过AnnounceDisposedTransfer.
 */
-func (c *Channel) RegisterAnnounceDisposedTransferResponse(response *encoding.AnnounceDisposedResponse, blockNumber int64) (err error) {
+func (c *Channel) RegisterAnnounceDisposedResponse(response *encoding.AnnounceDisposedResponse, blockNumber int64) (err error) {
 	return c.registerRemoveLock(response, blockNumber, response.LockSecretHash, false)
 }
 func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNumber int64, locksSecretHash common.Hash, mustExpired bool) (err error) {
@@ -560,8 +560,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 }
 
 //CreateUnlock creates  a unlock message
-func (c *Channel) CreateUnlock(secret common.Hash) (tr *encoding.UnLock, err error) {
-	lockSecretHash := utils.Sha3(secret[:])
+func (c *Channel) CreateUnlock(lockSecretHash, secret common.Hash) (tr *encoding.UnLock, err error) {
 	from := c.OurState
 	lock := from.getLockByHashlock(lockSecretHash)
 	if lock == nil {
@@ -596,7 +595,7 @@ func (c *Channel) CreateRemoveExpiredHashLockTransfer(lockSecretHash common.Hash
 /*
 必须先收到对方的AnnouceDisposedTransfer, 然后才能移除.
 */
-func (c *Channel) CreateAnnonuceDisposedResponse(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposedResponse, err error) {
+func (c *Channel) CreateAnnounceDisposedResponse(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposedResponse, err error) {
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
 	if err != nil {
 		return
@@ -931,6 +930,46 @@ func (c *Channel) CanWithdrawOrCooperativeSettle() bool {
 		return false
 	}
 	return true
+}
+
+func (c *Channel) Close() (result *utils.AsyncResult) {
+	if c.State != channeltype.StateOpened {
+		log.Warn(fmt.Sprintf("try to close channel %s,but it's state is %s", utils.HPex(c.ChannelIdentifier.ChannelIdentifier), c.State))
+	}
+	if c.State == channeltype.StateClosed ||
+		c.State == channeltype.StateSettled {
+		result = utils.NewAsyncResult()
+		result.Result <- fmt.Errorf("channel %s already closed or settled", utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
+		return
+	}
+	/*
+		在关闭的过程中崩溃了,或者关闭 tx 失败了,这些都可能发生.所以不能因为 state 不对,就不允许 close
+	*/
+	c.State = channeltype.StateClosing
+	bp := c.PartnerState.BalanceProofState
+	result = c.ExternState.Close(bp)
+	return
+}
+func (c *Channel) Settle() (result *utils.AsyncResult) {
+	if c.State != channeltype.StateClosed {
+		return utils.NewAsyncResultWithError(fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State))
+	}
+	c.State = channeltype.StateSettling
+	var MyTransferAmount, PartnerTransferAmount *big.Int
+	var MyLocksroot, PartnerLocksroot common.Hash
+	if c.OurState.BalanceProofState != nil {
+		MyTransferAmount = c.OurState.BalanceProofState.ContractTransferAmount
+		MyLocksroot = c.OurState.BalanceProofState.ContractLocksRoot
+	} else {
+		MyTransferAmount = utils.BigInt0
+	}
+	if c.PartnerState.BalanceProofState != nil {
+		PartnerTransferAmount = c.PartnerState.BalanceProofState.ContractTransferAmount
+		PartnerLocksroot = c.PartnerState.BalanceProofState.ContractLocksRoot
+	} else {
+		PartnerTransferAmount = utils.BigInt0
+	}
+	return c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
 }
 
 // String fmt.Stringer
