@@ -138,7 +138,14 @@ func (model *ModelDB) GetRegistryAddress() common.Address {
 	model.db.Get(bucketMeta, "registry", &registry)
 	return registry
 }
-
+func (model *ModelDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
+	model.db.Set(bucketMeta, "secretregistry", secretRegistryAddress)
+}
+func (model *ModelDB) GetSecretRegistryAddress() common.Address {
+	var secretRegistry common.Address
+	model.db.Get(bucketMeta, "secretregistry", &secretRegistry)
+	return secretRegistry
+}
 func init() {
 	gob.Register(common.Address{})
 	gob.Register(&ModelDB{}) //cannot save and restore by gob,only avoid noise by gob

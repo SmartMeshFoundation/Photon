@@ -16,7 +16,7 @@ import (
 
 // NewChannel save a just created channel to db
 func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("new channel %s", c.ChannelAddressString))
+	log.Trace(fmt.Sprintf("new channel %s", c.Key.String()))
 	err := model.db.Save(c)
 	//notify new channel added
 	model.handleChannelCallback(model.newChannelCallbacks, c)
@@ -28,7 +28,7 @@ func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
 
 //UpdateChannelNoTx update channel status without a Tx
 func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("save channel %s", c.ChannelAddressString))
+	log.Trace(fmt.Sprintf("save channel %s", c.Key.String()))
 	err := model.db.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
@@ -91,7 +91,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 	if partner == utils.EmptyAddress {
 		panic("partner is empty")
 	}
-	err = model.db.Find("TokenAddressString", token.String(), &cs)
+	err = model.db.Find("TokenAddress", token, &cs)
 	if err != nil {
 		return
 	}
@@ -105,9 +105,9 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 }
 
 //GetChannelByAddress return a channel queried by channel address
-func (model *ModelDB) GetChannelByAddress(channelAddress common.Address) (c *channeltype.Serialization, err error) {
+func (model *ModelDB) GetChannelByAddress(channelAddress common.Hash) (c *channeltype.Serialization, err error) {
 	var c2 channeltype.Serialization
-	err = model.db.One("ChannelAddressString", channelAddress.String(), &c2)
+	err = model.db.One("ChannelAddress", channelAddress.String(), &c2)
 	if err == nil {
 		c = &c2
 	}
@@ -120,9 +120,9 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
 	} else if token == utils.EmptyAddress {
-		err = model.db.Find("PartnerAddressString", partner.String(), &cs)
+		err = model.db.Find("PartnerAddress", partner, &cs)
 	} else if partner == utils.EmptyAddress {
-		err = model.db.Find("TokenAddressString", token.String(), &cs)
+		err = model.db.Find("TokenAddress", token, &cs)
 	} else {
 		panic("one of token and partner must be empty")
 	}
@@ -135,13 +135,13 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 const bucketWithDraw = "bucketWithdraw"
 
 /*
-IsThisLockHasWithdraw return ture when  secret has withdrawed on channel?
+IsThisLockHasWithdraw return ture when  lockhash has unlocked on channel?
 */
-func (model *ModelDB) IsThisLockHasWithdraw(channel common.Address, secret common.Hash) bool {
+func (model *ModelDB) IsThisLockHasWithdraw(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
-	key.Write(secret[:])
+	key.Write(lockHash[:])
 	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
 	if err != nil {
 		return false
@@ -155,10 +155,10 @@ func (model *ModelDB) IsThisLockHasWithdraw(channel common.Address, secret commo
 /*
 WithdrawThisLock marks that I have withdrawed this secret on channel.
 */
-func (model *ModelDB) WithdrawThisLock(channel common.Address, secret common.Hash) {
+func (model *ModelDB) WithdrawThisLock(channel common.Hash, lockHash common.Hash) {
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
-	key.Write(secret[:])
+	key.Write(lockHash[:])
 	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("WithdrawThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
@@ -170,11 +170,11 @@ const bucketExpiredHashlock = "expiredHashlock"
 /*
 IsThisLockRemoved return true when  a expired hashlock has been removed from channel status.
 */
-func (model *ModelDB) IsThisLockRemoved(channel common.Address, sender common.Address, secret common.Hash) bool {
+func (model *ModelDB) IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool {
 	var result bool
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
-	key.Write(secret[:])
+	key.Write(lockHash[:])
 	key.Write(sender[:])
 	err := model.db.Get(bucketExpiredHashlock, key.Bytes(), &result)
 	if err != nil {
@@ -189,10 +189,10 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Address, sender common.Ad
 /*
 RemoveLock remember this lock has been removed from channel status.
 */
-func (model *ModelDB) RemoveLock(channel common.Address, sender common.Address, secret common.Hash) {
+func (model *ModelDB) RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash) {
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
-	key.Write(secret[:])
+	key.Write(lockHash[:])
 	key.Write(sender[:])
 	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {

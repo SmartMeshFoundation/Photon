@@ -24,7 +24,7 @@ func (model *ModelDB) GetAllTokens() (tokens AddressMap, err error) {
 }
 
 //AddToken add a new token to db,
-func (model *ModelDB) AddToken(token common.Address, manager common.Address) error {
+func (model *ModelDB) AddToken(token common.Address, tokenNetworkAddress common.Address) error {
 	var m AddressMap
 	err := model.db.Get(bucketToken, keyToken, &m)
 	if err != nil {
@@ -35,7 +35,7 @@ func (model *ModelDB) AddToken(token common.Address, manager common.Address) err
 		log.Info("AddToken ,but already exists,should be ignored when startup...")
 		return nil
 	}
-	m[token] = manager
+	m[token] = tokenNetworkAddress
 	err = model.db.Set(bucketToken, keyToken, m)
 	model.handleTokenCallback(model.newTokenCallbacks, token)
 	return err

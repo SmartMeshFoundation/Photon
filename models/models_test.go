@@ -15,8 +15,6 @@ import (
 
 	"encoding/hex"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -72,75 +70,6 @@ func TestToken(t *testing.T) {
 	}
 }
 
-func TestChannel(t *testing.T) {
-	model := setupDb(t)
-	defer func() {
-		model.CloseDB()
-	}()
-	newchannelcb := func(c *channeltype.Serialization) bool {
-
-		return true
-	}
-	updateContractBalancechannelcb := func(c *channeltype.Serialization) bool {
-
-		return true
-	}
-	UpdateChannelStatecb := func(c *channeltype.Serialization) bool {
-
-		return true
-	}
-	model.RegisterNewChannellCallback(newchannelcb)
-	model.RegisterChannelDepositCallback(updateContractBalancechannelcb)
-	model.RegisterChannelStateCallback(UpdateChannelStatecb)
-
-	ch, _ := channel.MakeTestPairChannel()
-	c := channel.NewChannelSerialization(ch)
-	err := model.NewChannel(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	chs, err := model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
-	if err != nil || len(chs) != 1 {
-		t.Error(err)
-		t.Log(fmt.Sprintf("chs=%v", utils.StringInterface(chs, 5)))
-		return
-	}
-	err = model.UpdateChannelNoTx(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	chs, err = model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
-	if err != nil || len(chs) != 1 {
-		t.Error(err)
-		return
-	}
-	err = model.UpdateChannelContractBalance(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	err = model.UpdateChannelContractBalance(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	err = model.UpdateChannelState(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	err = model.UpdateChannelState(c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-}
-func TestChannelTwice(t *testing.T) {
-	TestChannel(t)
-	TestChannel(t)
-}
 func TestGob(t *testing.T) {
 	s1 := params.RopstenRegistryAddress
 	var buf bytes.Buffer
@@ -179,7 +108,7 @@ func TestWithdraw(t *testing.T) {
 	defer func() {
 		model.CloseDB()
 	}()
-	channel := utils.NewRandomAddress()
+	channel := utils.NewRandomHash()
 	secret := utils.Sha3(channel[:])
 	r := model.IsThisLockHasWithdraw(channel, secret)
 	if r == true {
@@ -192,7 +121,7 @@ func TestWithdraw(t *testing.T) {
 		t.Error("should be true")
 		return
 	}
-	r = model.IsThisLockHasWithdraw(utils.NewRandomAddress(), secret)
+	r = model.IsThisLockHasWithdraw(utils.NewRandomHash(), secret)
 	if r == true {
 		t.Error("shoulde be false")
 		return
@@ -204,7 +133,7 @@ func TestModelDB_IsThisLockRemoved(t *testing.T) {
 	defer func() {
 		model.CloseDB()
 	}()
-	channel := utils.NewRandomAddress()
+	channel := utils.NewRandomHash()
 	secret := utils.Sha3(channel[:])
 	sender := utils.NewRandomAddress()
 	r := model.IsThisLockRemoved(channel, sender, secret)
