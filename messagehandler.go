@@ -247,6 +247,8 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	}
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
 		Sender:  msg.Sender,
+		Token:   ch.TokenAddress,
+		Lock:    msg.Lock,
 		Message: msg,
 	}
 	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(msg.Lock.LockSecretHash, stateChange)

@@ -506,7 +506,7 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		}
 		err = x.SubscribeNeighbour(c.PartnerAddress)
 		if err != nil {
-			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddressString, err))
+			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddress.String(), err))
 		} else {
 			x.db.XMPPMarkAddrSubed(c.PartnerAddress)
 		}
@@ -521,7 +521,7 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 			if x.addrMap[c.PartnerAddress] <= 0 {
 				err = x.Unsubscribe(c.PartnerAddress)
 				if err != nil {
-					log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddressString, err))
+					log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddress.String(), err))
 					return false
 				}
 				db.XMPPUnMarkAddr(c.PartnerAddress)

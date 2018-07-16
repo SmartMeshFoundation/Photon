@@ -204,7 +204,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 }
 
 func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
-	if stateChange.Sender == state.Route.HopNode() && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
+	if stateChange.Sender == state.Route.HopNode() && mediator.IsValidRefund(state.Transfer, stateChange) {
 		return cancelCurrentRoute(state)
 	}
 	return &transfer.TransitionResult{

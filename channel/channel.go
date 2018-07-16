@@ -992,11 +992,8 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 	}
 	s := &channeltype.Serialization{
 		ChannelIdentifier:      &c.ChannelIdentifier,
-		ChannelAddressString:   c.ChannelIdentifier.ChannelIdentifier.String(),
 		TokenAddress:           c.TokenAddress,
-		TokenAddressString:     c.TokenAddress.String(),
 		PartnerAddress:         c.PartnerState.Address,
-		PartnerAddressString:   c.PartnerState.Address.String(),
 		OurAddress:             c.OurState.Address,
 		RevealTimeout:          c.RevealTimeout,
 		OurBalanceProof:        c.OurState.BalanceProofState,

@@ -75,22 +75,20 @@ func IsSafeToWait(tr *mediatedtransfer.LockedTransferState, revealTimeout int, b
 }
 
 //IsValidRefund returns True if the refund transfer matches the original transfer.
-func IsValidRefund(originTr, refundTr *mediatedtransfer.LockedTransferState, refundSender common.Address) bool {
+func IsValidRefund(originTr *mediatedtransfer.LockedTransferState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) bool {
 	//Ignore a refund from the target
-	if refundSender == originTr.Target {
+	if st.Sender == originTr.Target {
 		return false
 	}
-	return originTr.Amount.Cmp(refundTr.Amount) == 0 &&
-		originTr.LockSecretHash == refundTr.LockSecretHash &&
-		originTr.Target == refundTr.Target &&
-		originTr.Token == refundTr.Token &&
-		originTr.Initiator == refundTr.Initiator &&
+	return originTr.Amount.Cmp(st.Lock.Amount) == 0 &&
+		originTr.LockSecretHash == st.Lock.LockSecretHash &&
+		originTr.Token == st.Token &&
 		/*
 					 A larger-or-equal expiration is byzantine behavior that favors this
 			         node, neverthless it's being ignored since the only reason for the
 			         other node to use an invalid expiration is to play the protocol.
 		*/
-		originTr.Expiration > refundTr.Expiration
+		originTr.Expiration == st.Message.Lock.Expiration
 }
 
 /*
@@ -780,9 +778,10 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 	l := len(state.TransfersPair)
 	transferPair := state.TransfersPair[l-1]
 	payeeTransfer := transferPair.PayeeTransfer
-	if IsValidRefund(payeeTransfer, st.Transfer, st.Sender) {
+	if IsValidRefund(payeeTransfer, st) {
 		//什么时候会产生多个transferpair，就是发生refund的时候。 从这里也可以看出把refund当成普通mediatedtransfer来处理。
-		return mediateTransfer(state, transferPair.PayeeRoute, st.Transfer)
+		//todo 需要完善
+		return mediateTransfer(state, transferPair.PayeeRoute, nil)
 	}
 	return &transfer.TransitionResult{
 		NewState: state,

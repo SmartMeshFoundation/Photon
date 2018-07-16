@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -81,6 +82,8 @@ type ReceiveSecretRevealStateChange struct {
 //ReceiveAnnounceDisposedStateChange A AnnounceDisposed message received.
 type ReceiveAnnounceDisposedStateChange struct {
 	Sender  common.Address
+	Lock    *mtree.Lock
+	Token   common.Address
 	Message *encoding.AnnounceDisposed //the message trigger this statechange
 }
 
