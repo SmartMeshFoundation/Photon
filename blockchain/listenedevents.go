@@ -41,7 +41,7 @@ func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkRe
 	return
 }
 
-func newEventEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpened, err error) {
+func newEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpened, err error) {
 	event = &contracts.TokenNetworkChannelOpened{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelOpened, el)
 	if err != nil {
@@ -79,7 +79,15 @@ func newEventChannelWithdraw(el *types.Log) (event *contracts.TokenNetworkChanne
 	event.Raw = *el
 	return
 }
-
+func newEventChannelUnlocked(el *types.Log) (event *contracts.TokenNetworkChannelUnlocked, err error) {
+	event = &contracts.TokenNetworkChannelUnlocked{}
+	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelUnlocked, el)
+	if err != nil {
+		return
+	}
+	event.Raw = *el
+	return
+}
 func newEventBalanceProofUpdated(el *types.Log) (event *contracts.TokenNetworkBalanceProofUpdated, err error) {
 	event = &contracts.TokenNetworkBalanceProofUpdated{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameBalanceProofUpdated, el)

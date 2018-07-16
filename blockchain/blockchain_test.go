@@ -1,23 +1,21 @@
 package blockchain
 
 import (
-	"math/big"
 	"os"
 
 	"testing"
+
+	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 var client *helper.SafeEthClient
-var auth *bind.TransactOpts
-var ChainID *big.Int
 var secretRegistryAddress common.Address
 var TokenNetworkRegistryAddress common.Address
 var be *Events
@@ -30,7 +28,6 @@ func init() {
 func setup() {
 	var err error
 	client, err = helper.NewSafeClient(rpc.TestRPCEndpoint)
-	auth = bind.NewKeyedTransactor(rpc.TestPrivKey)
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +41,13 @@ func setup() {
 		panic(err)
 	}
 	be = NewBlockChainEvents(client, TokenNetworkRegistryAddress, secretRegistryAddress)
+	tokens, err := be.GetAllTokenNetworks(0)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get all token networks err %s", err))
+	}
+	if len(tokens) == 0 {
+		panic(fmt.Sprintf("empty registyr network"))
+	}
 }
 
 func TestGetTokenNetworkCreated(t *testing.T) {
@@ -57,7 +61,7 @@ func TestGetTokenNetworkCreated(t *testing.T) {
 }
 
 func TestEvents_GetAllChannels(t *testing.T) {
-	channels, err := be.GetAllChannels(0)
+	channels, err := be.GetChannelNew(0, rpc.TestGetTokenNetworkAddress())
 	if err != nil {
 		t.Error(err)
 		return
@@ -66,7 +70,7 @@ func TestEvents_GetAllChannels(t *testing.T) {
 }
 
 func TestEvents_GetAllChannelClosed(t *testing.T) {
-	events, err := be.GetAllChannelClosed(0, rpc.TestGetTokenNetworkAddress())
+	events, err := be.GetChannelClosed(0, rpc.TestGetTokenNetworkAddress())
 	if err != nil {
 		t.Error(err)
 		return
@@ -75,7 +79,7 @@ func TestEvents_GetAllChannelClosed(t *testing.T) {
 }
 
 func TestEvents_GetAllChannelSettled(t *testing.T) {
-	events, err := be.GetAllChannelSettled(0, rpc.TestGetTokenNetworkAddress())
+	events, err := be.GetChannelSettled(0, rpc.TestGetTokenNetworkAddress())
 	if err != nil {
 		t.Error(err)
 		return
