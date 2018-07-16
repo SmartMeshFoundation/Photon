@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -155,7 +156,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
-	transport, err := buildTransportAndDiscovery(cfg, bcs)
+	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
 		return
 	}
@@ -188,7 +189,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
+func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
@@ -227,7 +228,7 @@ func regQuitHandler(api *smartraiden.RaidenAPI) {
 	}()
 }
 func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte, err error) {
-	am := smartraiden.NewAccountManager(keystorePath)
+	am := accounts.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		err = fmt.Errorf("No Ethereum accounts found in the directory %s", keystorePath)
 		return

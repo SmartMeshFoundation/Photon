@@ -10,11 +10,9 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
@@ -99,11 +97,11 @@ func (cm *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int64,
 	cm.lock.Unlock()
 	return err
 }
-func (cm *ConnectionManager) openChannels() []*channel.Serialization {
+func (cm *ConnectionManager) openChannels() []*channeltype.Serialization {
 	chs, _ := cm.api.GetChannelList(cm.tokenAddress, utils.EmptyAddress)
-	var chs2 []*channel.Serialization
+	var chs2 []*channeltype.Serialization
 	for _, c := range chs {
-		if c.State == transfer.ChannelStateOpened {
+		if c.State == channeltype.StateOpened {
 			chs2 = append(chs2, c)
 		}
 	}
@@ -156,7 +154,7 @@ func (cm *ConnectionManager) sumDeposits() *big.Int {
 }
 
 //Shorthand for getting channels that had received any transfers in this token network
-func (cm *ConnectionManager) receivingChannels() (chs []*channel.Serialization) {
+func (cm *ConnectionManager) receivingChannels() (chs []*channeltype.Serialization) {
 	for _, c := range cm.openChannels() {
 		if c.PartnerBalanceProof != nil && c.PartnerBalanceProof.Nonce > 0 {
 			chs = append(chs, c)
@@ -172,12 +170,12 @@ func (cm *ConnectionManager) minSettleBlocks() int64 {
 	currentBlock := cm.raiden.GetBlockNumber()
 	for _, c := range chs {
 		var sinceClosed int64
-		if c.State == transfer.ChannelStateClosed {
+		if c.State == channeltype.StateClosed {
 			//todo fix cm!
 			log.Info(fmt.Sprintf("calc minSettleBlocks need fix:%d", currentBlock))
 			// sinceClosed = currentBlock - c.ExternState.ClosedBlock
 			sinceClosed = int64(c.SettleTimeout)
-		} else if c.State == transfer.ChannelStateOpened {
+		} else if c.State == channeltype.StateOpened {
 			sinceClosed = -1
 		} else {
 			sinceClosed = 0
@@ -205,7 +203,7 @@ Close all channels in the token network.
         If only_receiving is False then we close and settle all channels irrespective of them
         having received transfers or not.
 */
-func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channel.Serialization, err error) {
+func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channeltype.Serialization, err error) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 	cm.initChannelTarget = 0
@@ -217,7 +215,7 @@ func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channel.Serial
 	for _, c := range chs {
 		_, err = cm.api.Close(cm.tokenAddress, c.PartnerAddress)
 		if err != nil {
-			log.Error(fmt.Sprintf("close channel %s error:%s", utils.APex(c.ChannelAddress), err))
+			log.Error(fmt.Sprintf("close channel %s error:%s", c.ChannelIdentifier, err))
 			return
 		}
 	}
@@ -225,13 +223,12 @@ func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channel.Serial
 }
 
 //LeaveAsync leave raiden network
-func (cm *ConnectionManager) LeaveAsync() *network.AsyncResult {
-	result := network.NewAsyncResult()
+func (cm *ConnectionManager) LeaveAsync() *utils.AsyncResult {
+	result := utils.NewAsyncResult()
 	go func() {
 		defer rpanic.PanicRecover("LeaveAsync")
 		cm.Leave(true)
 		result.Result <- nil
-		close(result.Result)
 	}()
 	return result
 }
@@ -240,7 +237,7 @@ func (cm *ConnectionManager) LeaveAsync() *network.AsyncResult {
 Leave the token network.
         This implies closing all channels and waiting for all channels to be settled.
 */
-func (cm *ConnectionManager) Leave(onlyReceiving bool) (chs []*channel.Serialization, err error) {
+func (cm *ConnectionManager) Leave(onlyReceiving bool) (chs []*channeltype.Serialization, err error) {
 	cm.raiden.MessageHandler.blockedTokens[cm.tokenAddress] = true
 	if cm.initChannelTarget > 0 {
 		cm.initChannelTarget = 0
@@ -257,23 +254,23 @@ func (cm *ConnectionManager) Leave(onlyReceiving bool) (chs []*channel.Serializa
 WaitForSettle Wait for all closed channels of the token network to settle.
         Note, that this does not time out.
 */
-func (cm *ConnectionManager) WaitForSettle(closedChannels []*channel.Serialization) bool {
-	var c *channel.Serialization
+func (cm *ConnectionManager) WaitForSettle(closedChannels []*channeltype.Serialization) bool {
+	var c *channeltype.Serialization
 	var err error
 	found := false
 	for {
 		found = false
 		for _, c = range closedChannels {
-			c, err = cm.api.GetChannel(c.ChannelAddress)
+			c, err = cm.api.GetChannel(c.ChannelIdentifier.ChannelIdentifier)
 			if err != nil { // already settled?
 				continue
 			}
-			if c.State != transfer.ChannelStateSettled {
+			if c.State != channeltype.StateSettled {
 				found = true
 				if c.ClosedBlock+int64(c.SettleTimeout) < cm.api.Raiden.GetBlockNumber() {
 					_, err := cm.api.Settle(c.TokenAddress, c.PartnerAddress)
 					if err != nil {
-						log.Error(fmt.Sprintf("settle %s err %s", c.ChannelAddress.String(), err))
+						log.Error(fmt.Sprintf("settle %s err %s", c.ChannelIdentifier, err))
 					}
 				}
 			}

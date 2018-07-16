@@ -1049,6 +1049,15 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	dataToSign := buf.Bytes()
 	return dataToSign
 }
+func (m *AnnounceDisposed) GetAdditionalHash() common.Hash {
+	if m.GetSender() == utils.EmptyAddress {
+		panic("should not happen")
+	}
+	data := m.Pack()
+	dataWithoutSignature := data[:len(data)-signatureLength]
+	datahash := utils.Sha3(dataWithoutSignature)
+	return datahash
+}
 
 /*
 Sign data=(once+transferamount+locksroot+channel+hash(data))

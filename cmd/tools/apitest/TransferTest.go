@@ -64,7 +64,7 @@ func TransferTest(NewTokenName string) (code int) {
 	Deposit2Channel(Node6Url, Channel.ChannelAddress, 50)
 	//D-A establish channel
 	//Channel, Status, err = OpenChannel(Node4Url, Node1Address.OurAddress, NewTokenNames[0], 100, 1000)
-	//Deposit2Channel(Node1Url, Channel.ChannelAddress, 50)
+	//Deposit2Channel(Node1Url, Channel.ChannelIdentifier, 50)
 
 	log.Println("Create Channels Complete")
 	var Amount int32

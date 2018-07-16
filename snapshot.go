@@ -4,15 +4,10 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/asdine/storm"
 )
 
 //save state ,call many times is ok
@@ -63,39 +58,40 @@ func (rs *RaidenService) saveChannelStatusAfterStart() {
 //ds, parameter for validate stored data.
 func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 	log.Info("restore channel...")
-	for _, g := range rs.Token2ChannelGraph {
-		for _, c := range g.ChannelAddress2Channel {
-			cs, err := rs.db.GetChannelByAddress(c.ChannelIdentifier)
-			if err != nil {
-				if err == storm.ErrNotFound {
-					log.Info(fmt.Sprintf("new channel created when shutdown %s ", c.ChannelIdentifier.String()))
-					rs.db.NewChannel(channel.NewChannelSerialization(c))
-					continue //new channel when shutdown
-				} else {
-					panic(fmt.Sprintf("get channel %s from db err %s", c.ChannelIdentifier.String(), err))
-				}
-			}
-			//found a channel,maybe channel settled or new channel opened when i'm down
-			if cs.ChannelAddress == c.ChannelIdentifier {
-				if cs.TokenAddress != c.TokenAddress || cs.OurAddress != c.OurState.Address ||
-					cs.PartnerAddress != c.PartnerState.Address ||
-					c.RevealTimeout != cs.RevealTimeout {
-					log.Error("snapshot data error, channel data error for ", c.ChannelIdentifier)
-					continue
-				} else {
-					log.Trace(fmt.Sprintf("retore channel %s\n", utils.APex2(cs.ChannelAddress)))
-					c.OurState.BalanceProofState = cs.OurBalanceProof
-					c.OurState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
-					c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
-					c.OurState.Lock2UnclaimedLocks = cs.OurLock2UnclaimedLocks
-					c.PartnerState.BalanceProofState = cs.PartnerBalanceProof
-					c.PartnerState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
-					c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
-					c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
-				}
-			}
-		}
-	}
+	return nil
+	//for _, g := range rs.Token2ChannelGraph {
+	//	for _, c := range g.ChannelAddress2Channel {
+	//		cs, err := rs.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	//		if err != nil {
+	//			if err == storm.ErrNotFound {
+	//				log.Info(fmt.Sprintf("new channel created when shutdown %s ", c.ChannelIdentifier.String()))
+	//				rs.db.NewChannel(channel.NewChannelSerialization(c))
+	//				continue //new channel when shutdown
+	//			} else {
+	//				panic(fmt.Sprintf("get channel %s from db err %s", c.ChannelIdentifier.String(), err))
+	//			}
+	//		}
+	//		//found a channel,maybe channel settled or new channel opened when i'm down
+	//		if cs.ChannelAddress == c.ChannelIdentifier {
+	//			if cs.TokenAddress != c.TokenAddress || cs.OurAddress != c.OurState.Address ||
+	//				cs.PartnerAddress != c.PartnerState.Address ||
+	//				c.RevealTimeout != cs.RevealTimeout {
+	//				log.Error("snapshot data error, channel data error for ", c.ChannelIdentifier)
+	//				continue
+	//			} else {
+	//				log.Trace(fmt.Sprintf("retore channel %s\n", utils.APex2(cs.ChannelAddress)))
+	//				c.OurState.BalanceProofState = cs.OurBalanceProof
+	//				c.OurState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
+	//				c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
+	//				c.OurState.Lock2UnclaimedLocks = cs.OurLock2UnclaimedLocks
+	//				c.PartnerState.BalanceProofState = cs.PartnerBalanceProof
+	//				c.PartnerState.tree = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
+	//				c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
+	//				c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
+	//			}
+	//		}
+	//	}
+	//}
 	return nil
 }
 
@@ -117,88 +113,88 @@ func (rs *RaidenService) restoreDbPointer(state transfer.State) {
 
 //function pointer save and restore
 func (rs *RaidenService) restoreStateManager(isCrashed bool) {
-	log.Info(fmt.Sprintf("restore statemanager ,last close correct=%v", !isCrashed))
-	mgrs := rs.db.GetAllStateManager()
-	for _, mgr := range mgrs {
-		//log.Trace(fmt.Sprintf("unfinish manager %s", utils.StringInterface(mgr, 7)))
-		if mgr.ManagerState == transfer.StateManagerStateInit || mgr.ManagerState == transfer.StateManagerTransferComplete {
-			continue
-		}
-		setStateManagerFuncPointer(mgr)
-		idmgrs := rs.Identifier2StateManagers[mgr.Identifier]
-		idmgrs = append(idmgrs, mgr)
-		rs.Identifier2StateManagers[mgr.Identifier] = idmgrs
-		rs.restoreDbPointer(mgr.CurrentState)
-	}
-	for _, mgrs := range rs.Identifier2StateManagers {
-		//mannagers for the same channel should be order, otherwise, nonce error.
-		for _, mgr := range mgrs {
-			log.Trace(fmt.Sprintf("restore state manager:%s\n", utils.StringInterface(mgr, 7)))
-			var tag interface{}
-			var messageTag *transfer.MessageTag
-			switch mgr.ManagerState {
-			case transfer.StateManagerTransferComplete:
-				//ignore
-			case transfer.StateManagerReceivedMessage:
-				st, ok := mgr.LastReceivedMessage.(mediatedtransfer.ActionInitInitiatorStateChange)
-				if ok {
-					st.Db = rs.db
-					rs.StateMachineEventHandler.dispatch(mgr, st)
-				} else {
-					//receive a message,and not handled
-					//ignore ,partner will try
-				}
-				if mgr.LastSendMessage == nil {
-					break
-				}
-				fallthrough
-			case transfer.StateManagerReceivedMessageProcessComplete: //there may be message waiting for send
-				if mgr.LastSendMessage == nil {
-					break
-				}
-				fallthrough
-			case transfer.StateManagerSendMessage:
-				/*
-					todo fix It should be detected whether it is out of date,
-					such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
-				*/
-				tag = mgr.LastSendMessage.Tag()
-				//崩溃启动以后继续崩溃,会出问题. todo fix
-				if tag == nil {
-					log.Error(fmt.Sprintf("statemanage state error, lastsendmessage has no tag :%s", utils.StringInterface(mgr, 5)))
-					continue
-				}
-				messageTag = tag.(*transfer.MessageTag)
-				if messageTag.SendingMessageComplete {
-					continue // for receive secret message, no need sending any message but ack.
-				}
-				messageTag.SetStateManager(mgr) //statemanager doesn't save
-				rs.sendAsync(messageTag.Receiver, mgr.LastSendMessage.(encoding.SignedMessager))
-			case transfer.StateManagerSendMessageSuccesss:
-				//do nothing right now.
-			}
-		}
-	}
+	//log.Info(fmt.Sprintf("restore statemanager ,last close correct=%v", !isCrashed))
+	//mgrs := rs.db.GetAllStateManager()
+	//for _, mgr := range mgrs {
+	//	//log.Trace(fmt.Sprintf("unfinish manager %s", utils.StringInterface(mgr, 7)))
+	//	if mgr.ManagerState == transfer.StateManagerStateInit || mgr.ManagerState == transfer.StateManagerTransferComplete {
+	//		continue
+	//	}
+	//	setStateManagerFuncPointer(mgr)
+	//	idmgrs := rs.LockSecretHash2StateManager[mgr.Identifier]
+	//	idmgrs = append(idmgrs, mgr)
+	//	rs.LockSecretHash2StateManager[mgr.Identifier] = idmgrs
+	//	rs.restoreDbPointer(mgr.CurrentState)
+	//}
+	//for _, mgrs := range rs.LockSecretHash2StateManager {
+	//	//mannagers for the same channel should be order, otherwise, nonce error.
+	//	for _, mgr := range mgrs {
+	//		log.Trace(fmt.Sprintf("restore state manager:%s\n", utils.StringInterface(mgr, 7)))
+	//		var tag interface{}
+	//		var messageTag *transfer.MessageTag
+	//		switch mgr.ManagerState {
+	//		case transfer.StateManagerTransferComplete:
+	//			//ignore
+	//		case transfer.StateManagerReceivedMessage:
+	//			st, ok := mgr.LastReceivedMessage.(mediatedtransfer.ActionInitInitiatorStateChange)
+	//			if ok {
+	//				st.Db = rs.db
+	//				rs.StateMachineEventHandler.dispatch(mgr, st)
+	//			} else {
+	//				//receive a message,and not handled
+	//				//ignore ,partner will try
+	//			}
+	//			if mgr.LastSendMessage == nil {
+	//				break
+	//			}
+	//			fallthrough
+	//		case transfer.StateManagerReceivedMessageProcessComplete: //there may be message waiting for send
+	//			if mgr.LastSendMessage == nil {
+	//				break
+	//			}
+	//			fallthrough
+	//		case transfer.StateManagerSendMessage:
+	//			/*
+	//				todo fix It should be detected whether it is out of date,
+	//				such as ,MediatedTransfer, Secret, which are timeliness, and if it is expired after crash,discarding is more reasonable.
+	//			*/
+	//			tag = mgr.LastSendMessage.Tag()
+	//			//崩溃启动以后继续崩溃,会出问题. todo fix
+	//			if tag == nil {
+	//				log.Error(fmt.Sprintf("statemanage state error, lastsendmessage has no tag :%s", utils.StringInterface(mgr, 5)))
+	//				continue
+	//			}
+	//			messageTag = tag.(*transfer.MessageTag)
+	//			if messageTag.SendingMessageComplete {
+	//				continue // for receive secret message, no need sending any message but ack.
+	//			}
+	//			messageTag.SetStateManager(mgr) //statemanager doesn't save
+	//			rs.sendAsync(messageTag.Receiver, mgr.LastSendMessage.(encoding.SignedMessager))
+	//		case transfer.StateManagerSendMessageSuccesss:
+	//			//do nothing right now.
+	//		}
+	//	}
+	//}
 
 }
 func setStateManagerFuncPointer(mgr *transfer.StateManager) {
 	/*
 		todo fix tokenswap's randomSecretGenerator
 	*/
-	switch mgr.Name {
-	case initiator.NameInitiatorTransition:
-		mgr.FuncStateTransition = initiator.StateTransition
-		if mgr.CurrentState != nil {
-			state := mgr.CurrentState.(*mediatedtransfer.InitiatorState)
-			state.RandomGenerator = utils.RandomSecretGenerator //todo fix for tokenswap
-		}
-	case mediator.NameMediatorTransition:
-		mgr.FuncStateTransition = mediator.StateTransition
-	case target.NameTargetTransition:
-		mgr.FuncStateTransition = target.StateTransiton
-	default:
-		log.Error("unkown state manager :", mgr.Name)
-	}
+	//switch mgr.Name {
+	//case initiator.NameInitiatorTransition:
+	//	mgr.FuncStateTransition = initiator.StateTransition
+	//	if mgr.CurrentState != nil {
+	//		state := mgr.CurrentState.(*mediatedtransfer.InitiatorState)
+	//		state.RandomGenerator = utils.RandomSecretGenerator //todo fix for tokenswap
+	//	}
+	//case mediator.NameMediatorTransition:
+	//	mgr.FuncStateTransition = mediator.StateTransition
+	//case target.NameTargetTransition:
+	//	mgr.FuncStateTransition = target.StateTransiton
+	//default:
+	//	log.Error("unkown state manager :", mgr.Name)
+	//}
 }
 
 func (rs *RaidenService) restoreRevealSecret() {
@@ -214,21 +210,21 @@ func (rs *RaidenService) restoreRevealSecret() {
 }
 
 func (rs *RaidenService) restoreToken2Hash2Channels() {
-	log.Trace("restoreToken2Hash2Channels...")
-	for token, g := range rs.Token2ChannelGraph {
-		for _, c := range g.ChannelAddress2Channel {
-			for lock := range c.OurState.Lock2PendingLocks {
-				rs.registerChannelForHashlock(token, c, lock)
-			}
-			for lock := range c.PartnerState.Lock2PendingLocks {
-				rs.registerChannelForHashlock(token, c, lock)
-			}
-			for lock := range c.OurState.Lock2UnclaimedLocks {
-				rs.registerChannelForHashlock(token, c, lock)
-			}
-			for lock := range c.PartnerState.Lock2UnclaimedLocks {
-				rs.registerChannelForHashlock(token, c, lock)
-			}
-		}
-	}
+	//log.Trace("restoreToken2Hash2Channels...")
+	//for token, g := range rs.Token2ChannelGraph {
+	//	for _, c := range g.ChannelAddress2Channel {
+	//		for lock := range c.OurState.Lock2PendingLocks {
+	//			rs.registerChannelForHashlock(token, c, lock)
+	//		}
+	//		for lock := range c.PartnerState.Lock2PendingLocks {
+	//			rs.registerChannelForHashlock(token, c, lock)
+	//		}
+	//		for lock := range c.OurState.Lock2UnclaimedLocks {
+	//			rs.registerChannelForHashlock(token, c, lock)
+	//		}
+	//		for lock := range c.PartnerState.Lock2UnclaimedLocks {
+	//			rs.registerChannelForHashlock(token, c, lock)
+	//		}
+	//	}
+	//}
 }

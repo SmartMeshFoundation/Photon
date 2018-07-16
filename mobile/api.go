@@ -49,7 +49,7 @@ func (a *API) GetChannelList() (channels string, err error) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelAddress:      c.ChannelAddress.String(),
+			ChannelAddress:      c.Key.String(),
 			PartnerAddrses:      c.PartnerAddress.String(),
 			Balance:             c.OurBalance,
 			PartnerBalance:      c.PartnerBalance,
@@ -78,7 +78,7 @@ func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
 		return
 	}
 	d := &v1.ChannelDataDetail{
-		ChannelAddress:           c.ChannelAddress.String(),
+		ChannelAddress:           c.Key.String(),
 		PartnerAddrses:           c.PartnerAddress.String(),
 		Balance:                  c.OurBalance,
 		PartnerBalance:           c.PartnerBalance,
@@ -118,7 +118,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.ChannelAddress.String(),
+		ChannelAddress:      c.Key.String(),
 		PartnerAddrses:      c.PartnerAddress.String(),
 		Balance:             c.OurBalance,
 		PartnerBalance:      c.PartnerBalance,
@@ -161,7 +161,7 @@ func (a *API) CloseChannel(channelAddress string) (channel string, err error) {
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.ChannelAddress.String(),
+		ChannelAddress:      c.Key.String(),
 		PartnerAddrses:      c.PartnerAddress.String(),
 		Balance:             c.OurBalance,
 		PartnerBalance:      c.PartnerBalance,
@@ -195,7 +195,7 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.ChannelAddress.String(),
+		ChannelAddress:      c.Key.String(),
 		PartnerAddrses:      c.PartnerAddress.String(),
 		Balance:             c.OurBalance,
 		PartnerBalance:      c.PartnerBalance,
@@ -231,7 +231,7 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 	}
 
 	d := &v1.ChannelData{
-		ChannelAddress:      c.ChannelAddress.String(),
+		ChannelAddress:      c.Key.String(),
 		PartnerAddrses:      c.PartnerAddress.String(),
 		Balance:             c.OurBalance,
 		PartnerBalance:      c.PartnerBalance,
@@ -319,7 +319,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 	return
 }
 
-//RegisterToken PUT /api/1/tokens/0xea674fdde714fd979de3edf0f56aa9716b898ec8 Registering a TokenNetworkAddres
+//RegisterToken PUT /api/1/tokens/0xea674fdde714fd979de3edf0f56aa9716b898ec8 Registering a Token
 func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api RegisterToken tokenAddress=%s,managerAddress=%s,err=%v",
@@ -389,7 +389,7 @@ func (a *API) TokenSwap(role string, Identifier int64, SendingAmountStr, Receivi
 	var target common.Address
 	target = common.HexToAddress(TargetAddress)
 	if Identifier <= 0 {
-		err = errors.New("Identifier must be positive")
+		err = errors.New("LockSecretHash must be positive")
 		return
 	}
 	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)

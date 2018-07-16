@@ -41,9 +41,9 @@ func getAToken(api *RaidenAPI) common.Address {
 func TestSwapKeyAsMapKey(t *testing.T) {
 	reinit()
 	key1 := swapKey{
-		Identifier: 32,
-		FromToken:  utils.NewRandomAddress(),
-		FromAmount: big.NewInt(300).String(),
+		LockSecretHash: 32,
+		FromToken:      utils.NewRandomAddress(),
+		FromAmount:     big.NewInt(300).String(),
 	}
 	key2 := key1
 	m := make(map[swapKey]bool)
@@ -51,7 +51,7 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	if m[key2] != true {
 		t.Error("expect equal")
 	}
-	key2.Identifier = 3
+	key2.LockSecretHash = 3
 	if m[key2] == true {
 		t.Error("should not equal")
 	}

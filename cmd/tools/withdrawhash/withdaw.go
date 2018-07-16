@@ -274,12 +274,12 @@ func (w *withDraw) restoreChannel() error {
 		return err
 	}
 	for _, cs := range allChannels {
-		if cs.ChannelAddress == w.WithDrawChannelAddress {
+		if cs.Key == w.WithDrawChannelAddress {
 			//log.Info(fmt.Sprintf("db channel=%s", utils.StringInterface(cs, 5)))
 		}
-		c, err := w.NewChannel(cs.ChannelAddress)
+		c, err := w.NewChannel(cs.Key)
 		if err != nil {
-			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.APex(cs.ChannelAddress)))
+			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.APex(cs.Key)))
 			continue
 		}
 
@@ -297,7 +297,7 @@ func (w *withDraw) restoreChannel() error {
 			c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
 			c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
 		}
-		w.ChannelAddress2Channel[cs.ChannelAddress] = c
+		w.ChannelAddress2Channel[cs.Key] = c
 	}
 	return nil
 }

@@ -13,3 +13,11 @@ type AsyncResult struct {
 func NewAsyncResult() *AsyncResult {
 	return &AsyncResult{Result: make(chan error, 1)}
 }
+
+func NewAsyncResultWithError(err error) *AsyncResult {
+	r := &AsyncResult{
+		Result: make(chan error, 1),
+	}
+	r.Result <- err
+	return r
+}

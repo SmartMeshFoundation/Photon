@@ -12,6 +12,7 @@ import (
 
 	"sync"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
@@ -64,7 +65,7 @@ func newTestRaidenAPI() *RaidenAPI {
 
 //maker sure these accounts are valid, and  engouh eths for test
 func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
-	am := NewAccountManager("testdata/keystore")
+	am := accounts.NewAccountManager("testdata/keystore")
 	privkeybin, err := am.GetPrivateKey(am.Accounts[curAccountIndex].Address, "123")
 	if err != nil {
 		log.Error(fmt.Sprintf("testGetnextValidAccount err: %s", err))

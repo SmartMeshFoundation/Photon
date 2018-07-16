@@ -137,6 +137,7 @@ func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy)
 		token, err := contracts.NewToken(tokenAddress, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewToken %s err %s", tokenAddress.String(), err))
+			return
 		}
 		bcs.addressTokens[tokenAddress] = &TokenProxy{
 			Address: tokenAddress, bcs: bcs, Token: token}
@@ -148,14 +149,16 @@ func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy)
 func (bcs *BlockChainService) TokenNetwork(address common.Address) (t *TokenNetworkProxy, err error) {
 	_, ok := bcs.addressChannels[address]
 	if !ok {
-		ch, err := contracts.NewTokenNetwork(address, bcs.Client)
+		var tokenNetwork *contracts.TokenNetwork
+		tokenNetwork, err = contracts.NewTokenNetwork(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewNettingChannelContract %s err %s", address.String(), err))
+			return
 		}
 		if !bcs.contractExist(address) {
 			return nil, fmt.Errorf("no code at %s", address)
 		}
-		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: ch}
+		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: tokenNetwork}
 	}
 	return bcs.addressChannels[address], nil
 }
@@ -168,6 +171,7 @@ func (bcs *BlockChainService) TokenNetworkWithoutCheck(address common.Address) (
 		ch, err = contracts.NewTokenNetwork(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewNettingChannelContract %s err %s", address.String(), err))
+			return
 		}
 		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: ch}
 	}
@@ -181,6 +185,7 @@ func (bcs *BlockChainService) Registry(address common.Address) (t *RegistryProxy
 		reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
+			return
 		}
 		bcs.addressRegistries[address] = &RegistryProxy{address, bcs, reg}
 	}
