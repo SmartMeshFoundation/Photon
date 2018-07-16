@@ -22,6 +22,20 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//EmptyExlude 为了调用 GetBestRoutes 方便一点
+var EmptyExlude map[common.Address]bool
+
+func init() {
+	EmptyExlude = make(map[common.Address]bool)
+}
+
+//MakeExclude 为了调用 GetBestRoutes 方便一点
+func MakeExclude(addr common.Address) map[common.Address]bool {
+	m := make(map[common.Address]bool)
+	m[addr] = true
+	return m
+}
+
 //NodesStatusGetter for route service
 type NodesStatusGetter interface {
 	//GetNetworkStatus return addr's status
@@ -56,7 +70,7 @@ type ChannelGraph struct {
 /*
 NewChannelGraph create ChannelGraph,one token one channelGraph
 */
-func NewChannelGraph(ourAddress, tokenAddress common.Address, edgeList []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
+func NewChannelGraph(ourAddress, tokenAddress common.Address, edges map[common.Address]common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
 	cg := &ChannelGraph{
 		OurAddress:              ourAddress,
 		TokenAddress:            tokenAddress,
@@ -66,7 +80,7 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edgeList []common.
 		index2address:           make(map[int]common.Address),
 		g:                       dijkstra.NewGraph(),
 	}
-	cg.makeGraph(edgeList)
+	cg.makeGraph(edges)
 	for _, d := range channelDetails {
 		err := cg.AddChannel(d)
 		if err != nil {
@@ -102,26 +116,9 @@ func (cg *ChannelGraph) printGraph() {
 	}
 }
 
-/*
-Return a graph that represents the connections among the netting
-    contracts.
-
-    Args:
-        edge_list (List[(address1, address2)]): All the channels that compose
-            the graph.
-
-    Returns:
-        Graph A networkx.Graph instance were the graph nodes are nodes in the
-            network and the edges are nodes that have a channel between them.
-*/
-func (cg *ChannelGraph) makeGraph(edgeList []common.Address) {
-	if len(edgeList)%2 != 0 {
-		log.Crit("edgelist must be even")
-	}
-	for i := 0; i < len(edgeList); i += 2 {
-		addr1 := edgeList[i]
-		addr2 := edgeList[i+1]
-		cg.AddPath(addr1, addr2)
+func (cg *ChannelGraph) makeGraph(edges map[common.Address]common.Address) {
+	for p1, p2 := range edges {
+		cg.AddPath(p1, p2)
 	}
 }
 
@@ -349,9 +346,11 @@ func (cg *ChannelGraph) orderedNeighbours(ourAddress, targetAddress common.Addre
 
 /*
 GetBestRoutes returns all neighbor nodes order by weight from it to target.
+我们现在的路由算法应该是有历史记忆的最短路径/最小费用算法.
+跳过所有已经走过的路径.
 */
 func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
-	targetAdress common.Address, amount *big.Int, previousAddress common.Address, feeCharger fee.Charger) (onlineNodes []*route.State) {
+	targetAdress common.Address, amount *big.Int, excludeAddresses map[common.Address]bool, feeCharger fee.Charger) (onlineNodes []*route.State) {
 	/*
 
 	   XXX: consider using multiple channels for a single transfer. Useful
@@ -371,7 +370,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 	for _, nw := range nws {
 		c := cg.GetPartenerAddress2Channel(nw.neighbor)
 		//don't send the message backwards
-		if nw.neighbor == previousAddress {
+		if excludeAddresses[nw.neighbor] {
 			continue
 		}
 		if !c.CanTransfer() {
@@ -427,8 +426,7 @@ func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Hash) (c *chann
 
 //Channel2RouteState create a routeState from a channel
 func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *route.State {
-	return &route.State{
-		Channel: c,
-		Fee:     charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount),
-	}
+	rs := route.NewState(c)
+	rs.Fee = charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount)
+	return rs
 }
