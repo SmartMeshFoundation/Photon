@@ -60,7 +60,7 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 	for _, c := range chs {
 		d := &partnersData{
 			PartnerAddress: c.PartnerAddress.String(),
-			Channel:        "api/1/channles/" + c.ChannelAddress.String(),
+			Channel:        "api/1/channles/" + c.ChannelIdentifier.ChannelIdentifier.String(),
 		}
 		datas = append(datas, d)
 	}

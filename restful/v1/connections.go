@@ -87,7 +87,7 @@ func LeaveTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 	} else if len(chs) > 0 {
 		var addrs []string
 		for _, c := range chs {
-			addrs = append(addrs, c.ChannelAddress.String())
+			addrs = append(addrs, c.ChannelIdentifier.ChannelIdentifier.String())
 		}
 		w.WriteJson(addrs)
 		return
