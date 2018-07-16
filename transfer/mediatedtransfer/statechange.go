@@ -39,6 +39,10 @@ type ActionInitMediatorStateChange struct {
 	Db          channeltype.Db             //get the latest channel state
 }
 
+type MediatorReReceiveStateChange struct {
+	Message *encoding.MediatedTransfer //it two message
+}
+
 //ActionInitTargetStateChange Initial state for a new target.
 type ActionInitTargetStateChange struct {
 	OurAddress  common.Address       //This node address.
@@ -74,11 +78,10 @@ type ReceiveSecretRevealStateChange struct {
 	Message *encoding.RevealSecret //the message trigger this statechange
 }
 
-//ReceiveTransferRefundStateChange A AnnounceDisposed message received.
-type ReceiveTransferRefundStateChange struct {
-	Sender   common.Address
-	Transfer *LockedTransferState
-	Message  *encoding.AnnounceDisposed //the message trigger this statechange
+//ReceiveAnnounceDisposedStateChange A AnnounceDisposed message received.
+type ReceiveAnnounceDisposedStateChange struct {
+	Sender  common.Address
+	Message *encoding.AnnounceDisposed //the message trigger this statechange
 }
 
 //ReceiveBalanceProofStateChange A balance proof `identifier` was received.
@@ -87,6 +90,13 @@ type ReceiveBalanceProofStateChange struct {
 	NodeAddress    common.Address
 	BalanceProof   *transfer.BalanceProofState
 	Message        encoding.EnvelopMessager //the message trigger this statechange
+}
+
+/*
+warn  所有的合约事件都应该是按照链上发生的顺序抵达,这样可以保证同一个通道 settle 重新打开以后,不至于把事件发送给错误的通道.
+*/
+type ContractStateChange interface {
+	GetBlockNumber() int64
 }
 
 /*
@@ -99,7 +109,24 @@ type ContractSecretRevealStateChange struct {
 	BlockNumber int64
 }
 
-type ContractReceiveChannelWithdrawStateChange struct {
+func (e *ContractSecretRevealStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+type ContractUnlockStateChange struct {
+	ChannelIdentifier   common.Hash
+	BlockNumber         int64
+	TokenNetworkAddress common.Address
+	LockSecretHash      common.Hash
+	Participant         common.Address
+	TransferAmount      *big.Int
+}
+
+func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+type ContractChannelWithdrawStateChange struct {
 	ChannelAddress *contracts.ChannelUniqueID
 	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
 	Participant1        common.Address
@@ -107,55 +134,87 @@ type ContractReceiveChannelWithdrawStateChange struct {
 	Participant2        common.Address
 	Participant2Balance *big.Int
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
-//ContractReceiveClosedStateChange a channel was closed
-type ContractReceiveClosedStateChange struct {
+func (e *ContractChannelWithdrawStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractClosedStateChange a channel was closed
+type ContractClosedStateChange struct {
 	ChannelIdentifier   common.Hash
 	ClosingAddress      common.Address
 	ClosedBlock         int64 //block number when close
 	LocksRoot           common.Hash
 	TransferredAmount   *big.Int
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
-//ContractReceiveSettledStateChange a channel was settled
-type ContractReceiveSettledStateChange struct {
+func (e *ContractClosedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractSettledStateChange a channel was settled
+type ContractSettledStateChange struct {
 	ChannelIdentifier   common.Hash
 	SettledBlock        int64
 	TokenNetworkAddress common.Address
 }
 
-//ContractReceiveCooperativeSettledStateChange a channel was cooperatively settled
-type ContractReceiveCooperativeSettledStateChange struct {
+func (e *ContractSettledStateChange) GetBlockNumber() int64 {
+	return e.SettledBlock
+}
+
+//ContractCooperativeSettledStateChange a channel was cooperatively settled
+type ContractCooperativeSettledStateChange struct {
 	ChannelIdentifier   common.Hash
 	SettledBlock        int64
 	TokenNetworkAddress common.Address
 }
 
-//ContractReceiveBalanceStateChange new deposit on channel
-type ContractReceiveBalanceStateChange struct {
+func (e *ContractCooperativeSettledStateChange) GetBlockNumber() int64 {
+	return e.SettledBlock
+}
+
+//ContractBalanceStateChange new deposit on channel
+type ContractBalanceStateChange struct {
 	ChannelIdentifier   common.Hash
 	ParticipantAddress  common.Address
 	Balance             *big.Int
-	BlockNumber         int64
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
-//ContractReceiveNewChannelStateChange new channel created on block chain
-type ContractReceiveNewChannelStateChange struct {
+func (e *ContractBalanceStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractNewChannelStateChange new channel created on block chain
+type ContractNewChannelStateChange struct {
 	ChannelIdentifier   *contracts.ChannelUniqueID
 	Participant1        common.Address
 	Participant2        common.Address
 	SettleTimeout       int
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
-//ContractReceiveTokenAddedStateChange a new token registered
-type ContractReceiveTokenAddedStateChange struct {
+func (e *ContractNewChannelStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractTokenAddedStateChange a new token registered
+type ContractTokenAddedStateChange struct {
 	RegistryAddress     common.Address
 	TokenAddress        common.Address
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
+}
+
+func (e *ContractTokenAddedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
 }
 
 //ContractBalanceProofUpdatedStateChange contrct TransferUpdated event
@@ -163,10 +222,14 @@ type ContractBalanceProofUpdatedStateChange struct {
 	ChannelIdentifier   common.Hash
 	Participant         common.Address
 	LocksRoot           common.Hash
-	TransferredAmount   *big.Int
+	TransferAmount      *big.Int
 	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
+func (e *ContractBalanceProofUpdatedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
 func init() {
 	gob.Register(&ActionInitInitiatorStateChange{})
 	gob.Register(&ActionInitMediatorStateChange{})
@@ -174,13 +237,13 @@ func init() {
 	gob.Register(&ActionCancelRouteStateChange{})
 	gob.Register(&ReceiveSecretRequestStateChange{})
 	gob.Register(&ReceiveSecretRevealStateChange{})
-	gob.Register(&ReceiveTransferRefundStateChange{})
+	gob.Register(&ReceiveAnnounceDisposedStateChange{})
 	gob.Register(&ReceiveBalanceProofStateChange{})
 	gob.Register(&ContractSecretRevealStateChange{})
-	gob.Register(&ContractReceiveClosedStateChange{})
-	gob.Register(&ContractReceiveSettledStateChange{})
-	gob.Register(&ContractReceiveBalanceStateChange{})
-	gob.Register(&ContractReceiveNewChannelStateChange{})
-	gob.Register(&ContractReceiveTokenAddedStateChange{})
+	gob.Register(&ContractClosedStateChange{})
+	gob.Register(&ContractSettledStateChange{})
+	gob.Register(&ContractBalanceStateChange{})
+	gob.Register(&ContractNewChannelStateChange{})
+	gob.Register(&ContractTokenAddedStateChange{})
 	gob.Register(&ContractBalanceProofUpdatedStateChange{})
 }

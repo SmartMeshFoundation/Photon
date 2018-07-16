@@ -454,7 +454,7 @@ func eventsForRefundTransfer(refundRoute *route.State, refundTransfer *mediatedt
 	newLockTimeout := timeoutBlocks - refundRoute.RevealTimeout()
 	if newLockTimeout > 0 {
 		newLockExpiration := int64(newLockTimeout) + blockNumber
-		rtr2 := &mediatedtransfer.EventSendRefundTransfer{
+		rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
 			Token:          refundTransfer.Token,
 			Amount:         new(big.Int).Set(refundTransfer.Amount),
 			LockSecretHash: refundTransfer.LockSecretHash,
@@ -685,7 +685,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		if len(refundEvents) > 0 {
 			//todo 这是需要完全重写的部分
 			if params.TreatRefundTransferAsNormalMediatedTransfer {
-				//rftr := refundEvents[0].(*mediatedtransfer.EventSendRefundTransfer)
+				//rftr := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 				payeeLockedTransfer := &mediatedtransfer.LockedTransferState{
 					//TargetAmount:   rftr.TargetAmount,
 					//Amount:         new(big.Int).Set(rftr.Amount),
@@ -769,7 +769,7 @@ Validate and handle a ReceiveTransferRefund state change.
     Returns:
         TransitionResult: The resulting iteration.
 */
-func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
+func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	if state.Secret != utils.EmptyHash {
 		panic("refunds are not allowed if the secret is revealed")
 	}
@@ -829,7 +829,7 @@ func handleContractWithDraw(state *mediatedtransfer.MediatorState, st *mediatedt
 	////This node withdraw the refund
 	//if st.Receiver == state.OurAddress {
 	//	for pos, pair := range state.TransfersPair {
-	//		if pair.PayerRoute.ChannelAddress == st.ChannelAddress {
+	//		if pair.PayerRoute.ChannelIdentifier == st.ChannelIdentifier {
 	//			/*
 	//								  always set the contract_withdraw regardless of the previous
 	//				                 state (even expired)
@@ -855,7 +855,7 @@ func handleContractWithDraw(state *mediatedtransfer.MediatorState, st *mediatedt
 	//} else {
 	//	//A partner withdrew the mediated transfer
 	//	for _, pair := range state.TransfersPair {
-	//		if pair.PayerRoute.ChannelAddress == st.ChannelAddress {
+	//		if pair.PayerRoute.ChannelIdentifier == st.ChannelIdentifier {
 	//			unlock := &mediatedtransfer.EventUnlockSuccess{
 	//				Identifier:     pair.PayeeTransfer.Identifier,
 	//				LockSecretHash: pair.PayeeTransfer.LockSecretHash,
@@ -923,7 +923,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		switch st2 := stateChange.(type) {
 		case *transfer.BlockStateChange:
 			it = handleBlock(state, st2)
-		case *mediatedtransfer.ReceiveTransferRefundStateChange:
+		case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
 			it = handleRefundTransfer(state, st2)
 		case *mediatedtransfer.ReceiveSecretRevealStateChange:
 			it = handleSecretReveal(state, st2)

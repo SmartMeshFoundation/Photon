@@ -107,16 +107,28 @@ type EventSendSecretRequest struct {
 }
 
 /*
-EventSendRefundTransfer used to cleanly backtrack the current node in the route.
+EventSendAnnounceDisposed used to cleanly backtrack the current node in the route.
 
     This message will pay back the same amount of token from the receiver to
     the sender, allowing the sender to try a different route without the risk
     of losing token.
 */
-type EventSendRefundTransfer struct {
+type EventSendAnnounceDisposed struct {
 	Amount         *big.Int
 	LockSecretHash common.Hash
 	Expiration     int64
+	Token          common.Address
+	Receiver       common.Address
+}
+
+/*
+收到对方AnnounceDisposed,需要给以应答
+这时候我可能会一次发出两条消息,
+一条是 Reponse, 另一条是 MediatedTransfer.
+我极可能是中间节点,也可能是交易发起人,但是不会是接收方.
+*/
+type EventSendAnnounceDisposedResponse struct {
+	LockSecretHash common.Hash
 	Token          common.Address
 	Receiver       common.Address
 }
@@ -182,7 +194,7 @@ func init() {
 	gob.Register(&EventSendRevealSecret{})
 	gob.Register(&EventSendBalanceProof{})
 	gob.Register(&EventSendSecretRequest{})
-	gob.Register(&EventSendRefundTransfer{})
+	gob.Register(&EventSendAnnounceDisposed{})
 	gob.Register(&EventContractSendChannelClose{})
 	gob.Register(&EventContractSendWithdraw{})
 	gob.Register(&EventUnlockSuccess{})

@@ -23,6 +23,12 @@ type State struct {
 	TotalFee          *big.Int    // how much fee for all path when initiator use this route
 }
 
+func NewState(ch *channel.Channel) *State {
+	return &State{
+		ChannelIdentifier: ch.ChannelIdentifier.ChannelIdentifier,
+		ch:                ch,
+	}
+}
 func (rs *State) CanTransfer() bool {
 	return rs.ch.CanTransfer()
 }
@@ -39,9 +45,6 @@ func (rs *State) ClosedBlock() int64 {
 	return rs.ch.ExternState.ClosedBlock
 }
 func (rs *State) HopNode() common.Address {
-	if rs.IsSend {
-		return rs.ch.OurState.Address
-	}
 	return rs.ch.PartnerState.Address
 }
 func (rs *State) AvailableBalance() *big.Int {

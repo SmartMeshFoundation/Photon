@@ -417,7 +417,7 @@ func TestEventsForRefund(t *testing.T) {
 	assert(t, len(smallRefundEvents), 0)
 
 	refundEvents := eventsForRefundTransfer(refundRoute, refundTransfer, timeoutBlocks, blockNumber)
-	ev, ok := refundEvents[0].(*mediatedtransfer.EventSendRefundTransfer)
+	ev, ok := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 	assert(t, ev.Expiration < blockNumber+int64(timeoutBlocks), true)
 	assert(t, ev.Amount, amount)
@@ -803,6 +803,6 @@ func TestNoValidRoutes(t *testing.T) {
 	events := sm.Dispatch(initStateChange)
 	//assert(t, sm.CurrentState, nil)
 	assert(t, len(events), 1)
-	_, ok := events[0].(*mediatedtransfer.EventSendRefundTransfer)
+	_, ok := events[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 }

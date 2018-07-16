@@ -126,7 +126,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		}
 	}
 	state.Route = tryRoute
-	secret, hashlock := state.RandomGenerator()
 	/*
 				  The initiator doesn't need to learn the secret, so there is no need
 		         to decrement reveal_timeout from the lock timeout.
@@ -204,7 +203,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 	}
 }
 
-func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveTransferRefundStateChange) *transfer.TransitionResult {
+func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	if stateChange.Sender == state.Route.HopNode() && mediator.IsValidRefund(state.Transfer, stateChange.Transfer, stateChange.Sender) {
 		return cancelCurrentRoute(state)
 	}
@@ -357,7 +356,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			}
 			return tryNewRoute(state)
 		}
-		//todo fix, find a way to remove this identifier from raiden.Identifier2StateManagers
+		//todo fix, find a way to remove this identifier from raiden.LockSecretHash2StateManager
 		//log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 		//	utils.StringInterface1(originalState), utils.StringInterface1(st)))
 	} else if state.RevealSecret == nil {
@@ -366,7 +365,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleBlock(state, st2)
 		case *mt.ReceiveSecretRequestStateChange:
 			it = handleSecretRequest(state, st2)
-		case *mt.ReceiveTransferRefundStateChange:
+		case *mt.ReceiveAnnounceDisposedStateChange:
 			it = handleTransferRefund(state, st2)
 			//目前没用
 		case *mt.ActionCancelRouteStateChange:

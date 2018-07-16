@@ -261,7 +261,7 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
-	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
+	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
 		Sender:   mediatorAddress,
 		Transfer: tr,
 	}
@@ -289,7 +289,7 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
-	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
+	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
 		Sender:   mediatorAddress,
 		Transfer: tr,
 	}
@@ -315,7 +315,7 @@ func TestRefundTransferInvalidSender(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	tr := utest.MakeTransfer(amount, ourAddress, targetAddress, blockNumber+int64(utest.UnitSettleTimeout), utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
-	stateChange := &mediatedtransfer.ReceiveTransferRefundStateChange{
+	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
 		Sender:   ourAddress,
 		Transfer: tr,
 	}
