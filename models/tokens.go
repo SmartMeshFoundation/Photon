@@ -3,9 +3,12 @@ package models
 import (
 	"fmt"
 
-	log "github.com/SmartMeshFoundation/SmartRaiden/log"
+	"encoding/gob"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -15,11 +18,20 @@ type AddressMap map[common.Address]common.Address
 const bucketToken = "bucketToken"
 const keyToken = "tokens"
 const bucketTokenNodes = "bucketTokenNodes"
-const keyTokenNodes = "nodes"
+
+func init() {
+	gob.Register(common.Address{})
+	gob.Register(make(AddressMap))
+}
 
 //GetAllTokens returna all tokens on this registry contract
 func (model *ModelDB) GetAllTokens() (tokens AddressMap, err error) {
 	err = model.db.Get(bucketToken, keyToken, &tokens)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			tokens = make(AddressMap)
+		}
+	}
 	return
 }
 

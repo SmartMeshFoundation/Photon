@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/stretchr/testify/assert"
@@ -80,12 +79,9 @@ func TestChannel(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	chs, err = model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
-	if err != nil || len(chs) != 2 {
-		t.Error(err)
-		log.Error(fmt.Sprintf("chs=%s", utils.StringInterface(chs, 3)))
-		return
-	}
+	chs2, err := model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	assert.EqualValues(t, err == nil, true)
+	assert.EqualValues(t, chs, chs2)
 	//log.Trace(fmt.Sprintf("chs=%s", utils.StringInterface(chs, 3)))
 	err = model.UpdateChannelContractBalance(c)
 	if err != nil {

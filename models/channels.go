@@ -16,7 +16,7 @@ import (
 
 // NewChannel save a just created channel to db
 func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("new channel %s", c.Key.String()))
+	log.Trace(fmt.Sprintf("new channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	//notify new channel added
 	model.handleChannelCallback(model.newChannelCallbacks, c)
@@ -28,7 +28,7 @@ func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
 
 //UpdateChannelNoTx update channel status without a Tx
 func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("save channel %s", c.Key.String()))
+	log.Trace(fmt.Sprintf("save channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
@@ -63,7 +63,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channeltype.Serialization)
 
 //UpdateChannel update channel status in a Tx
 func (model *ModelDB) UpdateChannel(c *channeltype.Serialization, tx storm.Node) error {
-	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 7)))
+	log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
 	err := tx.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
