@@ -70,7 +70,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 		cli.StringFlag{
 			Name:  "registry-contract-address",
 			Usage: `hex encoded address of the registry contract.`,
-			Value: params.RopstenRegistryAddress.String(),
+			Value: params.SpectrumTestNetRegistryAddress.String(),
 		},
 		cli.StringFlag{
 			Name:  "listen-address",
