@@ -39,7 +39,7 @@ type UnlockProof struct {
 // Serialization is the living channel in the database
 type Serialization struct {
 	ChannelIdentifier      *contracts.ChannelUniqueID
-	Key                    common.Hash    `storm:"id"` //only for storm, because of save bug
+	Key                    common.Hash    `storm:"id"`
 	TokenAddress           common.Address `storm:"index"`
 	PartnerAddress         common.Address `storm:"index"`
 	OurAddress             common.Address

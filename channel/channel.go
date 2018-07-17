@@ -991,6 +991,7 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		partnerSecrets = append(partnerSecrets, s.Secret)
 	}
 	s := &channeltype.Serialization{
+		Key:                    c.ChannelIdentifier.ChannelIdentifier,
 		ChannelIdentifier:      &c.ChannelIdentifier,
 		TokenAddress:           c.TokenAddress,
 		PartnerAddress:         c.PartnerState.Address,

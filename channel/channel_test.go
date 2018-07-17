@@ -345,15 +345,19 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 3)
 
-	secretMessage, _ := testchannel.CreateUnlock(secret, utils.Sha3(secret[:]))
+	secretMessage, err := testchannel.CreateUnlock(utils.Sha3(secret[:]), secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	secretMessage.Sign(privkey1, secretMessage)
 	log.Info(fmt.Sprintf("secret message=%s", utils.StringInterface(secretMessage, 4)))
-	log.Info("bofore reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2))
+	log.Info(fmt.Sprintf("bofore reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2)))
 	err = testchannel.RegisterTransfer(blockNumber, secretMessage)
 	if err != nil {
 		t.Error(err)
 	}
-	log.Info("after reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2))
+	log.Info(fmt.Sprintf("after reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2)))
 	assert.EqualValues(t, testchannel.ContractBalance(), balance1)
 	assert.EqualValues(t, testchannel.Balance(), x.Sub(balance1, amount1).Sub(x, amount2))
 	assert.EqualValues(t, testchannel.TransferAmount(), x.Add(amount1, amount2))
@@ -565,7 +569,7 @@ func TestInterwovenTransfers(t *testing.T) {
 			transfer := transfersList[i-1]
 			secret := transfersSecret[i-1]
 			//synchronized claiming
-			secretMessage, _ := ch0.CreateUnlock(secret, utils.Sha3(secret[:]))
+			secretMessage, _ := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
 			secretMessage.Sign(ch0.ExternState.privKey, secretMessage)
 			err = ch0.RegisterTransfer(blockNumber, secretMessage)
 			assert.Equal(t, err, nil)
@@ -897,7 +901,7 @@ func TestChannel_RegisterWithdrawRequest(t *testing.T) {
 		t.Error("have lock doesn't allow withdraw")
 		return
 	}
-	unlock, err := ch0.CreateUnlock(secret, utils.Sha3(secret[:]))
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
 	if err != nil {
 		t.Error(err)
 		return
@@ -992,7 +996,7 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 		t.Error("have lock doesn't allow withdraw")
 		return
 	}
-	unlock, err := ch0.CreateUnlock(secret, utils.Sha3(secret[:]))
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
 	if err != nil {
 		t.Error(err)
 		return
