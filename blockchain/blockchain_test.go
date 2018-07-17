@@ -40,7 +40,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	be = NewBlockChainEvents(client, TokenNetworkRegistryAddress, secretRegistryAddress)
+	be = NewBlockChainEvents(client, TokenNetworkRegistryAddress, secretRegistryAddress, nil)
 	tokens, err := be.GetAllTokenNetworks(0)
 	if err != nil {
 		panic(fmt.Sprintf("cannot get all token networks err %s", err))

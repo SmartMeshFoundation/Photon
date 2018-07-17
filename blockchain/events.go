@@ -36,12 +36,11 @@ type Events struct {
 	stopped                   bool // has stopped?
 	quitChan                  chan struct{}
 	TokenNetworks             map[common.Address]bool
-	tokenNetworkInited        bool
 	historyEventsGot          bool
 }
 
 //NewBlockChainEvents create BlockChainEvents
-func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRegistryAddress common.Address) *Events {
+func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRegistryAddress common.Address, token2TokenNetwork map[common.Address]common.Address) *Events {
 	be := &Events{
 		client:                    client,
 		LogChannelMap:             make(map[string]chan types.Log),
@@ -52,6 +51,9 @@ func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRe
 		TokenNetworks:             make(map[common.Address]bool),
 		startupStateChangeChannel: make(chan mediatedtransfer.ContractStateChange, 100),
 		StateChangeChannel:        make(chan transfer.StateChange, 10),
+	}
+	for _, tn := range token2TokenNetwork {
+		be.TokenNetworks[tn] = true
 	}
 	for name := range eventAbiMap {
 		be.LogChannelMap[name] = make(chan types.Log, 10)
@@ -88,6 +90,9 @@ func (be *Events) installEventListener() (err error) {
 			}
 		} else {
 			//if ethclient reconnect
+			/*
+				todo 断了重连,也需要再次获取所有相关事件,否则会丢失事件.
+			*/
 			c := be.client.RegisterReConnectNotify("Events")
 			go func() {
 				defer rpanic.PanicRecover("installEventListener")
@@ -382,6 +387,7 @@ func (be *Events) sendStateChange(st mediatedtransfer.ContractStateChange) {
 	if be.stopped {
 		return
 	}
+	log.Trace(fmt.Sprintf("send statechange %s", utils.StringInterface(st, 2)))
 	if be.historyEventsGot {
 		be.StateChangeChannel <- st
 	} else {
@@ -390,9 +396,8 @@ func (be *Events) sendStateChange(st mediatedtransfer.ContractStateChange) {
 
 }
 
-//GetAllTokenNetworks returns all the token network
-func (be *Events) GetAllTokenNetworks(fromBlock int64) (token2tokenNetwork map[common.Address]common.Address, err error) {
-	var events []*contracts.TokenNetworkRegistryTokenNetworkCreated
+//GetAllTokenNetworks returns all the token network,events 本身需要知道所有的 tokennetwork, 这样才能处理相关事件.
+func (be *Events) GetAllTokenNetworks(fromBlock int64) (events []*contracts.TokenNetworkRegistryTokenNetworkCreated, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.RegistryAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameTokenNetworkCreated, eventAbiMap[params.NameTokenNetworkCreated], be.client)
 	if err != nil {
@@ -406,14 +411,9 @@ func (be *Events) GetAllTokenNetworks(fromBlock int64) (token2tokenNetwork map[c
 		}
 		events = append(events, e)
 	}
-	if len(events) > 0 {
-		token2tokenNetwork = make(map[common.Address]common.Address)
-	}
 	for _, e := range events {
-		token2tokenNetwork[e.Token_address] = e.Token_network_address
 		be.TokenNetworks[e.Token_network_address] = true
 	}
-	be.tokenNetworkInited = true
 	return
 }
 
@@ -581,11 +581,12 @@ GetAllStateChangeSince returns all the statechanges that raiden should know when
 除了 deposit 以外,tokennetwork合约上发生的所有事情我们都应该按顺序通知使用者
 */
 func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []mediatedtransfer.ContractStateChange, err error) {
-	if !be.tokenNetworkInited {
-		_, err = be.GetAllTokenNetworks(lastBlockNumber)
-		if err != nil {
-			return
-		}
+	events0, err := be.GetAllTokenNetworks(lastBlockNumber)
+	if err != nil {
+		return
+	}
+	for _, e := range events0 {
+		stateChangs = append(stateChangs, EventTokenNetworkCreated2StateChange(e))
 	}
 	var events []*contracts.SecretRegistrySecretRevealed
 	events, err = be.GetAllSecretRevealed(lastBlockNumber)
@@ -676,11 +677,16 @@ func (be *Events) Start(LastBlockNumber int64) error {
 
 	go func() {
 		var subScribeStateChanges []mediatedtransfer.ContractStateChange
+		var hasStateChanges = true
 		for {
+			if !hasStateChanges {
+				break
+			}
 			select {
 			case st := <-be.startupStateChangeChannel:
 				subScribeStateChanges = append(subScribeStateChanges, st)
 			default:
+				hasStateChanges = false
 				break
 			}
 		}
