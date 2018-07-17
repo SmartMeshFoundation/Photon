@@ -9,7 +9,7 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -26,14 +26,18 @@ var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
 var TestPrivKey *ecdsa.PrivateKey
 
 func init() {
-	keybin, err := hex.DecodeString(os.Getenv("KEY1"))
-	if err != nil {
-		log.Crit("err %s", err)
+	if encoding.IsTest {
+		keybin, err := hex.DecodeString(os.Getenv("KEY1"))
+		if err != nil {
+			//启动错误不要用 log, 那时候 log 还没准备好
+			panic(fmt.Sprintf("err %s", err))
+		}
+		TestPrivKey, err = crypto.ToECDSA(keybin)
+		if err != nil {
+			panic(fmt.Sprintf("err %s", err))
+		}
 	}
-	TestPrivKey, err = crypto.ToECDSA(keybin)
-	if err != nil {
-		log.Crit("err %s", err)
-	}
+
 }
 
 //MakeTestBlockChainService creat test BlockChainService

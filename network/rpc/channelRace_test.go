@@ -19,7 +19,7 @@ func TestChannelConcurrentQuery(t *testing.T) {
 	}
 	_, p1 := TestGetParticipant1()
 	_, p2 := TestGetParticipant2()
-	_, s, _, _, err := tn.GetChannelInfo(p1, p2)
+	_, s, _, _, _, err := tn.GetChannelInfo(p1, p2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -29,7 +29,7 @@ func TestChannelConcurrentQuery(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			_, s2, _, _, _ := tn.GetChannelInfo(p1, p2)
+			_, s2, _, _, _, _ := tn.GetChannelInfo(p1, p2)
 			if s != s2 {
 				t.Error("not equal")
 			}

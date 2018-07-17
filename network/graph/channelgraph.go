@@ -70,7 +70,7 @@ type ChannelGraph struct {
 /*
 NewChannelGraph create ChannelGraph,one token one channelGraph
 */
-func NewChannelGraph(ourAddress, tokenAddress common.Address, edges map[common.Address]common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
+func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
 	cg := &ChannelGraph{
 		OurAddress:              ourAddress,
 		TokenAddress:            tokenAddress,
@@ -93,6 +93,7 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edges map[common.A
 	return cg
 }
 func (cg *ChannelGraph) printGraph() {
+	fmt.Printf("%s channel graph", utils.APex2(cg.TokenAddress))
 	rowheader := fmt.Sprintf("%s", strings.Repeat(" ", 14))
 	for i := 0; i < len(cg.index2address); i++ {
 		rowheader += fmt.Sprintf("     %s:%2d", utils.APex2(cg.index2address[i]), i)
@@ -116,9 +117,9 @@ func (cg *ChannelGraph) printGraph() {
 	}
 }
 
-func (cg *ChannelGraph) makeGraph(edges map[common.Address]common.Address) {
-	for p1, p2 := range edges {
-		cg.AddPath(p1, p2)
+func (cg *ChannelGraph) makeGraph(edges []common.Address) {
+	for i := 0; i < len(edges); i += 2 {
+		cg.AddPath(edges[i], edges[i+1])
 	}
 }
 
@@ -156,6 +157,7 @@ func (cg *ChannelGraph) AddPath(source, target common.Address) {
 	if err != nil {
 		log.Error(fmt.Sprintf("add path err%s", err))
 	}
+	cg.printGraph()
 }
 
 /*
@@ -413,7 +415,7 @@ func (cg *ChannelGraph) AllNodes() (nodes []common.Address) {
 func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *channel.Channel) {
 	c = cg.PartenerAddress2Channel[address]
 	if c == nil {
-		log.Error(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(cg.TokenAddress)))
+		//log.Error(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(cg.TokenAddress)))
 	}
 	return
 }

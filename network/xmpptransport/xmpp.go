@@ -484,7 +484,6 @@ type XMPPDb interface {
 //CollectNeighbors subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 	x.db = db
-	log.Warn(fmt.Sprintf("CollectNeighbors ,but xmpp not connected"))
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
