@@ -142,7 +142,7 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	}
 	fmt.Printf("Deploy tokenNetworkRegistry complete...\n")
 
-	fmt.Printf("tokenNetworkRegistryAddress=%s", tokenNetworkRegistryAddress.String())
+	fmt.Printf("tokenNetworkRegistryAddress=%s\n", tokenNetworkRegistryAddress.String())
 	return
 }
 func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool) {

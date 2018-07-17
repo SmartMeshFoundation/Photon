@@ -17,7 +17,9 @@ func panicOnNullValue() {
 func TestPanic(t *testing.T) {
 	defer func() {
 		if err := recover(); err != nil {
-			t.Error(err)
+			//t.Error(err)
+		} else {
+			t.Error("should panic")
 		}
 	}()
 	panicOnNullValue()
@@ -30,9 +32,15 @@ type T struct {
 func TestStruct(t *testing.T) {
 	defer func() {
 		if err := recover(); err != nil {
-			t.Error(err)
+			//t.Error(err)
+		} else {
+			t.Error("should panic")
 		}
 	}()
 	var a *T
 	t.Logf("a.a=%d", a.a)
+}
+
+func TestStartMain(t *testing.T) {
+	StartMain()
 }
