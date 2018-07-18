@@ -150,6 +150,9 @@ contract TokenNetwork is Utils {
     创建通道:
     1. 允许任意两个不同有效地址之间创建通道
     2. 两地址之间不能有多个通道
+    参数数说明:
+    participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
+    settle_timeout 通道结算等待时间
     */
     function openChannel(address participant1, address participant2, uint64 settle_timeout)
     settleTimeoutValid(settle_timeout)
@@ -175,6 +178,7 @@ contract TokenNetwork is Utils {
     }
     /*
     open and deposit 合在一起,节省 gas
+    这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
     */
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
     settleTimeoutValid(settle_timeout)
@@ -203,6 +207,10 @@ contract TokenNetwork is Utils {
     }
     /*
     必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
+    参数说明:
+    participant 存钱给谁
+    partner 通道另一方
+    amount 存多少 token
     */
     function deposit(address participant, address partner, uint256 amount)
     public
@@ -228,7 +236,12 @@ contract TokenNetwork is Utils {
     功能:在不关闭通道的情况下提现,任何人都可以调用
 
     一旦一方提出 withdraw, 实际上和提出 cooperative settle 效果是一样的,就是不能再进行任何交易了.
-    必须等待 withdraw 完成才能重置数据,重新开始交易
+    必须等待 withdraw 完成才能重置交易数据,重新开始交易
+    参数说明:
+    participant1,participant2 通道参与双方
+    participant1_balance,participant2_balance 通道双方认为现在通道上的 token 如何分配,各取多少 token
+    participant1_withdraw,participant2_withdraw 各自需要提前多少 token
+    participant1_signature,participant2_signature 双方对这次提现的签名
     */
     function withDraw(
         address participant1,
@@ -305,6 +318,13 @@ contract TokenNetwork is Utils {
     }
     /*
     只能是通道参与方调用,只能调用一次,必须是在通道打开状态调用.
+    参数说明:
+    partner 通道的另一方
+    transferred_amount 另一方给的直接转账金额
+    locksroot 另一方彻底完成交易集合
+    nonce 另一方交易编号
+    additional_hash 为了辅助实现用
+    signature partner 的签名
     */
     function closeChannel(
         address partner,
@@ -348,6 +368,16 @@ contract TokenNetwork is Utils {
     /*
     任何人都可以调用,可以调用多次,只要在有效期内.
     包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
+    目的是更新partner的 balance proof
+    参数说明:
+    partner: 证据待更新一方
+    participant: 委托第三方进行对手证据更新一方
+    transferred_amount locksroot 的直接转账金额
+    locksroot partner 未彻底完成交易集合
+    nonce partner 给出交易变化
+    additional_hash 实现辅助信息
+    partner_signature partner 一方对于给出证据的签名
+    participant_signature 委托人对于委托的签名
     */
     function updateBalanceProofDelegate(
         address partner,
@@ -401,6 +431,14 @@ contract TokenNetwork is Utils {
     /*
    只能通道参与方调用,不限制 close 和非 close 方,可以调用多次,只要在有效期内.
    包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
+   目的是更新partner 的 balance proof, 只是自己直接调用,不经过第三方委托.
+  参数说明:
+   partner: 证据待更新一方
+    transferred_amount locksroot 的直接转账金额
+    locksroot partner 未彻底完成交易集合
+    nonce partner 给出交易变化
+    additional_hash 实现辅助信息
+    partner_signature partner 一方对于给出证据的签名
    */
     function updateBalanceProof(
         address partner,
@@ -437,6 +475,13 @@ contract TokenNetwork is Utils {
     任何人都可以调用,可以反复调用多次
     存在第三方和对手串谋 unlock 的可能,导致委托人损失所有金额
     所以必须有委托人签名
+    参数说明:
+    partner: 通道参与一方,他发出的某个交易没有彻底完成
+    participant 通道参与另一方,委托人
+    transferred_amount:partner 给出的直接转账金额
+    expiration,amount,secret_hash: 交易中未彻底完成的锁
+    merkle_proof: 证明此锁包含在 locksroot 中
+    participant_signature: 委托第三方的签名
     */
     function unlockDelegate(
         address partner,
@@ -472,6 +517,11 @@ contract TokenNetwork is Utils {
     /*
     只允许通道参与方可以调用,要在有效期内调用.通道状态必须是关闭,
     并且必须在 settle 之前来调用.只能由通道参与方来调用.
+    参数说明:
+    partner: 通道参与一方,他发出的某个交易没有彻底完成
+    transferred_amount:partner 给出的直接转账金额
+    expiration,amount,secret_hash: 交易中未彻底完成的锁
+    merkle_proof: 证明此锁包含在 locksroot 中
     */
     function unlock(
         address partner,
@@ -544,21 +594,16 @@ contract TokenNetwork is Utils {
         partner_state.balance_hash = calceBalanceHash(transferered_amount, locksroot);
         emit ChannelUnlocked(channel_identifier, partner, lockhash, transferered_amount);
     }
-    /*
 
-        /// @notice punish partner unlock a obsolete lock which he has annouced to abandon .
-        // Anyone can call punishObsoleteUnlock  on behalf of a channel participant.
-        /// @param channel_identifier The channel identifier - mapping key used for `channels`.
-        /// @param beneficiary Address of the participant who owes the locked tokens.
-        /// //@param expiration_block Block height at which the lock expires.
-        /// @param locked_amount Amount of tokens that the locked transfer values.
-        /// @param hashlock hash of a preimage used in a HTL Transfer
-        /// @param additional_hash Computed from the message. Used for message authentication.
-        /// @param signature signature of partner who has annouced to abandon this transfer,whether or not he knows the password.
-        */
 
     /*
     给 punish 一方留出了专门的 punishBlock 时间,punish 一方可以选择在那个时候提交证据,也可以在这之前.
+    参数说明:
+    beneficiary 惩罚提出者,也是受益人
+    cheater 不诚实的交易一方
+    lockhash 欺骗的具体锁
+    additional_hash 实现辅助信息
+    cheater_signature 不诚实一方对于放弃此锁的签名
     */
     function punishObsoleteUnlock(
         address beneficiary,
@@ -608,6 +653,11 @@ contract TokenNetwork is Utils {
     }
     /*
     任何人都可以调用,只能调用一次
+    目的 结算通道,将在通道中的押金退回到双方账户中
+    参数说明:
+    participant1,participant2 通道参与双方
+    participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
+    participant1_locksroot,participant2_locksroot双方的未彻底完成交易集合
     */
     function settleChannel(
         address participant1,
@@ -698,6 +748,11 @@ contract TokenNetwork is Utils {
 
     /*
     任何人都可以调用,只能调用一次.
+    功能:双方协商一致关闭通道,将通道中的金额直接退回到双方账户
+    参数说明:
+    participant1,participant2:通道参与双方
+    participant1_balance,participant2_balance:双方关于金额的分配方案
+    participant1_signature,participant2_signature 双方对于分配方案的签名
     */
     function cooperativeSettle(
         address participant1,
