@@ -810,7 +810,7 @@ func handleSecretReveal(state *mediatedtransfer.MediatorState, st *mediatedtrans
 }
 
 //Handle a NettingChannelUnlock state change. todo 需要完全重写,
-func handleContractWithDraw(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ContractSecretRevealStateChange) *transfer.TransitionResult {
+func handleContractWithDraw(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -926,7 +926,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			it = handleRefundTransfer(state, st2)
 		case *mediatedtransfer.ReceiveSecretRevealStateChange:
 			it = handleSecretReveal(state, st2)
-		case *mediatedtransfer.ContractSecretRevealStateChange:
+		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
 			it = handleContractWithDraw(state, st2)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
@@ -939,7 +939,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			it = handleSecretReveal(state, st2)
 		case *mediatedtransfer.ReceiveBalanceProofStateChange:
 			it = handleBalanceProof(state, st2)
-		case *mediatedtransfer.ContractSecretRevealStateChange:
+		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
 			it = handleContractWithDraw(state, st2)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))

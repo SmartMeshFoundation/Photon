@@ -647,11 +647,7 @@ func (rs *RaidenService) SendAndWait(recipient common.Address, message encoding.
 Register the secret with any channel that has a hashlock on it.
 
        This must search through all channels registered for a given hashlock
-       and ignoring the tokens. Useful for refund transfer, split transfer,
-       and token swaps.
-
-       Raises:
-           TypeError: If secret is unicode data.
+       and ignoring the tokens.
 */
 func (rs *RaidenService) registerSecret(secret common.Hash) {
 	hashlock := utils.Sha3(secret[:])
@@ -673,6 +669,21 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 	}
 }
 
+/*
+链上这个锁对应的密码注册了,
+*/
+func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash common.Hash, blockNumber int64) {
+	for _, hashchannel := range rs.Token2Hashlock2Channels {
+		for _, ch := range hashchannel[lockSecretHash] {
+			err := ch.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
+			if err != nil {
+				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
+					utils.HPex(lockSecretHash), ch.ChannelIdentifier, err))
+			}
+			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		}
+	}
+}
 func (rs *RaidenService) registerChannelForHashlock(netchannel *channel.Channel, hashlock common.Hash) {
 	tokenAddress := netchannel.TokenAddress
 	channelsRegistered := rs.Token2Hashlock2Channels[tokenAddress][hashlock]

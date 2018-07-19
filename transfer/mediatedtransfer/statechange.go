@@ -107,12 +107,12 @@ type ContractStateChange interface {
 1.诚实的节点在检查对方可以在链上unlock 这个锁的时候,应该主动发送unloc消息,移除此锁
 2.自己应该把密码保存在本地,然后在需要的时候链上兑现
 */
-type ContractSecretRevealStateChange struct {
-	Secret      common.Hash
-	BlockNumber int64
+type ContractSecretRevealOnChainStateChange struct {
+	LockSecretHash common.Hash
+	BlockNumber    int64
 }
 
-func (e *ContractSecretRevealStateChange) GetBlockNumber() int64 {
+func (e *ContractSecretRevealOnChainStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
 
@@ -120,7 +120,7 @@ type ContractUnlockStateChange struct {
 	ChannelIdentifier   common.Hash
 	BlockNumber         int64
 	TokenNetworkAddress common.Address
-	LockSecretHash      common.Hash
+	LockHash            common.Hash //hash of the lock, not secret hash
 	Participant         common.Address
 	TransferAmount      *big.Int
 }
@@ -178,6 +178,18 @@ type ContractCooperativeSettledStateChange struct {
 
 func (e *ContractCooperativeSettledStateChange) GetBlockNumber() int64 {
 	return e.SettledBlock
+}
+
+//ContractPunishedStateChange punished events on channel
+type ContractPunishedStateChange struct {
+	ChannelIdentifier   common.Hash
+	TokenNetworkAddress common.Address
+	Beneficiary         common.Address
+	BlockNumber         int64
+}
+
+func (e *ContractPunishedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
 }
 
 //ContractBalanceStateChange new deposit on channel
@@ -241,7 +253,7 @@ func init() {
 	gob.Register(&ReceiveSecretRevealStateChange{})
 	gob.Register(&ReceiveAnnounceDisposedStateChange{})
 	gob.Register(&ReceiveBalanceProofStateChange{})
-	gob.Register(&ContractSecretRevealStateChange{})
+	gob.Register(&ContractSecretRevealOnChainStateChange{})
 	gob.Register(&ContractClosedStateChange{})
 	gob.Register(&ContractSettledStateChange{})
 	gob.Register(&ContractBalanceStateChange{})
