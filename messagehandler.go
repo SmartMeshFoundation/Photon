@@ -106,14 +106,16 @@ func (mh *raidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
 	//	BalanceProof:   transfer.NewBalanceProofStateFromEnvelopMessage(msger),
 	//	Message:        msger,
 	//}
-	//mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(balanceProof.LockSecretHash, balanceProof)
+	//mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
 }
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
-	mh.raiden.StateMachineEventHandler.logAndDispatchToAllTasks(stateChange)
+	lockSecretHash := utils.Sha3(secret[:])
+
+	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(lockSecretHash, stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
@@ -123,7 +125,7 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 		Sender:         msg.Sender,
 		Message:        msg,
 	}
-	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(stateChange.LockSecretHash, stateChange)
+	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) markSecretComplete(msg *encoding.UnLock) {
@@ -251,7 +253,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Lock:    msg.Lock,
 		Message: msg,
 	}
-	mh.raiden.StateMachineEventHandler.logAndDispatchByIdentifier(msg.Lock.LockSecretHash, stateChange)
+	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {

@@ -40,7 +40,7 @@ func newStateMachineEventHandler(raiden *RaidenService) *stateMachineEventHandle
 Log a state change, dispatch it to all state managers and log generated events
 */
 func (eh *stateMachineEventHandler) logAndDispatchToAllTasks(st transfer.StateChange) {
-	for _, mgrs := range eh.raiden.LockSecretHash2StateManager {
+	for _, mgrs := range eh.raiden.Transfer2StateManager {
 		eh.dispatch(mgrs, st)
 	}
 }
@@ -49,10 +49,12 @@ func (eh *stateMachineEventHandler) logAndDispatchToAllTasks(st transfer.StateCh
 Log a state change, dispatch it to the state manager corresponding to `idenfitier`
         and log generated events
 */
-func (eh *stateMachineEventHandler) logAndDispatchByIdentifier(identifier common.Hash, st transfer.StateChange) {
-	mgrs := eh.raiden.LockSecretHash2StateManager[identifier]
-	if mgrs != nil {
-		eh.dispatch(mgrs, st)
+func (eh *stateMachineEventHandler) logAndDispatchBySecretHash(lockSecretHash common.Hash, st transfer.StateChange) {
+	for _, mgr := range eh.raiden.Transfer2StateManager {
+		//todo 这个未必是高效的方式,因为同时进行的 transfer 可能很多,会比较慢.
+		if mgr.Identifier == lockSecretHash {
+			eh.dispatch(mgr, st)
+		}
 	}
 }
 
@@ -301,36 +303,29 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	var err error
 	var lockSecretHash common.Hash
-	var target common.Address
+	var tokenAddress common.Address
 	switch e2 := ev.(type) {
 	case *transfer.EventTransferSentSuccess:
 		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.LockSecretHash))
 		lockSecretHash = e2.LockSecretHash
-		target = e2.Target
+		tokenAddress = e2.Token
 		err = nil
 	case *transfer.EventTransferSentFailed:
 		log.Warn(fmt.Sprintf("EventTransferSentFailed for id %d,because of %s", e2.LockSecretHash, e2.Reason))
 		lockSecretHash = e2.LockSecretHash
-		target = e2.Target
 		err = errors.New(e2.Reason)
+		tokenAddress = e2.Token
 	default:
 		panic("unknow event")
 	}
-	r := eh.raiden.LockSecretHash2Result[lockSecretHash]
+	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	r := eh.raiden.Transfer2Result[smkey]
 	if r == nil { //restart after crash?
 		log.Error(fmt.Sprintf("you can ignore this error when this transfer is a direct transfer.\n transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
 		return
 	}
-	t2, ok := r.Tag.(common.Address)
-	if !ok {
-		panic("LockSecretHash2Result's tag must be Address")
-	}
-	if t2 == target {
-		r.Result <- err
-		//只有maker有 result 通知,taker并没有.
-		close(r.Result)
-	}
-	delete(eh.raiden.LockSecretHash2Result, lockSecretHash)
+	r.Result <- err
+	delete(eh.raiden.Transfer2Result, smkey)
 }
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
 	if st.RegistryAddress != eh.raiden.RegistryAddress {
@@ -520,11 +515,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
-	stateManager := eh.raiden.LockSecretHash2StateManager[st.LockSecretHash]
-	if stateManager == nil {
-		return nil
-	}
-	eh.logAndDispatch(stateManager, st)
+	eh.logAndDispatchBySecretHash(st.LockSecretHash, st)
 	return nil
 }
 

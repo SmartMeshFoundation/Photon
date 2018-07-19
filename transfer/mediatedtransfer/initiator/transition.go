@@ -53,6 +53,7 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 		LockSecretHash: state.Transfer.LockSecretHash,
 		Reason:         "user canceled transfer",
 		Target:         state.Transfer.Target,
+		Token:          state.Transfer.Token,
 	}
 	return &transfer.TransitionResult{
 		NewState: nil,
@@ -111,6 +112,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			LockSecretHash: state.Transfer.LockSecretHash,
 			Reason:         "no route available",
 			Target:         state.Transfer.Target,
+			Token:          state.Transfer.Token,
 		}
 		events := []transfer.Event{transferFailed}
 		if unlockFailed != nil {
@@ -203,7 +205,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 	}
 }
 
-func handleTransferRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
+func handleRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	if stateChange.Sender == state.Route.HopNode() && mediator.IsValidRefund(state.Transfer, stateChange) {
 		return cancelCurrentRoute(state)
 	}
@@ -297,6 +299,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			Amount:            tr.Amount,
 			Target:            tr.Target,
 			ChannelIdentifier: state.Route.ChannelIdentifier,
+			Token:             tr.Token,
 		}
 		unlockSuccess := &mt.EventUnlockSuccess{
 			LockSecretHash: tr.LockSecretHash,
@@ -319,12 +322,11 @@ StateTransition is State machine for a node starting a mediated transfer.
 */
 func StateTransition(originalState transfer.State, st transfer.StateChange) *transfer.TransitionResult {
 	/*
-	   	 TODO: Add synchronization for expired locks.
-	        Transfers added to the canceled list by an ActionCancelRoute are stale in
-	        the channels merkle tree, while this doesn't increase the messages sizes
-	        nor does it interfere with the guarantees of finality it increases memory
-	        usage for each end, since the full merkle tree must be saved to compute
-	        it's root.
+	   Transfers added to the canceled list by an ActionCancelRoute are stale in
+	   the channels merkle tree, while this doesn't increase the messages sizes
+	   nor does it interfere with the guarantees of finality it increases memory
+	   usage for each end, since the full merkle tree must be saved to compute
+	   it's root.
 	*/
 	it := &transfer.TransitionResult{
 		NewState: originalState,
@@ -340,15 +342,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 	if state == nil {
 		staii, ok := st.(*mt.ActionInitInitiatorStateChange)
 		if ok {
-			var routes route.RoutesState
-			err := utils.DeepCopy(&routes, staii.Routes)
-			if err != nil {
-				panic(fmt.Sprintf("deepcopy error:%#v", err))
-			}
 			state = &mt.InitiatorState{
 				OurAddress:     staii.OurAddress,
 				Transfer:       staii.Tranfer,
-				Routes:         &routes,
+				Routes:         staii.Routes,
 				BlockNumber:    staii.BlockNumber,
 				LockSecretHash: staii.LockSecretHash,
 				Secret:         staii.Secret,
@@ -356,9 +353,12 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			}
 			return tryNewRoute(state)
 		}
-		//todo fix, find a way to remove this identifier from raiden.LockSecretHash2StateManager
-		//log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
-		//	utils.StringInterface1(originalState), utils.StringInterface1(st)))
+		/*
+			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
+		*/
+		//todo fix, find a way to remove this identifier from raiden.Transfer2StateManager
+		log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
+			utils.StringInterface1(originalState), utils.StringInterface1(st)))
 	} else if state.RevealSecret == nil {
 		switch st2 := st.(type) {
 		case *transfer.BlockStateChange:
@@ -366,7 +366,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		case *mt.ReceiveSecretRequestStateChange:
 			it = handleSecretRequest(state, st2)
 		case *mt.ReceiveAnnounceDisposedStateChange:
-			it = handleTransferRefund(state, st2)
+			it = handleRefund(state, st2)
 			//目前没用
 		case *mt.ActionCancelRouteStateChange:
 			it = handleCancelRoute(state, st2)

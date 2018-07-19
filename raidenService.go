@@ -83,12 +83,12 @@ type RaidenService struct {
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
 
-	TokenNetwork2Token          map[common.Address]common.Address
-	Token2TokenNetwork          map[common.Address]common.Address
-	LockSecretHash2StateManager map[common.Hash]*transfer.StateManager
-	LockSecretHash2Result       map[common.Hash]*utils.AsyncResult
-	SwapKey2TokenSwap           map[swapKey]*TokenSwap
-	Tokens2ConnectionManager    map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
+	TokenNetwork2Token       map[common.Address]common.Address
+	Token2TokenNetwork       map[common.Address]common.Address
+	Transfer2StateManager    map[common.Hash]*transfer.StateManager
+	Transfer2Result          map[common.Hash]*utils.AsyncResult
+	SwapKey2TokenSwap        map[swapKey]*TokenSwap
+	Tokens2ConnectionManager map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
 	/*
 				   This is a map from a hashlock to a list of channels, the same
 			         hashlock can be used in more than one token (for tokenswaps), a
@@ -152,8 +152,8 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Token2ChannelGraph:                  make(map[common.Address]*graph.ChannelGraph),
 		TokenNetwork2Token:                  make(map[common.Address]common.Address),
 		Token2TokenNetwork:                  make(map[common.Address]common.Address),
-		LockSecretHash2StateManager:         make(map[common.Hash]*transfer.StateManager),
-		LockSecretHash2Result:               make(map[common.Hash]*utils.AsyncResult),
+		Transfer2StateManager:               make(map[common.Hash]*transfer.StateManager),
+		Transfer2Result:                     make(map[common.Hash]*utils.AsyncResult),
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
 		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
@@ -825,6 +825,7 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		Amount:            amount,
 		Target:            target,
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
+		Token:             tokenAddress,
 	}
 	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 	err = rs.StateMachineEventHandler.OnEvent(transferSuccess, nil)
@@ -853,7 +854,6 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
 	result = utils.NewAsyncResult()
-	result.Tag = target //tell the difference when token swap
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -915,13 +915,13 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 		Db:             rs.db,
 	}
 	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, lockSecretHash, transferState.Token)
-
-	manager := rs.LockSecretHash2StateManager[lockSecretHash]
+	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := rs.Transfer2StateManager[smkey]
 	if manager != nil {
 		panic(fmt.Sprintf("manager must be never exist"))
 	}
-	rs.LockSecretHash2StateManager[lockSecretHash] = stateManager
-	rs.LockSecretHash2Result[lockSecretHash] = result
+	rs.Transfer2StateManager[smkey] = stateManager
+	rs.Transfer2Result[smkey] = result
 	rs.db.AddStateManager(stateManager)
 	rs.StateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
 	return
@@ -938,7 +938,9 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 
 //receive a MediatedTransfer, i'm a hop node
 func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
-	stateManager := rs.LockSecretHash2StateManager[msg.LockSecretHash]
+	tokenAddress := ch.TokenAddress
+	smkey := utils.Sha3(msg.LockSecretHash[:], tokenAddress[:])
+	stateManager := rs.Transfer2StateManager[smkey]
 	if stateManager != nil {
 		if stateManager.Name != mediator.NameMediatorTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a mediator,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
@@ -953,10 +955,17 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 			第一次收到这个密码,
 			todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 		*/
+		if rs.db.IsLockSecretHashDisposed(msg.LockSecretHash) {
+			//我都声明过这个锁我放弃了,但是仍然收到了这个锁,按道理锁是随机生成,不可能重复的.所以,这一定是攻击
+			log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
+			//忽略,什么都不做
+			return
+		}
 		amount := msg.PaymentAmount
 		target := msg.Target
+		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
 		g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.MakeExclude(msg.Sender), rs)
+		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, exclude, rs)
 		fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
 		fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
 		ourAddress := rs.NodeAddress
@@ -974,21 +983,15 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		}
 		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 		rs.db.AddStateManager(stateManager)
-		mgr := rs.LockSecretHash2StateManager[msg.LockSecretHash]
-		if mgr != nil {
-			/*
-				出现了路由循环,必须支持
-			*/
-			panic("not implement")
-		}
-		rs.LockSecretHash2StateManager[msg.LockSecretHash] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
+		rs.Transfer2StateManager[smkey] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
 		rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
 	}
 }
 
 //receive a MediatedTransfer, i'm the target
 func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
-	stateManager := rs.LockSecretHash2StateManager[msg.LockSecretHash]
+	smkey := utils.Sha3(msg.LockSecretHash[:], ch.TokenAddress[:])
+	stateManager := rs.Transfer2StateManager[smkey]
 	if stateManager != nil {
 		if stateManager.Name != target.NameTargetTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a target,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
@@ -1012,11 +1015,7 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 		}
 		stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 		rs.db.AddStateManager(stateManger)
-		mgr := rs.LockSecretHash2StateManager[msg.LockSecretHash]
-		if mgr != nil {
-			panic("never happen for target, only if a attack")
-		}
-		rs.LockSecretHash2StateManager[msg.LockSecretHash] = mgr
+		rs.Transfer2StateManager[smkey] = stateManager
 		rs.StateMachineEventHandler.logAndDispatch(stateManger, initTarget)
 	}
 }

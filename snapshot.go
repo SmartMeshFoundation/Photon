@@ -121,12 +121,12 @@ func (rs *RaidenService) restoreStateManager(isCrashed bool) {
 	//		continue
 	//	}
 	//	setStateManagerFuncPointer(mgr)
-	//	idmgrs := rs.LockSecretHash2StateManager[mgr.Identifier]
+	//	idmgrs := rs.Transfer2StateManager[mgr.Identifier]
 	//	idmgrs = append(idmgrs, mgr)
-	//	rs.LockSecretHash2StateManager[mgr.Identifier] = idmgrs
+	//	rs.Transfer2StateManager[mgr.Identifier] = idmgrs
 	//	rs.restoreDbPointer(mgr.CurrentState)
 	//}
-	//for _, mgrs := range rs.LockSecretHash2StateManager {
+	//for _, mgrs := range rs.Transfer2StateManager {
 	//	//mannagers for the same channel should be order, otherwise, nonce error.
 	//	for _, mgr := range mgrs {
 	//		log.Trace(fmt.Sprintf("restore state manager:%s\n", utils.StringInterface(mgr, 7)))

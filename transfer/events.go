@@ -35,6 +35,7 @@ type EventTransferSentSuccess struct {
 	Amount            *big.Int
 	Target            common.Address
 	ChannelIdentifier common.Hash
+	Token             common.Address
 }
 
 /*
@@ -48,6 +49,7 @@ type EventTransferSentFailed struct {
 	LockSecretHash common.Hash
 	Reason         string
 	Target         common.Address //transfer's target, may be not the same as receipient
+	Token          common.Address
 }
 
 /*

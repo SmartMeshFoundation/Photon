@@ -30,9 +30,11 @@ func init() {
 }
 
 //MakeExclude 为了调用 GetBestRoutes 方便一点
-func MakeExclude(addr common.Address) map[common.Address]bool {
+func MakeExclude(addrs ...common.Address) map[common.Address]bool {
 	m := make(map[common.Address]bool)
-	m[addr] = true
+	for _, addr := range addrs {
+		m[addr] = true
+	}
 	return m
 }
 
