@@ -15,17 +15,17 @@ import (
 PendingLock is lock of HTLC
 */
 type PendingLock struct {
-	Lock       *mtree.Lock
-	LockHashed common.Hash
+	Lock     *mtree.Lock
+	LockHash common.Hash //hash of this lock
 }
 
 /*
 UnlockPartialProof is the lock that I have known the secret ,but haven't receive the Balance proof
 */
 type UnlockPartialProof struct {
-	Lock       *mtree.Lock
-	LockHashed common.Hash
-	Secret     common.Hash
+	Lock     *mtree.Lock
+	LockHash common.Hash
+	Secret   common.Hash
 }
 
 /*

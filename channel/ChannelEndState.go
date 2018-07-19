@@ -68,6 +68,36 @@ func (node *EndState) TransferAmount() *big.Int {
 	}
 	return big.NewInt(0)
 }
+func (node *EndState) SetContractTransferAmount(amount *big.Int) {
+	//must not opened,
+	if node.BalanceProofState != nil {
+		if node.BalanceProofState.ContractTransferAmount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
+			panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
+				node.BalanceProofState.ContractTransferAmount,
+				node.BalanceProofState.TransferAmount,
+			))
+		}
+		node.BalanceProofState.ContractTransferAmount = new(big.Int).Set(amount)
+	}
+	return
+}
+func (node *EndState) contractTransferAmount() *big.Int {
+	if node.BalanceProofState != nil {
+		return node.BalanceProofState.ContractTransferAmount
+	}
+	return big.NewInt(0)
+}
+
+func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
+	if node.BalanceProofState != nil {
+		node.BalanceProofState.ContractLocksRoot = locksroot
+	}
+}
+func (node *EndState) SetContractNonce(nonce int64) {
+	if node.BalanceProofState != nil {
+		node.BalanceProofState.Nonce = nonce
+	}
+}
 
 //amountLocked is the tokens I have sent but partner doesn't have received the new blanceproof
 func (node *EndState) amountLocked() *big.Int {
@@ -210,9 +240,15 @@ func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMess
 	newtree, locksroot := node.computeMerkleRootWith(lock)
 	lockhashed := utils.Sha3(lock.AsBytes())
 	if balanceProof.LocksRoot != locksroot {
-		return &InvalidLocksRootError{locksroot, balanceProof.LocksRoot}
+		return &InvalidLocksRootError{
+			ExpectedLocksroot: locksroot,
+			GotLocksroot:      balanceProof.LocksRoot,
+		}
 	}
-	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{lock, lockhashed}
+	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{
+		Lock:     lock,
+		LockHash: lockhashed,
+	}
 	node.BalanceProofState = balanceProof
 	node.tree = newtree
 	return nil
@@ -322,9 +358,15 @@ func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (e
 	newtree, locksroot := node.computeMerkleRootWith(lock)
 	lockhashed := utils.Sha3(lock.AsBytes())
 	if balanceProof.LocksRoot != locksroot {
-		return &InvalidLocksRootError{locksroot, balanceProof.LocksRoot}
+		return &InvalidLocksRootError{
+			ExpectedLocksroot: locksroot,
+			GotLocksroot:      balanceProof.LocksRoot,
+		}
 	}
-	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{lock, lockhashed}
+	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{
+		Lock:     lock,
+		LockHash: lockhashed,
+	}
 	node.BalanceProofState = balanceProof
 	node.tree = newtree
 	return nil
@@ -355,11 +397,6 @@ RegisterSecret register a secret(not secret message) so that it can be used in a
 
         Note:
             This methods needs to be called once a `Secret` message is received
-            or a `SecretRevealed` event happens.
-
-        Raises:
-            ValueError: If the hashlock is not known.
-        """
 */
 func (node *EndState) RegisterSecret(secret common.Hash) error {
 	hashlock := utils.Sha3(secret[:])
@@ -370,7 +407,29 @@ func (node *EndState) RegisterSecret(secret common.Hash) error {
 		pendingLock := node.Lock2PendingLocks[hashlock]
 		delete(node.Lock2PendingLocks, hashlock)
 		node.Lock2UnclaimedLocks[hashlock] = channeltype.UnlockPartialProof{
-			pendingLock.Lock, pendingLock.LockHashed, secret}
+			Lock:     pendingLock.Lock,
+			LockHash: pendingLock.LockHash,
+			Secret:   secret,
+		}
+	}
+	return nil
+}
+
+/*
+RegisterRevealedSecretHash a SecretReveal event on chain
+*/
+func (node *EndState) RegisterRevealedSecretHash(lockSecretHash common.Hash, blockNumber int64) error {
+	if !node.IsKnown(lockSecretHash) {
+		return errors.New("secret does not correspond to any lockSecretHash")
+	}
+	if node.IsLocked(lockSecretHash) {
+		pendingLock := node.Lock2PendingLocks[lockSecretHash]
+		if blockNumber > pendingLock.Lock.Expiration {
+			return fmt.Errorf("secrethash %s  registerred on block chain,but already expired for me", utils.HPex(lockSecretHash))
+		}
+		delete(node.Lock2PendingLocks, lockSecretHash)
+		node.Lock2UnclaimedLocks[lockSecretHash] = channeltype.UnlockPartialProof{
+			pendingLock.Lock, pendingLock.LockHash, utils.EmptyHash}
 	}
 	return nil
 }

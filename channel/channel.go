@@ -251,7 +251,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 	ourKnown := c.OurState.IsKnown(hashlock)
 	partenerKnown := c.PartnerState.IsKnown(hashlock)
 	if !ourKnown && !partenerKnown {
-		return fmt.Errorf("Secret doesn't correspond to a registered hashlock. hashlock %s token %s",
+		return fmt.Errorf("secret doesn't correspond to a registered hashlock. hashlock %s token %s",
 			utils.Pex(hashlock[:]), utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
 	}
 	if ourKnown {
@@ -260,7 +260,8 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
 			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
-		return c.OurState.RegisterSecret(secret)
+		err := c.OurState.RegisterSecret(secret)
+		return err
 	}
 	if partenerKnown {
 		lock := c.PartnerState.getLockByHashlock(hashlock)
@@ -269,6 +270,37 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
 		return c.PartnerState.RegisterSecret(secret)
+	}
+	return nil
+}
+
+//链上对应的密码注册了
+func (c *Channel) RegisterRevealedSecretHash(lockSecretHash common.Hash, blockNumber int64) error {
+	ourKnown := c.OurState.IsKnown(lockSecretHash)
+	partenerKnown := c.PartnerState.IsKnown(lockSecretHash)
+	if !ourKnown && !partenerKnown {
+		return fmt.Errorf("LockSecretHash doesn't correspond to a registered lockSecretHash. lockSecretHash %s token %s",
+			utils.Pex(lockSecretHash[:]), utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
+	}
+	if ourKnown {
+		lock := c.OurState.getLockByHashlock(lockSecretHash)
+		log.Debug(fmt.Sprintf("lockSecretHash registered node=%s,from=%s,to=%s,token=%s,lockSecretHash=%s,amount=%s",
+			utils.Pex(c.OurState.Address[:]), utils.Pex(c.OurState.Address[:]),
+			utils.Pex(c.PartnerState.Address[:]), utils.APex(c.TokenAddress),
+			utils.Pex(lockSecretHash[:]), lock.Amount))
+		err := c.OurState.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
+		if err == nil {
+			//todo 需要发送给对方 unlock 消息,在哪里发比较合适呢? stateManager 还是这里?
+		}
+		return err
+	}
+	if partenerKnown {
+		lock := c.PartnerState.getLockByHashlock(lockSecretHash)
+		log.Debug(fmt.Sprintf("lockSecretHash registered node=%s,from=%s,to=%s,token=%s,lockSecretHash=%s,amount=%s",
+			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
+			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
+			utils.Pex(lockSecretHash[:]), lock.Amount))
+		return c.PartnerState.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
 	}
 	return nil
 }
