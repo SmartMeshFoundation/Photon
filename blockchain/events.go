@@ -71,6 +71,7 @@ var eventAbiMap = map[string]string{
 	params.NameChannelWithdraw:           contracts.TokenNetworkABI,
 	params.NameChannelUnlocked:           contracts.TokenNetworkABI,
 	params.NameBalanceProofUpdated:       contracts.TokenNetworkABI,
+	params.NameChannelPunished:           contracts.TokenNetworkABI,
 	params.NameSecretRevealed:            contracts.SecretRegistryABI,
 	//the following event is for 3rd party
 	params.NameNewDeposit:              monitoringcontracts.MonitoringServiceABI,
@@ -152,6 +153,16 @@ func EventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChanne
 		ChannelIdentifier:   common.Hash(ev.Channel_identifier),
 		TokenNetworkAddress: ev.Raw.Address,
 		SettledBlock:        int64(ev.Raw.BlockNumber),
+	}
+}
+
+//EventChannelCooperativeSettled2StateChange to stateChange
+func EventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished) *mediatedtransfer.ContractPunishedStateChange {
+	return &mediatedtransfer.ContractPunishedStateChange{
+		ChannelIdentifier:   common.Hash(ev.Channel_identifier),
+		TokenNetworkAddress: ev.Raw.Address,
+		Beneficiary:         ev.Beneficiary,
+		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 }
 
@@ -242,9 +253,10 @@ func EventChannelUnlocked2StateChange(ev *contracts.TokenNetworkChannelUnlocked)
 }
 
 //EventSecretRevealed2StateChange to statechange
-func EventSecretRevealed2StateChange(ev *contracts.SecretRegistrySecretRevealed) *mediatedtransfer.ContractSecretRevealStateChange {
-	return &mediatedtransfer.ContractSecretRevealStateChange{
-		Secret: ev.Secrethash,
+func EventSecretRevealed2StateChange(ev *contracts.SecretRegistrySecretRevealed) *mediatedtransfer.ContractSecretRevealOnChainStateChange {
+	return &mediatedtransfer.ContractSecretRevealOnChainStateChange{
+		LockSecretHash: ev.Secrethash,
+		BlockNumber:    int64(ev.Raw.BlockNumber),
 	}
 }
 func (be *Events) startListenEvent() {
@@ -324,6 +336,17 @@ func (be *Events) startListenEvent() {
 							continue
 						}
 						be.sendStateChange(EventChannelCooperativeSettled2StateChange(ev))
+					case params.NameChannelPunished:
+						ev, err := newEventChannelPunished(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelPunished err %s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive channel punished event,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventChannelPunished2StateChange(ev))
 					case params.NameSecretRevealed:
 						ev, err := newEventSecretRevealed(&l)
 						if err != nil {
@@ -491,6 +514,23 @@ func (be *Events) GetChannelCooperativeSettled(fromBlock int64, tokenNetworkAddr
 		e, err := newEventChannelCooperativeSettled(&l)
 		if err != nil {
 			log.Error(fmt.Sprintf("newEventChannelSettled err %s", err))
+			continue
+		}
+		events = append(events, e)
+	}
+	return
+}
+
+func (be *Events) GetChannelPunished(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelPunished, err error) {
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameChannelPunished, eventAbiMap[params.NameChannelPunished], be.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		e, err := newEventChannelPunished(&l)
+		if err != nil {
+			log.Error(fmt.Sprintf("newEventChannelPunished err %s", err))
 			continue
 		}
 		events = append(events, e)
@@ -677,6 +717,13 @@ func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []m
 		}
 		for _, e := range events9 {
 			stateChangs = append(stateChangs, EventChannelNewDeposit2StateChange(e))
+		}
+		events10, err := be.GetChannelPunished(lastBlockNumber, tokenNetwork)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range events10 {
+			stateChangs = append(stateChangs, EventChannelPunished2StateChange(e))
 		}
 	}
 	return

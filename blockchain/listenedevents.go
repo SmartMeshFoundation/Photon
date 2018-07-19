@@ -126,3 +126,13 @@ func newEventChannelCooperativeSettled(el *types.Log) (event *contracts.TokenNet
 	event.Raw = *el
 	return
 }
+
+func newEventChannelPunished(el *types.Log) (event *contracts.TokenNetworkChannelPunished, err error) {
+	event = &contracts.TokenNetworkChannelPunished{}
+	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelPunished, el)
+	if err != nil {
+		return
+	}
+	event.Raw = *el
+	return
+}
