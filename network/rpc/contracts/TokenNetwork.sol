@@ -101,7 +101,11 @@ contract TokenNetwork is Utils {
         bytes32 locksroot,
         uint256 transferred_amount
     );
-
+    //通道上发生了惩罚事件,受益人是谁.
+    event ChannelPunished(
+    bytes32 indexed channel_identifier,
+    address beneficiary
+    );
     event ChannelSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
@@ -651,6 +655,7 @@ contract TokenNetwork is Utils {
         beneficiary_state.nonce = 0xffffffffffffffff;
         beneficiary_state.deposit += cheater_state.deposit;
         cheater_state.deposit = 0;
+        emit ChannelPunished(channel_identifier,beneficiary);
     }
     /*
     任何人都可以调用,只能调用一次
@@ -658,7 +663,7 @@ contract TokenNetwork is Utils {
     参数说明:
     participant1,participant2 通道参与双方
     participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
-    participant1_locksroot,participant2_locksroot双方的未彻底完成交易集合
+    participant1_locksroot,participant2_locksroot 双方的未彻底完成交易集合
     */
     function settleChannel(
         address participant1,
