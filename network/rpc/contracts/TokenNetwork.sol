@@ -24,8 +24,9 @@ contract TokenNetwork is Utils {
     /*
     留给惩罚对手的时间,这个时间专门开辟出来,settle time 之后,可以提交证据而不用担心对手是在临近 settle 之时提交 updatetransfer 和 进行 unlock,
     从而导致自己没有机会提交惩罚证据.
+    开发期间用较小的数字10,发布时应该改为一个较大的数字,比如100,比较合适.
     */
-    uint64 constant public punish_block_number = 100;
+    uint64 constant public punish_block_number = 5;
     // Chain ID as specified by EIP155 used in balance proof signatures to avoid replay attacks
     uint256 public chain_id;
     // Channel identifier is sha3(participant1,participant2,tokenNetworkAddress)
