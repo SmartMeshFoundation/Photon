@@ -14,7 +14,6 @@ import (
 
 	"encoding/json"
 	"os/signal"
-	debug2 "runtime/debug"
 	"time"
 
 	"errors"
@@ -41,7 +40,7 @@ import (
 )
 
 func init() {
-	debug2.SetTraceback("crash")
+	//debug2.SetTraceback("crash")
 }
 
 var api *smartraiden.RaidenAPI

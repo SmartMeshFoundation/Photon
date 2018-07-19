@@ -10,18 +10,25 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestStateManager(t *testing.T) {
-	stateManager := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, 1, utils.NewRandomAddress())
-	lock := &encoding.Lock{
+	stateManager := transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, utils.NewRandomHash(), utils.NewRandomAddress())
+	lock := &mtree.Lock{
 		Amount:         big.NewInt(34),
 		Expiration:     4589895, //expiration block number
 		LockSecretHash: utils.Sha3([]byte("hashlock")),
 	}
-	m1 := encoding.NewMediatedTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
-		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
+	bp := &encoding.BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   3,
+		TransferAmount:    big.NewInt(32),
+		Locksroot:         utils.NewRandomHash(),
+	}
+	m1 := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	tag := &transfer.MessageTag{
 		MessageID:         utils.RandomString(10),
 		EchoHash:          utils.Sha3(m1.Pack(), m1.Target[:]),

@@ -135,13 +135,13 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (srv *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (rs *RaidenService, err error) {
 	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
 		return
 	}
-	srv = &RaidenService{
+	rs = &RaidenService{
 		Chain:                               chain,
 		Registry:                            chain.Registry(chain.RegistryAddress),
 		RegistryAddress:                     chain.RegistryAddress,
@@ -151,6 +151,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph:                  make(map[common.Address]*graph.ChannelGraph),
 		TokenNetwork2Token:                  make(map[common.Address]common.Address),
+		Token2TokenNetwork:                  make(map[common.Address]common.Address),
 		LockSecretHash2StateManager:         make(map[common.Hash]*transfer.StateManager),
 		LockSecretHash2Result:               make(map[common.Hash]*utils.AsyncResult),
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
@@ -170,44 +171,51 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		quitChan:                            make(chan struct{}),
 		EthConnectionStatus:                 make(chan netshare.Status, 10),
 	}
-	srv.BlockNumber.Store(int64(0))
-	srv.MessageHandler = newRaidenMessageHandler(srv)
-	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
-	srv.Protocol = network.NewRaidenProtocol(transport, privateKey, srv)
-	srv.db, err = models.OpenDb(config.DataBasePath)
+	rs.BlockNumber.Store(int64(0))
+	rs.MessageHandler = newRaidenMessageHandler(rs)
+	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
+	rs.Protocol = network.NewRaidenProtocol(transport, privateKey, rs)
+	rs.db, err = models.OpenDb(config.DataBasePath)
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
 		return
 	}
-	srv.Protocol.SetReceivedMessageSaver(NewAckHelper(srv.db))
+	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.db))
 	/*
 		only one instance for one data directory
 	*/
-	srv.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
-	locked, err := srv.FileLocker.TryLock()
+	rs.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
+	locked, err := rs.FileLocker.TryLock()
 	if err != nil || !locked {
 		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
-	srv.SnapshortDir = filepath.Join(config.DataBasePath)
-	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", srv.RegistryAddress.String(), srv.NodeAddress.String()))
-	if srv.Registry != nil {
+	rs.SnapshortDir = filepath.Join(config.DataBasePath)
+	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
+	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
-		srv.SecretRegistryAddress, err = srv.Registry.GetContract().Secret_registry_address(nil)
+		rs.SecretRegistryAddress, err = rs.Registry.GetContract().Secret_registry_address(nil)
 		if err != nil {
 			return
 		}
-
+		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
 	} else {
 		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
-		srv.SecretRegistryAddress = srv.db.GetSecretRegistryAddress()
-		if srv.SecretRegistryAddress == utils.EmptyAddress {
+		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
+		if rs.SecretRegistryAddress == utils.EmptyAddress {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}
 	}
-	srv.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress, srv.SecretRegistryAddress)
-	return srv, nil
+	rs.Token2TokenNetwork, err = rs.db.GetAllTokens()
+	if err != nil {
+		return
+	}
+	for t, tn := range rs.Token2TokenNetwork {
+		rs.TokenNetwork2Token[tn] = t
+	}
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress, rs.SecretRegistryAddress, rs.Token2TokenNetwork)
+	return rs, nil
 }
 
 // Start the node.
@@ -299,6 +307,7 @@ func (rs *RaidenService) Start() (err error) {
 	return nil
 }
 func (rs *RaidenService) startWithoutEthRPC() (err error) {
+	log.Info("start raiden service without eth connection")
 	/*
 	   从数据库中把 channel 状态恢复了,等连接上以后再重新把链上信息取过来初始化.
 	*/
@@ -312,9 +321,9 @@ func (rs *RaidenService) startWithoutEthRPC() (err error) {
 		if c.State == channeltype.StateSettled {
 			continue
 		}
-		cs2 := chmap[c.TokenAddress]
+		cs2 := chmap[c.TokenAddress()]
 		cs2 = append(cs2, c)
-		chmap[c.TokenAddress] = cs2
+		chmap[c.TokenAddress()] = cs2
 	}
 	for t, cs := range chmap {
 		var details []*graph.ChannelDetails
@@ -466,9 +475,9 @@ func (rs *RaidenService) loop() {
 	}
 }
 
-//for init
+//for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
 func (rs *RaidenService) registerRegistry() {
-	token2TokenNetworks, err := rs.BlockChainEvents.GetAllTokenNetworks(rs.db.GetLatestBlockNumber())
+	token2TokenNetworks, err := rs.db.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
@@ -694,15 +703,17 @@ func (rs *RaidenService) channelSerilization2ChannelDetail(c *channeltype.Serial
 	}
 	d.OurState = channel.NewChannelEndState(c.OurAddress, c.OurContractBalance,
 		c.OurBalanceProof, mtree.NewMerkleTree(c.OurLeaves))
-	d.PartenerState = channel.NewChannelEndState(c.PartnerAddress,
+	d.PartenerState = channel.NewChannelEndState(c.PartnerAddress(),
 		c.PartnerContractBalance,
 		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
 	d.ExternState = channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
 		c.ChannelIdentifier, rs.PrivateKey,
 		rs.Chain.Client, rs.db, c.ClosedBlock,
-		c.OurAddress, c.PartnerAddress)
+		c.OurAddress, c.PartnerAddress())
 	return d
 }
+
+//read a token network info from db
 func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
 	tokenNetwork, err := rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
 	edges, err := rs.db.GetAllNonParticipantChannel(tokenAddress)
@@ -724,28 +735,6 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = graph
 	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)
-	return
-	/*
-		所有的信息token 等信息,只能通过事件获取
-	*/
-	//new token, save to db
-	//err = rs.db.AddToken(tokenAddress, tokenNetworkAddress)
-	//if err != nil {
-	//	log.Error(err.Error())
-	//	return
-	//}
-	//err = rs.db.UpdateTokenNodes(tokenAddress, graph.AllNodes())
-	//if err != nil {
-	//	log.Error(err.Error())
-	//}
-	// we need restore channel status from database after restart...
-	//for _, c := range graph.ChannelAddress2Channel {
-	//	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
-	//	if err != nil {
-	//		log.Info(err.Error())
-	//	}
-	//}
-
 	return
 }
 
@@ -1110,7 +1099,7 @@ func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout
 			result.Result <- err
 			close(result.Result)
 		}()
-		tokenNetwork, err := rs.Chain.TokenNetwork(token)
+		tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
 		if err != nil {
 			return
 		}
@@ -1133,7 +1122,10 @@ func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.
 		result.Result <- err
 		return
 	}
-	result = c.ExternState.Deposit(amount)
+	if c.State != channeltype.StateOpened {
+		result.Result <- errors.New("channel can deposit only when at open state")
+	}
+	result = c.ExternState.Deposit(c.TokenAddress, amount)
 	return
 }
 

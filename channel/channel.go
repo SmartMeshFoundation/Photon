@@ -188,11 +188,17 @@ func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address)
 		c.ExternState.UpdateTransfer(balanceProof)
 	}
 	unlockProofs := c.PartnerState.GetKnownUnlocks()
-	err := c.ExternState.Unlock(unlockProofs, c.PartnerState.BalanceProofState.TransferAmount)
-	if err != nil {
-		log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", utils.HPex(c.ChannelIdentifier.ChannelIdentifier), err))
+	if len(unlockProofs) > 0 {
+		result := c.ExternState.Unlock(unlockProofs, c.PartnerState.TransferAmount())
+		go func() {
+			err := <-result.Result
+			if err != nil {
+				log.Info(fmt.Sprintf("Unlock failed because of %s", err))
+			}
+		}()
 	}
-	c.IsCloseEventComplete = true
+
+	c.State = channeltype.StateClosed
 }
 
 /*
@@ -944,6 +950,7 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 	}
 	/*
 		在关闭的过程中崩溃了,或者关闭 tx 失败了,这些都可能发生.所以不能因为 state 不对,就不允许 close
+		标记的目的是为了阻止继续接受或者发起交易.
 	*/
 	c.State = channeltype.StateClosing
 	bp := c.PartnerState.BalanceProofState
@@ -954,7 +961,8 @@ func (c *Channel) Settle() (result *utils.AsyncResult) {
 	if c.State != channeltype.StateClosed {
 		return utils.NewAsyncResultWithError(fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State))
 	}
-	c.State = channeltype.StateSettling
+	//不需要修改状态, settle 失败以后还可以继续调用 settle.
+	//c.State = channeltype.StateSettling
 	var MyTransferAmount, PartnerTransferAmount *big.Int
 	var MyLocksroot, PartnerLocksroot common.Hash
 	if c.OurState.BalanceProofState != nil {
@@ -991,10 +999,10 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		partnerSecrets = append(partnerSecrets, s.Secret)
 	}
 	s := &channeltype.Serialization{
-		Key:                    c.ChannelIdentifier.ChannelIdentifier,
+		Key:                    c.ChannelIdentifier.ChannelIdentifier[:],
 		ChannelIdentifier:      &c.ChannelIdentifier,
-		TokenAddress:           c.TokenAddress,
-		PartnerAddress:         c.PartnerState.Address,
+		TokenAddressBytes:      c.TokenAddress[:],
+		PartnerAddressBytes:    c.PartnerState.Address[:],
 		OurAddress:             c.OurState.Address,
 		RevealTimeout:          c.RevealTimeout,
 		OurBalanceProof:        c.OurState.BalanceProofState,

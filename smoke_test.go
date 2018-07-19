@@ -148,12 +148,12 @@ func TestSmoke(t *testing.T) {
 	log.Info(" step 5 make a token swap between A and B")
 	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
 	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
-	err = rb.ExpectTokenSwap(32, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = rb.ExpectTokenSwap("32", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = ra.TokenSwapAndWait(32, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = ra.TokenSwapAndWait("32", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
@@ -170,12 +170,12 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 
 	log.Info(" step 6 make a token swap between A and c through b")
-	err = rc.ExpectTokenSwap(33, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = rc.ExpectTokenSwap("33", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = ra.TokenSwapAndWait(33, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = ra.TokenSwapAndWait("33", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return

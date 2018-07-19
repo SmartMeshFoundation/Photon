@@ -5,6 +5,8 @@ import (
 
 	"math/big"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -77,12 +79,12 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 		d := &ChannelData{
 			ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
 			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-			PartnerAddrses:      c.PartnerAddress.String(),
+			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
 			State:               c.State,
 			StateString:         c.State.String(),
-			TokenAddress:        c.TokenAddress.String(),
+			TokenAddress:        c.TokenAddress().String(),
 			SettleTimeout:       c.SettleTimeout,
 			RevealTimeout:       c.RevealTimeout,
 			LockedAmount:        c.OurAmountLocked(),
@@ -128,13 +130,13 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 	d := &ChannelDataDetail{
 		ChannelAddress:           c.ChannelIdentifier.ChannelIdentifier.String(),
 		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:           c.PartnerAddress.String(),
+		PartnerAddrses:           c.PartnerAddress().String(),
 		Balance:                  c.OurBalance(),
 		PartnerBalance:           c.PartnerBalance(),
 		State:                    c.State,
 		StateString:              c.State.String(),
 		SettleTimeout:            c.SettleTimeout,
-		TokenAddress:             c.TokenAddress.String(),
+		TokenAddress:             c.TokenAddress().String(),
 		LockedAmount:             c.OurAmountLocked(),
 		PartnerLockedAmount:      c.PartnerAmountLocked(),
 		ClosedBlock:              c.ClosedBlock,
@@ -176,18 +178,18 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 		d := &ChannelData{
 			ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
 			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-			PartnerAddrses:      c.PartnerAddress.String(),
+			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
 			State:               c.State,
 			StateString:         c.State.String(),
 			SettleTimeout:       c.SettleTimeout,
-			TokenAddress:        c.TokenAddress.String(),
+			TokenAddress:        c.TokenAddress().String(),
 			LockedAmount:        c.OurAmountLocked(),
 			PartnerLockedAmount: c.PartnerAmountLocked(),
 		}
 		if req.Balance.Cmp(utils.BigInt0) > 0 {
-			err = RaidenAPI.Deposit(tokenAddr, partnerAddr, req.Balance, params.DefaultPollTimeout)
+			c, err = RaidenAPI.Deposit(tokenAddr, partnerAddr, req.Balance, params.DefaultPollTimeout)
 			if err == nil {
 				c2, err2 := RaidenAPI.GetChannel(c.ChannelIdentifier.ChannelIdentifier)
 				if err2 != nil {
@@ -195,7 +197,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 				}
 				d.Balance = c2.OurBalance()
 			} else {
-				log.Error(" RaidenAPI.Deposit error : ", err)
+				log.Error(fmt.Sprint(" RaidenAPI.Deposit error : %s", err))
 			}
 		}
 		w.WriteJson(d)
@@ -213,13 +215,15 @@ deposit to channel
 */
 func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 	chstr := r.PathParam("channel")
-	if len(chstr) != len(utils.EmptyAddress.String()) {
+	if len(chstr) != len(utils.EmptyHash.String()) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
+		return
 	}
 	chAddr := common.HexToHash(chstr)
 	type Req struct {
-		State   channeltype.State
-		Balance *big.Int
+		State    string
+		StateInt channeltype.State
+		Balance  *big.Int
 	}
 	req := &Req{}
 	err := r.DecodeJsonPayload(req)
@@ -234,26 +238,33 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Balance != nil && req.Balance.Cmp(utils.BigInt0) > 0 { //deposit
-		err = RaidenAPI.Deposit(c.TokenAddress, c.PartnerAddress, req.Balance, params.DefaultPollTimeout)
+		c, err = RaidenAPI.Deposit(c.TokenAddress(), c.PartnerAddress(), req.Balance, params.DefaultPollTimeout)
 		if err != nil {
 			rest.Error(w, err.Error(), http.StatusRequestTimeout)
 			return
 		}
 	} else {
+		if req.State == "closed" {
+			req.StateInt = channeltype.StateClosed
+		} else if req.State == "settled" {
+			req.StateInt = channeltype.StateSettled
+		} else {
+			req.StateInt = channeltype.StateError
+		}
 		//close or settle
-		if req.State != channeltype.StateClosed && req.State != channeltype.StateSettled {
+		if req.StateInt != channeltype.StateClosed && req.StateInt != channeltype.StateSettled {
 			rest.Error(w, "argument error", http.StatusBadRequest)
 			return
 		}
-		if req.State == channeltype.StateClosed {
-			c, err = RaidenAPI.Close(c.TokenAddress, c.PartnerAddress)
+		if req.StateInt == channeltype.StateClosed {
+			c, err = RaidenAPI.Close(c.TokenAddress(), c.PartnerAddress())
 			if err != nil {
 				log.Error(err.Error())
 				rest.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
-		} else if req.State == channeltype.StateSettled {
-			c, err = RaidenAPI.Settle(c.TokenAddress, c.PartnerAddress)
+		} else if req.StateInt == channeltype.StateSettled {
+			c, err = RaidenAPI.Settle(c.TokenAddress(), c.PartnerAddress())
 			if err != nil {
 				log.Error(err.Error())
 				rest.Error(w, err.Error(), http.StatusConflict)
@@ -261,19 +272,19 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 			}
 		}
 	}
-	//reload new data from database
-	c, _ = RaidenAPI.GetChannel(c.ChannelIdentifier.ChannelIdentifier)
 	d := &ChannelData{
 		ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
 		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:      c.PartnerAddress.String(),
+		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
 		State:               c.State,
+		StateString:         c.State.String(),
 		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
+		TokenAddress:        c.TokenAddress().String(),
 		LockedAmount:        c.OurAmountLocked(),
 		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
 	}
 	w.WriteJson(d)
 }

@@ -490,7 +490,7 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 	}
 	for _, c := range cs {
 		if c.State == channeltype.StateOpened {
-			x.addrMap[c.PartnerAddress]++
+			x.addrMap[c.PartnerAddress()]++
 		}
 	}
 	for addr := range x.addrMap {
@@ -503,11 +503,11 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		if x.status == netshare.Closed {
 			return true
 		}
-		err = x.SubscribeNeighbour(c.PartnerAddress)
+		err = x.SubscribeNeighbour(c.PartnerAddress())
 		if err != nil {
-			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddress.String(), err))
+			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddress().String(), err))
 		} else {
-			x.db.XMPPMarkAddrSubed(c.PartnerAddress)
+			x.db.XMPPMarkAddrSubed(c.PartnerAddress())
 		}
 		return false
 	})
@@ -516,14 +516,14 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 			return true
 		}
 		if c.State == channeltype.StateSettled {
-			x.addrMap[c.PartnerAddress]--
-			if x.addrMap[c.PartnerAddress] <= 0 {
-				err = x.Unsubscribe(c.PartnerAddress)
+			x.addrMap[c.PartnerAddress()]--
+			if x.addrMap[c.PartnerAddress()] <= 0 {
+				err = x.Unsubscribe(c.PartnerAddress())
 				if err != nil {
-					log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddress.String(), err))
+					log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddress().String(), err))
 					return false
 				}
-				db.XMPPUnMarkAddr(c.PartnerAddress)
+				db.XMPPUnMarkAddr(c.PartnerAddress())
 			}
 		}
 		return false

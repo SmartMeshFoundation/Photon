@@ -59,7 +59,7 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 	var datas []*partnersData
 	for _, c := range chs {
 		d := &partnersData{
-			PartnerAddress: c.PartnerAddress.String(),
+			PartnerAddress: c.PartnerAddress().String(),
 			Channel:        "api/1/channles/" + c.ChannelIdentifier.ChannelIdentifier.String(),
 		}
 		datas = append(datas, d)

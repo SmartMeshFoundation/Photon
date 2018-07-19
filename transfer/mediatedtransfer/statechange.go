@@ -152,11 +152,10 @@ type ContractClosedStateChange struct {
 	LocksRoot           common.Hash
 	TransferredAmount   *big.Int
 	TokenNetworkAddress common.Address
-	BlockNumber         int64
 }
 
 func (e *ContractClosedStateChange) GetBlockNumber() int64 {
-	return e.BlockNumber
+	return e.ClosedBlock
 }
 
 //ContractSettledStateChange a channel was settled

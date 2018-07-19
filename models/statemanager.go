@@ -53,7 +53,7 @@ func (model *ModelDB) GetAllStateManager() []*transfer.StateManager {
 //GetAck get message related ack message
 func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 	var data []byte
-	err := model.db.Get("ack", echohash.String(), &data)
+	err := model.db.Get("ack", echohash[:], &data)
 	if err != nil && err != storm.ErrNotFound {
 		panic(fmt.Sprintf("GetAck err %s", err))
 	}
@@ -64,5 +64,5 @@ func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 //SaveAck save a new ack to db
 func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echohash)))
-	tx.Set("ack", echohash.String(), ack)
+	tx.Set("ack", echohash[:], ack)
 }

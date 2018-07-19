@@ -284,6 +284,11 @@ func (t *TokenNetworkProxy) GetContract() *contracts.TokenNetwork {
 	return t.ch
 }
 
+//GetTokenProxy 应该考虑重构,放在这里并不合适
+func (t *TokenNetworkProxy) GetTokenProxy(tokenAddress common.Address) *TokenProxy {
+	return t.bcs.Token(tokenAddress)
+}
+
 //TokenProxy proxy of ERC20 token
 type TokenProxy struct {
 	Address common.Address

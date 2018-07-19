@@ -273,6 +273,13 @@ func (cg *ChannelGraph) ShortestPath(source, target common.Address, amount *big.
 	return path.Distance, nil
 }
 
+//RemoveChannel remove a channel from graph,and i'm a participant of this channel
+func (cg *ChannelGraph) RemoveChannel(ch *channel.Channel) {
+	delete(cg.ChannelAddress2Channel, ch.ChannelIdentifier.ChannelIdentifier)
+	delete(cg.PartenerAddress2Channel, ch.PartnerState.Address)
+	cg.RemovePath(ch.OurState.Address, ch.PartnerState.Address)
+}
+
 //RemovePath Remove an edge from the network.  this edge may  not exist
 func (cg *ChannelGraph) RemovePath(source, target common.Address) {
 	sourceIndex, ok := cg.address2index[source]

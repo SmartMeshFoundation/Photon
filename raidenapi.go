@@ -186,7 +186,7 @@ func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTime
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	r.Raiden.db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
-		if c.TokenAddress == tokenAddress && c.PartnerAddress == partnerAddress {
+		if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
 			wg.Done()
 			return true
 		}
@@ -219,8 +219,8 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         AddressWithoutCode: The channel was settled during the deposit
         execution.
 */
-func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (err error) {
-	c, err := r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (c *channeltype.Serialization, err error) {
+	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
 	}
@@ -237,17 +237,13 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	if balance.Cmp(amount) < 0 {
 		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
 		log.Error(err.Error())
-		return rerr.ErrInsufficientFunds
-	}
-	//todo 把 approve 和deposit的放在一起吧.
-	err = token.Approve(c.TokenAddress, amount)
-	if err != nil {
-		return err
+		err = rerr.ErrInsufficientFunds
+		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	r.Raiden.db.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		if c2.ChannelIdentifier == c.ChannelIdentifier {
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
@@ -263,7 +259,8 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	 Wait until the `ChannelNewBalance` event is processed.
 	*/
 	wg.Wait()
-	return nil
+	//reload data from database,
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 /*
@@ -432,7 +429,7 @@ func (r *RaidenAPI) Close(tokenAddress, partnerAddress common.Address) (c *chann
 	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if c2.ChannelIdentifier == c.ChannelIdentifier {
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
@@ -458,10 +455,10 @@ func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (ch *cha
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
+	r.Raiden.db.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if c2.ChannelIdentifier == c.ChannelIdentifier {
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
@@ -475,8 +472,8 @@ func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (ch *cha
 		return
 	}
 	wg.Wait()
-	//reload data from database,
-	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	//reload data from database, this channel has been removed.
+	return r.Raiden.db.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
 }
 
 //GetTokenNetworkEvents return events about this token
@@ -555,7 +552,7 @@ func (r *RaidenAPI) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, e
 }
 
 //GetChannelEvents events of this channel
-func (r *RaidenAPI) GetChannelEvents(channelAddress common.Address, fromBlock, toBlock int64) (data []transfer.Event, err error) {
+func (r *RaidenAPI) GetChannelEvents(channelAddress common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
 
 	//var events []transfer.Event
 	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)

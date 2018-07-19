@@ -27,6 +27,7 @@ type ModelDB struct {
 	newChannelCallbacks     map[*cb.ChannelCb]bool
 	channelDepositCallbacks map[*cb.ChannelCb]bool
 	channelStateCallbacks   map[*cb.ChannelCb]bool
+	channelSettledCallbacks map[*cb.ChannelCb]bool
 	mlock                   sync.Mutex
 	Name                    string
 	//SentTransferChan SentTransfer notify ,should never close
@@ -45,6 +46,7 @@ func newModelDB() (db *ModelDB) {
 		newChannelCallbacks:     make(map[*cb.ChannelCb]bool),
 		channelDepositCallbacks: make(map[*cb.ChannelCb]bool),
 		channelStateCallbacks:   make(map[*cb.ChannelCb]bool),
+		channelSettledCallbacks: make(map[*cb.ChannelCb]bool),
 		SentTransferChan:        make(chan *SentTransfer, 10),
 		ReceivedTransferChan:    make(chan *ReceivedTransfer, 10),
 	}
@@ -147,7 +149,6 @@ func (model *ModelDB) GetSecretRegistryAddress() common.Address {
 	return secretRegistry
 }
 func init() {
-	gob.Register(common.Address{})
 	gob.Register(&ModelDB{}) //cannot save and restore by gob,only avoid noise by gob
 }
 

@@ -29,6 +29,11 @@ func (model *ModelDB) RegisterChannelStateCallback(f cb.ChannelCb) {
 	model.channelStateCallbacks[&f] = true
 	model.mlock.Unlock()
 }
+func (model *ModelDB) RegisterChannelSettleCallback(f cb.ChannelCb) {
+	model.mlock.Lock()
+	model.channelSettledCallbacks[&f] = true
+	model.mlock.Unlock()
+}
 
 /*
 do we need remove a callback?

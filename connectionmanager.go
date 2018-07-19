@@ -213,7 +213,7 @@ func (cm *ConnectionManager) closeAll(onlyReceiving bool) (chs []*channeltype.Se
 		chs = cm.openChannels()
 	}
 	for _, c := range chs {
-		_, err = cm.api.Close(cm.tokenAddress, c.PartnerAddress)
+		_, err = cm.api.Close(cm.tokenAddress, c.PartnerAddress())
 		if err != nil {
 			log.Error(fmt.Sprintf("close channel %s error:%s", c.ChannelIdentifier, err))
 			return
@@ -268,7 +268,7 @@ func (cm *ConnectionManager) WaitForSettle(closedChannels []*channeltype.Seriali
 			if c.State != channeltype.StateSettled {
 				found = true
 				if c.ClosedBlock+int64(c.SettleTimeout) < cm.api.Raiden.GetBlockNumber() {
-					_, err := cm.api.Settle(c.TokenAddress, c.PartnerAddress)
+					_, err := cm.api.Settle(c.TokenAddress(), c.PartnerAddress())
 					if err != nil {
 						log.Error(fmt.Sprintf("settle %s err %s", c.ChannelIdentifier, err))
 					}
@@ -304,7 +304,7 @@ func (cm *ConnectionManager) openAndDeposit(partner common.Address, fundingAmoun
 		log.Error(err.Error())
 		return err
 	}
-	err = cm.api.Deposit(cm.tokenAddress, partner, fundingAmount, params.DefaultPollTimeout)
+	_, err = cm.api.Deposit(cm.tokenAddress, partner, fundingAmount, params.DefaultPollTimeout)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -385,7 +385,7 @@ func (cm *ConnectionManager) JoinChannel(partnerAddress common.Address, partnerD
 	if joiningFunds.Cmp(utils.BigInt0) <= 0 {
 		return
 	}
-	err := cm.api.Deposit(cm.tokenAddress, partnerAddress, joiningFunds, params.DefaultPollTimeout)
+	_, err := cm.api.Deposit(cm.tokenAddress, partnerAddress, joiningFunds, params.DefaultPollTimeout)
 	log.Debug("joined a channel funds=%d,me=%s,partner=%s err=%s", joiningFunds, utils.APex(cm.raiden.NodeAddress), utils.APex(partnerAddress), err)
 	return
 }
@@ -399,7 +399,7 @@ Search the token network for potential channel partners.
 func (cm *ConnectionManager) findNewPartners(number int) []common.Address {
 	var known = make(map[common.Address]bool)
 	for _, c := range cm.openChannels() {
-		known[c.PartnerAddress] = true
+		known[c.PartnerAddress()] = true
 	}
 	known[cm.BootstrapAddr] = true
 	known[cm.raiden.NodeAddress] = true

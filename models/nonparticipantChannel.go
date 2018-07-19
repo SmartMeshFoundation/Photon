@@ -43,18 +43,19 @@ func participantKey(p1, p2 common.Address) common.Address {
 如果这个 map 很大,怎么办?存储效率肯定会很低.
 否则怎么遍历呢?
 */
-type ChannelParticipantMap map[common.Address][]byte
+type ChannelParticipantMap map[common.Hash][]byte
 
 const bucketChannel = "bucketChannel"
 
-func (model *ModelDB) NewNonParticipantChannel(token, participant1, participant2 common.Address) error {
+//需要保存 channel identifier, 通道的事件都是与此有关系的
+func (model *ModelDB) NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error {
 	var m ChannelParticipantMap
 	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,participant1=%s,participant2=%s",
 		utils.APex2(token),
 		utils.APex2(participant1),
 		utils.APex2(participant2),
 	))
-	err := model.db.Get(bucketChannel, token, &m)
+	err := model.db.Get(bucketChannel, token[:], &m)
 	if err != nil {
 		if err == storm.ErrNotFound {
 			m = make(ChannelParticipantMap)
@@ -69,7 +70,7 @@ func (model *ModelDB) NewNonParticipantChannel(token, participant1, participant2
 	if bytes.Compare(participant1[:], participant2[:]) > 0 {
 		participant1, participant2 = participant2, participant1
 	}
-	key := participantKey(participant1, participant2)
+	key := channel
 	if m[key] != nil {
 		//startup ...
 		log.Warn(fmt.Sprintf("add channel ,but channel already exists, maybe duplicates channelnew events,participant1=%s,participant2=%s",
@@ -77,40 +78,36 @@ func (model *ModelDB) NewNonParticipantChannel(token, participant1, participant2
 		return nil
 	}
 	m[key] = participant2bytes(participant1, participant2)
-	err = model.db.Set(bucketChannel, token, m)
+	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,p1=%s,p2=%s,len(m)=%d", utils.APex2(token),
+		utils.APex2(participant1), utils.APex2(participant2), len(m)))
+	err = model.db.Set(bucketChannel, token[:], m)
 	return err
 }
-func (model *ModelDB) RemoveNonParticipantChannel(token, participant1, participant2 common.Address) error {
+func (model *ModelDB) RemoveNonParticipantChannel(token common.Address, channel common.Hash) error {
 	var m ChannelParticipantMap
-	err := model.db.Get(bucketChannel, token, &m)
+	err := model.db.Get(bucketChannel, token[:], &m)
 	if err != nil {
 		if err == storm.ErrNotFound {
-			m = make(ChannelParticipantMap)
-		} else {
-			return err
+			return nil
 		}
-
+		return err
 	}
-	if participant1 == participant2 {
-		panic(fmt.Sprintf("channel error, p1 andf p2 is the same,token=%s,participant=%s", token.String(), participant1.String()))
-	}
-	if bytes.Compare(participant1[:], participant2[:]) > 0 {
-		participant1, participant2 = participant2, participant1
-	}
-	key := participantKey(participant1, participant2)
-	if m[key] == nil {
+	if m[channel] == nil {
 		//startup ...
 		return fmt.Errorf("delete channel ,but channel don't exists")
 	}
-	delete(m, key)
-	err = model.db.Set(bucketChannel, token, m)
+	delete(m, channel)
+	log.Trace(fmt.Sprintf("RemoveNonParticipantChannel token=%s,channel=%s", utils.APex2(token),
+		utils.HPex(channel)))
+	err = model.db.Set(bucketChannel, token[:], m)
 	return err
 }
 
 //GetAllTokens returna all tokens on this registry contract
 func (model *ModelDB) GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error) {
 	var m ChannelParticipantMap
-	err = model.db.Get(bucketChannel, token, &m)
+	err = model.db.Get(bucketChannel, token[:], &m)
+	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))
 	if err == storm.ErrNotFound {
 		err = nil
 		return

@@ -197,13 +197,14 @@ func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *medi
 	}
 }
 
-//EventChannelNewBalance2StateChange to statechange
-func EventChannelNewBalance2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractBalanceStateChange {
+//EventChannelNewDeposit2StateChange to statechange
+func EventChannelNewDeposit2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractBalanceStateChange {
 	return &mediatedtransfer.ContractBalanceStateChange{
 		ChannelIdentifier:   ev.Channel_identifier,
 		TokenNetworkAddress: ev.Raw.Address,
 		ParticipantAddress:  ev.Participant,
 		BlockNumber:         int64(ev.Raw.BlockNumber),
+		Balance:             ev.Total_deposit,
 	}
 }
 
@@ -280,16 +281,16 @@ func (be *Events) startListenEvent() {
 						}
 						be.sendStateChange(EventChannelOpen2StateChange(ev))
 					case params.NameChannelNewDeposit:
-						ev, err := newEventChannelNewBalance(&l)
+						ev, err := newEventChannelNewDeposit(&l)
 						if err != nil {
-							log.Error(fmt.Sprintf("newEventChannelNewBalance err=%s", err))
+							log.Error(fmt.Sprintf("newEventChannelNewDeposit err=%s", err))
 							continue
 						}
 						if !be.TokenNetworks[ev.Raw.Address] {
 							log.Info(fmt.Sprintf("receive event channel new deposit ,but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
-						be.sendStateChange(EventChannelNewBalance2StateChange(ev))
+						be.sendStateChange(EventChannelNewDeposit2StateChange(ev))
 					case params.NameChannelClosed:
 						ev, err := newEventChannelClosed(&l)
 						if err != nil {
@@ -518,6 +519,25 @@ func (be *Events) GetChannelWithdraw(fromBlock int64, tokenNetworkAddress common
 
 //GetChannelCooperativeSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
 //if tokenNetworkAddress is empty, return's all events have this signature
+func (be *Events) GetChannelNewDeposit(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelNewDeposit, err error) {
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameChannelNewDeposit, eventAbiMap[params.NameChannelNewDeposit], be.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		e, err := newEventChannelNewDeposit(&l)
+		if err != nil {
+			log.Error(fmt.Sprintf("newEventChannelSettled err %s", err))
+			continue
+		}
+		events = append(events, e)
+	}
+	return
+}
+
+//GetChannelCooperativeSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
+//if tokenNetworkAddress is empty, return's all events have this signature
 func (be *Events) GetChannelUnlocked(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelUnlocked, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelUnlocked, eventAbiMap[params.NameChannelUnlocked], be.client)
@@ -578,7 +598,7 @@ func (be *Events) GetAllSecretRevealed(fromBlock int64) (events []*contracts.Sec
 //func (be*Events)
 /*
 GetAllStateChangeSince returns all the statechanges that raiden should know when it's offline
-除了 deposit 以外,tokennetwork合约上发生的所有事情我们都应该按顺序通知使用者
+tokennetwork合约上发生的所有事情我们都应该按顺序通知使用者
 */
 func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []mediatedtransfer.ContractStateChange, err error) {
 	events0, err := be.GetAllTokenNetworks(lastBlockNumber)
@@ -650,6 +670,13 @@ func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []m
 		}
 		for _, e := range events8 {
 			stateChangs = append(stateChangs, EventChannelWithdraw2StateChange(e))
+		}
+		events9, err := be.GetChannelNewDeposit(lastBlockNumber, tokenNetwork)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range events9 {
+			stateChangs = append(stateChangs, EventChannelNewDeposit2StateChange(e))
 		}
 	}
 	return

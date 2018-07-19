@@ -233,7 +233,7 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 		log.Info(fmt.Sprintf("settle called %s", e.ChannelIdentifier))
 		tx, err := e.TokenNetwork.GetContract().SettleChannel(e.auth, e.MyAddress, MyTransferAmount, MyLocksroot, e.PartnerAddress, PartnerTransferAmount, PartnerLocksroot)
 		if err != nil {
-			err = fmt.Errorf("settle failed %s,err=%s", e.ChannelIdentifier, err)
+			err = fmt.Errorf("settle failed %s,closedblock=%d, err=%s", e.ChannelIdentifier, e.ClosedBlock, err)
 			log.Info(err.Error())
 			result.Result <- err
 			return
@@ -259,9 +259,16 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 }
 
 //Deposit call deposit of contract
-func (e *ExternalState) Deposit(amount *big.Int) (result *utils.AsyncResult) {
+func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		//首先 approve, 然后才能 deposit
+		token := e.TokenNetwork.GetTokenProxy(tokenAddress)
+		err := token.Approve(e.TokenNetwork.Address, amount)
+		if err != nil {
+			result.Result <- err
+			return
+		}
 		log.Info(fmt.Sprintf("Deposit called %s", e.ChannelIdentifier))
 		tx, err := e.TokenNetwork.GetContract().Deposit(e.auth, e.MyAddress, e.PartnerAddress, amount)
 		if err != nil {

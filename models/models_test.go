@@ -25,8 +25,11 @@ import (
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
+
+var dbPath string
+
 func setupDb(t *testing.T) (model *ModelDB) {
-	dbPath := path.Join(os.TempDir(), "testxxxx.db")
+	dbPath = path.Join(os.TempDir(), "testxxxx.db")
 	os.Remove(dbPath)
 	os.Remove(dbPath + ".lock")
 	model, err := OpenDb(dbPath)

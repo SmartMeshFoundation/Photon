@@ -50,7 +50,7 @@ func newEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpe
 	event.Raw = *el
 	return
 }
-func newEventChannelNewBalance(el *types.Log) (event *contracts.TokenNetworkChannelNewDeposit, err error) {
+func newEventChannelNewDeposit(el *types.Log) (event *contracts.TokenNetworkChannelNewDeposit, err error) {
 	event = &contracts.TokenNetworkChannelNewDeposit{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelNewDeposit, el)
 	if err != nil {

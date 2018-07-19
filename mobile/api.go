@@ -133,7 +133,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		if err == nil {
 			d.Balance = c.OurBalance
 		} else {
-			log.Error(" RaidenAPI.Deposit error : ", err)
+			log.Error(fmt.Sprint(" RaidenAPI.Deposit error : %s", err))
 			return
 		}
 	}

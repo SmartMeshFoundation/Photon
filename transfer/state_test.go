@@ -5,15 +5,14 @@ import (
 
 	"math/big"
 
+	"bytes"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestNewBalanceProofStateFromEnvelopMessage(t *testing.T) {
-	var nonce int64 = 78
-	var transferAmount = big.NewInt(9999)
 	bp := &encoding.BalanceProof{
-		TokenAddress:      utils.NewRandomAddress(),
 		ChannelIdentifier: utils.NewRandomHash(),
 		OpenBlockNumber:   3,
 		Nonce:             30,
@@ -22,7 +21,7 @@ func TestNewBalanceProofStateFromEnvelopMessage(t *testing.T) {
 	}
 	secret := encoding.NewUnlock(bp, utils.NewRandomHash())
 	state := NewBalanceProofStateFromEnvelopMessage(secret)
-	if state.Nonce != nonce || state.TransferAmount.Cmp(transferAmount) != 0 || state.LocksRoot != utils.EmptyHash {
-		t.Error("NewBalanceProofStateFromEnvelopMessage error")
+	if state.Nonce != bp.Nonce || state.TransferAmount.Cmp(bp.TransferAmount) != 0 || bytes.Compare(state.LocksRoot[:], bp.Locksroot[:]) != 0 {
+		t.Errorf("NewBalanceProofStateFromEnvelopMessage error,state=%s,bp=%s", utils.StringInterface(state, 3), utils.StringInterface(bp, 3))
 	}
 }

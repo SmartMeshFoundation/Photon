@@ -82,6 +82,15 @@ func (model *ModelDB) UpdateChannelState(c *channeltype.Serialization) error {
 	return nil
 }
 
+//RemoveChannel a settled channel from db
+func (model *ModelDB) RemoveChannel(c *channeltype.Serialization) error {
+	if c.State != channeltype.StateSettled {
+		panic("only can remove a settled channel")
+	}
+	model.handleChannelCallback(model.channelSettledCallbacks, c)
+	return model.db.DeleteStruct(c)
+}
+
 //GetChannel return a channel queried by (token,partner),this channel must not settled
 func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error) {
 	var cs []*channeltype.Serialization
@@ -91,12 +100,12 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 	if partner == utils.EmptyAddress {
 		panic("partner is empty")
 	}
-	err = model.db.Find("TokenAddress", token, &cs)
+	err = model.db.Find("TokenAddressBytes", token[:], &cs)
 	if err != nil {
 		return
 	}
 	for _, c2 := range cs {
-		if c2.PartnerAddress == partner && c2.State != channeltype.StateSettled {
+		if c2.PartnerAddress() == partner && c2.State != channeltype.StateSettled {
 			c = c2
 			return
 		}
@@ -107,7 +116,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 //GetChannelByAddress return a channel queried by channel address
 func (model *ModelDB) GetChannelByAddress(channelAddress common.Hash) (c *channeltype.Serialization, err error) {
 	var c2 channeltype.Serialization
-	err = model.db.One("ChannelAddress", channelAddress.String(), &c2)
+	err = model.db.One("Key", channelAddress[:], &c2)
 	if err == nil {
 		c = &c2
 	}
@@ -120,9 +129,9 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
 	} else if token == utils.EmptyAddress {
-		err = model.db.Find("PartnerAddress", partner, &cs)
+		err = model.db.Find("PartnerAddressBytes", partner[:], &cs)
 	} else if partner == utils.EmptyAddress {
-		err = model.db.Find("TokenAddress", token, &cs)
+		err = model.db.Find("TokenAddressBytes", token[:], &cs)
 	} else {
 		panic("one of token and partner must be empty")
 	}

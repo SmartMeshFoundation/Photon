@@ -39,9 +39,9 @@ type UnlockProof struct {
 // Serialization is the living channel in the database
 type Serialization struct {
 	ChannelIdentifier      *contracts.ChannelUniqueID
-	Key                    common.Hash    `storm:"id"`
-	TokenAddress           common.Address `storm:"index"`
-	PartnerAddress         common.Address `storm:"index"`
+	Key                    []byte `storm:"id"`
+	TokenAddressBytes      []byte `storm:"index"`
+	PartnerAddressBytes    []byte `storm:"index"`
 	OurAddress             common.Address
 	RevealTimeout          int
 	OurBalanceProof        *transfer.BalanceProofState
@@ -58,6 +58,15 @@ type Serialization struct {
 	SettleTimeout          int
 }
 
+func (s *Serialization) ChannleAddress() common.Hash {
+	return common.BytesToHash(s.Key)
+}
+func (s *Serialization) TokenAddress() common.Address {
+	return common.BytesToAddress(s.TokenAddressBytes)
+}
+func (s *Serialization) PartnerAddress() common.Address {
+	return common.BytesToAddress(s.PartnerAddressBytes)
+}
 func (s *Serialization) transferAmount(bp *transfer.BalanceProofState) *big.Int {
 	if bp != nil {
 		return bp.TransferAmount
