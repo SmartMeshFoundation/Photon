@@ -62,6 +62,9 @@ func Pex(data []byte) string {
 func HPex(data common.Hash) string {
 	return common.Bytes2Hex(data[:2])
 }
+func BPex(data []byte) string {
+	return common.Bytes2Hex(data)
+}
 
 //APex pex for address
 func APex(data common.Address) string {

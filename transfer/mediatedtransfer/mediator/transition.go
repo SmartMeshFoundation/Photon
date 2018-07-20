@@ -88,7 +88,7 @@ func IsValidRefund(originTr *mediatedtransfer.LockedTransferState, st *mediatedt
 			         node, neverthless it's being ignored since the only reason for the
 			         other node to use an invalid expiration is to play the protocol.
 		*/
-		originTr.Expiration == st.Message.Lock.Expiration
+		originTr.Expiration == st.Lock.Expiration
 }
 
 /*
@@ -538,7 +538,6 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 				ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
 				Token:             tr.Token,
 				Receiver:          pair.PayeeRoute.HopNode(),
-				Secret:            tr.Secret,
 			}
 			unlockSuccess := &mediatedtransfer.EventUnlockSuccess{
 				LockSecretHash: pair.PayerTransfer.LockSecretHash,

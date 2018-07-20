@@ -57,6 +57,11 @@ func (rs *State) State() channeltype.State {
 	return rs.ch.State
 }
 
+//SetState for test only,
+func (rs *State) SetState(state channeltype.State) {
+	rs.ch.State = state
+}
+
 //StateName return name of the state
 func (rs *State) StateName() string {
 	return "State"

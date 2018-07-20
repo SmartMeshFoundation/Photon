@@ -93,7 +93,6 @@ type EventSendBalanceProof struct {
 	ChannelIdentifier common.Hash
 	Token             common.Address
 	Receiver          common.Address
-	Secret            common.Hash //Secret is not required for the balance proof to dispatch the message
 }
 
 /*

@@ -598,11 +598,11 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 }
 
 //CreateUnlock creates  a unlock message
-func (c *Channel) CreateUnlock(lockSecretHash, secret common.Hash) (tr *encoding.UnLock, err error) {
+func (c *Channel) CreateUnlock(lockSecretHash common.Hash) (tr *encoding.UnLock, err error) {
 	from := c.OurState
-	lock := from.getLockByHashlock(lockSecretHash)
-	if lock == nil {
-		return nil, fmt.Errorf("no such lock for secret:%s", utils.HPex(secret))
+	lock, secret, err := from.getSecretByLockSecretHash(lockSecretHash)
+	if err != nil {
+		return nil, fmt.Errorf("no such lock for lockSecretHash:%s", utils.HPex(lockSecretHash))
 	}
 	_, locksrootWithPendingLockRemoved, err := from.computeMerkleRootWithout(lock)
 	if err != nil {

@@ -175,6 +175,18 @@ func (node *EndState) getLockByHashlock(lockSecretHash common.Hash) *mtree.Lock 
 }
 
 /*
+getSecretByLockSecretHash get secret by secret's hash
+*/
+func (node *EndState) getSecretByLockSecretHash(lockSecretHash common.Hash) (lock *mtree.Lock, secret common.Hash, err error) {
+	plock, ok := node.Lock2UnclaimedLocks[lockSecretHash]
+	if ok {
+		return plock.Lock, plock.Secret, nil
+	} else {
+		return nil, utils.EmptyHash, errors.New("not found")
+	}
+}
+
+/*
 computeMerkleRootWith Compute the resulting merkle root if the lock `include` is added in
        the tree.
 */

@@ -345,7 +345,12 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 3)
 
-	secretMessage, err := testchannel.CreateUnlock(utils.Sha3(secret[:]), secret)
+	err = testchannel.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	secretMessage, err := testchannel.CreateUnlock(utils.Sha3(secret[:]))
 	if err != nil {
 		t.Error(err)
 		return
@@ -568,8 +573,17 @@ func TestInterwovenTransfers(t *testing.T) {
 		if i > 0 && i%2 == 0 {
 			transfer := transfersList[i-1]
 			secret := transfersSecret[i-1]
+			err = ch0.RegisterSecret(secret)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			//synchronized claiming
-			secretMessage, _ := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
+			secretMessage, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			secretMessage.Sign(ch0.ExternState.privKey, secretMessage)
 			err = ch0.RegisterTransfer(blockNumber, secretMessage)
 			assert.Equal(t, err, nil)
@@ -901,7 +915,7 @@ func TestChannel_RegisterWithdrawRequest(t *testing.T) {
 		t.Error("have lock doesn't allow withdraw")
 		return
 	}
-	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
 	if err != nil {
 		t.Error(err)
 		return
@@ -996,7 +1010,7 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 		t.Error("have lock doesn't allow withdraw")
 		return
 	}
-	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]), secret)
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
 	if err != nil {
 		t.Error(err)
 		return

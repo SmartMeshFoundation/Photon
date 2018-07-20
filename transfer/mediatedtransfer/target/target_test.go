@@ -7,6 +7,7 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -58,8 +59,8 @@ func TestEventsForClose(t *testing.T) {
 	ourAddress := utest.ADDR
 	secret := utest.UnitSecret
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, secret)
-	safeToWait := expire - int64(fromRoute.RevealTimeout) - 1
-	unsafeToWait := expire - int64(fromRoute.RevealTimeout)
+	safeToWait := expire - int64(fromRoute.RevealTimeout()) - 1
+	unsafeToWait := expire - int64(fromRoute.RevealTimeout())
 
 	state := &mediatedtransfer.TargetState{
 		OurAddress:   ourAddress,
@@ -75,7 +76,7 @@ func TestEventsForClose(t *testing.T) {
 	ev, ok := events[0].(*mediatedtransfer.EventContractSendChannelClose)
 	assert(t, ok, true)
 	assert(t, fromTransfer.Secret != utils.EmptyHash, true)
-	assert(t, ev.ChannelIdentifier, fromRoute.ChannelAddress)
+	assert(t, ev.ChannelIdentifier, fromRoute.ChannelIdentifier)
 }
 
 /*
@@ -111,20 +112,20 @@ func TestEventsForWithDraw(t *testing.T) {
 	var amount = big.NewInt(3)
 	var expire int64 = 10
 	initiator := utest.HOP1
-	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UnitSecret, utils.Sha3(utest.UnitSecret[:]), 1, utest.UnitTokenAddress)
-	route := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress())
+	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UnitSecret, utils.Sha3(utest.UnitSecret[:]), utest.UnitTokenAddress)
+	route := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())
 	state := &mediatedtransfer.TargetState{
 		FromTransfer: tr,
 		FromRoute:    route,
 	}
 	events := eventsForWithdraw(state, route)
 	assert(t, len(events), 0)
-	route.State = transfer.ChannelStateClosed
+	route.SetState(channeltype.StateClosed)
 	events = eventsForWithdraw(state, route)
 	assert(t, len(events) > 0, true)
 	ev, ok := events[0].(*mediatedtransfer.EventContractSendWithdraw)
 	assert(t, ok, true)
-	assert(t, ev.ChannelIdentifier, route.ChannelAddress)
+	assert(t, ev.ChannelIdentifier, route.ChannelIdentifier)
 }
 
 /*
@@ -143,9 +144,8 @@ func TestHandleInitTarget(t *testing.T) {
 	assert(t, len(it.Events) > 0, true)
 	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
-	assert(t, ev.LockSecretHash, fromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, fromTransfer.LockSecretHash)
 	assert(t, ev.Amount, fromTransfer.Amount)
-	assert(t, ev.Hashlock, fromTransfer.LockSecretHash)
 	assert(t, ev.Receiver, initiator)
 }
 
@@ -182,15 +182,15 @@ func TestHandleSecretReveal(t *testing.T) {
 	//it := handleSecretReveal(state, stateChange)
 	//assert(t, len(it.Events), 0)
 	//real mediatedTransfere, have a hopnode
-	state.FromRoute = utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress())
+	state.FromRoute = utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())
 	it := handleSecretReveal(state, stateChange)
 
 	assert(t, len(it.Events), 1)
 	ev := it.Events[0].(*mediatedtransfer.EventSendRevealSecret)
 	assert(t, state.State, mediatedtransfer.StateRevealSecret)
-	assert(t, ev.LockSecretHash, state.FromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, state.FromTransfer.LockSecretHash)
 	assert(t, ev.Secret, secret)
-	assert(t, ev.Receiver, state.FromRoute.HopNode)
+	assert(t, ev.Receiver, state.FromRoute.HopNode())
 	assert(t, ev.Sender, ourAddress)
 
 }

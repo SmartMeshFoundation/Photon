@@ -890,20 +890,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 		Fee:            utils.BigInt0,
 	}
 	/*
-			  Issue #489
-
-		        Raiden may fail after a state change using the random generator is
-		        handled but right before the snapshot is taken. If that happens on
-		        the next initialization when raiden is recovering and applying the
-		        pending state changes a new secret will be generated and the
-		        resulting events won't match, rs breaks the architecture model,
-		        since it's assumed the re-execution of a state change will always
-		        produce the same events.
-
-		        TODO: Removed the secret generator from the InitiatorState and add
-		        the secret into all state changes that require one, rs way the
-		        secret will be serialized with the state change and the recovery will
-		        use the same /random/ secret.
+		发起方每次切换路径不再切换密码,不切换依然可以保证安全
 	*/
 	initInitiator := &mediatedtransfer.ActionInitInitiatorStateChange{
 		OurAddress:     rs.NodeAddress,
@@ -941,6 +928,16 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 	tokenAddress := ch.TokenAddress
 	smkey := utils.Sha3(msg.LockSecretHash[:], tokenAddress[:])
 	stateManager := rs.Transfer2StateManager[smkey]
+	/*
+		第一次收到这个密码,
+		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+		锁是有可能重复的,比如 token swap 中.
+	*/
+	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
+		//忽略,什么都不做
+		return
+	}
 	if stateManager != nil {
 		if stateManager.Name != mediator.NameMediatorTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a mediator,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
@@ -951,16 +948,6 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		}
 		rs.StateMachineEventHandler.logAndDispatch(stateManager, stateChange)
 	} else {
-		/*
-			第一次收到这个密码,
-			todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
-		*/
-		if rs.db.IsLockSecretHashDisposed(msg.LockSecretHash) {
-			//我都声明过这个锁我放弃了,但是仍然收到了这个锁,按道理锁是随机生成,不可能重复的.所以,这一定是攻击
-			log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
-			//忽略,什么都不做
-			return
-		}
 		amount := msg.PaymentAmount
 		target := msg.Target
 		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
@@ -992,6 +979,16 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
 	smkey := utils.Sha3(msg.LockSecretHash[:], ch.TokenAddress[:])
 	stateManager := rs.Transfer2StateManager[smkey]
+	/*
+		第一次收到这个密码,
+		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+		锁是有可能重复的,比如 token swap 中.
+	*/
+	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
+		//忽略,什么都不做
+		return
+	}
 	if stateManager != nil {
 		if stateManager.Name != target.NameTargetTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a target,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))

@@ -15,8 +15,8 @@ import (
 如果对方发送过来 AnnounceDisposedResponse, 我要移除这个锁.
 */
 type SentAnnounceDisposed struct {
-	Key               string      `storm:"id"`
-	LockSecretHash    common.Hash `storm:"index"` //假设非恶意的情况下,锁肯定是不会重复的.但是我有可能在多个通道上发送 AnnounceDisposed
+	Key               []byte `storm:"id"`
+	LockSecretHash    []byte `storm:"index"` //假设非恶意的情况下,锁肯定是不会重复的.但是我有可能在多个通道上发送 AnnounceDisposed,但是肯定不会在同一个通道上发送多次 announce disposed
 	ChannelIdentifier common.Hash
 }
 
@@ -24,8 +24,8 @@ type SentAnnounceDisposed struct {
 收到对方的 disposed, 主要是用来对方unlock 的时候,提交证据,惩罚对方
 */
 type ReceivedAnnounceDisposed struct {
-	Key               common.Hash `storm:"id"`
-	LockHash          common.Hash `storm:"index"` //hash(expiration,locksecrethash,amount)
+	Key               []byte `storm:"id"`
+	LockHash          []byte `storm:"index"` //hash(expiration,locksecrethash,amount)
 	ChannelIdentifier common.Hash
 	OpenBlockNumber   int64
 	AdditionalHash    common.Hash
@@ -39,8 +39,8 @@ func init() {
 func (model *ModelDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error {
 	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
 	err := model.db.Save(&SentAnnounceDisposed{
-		Key:               key.String(),
-		LockSecretHash:    lockSecretHash,
+		Key:               key[:],
+		LockSecretHash:    lockSecretHash[:],
 		ChannelIdentifier: ChannelIdentifier,
 	})
 	return err
@@ -48,7 +48,7 @@ func (model *ModelDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, Cha
 
 func (model *ModelDB) IsLockSecretHashDisposed(lockSecretHash common.Hash) bool {
 	sad := new(SentAnnounceDisposed)
-	err := model.db.One("LockSecretHash", lockSecretHash, sad)
+	err := model.db.One("LockSecretHash", lockSecretHash[:], sad)
 	if err != nil {
 		return false
 	}
@@ -58,18 +58,18 @@ func (model *ModelDB) IsLockSecretHashDisposed(lockSecretHash common.Hash) bool 
 func (model *ModelDB) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
 	sad := new(SentAnnounceDisposed)
 	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
-	err := model.db.One("Key", key.String(), sad)
+	err := model.db.One("Key", key[:], sad)
 	if err != nil {
 		return false
 	}
 	log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
 	return true
 }
-
 func NewReceivedAnnounceDisposed(LockHash, ChannelIdentifier, additionalHash common.Hash, openBlockNumber int64, signature []byte) *ReceivedAnnounceDisposed {
+	key := utils.Sha3(LockHash[:], ChannelIdentifier[:])
 	return &ReceivedAnnounceDisposed{
-		Key:               utils.Sha3(LockHash[:], ChannelIdentifier[:]),
-		LockHash:          LockHash,
+		Key:               key[:],
+		LockHash:          LockHash[:],
 		ChannelIdentifier: ChannelIdentifier,
 		OpenBlockNumber:   openBlockNumber,
 		AdditionalHash:    additionalHash,
@@ -84,7 +84,7 @@ func (model *ModelDB) MarkLockHashCanPunish(r *ReceivedAnnounceDisposed) error {
 func (model *ModelDB) IsLockHashCanPunish(lockHash, channelIdentifier common.Hash) bool {
 	sad := new(ReceivedAnnounceDisposed)
 	key := utils.Sha3(lockHash[:], channelIdentifier[:])
-	err := model.db.One("Key", key, sad)
+	err := model.db.One("Key", key[:], sad)
 	if err != nil {
 		return false
 	}
@@ -95,7 +95,7 @@ func (model *ModelDB) IsLockHashCanPunish(lockHash, channelIdentifier common.Has
 func (model *ModelDB) GetReceiviedAnnounceDisposed(lockHash, channelIdentifier common.Hash) *ReceivedAnnounceDisposed {
 	sad := new(ReceivedAnnounceDisposed)
 	key := utils.Sha3(lockHash[:], channelIdentifier[:])
-	err := model.db.One("Key", key, sad)
+	err := model.db.One("Key", key[:], sad)
 	if err != nil {
 		return nil
 	}

@@ -29,8 +29,6 @@ func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
 	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
-	state.CanceledTransfers = append(state.CanceledTransfers, state.Message)
-	state.Transfer.Secret = utils.EmptyHash
 	state.Message = nil
 	state.Route = nil
 	state.SecretRequest = nil
@@ -65,21 +63,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.Route != nil {
 		panic("cannot try a new route while one is being used")
 	}
-	/*
-			  TODO:
-		     - Route ranking. An upper layer should rate each route to optimize
-		       the fee price/quality of each route and add a rate from in the range
-		       [0.0,1.0].
-		     - Add in a policy per route:
-		       - filtering, e.g. so the user may have a per route maximum transfer
-		         value based on fixed value or reputation.
-		       - reveal time computation
-		       - These policy details are better hidden from this implementation and
-		         changes should be applied through the use of Route state changes.
-
-		     Find a single route that may fulfill the request, this uses a single
-		     route intentionally
-	*/
 	var tryRoute *route.State
 	for len(state.Routes.AvailableRoutes) > 0 {
 		route := state.Routes.AvailableRoutes[0]
@@ -90,13 +73,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		} else {
 			tryRoute = route
 			break
-		}
-	}
-	var unlockFailed *mt.EventUnlockFailed
-	if state.Message != nil { //目前无论是发起时还是取消路由，Message都会被设置为nil，所以这个事件永远也不会发生。
-		unlockFailed = &mt.EventUnlockFailed{
-			LockSecretHash: state.Transfer.LockSecretHash,
-			Reason:         "route was canceled",
 		}
 	}
 	if tryRoute == nil {
@@ -115,15 +91,8 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			Token:          state.Transfer.Token,
 		}
 		events := []transfer.Event{transferFailed}
-		if unlockFailed != nil {
-			events = append(events, unlockFailed)
-		}
-		var newState *mt.InitiatorState
-		if len(state.CanceledTransfers) != 0 {
-			newState = state //make sure not finish
-		}
 		return &transfer.TransitionResult{
-			NewState: newState,
+			NewState: nil,
 			Events:   events,
 		}
 	}
@@ -159,9 +128,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	state.Message = msg
 	log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
 	events := []transfer.Event{msg}
-	if unlockFailed != nil {
-		events = append(events, unlockFailed)
-	}
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   events,
@@ -173,17 +139,6 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 			unlockFailed := &mt.EventUnlockFailed{
 				LockSecretHash:    state.Transfer.LockSecretHash,
 				ChannelIdentifier: state.Route.ChannelIdentifier,
-				Reason:            "lock expired",
-			}
-			events = append(events, unlockFailed)
-		}
-	}
-	for i, tr := range state.CanceledTransfers {
-		route := state.Routes.CanceledRoutes[i]
-		if state.BlockNumber > tr.Expiration && !state.Db.IsThisLockRemoved(route.ChannelIdentifier, state.OurAddress, tr.LockSecretHash) {
-			unlockFailed := &mt.EventUnlockFailed{
-				LockSecretHash:    tr.LockSecretHash,
-				ChannelIdentifier: route.ChannelIdentifier,
 				Reason:            "lock expired",
 			}
 			events = append(events, unlockFailed)
@@ -292,7 +247,6 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 			ChannelIdentifier: state.Route.ChannelIdentifier,
 			Token:             tr.Token,
 			Receiver:          state.Route.HopNode(),
-			Secret:            tr.Secret,
 		}
 		transferSuccess := &transfer.EventTransferSentSuccess{
 			LockSecretHash:    tr.LockSecretHash,
@@ -375,6 +329,18 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleCancelTransfer(state)
 		case *mt.ReceiveSecretRevealStateChange:
 			//只要密码正确,就应该发送secret ,流程上可能有问题,但是结果是没错的(只有在token swap的时候才会走到这一步) . 因为按照协议层要求,同一个消息不会重复发送, 导致在tokenswap的时候maker不可能重复发送reveal secret
+			/*
+					关于 token swap
+					由于 同样的 reveal secret 双方都发送和接收了两遍,
+					实际上taker 完全在不知道密码的情况下,可以发送一个错误的固定的 reveal secret( 比如 reveal 0000),
+					taker:
+					1.可以在没有收到 secret request 的情况下收到 reveal secret 就发送 unlock 消息
+					2.可以在不知道真正的 secret 是什么的情况下,发送一个错误的reveal seret
+				 maker:
+				1. maker发送给对方 reveal secret 的时候,同一个 lock 对应的两个 statemanager 都要知道密码,
+				因为有可能对方是恶意的,一个恶意的实现就是, maker 发出的secret request 对方根本不响应,造成自己有一个 state manager 不知道密码,
+				从而造成损失.
+			*/
 			if st2.Secret == state.Transfer.Secret {
 				log.Warn(fmt.Sprintf("send balance proof before send a reveal secret message, this is only for token swap taker,state=%s", utils.StringInterface(state, 3)))
 			}

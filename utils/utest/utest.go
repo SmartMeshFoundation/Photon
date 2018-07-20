@@ -3,7 +3,7 @@ package utest
 import (
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -75,18 +75,18 @@ MakeRoute Helper for creating a route.
         reveal_timeout (int): The configure reveal_timeout of the raiden node.
         channel_address (address): The correspoding channel address.
 */
-func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UnitSettleTimeout*/ int, revealTimeout /*UnitRevealTimeout*/ int, closedBlock int64, channelAddress common.Address) *route.State {
-	return &route.State{
-		State:          transfer.ChannelStateOpened,
-		HopNode:        nodeAddress,
-		ChannelAddress: channelAddress,
-		AvaibleBalance: new(big.Int).Set(availableBalance),
-		SettleTimeout:  settleTimeout,
-		RevealTimeout:  revealTimeout,
-		ClosedBlock:    closedBlock,
-		Fee:            utils.BigInt0,
-		TotalFee:       utils.BigInt0,
-	}
+func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UnitSettleTimeout*/ int, revealTimeout /*UnitRevealTimeout*/ int, closedBlock int64, channelAddress common.Hash) *route.State {
+	ch, _ := channel.MakeTestPairChannel()
+	ch.ChannelIdentifier.ChannelIdentifier = channelAddress
+	ch.SettleTimeout = settleTimeout
+	ch.PartnerState.Address = nodeAddress
+	ch.OurState.ContractBalance = new(big.Int).Set(availableBalance)
+	ch.RevealTimeout = revealTimeout
+	ch.ExternState.ClosedBlock = closedBlock
+	state := route.NewState(ch)
+	state.Fee = utils.BigInt0
+	state.TotalFee = utils.BigInt0
+	return state
 }
 
 //MakeTransfer create test transfer
@@ -114,7 +114,7 @@ func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration 
 
 //MakeFrom create test from route and from transfer
 func MakeFrom(amount *big.Int, target common.Address, fromExpiration int64, initiator /*HOP6*/ common.Address, secret common.Hash) (fromroute *route.State, fromtransfer *mediatedtransfer.LockedTransferState) {
-	fromroute = MakeRoute(initiator, amount, UnitSettleTimeout, UnitRevealTimeout, 0, utils.EmptyAddress)
+	fromroute = MakeRoute(initiator, amount, UnitSettleTimeout, UnitRevealTimeout, 0, utils.EmptyHash)
 	fromtransfer = MakeTransfer(amount, initiator, target, fromExpiration, secret, utils.EmptyHash, UnitTokenAddress)
 	return
 }

@@ -96,7 +96,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	receiver := event.Receiver
 	graph := eh.raiden.getToken2ChannelGraph(event.Token)
 	ch := graph.GetPartenerAddress2Channel(receiver)
-	tr, err := ch.CreateUnlock(event.LockSecretHash, event.Secret)
+	tr, err := ch.CreateUnlock(event.LockSecretHash)
 	if err != nil {
 		return
 	}
@@ -485,11 +485,11 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 	if eh.raiden.NodeAddress == st.Participant {
 		ad := eh.raiden.db.GetReceiviedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
 		if ad != nil {
-			result := ch.ExternState.PunishObsoleteUnlock(ad.LockHash, ad.AdditionalHash, ad.Signature)
+			result := ch.ExternState.PunishObsoleteUnlock(common.BytesToHash(ad.LockHash), ad.AdditionalHash, ad.Signature)
 			go func() {
 				err := <-result.Result
 				if err != nil {
-					log.Error(fmt.Sprintf("PunishObsoleteUnlock %s ,err %s", utils.HPex(ad.LockHash), err))
+					log.Error(fmt.Sprintf("PunishObsoleteUnlock %s ,err %s", utils.BPex(ad.LockHash), err))
 				}
 				//todo 要不要立即 settle?
 			}()
