@@ -938,25 +938,28 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		//忽略,什么都不做
 		return
 	}
+	amount := msg.PaymentAmount
+	target := msg.Target
+	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+	fromChannel := ch
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
+	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	if stateManager != nil {
 		if stateManager.Name != mediator.NameMediatorTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a mediator,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
 			return
 		}
 		stateChange := &mediatedtransfer.MediatorReReceiveStateChange{
-			Message: msg,
+			Message:      msg,
+			FromTransfer: fromTransfer,
+			FromRoute:    fromRoute,
+			BlockNumber:  rs.GetBlockNumber(),
 		}
 		rs.StateMachineEventHandler.logAndDispatch(stateManager, stateChange)
 	} else {
-		amount := msg.PaymentAmount
-		target := msg.Target
-		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, exclude, rs)
-		fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
-		fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
 		ourAddress := rs.NodeAddress
-		fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
+		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
+		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, exclude, rs)
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{

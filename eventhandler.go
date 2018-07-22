@@ -150,20 +150,25 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
-func (eh *stateMachineEventHandler) eventContractSendChannelClose(event *mediatedtransfer.EventContractSendChannelClose) (err error) {
-	graph := eh.raiden.getToken2ChannelGraph(event.Token)
-	if graph == nil {
-		err = fmt.Errorf("EventContractSendChannelClose but token %s doesn't exist", utils.APex(event.Token))
+func (eh *stateMachineEventHandler) eventContractSendRegisterSecret(event *mediatedtransfer.EventContractSendRegisterSecret) (err error) {
+	b, err := eh.raiden.Chain.SecretRegistryProxy.IsSecretRegistered(event.Secret)
+	if err != nil {
+		return err
+	}
+	if b {
+		log.Info(fmt.Sprintf("Secret %s already registered", utils.HPex(event.Secret)))
 		return
 	}
-	ch := graph.ChannelAddress2Channel[event.ChannelIdentifier]
-	if ch == nil {
-		err = fmt.Errorf("EventContractSendChannelClose  but channel %s doesn't exist,maybe have already settled", utils.HPex(event.ChannelIdentifier))
-		return
-	}
-	balanceProof := ch.OurState.BalanceProofState
-	ch.ExternState.Close(balanceProof)
-	return
+	result := eh.raiden.Chain.SecretRegistryProxy.RegisterSecretAsync(event.Secret)
+	go func() {
+		var err error
+		err = <-result.Result
+		if err != nil {
+			log.Error(fmt.Sprintf("register secret on chain err %s,secret=%s you may lose your token because of this error",
+				err, event.Secret.String()))
+		}
+	}()
+	return nil
 }
 func (eh *stateMachineEventHandler) eventWithdrawFailed(e2 *mediatedtransfer.EventWithdrawFailed, manager *transfer.StateManager) (err error) {
 	//wait from RemoveExpiredHashlockTransfer from partner.
@@ -290,8 +295,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))
 		err = eh.eventUnlockFailed(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendRemoveExpiredHashlockTransferAfter")
-	case *mediatedtransfer.EventContractSendChannelClose:
-		err = eh.eventContractSendChannelClose(e2)
+	case *mediatedtransfer.EventContractSendRegisterSecret:
+		err = eh.eventContractSendRegisterSecret(e2)
 	default:
 		err = fmt.Errorf("unkown event :%s", utils.StringInterface1(event))
 		log.Error(err.Error())

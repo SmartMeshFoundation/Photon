@@ -8,6 +8,8 @@ import (
 
 	"encoding/hex"
 
+	"math/rand"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -39,10 +41,20 @@ func MakeTestUDPTransport(name string, port int) *UDPTransport {
 	}
 	return t
 }
+func randomPort() int {
+	return rand.Int()%1000 + 40000
+}
 
 //MakeTestXMPPTransport create a test xmpp transport
 func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
 	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
+}
+func MakeTextMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
+	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", randomPort(), key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 type testBlockNumberGetter struct{}

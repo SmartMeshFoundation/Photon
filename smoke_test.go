@@ -66,8 +66,10 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
-	assert(t, ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute), nil)
-	assert(t, rb.Deposit(tokenAddr, ra.Raiden.NodeAddress, contractBalance, time.Minute), nil)
+	_, err = ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
+	_, err = rb.Deposit(tokenAddr, ra.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
 
 	log.Info("step 3.2 channel B-C")
 	_, err = rb.Open(tokenAddr, rc.Raiden.NodeAddress, ra.Raiden.Config.SettleTimeout, ra.Raiden.Config.RevealTimeout)
@@ -76,8 +78,10 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
-	assert(t, rb.Deposit(tokenAddr, rc.Raiden.NodeAddress, contractBalance, time.Minute), nil)
-	assert(t, rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute), nil)
+	_, err = rb.Deposit(tokenAddr, rc.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
+	_, err = rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
 }
 func newEnv(t *testing.T, ra, rb, rc, rd *RaidenAPI) (addr1, addr2 common.Address) {
 	var contractBalance = big.NewInt(100)

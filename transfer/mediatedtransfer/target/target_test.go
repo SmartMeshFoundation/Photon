@@ -7,7 +7,6 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -68,15 +67,15 @@ func TestEventsForClose(t *testing.T) {
 		FromTransfer: fromTransfer,
 		BlockNumber:  safeToWait,
 	}
-	events := eventsForClose(state)
+	events := eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
 	state.BlockNumber = unsafeToWait
-	events = eventsForClose(state)
+	events = eventsForRegisterSecret(state)
 	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediatedtransfer.EventContractSendChannelClose)
+	ev, ok := events[0].(*mediatedtransfer.EventContractSendRegisterSecret)
 	assert(t, ok, true)
 	assert(t, fromTransfer.Secret != utils.EmptyHash, true)
-	assert(t, ev.ChannelIdentifier, fromRoute.ChannelIdentifier)
+	assert(t, ev.Secret, fromTransfer.Secret)
 }
 
 /*
@@ -97,35 +96,11 @@ func TestEventsForCloseSecretUnkown(t *testing.T) {
 		FromTransfer: fromTransfer,
 		BlockNumber:  expire,
 	}
-	events := eventsForClose(state)
+	events := eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
-	events = eventsForClose(state)
+	events = eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
 	assert(t, fromTransfer.Secret, utils.EmptyHash)
-}
-
-/*
-On-chain withdraw must be done if the channel is closed, regardless of
-    the unsafe region.
-*/
-func TestEventsForWithDraw(t *testing.T) {
-	var amount = big.NewInt(3)
-	var expire int64 = 10
-	initiator := utest.HOP1
-	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UnitSecret, utils.Sha3(utest.UnitSecret[:]), utest.UnitTokenAddress)
-	route := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())
-	state := &mediatedtransfer.TargetState{
-		FromTransfer: tr,
-		FromRoute:    route,
-	}
-	events := eventsForWithdraw(state, route)
-	assert(t, len(events), 0)
-	route.SetState(channeltype.StateClosed)
-	events = eventsForWithdraw(state, route)
-	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediatedtransfer.EventContractSendWithdraw)
-	assert(t, ok, true)
-	assert(t, ev.ChannelIdentifier, route.ChannelIdentifier)
 }
 
 /*

@@ -41,7 +41,10 @@ type ActionInitMediatorStateChange struct {
 }
 
 type MediatorReReceiveStateChange struct {
-	Message *encoding.MediatedTransfer //it two message
+	Message      *encoding.MediatedTransfer //it two message
+	FromRoute    *route.State
+	FromTransfer *LockedTransferState
+	BlockNumber  int64
 }
 
 //ActionInitTargetStateChange Initial state for a new target.
@@ -93,6 +96,11 @@ type ReceiveBalanceProofStateChange struct {
 	NodeAddress    common.Address
 	BalanceProof   *transfer.BalanceProofState
 	Message        encoding.EnvelopMessager //the message trigger this statechange
+}
+
+//EventRemoveStateManager notify that a state manager is finished.
+type EventRemoveStateManager struct {
+	Key common.Hash
 }
 
 /*

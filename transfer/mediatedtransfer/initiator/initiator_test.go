@@ -135,7 +135,7 @@ func TestInitWithoutRoutes(t *testing.T) {
 	assert(t, initiatorStateMachine.CurrentState, nil)
 	events := initiatorStateMachine.Dispatch(initStateChange)
 
-	assert(t, len(events), 1)
+	assert(t, len(events), 2)
 	assert(t, initiatorStateMachine.CurrentState, nil)
 	_, ok := events[0].(*transfer.EventTransferSentFailed)
 	assert(t, ok, true)
@@ -192,7 +192,7 @@ func TestStateWaitUnlockValid(t *testing.T) {
 		Sender: mediatorAddress,
 	}
 	events := sm.Dispatch(stateChange)
-	assert(t, len(events), 3)
+	assert(t, len(events), 4)
 	var EventSendBalanceProof *mediatedtransfer.EventSendBalanceProof
 	var EventTransferSentSuccess *transfer.EventTransferSentSuccess
 	var EventUnlockSuccess *mediatedtransfer.EventUnlockSuccess
@@ -310,7 +310,7 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, utils.Sha3([]byte("3")), utils.NewRandomAddress())
 
 	events := sm.Dispatch(stateChange)
-	assert(t, len(events), 1)
+	assert(t, len(events), 2)
 	_, ok := events[0].(*transfer.EventTransferSentFailed)
 	assert(t, ok, true)
 	assert(t, sm.CurrentState == nil, true)

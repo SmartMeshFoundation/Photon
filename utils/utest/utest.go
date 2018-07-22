@@ -24,7 +24,7 @@ var UnitTransferAmount = big.NewInt(10)
 var UnitBlockNumber int64 = 1
 
 //UnitIdentifier for test
-var UnitIdentifier uint64 = 3
+var UnitIdentifier = utils.Sha3([]byte("3"))
 
 //UnitSecret for test
 var UnitSecret = common.StringToHash("secretsecretsecretsecretsecretse")
@@ -37,6 +37,9 @@ var UnitTokenAddress = utils.NewRandomAddress()
 
 //ADDR for test
 var ADDR = utils.NewRandomAddress()
+
+//CHANNEL for test
+var CHANNEL = utils.NewRandomHash()
 
 //HOP1 for test
 var HOP1 = common.HexToAddress("0x0101010101010101111111111111111111111111")

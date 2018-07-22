@@ -51,10 +51,6 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	if m[key2] != true {
 		t.Error("expect equal")
 	}
-	key2.LockSecretHash = key1.LockSecretHash
-	if m[key2] == true {
-		t.Error("should not equal")
-	}
 }
 
 func testRaidenAPIGetNetworkEvents(t *testing.T, api *RaidenAPI) {
@@ -275,7 +271,7 @@ func TestTransfer(t *testing.T) {
 				t.Error()
 			}
 			wgEnd.Done()
-		}(r, ch.TokenAddress, ch.PartnerAddress, i)
+		}(r, ch.TokenAddress(), ch.PartnerAddress(), i)
 	}
 	time.Sleep(time.Second)
 	wgEnd.Add(int(i))
@@ -313,7 +309,7 @@ func TestTransferWithPython(t *testing.T) {
 	wg.Add(cnt)
 	for i := 1; i < cnt+1; i++ {
 		go func(id int) {
-			err := ra.Transfer(c.TokenAddress, big1, utils.BigInt0, c.PartnerAddress, uint64(id), time.Second*10, false)
+			err := ra.Transfer(c.TokenAddress(), big1, utils.BigInt0, c.PartnerAddress(), uint64(id), time.Second*10, false)
 			if err != nil {
 				log.Error(fmt.Sprintf("err=%s", err))
 			}

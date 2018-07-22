@@ -52,12 +52,13 @@ type BlockChainService struct {
 	//NodeAddress is address of this node
 	NodeAddress common.Address
 	//RegistryAddress registy contract address
-	RegistryAddress common.Address
+	RegistryAddress     common.Address
+	SecretRegistryProxy *SecretRegistryProxy
+	RegistryProxy       *RegistryProxy
 	//Client if eth rpc client
-	Client            *helper.SafeEthClient
-	addressTokens     map[common.Address]*TokenProxy
-	addressChannels   map[common.Address]*TokenNetworkProxy
-	addressRegistries map[common.Address]*RegistryProxy
+	Client          *helper.SafeEthClient
+	addressTokens   map[common.Address]*TokenProxy
+	addressChannels map[common.Address]*TokenNetworkProxy
 	//Auth needs by call on blockchain todo remove this
 	Auth      *bind.TransactOpts
 	queryOpts *bind.CallOpts
@@ -66,14 +67,13 @@ type BlockChainService struct {
 //NewBlockChainService create BlockChainService
 func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) *BlockChainService {
 	bcs := &BlockChainService{
-		PrivKey:           privKey,
-		NodeAddress:       crypto.PubkeyToAddress(privKey.PublicKey),
-		RegistryAddress:   registryAddress,
-		Client:            client,
-		addressTokens:     make(map[common.Address]*TokenProxy),
-		addressChannels:   make(map[common.Address]*TokenNetworkProxy),
-		addressRegistries: make(map[common.Address]*RegistryProxy),
-		Auth:              bind.NewKeyedTransactor(privKey),
+		PrivKey:         privKey,
+		NodeAddress:     crypto.PubkeyToAddress(privKey.PublicKey),
+		RegistryAddress: registryAddress,
+		Client:          client,
+		addressTokens:   make(map[common.Address]*TokenProxy),
+		addressChannels: make(map[common.Address]*TokenNetworkProxy),
+		Auth:            bind.NewKeyedTransactor(privKey),
 	}
 	bcs.queryOpts = &bind.CallOpts{
 		Pending: false,
@@ -180,16 +180,32 @@ func (bcs *BlockChainService) TokenNetworkWithoutCheck(address common.Address) (
 
 // Registry Return a proxy to interact with Registry.
 func (bcs *BlockChainService) Registry(address common.Address) (t *RegistryProxy) {
-	_, ok := bcs.addressRegistries[address]
-	if !ok {
-		reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
-		if err != nil {
-			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
-			return
-		}
-		bcs.addressRegistries[address] = &RegistryProxy{address, bcs, reg}
+	if bcs.RegistryProxy != nil {
+		return bcs.RegistryProxy
 	}
-	return bcs.addressRegistries[address]
+	reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
+	if err != nil {
+		log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
+		return
+	}
+	r := &RegistryProxy{address, bcs, reg}
+	secAddr, err := r.registry.Secret_registry_address(nil)
+	if err != nil {
+		log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
+		return
+	}
+	s, err := contracts.NewSecretRegistry(secAddr, bcs.Client)
+	if err != nil {
+		log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
+		return
+	}
+	bcs.RegistryProxy = r
+	bcs.SecretRegistryProxy = &SecretRegistryProxy{
+		Address:  secAddr,
+		bcs:      bcs,
+		registry: s,
+	}
+	return bcs.RegistryProxy
 }
 
 //RegistryProxy proxy for registry contract
@@ -261,6 +277,15 @@ func (t *TokenNetworkProxy) NewChannel(partnerAddress common.Address, settleTime
 	return
 }
 
+func (t *TokenNetworkProxy) NewChannelAsync(partnerAddress common.Address, settleTimeout int) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	go func() {
+		err := t.NewChannel(partnerAddress, settleTimeout)
+		result.Result <- err
+	}()
+	return result
+}
+
 /*GetChannelInfo Returns the channel specific data.
 @param participant1 Address of one of the channel participants.
 @param participant2 Address of the other channel participant.
@@ -294,7 +319,6 @@ type TokenProxy struct {
 	Address common.Address
 	bcs     *BlockChainService
 	Token   *contracts.Token
-	lock    sync.Mutex
 }
 
 // TotalSupply total amount of tokens
@@ -328,8 +352,6 @@ func (t *TokenProxy) Allowance(owner, spender common.Address) (int64, error) {
 // @param _spender The address of the account able to transfer the tokens
 // @param _value The amount of wei to be approved for transfer
 func (t *TokenProxy) Approve(spender common.Address, value *big.Int) (err error) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	tx, err := t.Token.Approve(t.bcs.Auth, spender, value)
 	if err != nil {
 		return err
@@ -352,8 +374,6 @@ func (t *TokenProxy) Approve(spender common.Address, value *big.Int) (err error)
 // @param _to The address of the recipient
 // @param _value The amount of token to be transferred
 func (t *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	tx, err := t.Token.Transfer(t.bcs.Auth, spender, value)
 	if err != nil {
 		return err
@@ -368,4 +388,51 @@ func (t *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error
 	}
 	log.Info(fmt.Sprintf("Transfer success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(spender), value))
 	return nil
+}
+
+//SecretRegistryProxy proxy of secret registry
+type SecretRegistryProxy struct {
+	Address  common.Address
+	bcs      *BlockChainService
+	registry *contracts.SecretRegistry
+	lock     sync.Mutex
+}
+
+func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) error {
+	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
+	if err != nil {
+		return err
+	}
+	receipt, err := bind.WaitMined(GetCallContext(), s.bcs.Client, tx)
+	if err != nil {
+		return err
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Info(fmt.Sprintf("RegisterSecret failed %s,receipt=%s", utils.HPex(secret), receipt))
+		return errors.New("RegisterSecret tx execution failed")
+	}
+	log.Info(fmt.Sprintf("RegisterSecret success %s,secret=%s", utils.HPex(secret)))
+	return nil
+}
+
+//RegisterSecretAsync 异步注册一个密码
+func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	go func() {
+		err := s.RegisterSecret(secret)
+		result.Result <- err
+	}()
+	return result
+}
+
+//IsSecretRegistered 密码是否在合约上注册过,注册地址对不对
+func (s *SecretRegistryProxy) IsSecretRegistered(secret common.Hash) (bool, error) {
+	blockNumber, err := s.registry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
+	if err != nil {
+		return false, err
+	}
+	if blockNumber.Cmp(utils.BigInt0) <= 0 {
+		return false, nil
+	}
+	return true, nil
 }

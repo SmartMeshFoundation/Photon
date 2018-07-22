@@ -41,6 +41,9 @@ func (rs *State) SettleTimeout() int {
 func (rs *State) RevealTimeout() int {
 	return rs.ch.RevealTimeout
 }
+func (rs *State) SetClosedBlock(blockNumbder int64) {
+	rs.ch.ExternState.ClosedBlock = blockNumbder
+}
 func (rs *State) ClosedBlock() int64 {
 	return rs.ch.ExternState.ClosedBlock
 }

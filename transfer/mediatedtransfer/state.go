@@ -76,7 +76,7 @@ type InitiatorState struct {
 	BlockNumber       int64                //Latest known block number.
 	LockSecretHash    common.Hash
 	Secret            common.Hash
-	Message           *EventSendMediatedTransfer // current message in-transit todo this type?
+	Message           *EventSendMediatedTransfer // current message in-transit
 	Route             *route.State               //current route being used
 	SecretRequest     *encoding.SecretRequest
 	RevealSecret      *EventSendRevealSecret
@@ -103,9 +103,11 @@ type MediatorState struct {
 			keeping all transfers in a single list byzantine behavior for secret
 		        reveal and simplifies secret setting
 	*/
-	TransfersPair []*MediationPairState
-	HasRefunded   bool //此节点已经发生了refund，肯定不能再用了。
-	Db            channeltype.Db
+	TransfersPair  []*MediationPairState
+	HasRefunded    bool //此节点已经发送过refund，肯定不能再用了。
+	LockSecretHash common.Hash
+	Token          common.Address
+	Db             channeltype.Db
 }
 
 /*
@@ -131,8 +133,17 @@ const StateRevealSecret = "reveal_secret"
 //StateBalanceProof receive balance proof
 const StateBalanceProof = "balance_proof"
 
-//StateWaitingClose wait close
-const StateWaitingClose = "waiting_close"
+//StateWaitingRegisterSecret wait register secret on chain
+const StateWaitingRegisterSecret = "waiting_register_secret"
+
+/*
+StateSecretRegistered 密码已经在链上披露了
+整个交易的所有参与方都可以认为这笔交易从彻底完成了,
+无论是发起方还是中间节点以及接收方
+发起方收到SecretRegistered, 应该立即发送 unlock 消息
+中间节点也是一样,收到 secretRegistered 以后,必须立即给下家发送 unlock 消息,无论有没有收到上家的 unlock 消息
+*/
+const StateSecretRegistered = "secret_registered"
 
 //TargetState State of mediated transfer target.
 type TargetState struct {
@@ -171,22 +182,6 @@ const StatePayeePending = "payee_pending"
 const StatePayeeSecretRevealed = "payee_secret_revealed"
 
 /*
-StatePayeeRefundWithdraw  The corresponding refund transfer was withdrawn on-chain, the payee has
-       /not/ withdrawn the lock yet, it only learned the secret through the
-       blockchain.
-       Note: This state is reachable only if there is a refund transfer, that
-       is represented by a different MediationPairState, and the refund
-       transfer is at 'payer_contract_withdraw'.
-*/
-const StatePayeeRefundWithdraw = "payee_refund_withdraw"
-
-/*
-StatePayeeContractWithdraw The payee received the token on-chain. A transition to this state is
-valid from all but the `payee_expired` state.
-*/
-const StatePayeeContractWithdraw = "payee_contract_withdraw"
-
-/*
 StatePayeeBalanceProof   This node has sent a SendBalanceProof to the payee with the balance
     updated.
 */
@@ -197,23 +192,19 @@ const StatePayeeExpired = "payee_expired"
 
 //ValidPayeeStateMap payee's valid state
 var ValidPayeeStateMap = map[string]bool{
-	StatePayeePending:          true,
-	StatePayeeSecretRevealed:   true,
-	StatePayeeRefundWithdraw:   true,
-	StatePayeeContractWithdraw: true,
-	StatePayeeBalanceProof:     true,
-	StatePayeeExpired:          true,
+	StatePayeePending:        true,
+	StatePayeeSecretRevealed: true,
+	StatePayeeBalanceProof:   true,
+	StatePayeeExpired:        true,
 }
 
 //ValidPayerStateMap payer's valid state
 var ValidPayerStateMap = map[string]bool{
-	StatePayerPending:          true,
-	StatePayerSecretRevealed:   true,
-	StatePayerWaitingClose:     true,
-	StatePayerWaitingWithdraw:  true,
-	StatePayerContractWithdraw: true,
-	StatePayerBalanceProof:     true,
-	StatePayerExpired:          true,
+	StatePayerPending:               true,
+	StatePayerSecretRevealed:        true,
+	StatePayerWaitingRegisterSecret: true,
+	StatePayerBalanceProof:          true,
+	StatePayerExpired:               true,
 }
 
 //payer's state
@@ -224,14 +215,8 @@ const StatePayerPending = "payer_pending"
 //StatePayerSecretRevealed RevealSecret was sent
 const StatePayerSecretRevealed = "payer_secret_revealed"
 
-//StatePayerWaitingClose ContractSendChannelClose was sent
-const StatePayerWaitingClose = "payer_waiting_close"
-
-//StatePayerWaitingWithdraw ContractSendWithdraw was sent
-const StatePayerWaitingWithdraw = "payer_waiting_withdraw"
-
-//StatePayerContractWithdraw ContractReceiveWithdraw for the above send received
-const StatePayerContractWithdraw = "payer_contract_withdraw"
+//StatePayerWaitingRegisterSecret register secret on chain
+const StatePayerWaitingRegisterSecret = "payer_waiting_register_secret"
 
 //StatePayerBalanceProof ReceiveBalanceProof was received
 const StatePayerBalanceProof = "payer_balance_proof"

@@ -7,7 +7,6 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
@@ -30,33 +29,24 @@ const NameMediatorTransition = "MediatorTransition"
 const transitBlocks = 2 // TODO: make this a configuration variable
 
 var stateSecretKnownMaps = map[string]bool{
-	mediatedtransfer.StatePayeeSecretRevealed:   true,
-	mediatedtransfer.StatePayeeRefundWithdraw:   true,
-	mediatedtransfer.StatePayeeContractWithdraw: true,
-	mediatedtransfer.StatePayeeBalanceProof:     true,
+	mediatedtransfer.StatePayeeSecretRevealed: true,
+	mediatedtransfer.StatePayeeBalanceProof:   true,
 
-	mediatedtransfer.StatePayerSecretRevealed:   true,
-	mediatedtransfer.StatePayerWaitingClose:     true,
-	mediatedtransfer.StatePayerWaitingWithdraw:  true,
-	mediatedtransfer.StatePayerContractWithdraw: true,
-	mediatedtransfer.StatePayerBalanceProof:     true,
+	mediatedtransfer.StatePayerSecretRevealed:        true,
+	mediatedtransfer.StatePayerWaitingRegisterSecret: true,
+	mediatedtransfer.StatePayerBalanceProof:          true,
 }
 var stateTransferPaidMaps = map[string]bool{
-	mediatedtransfer.StatePayeeContractWithdraw: true,
-	mediatedtransfer.StatePayeeBalanceProof:     true,
-	mediatedtransfer.StatePayerContractWithdraw: true,
-	mediatedtransfer.StatePayerBalanceProof:     true,
+	mediatedtransfer.StatePayeeBalanceProof: true,
+	mediatedtransfer.StatePayerBalanceProof: true,
 }
 
-//TODO: fix expired state, it is not final
 var stateTransferFinalMaps = map[string]bool{
-	mediatedtransfer.StatePayeeExpired:          true,
-	mediatedtransfer.StatePayeeContractWithdraw: true,
-	mediatedtransfer.StatePayeeBalanceProof:     true,
+	mediatedtransfer.StatePayeeExpired:      true,
+	mediatedtransfer.StatePayeeBalanceProof: true,
 
-	mediatedtransfer.StatePayerExpired:          true,
-	mediatedtransfer.StatePayerContractWithdraw: true,
-	mediatedtransfer.StatePayerBalanceProof:     true,
+	mediatedtransfer.StatePayerExpired:      true,
+	mediatedtransfer.StatePayerBalanceProof: true,
 }
 
 //True if the lock has not expired.
@@ -75,37 +65,38 @@ func IsSafeToWait(tr *mediatedtransfer.LockedTransferState, revealTimeout int, b
 }
 
 //IsValidRefund returns True if the refund transfer matches the original transfer.
-func IsValidRefund(originTr *mediatedtransfer.LockedTransferState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) bool {
+func IsValidRefund(originTr *mediatedtransfer.LockedTransferState, originRoute *route.State, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) bool {
 	//Ignore a refund from the target
 	if st.Sender == originTr.Target {
+		return false
+	}
+	if st.Sender != originRoute.HopNode() {
 		return false
 	}
 	return originTr.Amount.Cmp(st.Lock.Amount) == 0 &&
 		originTr.LockSecretHash == st.Lock.LockSecretHash &&
 		originTr.Token == st.Token &&
 		/*
-					 A larger-or-equal expiration is byzantine behavior that favors this
-			         node, neverthless it's being ignored since the only reason for the
-			         other node to use an invalid expiration is to play the protocol.
+			必须严格相等,我们要的是锁的 hash
 		*/
 		originTr.Expiration == st.Lock.Expiration
 }
 
 /*
-True if this node needs to close the channel to withdraw on-chain.
+True if this node needs to register secret on chain
 
     Only close the channel to withdraw on chain if the corresponding payee node
     has received, this prevents attacks were the payee node burns it's payment
     to force a close with the payer channel.
 */
-func isChannelCloseNeeded(tr *mediatedtransfer.MediationPairState, blockNumber int64) bool {
+func isSecretRegisterNeeded(tr *mediatedtransfer.MediationPairState, blockNumber int64) bool {
 	payeeReceived := stateTransferPaidMaps[tr.PayeeState]
 	payerPayed := stateTransferPaidMaps[tr.PayerState]
 	payerChannelOpen := tr.PayerRoute.State() == channeltype.StateOpened
-	AlreadyClosing := tr.PayerState == mediatedtransfer.StatePayerWaitingClose
+	AlreadyRegisterring := tr.PayerState == mediatedtransfer.StatePayerWaitingRegisterSecret
 	safeToWait := IsSafeToWait(tr.PayerTransfer, tr.PayerRoute.RevealTimeout(), blockNumber)
 
-	return payeeReceived && !payerPayed && payerChannelOpen && !AlreadyClosing && !safeToWait
+	return payeeReceived && !payerPayed && payerChannelOpen && !AlreadyRegisterring && !safeToWait
 }
 
 //Return the transfer pairs that are not at a final state.
@@ -150,7 +141,7 @@ func getTimeoutBlocks(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	if blocksUntilSettlement > payerTransfer.Expiration-blockNumber {
 		blocksUntilSettlement = payerTransfer.Expiration - blockNumber
 	}
-	return blocksUntilSettlement - transitBlocks
+	return blocksUntilSettlement
 }
 
 //Check invariants that must hold.
@@ -185,7 +176,7 @@ func sanityCheck(state *mediatedtransfer.MediatorState) {
 		if !p.PayerTransfer.AlmostEqual(p.PayeeTransfer) {
 			panic("sanity check failed:PayerTransfer.AlmostEqual(p.PayeeTransfer)")
 		}
-		if p.PayerTransfer.Expiration <= p.PayeeTransfer.Expiration {
+		if p.PayerTransfer.Expiration < p.PayeeTransfer.Expiration {
 			panic("sanity check failed:PayerTransfer.Expiration<=p.PayeeTransfer.Expiration")
 		}
 		if !mediatedtransfer.ValidPayerStateMap[p.PayerState] {
@@ -205,7 +196,7 @@ func sanityCheck(state *mediatedtransfer.MediatorState) {
 		if original.PayeeRoute.HopNode() != refund.PayerRoute.HopNode() {
 			panic("sanity check failed:original.PayeeRoute.HopNode!=refund.PayerRoute.HopNode")
 		}
-		if original.PayeeTransfer.Expiration <= refund.PayerTransfer.Expiration {
+		if original.PayeeTransfer.Expiration < refund.PayerTransfer.Expiration {
 			panic("sanity check failed:original.PayeeTransfer.Expiration>refund.PayerTransfer.Expiration")
 		}
 	}
@@ -252,12 +243,24 @@ Finds the first route available that may be used.
     Returns:
         (RouteState): The next route.
 */
-func nextRoute(rss *route.RoutesState, timeoutBlocks int, transferAmount *big.Int) *route.State {
+/*
+找到一个满足下面提交的 route
+1.通道金额足够
+2.上家给出的 费用足够
+3.时间还足够安全
+*/
+
+func nextRoute(rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) *route.State {
 	for len(rss.AvailableRoutes) > 0 {
 		route := rss.AvailableRoutes[0]
 		rss.AvailableRoutes = rss.AvailableRoutes[1:]
 		lockTimeout := timeoutBlocks - route.RevealTimeout()
-		if route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 {
+		/*
+			1.通道金额足够
+			2. 给出的收费也够
+			3. 时间还安全
+		*/
+		if route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 {
 			return route
 		}
 		rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
@@ -289,18 +292,19 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	if int64(timeoutBlocks) > payerTransfer.Expiration-blockNumber {
 		panic("timeoutBlocks >payerTransfer.Expiration-blockNumber")
 	}
-	payeeRoute := nextRoute(routesState, timeoutBlocks, payerTransfer.Amount)
+	payeeRoute := nextRoute(routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
 	if payeeRoute != nil {
-		if payeeRoute.RevealTimeout() >= timeoutBlocks {
-			panic("payeeRoute.RevealTimeout>=timeoutBlocks")
-		}
 		/*
-			有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.
+					有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.
+				这个地方需要一个例子,例子是什么呢?
+			如果 timeoutBlocks 超过 settle timout 会有什么问题呢
+
 		*/
 		if timeoutBlocks >= payeeRoute.SettleTimeout() {
 			timeoutBlocks = payeeRoute.SettleTimeout()
 		}
-		lockTimeout := timeoutBlocks - payeeRoute.RevealTimeout()
+		//不再减少时间,没有必要了,只要这个时间不超过 payee 的 settle timeout 即可
+		lockTimeout := timeoutBlocks //- payeeRoute.RevealTimeout()
 		lockExpiration := int64(lockTimeout) + blockNumber
 		payeeTransfer := &mediatedtransfer.LockedTransferState{
 			TargetAmount:   payerTransfer.TargetAmount,
@@ -312,10 +316,6 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 			LockSecretHash: payerTransfer.LockSecretHash,
 			Secret:         payerTransfer.Secret,
 			Fee:            big.NewInt(0).Sub(payerTransfer.Fee, payeeRoute.Fee),
-		}
-		if payeeTransfer.Fee.Cmp(utils.BigInt0) < 0 || payeeTransfer.Amount.Cmp(utils.BigInt0) < 0 {
-			//no enough fee to route.
-			return
 		}
 		if payeeRoute.HopNode() == payeeTransfer.Target {
 			//i'm the last hop,so take the rest of the fee
@@ -364,17 +364,21 @@ func setPayeeStateAndCheckRevealOrder(transferPair []*mediatedtransfer.Mediation
 	return nil
 }
 
-// Set the state of expired transfers, and return the failed events
-func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
+/*
+Set the state of expired transfers, and return the failed events
+按照现在的规则
+payer的 expiration>=payee 的 expiration 可以相等
+*/
+func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event, hasNotExpired bool) {
 	pendingTransfersPairs := getPendingTransferPairs(transfersPairs)
+	hasNotExpired = len(pendingTransfersPairs) > 0
 	for _, pair := range pendingTransfersPairs {
 		if blockNumber > pair.PayerTransfer.Expiration {
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
-				log.Error("PayeeState!=mediatedtransfer.StatePayeeExpired")
-				return
+				//未必一定, 两者的 expiration 很可能是相同的
 			}
-			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
-				log.Error("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
+			if pair.PayeeTransfer.Expiration > pair.PayerTransfer.Expiration {
+				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 				return
 			}
 			if pair.PayerState != mediatedtransfer.StatePayerExpired {
@@ -386,7 +390,8 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 				}
 				events = append(events, withdrawFailed)
 			}
-		} else if blockNumber > pair.PayeeTransfer.Expiration {
+		}
+		if blockNumber > pair.PayeeTransfer.Expiration {
 			/*
 			   For safety, the correct behavior is:
 
@@ -402,13 +407,8 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			   offline after having paid a transfer to a payee, but without
 			   getting a balance proof of the payer, and once it comes back
 			   online the transfer may have expired.
-
-			   assert pair.payee_state == 'payee_expired'
 			*/
-			//if stateTransferPaidMaps[pair.PayeeState] {
-			//	panic("pair.payee_state should not in STATE_TRANSFER_PAID")
-			//}
-			if pair.PayeeTransfer.Expiration >= pair.PayerTransfer.Expiration {
+			if pair.PayeeTransfer.Expiration > pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
 			}
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
@@ -433,38 +433,24 @@ Refund the transfer.
             transfer to this node.
         refund_transfer (LockedTransferState): The original mediated transfer
             from the refund_route.
-        timeout_blocks (int): The number of blocks available from the /latest
-            transfer/ received by this node, this transfer might be the
-            original mediated transfer (if no route was available) or a refund
-            transfer from a down stream node.
-        block_number (int): The current block number.
+
 
     Returns:
-        An empty list if there are not enough blocks to safely create a refund,
-        or a list with a refund event.
+        create a annouceDisposed event
 */
-func eventsForRefundTransfer(refundRoute *route.State, refundTransfer *mediatedtransfer.LockedTransferState, timeoutBlocks int, blockNumber int64) (events []transfer.Event) {
+func eventsForRefund(refundRoute *route.State, refundTransfer *mediatedtransfer.LockedTransferState) (events []transfer.Event) {
 	/*
-	   A refund transfer works like a special SendMediatedTransfer, so it must
-	      follow the same rules and decrement reveal_timeout from the
-	      payee_transfer.
+		原封不动声明放弃此锁即可
 	*/
-	newLockTimeout := timeoutBlocks - refundRoute.RevealTimeout()
-	if newLockTimeout > 0 {
-		newLockExpiration := int64(newLockTimeout) + blockNumber
-		rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
-			Token:          refundTransfer.Token,
-			Amount:         new(big.Int).Set(refundTransfer.Amount),
-			LockSecretHash: refundTransfer.LockSecretHash,
-			Expiration:     newLockExpiration,
-			Receiver:       refundRoute.HopNode(),
-		}
-		events = append(events, rtr2)
+
+	rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
+		Token:          refundTransfer.Token,
+		Amount:         new(big.Int).Set(refundTransfer.Amount),
+		LockSecretHash: refundTransfer.LockSecretHash,
+		Expiration:     refundTransfer.Expiration,
+		Receiver:       refundRoute.HopNode(),
 	}
-	/*
-	    Can not create a refund lock with a safe expiration, so don't do anything
-	   and wait for the received lock to expire.
-	*/
+	events = append(events, rtr2)
 	return
 }
 
@@ -498,7 +484,7 @@ func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState,
 		pair := transfersPair[j]
 		isPayeeSecretKnown := stateSecretKnownMaps[pair.PayeeState]
 		isPayerSecretKnown := stateSecretKnownMaps[pair.PayerState]
-		if isPayeeSecretKnown && !isPayerSecretKnown { //todo 如果我在发送reveal secret过程中崩溃了，这个消息payer没有收到，payee也没有收到ack，payee会重发revealsecret消息，我的内部状态一定不能变。目前好像是这么做的。
+		if isPayeeSecretKnown && !isPayerSecretKnown {
 			pair.PayerState = mediatedtransfer.StatePayerSecretRevealed
 			tr := pair.PayerTransfer
 			revealSecret := &mediatedtransfer.EventSendRevealSecret{
@@ -551,74 +537,29 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 /*
 Close the channels that are in the unsafe region prior to an on-chain
     withdraw
+发出注册密码事件应该是整个交易的事情,而不是某个 pair 的事
+如果发生了崩溃恢复怎么处理呢?
 */
-func eventsForClose(transfersPair []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
+func eventsForRegisterSecret(transfersPair []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
 	pendings := getPendingTransferPairs(transfersPair)
+	needRegisterSecret := false
 	for j := len(pendings) - 1; j >= 0; j-- {
 		pair := pendings[j]
-		if isChannelCloseNeeded(pair, blockNumber) {
-			pair.PayerState = mediatedtransfer.StatePayerWaitingClose
-			channelClose := &mediatedtransfer.EventContractSendChannelClose{
-				ChannelIdentifier: pair.PayerRoute.ChannelIdentifier,
-				Token:             pair.PayerTransfer.Token,
+		if isSecretRegisterNeeded(pair, blockNumber) {
+			//只需发出一次注册请求,所有的 pair 状态都应该修改为StatePayerWaitingRegisterSecret
+			if needRegisterSecret {
+				pair.PayerState = mediatedtransfer.StatePayerWaitingRegisterSecret
+			} else {
+				needRegisterSecret = true
+				pair.PayerState = mediatedtransfer.StatePayerWaitingRegisterSecret
+				registerSecretEvent := &mediatedtransfer.EventContractSendRegisterSecret{
+					Secret: pair.PayeeTransfer.Secret,
+				}
+				events = append(events, registerSecretEvent)
 			}
-			events = append(events, channelClose)
 		}
 	}
 	return
-}
-
-/*
-Withdraw on any payer channel that is closed and the secret is known.
-
-    If a channel is closed because of another task a balance proof will not be
-    received, so there is no reason to wait for the unsafe region before
-    calling close.
-
-    This may break the reverse reveal order:
-
-        Path: A -- B -- C -- B -- D
-
-        B learned the secret from D and has revealed to C.
-        C has not confirmed yet.
-        channel(A, B).closed is True.
-        B will withdraw on channel(A, B) before C's confirmation.
-        A may learn the secret faster than other nodes.
-*/
-func eventsForWithdraw(transfersPair []*mediatedtransfer.MediationPairState, db channeltype.Db) (events []transfer.Event) {
-	pendings := getPendingTransferPairs(transfersPair)
-	for _, pair := range pendings {
-		payerChannelOpen := pair.PayerRoute.State() == channeltype.StateOpened
-		secretKnown := pair.PayerTransfer.Secret != utils.EmptyHash
-		/*
-				todo 这个消息应该会反复触发多次，加上限制，只触发一次就好了。。
-				由于ContractReceiveWithdrawStateChange 并不派发，导致会不停的发送EventContractSendWithdraw，目前raiden的选择是忽略该事件，但是带来一个潜在安全性问题
-			比如：
-			A-B-C-B-E-D
-			E拿到秘钥以后立即通知c(并把密钥告诉c），但是等一段时间再告诉B
-			这时候C选择关闭B-C通道，然后在B-C通道上withdraw。
-			这时候由于B在接到关闭B-C通道的时候，并不知道密钥，导致无法withdraw C给B的token，但是C拿到了B给C的token。
-			由于忽略EventContractSendWithdraw事件，导致B会丢失C给B点token
-		*/
-
-		if !payerChannelOpen && secretKnown {
-			//这个是临时补丁，后续要完整解决
-			if db != nil {
-				//避免无限制重发EventContractSendWithdraw
-				if db.IsThisLockHasWithdraw(pair.PayerRoute.ChannelIdentifier, pair.PayerTransfer.Secret) {
-					pair.PayerState = mediatedtransfer.StatePayerContractWithdraw
-					continue
-				}
-			}
-			pair.PayerState = mediatedtransfer.StatePayerWaitingWithdraw
-			withdraw := &mediatedtransfer.EventContractSendWithdraw{
-				Transfer:          pair.PayerTransfer,
-				ChannelIdentifier: pair.PayerRoute.ChannelIdentifier,
-			}
-			events = append(events, withdraw)
-		}
-	}
-	return events
 }
 
 /*
@@ -638,11 +579,11 @@ func secretLearned(state *mediatedtransfer.MediatorState, secret common.Hash, pa
 	eventsWrongOrder := setPayeeStateAndCheckRevealOrder(state.TransfersPair, payeeAddress, newPayeeState)
 	eventsSecretReveal := eventsForRevealSecret(state.TransfersPair, state.OurAddress)
 	eventBalanceProof := eventsForBalanceProof(state.TransfersPair, state.BlockNumber)
-	eventsWithdraw := eventsForWithdraw(state.TransfersPair, state.Db)
+	eventsRegisterSecretEvent := eventsForRegisterSecret(state.TransfersPair, state.BlockNumber)
 	events = append(events, eventsWrongOrder...)
 	events = append(events, eventsSecretReveal...)
 	events = append(events, eventBalanceProof...)
-	events = append(events, eventsWithdraw...)
+	events = append(events, eventsRegisterSecretEvent...)
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   events,
@@ -661,45 +602,20 @@ Try a new route or fail back to a refund.
 func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.State, payerTransfer *mediatedtransfer.LockedTransferState) *transfer.TransitionResult {
 	var transferPair *mediatedtransfer.MediationPairState
 	var events []transfer.Event
-	if params.TreatRefundTransferAsNormalMediatedTransfer {
-		if state.HasRefunded {
-			panic("has rufuned mediated node should never receive another transfer.")
-		}
-	}
+
 	timeoutBlocks := int(getTimeoutBlocks(payerRoute, payerTransfer, state.BlockNumber))
 	if timeoutBlocks > 0 {
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
 	if transferPair == nil {
+		/*
+				回退此交易,相当于没收到过一样处理
+			todo 如何保存相关通道状态?
+		*/
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
-		if len(state.TransfersPair) > 0 {
-			//只有0不是refundtransfer，其他都已经是refundtransfer了，必须跳过比如A-B-C-B-E-F 这时E收到F的refund，E必须再次refund，但是refund的对象显然应该是
-			originalTransfer = state.TransfersPair[0].PayerTransfer
-			originalRoute = state.TransfersPair[0].PayerRoute
-		}
-		refundEvents := eventsForRefundTransfer(originalRoute, originalTransfer, timeoutBlocks, state.BlockNumber)
-		if len(refundEvents) > 0 {
-			//todo 这是需要完全重写的部分
-			if params.TreatRefundTransferAsNormalMediatedTransfer {
-				//rftr := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
-				payeeLockedTransfer := &mediatedtransfer.LockedTransferState{
-					//TargetAmount:   rftr.TargetAmount,
-					//Amount:         new(big.Int).Set(rftr.Amount),
-					//Token:          rftr.Token,
-					//Initiator:      rftr.Initiator,
-					//Target:         rftr.Target,
-					//Expiration:     rftr.Expiration,
-					//LockSecretHash: rftr.LockSecretHash,
-					//Secret:         payerTransfer.Secret,
-					//Fee:            rftr.Fee, //refund transfer shouldnot charge.
-				}
-				payeeRoute := *originalRoute //route 信息是错误的，但是不影响，只要不继续route。
-				transferPair = mediatedtransfer.NewMediationPairState(payerRoute, &payeeRoute, payerTransfer, payeeLockedTransfer)
-				state.TransfersPair = append(state.TransfersPair, transferPair)
-				state.HasRefunded = true
-			}
-		}
+		refundEvents := eventsForRefund(originalRoute, originalTransfer)
+		state.HasRefunded = true
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   refundEvents,
@@ -714,6 +630,13 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		NewState: state,
 		Events:   events,
 	}
+}
+
+/*
+又收到了一个 mediatedtransfer
+*/
+func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.MediatorReReceiveStateChange) *transfer.TransitionResult {
+	return mediateTransfer(state, st.FromRoute, st.FromTransfer)
 }
 
 /*
@@ -732,13 +655,17 @@ func handleBlock(state *mediatedtransfer.MediatorState, st *transfer.BlockStateC
 		blockNumber = st.BlockNumber
 	}
 	state.BlockNumber = blockNumber
-	closeEvents := eventsForClose(state.TransfersPair, blockNumber)
-	withdrawEvents := eventsForWithdraw(state.TransfersPair, state.Db)
-	unlockfailEvents := setExpiredPairs(state.TransfersPair, blockNumber)
+	closeEvents := eventsForRegisterSecret(state.TransfersPair, blockNumber)
+	unlockfailEvents, hasNotExpired := setExpiredPairs(state.TransfersPair, blockNumber)
 	var events []transfer.Event
 	events = append(events, closeEvents...)
-	events = append(events, withdrawEvents...)
 	events = append(events, unlockfailEvents...)
+	if !hasNotExpired {
+		//所有的mediatedtransfer 都已经过期了,放心移除这个 stateManager 吧
+		events = append(events, &mediatedtransfer.EventRemoveStateManager{
+			Key: utils.Sha3(state.LockSecretHash[:], state.Token[:]),
+		})
+	}
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   events,
@@ -749,7 +676,7 @@ func handleBlock(state *mediatedtransfer.MediatorState, st *transfer.BlockStateC
 Validate and handle a ReceiveTransferRefund state change.
 
     A node might participate in mediated transfer more than once because of
-    refund transfers, eg. A-B-C-B-D-T, B tried to mediate the transfer through
+    refund transfers, eg. A-B-C-F-B-D-T, B tried to mediate the transfer through
     C, which didn't have an available route to proceed and refunds B, at this
     point B is part of the path again and will try a new partner to proceed
     with the mediation through D, D finally reaches the target T.
@@ -757,35 +684,54 @@ Validate and handle a ReceiveTransferRefund state change.
     In the above scenario B has two pairs of payer and payee transfers:
 
         payer:A payee:C from the first SendMediatedTransfer
-        payer:C payee:D from the following SendRefundTransfer
+        payer:F payee:D from the following SendRefundTransfer
 
     Args:
         state (MediatorState): Current state.
-        state_change (ReceiveTransferRefund): The state change.
+        state_change (ReceiveAnnounceDisposedStateChange): The state change.
 
     Returns:
         TransitionResult: The resulting iteration.
 */
 func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
+	it := &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
 	if state.Secret != utils.EmptyHash {
 		panic("refunds are not allowed if the secret is revealed")
 	}
 	/*
 			  The last sent transfer is the only one thay may be refunded, all the
 		     previous ones are refunded already.
+
 	*/
 	l := len(state.TransfersPair)
+	if l <= 0 {
+		log.Error(fmt.Sprintf("recevie refund ,but has no transfer pair ,must be a attack!!"))
+		return it
+	}
 	transferPair := state.TransfersPair[l-1]
 	payeeTransfer := transferPair.PayeeTransfer
-	if IsValidRefund(payeeTransfer, st) {
-		//什么时候会产生多个transferpair，就是发生refund的时候。 从这里也可以看出把refund当成普通mediatedtransfer来处理。
-		//todo 需要完善
-		return mediateTransfer(state, transferPair.PayeeRoute, nil)
+	payeeRoute := transferPair.PayeeRoute
+	/*
+		todo A-B-C-F-B-G-D
+		B首先收到了来自 C 的refund 怎么处理?网络错误?网络攻击?
+	*/
+	if IsValidRefund(payeeTransfer, payeeRoute, st) {
+		/*
+					假定队列中的是
+				AB BC
+				EB BF
+				这时候收到了来自 F 的 refund, 那么应该是认为 payeeTransfer 无效了,
+				相当于刚刚收到了来自 E 的 transfer, 然后去重新找路径
+				todo 如何保存相关通道呢?
+			todo 长时间崩溃恢复以后会收到这个消息么?
+		*/
+		state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+		return mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
 	}
-	return &transfer.TransitionResult{
-		NewState: state,
-		Events:   nil,
-	}
+	return it
 }
 
 /*
@@ -801,71 +747,44 @@ func handleSecretReveal(state *mediatedtransfer.MediatorState, st *mediatedtrans
 	if utils.Sha3(secret[:]) == state.Hashlock {
 		return secretLearned(state, secret, st.Sender, mediatedtransfer.StatePayeeSecretRevealed)
 	}
-	//  TODO: event for byzantine behavior,所有的reveal secret，是否与自己有关，都会到这里，是正常现象。
-	return &transfer.TransitionResult{
-		NewState: state,
-		Events:   nil,
-	}
+	panic("must a implementation error")
+	return nil
 }
 
-//Handle a NettingChannelUnlock state change. todo 需要完全重写,
-func handleContractWithDraw(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
-	return &transfer.TransitionResult{
+/*
+收到密码在链上注册,
+此次交易就彻底结束了,
+已经过期的交易,对方应该已经收到了 remove expired,
+没有过期的交易都还在这里
+todo 但是如果发生了崩溃恢复,时间还较长怎么处理呢?
+*/
+func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
+	var it = &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
 	}
-	//if utils.Sha3(state.Secret[:]) != state.Hashlock {
-	//	panic("secret must be validated by the smart contract")
-	//}
-	///*
-	//		  For all but the last pair in transfer pair a refund transfer ocurred,
-	//	     meaning the same channel was used twice, once when this node sent the
-	//	     mediated transfer and once when the refund transfer was received. A
-	//	     ContractReceiveWithdraw state change may be used for each.
-	//*/
-	//var events []transfer.Event
-	////This node withdraw the refund
-	//if st.Receiver == state.OurAddress {
-	//	for pos, pair := range state.TransfersPair {
-	//		if pair.PayerRoute.ChannelIdentifier == st.ChannelIdentifier {
-	//			/*
-	//								  always set the contract_withdraw regardless of the previous
-	//				                 state (even expired)
-	//			*/
-	//			pair.PayerState = mediatedtransfer.StatePayerContractWithdraw
-	//			withdraw := &mediatedtransfer.EventWithdrawSuccess{
-	//				Identifier:     pair.PayerTransfer.Identifier,
-	//				LockSecretHash: pair.PayerTransfer.LockSecretHash,
-	//			}
-	//			events = append(events, withdraw)
-	//			/*
-	//								   if the current pair is backed by a refund set the sent
-	//				                 mediated transfer to a 'secret known' state
-	//			*/
-	//			if pos > 0 {
-	//				previousPair := state.TransfersPair[pos-1]
-	//				if !stateTransferFinalMaps[previousPair.PayeeState] {
-	//					previousPair.PayeeState = mediatedtransfer.StatePayeeRefundWithdraw
-	//				}
-	//			}
-	//		}
-	//	}
-	//} else {
-	//	//A partner withdrew the mediated transfer
-	//	for _, pair := range state.TransfersPair {
-	//		if pair.PayerRoute.ChannelIdentifier == st.ChannelIdentifier {
-	//			unlock := &mediatedtransfer.EventUnlockSuccess{
-	//				Identifier:     pair.PayeeTransfer.Identifier,
-	//				LockSecretHash: pair.PayeeTransfer.LockSecretHash,
-	//			}
-	//			events = append(events, unlock)
-	//			pair.PayeeState = mediatedtransfer.StatePayeeContractWithdraw
-	//		}
-	//	}
-	//}
-	//tr := secretLearned(state, st.Secret, st.Receiver, mediatedtransfer.StatePayeeContractWithdraw)
-	//tr.Events = append(tr.Events, events...)
-	//return tr
+	var events []transfer.Event
+	if state.LockSecretHash != st.LockSecretHash {
+		panic("impementation error")
+	}
+	for _, pair := range state.TransfersPair {
+		tr := pair.PayeeTransfer
+		route := pair.PayeeRoute
+		if tr.Expiration >= st.BlockNumber {
+			//没有超时,就应该发送 unlock 消息,不用关心现在通道是什么状态,就是 settle 了问题也不大.
+			ev := &mediatedtransfer.EventSendBalanceProof{
+				LockSecretHash:    tr.LockSecretHash,
+				ChannelIdentifier: route.ChannelIdentifier,
+				Token:             tr.Token,
+				Receiver:          route.HopNode(),
+			}
+			events = append(events, ev)
+			pair.PayeeState = mediatedtransfer.StatePayerBalanceProof
+			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
+		}
+	}
+	it.Events = events
+	return it
 }
 
 // Handle a ReceiveBalanceProof state change.
@@ -906,40 +825,45 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		}
 		state = nil
 	}
-	if state == nil { //nil 判断小心了,有可能是空指针被当做非空了.
+	if state == nil {
 		if aim, ok := stateChange.(*mediatedtransfer.ActionInitMediatorStateChange); ok {
 			state = &mediatedtransfer.MediatorState{
-				OurAddress:  aim.OurAddress,
-				Routes:      aim.Routes,
-				BlockNumber: aim.BlockNumber,
-				Hashlock:    aim.FromTranfer.LockSecretHash,
-				Db:          aim.Db,
+				OurAddress:     aim.OurAddress,
+				Routes:         aim.Routes,
+				BlockNumber:    aim.BlockNumber,
+				Hashlock:       aim.FromTranfer.LockSecretHash,
+				Db:             aim.Db,
+				Token:          aim.FromTranfer.Token,
+				LockSecretHash: aim.FromTranfer.LockSecretHash,
 			}
 			it = mediateTransfer(state, aim.FromRoute, aim.FromTranfer)
-		}
-	} else if state.Secret == utils.EmptyHash {
-		switch st2 := stateChange.(type) {
-		case *transfer.BlockStateChange:
-			it = handleBlock(state, st2)
-		case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
-			it = handleRefundTransfer(state, st2)
-		case *mediatedtransfer.ReceiveSecretRevealStateChange:
-			it = handleSecretReveal(state, st2)
-		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
-			it = handleContractWithDraw(state, st2)
-		default:
-			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
 	} else {
 		switch st2 := stateChange.(type) {
 		case *transfer.BlockStateChange:
 			it = handleBlock(state, st2)
+		case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
+			if state.Secret == utils.EmptyHash {
+				it = handleRefundTransfer(state, st2)
+			} else {
+				log.Error(fmt.Sprintf("mediator state manager ,already knows secret,but recevied announce disposed, must be a error"))
+			}
+
 		case *mediatedtransfer.ReceiveSecretRevealStateChange:
 			it = handleSecretReveal(state, st2)
+		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
+			it = handleSecretRevealOnChain(state, st2)
 		case *mediatedtransfer.ReceiveBalanceProofStateChange:
 			it = handleBalanceProof(state, st2)
-		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
-			it = handleContractWithDraw(state, st2)
+			if state.Secret == utils.EmptyHash {
+				log.Warn(fmt.Sprintf("mediated state manager recevie unlock,but i don't know secret,this maybe a error "))
+			}
+		case *mediatedtransfer.MediatorReReceiveStateChange:
+			if state.Secret == utils.EmptyHash {
+				it = handleMediatedTransferAgain(state, st2)
+			} else {
+				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
+			}
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}

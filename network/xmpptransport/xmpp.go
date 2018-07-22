@@ -113,7 +113,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 			Password: passwordFn.GetPassWord(),
 			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:         true,
+			Debug:         false,
 			Session:       false,
 			Status:        "xa",
 			StatusMessage: name,

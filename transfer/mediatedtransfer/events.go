@@ -133,14 +133,13 @@ type EventSendAnnounceDisposedResponse struct {
 }
 
 /*
-EventContractSendChannelClose emitted to close the netting channel.
+EventContractSendRegisterSecret emitted to register a secret on chain
 
     This event is used when a node needs to prepare the channel to withdraw
     on-chain.
 */
-type EventContractSendChannelClose struct {
-	ChannelIdentifier common.Hash
-	Token             common.Address
+type EventContractSendRegisterSecret struct {
+	Secret common.Hash
 }
 
 /*
@@ -194,7 +193,7 @@ func init() {
 	gob.Register(&EventSendBalanceProof{})
 	gob.Register(&EventSendSecretRequest{})
 	gob.Register(&EventSendAnnounceDisposed{})
-	gob.Register(&EventContractSendChannelClose{})
+	gob.Register(&EventContractSendRegisterSecret{})
 	gob.Register(&EventContractSendWithdraw{})
 	gob.Register(&EventUnlockSuccess{})
 	gob.Register(&EventUnlockFailed{})
