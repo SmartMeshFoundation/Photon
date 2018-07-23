@@ -62,6 +62,8 @@ func Pex(data []byte) string {
 func HPex(data common.Hash) string {
 	return common.Bytes2Hex(data[:2])
 }
+
+//BPex bytes to string
 func BPex(data []byte) string {
 	return common.Bytes2Hex(data)
 }

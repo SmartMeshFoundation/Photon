@@ -140,9 +140,13 @@ func (model *ModelDB) GetRegistryAddress() common.Address {
 	model.db.Get(bucketMeta, "registry", &registry)
 	return registry
 }
+
+//SaveSecretRegistryAddress save secret registry contract address to db
 func (model *ModelDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
 	model.db.Set(bucketMeta, "secretregistry", secretRegistryAddress)
 }
+
+//GetSecretRegistryAddress return secret registry contract address
 func (model *ModelDB) GetSecretRegistryAddress() common.Address {
 	var secretRegistry common.Address
 	model.db.Get(bucketMeta, "secretregistry", &secretRegistry)

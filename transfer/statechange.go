@@ -53,7 +53,7 @@ type ReceiveTransferDirectStateChange struct {
 }
 
 /*
-收到了 WithdrawRequest 或者 CooperativeSettleRequest, 应该理解停止进行中的交易.
+StopTransferRightNowStateChange 收到了 WithdrawRequest 或者 CooperativeSettleRequest, 应该理解停止进行中的交易.
 */
 type StopTransferRightNowStateChange struct {
 	TokenAddress      common.Address

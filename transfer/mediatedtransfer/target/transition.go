@@ -35,7 +35,7 @@ func eventsForRegisterSecret(state *mediatedtransfer.TargetState) (events []tran
 	return
 }
 
-//Handle an ActionInitTarget state change.
+//handleInitTraget Handle an ActionInitTarget state change.
 func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfer.TransitionResult {
 	tr := st.FromTranfer
 	route := st.FromRoute

@@ -287,7 +287,7 @@ func TestTransfer(t *testing.T) {
 				t.Error(err)
 			}
 			if c.OurBalance().Cmp(x.Sub(v, big.NewInt(1))) != 0 {
-				log.Error(fmt.Sprintf("transfer amount misatch expect %d,get %d @%s", x.Sub(v, big.NewInt(1)), c.OurBalance, c.OurAddress.String()))
+				log.Error(fmt.Sprintf("transfer amount misatch expect %s,get %s @%s", x.Sub(v, big.NewInt(1)), c.OurBalance(), c.OurAddress.String()))
 			}
 		}
 	}

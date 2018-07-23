@@ -207,7 +207,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
 		return
 	}
-	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", e2.ChannelIdentifier, utils.HPex(e2.LockSecretHash)))
+	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.HPex(e2.ChannelIdentifier), utils.HPex(e2.LockSecretHash)))
 	tr, err := ch.CreateRemoveExpiredHashLockTransfer(e2.LockSecretHash, eh.raiden.GetBlockNumber())
 	if err != nil {
 		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s", err))
@@ -297,6 +297,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.raiden.conditionQuit("EventSendRemoveExpiredHashlockTransferAfter")
 	case *mediatedtransfer.EventContractSendRegisterSecret:
 		err = eh.eventContractSendRegisterSecret(e2)
+	case *mediatedtransfer.EventRemoveStateManager:
+		delete(eh.raiden.Transfer2StateManager, e2.Key)
 	default:
 		err = fmt.Errorf("unkown event :%s", utils.StringInterface1(event))
 		log.Error(err.Error())
@@ -323,14 +325,16 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	default:
 		panic("unknow event")
 	}
-	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
-	r := eh.raiden.Transfer2Result[smkey]
-	if r == nil { //restart after crash?
-		log.Error(fmt.Sprintf("you can ignore this error when this transfer is a direct transfer.\n transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
-		return
+	if lockSecretHash != utils.EmptyHash {
+		smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+		r := eh.raiden.Transfer2Result[smkey]
+		if r == nil { //restart after crash?
+			log.Error(fmt.Sprintf("transfer finished ,but have no relate results :%s", utils.StringInterface(ev, 2)))
+			return
+		}
+		r.Result <- err
+		delete(eh.raiden.Transfer2Result, smkey)
 	}
-	r.Result <- err
-	delete(eh.raiden.Transfer2Result, smkey)
 }
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
 	if st.RegistryAddress != eh.raiden.RegistryAddress {
@@ -492,9 +496,10 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 		if ad != nil {
 			result := ch.ExternState.PunishObsoleteUnlock(common.BytesToHash(ad.LockHash), ad.AdditionalHash, ad.Signature)
 			go func() {
-				err := <-result.Result
-				if err != nil {
-					log.Error(fmt.Sprintf("PunishObsoleteUnlock %s ,err %s", utils.BPex(ad.LockHash), err))
+				var err2 error
+				err2 = <-result.Result
+				if err2 != nil {
+					log.Error(fmt.Sprintf("PunishObsoleteUnlock %s ,err2 %s", utils.BPex(ad.LockHash), err2))
 				}
 				//todo 要不要立即 settle?
 			}()

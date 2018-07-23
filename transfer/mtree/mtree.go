@@ -62,11 +62,10 @@ func (l *Lock) AsBytes() []byte {
 //FromBytes deserialize Lock
 func (l *Lock) FromBytes(locksencoded []byte) (err error) {
 	buf := bytes.NewBuffer(locksencoded)
-	l.Expiration = utils.ReadBigInt(buf).Int64()
-	l.Amount = utils.ReadBigInt(buf)
-	_, err = buf.Read(l.LockSecretHash[:])
-	return
+	return l.FromReader(buf)
 }
+
+//FromReader init lock from a reader
 func (l *Lock) FromReader(r io.Reader) (err error) {
 	l.Expiration = utils.ReadBigInt(r).Int64()
 	l.Amount = utils.ReadBigInt(r)

@@ -379,7 +379,6 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			}
 			if pair.PayeeTransfer.Expiration > pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
-				return
 			}
 			if pair.PayerState != mediatedtransfer.StatePayerExpired {
 				pair.PayerState = mediatedtransfer.StatePayerExpired
@@ -744,11 +743,10 @@ Validate and handle a ReceiveSecretReveal state change.
 */
 func handleSecretReveal(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
 	secret := st.Secret
-	if utils.Sha3(secret[:]) == state.Hashlock {
-		return secretLearned(state, secret, st.Sender, mediatedtransfer.StatePayeeSecretRevealed)
+	if utils.Sha3(secret[:]) != state.Hashlock {
+		panic("must a implementation error")
 	}
-	panic("must a implementation error")
-	return nil
+	return secretLearned(state, secret, st.Sender, mediatedtransfer.StatePayeeSecretRevealed)
 }
 
 /*

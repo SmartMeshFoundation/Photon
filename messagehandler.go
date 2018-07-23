@@ -97,16 +97,15 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 }
 
 //这个到底有什么用啊?看不懂 todo 是否可以移除呢?
-func (mh *raidenMessageHandler) balanceProof(msger encoding.EnvelopMessager) {
-	//blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msger)
-	//msg := msger.GetEnvelopMessage()
-	//balanceProof := &mediatedtransfer.ReceiveBalanceProofStateChange{
-	//	LockSecretHash: msg.L,
-	//	NodeAddress:    msg.Sender,
-	//	BalanceProof:   transfer.NewBalanceProofStateFromEnvelopMessage(msger),
-	//	Message:        msger,
-	//}
-	//mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
+func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
+	blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
+	balanceProof := &mediatedtransfer.ReceiveBalanceProofStateChange{
+		LockSecretHash: msg.LockSecretHash(),
+		NodeAddress:    msg.Sender,
+		BalanceProof:   blanceProof,
+		Message:        msg,
+	}
+	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
 }
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
@@ -211,7 +210,7 @@ func (mh *raidenMessageHandler) messageSecret(msg *encoding.UnLock) error {
 if there is any error, just ignore.
 */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	mh.balanceProof(msg)
+	//mh.balanceProof(msg)
 	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
 	if err != nil {
 		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
@@ -306,7 +305,7 @@ func (mh *raidenMessageHandler) markDirectTransferComplete(msg *encoding.DirectT
 	mh.raiden.conditionQuit("DirectTransferSendAck")
 }
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
-	mh.balanceProof(msg)
+	//mh.balanceProof(msg)
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
@@ -347,7 +346,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if mh.raiden.Config.IsMeshNetwork {
 		return fmt.Errorf("deny any mediated transfer when there is no internet connection")
 	}
-	mh.balanceProof(msg)
+	//mh.balanceProof(msg)
 	//  TODO: Reject mediated transfer that the hashlock/identifier is known,
 	// mh is a downstream bug and the transfer is going in cycles (issue #490)
 	if _, ok := mh.blockedTokens[token]; ok {

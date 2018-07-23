@@ -68,8 +68,9 @@ func (node *EndState) TransferAmount() *big.Int {
 	}
 	return big.NewInt(0)
 }
+
+//SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
-	//must not opened,
 	if node.BalanceProofState != nil {
 		if node.BalanceProofState.ContractTransferAmount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
 			panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
@@ -88,11 +89,14 @@ func (node *EndState) contractTransferAmount() *big.Int {
 	return big.NewInt(0)
 }
 
+//SetContractLocksroot update node's locksroot by contract event
 func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
 	if node.BalanceProofState != nil {
 		node.BalanceProofState.ContractLocksRoot = locksroot
 	}
 }
+
+//SetContractNonce update node's nonce by contract event
 func (node *EndState) SetContractNonce(nonce int64) {
 	if node.BalanceProofState != nil {
 		node.BalanceProofState.Nonce = nonce
@@ -181,9 +185,8 @@ func (node *EndState) getSecretByLockSecretHash(lockSecretHash common.Hash) (loc
 	plock, ok := node.Lock2UnclaimedLocks[lockSecretHash]
 	if ok {
 		return plock.Lock, plock.Secret, nil
-	} else {
-		return nil, utils.EmptyHash, errors.New("not found")
 	}
+	return nil, utils.EmptyHash, errors.New("not found")
 }
 
 /*
@@ -441,7 +444,10 @@ func (node *EndState) RegisterRevealedSecretHash(lockSecretHash common.Hash, blo
 		}
 		delete(node.Lock2PendingLocks, lockSecretHash)
 		node.Lock2UnclaimedLocks[lockSecretHash] = channeltype.UnlockPartialProof{
-			pendingLock.Lock, pendingLock.LockHash, utils.EmptyHash}
+			Lock:     pendingLock.Lock,
+			LockHash: pendingLock.LockHash,
+			Secret:   utils.EmptyHash,
+		}
 	}
 	return nil
 }

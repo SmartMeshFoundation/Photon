@@ -33,7 +33,10 @@ func TestEndState(t *testing.T) {
 	bcs := rpc.MakeTestBlockChainService()
 	address1 := bcs.NodeAddress
 	address2 := utils.NewRandomAddress()
-	channelAddress := &contracts.ChannelUniqueID{utils.NewRandomHash(), testOpenBlockNumber}
+	channelAddress := &contracts.ChannelUniqueID{
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   testOpenBlockNumber,
+	}
 
 	var balance1 = big.NewInt(70)
 	var balance2 = big.NewInt(110)

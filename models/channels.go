@@ -16,7 +16,7 @@ import (
 
 // NewChannel save a just created channel to db
 func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("new channel %s", utils.StringInterface(c, 2)))
+	//log.Trace(fmt.Sprintf("new channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	//notify new channel added
 	model.handleChannelCallback(model.newChannelCallbacks, c)
@@ -28,7 +28,7 @@ func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
 
 //UpdateChannelNoTx update channel status without a Tx
 func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
-	log.Trace(fmt.Sprintf("save channel %s", utils.StringInterface(c, 2)))
+	//log.Trace(fmt.Sprintf("save channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
@@ -63,7 +63,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channeltype.Serialization)
 
 //UpdateChannel update channel status in a Tx
 func (model *ModelDB) UpdateChannel(c *channeltype.Serialization, tx storm.Node) error {
-	log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
+	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
 	err := tx.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
@@ -144,9 +144,9 @@ func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*chann
 const bucketWithDraw = "bucketWithdraw"
 
 /*
-IsThisLockHasWithdraw return ture when  lockhash has unlocked on channel?
+IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 */
-func (model *ModelDB) IsThisLockHasWithdraw(channel common.Hash, lockHash common.Hash) bool {
+func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
@@ -162,15 +162,15 @@ func (model *ModelDB) IsThisLockHasWithdraw(channel common.Hash, lockHash common
 }
 
 /*
-WithdrawThisLock marks that I have withdrawed this secret on channel.
+UnlockThisLock marks that I have withdrawed this secret on channel.
 */
-func (model *ModelDB) WithdrawThisLock(channel common.Hash, lockHash common.Hash) {
+func (model *ModelDB) UnlockThisLock(channel common.Hash, lockHash common.Hash) {
 	key := new(bytes.Buffer)
 	key.Write(channel[:])
 	key.Write(lockHash[:])
 	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
 	if err != nil {
-		log.Error(fmt.Sprintf("WithdrawThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
+		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
 	}
 }
 
@@ -205,6 +205,6 @@ func (model *ModelDB) RemoveLock(channel common.Hash, sender common.Address, loc
 	key.Write(sender[:])
 	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {
-		log.Error(fmt.Sprintf("WithdrawThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
+		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
 	}
 }

@@ -173,7 +173,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 		log.Info(fmt.Sprintf("withdraw called %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier)))
 		failed := false
 		for _, proof := range unlockproofs {
-			if e.db.IsThisLockHasWithdraw(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash) {
+			if e.db.IsThisLockHasUnlocked(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash) {
 				log.Info(fmt.Sprintf("withdraw secret has been used %s  %s", e.ChannelIdentifier, utils.HPex(proof.Lock.LockSecretHash)))
 				continue
 			}
@@ -205,7 +205,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 				/*
 					allow try withdraw next time if not success?
 				*/
-				e.db.WithdrawThisLock(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash)
+				e.db.UnlockThisLock(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash)
 				log.Info(fmt.Sprintf("withdraw success %s,proof=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface1(proof)))
 				/*
 					一旦 unlock 成功,那么 transferAmount 就会发生变化,下次必须用新的 transferAmount

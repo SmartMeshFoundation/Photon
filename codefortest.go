@@ -36,7 +36,7 @@ func newTestRaiden() *RaidenService {
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	bcs := newTestBlockChainService()
-	transport := network.MakeTextMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
+	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey

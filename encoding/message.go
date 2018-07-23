@@ -519,6 +519,7 @@ type BalanceProof struct {
 	Locksroot         common.Hash
 }
 
+//NewBalanceProof create a balance proof
 func NewBalanceProof(nonce int64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
 	return &BalanceProof{
 		Nonce:             nonce,
@@ -960,6 +961,7 @@ func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
 	return
 }
 
+//ChannelIDInMessage common part of message that don't have a balance proof
 type ChannelIDInMessage struct {
 	ChannelIdentifier common.Hash
 	OpenBlockNumber   int64
@@ -1024,7 +1026,7 @@ func (m *AnnounceDisposed) UnPack(data []byte) error {
 	}
 	m.CmdID = t
 	m.Lock = new(mtree.Lock)
-	m.Lock.FromReader(buf)
+	err = m.Lock.FromReader(buf)
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
 	m.Signature = make([]byte, signatureLength)
@@ -1049,6 +1051,8 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	dataToSign := buf.Bytes()
 	return dataToSign
 }
+
+//GetAdditionalHash return hash of this message
 func (m *AnnounceDisposed) GetAdditionalHash() common.Hash {
 	if m.GetSender() == utils.EmptyAddress {
 		panic("should not happen")
@@ -1148,6 +1152,7 @@ func (m *AnnounceDisposedResponse) String() string {
 	return fmt.Sprintf("Message{type=AnnounceDisposedResponse LockSecretHash=%s,%s}", utils.HPex(m.LockSecretHash), m.EnvelopMessage.String())
 }
 
+//SettleDataInMessage common part of settle request and response
 type SettleDataInMessage struct {
 	ChannelIDInMessage
 	Participant1        common.Address

@@ -129,7 +129,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
 	state.Transfer = tr
 	state.Message = msg
-	log.Trace(fmt.Sprintf("send mediated transfer id=%d,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
+	log.Trace(fmt.Sprintf("send mediated transfer id=%s,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
 	events := []transfer.Event{msg}
 	return &transfer.TransitionResult{
 		NewState: state,

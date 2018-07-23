@@ -818,10 +818,9 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 	}
 	tr.Sign(rs.PrivateKey, tr)
 	directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
-	identifier := utils.NewRandomHash()
 	//This should be set once the direct transfer is acknowledged
 	transferSuccess := &transfer.EventTransferSentSuccess{
-		LockSecretHash:    identifier,
+		LockSecretHash:    utils.EmptyHash,
 		Amount:            amount,
 		Target:            target,
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
@@ -864,8 +863,6 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	}
 	var secret common.Hash
 	if lockSecretHash == utils.EmptyHash {
-		lockSecretHash = utils.NewRandomHash()
-	} else {
 		secret = utils.NewRandomHash()
 		lockSecretHash = utils.Sha3(secret[:])
 	}
@@ -929,9 +926,9 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 	smkey := utils.Sha3(msg.LockSecretHash[:], tokenAddress[:])
 	stateManager := rs.Transfer2StateManager[smkey]
 	/*
-		第一次收到这个密码,
-		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
-		锁是有可能重复的,比如 token swap 中.
+			第一次收到这个密码,
+		首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+			锁是有可能重复的,比如 token swap 中.
 	*/
 	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
@@ -1000,24 +997,23 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 		log.Error(fmt.Sprintf("receive mediator transfer msg=%s,duplicate? attack?,i'm a target,and has received mediator message. statemanager=%s",
 			msg, utils.StringInterface(stateManager, 3)))
 		return
-	} else {
-		g := rs.getToken2ChannelGraph(ch.TokenAddress)
-		fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
-		fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs)
-		fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
-		initTarget := &mediatedtransfer.ActionInitTargetStateChange{
-			OurAddress:  rs.NodeAddress,
-			FromRoute:   fromRoute,
-			FromTranfer: fromTransfer,
-			BlockNumber: rs.GetBlockNumber(),
-			Message:     msg,
-			Db:          rs.db,
-		}
-		stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
-		rs.db.AddStateManager(stateManger)
-		rs.Transfer2StateManager[smkey] = stateManager
-		rs.StateMachineEventHandler.logAndDispatch(stateManger, initTarget)
 	}
+	g := rs.getToken2ChannelGraph(ch.TokenAddress)
+	fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs)
+	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
+	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
+		OurAddress:  rs.NodeAddress,
+		FromRoute:   fromRoute,
+		FromTranfer: fromTransfer,
+		BlockNumber: rs.GetBlockNumber(),
+		Message:     msg,
+		Db:          rs.db,
+	}
+	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
+	rs.db.AddStateManager(stateManager)
+	rs.Transfer2StateManager[smkey] = stateManager
+	rs.StateMachineEventHandler.logAndDispatch(stateManager, initTarget)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {

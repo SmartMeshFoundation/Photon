@@ -14,11 +14,11 @@ type Db interface {
 	/*
 		is secret has withdrawed on channel?
 	*/
-	IsThisLockHasWithdraw(channel common.Hash, lockHash common.Hash) bool
+	IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool
 	/*
 	 I have withdrawed this secret on channel.
 	*/
-	WithdrawThisLock(channel common.Hash, lockHash common.Hash)
+	UnlockThisLock(channel common.Hash, lockHash common.Hash)
 	/*
 		is a expired hashlock has been removed from channel status.
 	*/
@@ -45,47 +45,38 @@ type MockChannelDb struct {
 	Keys map[common.Hash]bool
 }
 
+//NewMockChannelDb for test only
 func NewMockChannelDb() Db {
 	return &MockChannelDb{
 		Keys: make(map[common.Hash]bool),
 	}
 }
 
-/*
-	is secret has withdrawed on channel?
-*/
-func (f *MockChannelDb) IsThisLockHasWithdraw(channel common.Hash, lockhash common.Hash) bool {
+//IsThisLockHasUnlocked is secret has withdrawed on channel
+func (f *MockChannelDb) IsThisLockHasUnlocked(channel common.Hash, lockhash common.Hash) bool {
 	hash := utils.Sha3(channel[:], lockhash[:])
 	return f.Keys[hash]
 }
 
-/*
- I have withdrawed this secret on channel.
-*/
-func (f *MockChannelDb) WithdrawThisLock(channel common.Hash, secretHash common.Hash) {
+//UnlockThisLock I have withdrawed this secret on channel.
+func (f *MockChannelDb) UnlockThisLock(channel common.Hash, secretHash common.Hash) {
 	hash := utils.Sha3(channel[:], secretHash[:])
 	f.Keys[hash] = true
 }
 
-/*
-	is a expired hashlock has been removed from channel status.
-*/
+//IsThisLockRemoved is a expired hashlock has been removed from channel status.
 func (f *MockChannelDb) IsThisLockRemoved(channel common.Hash, sender common.Address, secretHash common.Hash) bool {
 	hash := utils.Sha3(channel[:], sender[:], secretHash[:])
 	return f.Keys[hash]
 }
 
-/*
-	remember this lock has been removed from channel status.
-*/
+//RemoveLock remember this lock has been removed from channel status.
 func (f *MockChannelDb) RemoveLock(channel common.Hash, sender common.Address, secretHash common.Hash) {
 	hash := utils.Sha3(channel[:], sender[:], secretHash[:])
 	f.Keys[hash] = true
 }
 
-/*
-	get the latest channel status
-*/
+//GetChannelByAddress get the latest channel status
 func (f *MockChannelDb) GetChannelByAddress(channelAddress common.Hash) (c *Serialization, err error) {
 	return nil, errors.New("not found")
 }

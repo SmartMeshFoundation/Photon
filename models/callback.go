@@ -23,12 +23,14 @@ func (model *ModelDB) RegisterChannelDepositCallback(f cb.ChannelCb) {
 	model.mlock.Unlock()
 }
 
-//RegisterChannelStateCallback notify when channel closed or settled
+//RegisterChannelStateCallback notify when channel closed
 func (model *ModelDB) RegisterChannelStateCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.channelStateCallbacks[&f] = true
 	model.mlock.Unlock()
 }
+
+//RegisterChannelSettleCallback notify when channel settled
 func (model *ModelDB) RegisterChannelSettleCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.channelSettledCallbacks[&f] = true

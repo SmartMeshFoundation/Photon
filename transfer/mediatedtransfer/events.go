@@ -121,7 +121,7 @@ type EventSendAnnounceDisposed struct {
 }
 
 /*
-收到对方AnnounceDisposed,需要给以应答
+EventSendAnnounceDisposedResponse 收到对方AnnounceDisposed,需要给以应答
 这时候我可能会一次发出两条消息,
 一条是 Reponse, 另一条是 MediatedTransfer.
 我极可能是中间节点,也可能是交易发起人,但是不会是接收方.

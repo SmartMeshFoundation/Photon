@@ -40,6 +40,7 @@ type ActionInitMediatorStateChange struct {
 	Db          channeltype.Db             //get the latest channel state
 }
 
+//MediatorReReceiveStateChange 中间节点再次收到 MediatedTransfer
 type MediatorReReceiveStateChange struct {
 	Message      *encoding.MediatedTransfer //it two message
 	FromRoute    *route.State
@@ -104,14 +105,14 @@ type EventRemoveStateManager struct {
 }
 
 /*
-warn  所有的合约事件都应该是按照链上发生的顺序抵达,这样可以保证同一个通道 settle 重新打开以后,不至于把事件发送给错误的通道.
+ContractStateChange  所有的合约事件都应该是按照链上发生的顺序抵达,这样可以保证同一个通道 settle 重新打开以后,不至于把事件发送给错误的通道.
 */
 type ContractStateChange interface {
 	GetBlockNumber() int64
 }
 
 /*
-密码在链上注册了
+ContractSecretRevealOnChainStateChange 密码在链上注册了
 1.诚实的节点在检查对方可以在链上unlock 这个锁的时候,应该主动发送unloc消息,移除此锁
 2.自己应该把密码保存在本地,然后在需要的时候链上兑现
 */
@@ -120,10 +121,12 @@ type ContractSecretRevealOnChainStateChange struct {
 	BlockNumber    int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractSecretRevealOnChainStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
 
+//ContractUnlockStateChange unlock event of contract
 type ContractUnlockStateChange struct {
 	ChannelIdentifier   common.Hash
 	BlockNumber         int64
@@ -133,10 +136,12 @@ type ContractUnlockStateChange struct {
 	TransferAmount      *big.Int
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
 
+//ContractChannelWithdrawStateChange withdraw event of contract
 type ContractChannelWithdrawStateChange struct {
 	ChannelAddress *contracts.ChannelUniqueID
 	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
@@ -148,6 +153,7 @@ type ContractChannelWithdrawStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractChannelWithdrawStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
@@ -162,6 +168,7 @@ type ContractClosedStateChange struct {
 	TokenNetworkAddress common.Address
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractClosedStateChange) GetBlockNumber() int64 {
 	return e.ClosedBlock
 }
@@ -173,6 +180,7 @@ type ContractSettledStateChange struct {
 	TokenNetworkAddress common.Address
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractSettledStateChange) GetBlockNumber() int64 {
 	return e.SettledBlock
 }
@@ -184,6 +192,7 @@ type ContractCooperativeSettledStateChange struct {
 	TokenNetworkAddress common.Address
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractCooperativeSettledStateChange) GetBlockNumber() int64 {
 	return e.SettledBlock
 }
@@ -196,6 +205,7 @@ type ContractPunishedStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractPunishedStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
@@ -209,6 +219,7 @@ type ContractBalanceStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractBalanceStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
@@ -223,6 +234,7 @@ type ContractNewChannelStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractNewChannelStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
@@ -235,6 +247,7 @@ type ContractTokenAddedStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractTokenAddedStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
@@ -249,6 +262,7 @@ type ContractBalanceProofUpdatedStateChange struct {
 	BlockNumber         int64
 }
 
+//GetBlockNumber return when this event occur
 func (e *ContractBalanceProofUpdatedStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }

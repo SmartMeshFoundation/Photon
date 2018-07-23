@@ -161,7 +161,10 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 		LockSecretHash: utils.Sha3([]byte("test")),
 	}
 	reciever := utils.NewRandomAddress()
-	bp := encoding.NewBalanceProof(1, utils.BigInt0, utils.EmptyHash, &contracts.ChannelUniqueID{utils.NewRandomHash(), 3})
+	bp := encoding.NewBalanceProof(1, utils.BigInt0, utils.EmptyHash, &contracts.ChannelUniqueID{
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   3,
+	})
 	mtr := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(p1.privKey, mtr)

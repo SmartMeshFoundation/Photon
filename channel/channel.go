@@ -19,7 +19,7 @@ import (
 )
 
 /*
-ch is the living representation of  channel on blockchain.
+Channel is the living representation of  channel on blockchain.
 it contains all the transfers between two participants.
 */
 type Channel struct {
@@ -106,6 +106,7 @@ func (c *Channel) CanTransfer() bool {
 	return channeltype.CanTransferMap[c.State] && c.Distributable().Cmp(utils.BigInt0) > 0
 }
 
+//CanContinueTransfer unfinished transfer can continue?
 func (c *Channel) CanContinueTransfer() bool {
 	return !channeltype.TransferCannotBeContinuedMap[c.State]
 }
@@ -274,7 +275,7 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 	return nil
 }
 
-//链上对应的密码注册了
+//RegisterRevealedSecretHash 链上对应的密码注册了
 func (c *Channel) RegisterRevealedSecretHash(lockSecretHash common.Hash, blockNumber int64) error {
 	ourKnown := c.OurState.IsKnown(lockSecretHash)
 	partenerKnown := c.PartnerState.IsKnown(lockSecretHash)
@@ -486,7 +487,7 @@ RegisterAnnounceDisposedResponse 从我这里发出或者收到来自对方的an
 func (c *Channel) RegisterAnnounceDisposedResponse(response *encoding.AnnounceDisposedResponse, blockNumber int64) (err error) {
 	return c.registerRemoveLock(response, blockNumber, response.LockSecretHash, false)
 }
-func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNumber int64, locksSecretHash common.Hash, mustExpired bool) (err error) {
+func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNumber int64, lockSecretHash common.Hash, mustExpired bool) (err error) {
 	msg := messager.GetEnvelopMessage()
 	fromState, _, err := c.PreCheckRecievedTransfer(messager)
 	if err != nil {
@@ -499,7 +500,7 @@ func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNum
 		err = errTransferAmountMismatch
 		return
 	}
-	_, newtree, newlocksroot, err := fromState.TryRemoveHashLock(locksSecretHash, blockNumber, mustExpired)
+	_, newtree, newlocksroot, err := fromState.TryRemoveHashLock(lockSecretHash, blockNumber, mustExpired)
 	if err != nil {
 		return err
 	}
@@ -510,10 +511,10 @@ func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNum
 		return &InvalidLocksRootError{ExpectedLocksroot: newlocksroot, GotLocksroot: msg.Locksroot}
 	}
 	fromState.tree = newtree
-	err = fromState.registerRemoveLock(messager, locksSecretHash)
-	//if err == nil {
-	//	c.ExternState.db.RemoveLock(c.ChannelIdentifier, fromState.Address, tr.LockSecretHash)
-	//}
+	err = fromState.registerRemoveLock(messager, lockSecretHash)
+	if err == nil {
+		c.ExternState.db.RemoveLock(c.ChannelIdentifier.ChannelIdentifier, fromState.Address, lockSecretHash)
+	}
 	return err
 }
 
@@ -631,7 +632,7 @@ func (c *Channel) CreateRemoveExpiredHashLockTransfer(lockSecretHash common.Hash
 }
 
 /*
-必须先收到对方的AnnouceDisposedTransfer, 然后才能移除.
+CreateAnnounceDisposedResponse 必须先收到对方的AnnouceDisposedTransfer, 然后才能移除.
 */
 func (c *Channel) CreateAnnounceDisposedResponse(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposedResponse, err error) {
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
@@ -777,11 +778,9 @@ func (c *Channel) preCheckSettleDataInMessage(tr encoding.SignedMessager, sd *en
 	return nil
 }
 
-/*
-RegisterWithdrawRequest
+/*RegisterWithdrawRequest :
 1. 验证信息准确
 2. 通道状态要切换到StateWithdraw
-
 */
 func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err error) {
 	err = c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
@@ -793,6 +792,7 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 }
 
 /*
+CreateWithdrawResponse :
 我已经验证过了,对方的 withdrawRequest 是合理,可以接受的,
 这里只是构建数据就可以了.
 有可能在我收到对方 withdrawRequest 过程中,我在发起一笔交易,
@@ -831,6 +831,8 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdraw
 	}
 	return
 }
+
+//RegisterWithdrawResponse check withdraw response
 func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error {
 	err := c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
 	if err != nil {
@@ -866,6 +868,8 @@ func (c *Channel) CreateCooperativeSettleRequest() (s *encoding.SettleRequest, e
 	s = encoding.NewSettleRequest(wd)
 	return
 }
+
+//RegisterCooperativeSettleRequest check settle request and update state
 func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) error {
 	err := c.preCheckSettleDataInMessage(msg, &msg.SettleDataInMessage)
 	if err != nil {
@@ -876,6 +880,7 @@ func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) 
 }
 
 /*
+CreateCooperativeSettleResponse :
 我已经验证过了,对方的 settleRequest 是合理,可以接受的,
 这里只是构建数据就可以了.
 有可能在我收到对方 settleRequest 过程中,我在发起一笔交易,
@@ -909,6 +914,8 @@ func (c *Channel) CreateCooperativeSettleResponse(req *encoding.SettleRequest) (
 	}
 	return
 }
+
+//RegisterCooperativeSettleResponse check settle response and update state
 func (c *Channel) RegisterCooperativeSettleResponse(msg *encoding.SettleResponse) error {
 	err := c.preCheckSettleDataInMessage(msg, &msg.SettleDataInMessage)
 	if err != nil {
@@ -919,6 +926,7 @@ func (c *Channel) RegisterCooperativeSettleResponse(msg *encoding.SettleResponse
 }
 
 /*
+PrepareForWithdraw :
 由于 withdraw 和 合作settle 需要事先没有任何锁,因此必须先标记不进行任何交易
 等现有交易完成以后再
 */
@@ -931,6 +939,7 @@ func (c *Channel) PrepareForWithdraw() error {
 }
 
 /*
+PrepareForCooperativeSettle :
 由于 withdraw 和 合作settle 需要事先没有任何锁,因此必须先标记不进行任何交易
 等现有交易完成以后再
 */
@@ -943,7 +952,7 @@ func (c *Channel) PrepareForCooperativeSettle() error {
 }
 
 /*
-等待一段时间以后发现不能合作关闭通道,可以撤销
+CancelWithdrawOrCooperativeSettle 等待一段时间以后发现不能合作关闭通道,可以撤销
 也可以直接选择调用 close
 */
 func (c *Channel) CancelWithdrawOrCooperativeSettle() error {
@@ -958,7 +967,7 @@ func (c *Channel) CancelWithdrawOrCooperativeSettle() error {
 }
 
 /*
-只有在任何锁的情况下才能进行 withdraw 和cooperative settle
+CanWithdrawOrCooperativeSettle 只有在任何锁的情况下才能进行 withdraw 和cooperative settle
 */
 func (c *Channel) CanWithdrawOrCooperativeSettle() bool {
 	if len(c.OurState.Lock2PendingLocks) > 0 ||
@@ -970,6 +979,7 @@ func (c *Channel) CanWithdrawOrCooperativeSettle() bool {
 	return true
 }
 
+//Close async close this channel
 func (c *Channel) Close() (result *utils.AsyncResult) {
 	if c.State != channeltype.StateOpened {
 		log.Warn(fmt.Sprintf("try to close channel %s,but it's state is %s", utils.HPex(c.ChannelIdentifier.ChannelIdentifier), c.State))
@@ -989,6 +999,8 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 	result = c.ExternState.Close(bp)
 	return
 }
+
+//Settle async settle this channel
 func (c *Channel) Settle() (result *utils.AsyncResult) {
 	if c.State != channeltype.StateClosed {
 		return utils.NewAsyncResultWithError(fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State))
@@ -1018,9 +1030,6 @@ func (c *Channel) String() string {
 		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
 }
 
-/*
-todo 优化保存在数据库中的 channel 信息,不必要保存这么多
-*/
 // NewChannelSerialization serialize the channel to save to database
 func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 	var ourSecrets, partnerSecrets []common.Hash

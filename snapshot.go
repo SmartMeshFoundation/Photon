@@ -92,7 +92,7 @@ func (rs *RaidenService) restoreChannel(isCrashed bool) error {
 	//		}
 	//	}
 	//}
-	return nil
+	//	return nil
 }
 
 func (rs *RaidenService) restoreDbPointer(state transfer.State) {

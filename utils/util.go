@@ -25,6 +25,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/satori/go.uuid"
 )
 
 // BytesToString accepts bytes and returns their string presentation
@@ -109,7 +110,11 @@ func NewRandomAddress() common.Address {
 
 //NewRandomHash generate random hash,for testonly
 func NewRandomHash() common.Hash {
-	return Sha3([]byte(Random(10)))
+	u2, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("Something went wrong: %s", err))
+	}
+	return Sha3(u2.Bytes())
 }
 
 //MakePrivateKeyAddress generate a private key and it's address

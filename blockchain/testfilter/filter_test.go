@@ -14,18 +14,11 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type TokenNetworkRegistryTokenNetworkCreated struct {
-	Token_address         common.Address
-	Token_network_address common.Address
-	Raw                   types.Log // Blockchain specific contextual infos
-}
-
 func TestStruct(t *testing.T) {
-	tt := TokenNetworkRegistryTokenNetworkCreated{
+	tt := contracts.TokenNetworkRegistryTokenNetworkCreated{
 		Token_address: utils.NewRandomAddress(),
 	}
 	t2 := tt

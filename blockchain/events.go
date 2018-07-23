@@ -156,7 +156,7 @@ func EventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChanne
 	}
 }
 
-//EventChannelCooperativeSettled2StateChange to stateChange
+//EventChannelPunished2StateChange to stateChange
 func EventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished) *mediatedtransfer.ContractPunishedStateChange {
 	return &mediatedtransfer.ContractPunishedStateChange{
 		ChannelIdentifier:   common.Hash(ev.Channel_identifier),
@@ -521,6 +521,7 @@ func (be *Events) GetChannelCooperativeSettled(fromBlock int64, tokenNetworkAddr
 	return
 }
 
+//GetChannelPunished punish events of contract
 func (be *Events) GetChannelPunished(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelPunished, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelPunished, eventAbiMap[params.NameChannelPunished], be.client)
@@ -538,7 +539,7 @@ func (be *Events) GetChannelPunished(fromBlock int64, tokenNetworkAddress common
 	return
 }
 
-//GetChannelCooperativeSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
+//GetChannelWithdraw return all channel settled events since `fromBlock` on tokenNetworkAddress
 //if tokenNetworkAddress is empty, return's all events have this signature
 func (be *Events) GetChannelWithdraw(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelWithdraw, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
@@ -557,7 +558,7 @@ func (be *Events) GetChannelWithdraw(fromBlock int64, tokenNetworkAddress common
 	return
 }
 
-//GetChannelCooperativeSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
+//GetChannelNewDeposit return all channel settled events since `fromBlock` on tokenNetworkAddress
 //if tokenNetworkAddress is empty, return's all events have this signature
 func (be *Events) GetChannelNewDeposit(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelNewDeposit, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
@@ -576,7 +577,7 @@ func (be *Events) GetChannelNewDeposit(fromBlock int64, tokenNetworkAddress comm
 	return
 }
 
-//GetChannelCooperativeSettled return all channel settled events since `fromBlock` on tokenNetworkAddress
+//GetChannelUnlocked return all channel settled events since `fromBlock` on tokenNetworkAddress
 //if tokenNetworkAddress is empty, return's all events have this signature
 func (be *Events) GetChannelUnlocked(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelUnlocked, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
@@ -635,7 +636,6 @@ func (be *Events) GetAllSecretRevealed(fromBlock int64) (events []*contracts.Sec
 	return
 }
 
-//func (be*Events)
 /*
 GetAllStateChangeSince returns all the statechanges that raiden should know when it's offline
 tokennetwork合约上发生的所有事情我们都应该按顺序通知使用者

@@ -58,12 +58,17 @@ type Serialization struct {
 	SettleTimeout          int
 }
 
+//ChannleAddress address of channel
 func (s *Serialization) ChannleAddress() common.Hash {
 	return common.BytesToHash(s.Key)
 }
+
+//TokenAddress address of token
 func (s *Serialization) TokenAddress() common.Address {
 	return common.BytesToAddress(s.TokenAddressBytes)
 }
+
+//PartnerAddress partner's address
 func (s *Serialization) PartnerAddress() common.Address {
 	return common.BytesToAddress(s.PartnerAddressBytes)
 }
@@ -73,12 +78,16 @@ func (s *Serialization) transferAmount(bp *transfer.BalanceProofState) *big.Int 
 	}
 	return utils.BigInt0
 }
+
+//OurBalance our abalance
 func (s *Serialization) OurBalance() *big.Int {
 	x := new(big.Int)
 	x.Sub(s.OurContractBalance, s.transferAmount(s.OurBalanceProof))
 	x.Add(x, s.transferAmount(s.PartnerBalanceProof))
 	return x
 }
+
+//OurAmountLocked sending token on road
 func (s *Serialization) OurAmountLocked() *big.Int {
 	x := new(big.Int)
 	for _, l := range s.OurLeaves {
@@ -86,6 +95,8 @@ func (s *Serialization) OurAmountLocked() *big.Int {
 	}
 	return x
 }
+
+//PartnerAmountLocked received token on road
 func (s *Serialization) PartnerAmountLocked() *big.Int {
 	x := new(big.Int)
 	for _, l := range s.PartnerLeaves {
@@ -93,21 +104,31 @@ func (s *Serialization) PartnerAmountLocked() *big.Int {
 	}
 	return x
 }
+
+//PartnerBalance partner's balance
 func (s *Serialization) PartnerBalance() *big.Int {
 	x := new(big.Int)
 	x.Sub(s.PartnerContractBalance, s.transferAmount(s.PartnerBalanceProof))
 	x.Add(x, s.transferAmount(s.OurBalanceProof))
 	return x
 }
+
+//PartnerLock2UnclaimedLocks partner's lock and known secret
 func (s *Serialization) PartnerLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
 	return nil
 }
+
+//OurLock2UnclaimedLocks our lock and know secret
 func (s *Serialization) OurLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
 	return nil
 }
+
+//OurLock2PendingLocks our lock and don't know secret
 func (s *Serialization) OurLock2PendingLocks() map[common.Hash]PendingLock {
 	return nil
 }
+
+//PartnerLock2PendingLocks partner's lock and don't know secret
 func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
 	return nil
 }

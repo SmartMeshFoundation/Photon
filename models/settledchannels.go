@@ -14,13 +14,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+/*
+保留 settle 的通道信息,
+供查询需要
+*/
 const bucketSettledChannel = "settled_channel"
 
-func Unmarshal(b []byte, v interface{}) error {
+func unmarshal(b []byte, v interface{}) error {
 	r := bytes.NewReader(b)
 	dec := gob.NewDecoder(r)
 	return dec.Decode(v)
 }
+
+//NewSettledChannel save a settled channel to db
 func (model *ModelDB) NewSettledChannel(c *channeltype.Serialization) error {
 	if c.State != channeltype.StateSettled {
 		panic("only settled channel can saved to settledChannel")
@@ -29,7 +35,7 @@ func (model *ModelDB) NewSettledChannel(c *channeltype.Serialization) error {
 	return model.db.Set(bucketSettledChannel, key, c)
 }
 
-//如何便利一个 bucket 呢?应该比较容易
+//GetAllSettledChannel returns all settled channel
 func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, err error) {
 	model.db.Bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketSettledChannel))
@@ -39,7 +45,7 @@ func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 			}
 			log.Trace(fmt.Sprintf("GetAllSettledChannel key=%s, value=%s\n", string(k), hex.EncodeToString(v)))
 			var c channeltype.Serialization
-			err = Unmarshal(v, &c)
+			err = unmarshal(v, &c)
 			if err != nil {
 				return err
 			}
@@ -51,6 +57,7 @@ func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 	return
 }
 
+//GetSettledChannel 返回某个指定的已经 settle 的 channel
 func (model *ModelDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumber int64) (c *channeltype.Serialization, err error) {
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)
