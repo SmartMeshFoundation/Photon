@@ -11,8 +11,8 @@ import (
 
 // TestOpenChannelFail :
 func TestOpenChannelFail(t *testing.T) {
-	t.Log("Test channel open to fail ...")
 	InitEnv(t, "./env.INI")
+	t.Log("Test channel open to fail ...")
 	a1, a2 := env.getTwoRandomAccount()
 	testSettleTimeout := TestSettleTimeoutMin + 5
 	var err error
@@ -57,8 +57,8 @@ func TestOpenChannelFail(t *testing.T) {
 
 // TestOpenChannelState :
 func TestOpenChannelState(t *testing.T) {
-	t.Log("Test open channel state ...")
 	InitEnv(t, "./env.INI")
+	t.Log("Test open channel state ...")
 	a1, a2 := env.getTwoRandomAccount()
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	// test cases 1
@@ -85,8 +85,8 @@ func TestOpenChannelState(t *testing.T) {
 
 // TestOpenChannelRepeat :
 func TestOpenChannelRepeat(t *testing.T) {
-	t.Log("Test open repeat channel ...")
 	InitEnv(t, "./env.INI")
+	t.Log("Test open repeat channel ...")
 	a1, a2 := env.getTwoRandomAccount()
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)

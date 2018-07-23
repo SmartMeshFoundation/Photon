@@ -69,7 +69,13 @@ func InitEnv(t *testing.T, configFilePath string) {
 			panic(err)
 		}
 	}
-	// get accounts and auth
+	// init accounts, keys and auths
+	initAccounts(env)
+	t.Log("env init done")
+	return
+}
+
+func initAccounts(env *Env) {
 	am := accounts.NewAccountManager(env.KeystorePath)
 	for _, account := range am.Accounts {
 		keyBin, err := am.GetPrivateKey(account.Address, globalPassword)
@@ -86,6 +92,4 @@ func InitEnv(t *testing.T, configFilePath string) {
 		envAccount.Auth = bind.NewKeyedTransactor(keyTemp)
 		env.Accounts = append(env.Accounts, envAccount)
 	}
-	t.Log("env init done")
-	return
 }
