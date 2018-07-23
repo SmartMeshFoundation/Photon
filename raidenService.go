@@ -589,22 +589,6 @@ func (rs *RaidenService) sendAsync(recipient common.Address, msg encoding.Signed
 	if recipient == rs.NodeAddress {
 		log.Error(fmt.Sprintf("rs must be a bug ,sending message to it self"))
 	}
-	revealSecretMessage, ok := msg.(*encoding.RevealSecret)
-	if ok && revealSecretMessage != nil {
-		srs := models.NewSentRevealSecret(revealSecretMessage, recipient)
-		rs.db.NewSentRevealSecret(srs)
-		if msg.Tag() == nil {
-			msg.SetTag(&transfer.MessageTag{
-				EchoHash:          srs.EchoHash,
-				IsASendingMessage: true,
-			})
-		} else {
-			messageTag := msg.Tag().(*transfer.MessageTag)
-			if messageTag.EchoHash != srs.EchoHash {
-				panic("reveal secret's echo hash not equal")
-			}
-		}
-	}
 	mtr, ok := msg.(*encoding.MediatedTransfer)
 	if ok && mtr != nil {
 		for f := range rs.SentMediatedTransferListenerMap {
@@ -651,8 +635,6 @@ Register the secret with any channel that has a hashlock on it.
 */
 func (rs *RaidenService) registerSecret(secret common.Hash) {
 	hashlock := utils.Sha3(secret[:])
-	//revealSecretMessage := encoding.NewRevealSecret(secret)
-	//revealSecretMessage.Sign(rs.PrivateKey, revealSecretMessage)
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
@@ -660,11 +642,7 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier, err))
 			}
-			//rs.conditionQuit("BeforeSendRevealSecret")
 			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-			//The protocol ignores duplicated messages.
-			//make sure not send the same instance multi times.
-			//rs.sendAsync(ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage))
 		}
 	}
 }
@@ -906,7 +884,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	}
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.Transfer2Result[smkey] = result
-	rs.db.AddStateManager(stateManager)
+	//rs.db.AddStateManager(stateManager)
 	rs.StateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
 	return
 }
@@ -969,7 +947,7 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 			Db:          rs.db,
 		}
 		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
-		rs.db.AddStateManager(stateManager)
+		//rs.db.AddStateManager(stateManager)
 		rs.Transfer2StateManager[smkey] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
 		rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
 	}
@@ -1011,7 +989,7 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 		Db:          rs.db,
 	}
 	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
-	rs.db.AddStateManager(stateManager)
+	//rs.db.AddStateManager(stateManager)
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.logAndDispatch(stateManager, initTarget)
 }
@@ -1319,52 +1297,6 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
-	if sentMessage.Message.Tag() != nil { //
-		sentMessageTag := sentMessage.Message.Tag().(*transfer.MessageTag)
-		if sentMessageTag.GetStateManager() != nil {
-			mgr := sentMessageTag.GetStateManager()
-			mgr.ManagerState = transfer.StateManagerSendMessageSuccesss
-			sentMessageTag.SendingMessageComplete = true
-			tx := rs.db.StartTx()
-			_, ok := sentMessage.Message.(*encoding.UnLock)
-			if ok {
-				mgr.IsBalanceProofSent = true
-				if mgr.Name == initiator.NameInitiatorTransition {
-					mgr.ManagerState = transfer.StateManagerTransferComplete
-				} else if mgr.Name == target.NameTargetTransition {
-
-				} else if mgr.Name == mediator.NameMediatorTransition {
-					/*
-						how to detect a mediator node is finish or not?
-							1. receive prev balanceproof
-							2. balanceproof  send to next successfully
-						//todo when refund?
-					*/
-					if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
-						mgr.ManagerState = transfer.StateManagerTransferComplete
-					}
-
-				}
-			}
-			rs.db.UpdateStateManaer(mgr, tx)
-			tx.Commit()
-			rs.conditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-		} else if sentMessageTag.EchoHash != utils.EmptyHash {
-			//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
-			rs.conditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-			switch msg := sentMessage.Message.(type) {
-			case *encoding.RevealSecret:
-				rs.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
-			default:
-				log.Error(fmt.Sprintf("unknown message %s", utils.StringInterface(msg, 7)))
-			}
-
-		} else {
-			panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
-		}
-	} else {
-		log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
-	}
 }
 
 /*

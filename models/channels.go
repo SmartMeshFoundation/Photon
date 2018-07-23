@@ -35,6 +35,24 @@ func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 	}
 	return err
 }
+
+//UpdateChannelAndSaveAck update channel and save ack, must atomic
+func (model *ModelDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
+	tx := model.StartTx()
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+	err = model.UpdateChannel(c, tx)
+	if err != nil {
+		log.Error(fmt.Sprintf("UpdateChannel err %s", err))
+		return
+	}
+	model.SaveAck(echohash, ack, tx)
+	tx.Commit()
+	return
+}
 func (model *ModelDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
 	var cbs []*cb.ChannelCb
 	model.mlock.Lock()

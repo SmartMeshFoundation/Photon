@@ -137,23 +137,7 @@ const StateManagerTransferComplete = "ManagerTransferComplete"
 
 //MessageTag for save and restore
 type MessageTag struct {
-	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
-	ReceiveProcessComplete bool          //Whether the receipt of the message has been processed,
-	SendingMessageComplete bool          //Whether the message sent has received ACK
-	IsASendingMessage      bool          //this message is on sending or receiveing?
-	MessageID              string        // for test only
-	EchoHash               common.Hash
-	Receiver               common.Address
-}
-
-//GetStateManager return stateManager
-func (mt *MessageTag) GetStateManager() *StateManager {
-	return mt.stateManager
-}
-
-//SetStateManager set statemanager
-func (mt *MessageTag) SetStateManager(stateManager *StateManager) {
-	mt.stateManager = stateManager
+	EchoHash common.Hash
 }
 
 //NewStateManager create a StateManager

@@ -155,18 +155,18 @@ func TestWithdraw(t *testing.T) {
 	}()
 	channel := utils.NewRandomHash()
 	secret := utils.Sha3(channel[:])
-	r := model.IsThisLockHasWithdraw(channel, secret)
+	r := model.IsThisLockHasUnlocked(channel, secret)
 	if r == true {
 		t.Error("should be false")
 		return
 	}
-	model.WithdrawThisLock(channel, secret)
-	r = model.IsThisLockHasWithdraw(channel, secret)
+	model.UnlockThisLock(channel, secret)
+	r = model.IsThisLockHasUnlocked(channel, secret)
 	if r == false {
 		t.Error("should be true")
 		return
 	}
-	r = model.IsThisLockHasWithdraw(utils.NewRandomHash(), secret)
+	r = model.IsThisLockHasUnlocked(utils.NewRandomHash(), secret)
 	if r == true {
 		t.Error("shoulde be false")
 		return

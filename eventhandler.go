@@ -22,8 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var errSentFailed = errors.New("sent failed")
-
 //run inside loop of raiden service
 type stateMachineEventHandler struct {
 	raiden *RaidenService
@@ -64,7 +62,6 @@ func (eh *stateMachineEventHandler) logAndDispatch(stateManager *transfer.StateM
 	return events
 }
 func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
-	eh.updateStateManagerFromReceivedMessageOrUserRequest(stateManager, stateChange)
 	events = stateManager.Dispatch(stateChange)
 	for _, e := range events {
 		err := eh.OnEvent(e, stateManager)
@@ -76,8 +73,8 @@ func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager
 }
 func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtransfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
-	graph := eh.raiden.getToken2ChannelGraph(event.Token)
-	ch := graph.GetPartenerAddress2Channel(receiver)
+	g := eh.raiden.getToken2ChannelGraph(event.Token)
+	ch := g.GetPartenerAddress2Channel(receiver)
 	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, event.Fee, event.Amount, event.Expiration, event.LockSecretHash)
 	if err != nil {
 		return
@@ -87,15 +84,15 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	if err != nil {
 		return
 	}
-	eh.updateStateManagerFromEvent(receiver, mtr, stateManager)
 	eh.raiden.conditionQuit("EventSendMediatedTransferBefore")
+	eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
-	graph := eh.raiden.getToken2ChannelGraph(event.Token)
-	ch := graph.GetPartenerAddress2Channel(receiver)
+	g := eh.raiden.getToken2ChannelGraph(event.Token)
+	ch := g.GetPartenerAddress2Channel(receiver)
 	tr, err := ch.CreateUnlock(event.LockSecretHash)
 	if err != nil {
 		return
@@ -105,15 +102,15 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	if err != nil {
 		return
 	}
-	eh.updateStateManagerFromEvent(receiver, tr, stateManager)
 	eh.raiden.conditionQuit("EventSendBalanceProofBefore")
+	eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtransfer.EventSendAnnounceDisposed, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
-	graph := eh.raiden.getToken2ChannelGraph(event.Token)
-	ch := graph.GetPartenerAddress2Channel(receiver)
+	g := eh.raiden.getToken2ChannelGraph(event.Token)
+	ch := g.GetPartenerAddress2Channel(receiver)
 	mtr, err := ch.CreateAnnouceDisposed(event.LockSecretHash, eh.raiden.GetBlockNumber())
 	if err != nil {
 		return
@@ -127,15 +124,14 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	if err != nil {
 		return
 	}
-	eh.updateStateManagerFromEvent(receiver, mtr, stateManager)
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedBefore")
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *mediatedtransfer.EventSendAnnounceDisposedResponse, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
-	graph := eh.raiden.getToken2ChannelGraph(event.Token)
-	ch := graph.GetPartenerAddress2Channel(receiver)
+	g := eh.raiden.getToken2ChannelGraph(event.Token)
+	ch := g.GetPartenerAddress2Channel(receiver)
 	mtr, err := ch.CreateAnnounceDisposedResponse(event.LockSecretHash, eh.raiden.GetBlockNumber())
 	if err != nil {
 		return
@@ -145,8 +141,8 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	if err != nil {
 		return
 	}
-	eh.updateStateManagerFromEvent(receiver, mtr, stateManager)
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedResponseBefore")
+	eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
@@ -219,11 +215,8 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		log.Error(fmt.Sprintf("register mine RegisterRemoveExpiredHashlockTransfer err %s", err))
 		return
 	}
-	/*
-		save new channel status and sent RemoveExpiredHashlockTransfer must be atomic.
-	*/
-	eh.updateStateManagerFromEvent(ch.PartnerState.Address, tr, manager)
 	eh.raiden.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
+	eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(ch.PartnerState.Address, tr)
 	return
 }
@@ -245,7 +238,6 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 	case *mediatedtransfer.EventSendSecretRequest:
 		secretRequest := encoding.NewSecretRequest(e2.LockSecretHash, e2.Amount)
 		secretRequest.Sign(eh.raiden.PrivateKey, secretRequest)
-		eh.updateStateManagerFromEvent(e2.Receiver, secretRequest, stateManager)
 		eh.raiden.conditionQuit("EventSendSecretRequestBefore")
 		err = eh.raiden.sendAsync(e2.Receiver, secretRequest)
 		eh.raiden.conditionQuit("EventSendSecretRequestAfter")
@@ -282,7 +274,6 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
-		//TODO need payer's new signature to remove eh expired lock
 		log.Error(fmt.Sprintf("EventWithdrawFailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))
 		err = eh.eventWithdrawFailed(e2, stateManager)
 	case *mediatedtransfer.EventWithdrawSuccess:
@@ -294,7 +285,6 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		//do nothing for five events above
 		err = eh.eventContractSendWithdraw(e2, stateManager)
 	case *mediatedtransfer.EventUnlockFailed:
-		//should remove hashlock from channel todo fix bai
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))
 		err = eh.eventUnlockFailed(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendRemoveExpiredHashlockTransferAfter")
@@ -350,10 +340,10 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	if err != nil {
 		return err
 	}
-	graph := graph.NewChannelGraph(eh.raiden.NodeAddress, st.TokenAddress, nil, nil)
+	g := graph.NewChannelGraph(eh.raiden.NodeAddress, st.TokenAddress, nil, nil)
 	eh.raiden.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	eh.raiden.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
-	eh.raiden.Token2ChannelGraph[tokenAddress] = graph
+	eh.raiden.Token2ChannelGraph[tokenAddress] = g
 	eh.raiden.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(eh.raiden, tokenAddress)
 	return nil
 }
@@ -368,8 +358,8 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		utils.APex2(participant1),
 		utils.APex2(participant2),
 	))
-	graph := eh.raiden.getToken2ChannelGraph(tokenAddress)
-	graph.AddPath(participant1, participant2)
+	g := eh.raiden.getToken2ChannelGraph(tokenAddress)
+	g.AddPath(participant1, participant2)
 	eh.raiden.db.NewNonParticipantChannel(tokenAddress, st.ChannelIdentifier.ChannelIdentifier, participant1, participant2)
 	connectionManager, err := eh.raiden.connectionManagerForToken(tokenAddress)
 	if err != nil {
@@ -452,8 +442,8 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 4. todo statemanager 中有关该 channel 的信息, 是否有?
 */
 func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) error {
-	graph := eh.raiden.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
-	graph.RemoveChannel(ch)
+	g := eh.raiden.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
+	g.RemoveChannel(ch)
 	cs := channel.NewChannelSerialization(ch)
 	err := eh.raiden.db.RemoveChannel(cs)
 	if err != nil {
@@ -467,7 +457,6 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
-	//todo remove channel st.channelAddress ,because eh channel is already settled
 	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
 	if err != nil {
@@ -504,7 +493,6 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 				if err2 != nil {
 					log.Error(fmt.Sprintf("PunishObsoleteUnlock %s ,err2 %s", utils.BPex(ad.LockHash), err2))
 				}
-				//todo 要不要立即 settle?
 			}()
 		}
 	}
@@ -554,7 +542,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 			}
 		}
 	case *mediatedtransfer.ContractSettledStateChange:
-		//settled channel should be removed. todo bai fix it
+		//settled channel should be removed.
 		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
 			if c.ExternState.SetSettled(st2.SettledBlock) {
 				c.HandleSettled(st2.SettledBlock)
@@ -636,129 +624,4 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		log.Error(err.Error())
 	}
 	return
-}
-
-//recive a message and before processed
-func (eh *stateMachineEventHandler) updateStateManagerFromReceivedMessageOrUserRequest(mgr *transfer.StateManager, stateChange transfer.StateChange) {
-	var msg encoding.Messager
-	var quitName string
-	switch st2 := stateChange.(type) {
-	case *mediatedtransfer.ActionInitTargetStateChange:
-		quitName = "ActionInitTargetStateChange"
-		msg = st2.Message
-		mgr.ChannelAddress = st2.FromRoute.ChannelIdentifier
-	case *mediatedtransfer.ReceiveSecretRequestStateChange:
-		quitName = "ReceiveSecretRequestStateChange"
-		msg = st2.Message
-		//todo refund 重新定义了
-	case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
-		quitName = "ReceiveAnnounceDisposedStateChange"
-		msg = st2.Message
-		mgr.ChannelAddresRefund = st2.Message.ChannelIdentifier
-	case *mediatedtransfer.ReceiveBalanceProofStateChange:
-		quitName = "ReceiveBalanceProofStateChange"
-		_, ok := st2.Message.(*encoding.UnLock)
-		if ok {
-			msg = st2.Message //可能是mediated transfer,direct transfer,refundtransfer,secret 四中情况触发.
-		}
-	case *mediatedtransfer.ActionInitMediatorStateChange:
-		quitName = "ActionInitMediatorStateChange"
-		msg = st2.Message
-		mgr.ChannelAddress = st2.FromRoute.ChannelIdentifier
-	case *mediatedtransfer.ActionInitInitiatorStateChange:
-		quitName = "ActionInitInitiatorStateChange"
-		mgr.LastReceivedMessage = st2
-		//new transfer trigger from user
-	case *mediatedtransfer.ReceiveSecretRevealStateChange:
-		quitName = "ReceiveSecretRevealStateChange"
-		//reveal secret 需要单独处理
-	}
-	if msg != nil {
-		mgr.ManagerState = transfer.StateManagerReceivedMessage
-		mgr.LastReceivedMessage = msg
-		tag := msg.Tag().(*transfer.MessageTag)
-		tag.SetStateManager(mgr)
-		msg.SetTag(tag)
-		//tx := eh.raiden.db.StartTx()
-		//eh.raiden.db.UpdateStateManaer(mgr, tx)
-		//if mgr.ChannelIdentifier != utils.EmptyAddress {
-		//	ch := eh.raiden.getChannelWithAddr(mgr.ChannelIdentifier)
-		//	eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-		//}
-		//tx.Commit()
-		eh.raiden.conditionQuit(quitName)
-	}
-}
-func (eh *stateMachineEventHandler) updateStateManagerFromEvent(receiver common.Address, msg encoding.Messager, mgr *transfer.StateManager) {
-	var msgtoSend encoding.Messager
-	switch msg2 := msg.(type) {
-	case *encoding.MediatedTransfer:
-		msgtoSend = msg2
-		if mgr.Name == mediator.NameMediatorTransition {
-			mgr.ChannelAddressTo = msg2.ChannelIdentifier
-		} else {
-			mgr.ChannelAddress = msg2.ChannelIdentifier
-		}
-	case *encoding.UnLock:
-		msgtoSend = msg2
-	case *encoding.AnnounceDisposed:
-		msgtoSend = msg2 //state manager should be marked as finished? todo
-	case *encoding.SecretRequest:
-		msgtoSend = msg2
-	case *encoding.RemoveExpiredHashlockTransfer:
-		msgtoSend = msg2
-	case *encoding.AnnounceDisposedResponse:
-		msgtoSend = msg2
-	default:
-		panic(fmt.Sprintf("unknown message updateStateManagerFromEvent :%s", utils.StringInterface(msg, 3)))
-	}
-	tag := &transfer.MessageTag{
-		MessageID:         utils.RandomString(10),
-		EchoHash:          utils.Sha3(msg.Pack(), receiver[:]),
-		IsASendingMessage: true,
-		Receiver:          receiver,
-	}
-	tag.SetStateManager(mgr)
-	msgtoSend.SetTag(tag)
-	tx := eh.raiden.db.StartTx()
-	mgr.ManagerState = transfer.StateManagerSendMessage
-	mgr.LastSendMessage = msgtoSend
-	msg3, ok := mgr.LastReceivedMessage.(encoding.Messager) //maybe  ActionInitInitiatorStateChange
-	if ok {
-		receiveTag := msg3.Tag()
-		if receiveTag == nil {
-			panic("must not be empty")
-		}
-		receiveMessageTag := receiveTag.(*transfer.MessageTag)
-		if receiveMessageTag.ReceiveProcessComplete == false {
-			mgr.ManagerState = transfer.StateManagerReceivedMessageProcessComplete
-			log.Trace(fmt.Sprintf("set message %s ReceiveProcessComplete", receiveMessageTag.MessageID))
-			receiveMessageTag.ReceiveProcessComplete = true
-			ack := eh.raiden.Protocol.CreateAck(receiveMessageTag.EchoHash)
-			eh.raiden.db.SaveAck(receiveMessageTag.EchoHash, ack.Pack(), tx)
-		}
-	} else {
-		//user start a transfer.
-	}
-	eh.raiden.db.UpdateStateManaer(mgr, tx)
-	eh.raiden.conditionQuit("InEventTx")
-	if mgr.ChannelAddress == utils.EmptyHash {
-		panic("channel address must not be empty")
-	}
-	ch, err := eh.raiden.findChannelByAddress(mgr.ChannelAddress)
-	if err != nil {
-		panic(fmt.Sprintf("channel %s must exist", utils.HPex(mgr.ChannelAddress)))
-	}
-	eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-	if mgr.ChannelAddressTo != utils.EmptyHash { //for mediated transfer
-		ch, err := eh.raiden.findChannelByAddress(mgr.ChannelAddressTo)
-		if err != nil {
-			panic(fmt.Sprintf("channel %s must exist", utils.HPex(mgr.ChannelAddressTo)))
-		}
-		eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-	}
-	if mgr.ChannelAddresRefund != utils.EmptyHash { //for mediated transfer and initiator
-
-	}
-	tx.Commit()
 }

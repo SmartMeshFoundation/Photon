@@ -30,10 +30,7 @@ func TestStateManager(t *testing.T) {
 	}
 	m1 := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	tag := &transfer.MessageTag{
-		MessageID:         utils.RandomString(10),
-		EchoHash:          utils.Sha3(m1.Pack(), m1.Target[:]),
-		IsASendingMessage: true,
-		Receiver:          m1.Target,
+		EchoHash: utils.Sha3(m1.Pack(), m1.Target[:]),
 	}
 	m1.SetTag(tag)
 	stateManager.LastSendMessage = m1
