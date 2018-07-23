@@ -7,6 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"math/big"
+	"context"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 // TestOpenChannelFail :
@@ -14,10 +16,16 @@ func TestOpenChannelFail(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	t.Log("Test channel open to fail ...")
 	a1, a2 := env.getTwoRandomAccount()
+	t.Logf("a1=%s a2=%s", a1.Address.String(), a2.Address.String())
 	testSettleTimeout := TestSettleTimeoutMin + 5
 	var err error
 	// test cases 1
-	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, 0)
+	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, 0)
+	assert.NotEmpty(t, err, err.Error())
+	t.Log(tx)
+	t.Log(err)
+	ctx := context.Background()
+	_, err = bind.WaitMined(ctx, env.Client, tx)
 	assert.NotEmpty(t, err, err.Error())
 	// test cases 2
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, common.StringToAddress("0x0"), a2.Address, testSettleTimeout)
