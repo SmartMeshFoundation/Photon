@@ -165,7 +165,14 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 
 func handleRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	if mediator.IsValidRefund(state.Transfer, state.Route, stateChange) {
-		return cancelCurrentRoute(state)
+		it := cancelCurrentRoute(state)
+		ev := &mt.EventSendAnnounceDisposedResponse{
+			LockSecretHash: stateChange.Lock.LockSecretHash,
+			Token:          state.Transfer.Token,
+			Receiver:       stateChange.Sender,
+		}
+		it.Events = append(it.Events, ev)
+		return it
 	}
 	return &transfer.TransitionResult{
 		NewState: state,

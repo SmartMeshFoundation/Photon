@@ -251,7 +251,10 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.raiden.conditionQuit("EventSendSecretRequestAfter")
 	case *mediatedtransfer.EventSendAnnounceDisposed:
 		err = eh.eventSendAnnouncedDisposed(e2, stateManager)
-		eh.raiden.conditionQuit("EventSendRefundTransferAfter")
+		eh.raiden.conditionQuit("EventSendAnnouncedDisposedAfter")
+	case *mediatedtransfer.EventSendAnnounceDisposedResponse:
+		err = eh.eventSendAnnouncedDisposedResponse(e2, stateManager)
+		eh.raiden.conditionQuit("EventSendAnnouncedDisposedResponseAfter")
 	case *transfer.EventTransferSentSuccess:
 		ch := eh.raiden.getChannelWithAddr(e2.ChannelIdentifier)
 		if ch == nil {

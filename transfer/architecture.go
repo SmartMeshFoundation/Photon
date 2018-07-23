@@ -141,7 +141,7 @@ type MessageTag struct {
 	ReceiveProcessComplete bool          //Whether the receipt of the message has been processed,
 	SendingMessageComplete bool          //Whether the message sent has received ACK
 	IsASendingMessage      bool          //this message is on sending or receiveing?
-	MessageID              string        //messageId for ping message
+	MessageID              string        // for test only
 	EchoHash               common.Hash
 	Receiver               common.Address
 }

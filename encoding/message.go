@@ -463,7 +463,7 @@ func CloneRevealSecret(rs *RevealSecret) *RevealSecret {
 
 //LockSecretHash return hash of secret
 func (rs *RevealSecret) LockSecretHash() common.Hash {
-	if bytes.Equal(rs.lockSecretHash[:], utils.EmptyHash[:]) {
+	if rs.lockSecretHash == utils.EmptyHash {
 		rs.lockSecretHash = utils.Sha3(rs.LockSecret[:])
 	}
 	return rs.lockSecretHash
@@ -506,7 +506,7 @@ func (rs *RevealSecret) UnPack(data []byte) error {
 
 //String fmt.Stringer
 func (rs *RevealSecret) String() string {
-	return fmt.Sprintf("Message{type=RevealSecret,hashlock=%s,secret=%s,sender=%s,has signature=%v}", utils.HPex(rs.lockSecretHash),
+	return fmt.Sprintf("Message{type=RevealSecret,hashlock=%s,secret=%s,sender=%s,has signature=%v}", utils.HPex(rs.LockSecretHash()),
 		utils.HPex(rs.LockSecret), utils.APex2(rs.Sender), len(rs.Signature) != 0)
 }
 
@@ -1736,4 +1736,9 @@ func init() {
 	gob.Register(&UnLock{})
 	gob.Register(&SecretRequest{})
 	gob.Register(&RemoveExpiredHashlockTransfer{})
+	gob.Register(&AnnounceDisposedResponse{})
+	gob.Register(&WithdrawRequest{})
+	gob.Register(&WithdrawResponse{})
+	gob.Register(&SettleRequest{})
+	gob.Register(&SettleResponse{})
 }

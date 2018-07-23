@@ -57,7 +57,7 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		if f != nil {
 			ignore := (f)(m2)
 			if ignore {
-				return errors.New("ignore this secret request")
+				return errors.New("ignore this secret request,because of SecretRequestPredictorMap ignores")
 			}
 		}
 		err = mh.messageSecretRequest(m2)
@@ -72,7 +72,7 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 		err = mh.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
 	case *encoding.UnLock:
-		err = mh.messageSecret(m2)
+		err = mh.messageUnlock(m2)
 	case *encoding.DirectTransfer:
 		err = mh.messageDirectTransfer(m2)
 	case *encoding.MediatedTransfer:
@@ -87,6 +87,8 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 	case *encoding.AnnounceDisposed:
 		err = mh.messageAnnounceDisposed(m2)
+	case *encoding.AnnounceDisposedResponse:
+		err = mh.messageAnnounceDisposedResponse(m2)
 	case *encoding.RemoveExpiredHashlockTransfer:
 		err = mh.messageRemoveExpiredHashlockTransfer(m2)
 	default:
@@ -112,9 +114,8 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	sender := msg.Sender
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
-	lockSecretHash := utils.Sha3(secret[:])
 
-	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(lockSecretHash, stateChange)
+	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
@@ -184,7 +185,7 @@ func (mh *raidenMessageHandler) markSecretComplete(msg *encoding.UnLock) {
 	tx.Commit()
 	mh.raiden.conditionQuit("SecretSendAck")
 }
-func (mh *raidenMessageHandler) messageSecret(msg *encoding.UnLock) error {
+func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	mh.balanceProof(msg)
 	lockSecretHash := msg.LockSecretHash()
 	secret := msg.LockSecret
@@ -198,7 +199,7 @@ func (mh *raidenMessageHandler) messageSecret(msg *encoding.UnLock) error {
 		log.Trace(fmt.Sprintf("lockSecretHash=%s,nettingchannel=%s", utils.HPex(lockSecretHash), nettingChannel))
 		err = nettingChannel.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 		if err != nil {
-			log.Error(fmt.Sprintf("messageSecret RegisterTransfer err=%s", err))
+			log.Error(fmt.Sprintf("messageUnlock RegisterTransfer err=%s", err))
 		}
 	}
 	//mark balanceproof complete
@@ -280,7 +281,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		return
 	}
 	//保存通道状态即可.
-	return nil
+	return mh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 }
 
 /*

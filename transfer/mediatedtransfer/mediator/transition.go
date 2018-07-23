@@ -728,7 +728,13 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 			todo 长时间崩溃恢复以后会收到这个消息么?
 		*/
 		state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
-		return mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+		it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
+			Token:          state.Token,
+			LockSecretHash: st.Lock.LockSecretHash,
+			Receiver:       st.Sender,
+		}
+		it.Events = append(it.Events, ev)
 	}
 	return it
 }

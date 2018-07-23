@@ -651,8 +651,8 @@ Register the secret with any channel that has a hashlock on it.
 */
 func (rs *RaidenService) registerSecret(secret common.Hash) {
 	hashlock := utils.Sha3(secret[:])
-	revealSecretMessage := encoding.NewRevealSecret(secret)
-	revealSecretMessage.Sign(rs.PrivateKey, revealSecretMessage)
+	//revealSecretMessage := encoding.NewRevealSecret(secret)
+	//revealSecretMessage.Sign(rs.PrivateKey, revealSecretMessage)
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
@@ -660,11 +660,11 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier, err))
 			}
-			rs.conditionQuit("BeforeSendRevealSecret")
+			//rs.conditionQuit("BeforeSendRevealSecret")
 			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			//The protocol ignores duplicated messages.
 			//make sure not send the same instance multi times.
-			rs.sendAsync(ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage))
+			//rs.sendAsync(ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage))
 		}
 	}
 }
