@@ -43,7 +43,7 @@ func TestOpenChannelFail(t *testing.T) {
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, EmptyAccountAddress, testSettleTimeout)
 	assertError(t, err)
 	// test cases 9
-	_, err = env.TokenNetwork.OpenChannel(a2.Auth, EmptyAccountAddress, a2.Address, testSettleTimeout)
+	_, err = env.TokenNetwork.OpenChannel(a1.Auth, EmptyAccountAddress, a2.Address, testSettleTimeout)
 	assertError(t, err)
 	// test cases 10
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a1.Address, testSettleTimeout)

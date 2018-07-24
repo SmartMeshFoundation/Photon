@@ -12,7 +12,7 @@ var TestSettleTimeoutMax uint64 = 100000
 var FakeAccountAddress = common.HexToAddress("0x03432")
 
 // EmptyAccountAddress :
-var EmptyAccountAddress = common.HexToAddress("0x03432")
+var EmptyAccountAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 
 // ChannelStateOpened :
 const ChannelStateOpened uint8 = 1
