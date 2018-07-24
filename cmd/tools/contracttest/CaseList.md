@@ -16,4 +16,4 @@
     - settle_timeout = 2700001
     - 重复open
 ## 3. Case about opened channel state
-    - 查询通道双方信息, 校验数据
+    - 打开一个新通道并查询通道双方信息, 校验数据
