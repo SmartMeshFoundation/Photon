@@ -12,8 +12,8 @@
     - partner地址为0x03432
     - partner地址为0x0000000000000000000000000000000000000000
     - 通道双方地址相同
-    - settle_timeout = 4
-    - settle_timeout = 10001
+    - settle_timeout = 5
+    - settle_timeout = 2700001
     - 重复open
 ## 3. Case about opened channel state
     - 查询通道双方信息, 校验数据

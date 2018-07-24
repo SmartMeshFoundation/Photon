@@ -3,10 +3,10 @@ package contracttest
 import "github.com/ethereum/go-ethereum/common"
 
 // TestSettleTimeoutMin :
-var TestSettleTimeoutMin uint64 = 5
+var TestSettleTimeoutMin uint64 = 6
 
 // TestSettleTimeoutMax :
-var TestSettleTimeoutMax uint64 = 100000
+var TestSettleTimeoutMax uint64 = 2700000
 
 // FakeAccountAddress :
 var FakeAccountAddress = common.HexToAddress("0x03432")
