@@ -13,3 +13,15 @@ var FakeAccountAddress = common.HexToAddress("0x03432")
 
 // EmptyAccountAddress :
 var EmptyAccountAddress = common.HexToAddress("0x03432")
+
+// ChannelStateOpened :
+const ChannelStateOpened uint8 = 1
+
+// ChannelStateClosed :
+const ChannelStateClosed uint8 = 2
+
+// ChannelStateSettledOrNotExist :
+const ChannelStateSettledOrNotExist uint8 = 0
+
+// EmptyBalanceHash :
+const EmptyBalanceHash = "000000000000000000000000000000000000000000000000"

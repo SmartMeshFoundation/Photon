@@ -3,108 +3,101 @@ package contracttest
 import (
 	"testing"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"encoding/hex"
+
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"context"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 // TestOpenChannelFail :
 func TestOpenChannelFail(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	t.Log("Test channel open to fail ...")
-	a1, a2 := env.getTwoRandomAccount()
-	t.Logf("a1=%s a2=%s", a1.Address.String(), a2.Address.String())
+	a1, a2 := env.getTwoRandomAccount(t)
 	testSettleTimeout := TestSettleTimeoutMin + 5
 	var err error
 	// test cases 1
-	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, 0)
-	assert.NotEmpty(t, err, err.Error())
-	t.Log(tx)
-	t.Log(err)
-	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, env.Client, tx)
-	assert.NotEmpty(t, err, err.Error())
+	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, 0)
+	assertError(t, err)
 	// test cases 2
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, common.StringToAddress("0x0"), a2.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 3
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, common.StringToAddress(""), a2.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 4
 	_, err = env.TokenNetwork.OpenChannel(a2.Auth, FakeAccountAddress, a2.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 5
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, common.StringToAddress("0x0"), testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 6
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, common.StringToAddress(""), testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 7
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, FakeAccountAddress, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 8
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, EmptyAccountAddress, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 9
 	_, err = env.TokenNetwork.OpenChannel(a2.Auth, EmptyAccountAddress, a2.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 10
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a1.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 11
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, TestSettleTimeoutMin-1)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 12
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, TestSettleTimeoutMax+1)
-	assert.NotEmpty(t, err, err.Error())
-	t.Log("Test done SUCCESS")
+	assertError(t, err)
+	t.Log("Test channel open to fail done")
 }
 
 // TestOpenChannelState :
 func TestOpenChannelState(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	t.Log("Test open channel state ...")
-	a1, a2 := env.getTwoRandomAccount()
+	a1, a2 := env.getTwoRandomAccount(t)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	// test cases 1
 	_, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
-	assert.Empty(t, err)
+	time.Sleep(time.Second * 2)
 	// test cases 2
 	_, _, _, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
 	assert.Empty(t, err)
-	assert.Equal(t, contracts.ChannelStateOpened, state)
+	assert.Equal(t, ChannelStateOpened, state)
 	// test cases 3
 	deposit, balanceHash, nonce, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
 	assert.Empty(t, err)
-	assert.Equal(t, big.NewInt(0), *deposit)
-	assert.Equal(t, uint(0), nonce)
-	assert.Equal(t, nil, balanceHash)
+	assert.Equal(t, int64(0), deposit.Int64())
+	assert.Equal(t, uint64(0), nonce)
+	assert.Equal(t, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
 	// test cases 4
 	deposit, balanceHash, nonce, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
 	assert.Empty(t, err)
-	assert.Equal(t, 0, deposit)
-	assert.Equal(t, 0, nonce)
-	assert.Equal(t, nil, balanceHash)
-	t.Log("Test done SUCCESS")
+	assert.Equal(t, int64(0), deposit.Int64())
+	assert.Equal(t, uint64(0), nonce)
+	assert.Equal(t, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
+	t.Log("Test open channel state done")
 }
 
 // TestOpenChannelRepeat :
 func TestOpenChannelRepeat(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	t.Log("Test open repeat channel ...")
-	a1, a2 := env.getTwoRandomAccount()
+	a1, a2 := env.getTwoRandomAccount(t)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
-
 	var err error
 	// test cases 1
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
+	assertError(t, err)
 	// test cases 2
 	_, err = env.TokenNetwork.OpenChannel(a1.Auth, a2.Address, a1.Address, testSettleTimeout)
-	assert.NotEmpty(t, err, err.Error())
-	t.Log("Test done SUCCESS")
+	assertError(t, err)
+	t.Log("Test open repeat channel down")
 }
