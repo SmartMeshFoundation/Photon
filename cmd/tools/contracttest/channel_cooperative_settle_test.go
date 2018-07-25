@@ -21,7 +21,7 @@ func TestCooperativeSettleRight(t *testing.T) {
 	cs := getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
 	// cases
 	tx, err := env.TokenNetwork.CooperativeSettle(
-		a3.Auth, a1.Address, balanceA1, a2.Address, balanceA2, cs.sign(a1.Key), cs.sign(a2.Key))
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant1Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxSuccess(t, &count, tx, err)
 	t.Logf("CooperativeSettle 正确调用测试完成,case数量 : %d", count)
 }
