@@ -145,7 +145,6 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	return nil
 }
 func (mh *raidenMessageHandler) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
-	return
 	t, ok := tag.(*transfer.MessageTag)
 	if !ok || t == nil {
 		panic("tag is nil")
