@@ -62,14 +62,14 @@ func InitEnv(t *testing.T, configFilePath string) {
 	if err != nil {
 		panic(err)
 	}
-	t.Logf("connect to geth client[%s] done ...", env.EthRPCEndpoint)
+	t.Logf("Geth client = %s", env.EthRPCEndpoint)
 	// get token
 	tokenAddress := common.HexToAddress(c.RdString("COMMON", "token_address", "new"))
 	env.Token, err = contracts.NewToken(tokenAddress, env.Client)
 	if err != nil {
 		panic(err)
 	}
-	t.Logf("load token[%s] done ...", tokenAddress.String())
+	t.Logf("Token = %s", tokenAddress.String())
 	// get token_network
 	tokenNetworkAddress := c.RdString("COMMON", "token_network_address", "")
 	if tokenNetworkAddress == "new" || tokenNetworkAddress == "" {
@@ -81,10 +81,10 @@ func InitEnv(t *testing.T, configFilePath string) {
 			panic(err)
 		}
 	}
-	t.Logf("load TokenNetwork[%s] done ...", tokenNetworkAddress)
+	t.Logf("TokenNetwork = %s", tokenNetworkAddress)
 	// init accounts, keys and auths
 	initAccounts(t, env)
-	t.Log("env init done, test begin now !!!")
+	t.Log("=======================================> env init done, test BEGIN ...")
 	return
 }
 
