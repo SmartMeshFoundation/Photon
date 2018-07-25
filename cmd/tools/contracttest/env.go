@@ -14,6 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
+	"math/big"
+	"github.com/ethereum/go-ethereum/core/types"
+	"context"
 )
 
 // Env :
@@ -100,6 +103,20 @@ func initAccounts(t *testing.T, env *Env) {
 		envAccount.Address = account.Address
 		envAccount.Key = keyTemp
 		envAccount.Auth = bind.NewKeyedTransactor(keyTemp)
+		tx, err := env.Token.Approve(envAccount.Auth, env.TokenNetworkAddress, big.NewInt(50000000))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		r, err := bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if r.Status != types.ReceiptStatusSuccessful {
+			t.Error("receipt status error")
+			return
+		}
 		env.Accounts = append(env.Accounts, envAccount)
 	}
 	t.Logf("load [%d] accouts from [%s] done ...", len(env.Accounts), env.KeystorePath)

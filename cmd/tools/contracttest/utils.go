@@ -138,7 +138,7 @@ func waitAndAssertSuccess(t *testing.T, tx *types.Transaction, err error) {
 	}
 }
 
-func waitAndAssertError(t *testing.T, tx *types.Transaction, err error) {
+func 	waitAndAssertError(t *testing.T, tx *types.Transaction, err error) {
 	assert.NotEmpty(t, err)
 	if tx != nil {
 		_, err = bind.WaitMined(context.Background(), env.Client, tx)
