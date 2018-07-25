@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/assert"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestOpenChannelFail :
@@ -103,5 +103,5 @@ func TestOpenChannelRepeat(t *testing.T) {
 	// test cases 2
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a2.Address, a1.Address, testSettleTimeout)
 	waitAndAssertError(t, tx, err)
-	t.Log("Test open repeat channel down")
+	t.Log("Test open repeat channel done")
 }

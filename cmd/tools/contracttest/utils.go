@@ -4,19 +4,21 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"math/big"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"crypto/ecdsa"
 	"bytes"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"encoding/binary"
 	"context"
+	"crypto/ecdsa"
+	"encoding/binary"
+	"math/big"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
+// CoOperativeSettleForContracts : param for CoOperativeSettle
 type CoOperativeSettleForContracts struct {
 	Particiant1         common.Address
 	Participant2        common.Address
@@ -47,7 +49,7 @@ func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 func cooperativeSettleChannelIfExists(t *testing.T, a1 *Account, a2 *Account) {
 	// get channel info between a1 and a2
 	channelID, _, openBlockNumber, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
-	if state == ChannelStateSettledOrNotExist{
+	if state == ChannelStateSettledOrNotExist {
 		return
 	}
 	t.Logf("channel between %s and %s already exists, close first ...", a1.Address.String(), a2.Address.String())
@@ -100,6 +102,22 @@ func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	return env.Accounts[index1], env.Accounts[index2]
 }
 
+func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Account) {
+	var index1, index2, index3 int
+	n := len(env.Accounts)
+	index1 = rand.Intn(n)
+	index2 = rand.Intn(n)
+	index3 = rand.Intn(n)
+	for index1 == index2 {
+		index2 = rand.Intn(n)
+	}
+	for index3 == index1 || index3 == index2 {
+		index3 = rand.Intn(n)
+	}
+	t.Logf("a1=%s a2=%s a3=%s", env.Accounts[index1].Address.String(), env.Accounts[index2].Address.String(), env.Accounts[index3].Address.String())
+	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
+}
+
 func assertError(t *testing.T, err error) {
 	if err != nil {
 		assert.NotEmpty(t, err, err.Error())
@@ -114,8 +132,10 @@ func assertErrorWithMsg(t *testing.T, err error, msg string) {
 
 func waitAndAssertSuccess(t *testing.T, tx *types.Transaction, err error) {
 	assert.Empty(t, err)
-	_, err = bind.WaitMined(context.Background(), env.Client, tx)
-	assert.Empty(t, err)
+	if tx != nil {
+		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		assert.Empty(t, err)
+	}
 }
 
 func waitAndAssertError(t *testing.T, tx *types.Transaction, err error) {
