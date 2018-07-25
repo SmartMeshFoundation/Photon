@@ -10,6 +10,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestOpenChannelRight : 正确调用测试
+func TestOpenChannelRight(t *testing.T) {
+
+}
+
+// TestOpenChannelRight : 异常调用测试
+func TestOpenChannelException(t *testing.T) {
+
+}
+
+// TestOpenChannelEdge : 边界测试
+func TestOpenChannelEdge(t *testing.T) {
+
+}
+
+// TestOpenChannelAttack : 恶意调用测试
+func TestOpenChannelAttack(t *testing.T)  {
+
+}
 // TestOpenChannelFail :
 func TestOpenChannelFail(t *testing.T) {
 	InitEnv(t, "./env.INI")
