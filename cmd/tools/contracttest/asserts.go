@@ -1,25 +1,32 @@
 package contracttest
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"github.com/ethereum/go-ethereum/core/types"
 	"context"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func assertSuccess(t *testing.T, count *int, err error) {
-	*count++
+	if count != nil {
+		*count++
+	}
 	assert.Empty(t, err)
 }
 
 func assertFail(t *testing.T, count *int, err error) {
-	*count++
+	if count != nil {
+		*count++
+	}
 	assert.NotEmpty(t, err)
 }
 
 func assertTxSuccess(t *testing.T, count *int, tx *types.Transaction, err error) {
-	*count++
+	if count != nil {
+		*count++
+	}
 	assert.Empty(t, err)
 	if tx != nil {
 		_, err = bind.WaitMined(context.Background(), env.Client, tx)
@@ -28,7 +35,9 @@ func assertTxSuccess(t *testing.T, count *int, tx *types.Transaction, err error)
 }
 
 func assertTxFail(t *testing.T, count *int, tx *types.Transaction, err error) {
-	*count++
+	if count != nil {
+		*count++
+	}
 	assert.NotEmpty(t, err)
 	if tx != nil {
 		_, err = bind.WaitMined(context.Background(), env.Client, tx)
@@ -36,7 +45,9 @@ func assertTxFail(t *testing.T, count *int, tx *types.Transaction, err error) {
 	}
 }
 
-func  assertEqual(t *testing.T, count *int, expect interface{}, actual interface{}) {
-	*count++
+func assertEqual(t *testing.T, count *int, expect interface{}, actual interface{}) {
+	if count != nil {
+		*count++
+	}
 	assert.Equal(t, expect, actual)
 }

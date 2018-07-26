@@ -10,10 +10,13 @@ import (
 	"encoding/binary"
 	"math/big"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // CoOperativeSettleForContracts : param for CoOperativeSettle
@@ -72,8 +75,6 @@ func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	for index1 == index2 {
 		index2 = rand.Intn(n)
 	}
-	t.Logf("a1=%s", env.Accounts[index1].Address.String())
-	t.Logf("a2=%s", env.Accounts[index2].Address.String())
 	return env.Accounts[index1], env.Accounts[index2]
 }
 
@@ -89,20 +90,18 @@ func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Accoun
 	for index3 == index1 || index3 == index2 {
 		index3 = rand.Intn(n)
 	}
-	t.Logf("a1=%s", env.Accounts[index1].Address.String())
-	t.Logf("a2=%s", env.Accounts[index2].Address.String())
-	t.Logf("a3=%s", env.Accounts[index3].Address.String())
 	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
 }
 
-func getCooperativeSettleParams(a1,a2 *Account, balanceA1,balanceA2 *big.Int) (*CoOperativeSettleForContracts){
+func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
 	channelID, _, openBlockNumber, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
 	if err != nil {
 		panic(err)
 	}
-	if state != ChannelStateOpened {
+	if state == ChannelStateSettledOrNotExist {
 		return nil
-	} else {
+	}
+	if state == ChannelStateOpened {
 		balanceA1, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
 		if err != nil {
 			panic(err)
@@ -128,9 +127,15 @@ func getCooperativeSettleParams(a1,a2 *Account, balanceA1,balanceA2 *big.Int) (*
 	}
 }
 
-func openChannelAndDeposit(a1,a2 *Account, depositA1,depositA2 *big.Int, settleTimeout uint64) {
+func openChannelAndDeposit(a1, a2 *Account, depositA1, depositA2 *big.Int, settleTimeout uint64) {
 	cooperativeSettleChannelIfExists(a1, a2)
-	tx, err := env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, depositA1)
+	var tx *types.Transaction
+	var err error
+	if depositA1.Int64() > 0 {
+		tx, err = env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, depositA1)
+	} else {
+		tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, settleTimeout)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -138,12 +143,25 @@ func openChannelAndDeposit(a1,a2 *Account, depositA1,depositA2 *big.Int, settleT
 	if err != nil {
 		panic(err)
 	}
-	tx, err = env.TokenNetwork.Deposit(a2.Auth, a2.Address, a1.Address, depositA2)
-	if err != nil {
-		panic(err)
+	if depositA2.Int64() > 0 {
+		tx, err = env.TokenNetwork.Deposit(a2.Auth, a2.Address, a1.Address, depositA2)
+		if err != nil {
+			panic(err)
+		}
+		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
 	}
-	_, err = bind.WaitMined(context.Background(), env.Client, tx)
-	if err != nil {
-		panic(err)
+}
+
+func endMsg(name string, count int, accounts ...*Account) string {
+	msg := fmt.Sprintf("%s完成 CaseNum=%d", name, count)
+	if accounts != nil && len(accounts) > 0 {
+		msg = msg + " 使用账号:"
 	}
+	for index, account := range accounts {
+		msg = msg + fmt.Sprintf("a%d=%s ", index+1, account.Address.String())
+	}
+	return msg
 }

@@ -35,7 +35,7 @@ func TestOpenChannelRight(t *testing.T) {
 	assertEqual(t, &count, int64(0), deposit.Int64())
 	assertEqual(t, &count, uint64(0), nonce)
 	assertEqual(t, &count, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
-	t.Logf("OpenChannel 正确调用测试完成,case数量 : %d", count)
+	t.Log(endMsg("OpenChannel 正确调用测试", count, a1, a2))
 }
 
 // TestOpenChannelRight : 异常调用测试
@@ -53,7 +53,7 @@ func TestOpenChannelException(t *testing.T) {
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a2.Address, a1.Address, testSettleTimeout)
 	assertTxFail(t, &count, tx, err)
-	t.Logf("OpenChannel 异常调用测试完成,case数量 : %d", count)
+	t.Log(endMsg("OpenChannel 异常调用测试", count, a1, a2))
 }
 
 // TestOpenChannelEdge : 边界测试
@@ -101,13 +101,13 @@ func TestOpenChannelEdge(t *testing.T) {
 	// settle_timeout = 2700001
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, TestSettleTimeoutMax+1)
 	assertTxFail(t, &count, tx, err)
-	t.Logf("OpenChannel 边界测试完成,case数量 : %d", count)
+	t.Log(endMsg("OpenChannel 边界测试", count, a1, a2))
 }
 
 // TestOpenChannelAttack : 恶意调用测试
-func TestOpenChannelAttack(t *testing.T)  {
+func TestOpenChannelAttack(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
-	t.Logf("OpenChannel 恶意调用测试完成,case数量 : %d", count)
+	t.Log(endMsg("OpenChannel 恶意调用测试", count))
 
 }
