@@ -49,14 +49,14 @@ func (a *API) GetChannelList() (channels string, err error) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelAddress:      c.Key.String(),
-			PartnerAddrses:      c.PartnerAddress.String(),
-			Balance:             c.OurBalance,
-			PartnerBalance:      c.PartnerBalance,
-			LockedAmount:        c.OurAmountLocked,
-			PartnerLockedAmount: c.PartnerAmountLocked,
+			ChannelAddress:      common.BytesToHash(c.Key).String(),
+			PartnerAddrses:      c.PartnerAddress().String(),
+			Balance:             c.OurBalance(),
+			PartnerBalance:      c.PartnerBalance(),
+			LockedAmount:        c.OurAmountLocked(),
+			PartnerLockedAmount: c.PartnerAmountLocked(),
 			State:               c.State,
-			TokenAddress:        c.TokenAddress.String(),
+			TokenAddress:        c.TokenAddress().String(),
 			SettleTimeout:       c.SettleTimeout,
 			RevealTimeout:       c.RevealTimeout,
 		}
@@ -71,30 +71,30 @@ func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelAddress, channel, err))
 	}()
-	chaddr := common.HexToAddress(channelAddress)
+	chaddr := common.HexToHash(channelAddress)
 	c, err := a.api.GetChannel(chaddr)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelDataDetail{
-		ChannelAddress:           c.Key.String(),
-		PartnerAddrses:           c.PartnerAddress.String(),
-		Balance:                  c.OurBalance,
-		PartnerBalance:           c.PartnerBalance,
+		ChannelAddress:           common.BytesToHash(c.Key).String(),
+		PartnerAddrses:           c.PartnerAddress().String(),
+		Balance:                  c.OurBalance(),
+		PartnerBalance:           c.PartnerBalance(),
 		State:                    c.State,
 		SettleTimeout:            c.SettleTimeout,
-		TokenAddress:             c.TokenAddress.String(),
-		LockedAmount:             c.OurAmountLocked,
-		PartnerLockedAmount:      c.PartnerAmountLocked,
+		TokenAddress:             c.TokenAddress().String(),
+		LockedAmount:             c.OurAmountLocked(),
+		PartnerLockedAmount:      c.PartnerAmountLocked(),
 		ClosedBlock:              c.ClosedBlock,
 		SettledBlock:             c.SettledBlock,
 		OurLeaves:                c.OurLeaves,
 		PartnerLeaves:            c.PartnerLeaves,
-		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks,
-		OurUnkownSecretLocks:     c.OurLock2PendingLocks,
-		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks,
-		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks,
+		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks(),
+		OurUnkownSecretLocks:     c.OurLock2PendingLocks(),
+		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks(),
+		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks(),
 		OurBalanceProof:          c.OurBalanceProof,
 		PartnerBalanceProof:      c.PartnerBalanceProof,
 	}
@@ -118,22 +118,22 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.Key.String(),
-		PartnerAddrses:      c.PartnerAddress.String(),
-		Balance:             c.OurBalance,
-		PartnerBalance:      c.PartnerBalance,
+		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
 		State:               c.State,
 		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
-		LockedAmount:        c.OurAmountLocked,
-		PartnerLockedAmount: c.PartnerAmountLocked,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
 	}
 	if balance.Cmp(utils.BigInt0) > 0 {
-		err = a.api.Deposit(tokenAddr, partnerAddr, balance, params.DefaultPollTimeout)
+		c, err = a.api.Deposit(tokenAddr, partnerAddr, balance, params.DefaultPollTimeout)
 		if err == nil {
-			d.Balance = c.OurBalance
+			d.Balance = c.OurBalance()
 		} else {
-			log.Error(fmt.Sprint(" RaidenAPI.Deposit error : %s", err))
+			log.Error(fmt.Sprintf(" RaidenAPI.Deposit error : %s", err))
 			return
 		}
 	}
@@ -149,27 +149,27 @@ func (a *API) CloseChannel(channelAddress string) (channel string, err error) {
 			channelAddress, channel, err,
 		))
 	}()
-	chAddr := common.HexToAddress(channelAddress)
+	chAddr := common.HexToHash(channelAddress)
 	c, err := a.api.GetChannel(chAddr)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
-	c, err = a.api.Close(c.TokenAddress, c.PartnerAddress)
+	c, err = a.api.Close(c.TokenAddress(), c.PartnerAddress())
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.Key.String(),
-		PartnerAddrses:      c.PartnerAddress.String(),
-		Balance:             c.OurBalance,
-		PartnerBalance:      c.PartnerBalance,
+		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
 		State:               c.State,
 		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
-		LockedAmount:        c.OurAmountLocked,
-		PartnerLockedAmount: c.PartnerAmountLocked,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
 	}
 	channel, err = marshal(d)
 	return
@@ -183,27 +183,27 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 		))
 	}()
 
-	chAddr := common.HexToAddress(channelAddres)
+	chAddr := common.HexToHash(channelAddres)
 	c, err := a.api.GetChannel(chAddr)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
-	c, err = a.api.Settle(c.TokenAddress, c.PartnerAddress)
+	c, err = a.api.Settle(c.TokenAddress(), c.PartnerAddress())
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      c.Key.String(),
-		PartnerAddrses:      c.PartnerAddress.String(),
-		Balance:             c.OurBalance,
-		PartnerBalance:      c.PartnerBalance,
+		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
 		State:               c.State,
 		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
-		LockedAmount:        c.OurAmountLocked,
-		PartnerLockedAmount: c.PartnerAmountLocked,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
 	}
 	channel, err = marshal(d)
 	return
@@ -216,30 +216,30 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 			channelAddres, balanceStr, channel, err,
 		))
 	}()
-	chAddr := common.HexToAddress(channelAddres)
+	chAddr := common.HexToHash(channelAddres)
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
 	c, err := a.api.GetChannel(chAddr)
 	if err != nil {
-		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.APex(chAddr), err))
+		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(chAddr), err))
 		return
 	}
-	err = a.api.Deposit(c.TokenAddress, c.PartnerAddress, balance, params.DefaultPollTimeout)
+	c, err = a.api.Deposit(c.TokenAddress(), c.PartnerAddress(), balance, params.DefaultPollTimeout)
 	if err != nil {
-		log.Error(fmt.Sprintf("Deposit to %s:%s err %s", utils.APex(c.TokenAddress),
-			utils.APex(c.PartnerAddress), err))
+		log.Error(fmt.Sprintf("Deposit to %s:%s err %s", utils.APex(c.TokenAddress()),
+			utils.APex(c.PartnerAddress()), err))
 		return
 	}
 
 	d := &v1.ChannelData{
-		ChannelAddress:      c.Key.String(),
-		PartnerAddrses:      c.PartnerAddress.String(),
-		Balance:             c.OurBalance,
-		PartnerBalance:      c.PartnerBalance,
+		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
 		State:               c.State,
 		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress.String(),
-		LockedAmount:        c.OurAmountLocked,
-		PartnerLockedAmount: c.PartnerAmountLocked,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
 	}
 	channel, err = marshal(d)
 	return
@@ -270,7 +270,7 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 
 //ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
 func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (eventsString string, err error) {
-	channel := common.HexToAddress(channelAddress)
+	channel := common.HexToHash(channelAddress)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -310,7 +310,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 	var datas []*partnersData
 	for _, c := range chs {
 		d := &partnersData{
-			PartnerAddress: c.PartnerAddress.String(),
+			PartnerAddress: c.PartnerAddress().String(),
 			Channel:        "api/1/channles/" + c.OurAddress.String(),
 		}
 		datas = append(datas, d)
@@ -377,7 +377,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 TokenSwap token swap for maker
 role: "maker" or "taker"
 */
-func (a *API) TokenSwap(role string, Identifier int64, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string) (err error) {
+func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string) (err error) {
 	type Req struct {
 		Role            string   `json:"role"`
 		SendingAmount   *big.Int `json:"sending_amount"`
@@ -388,17 +388,17 @@ func (a *API) TokenSwap(role string, Identifier int64, SendingAmountStr, Receivi
 
 	var target common.Address
 	target = common.HexToAddress(TargetAddress)
-	if Identifier <= 0 {
-		err = errors.New("LockSecretHash must be positive")
+	if len(Identifier) <= 0 {
+		err = errors.New("LockSecretHash must not be empty")
 		return
 	}
 	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
 	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
 	if role == "maker" {
-		err = a.api.TokenSwapAndWait(uint64(Identifier), common.HexToAddress(SendingToken), common.HexToAddress(ReceivingToken),
+		err = a.api.TokenSwapAndWait(Identifier, common.HexToAddress(SendingToken), common.HexToAddress(ReceivingToken),
 			a.api.Raiden.NodeAddress, target, SendingAmount, ReceivingAmount)
 	} else if role == "taker" {
-		err = a.api.ExpectTokenSwap(uint64(Identifier), common.HexToAddress(ReceivingToken), common.HexToAddress(SendingToken),
+		err = a.api.ExpectTokenSwap(Identifier, common.HexToAddress(ReceivingToken), common.HexToAddress(SendingToken),
 			target, a.api.Raiden.NodeAddress, ReceivingAmount, SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", role)
@@ -469,9 +469,9 @@ ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
 */
 func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
-	channelAddr := common.HexToAddress(channelAddress)
+	channelAddr := common.HexToHash(channelAddress)
 	thirdPartyAddr := common.HexToAddress(thirdPartyAddress)
-	if channelAddr == utils.EmptyAddress || thirdPartyAddr == utils.EmptyAddress {
+	if channelAddr == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
 		err = errors.New("invalid argument")
 		return
 	}
