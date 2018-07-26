@@ -340,7 +340,7 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	if err != nil {
 		return err
 	}
-	g := graph.NewChannelGraph(eh.raiden.NodeAddress, st.TokenAddress, nil, nil)
+	g := graph.NewChannelGraph(eh.raiden.NodeAddress, st.TokenAddress, nil)
 	eh.raiden.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	eh.raiden.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	eh.raiden.Token2ChannelGraph[tokenAddress] = g

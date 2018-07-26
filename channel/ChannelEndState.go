@@ -43,7 +43,7 @@ type EndState struct {
 	ContractBalance     *big.Int                                //lock protect race codition with raidenapi
 	Lock2PendingLocks   map[common.Hash]channeltype.PendingLock //the lock I have sent
 	Lock2UnclaimedLocks map[common.Hash]channeltype.UnlockPartialProof
-	tree                *mtree.Merkletree
+	Tree                *mtree.Merkletree
 	BalanceProofState   *transfer.BalanceProofState //race codition with raidenapi
 }
 
@@ -53,7 +53,7 @@ func NewChannelEndState(participantAddress common.Address, participantBalance *b
 	c := &EndState{
 		Address:             participantAddress,
 		ContractBalance:     participantBalance,
-		tree:                tree,
+		Tree:                tree,
 		BalanceProofState:   balanceProof,
 		Lock2PendingLocks:   make(map[common.Hash]channeltype.PendingLock),
 		Lock2UnclaimedLocks: make(map[common.Hash]channeltype.UnlockPartialProof),
@@ -195,10 +195,10 @@ computeMerkleRootWith Compute the resulting merkle root if the lock `include` is
 */
 func (node *EndState) computeMerkleRootWith(include *mtree.Lock) (tree *mtree.Merkletree, hash common.Hash) {
 	if !node.IsKnown(include.LockSecretHash) {
-		tree := node.tree.ComputeMerkleRootWith(include)
+		tree := node.Tree.ComputeMerkleRootWith(include)
 		return tree, tree.MerkleRoot()
 	}
-	return nil, node.tree.MerkleRoot()
+	return nil, node.Tree.MerkleRoot()
 }
 
 /*
@@ -208,7 +208,7 @@ func (node *EndState) computeMerkleRootWithout(without *mtree.Lock) (*mtree.Merk
 	if !node.IsKnown(without.LockSecretHash) {
 		return nil, utils.EmptyHash, errUnknownLock
 	}
-	newtree, err := node.tree.ComputeMerkleRootWithout(without)
+	newtree, err := node.Tree.ComputeMerkleRootWithout(without)
 	if err != nil {
 		return nil, utils.EmptyHash, err
 	}
@@ -253,7 +253,6 @@ func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMess
 		return errors.New("hashlock is already registered")
 	}
 	newtree, locksroot := node.computeMerkleRootWith(lock)
-	lockhashed := utils.Sha3(lock.AsBytes())
 	if balanceProof.LocksRoot != locksroot {
 		return &InvalidLocksRootError{
 			ExpectedLocksroot: locksroot,
@@ -262,10 +261,10 @@ func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMess
 	}
 	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{
 		Lock:     lock,
-		LockHash: lockhashed,
+		LockHash: lock.Hash(),
 	}
 	node.BalanceProofState = balanceProof
-	node.tree = newtree
+	node.Tree = newtree
 	return nil
 }
 
@@ -282,8 +281,8 @@ locksroot 必须相等.
 */
 func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTransfer) error {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(directTransfer)
-	if balanceProof.LocksRoot != node.tree.MerkleRoot() {
-		return &InvalidLocksRootError{node.tree.MerkleRoot(), balanceProof.LocksRoot}
+	if balanceProof.LocksRoot != node.Tree.MerkleRoot() {
+		return &InvalidLocksRootError{node.Tree.MerkleRoot(), balanceProof.LocksRoot}
 	}
 	node.BalanceProofState = balanceProof
 	return nil
@@ -345,7 +344,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	/*
 		确保所有的信息都是正确的,才能更新状态
 	*/
-	node.tree = newtree
+	node.Tree = newtree
 	node.BalanceProofState = balanceProof
 	return nil
 }
@@ -383,7 +382,7 @@ func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (e
 		LockHash: lockhashed,
 	}
 	node.BalanceProofState = balanceProof
-	node.tree = newtree
+	node.Tree = newtree
 	return nil
 }
 
@@ -454,7 +453,7 @@ func (node *EndState) RegisterRevealedSecretHash(lockSecretHash common.Hash, blo
 
 //GetKnownUnlocks generate unlocking proofs for the known secrets
 func (node *EndState) GetKnownUnlocks() []*channeltype.UnlockProof {
-	tree := node.tree
+	tree := node.Tree
 	var proofs []*channeltype.UnlockProof
 	for _, v := range node.Lock2UnclaimedLocks {
 		proof := ComputeProofForLock(v.Lock, tree)

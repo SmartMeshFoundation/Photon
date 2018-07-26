@@ -14,7 +14,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/dijkstra"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
@@ -44,19 +43,6 @@ type NodesStatusGetter interface {
 	GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool)
 }
 
-/*
-ChannelDetails represents all channel info
-*/
-type ChannelDetails struct {
-	ChannelIdentifier common.Hash
-	OpenBlockNumber   int64
-	OurState          *channel.EndState
-	PartenerState     *channel.EndState
-	ExternState       *channel.ExternalState
-	RevealTimeout     int
-	SettleTimeout     int
-}
-
 //ChannelGraph is a Graph based on the channels and can find path between participants.
 //整个 ChannelGraph 只能单线程访问
 type ChannelGraph struct {
@@ -72,7 +58,7 @@ type ChannelGraph struct {
 /*
 NewChannelGraph create ChannelGraph,one token one channelGraph
 */
-func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Address, channelDetails []*ChannelDetails) *ChannelGraph {
+func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Address) *ChannelGraph {
 	cg := &ChannelGraph{
 		OurAddress:              ourAddress,
 		TokenAddress:            tokenAddress,
@@ -83,14 +69,6 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Add
 		g:                       dijkstra.NewGraph(),
 	}
 	cg.makeGraph(edges)
-	for _, d := range channelDetails {
-		err := cg.AddChannel(d)
-		if err != nil {
-			log.Error(fmt.Sprintf("'Error at registering opened channel contract. Perhaps contract is invalid? err=%s, channeladdress=%s",
-				err, utils.HPex(d.ChannelIdentifier)))
-			cg.RemovePath(d.OurState.Address, d.PartenerState.Address)
-		}
-	}
 	cg.printGraph()
 	return cg
 }
@@ -167,25 +145,17 @@ AddChannel Instantiate a channel this node participates and add to the graph.
 
         If the channel is already registered do nothing.
 */
-func (cg *ChannelGraph) AddChannel(details *ChannelDetails) error {
-	if details.OurState.Address != cg.OurAddress {
+func (cg *ChannelGraph) AddChannel(ch *channel.Channel) error {
+	if ch.OurState.Address != cg.OurAddress {
 		return errors.New("Address mismatch, our_address doesn't match the channel details")
 	}
-	channelIdentifier := &contracts.ChannelUniqueID{
-		ChannelIdentifier: details.ChannelIdentifier,
-		OpenBlockNumber:   details.OpenBlockNumber,
-	}
-	channelAddress := details.ChannelIdentifier
-	if ch := cg.GetChannelAddress2Channel(channelIdentifier.ChannelIdentifier); ch == nil {
-		ch, err := channel.NewChannel(details.OurState, details.PartenerState,
-			details.ExternState, cg.TokenAddress, channelIdentifier,
-			details.RevealTimeout, details.SettleTimeout)
-		if err != nil {
-			return err
-		}
-		cg.PartenerAddress2Channel[details.PartenerState.Address] = ch
-		cg.ChannelAddress2Channel[channelAddress] = ch
-		cg.AddPath(details.OurState.Address, details.PartenerState.Address)
+	if ch2 := cg.GetChannelAddress2Channel(ch.ChannelIdentifier.ChannelIdentifier); ch2 == nil {
+
+		cg.PartenerAddress2Channel[ch.PartnerState.Address] = ch
+		cg.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier] = ch
+		cg.AddPath(ch.OurState.Address, ch.PartnerState.Address)
+	} else {
+		log.Info(fmt.Sprintf("add channel %s,but channel already exist", ch.ChannelIdentifier))
 	}
 	return nil
 }
@@ -292,8 +262,14 @@ func (cg *ChannelGraph) RemovePath(source, target common.Address) {
 	if !ok {
 		return
 	}
-	cg.g.DeleteArc(sourceIndex, targetIndex)
-	cg.g.DeleteArc(targetIndex, sourceIndex)
+	err := cg.g.DeleteArc(sourceIndex, targetIndex)
+	if err != nil {
+		log.Error(fmt.Sprintf("remove arc %d-%d err %s", sourceIndex, targetIndex, err))
+	}
+	err = cg.g.DeleteArc(targetIndex, sourceIndex)
+	if err != nil {
+		log.Error(fmt.Sprintf("remove arc %d-%d err %s", sourceIndex, targetIndex, err))
+	}
 }
 
 /*

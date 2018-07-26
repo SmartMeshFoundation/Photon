@@ -53,8 +53,8 @@ func TestEndState(t *testing.T) {
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 
-	assert.Equal(t, state1.tree.MerkleRoot(), utils.EmptyHash)
-	assert.Equal(t, state2.tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.EqualValues(t, state1.nonce(), 0)
 	assert.EqualValues(t, state2.nonce(), 0)
 	lock := &mtree.Lock{
@@ -99,8 +99,8 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), true)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
@@ -120,8 +120,8 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), true)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
@@ -142,8 +142,8 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
@@ -164,8 +164,8 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.tree.MerkleRoot(), utils.EmptyHash)
-	assert.Equal(t, state2.tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 2)
 	assert.EqualValues(t, state2.nonce(), 0)
@@ -432,8 +432,8 @@ Assert that `channel0` has a correct `partner_state` to represent
     `channel1` and vice-versa.
 */
 func assertMirror(ch0, ch1 *Channel, t *testing.T) {
-	unclaimed0 := ch0.OurState.tree.MerkleRoot()
-	unclaimed1 := ch1.PartnerState.tree.MerkleRoot()
+	unclaimed0 := ch0.OurState.Tree.MerkleRoot()
+	unclaimed1 := ch1.PartnerState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
 	assert.EqualValues(t, ch0.OurState.amountLocked(), ch1.PartnerState.amountLocked())
@@ -445,8 +445,8 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.Distributable(ch0.PartnerState))
 	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.Distributable(ch1.OurState))
 
-	unclaimed0 = ch1.OurState.tree.MerkleRoot()
-	unclaimed1 = ch0.PartnerState.tree.MerkleRoot()
+	unclaimed0 = ch1.OurState.Tree.MerkleRoot()
+	unclaimed1 = ch0.PartnerState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
 	assert.EqualValues(t, ch1.OurState.amountLocked(), ch0.PartnerState.amountLocked())
@@ -467,7 +467,7 @@ func assertLocked(ch *Channel, pendingLocks []*mtree.Lock, t *testing.T) {
 		root = tree.MerkleRoot()
 	}
 	assert.EqualValues(t, len(ch.OurState.Lock2PendingLocks), len(pendingLocks))
-	assert.EqualValues(t, ch.OurState.tree.MerkleRoot(), root)
+	assert.EqualValues(t, ch.OurState.Tree.MerkleRoot(), root)
 	var sum = big.NewInt(0)
 	for _, lock := range pendingLocks {
 		sum.Add(sum, lock.Amount)
@@ -652,7 +652,7 @@ func TestRegisterInvalidTransfer(t *testing.T) {
 	assertSyncedChannels(ch0, balance0, nil,
 		ch1, balance1, []*mtree.Lock{transfer1.GetLock()}, t)
 	// handcrafted transfer because channel.create_transfer won't create it
-	transfer2 := encoding.NewDirectTransfer(encoding.NewBalanceProof(ch0.GetNextNonce(), x.Add(ch1.Balance(), balance0).Add(x, amount), ch0.PartnerState.tree.MerkleRoot(), &ch0.ChannelIdentifier))
+	transfer2 := encoding.NewDirectTransfer(encoding.NewBalanceProof(ch0.GetNextNonce(), x.Add(ch1.Balance(), balance0).Add(x, amount), ch0.PartnerState.Tree.MerkleRoot(), &ch0.ChannelIdentifier))
 	transfer2.Sign(ch0.ExternState.privKey, transfer2)
 	err = ch0.RegisterTransfer(blockNumber, transfer2)
 	assert.Equal(t, err != nil, true)
@@ -918,6 +918,11 @@ func TestChannel_RegisterWithdrawRequest(t *testing.T) {
 		t.Error("have lock doesn't allow withdraw")
 		return
 	}
+	err = ch0.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
 	if err != nil {
 		t.Error(err)
@@ -1011,6 +1016,11 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 	_, err = ch1.CreateCooperativeSettleRequest()
 	if err == nil {
 		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	err = ch0.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
 		return
 	}
 	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))

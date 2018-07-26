@@ -23,18 +23,15 @@ Channel is the living representation of  channel on blockchain.
 it contains all the transfers between two participants.
 */
 type Channel struct {
-	OurState             *EndState
-	PartnerState         *EndState
-	ExternState          *ExternalState
-	ChannelIdentifier    contracts.ChannelUniqueID //this channel
-	TokenAddress         common.Address
-	RevealTimeout        int
-	SettleTimeout        int
-	ReceivedTransfers    []encoding.SignedMessager
-	SentTransfers        []encoding.SignedMessager
-	IsCloseEventComplete bool        //channel close event has been processed  completely  ,  crash when processing close event
-	feeCharger           fee.Charger //calc fee for each transfer?
-	State                channeltype.State
+	OurState          *EndState
+	PartnerState      *EndState
+	ExternState       *ExternalState
+	ChannelIdentifier contracts.ChannelUniqueID //this channel
+	TokenAddress      common.Address
+	RevealTimeout     int
+	SettleTimeout     int
+	feeCharger        fee.Charger //calc fee for each transfer?
+	State             channeltype.State
 }
 
 /*
@@ -510,7 +507,7 @@ func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNum
 	if newlocksroot != msg.Locksroot {
 		return &InvalidLocksRootError{ExpectedLocksroot: newlocksroot, GotLocksroot: msg.Locksroot}
 	}
-	fromState.tree = newtree
+	fromState.Tree = newtree
 	err = fromState.registerRemoveLock(messager, lockSecretHash)
 	if err == nil {
 		c.ExternState.db.RemoveLock(c.ChannelIdentifier.ChannelIdentifier, fromState.Address, lockSecretHash)
@@ -555,7 +552,7 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int) (tr *encoding.DirectTran
 		return nil, rerr.ErrInsufficientFunds
 	}
 	transferAmount := new(big.Int).Add(from.TransferAmount(), amount)
-	currentLocksroot := to.tree.MerkleRoot()
+	currentLocksroot := to.Tree.MerkleRoot()
 	nonce := c.GetNextNonce()
 	bp := encoding.NewBalanceProof(nonce, transferAmount, currentLocksroot, &c.ChannelIdentifier)
 	tr = encoding.NewDirectTransfer(bp)
@@ -1048,8 +1045,8 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		RevealTimeout:          c.RevealTimeout,
 		OurBalanceProof:        c.OurState.BalanceProofState,
 		PartnerBalanceProof:    c.PartnerState.BalanceProofState,
-		OurLeaves:              c.OurState.tree.Leaves,
-		PartnerLeaves:          c.PartnerState.tree.Leaves,
+		OurLeaves:              c.OurState.Tree.Leaves,
+		PartnerLeaves:          c.PartnerState.Tree.Leaves,
 		OurKnownSecrets:        ourSecrets,
 		PartnerKnownSecrets:    partnerSecrets,
 		State:                  c.State,
