@@ -4,19 +4,19 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"math/big"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"crypto/ecdsa"
 	"bytes"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"encoding/binary"
 	"context"
+	"crypto/ecdsa"
+	"encoding/binary"
+	"math/big"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
+// CoOperativeSettleForContracts : param for CoOperativeSettle
 type CoOperativeSettleForContracts struct {
 	Particiant1         common.Address
 	Participant2        common.Address
@@ -44,39 +44,15 @@ func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	return sig
 }
 
-func cooperativeSettleChannelIfExists(t *testing.T, a1 *Account, a2 *Account) {
-	// get channel info between a1 and a2
-	channelID, _, openBlockNumber, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
-	if state == ChannelStateSettledOrNotExist{
+func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
+	cs := getCooperativeSettleParams(a1, a2, big.NewInt(0), big.NewInt(0))
+	if cs == nil {
 		return
-	}
-	t.Logf("channel between %s and %s already exists, close first ...", a1.Address.String(), a2.Address.String())
-	depositA1, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
-	if err != nil {
-		panic(err)
-	}
-	depositA2, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
-	if err != nil {
-		panic(err)
-	}
-	ChainID, err := env.TokenNetwork.Chain_id(nil)
-	if err != nil {
-		panic(err)
-	}
-	cs := &CoOperativeSettleForContracts{
-		Particiant1:         a1.Address,
-		Participant2:        a2.Address,
-		Participant1Balance: depositA1,
-		Participant2Balance: depositA2,
-		ChannelIdentifier:   channelID,
-		OpenBlockNumber:     openBlockNumber,
-		ChainID:             ChainID,
-		TokenNetworkAddress: env.TokenNetworkAddress,
 	}
 	tx, err := env.TokenNetwork.CooperativeSettle(
 		a1.Auth,
-		a1.Address, depositA1,
-		a2.Address, depositA2,
+		a1.Address, cs.Participant1Balance,
+		a2.Address, cs.Participant2Balance,
 		cs.sign(a1.Key),
 		cs.sign(a2.Key))
 	if err != nil {
@@ -96,32 +72,78 @@ func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	for index1 == index2 {
 		index2 = rand.Intn(n)
 	}
-	t.Logf("a1=%s a2=%s", env.Accounts[index1].Address.String(), env.Accounts[index2].Address.String())
+	t.Logf("a1=%s", env.Accounts[index1].Address.String())
+	t.Logf("a2=%s", env.Accounts[index2].Address.String())
 	return env.Accounts[index1], env.Accounts[index2]
 }
 
-func assertError(t *testing.T, err error) {
+func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Account) {
+	var index1, index2, index3 int
+	n := len(env.Accounts)
+	index1 = rand.Intn(n)
+	index2 = rand.Intn(n)
+	index3 = rand.Intn(n)
+	for index1 == index2 {
+		index2 = rand.Intn(n)
+	}
+	for index3 == index1 || index3 == index2 {
+		index3 = rand.Intn(n)
+	}
+	t.Logf("a1=%s", env.Accounts[index1].Address.String())
+	t.Logf("a2=%s", env.Accounts[index2].Address.String())
+	t.Logf("a3=%s", env.Accounts[index3].Address.String())
+	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
+}
+
+func getCooperativeSettleParams(a1,a2 *Account, balanceA1,balanceA2 *big.Int) (*CoOperativeSettleForContracts){
+	channelID, _, openBlockNumber, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
 	if err != nil {
-		assert.NotEmpty(t, err, err.Error())
+		panic(err)
+	}
+	if state != ChannelStateOpened {
+		return nil
+	} else {
+		balanceA1, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
+		if err != nil {
+			panic(err)
+		}
+		balanceA2, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
+		if err != nil {
+			panic(err)
+		}
+	}
+	ChainID, err := env.TokenNetwork.Chain_id(nil)
+	if err != nil {
+		panic(err)
+	}
+	return &CoOperativeSettleForContracts{
+		Particiant1:         a1.Address,
+		Participant2:        a2.Address,
+		Participant1Balance: balanceA1,
+		Participant2Balance: balanceA2,
+		ChannelIdentifier:   channelID,
+		OpenBlockNumber:     openBlockNumber,
+		ChainID:             ChainID,
+		TokenNetworkAddress: env.TokenNetworkAddress,
 	}
 }
 
-func assertErrorWithMsg(t *testing.T, err error, msg string) {
+func openChannelAndDeposit(a1,a2 *Account, depositA1,depositA2 *big.Int, settleTimeout uint64) {
+	cooperativeSettleChannelIfExists(a1, a2)
+	tx, err := env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, depositA1)
 	if err != nil {
-		assert.NotEmpty(t, err, msg)
+		panic(err)
 	}
-}
-
-func waitAndAssertSuccess(t *testing.T, tx *types.Transaction, err error) {
-	assert.Empty(t, err)
 	_, err = bind.WaitMined(context.Background(), env.Client, tx)
-	assert.Empty(t, err)
-}
-
-func waitAndAssertError(t *testing.T, tx *types.Transaction, err error) {
-	assert.NotEmpty(t, err)
-	if tx != nil {
-		_, err = bind.WaitMined(context.Background(), env.Client, tx)
-		assert.NotEmpty(t, err)
+	if err != nil {
+		panic(err)
+	}
+	tx, err = env.TokenNetwork.Deposit(a2.Auth, a2.Address, a1.Address, depositA2)
+	if err != nil {
+		panic(err)
+	}
+	_, err = bind.WaitMined(context.Background(), env.Client, tx)
+	if err != nil {
+		panic(err)
 	}
 }
