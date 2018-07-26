@@ -197,7 +197,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 				}
 				d.Balance = c2.OurBalance()
 			} else {
-				log.Error(fmt.Sprint(" RaidenAPI.Deposit error : %s", err))
+				log.Error(fmt.Sprintf(" RaidenAPI.Deposit error : %s", err))
 			}
 		}
 		w.WriteJson(d)

@@ -80,6 +80,11 @@ var eventAbiMap = map[string]string{
 	params.NameWithdrawn:               monitoringcontracts.MonitoringServiceABI,
 }
 
+/*
+现在channel 所有信息主要是通过事件获取,连接断开过程中发生的事件是无法通过监听获取到,
+必须 get 才行.
+要保证事件不遗漏,可以重复
+*/
 func (be *Events) installEventListener() (err error) {
 	var sub ethereum.Subscription
 	defer func() {
@@ -90,27 +95,27 @@ func (be *Events) installEventListener() (err error) {
 				log.Error(fmt.Sprintf("uninstallEventListener err %s", err))
 			}
 		} else {
-			//if ethclient reconnect
-			/*
-				todo 断了重连,也需要再次获取所有相关事件,否则会丢失事件.
-			*/
-			c := be.client.RegisterReConnectNotify("Events")
-			go func() {
-				defer rpanic.PanicRecover("installEventListener")
-				select {
-				case _, ok := <-c:
-					if ok {
-						//eventlistener need reinstall
-						err = be.installEventListener()
-						if err != nil {
-							log.Error(fmt.Sprintf("installEventListener err %s", err))
-						}
-					}
-				case <-be.quitChan:
-					return
-				}
-
-			}()
+			////if ethclient reconnect
+			///*
+			//	todo 断了重连,也需要再次获取所有相关事件,否则会丢失事件.
+			//*/
+			//c := be.client.RegisterReConnectNotify("Events")
+			//go func() {
+			//	defer rpanic.PanicRecover("installEventListener")
+			//	select {
+			//	case _, ok := <-c:
+			//		if ok {
+			//			//eventlistener need reinstall
+			//			err = be.installEventListener()
+			//			if err != nil {
+			//				log.Error(fmt.Sprintf("installEventListener err %s", err))
+			//			}
+			//		}
+			//	case <-be.quitChan:
+			//		return
+			//	}
+			//
+			//}()
 		}
 	}()
 	for name := range eventAbiMap {
@@ -411,7 +416,7 @@ func (be *Events) sendStateChange(st mediatedtransfer.ContractStateChange) {
 	if be.stopped {
 		return
 	}
-	log.Trace(fmt.Sprintf("send statechange %s", utils.StringInterface(st, 2)))
+	//	log.Trace(fmt.Sprintf("send statechange %s", utils.StringInterface(st, 2)))
 	if be.historyEventsGot {
 		be.StateChangeChannel <- st
 	} else {

@@ -244,21 +244,18 @@ func (rs *RaidenService) Start() (err error) {
 			err = fmt.Errorf("Events listener error %v", err)
 			return
 		}
-		/*
-			  Registry registration must start *after* the alarm task, rs avoid
-				 corner cases were the registry is queried in block A, a new block B
-				 is mined, and the alarm starts polling at block C.
-		*/
-		rs.registerRegistry()
+
 		rs.ethInited = true
 	} else {
 		log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
 		rs.ethInited = false
-		err = rs.startWithoutEthRPC()
-		if err != nil {
-
-		}
 	}
+	/*
+		  Registry registration must start *after* the alarm task, rs avoid
+			 corner cases were the registry is queried in block A, a new block B
+			 is mined, and the alarm starts polling at block C.
+	*/
+	rs.registerRegistry()
 
 	err = rs.restoreSnapshot()
 	if err != nil {
@@ -306,77 +303,6 @@ func (rs *RaidenService) Start() (err error) {
 	}()
 	return nil
 }
-func (rs *RaidenService) startWithoutEthRPC() (err error) {
-	log.Info("start raiden service without eth connection")
-	/*
-	   从数据库中把 channel 状态恢复了,等连接上以后再重新把链上信息取过来初始化.
-	*/
-	chmap := make(map[common.Address][]*channeltype.Serialization)
-	cs, err := rs.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
-	if err != nil {
-		return
-	}
-	//group by token
-	for _, c := range cs {
-		if c.State == channeltype.StateSettled {
-			continue
-		}
-		cs2 := chmap[c.TokenAddress()]
-		cs2 = append(cs2, c)
-		chmap[c.TokenAddress()] = cs2
-	}
-	for t, cs := range chmap {
-		var details []*graph.ChannelDetails
-		for _, c := range cs {
-			d := rs.makeChannelDetailFromChannelSerialization(c)
-			details = append(details, d)
-		}
-		graph := graph.NewChannelGraph(rs.NodeAddress, t, nil, details)
-		rs.Token2ChannelGraph[t] = graph
-		rs.Tokens2ConnectionManager[t] = NewConnectionManager(rs, t)
-	}
-	return nil
-}
-func (rs *RaidenService) makeChannelDetailFromChannelSerialization(c *channeltype.Serialization) *graph.ChannelDetails {
-	return nil
-	//tokenAddress := c.TokenAddress
-	//addr1, b1, addr2, b2 := c.OurAddress, c.OurBalance, c.PartnerAddress, c.PartnerBalance
-	//var ourAddr, partnerAddr common.Address
-	//var ourBalance, partnerBalance *big.Int
-	//if addr1 == rs.NodeAddress {
-	//	ourAddr = addr1
-	//	partnerAddr = addr2
-	//	ourBalance = b1
-	//	partnerBalance = b2
-	//} else {
-	//	ourAddr = addr2
-	//	partnerAddr = addr1
-	//	ourBalance = b2
-	//	partnerBalance = b1
-	//}
-	//ourAddr, ourBalance, partnerAddr, partnerBalance = c.OurAddress, c.OurContractBalance, c.PartnerAddress, c.PartnerContractBalance
-	//proxy, err := rs.Chain.TokenNetworkWithoutCheck(c.ChannelAddress)
-	//if err != nil {
-	//	log.Error(fmt.Sprintf("TokenNetworkWithoutCheck err %s", err))
-	//}
-	//ourState := channel.NewChannelEndState(ourAddr, ourBalance, nil, transfer.EmptyMerkleTreeState)
-	//partenerState := channel.NewChannelEndState(partnerAddr, partnerBalance, nil, transfer.EmptyMerkleTreeState)
-	//channelAddress := proxy.Address
-	//registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
-	//	rs.registerChannelForHashlock(tokenAddress, channel, hashlock)
-	//}
-	//externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db, 0, c.ClosedBlock)
-	//channelDetail := &graph.ChannelDetails{
-	//	ChannelIdentifier: channelAddress,
-	//	OurState:          ourState,
-	//	PartenerState:     partenerState,
-	//	ExternState:       externState,
-	//	BlockChainService: rs.Chain,
-	//	RevealTimeout:     rs.Config.RevealTimeout,
-	//	SettleTimeout:     c.SettleTimeout,
-	//}
-	//return channelDetail
-}
 
 //Stop the node.
 func (rs *RaidenService) Stop() {
@@ -409,6 +335,7 @@ func (rs *RaidenService) loop() {
 	var blockNumber int64
 	var req *apiReq
 	var sentMessage *protocolMessage
+	firstWaitTime := time.Second
 	defer rpanic.PanicRecover("raiden service")
 	for {
 		select {
@@ -468,6 +395,13 @@ func (rs *RaidenService) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRRCConnectionOK()
 			}
+		case <-time.After(firstWaitTime):
+			/*
+				由于现在所有信息都是通过
+			*/
+			log.Info("startup complete...")
+			firstWaitTime = time.Hour * 900000
+			//下次不要在超时了.
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
 			return
@@ -497,7 +431,7 @@ i'm one of the channel participants
 收到来自链上的事件,新创建了 channel
 但是事件有可能重复
 */
-func (rs *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *rpc.TokenNetworkProxy, partnerAddress common.Address) (channelDetail *graph.ChannelDetails, err error) {
+func (rs *RaidenService) newChannelFromChain(tokenAddress common.Address, proxy *rpc.TokenNetworkProxy, partnerAddress common.Address) (ch *channel.Channel, err error) {
 	/*
 		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
 		但是保证后续的事件会继续收到,所以应该按照新通道处理.
@@ -525,15 +459,7 @@ func (rs *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *rp
 	}
 
 	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, proxy, channelAddress, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
-	channelDetail = &graph.ChannelDetails{
-		ChannelIdentifier: channelID,
-		OpenBlockNumber:   int64(openBlockNumber),
-		OurState:          ourState,
-		PartenerState:     partenerState,
-		ExternState:       externState,
-		RevealTimeout:     rs.Config.RevealTimeout,
-		SettleTimeout:     int(settleTimeout),
-	}
+	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelAddress, rs.Config.RevealTimeout, int(settleTimeout))
 	return
 }
 
@@ -683,23 +609,31 @@ func (rs *RaidenService) registerChannelForHashlock(netchannel *channel.Channel,
 		rs.Token2Hashlock2Channels[tokenAddress][hashlock] = channelsRegistered
 	}
 }
-func (rs *RaidenService) channelSerilization2ChannelDetail(c *channeltype.Serialization, tokenNetwork *rpc.TokenNetworkProxy) (d *graph.ChannelDetails) {
-	d = &graph.ChannelDetails{
-		ChannelIdentifier: c.ChannelIdentifier.ChannelIdentifier,
-		OpenBlockNumber:   c.ChannelIdentifier.OpenBlockNumber,
-		RevealTimeout:     rs.Config.RevealTimeout,
-		SettleTimeout:     c.SettleTimeout,
-	}
-	d.OurState = channel.NewChannelEndState(c.OurAddress, c.OurContractBalance,
+func (rs *RaidenService) channelSerilization2Channel(c *channeltype.Serialization, tokenNetwork *rpc.TokenNetworkProxy) (ch *channel.Channel, err error) {
+	OurState := channel.NewChannelEndState(c.OurAddress, c.OurContractBalance,
 		c.OurBalanceProof, mtree.NewMerkleTree(c.OurLeaves))
-	d.PartenerState = channel.NewChannelEndState(c.PartnerAddress(),
+	PartnerState := channel.NewChannelEndState(c.PartnerAddress(),
 		c.PartnerContractBalance,
 		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
-	d.ExternState = channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
+	ExternState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
 		c.ChannelIdentifier, rs.PrivateKey,
 		rs.Chain.Client, rs.db, c.ClosedBlock,
 		c.OurAddress, c.PartnerAddress())
-	return d
+	ch, err = channel.NewChannel(OurState, PartnerState, ExternState, c.TokenAddress(), c.ChannelIdentifier, c.RevealTimeout, c.SettleTimeout)
+	if err != nil {
+		return
+	}
+
+	ch.OurState.Lock2PendingLocks = c.OurLock2PendingLocks()
+	ch.OurState.Lock2UnclaimedLocks = c.OurLock2UnclaimedLocks()
+	ch.PartnerState.Lock2PendingLocks = c.PartnerLock2PendingLocks()
+	ch.PartnerState.Lock2UnclaimedLocks = c.PartnerLock2UnclaimedLocks()
+	ch.State = c.State
+	ch.OurState.ContractBalance = c.OurContractBalance
+	ch.PartnerState.ContractBalance = c.PartnerContractBalance
+	ch.ExternState.ClosedBlock = c.ClosedBlock
+	ch.ExternState.SettledBlock = c.SettledBlock
+	return
 }
 
 //read a token network info from db
@@ -709,21 +643,29 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 	if err != nil {
 		return
 	}
-	channels, err := rs.db.GetChannelList(tokenAddress, utils.EmptyAddress)
-	var channelsDetails []*graph.ChannelDetails
-	for _, ch := range channels {
-		//跳过已经 settle 的 channel 加入没有任何意义.
-		if ch.State == channeltype.StateSettled {
-			continue
-		}
-		d := rs.channelSerilization2ChannelDetail(ch, tokenNetwork)
-		channelsDetails = append(channelsDetails, d)
-	}
-	graph := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges, channelsDetails)
+	graph := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
 	rs.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = graph
 	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)
+
+	//add channel I participant
+	css, err := rs.db.GetChannelList(tokenAddress, utils.EmptyAddress)
+
+	for _, cs := range css {
+		//跳过已经 settle 的 channel 加入没有任何意义.
+		if cs.State == channeltype.StateSettled {
+			continue
+		}
+		ch, err := rs.channelSerilization2Channel(cs, tokenNetwork)
+		if err != nil {
+			return err
+		}
+		err = graph.AddChannel(ch)
+		if err != nil {
+			return err
+		}
+	}
 	return
 }
 
@@ -741,18 +683,18 @@ func (rs *RaidenService) registerNettingChannel(tokenNetworkAddress common.Addre
 		log.Error(fmt.Sprintf("receive new channel %s-%s,but this channel already exist, maybe a duplicate channel event", utils.APex2(tokenAddress), utils.APex2(partnerAddress)))
 		return
 	}
-	detail, err := rs.getChannelDetail(tokenAddress, tokenNetwork, partnerAddress)
+	ch, err := rs.newChannelFromChain(tokenAddress, tokenNetwork, partnerAddress)
 	if err != nil {
-		log.Error(fmt.Sprintf("getChannelDetail err %s", err))
+		log.Error(fmt.Sprintf("newChannelFromChain err %s", err))
 		return
 	}
 	graph := rs.getToken2ChannelGraph(tokenAddress)
-	err = graph.AddChannel(detail)
+	err = graph.AddChannel(ch)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[detail.ChannelIdentifier]))
+	err = rs.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -1343,14 +1285,6 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
 		}
 		/*
-			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
-		*/
-		err = rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
-		if err != nil {
-			err = fmt.Errorf("Events listener error %v", err)
-			return
-		}
-		/*
 			  Registry registration must start *after* the alarm task, rs avoid
 				 corner cases were the registry is queried in block A, a new block B
 				 is mined, and the alarm starts polling at block C.
@@ -1360,5 +1294,13 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 		if err != nil {
 			log.Error(fmt.Sprintf("reinit restoreChannel err %s", err))
 		}
+	}
+	/*
+		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+	*/
+	err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
+	if err != nil {
+		err = fmt.Errorf("Events listener error %v", err)
+		return
 	}
 }

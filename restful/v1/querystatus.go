@@ -25,7 +25,7 @@ func Address(w rest.ResponseWriter, r *rest.Request) {
 Tokens is api of /api/1/tokens
 */
 func Tokens(w rest.ResponseWriter, r *rest.Request) {
-	w.WriteJson(RaidenAPI.GetTokenList())
+	w.WriteJson(RaidenAPI.GetTokenTokenNetorks())
 }
 
 type partnersData struct {

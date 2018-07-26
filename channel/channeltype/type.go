@@ -115,22 +115,76 @@ func (s *Serialization) PartnerBalance() *big.Int {
 
 //PartnerLock2UnclaimedLocks partner's lock and known secret
 func (s *Serialization) PartnerLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
-	return nil
+	m := make(map[common.Hash]UnlockPartialProof)
+	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
+	for _, l := range s.PartnerLeaves {
+		if m2[l.LockSecretHash] != utils.EmptyHash {
+			//知道密码
+			m[l.LockSecretHash] = UnlockPartialProof{
+				Lock:     l,
+				Secret:   m2[l.LockSecretHash],
+				LockHash: l.Hash(),
+			}
+		}
+	}
+	return m
+}
+
+func (s *Serialization) getSecretHashMap(secrets []common.Hash) map[common.Hash]common.Hash {
+	m := make(map[common.Hash]common.Hash)
+	for _, s := range secrets {
+		m[utils.Sha3(s[:])] = s
+	}
+	return m
 }
 
 //OurLock2UnclaimedLocks our lock and know secret
 func (s *Serialization) OurLock2UnclaimedLocks() map[common.Hash]UnlockPartialProof {
-	return nil
+	m := make(map[common.Hash]UnlockPartialProof)
+	m2 := s.getSecretHashMap(s.OurKnownSecrets)
+	for _, l := range s.OurLeaves {
+		if m2[l.LockSecretHash] != utils.EmptyHash {
+			//知道密码
+			m[l.LockSecretHash] = UnlockPartialProof{
+				Lock:     l,
+				Secret:   m2[l.LockSecretHash],
+				LockHash: l.Hash(),
+			}
+		}
+	}
+	return m
 }
 
 //OurLock2PendingLocks our lock and don't know secret
 func (s *Serialization) OurLock2PendingLocks() map[common.Hash]PendingLock {
-	return nil
+	m := make(map[common.Hash]PendingLock)
+	m2 := s.getSecretHashMap(s.OurKnownSecrets)
+	for _, l := range s.OurLeaves {
+		if m2[l.LockSecretHash] == utils.EmptyHash {
+			//知道密码
+			m[l.LockSecretHash] = PendingLock{
+				Lock:     l,
+				LockHash: l.Hash(),
+			}
+		}
+	}
+	return m
 }
 
 //PartnerLock2PendingLocks partner's lock and don't know secret
 func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
-	return nil
+	m := make(map[common.Hash]PendingLock)
+	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
+	for _, l := range s.PartnerLeaves {
+		if m2[l.LockSecretHash] == utils.EmptyHash {
+			//知道密码
+			m[l.LockSecretHash] = PendingLock{
+				Lock:     l,
+				LockHash: l.Hash(),
+			}
+		}
+	}
+	return m
 }
 func init() {
 	gob.Register(&PendingLock{})

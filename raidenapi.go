@@ -358,6 +358,12 @@ func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
 	return
 }
 
+//GetTokenTokenNetorks return all tokens and token networks
+func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
+	tokens, _ = r.Raiden.db.GetAllTokens()
+	return
+}
+
 //TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
 func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration, isDirectTransfer bool) (err error) {
 	result, err := r.transferAsync(token, amount, fee, target, identifier, isDirectTransfer)
