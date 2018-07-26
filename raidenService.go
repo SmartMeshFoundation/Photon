@@ -256,12 +256,6 @@ func (rs *RaidenService) Start() (err error) {
 			 is mined, and the alarm starts polling at block C.
 	*/
 	rs.registerRegistry()
-
-	err = rs.restoreSnapshot()
-	if err != nil {
-		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost", err, rs.Config.DataBasePath)
-		return
-	}
 	rs.Protocol.Start()
 	rs.startNeighboursHealthCheck()
 	err = rs.startSubscribeNeighborStatus()
@@ -312,7 +306,6 @@ func (rs *RaidenService) Stop() {
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.Chain.Client.Close()
-	rs.saveSnapshot()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
 	//anther instance cann run now
@@ -411,6 +404,11 @@ func (rs *RaidenService) loop() {
 
 //for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
 func (rs *RaidenService) registerRegistry() {
+	dbRegistry := rs.db.GetRegistryAddress()
+	if dbRegistry != rs.RegistryAddress && dbRegistry != utils.EmptyAddress {
+		log.Crit(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+			dbRegistry, rs.RegistryAddress))
+	}
 	token2TokenNetworks, err := rs.db.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
@@ -1283,16 +1281,6 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 		} else {
 			//must have a valid blocknumber before any transfer operation
 			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-		}
-		/*
-			  Registry registration must start *after* the alarm task, rs avoid
-				 corner cases were the registry is queried in block A, a new block B
-				 is mined, and the alarm starts polling at block C.
-		*/
-		rs.registerRegistry()
-		err = rs.restoreChannel(false)
-		if err != nil {
-			log.Error(fmt.Sprintf("reinit restoreChannel err %s", err))
 		}
 	}
 	/*

@@ -744,6 +744,7 @@ Start listening events send to  channel can duplicate but cannot lose.
 3. 事件是可以重复的
 */
 func (be *Events) Start(LastBlockNumber int64) error {
+	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
 	err := be.installEventListener()
 	if err != nil {
 		return err
