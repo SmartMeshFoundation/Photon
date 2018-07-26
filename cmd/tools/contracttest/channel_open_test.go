@@ -46,7 +46,7 @@ func TestOpenChannelException(t *testing.T) {
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	count := 0
 	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
-	assertTxSuccess(t, &count, tx, err)
+	assertTxSuccess(t, nil, tx, err)
 	// cases
 	// 重复创建
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)

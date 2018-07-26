@@ -75,7 +75,7 @@ func TestCooperativeSettleException(t *testing.T) {
 	tx, err = env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxFail(t, &count, tx, err)
-	t.Log(endMsg("CooperativeSettle 异常调用测试", count))
+	t.Log(endMsg("CooperativeSettle 异常调用测试", count, a1, a2, a3))
 }
 
 // TestCooperativeSettleEdge : 边界测试
