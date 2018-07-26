@@ -245,22 +245,39 @@ this will trigger the `settle()` function in the [NettingChannel smart contract]
 Here it’s interesting to notice that the balance of the channel is now `0` and that the state is set to `"settled"`. This means that the netted balances that the two parties participating in the channel owe each other has now been transferred on the blockchain and that the life cycle of the payment channel has ended. At this point the blockchain contract has also self-destructed.
 
 ## Token Swaps
-Something that has not yet been mentioned in this guide is the functionality of token swaps. A token swap allows Alice and Bob to exchange tokenA for tokenB. This means that if both Alice and Bob participate in the token networks for `tokenA` and `tokenB`, then they’re able to atomically swap some amount of tokenA for some amount of tokenB. Let’s say Alice wants to buy 5 `tokenB` for 50 `tokenA`. If Bob agrees to these terms a swap can be carried out using the `token_swaps` endpoint. In the case of the example above, Alice would be the `taker` and Bob would be the `maker`:
+Something that has not yet been mentioned in this guide is the functionality of token swaps. A token swap allows Alice and Bob to exchange tokenA for tokenB. This means that if both Alice and Bob participate in the token networks for `tokenA` and `tokenB`, then they’re able to atomically swap some amount of tokenA for some amount of tokenB. Let’s say Alice wants to buy 5 `tokenB` for 50 `tokenA`. If Bob agrees to these terms a swap can be carried out using the `token_swaps` endpoint. In the case of the example above, Alice would be the `maker` and Bob would be the `taker`:
 ```
 PUT /api/1/token_swaps/0x61c808d82a3ac53231750dadc13c777b59310bd9/1337
 ```
 Where the first part after `token_swaps` is the address of Bob and the second part is an identifier for the token swap. Furthermore the following payload is needed:
 ```
 {
-    "role": "taker",
-    "sending_amount": 42,
+    "role": "maker",
+    "sending_amount": 50,
     "sending_token": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
-    "receiving_amount": 76,
+    "receiving_amount": 5,
     "receiving_token": "0x2a65aca4d5f5b5c859090a6c34d164135398226"
 }
 ```
 
-There are some interesting parameters to note here. The role defines whether the address sending the message is the maker or the taker. The `taker` call must be carried out before the `maker` call can be carried out. The `sending_amount` and the `sending_token` represent the token for which the taker wants to send some amount in return for a `receiving_token` and a `receiving_amount`. So in this specific case Alice is making an offer of 42 of tokenA with the address 0xea674fdde714fd979de3edf0f56aa9716b898ec8 for 76 of tokenB with the address 0x2a65aca4d5fc5b5c859090a6c34d164135398226.
+There are some interesting parameters to note here. The role defines whether the address sending the message is the maker or the taker. The `taker` call must be carried out before the `maker` call can be carried out. In our design,`taker` just reigster the token swap info of which node will accept the swap, the `maker`really implement the token swap. The `sending_amount` and the `sending_token` represent the token for which the maker wants to send some amount in return for a `receiving_token` and a `receiving_amount`. So in this specific case Alice is making an offer of 50 of tokenA with the address 0xea674fdde714fd979de3edf0f56aa9716b898ec8 for 5 of tokenB with the address 0x2a65aca4d5fc5b5c859090a6c34d164135398226.
+The `taker` is someone to take the offer. It could be that Alice and Bob have decided on the swap in private and thus Alice simply tells Bob the identifier. Bob can take the offer by using the same endpoint as above, but with some changes:
+```
+PUT /api/1/token_swaps/0xbbc5ee8be95683983df67260b0ab033c237bde60/1337
+```
+Here the address is the address of Alice and note that the identifier is the same as that Alice used to enforce the swap. As above, a payload is needed:
+```
+{
+    "role": "taker",
+    "sending_amount": 5,
+    "sending_token": "0x2a65aca4d5fc5b5c859090a6c34d164135398226",
+    "receiving_amount": 50,
+    "receiving_token": "0xea674fdde714fd979de3edf0f56aa9716b898ec8"
+}
+```
+Note that the role is changed from `maker` to `taker` . Furthermore the sending and receiving parameters have been reversed. This is because the swap is now seen from Bob’s perspective.
+
+At this point Alice’s and Bob’s balances should reflect the state after the swap.
 
 
 
