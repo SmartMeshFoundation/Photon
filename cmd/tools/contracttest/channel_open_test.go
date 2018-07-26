@@ -21,20 +21,20 @@ func TestOpenChannelRight(t *testing.T) {
 	assertTxSuccess(t, &count, tx, err)
 	// 查询通道
 	_, _, _, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
-	assertSuccess(t, &count, err)
+	assertSuccess(t, nil, err)
 	assertEqual(t, &count, ChannelStateOpened, state)
 	// 查询通道双方信息
 	deposit, balanceHash, nonce, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
 	assertSuccess(t, &count, err)
-	assertEqual(t, &count, int64(0), deposit.Int64())
-	assertEqual(t, &count, uint64(0), nonce)
-	assertEqual(t, &count, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
+	assertEqual(t, nil, int64(0), deposit.Int64())
+	assertEqual(t, nil, uint64(0), nonce)
+	assertEqual(t, nil, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
 
 	deposit, balanceHash, nonce, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
 	assertSuccess(t, &count, err)
-	assertEqual(t, &count, int64(0), deposit.Int64())
-	assertEqual(t, &count, uint64(0), nonce)
-	assertEqual(t, &count, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
+	assertEqual(t, nil, int64(0), deposit.Int64())
+	assertEqual(t, nil, uint64(0), nonce)
+	assertEqual(t, nil, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
 	t.Log(endMsg("OpenChannel 正确调用测试", count, a1, a2))
 }
 

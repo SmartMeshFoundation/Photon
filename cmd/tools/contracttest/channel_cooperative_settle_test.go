@@ -14,6 +14,8 @@ func TestCooperativeSettleRight(t *testing.T) {
 	count := 0
 	// prepare
 	a1, a2, a3 := env.getThreeRandomAccount(t)
+	// cases
+	// 正常调用
 	depositA1 := big.NewInt(20)
 	depositA2 := big.NewInt(10)
 	balanceA1 := big.NewInt(4)
@@ -22,10 +24,10 @@ func TestCooperativeSettleRight(t *testing.T) {
 	cs := getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
 	cs.Participant1Balance = balanceA1
 	cs.Participant2Balance = balanceA2
-	// cases
 	tx, err := env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxSuccess(t, &count, tx, err)
+
 	// 一方金额为0
 	depositA1 = big.NewInt(20)
 	depositA2 = big.NewInt(10)
@@ -38,12 +40,29 @@ func TestCooperativeSettleRight(t *testing.T) {
 	tx, err = env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxSuccess(t, &count, tx, err)
+
 	// 所有金额为0
 	depositA1 = big.NewInt(0)
 	depositA2 = big.NewInt(0)
 	balanceA1 = big.NewInt(0)
 	balanceA2 = big.NewInt(0)
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
+	cs = getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
+	cs.Participant1Balance = balanceA1
+	cs.Participant2Balance = balanceA2
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxSuccess(t, &count, tx, err)
+
+	// 双方先withdraw然后CooperativeSettle
+	depositA1 = big.NewInt(20)
+	depositA2 = big.NewInt(10)
+	withdrawA1 := big.NewInt(10)
+	withdrawA2 := big.NewInt(5)
+	balanceA1 = big.NewInt(2)
+	balanceA2 = big.NewInt(13)
+	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
+	withdraw(a1, withdrawA1, depositA1, a2, withdrawA2, depositA2)
 	cs = getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
 	cs.Participant1Balance = balanceA1
 	cs.Participant2Balance = balanceA2
@@ -151,5 +170,36 @@ func TestCooperativeSettleAttack(t *testing.T) {
 	tx, err = env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant2Balance, a2.Address, cs.Participant1Balance, cs.sign(a3.Key), cs.sign(a2.Key))
 	assertTxFail(t, &count, tx, err)
+	wrongBalance := big.NewInt(cs.Participant1Balance.Int64() + 1)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, wrongBalance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, wrongBalance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+	wrongBalance = big.NewInt(cs.Participant1Balance.Int64() - 1)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, wrongBalance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, wrongBalance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+	// CooperativeSettle后重新创建channel,使用老的余额证明来CooperativeSettle新的channel
+	depositA1 = big.NewInt(20)
+	depositA2 = big.NewInt(10)
+	balanceA1 = big.NewInt(4)
+	balanceA2 = big.NewInt(26)
+	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
+	cs = getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
+	cs.Participant1Balance = balanceA1
+	cs.Participant2Balance = balanceA2
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxSuccess(t, nil, tx, err)
+	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+
 	t.Log(endMsg("CooperativeSettle 恶意调用测试", count, a1, a2, a3))
 }
