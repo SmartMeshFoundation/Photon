@@ -55,7 +55,10 @@ func main() {
 	app.Action = mainCtx
 	app.Name = "mobiletest"
 	app.Version = "0.3"
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Crit(err.Error())
+	}
 }
 func mainCtx(ctx *cli.Context) (err error) {
 	fmt.Printf("Welcom to mobiletest,version %s\n", ctx.App.Version)
@@ -68,7 +71,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	password := ctx.String("password-file")
 	apiAddr := ctx.String("api-address")
 	otherArgs := mobile.NewStrings(1)
-	otherArgs.Set(0, fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
+	err = otherArgs.Set(0, fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
+	if err != nil {
+		return err
+	}
 	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress, "",
 		otherArgs)
 	if err != nil {

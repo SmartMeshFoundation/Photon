@@ -393,14 +393,24 @@ func (t *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error
 
 //SecretRegistryProxy proxy of secret registry
 type SecretRegistryProxy struct {
-	Address  common.Address
-	bcs      *BlockChainService
-	registry *contracts.SecretRegistry
-	lock     sync.Mutex
+	Address          common.Address
+	bcs              *BlockChainService
+	registry         *contracts.SecretRegistry
+	lock             sync.Mutex
+	RegisteredSecret map[common.Hash]*sync.Mutex
 }
 
-//RegisterSecret register secret on chain
-func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) error {
+//RegisterSecret register secret on chain 有可能被重复调用,但是保证不会并发注册同一个密码
+func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
+	s.lock.Lock()
+	sp := s.RegisteredSecret[secret]
+	if sp == nil {
+		sp = &sync.Mutex{}
+		s.RegisteredSecret[secret] = sp
+	}
+	s.lock.Unlock()
+	sp.Lock()
+	defer sp.Unlock()
 	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
 	if err != nil {
 		return err

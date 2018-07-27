@@ -267,7 +267,10 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
-		return c.PartnerState.RegisterSecret(secret)
+		err := c.PartnerState.RegisterSecret(secret)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -456,8 +459,19 @@ func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNu
 	*/
 	endSettlePeriod := c.GetSettleExpiration(blockNumber)
 	expiresAfterSettle := tr.Expiration > endSettlePeriod
-	isSender := tr.Sender == c.OurState.Address
-	if isSender && expiresAfterSettle { //After receiving this lock, the party can close or updatetransfer on the chain, so that if the party does not have a password, he still can't get the money.
+	/*
+		我不能接收超过 settle timeout 的交易,这样对我不安全
+		我也不能发出超过 settle timeout 的交易,这样不符合规则
+		为什么我接收超过 settle timeout 的交易不安全?
+		交易: A-B-C-D
+		AB: settle timeout 1000
+		BC settle timeout 10
+		CD settle timeout 1000
+		假设 当前块为20000,B 收到了来自 A 超时区块为超时时间为21000
+		B给 C 超时时间21000,C给 D 超时时间21000
+		那么 BD 可以合谋,D 告诉 B 密码, B close/settle 通道,然后 D 可以链上注册密码,取走相应 token
+	*/
+	if expiresAfterSettle { //After receiving this lock, the party can close or updatetransfer on the chain, so that if the party does not have a password, he still can't get the money.
 		log.Error(fmt.Sprintf("Lock expires after the settlement period. node=%s,from=%s,to=%s,lockexpiration=%d,currentblock=%d,end_settle_period=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 			tr.Expiration, blockNumber, endSettlePeriod))
@@ -1019,6 +1033,17 @@ func (c *Channel) Settle() (result *utils.AsyncResult) {
 		PartnerTransferAmount = utils.BigInt0
 	}
 	return c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+}
+
+//GetNeedRegisterSecrets find all secres need to reveal on secret
+func (c *Channel) GetNeedRegisterSecrets(blockNumber int64) (secrets []common.Hash) {
+	for _, l := range c.PartnerState.Lock2UnclaimedLocks {
+		if l.Lock.Expiration > blockNumber-int64(c.RevealTimeout) && l.Lock.Expiration < blockNumber {
+			//底层负责处理重复的问题
+			secrets = append(secrets, l.Secret)
+		}
+	}
+	return
 }
 
 // String fmt.Stringer
