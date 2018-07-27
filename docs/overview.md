@@ -102,7 +102,7 @@ Once payment channel close is invoked, settle timeout starts to count. During th
 
 ## Conclusion 
 
-At here, you have finished your learning about all the concepts and functionality specifications about Smartraiden. For further usage, please go through installation [instruction]() and [tutorials]() or [SmartRaiden Specification]()
+At here, you have finished your learning about all the concepts and functionality specifications about Smartraiden. For further usage, please go through installation [instruction](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/installation_guide.md) and [tutorials](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/api_walkthrough.md) or [SmartRaiden Specification](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/spec.md)
 
 
 
