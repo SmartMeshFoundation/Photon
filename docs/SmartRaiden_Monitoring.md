@@ -182,7 +182,7 @@ Node 3 checks any message from other nodes who require SM monitoring service.
     "withdraws": null
 }
 ```
-### 3.Commit Proofs of Delegation to SM
+### 3. Commit Proofs of Delegation to SM
 
 Commit proofs of delegation to smartraiden monitoring nodes :  
 
