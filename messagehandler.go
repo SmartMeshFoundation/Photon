@@ -86,6 +86,14 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		err = mh.messageAnnounceDisposedResponse(m2)
 	case *encoding.RemoveExpiredHashlockTransfer:
 		err = mh.messageRemoveExpiredHashlockTransfer(m2)
+	case *encoding.SettleRequest:
+		err = mh.messageSettleRequest(m2)
+	case *encoding.SettleResponse:
+		err = mh.messageSettleResponse(m2)
+	case *encoding.WithdrawRequest:
+		err = mh.messageWithdrawRequest(m2)
+	case *encoding.WithdrawResponse:
+		err = mh.messageWithdrawResponse(m2)
 	default:
 		log.Error(fmt.Sprintf("raidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
@@ -161,10 +169,13 @@ func (mh *raidenMessageHandler) updateChannelAndSaveAck(c *channel.Channel, tag 
 if there is any error, just ignore.
 */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	//mh.balanceProof(msg)
 	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
 	if err != nil {
 		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
+		return nil
+	}
+	if !ch.CanContinueTransfer() {
+		log.Warn(fmt.Sprintf("receive msg %s, but channel cannot continue transfer", msg))
 		return nil
 	}
 	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.raiden.GetBlockNumber())
@@ -311,5 +322,143 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		}
 		//return nil
 	}
+	return nil
+}
+
+func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
+	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	if graph == nil {
+		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
+	}
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
+	}
+	if ch.State != channeltype.StateOpened {
+		return fmt.Errorf("receive settle request but channel state is %s", ch.State)
+	}
+	err := ch.RegisterCooperativeSettleRequest(msg)
+	if err != nil {
+		log.Error(fmt.Sprintf("RegisterCooperativeSettleRequest error %s\n", err))
+		return err
+	}
+	settleResponse, err := ch.CreateCooperativeSettleResponse(msg)
+	if err != nil {
+		//if err, channel can only be closed /settled
+		log.Error(fmt.Sprintf("CreateCooperativeSettleResponse err %s", err))
+		return err
+	}
+	err = settleResponse.Sign(mh.raiden.PrivateKey, settleResponse)
+	if err != nil {
+		panic(fmt.Sprintf("sign message for settle response err %s", err))
+	}
+	err = mh.raiden.sendAsync(msg.Sender, settleResponse)
+	if err != nil {
+		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", settleResponse, msg.Sender, err))
+	}
+	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	return nil
+}
+func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
+	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	if graph == nil {
+		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
+	}
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
+	}
+	/*
+			会不会出现碰巧双方都发出了 settle request 这种情况?
+			比如一方提出 settle, 另一方提出 withdraw,
+			极小概率可能出现,如果出现,就退回到原始的 close/settle 模式
+		也要防止另一方主动发出 settle response, 而我并没有发出 settle request 请求这种情况.
+	*/
+	if ch.State != channeltype.StateCooprativeSettle {
+		return fmt.Errorf("receive settle response but channel state is %s", ch.State)
+	}
+	err := ch.RegisterCooperativeSettleResponse(msg)
+	if err != nil {
+		log.Error(fmt.Sprintf("RegisterCooperativeSettleResponse error %s\n", err))
+		return err
+	}
+	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	result := ch.CooperativeSettleChannel(msg)
+	go func() {
+		err = <-result.Result
+		if err != nil {
+			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel", msg.ChannelIdentifier))
+		}
+	}()
+	return nil
+}
+func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawRequest) error {
+	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	if graph == nil {
+		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
+	}
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
+	}
+	if ch.State != channeltype.StateOpened {
+		return fmt.Errorf("receive settle request but channel state is %s", ch.State)
+	}
+	err := ch.RegisterWithdrawRequest(msg)
+	if err != nil {
+		log.Error(fmt.Sprintf("RegisterWithdrawRequest error %s\n", err))
+		return err
+	}
+	//这里需要询问用户我想取现多少,现在默认用0来替代.
+	withdrawResponse, err := ch.CreateWithdrawResponse(msg, utils.BigInt0)
+	if err != nil {
+		//if err, channel can only be closed /settled
+		log.Error(fmt.Sprintf("CreateWithdrawResponse err %s", err))
+		return err
+	}
+	err = withdrawResponse.Sign(mh.raiden.PrivateKey, withdrawResponse)
+	if err != nil {
+		panic(fmt.Sprintf("sign message for withdraw response err %s", err))
+	}
+	err = mh.raiden.sendAsync(msg.Sender, withdrawResponse)
+	if err != nil {
+		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", withdrawResponse, msg.Sender, err))
+	}
+	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	return nil
+}
+func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
+	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	if graph == nil {
+		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
+	}
+	ch := graph.GetPartenerAddress2Channel(msg.Sender)
+	if ch == nil {
+		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
+	}
+	if ch.State != channeltype.StateWithdraw {
+		return fmt.Errorf("receive settle request but channel state is %s", ch.State)
+	}
+	/*
+		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册
+	*/
+	err := ch.RegisterWithdrawResponse(msg)
+	if err != nil {
+		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
+		return err
+	}
+	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
+	result := ch.Withdraw(msg)
+	go func() {
+		err = <-result.Result
+		if err != nil {
+			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier))
+		}
+	}()
 	return nil
 }
