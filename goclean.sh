@@ -24,6 +24,7 @@ gometalinter --install
 test -z "$(gometalinter -j 4 --disable-all \
 --enable=golint \
 --enable=vet \
+--enable=gosec \
 --enable=vetshadow \
 --deadline=10m  \
 --vendor \
