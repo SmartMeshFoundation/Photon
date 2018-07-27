@@ -1,4 +1,4 @@
-# Getting started with the Raiden API
+# Getting started with the SmartRaiden API
 ## Introduction
 SmartRaiden has a Restful API with URL endpoints corresponding to actions that users can perform with their channels. The endpoints accept and return JSON encoded objects. The API URL path always contains the API version in order to differentiate queries to different API versions. All queries start with: /api/<version>/ where <version> is an integer representing the current API version.
 
@@ -43,7 +43,7 @@ If successful this call will return the address of the freshly created Channel M
 ```
 {"channel_manager_address": "0xC4F8393fb7971E8B299bC1b302F85BfFB3a1275a"}
 ```
-The token is now registered. However, since the token was just registered, there will be no other SmartRaiden nodes connected to the token network and hence no nodes to connect to. This means that the network for this specific token needs to be bootstrapped. If the address of some other SmartRaiden node that holds some of the tokens is known or it’s simply desired to transfer some tokens to another SmartRaiden node in a one-way-channel, it can be done by simply opening a channel with this node. The way to open a channel with another Raiden node is the same whether the partner already holds some tokens or not.
+The token is now registered. However, since the token was just registered, there will be no other SmartRaiden nodes connected to the token network and hence no nodes to connect to. This means that the network for this specific token needs to be bootstrapped. If the address of some other SmartRaiden node that holds some of the tokens is known or it’s simply desired to transfer some tokens to another SmartRaiden node in a one-way-channel, it can be done by simply opening a channel with this node. The way to open a channel with another SmartRaiden node is the same whether the partner already holds some tokens or not.
 
 ### Opening a channel
 To open a channel with another SmartRaiden node four things are needed: the address of the token, the address of the partner node, the amount of tokens desired for deposit, and the settlement timeout period. With these things ready a channel can be opened:
@@ -127,7 +127,7 @@ In above scenario it was shown how to bootstrap a token network for an unregiste
 
 The main focus of this section will be the usage of the `connect` and the `leave` endpoints. The `connect` endpoint allows users to automatically connect to a token network and open channels with other nodes. Furthermore the `leave` endpoint allows users to leave a token network by automatically closing and settling all of their open channels.
 
-It’s assumed that a user holds 2000 of some awesome ERC20 token (AET). The user knows that a Raiden based token network already exists for this token.
+It’s assumed that a user holds 2000 of some awesome ERC20 token (AET). The user knows that a SmartRaiden based token network already exists for this token.
 
 ### Connect
 Connecting to an already existing token network is quite simple. All that is needed, is as mentioned above, the address of the token network to join and the amount of the corresponding token that the user is willing to deposit in channels:
@@ -179,7 +179,7 @@ The amount of the transfer is specified in the payload:
     "amount": 42
 }
 ```
-An "identifier": some_integer can also be added to the payload, but it’s optional. The purpose of the identifier is solely for the benefit of the Dapps built on top of Raiden in order to provide a way to tag transfers.
+An "identifier": some_integer can also be added to the payload, but it’s optional. The purpose of the identifier is solely for the benefit of the Dapps built on top of SmartRaiden in order to provide a way to tag transfers.
 
 If there is a path in the network with enough capacity and the address sending the transfer holds enough tokens to transfer the amount in the payload, the transfer will go through. The receiving node should then be able to see incoming transfers by querying all its open channels. This is done by doing the following for all addresses of open channels:
 

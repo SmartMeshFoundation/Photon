@@ -59,32 +59,35 @@ A [DirectTransfer]() does not rely on locks to complete. It is automatically com
 - The sender must assume the transfer is completed once the message is sent to the network, there is no workaround. The acknowledgement in this case is only used as a synchronization primitive, the payer will only know about the transfer once the message is received.
 
 A succesfull direct transfer involves only 2 messages. The direct transfer message and an `PROCESSED`. For an Alice - Bob example:
-- Alice wants to transfer n tokens to Bob.
-- **Alice creates a new transfer with**.     
 
-    - transferred_amount = `current_value + n`  
-    - [locksroot]() = `current_locksroot_value`  
-    - nonce = `current_value + 1`   
+- Alice wants to transfer n tokens to Bob.  
+- **Alice creates a new transfer with**.       
+
+    - transferred_amount = `current_value + n`    
+    - [locksroot]() = `current_locksroot_value`    
+    - nonce = `current_value + 1`     
 
 - Alice signs the transfer and sends it to Bob and at this point should consider the transfer complete.
 
 ### Mediated Transfers
 A [MediatedTransfer]() is a hashlocked transfer. Currently SmartRaiden supports only one type of lock. The lock has an amount that is being transferred, a [hashlock]() used to verify the secret that unlocks it, and a [lock expiration]() to determine its validity.
 
-Mediated transfers have an [initiator]() and a [target]() and a number of hops in between. The number of hops can also be zero as these transfers can also be sent to a direct partner. Assuming `N` number of hops a mediated transfer will require `6N + 8` messages to complete. These are:
-- N + 1 mediated or refund messages  
-- 1 secret request  
-- N + 1 secret reveal  
-- N + 1 secret  
-- 3N + 4 PROCESSED  
+Mediated transfers have an [initiator]() and a [target]() and a number of hops in between. The number of hops can also be zero as these transfers can also be sent to a direct partner. Assuming `N` number of hops a mediated transfer will require `6N + 8` messages to complete. These are:  
 
-For the simplest Alice - Bob example:
-- Alice wants to transfer n tokens to Bob.
-- **Alice creates a new transfer with:**  
-    - transferred_amount = `current_value `  
-    - lock = `Lock(n, hash(secret), expiration)`  
-    - locksroot = `updated value containing  the lock` 
-    - nonce = `current_value + 1`  
+- N + 1 mediated or refund messages    
+- 1 secret request    
+- N + 1 secret reveal    
+- N + 1 secret    
+- 3N + 4 PROCESSED    
+
+For the simplest Alice - Bob example:  
+
+- Alice wants to transfer n tokens to Bob.  
+- **Alice creates a new transfer with:**    
+    - transferred_amount = `current_value `      
+    - lock = `Lock(n, hash(secret), expiration)`      
+    - locksroot = `updated value containing  the lock`   
+    - nonce = `current_value + 1`    
 
 - Alice signs the transfer and sends it to Bob
 - Bob requests the secret that can be used for withdrawing the transfer by sending a [SecretRequest]() message.
