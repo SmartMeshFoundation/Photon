@@ -5,28 +5,26 @@ import (
 
 	"os"
 
-	"io/ioutil"
-
 	"encoding/hex"
 	"path/filepath"
 
 	"crypto/ecdsa"
-	"math/big"
 
-	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
+	"bytes"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/slonzok/getpass"
 	"github.com/urfave/cli"
 )
 
@@ -78,7 +76,10 @@ func main() {
 	app.Action = mainctx
 	app.Name = "withdraw"
 	app.Version = "0.1"
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Crit(err.Error())
+	}
 }
 
 type withDraw struct {
@@ -88,9 +89,9 @@ type withDraw struct {
 	DbPath                 string
 	bcs                    *rpc.BlockChainService
 	db                     *models.ModelDB
-	WithDrawChannelAddress common.Address
+	WithDrawChannelAddress common.Hash
 	Secret                 common.Hash
-	ChannelAddress2Channel map[common.Address]*channel.Channel
+	ChannelAddress2Channel map[common.Hash]*channel.Channel
 }
 
 func init() {
@@ -99,7 +100,7 @@ func init() {
 func mainctx(ctx *cli.Context) error {
 	var err error
 	w := &withDraw{
-		ChannelAddress2Channel: make(map[common.Address]*channel.Channel),
+		ChannelAddress2Channel: make(map[common.Hash]*channel.Channel),
 	}
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, utils.MyStreamHandler(os.Stderr)))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
@@ -107,9 +108,9 @@ func mainctx(ctx *cli.Context) error {
 	if err != nil {
 		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
-	w.WithDrawChannelAddress = common.HexToAddress(ctx.String("channel"))
+	w.WithDrawChannelAddress = common.HexToHash(ctx.String("channel"))
 	w.Secret = common.HexToHash(ctx.String("secret"))
-	if w.WithDrawChannelAddress == utils.EmptyAddress || w.Secret == utils.EmptyHash {
+	if w.WithDrawChannelAddress == utils.EmptyHash || w.Secret == utils.EmptyHash {
 		log.Crit("channel and secret muse be specified.")
 	}
 	address := common.HexToAddress(ctx.String("address"))
@@ -117,7 +118,10 @@ func mainctx(ctx *cli.Context) error {
 		log.Crit("must specified a valid address")
 	}
 	w.Address = address
-	_, key := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	_, key, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	if err != nil {
+		log.Crit(fmt.Sprintf("unlock acccount err %s", err))
+	}
 	privateKey, err := crypto.ToECDSA(key)
 	if err != nil {
 		log.Crit("private key is invalid, wrong password?")
@@ -132,130 +136,15 @@ func mainctx(ctx *cli.Context) error {
 	if !utils.Exists(w.DbPath) {
 		log.Crit("data directory is invalid ,doesn't contain db")
 	}
-	w.bcs = rpc.NewBlockChainService(privateKey, utils.EmptyAddress, w.Conn)
 	w.openDb()
-	w.restoreChannel()
+	w.bcs = rpc.NewBlockChainService(privateKey, w.db.GetRegistryAddress(), w.Conn)
+	err = w.restoreChannel()
+	if err != nil {
+		log.Error(fmt.Sprintf("restore channel %s", err))
+	}
 	log.Info("withdraw on channel...")
 	w.WithDrawOnChannel()
 	return nil
-}
-func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
-	am := smartraiden.NewAccountManager(keystorePath)
-	if len(am.Accounts) == 0 {
-		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
-		utils.SystemExit(1)
-	}
-	if !am.AddressInKeyStore(adviceAddress) {
-		if adviceAddress != utils.EmptyAddress {
-			log.Error(fmt.Sprintf("account %s could not be found on the sytstem. aborting...", adviceAddress))
-			utils.SystemExit(1)
-		}
-		shouldPromt := true
-		fmt.Println("The following accounts were found in your machine:")
-		for i := 0; i < len(am.Accounts); i++ {
-			fmt.Printf("%3d -  %s\n", i, am.Accounts[i].Address.String())
-		}
-		fmt.Println("")
-		for shouldPromt {
-			fmt.Printf("Select one of them by index to continue:\n")
-			idx := -1
-			fmt.Scanf("%d", &idx)
-			if idx >= 0 && idx < len(am.Accounts) {
-				shouldPromt = false
-				addr = am.Accounts[idx].Address
-			} else {
-				fmt.Printf("Error: Provided index %d is out of bounds", idx)
-			}
-		}
-	} else {
-		addr = adviceAddress
-	}
-	var password string
-	var err error
-	if len(passwordfile) > 0 {
-		var data []byte
-		data, err = ioutil.ReadFile(passwordfile)
-		if err != nil {
-			log.Error(fmt.Sprintf("password_file error:%s", err))
-			utils.SystemExit(1)
-		}
-		password = string(data)
-		log.Trace(fmt.Sprintf("password is %s", password))
-		keybin, err = am.GetPrivateKey(addr, password)
-		if err != nil {
-			log.Error(fmt.Sprintf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err))
-			utils.SystemExit(1)
-		}
-	} else {
-		for i := 0; i < 3; i++ {
-			//retries three times
-			password = getpass.Prompt("Enter the password to unlock:")
-			keybin, err = am.GetPrivateKey(addr, password)
-			if err != nil && i == 3 {
-				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-				utils.SystemExit(1)
-			}
-			if err != nil {
-				log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
-				continue
-			}
-			break
-		}
-	}
-	return
-}
-
-func (w *withDraw) getChannelDetail(proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
-	addr1, b1, addr2, b2, err := proxy.AddressAndBalance()
-	if err != nil {
-		log.Error(fmt.Sprintf("AddressAndBalance err %s", err))
-	}
-	var ourAddr, partnerAddr common.Address
-	var ourBalance, partnerBalance *big.Int
-	if addr1 == w.Address {
-		ourAddr = addr1
-		partnerAddr = addr2
-		ourBalance = b1
-		partnerBalance = b2
-	} else {
-		ourAddr = addr2
-		partnerAddr = addr1
-		ourBalance = b2
-		partnerBalance = b1
-	}
-	ourState := channel.NewChannelEndState(ourAddr, ourBalance, nil, transfer.EmptyMerkleTreeState)
-	partenerState := channel.NewChannelEndState(partnerAddr, partnerBalance, nil, transfer.EmptyMerkleTreeState)
-	channelAddress := proxy.Address
-	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
-
-	}
-	opened, _ := proxy.Opened()
-	closed, _ := proxy.Closed()
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, w.bcs, w.db, opened, closed)
-	channelDetail := &network.ChannelDetails{
-		ChannelAddress:    channelAddress,
-		OurState:          ourState,
-		PartenerState:     partenerState,
-		ExternState:       externState,
-		BlockChainService: w.bcs,
-		RevealTimeout:     params.DefaultRevealTimeout,
-	}
-	channelDetail.SettleTimeout, err = externState.NettingChannel.SettleTimeout()
-	if err != nil {
-		log.Error(fmt.Sprintf("SettleTimeout query err %s", err))
-	}
-	return channelDetail
-}
-
-func (w *withDraw) NewChannel(channelAddress common.Address) (c *channel.Channel, err error) {
-	proxy, err := w.bcs.NettingChannel(channelAddress)
-	if err != nil {
-		return
-	}
-	detail := w.getChannelDetail(proxy)
-	c, err = channel.NewChannel(detail.OurState, detail.PartenerState,
-		detail.ExternState, utils.EmptyAddress, channelAddress, w.bcs, detail.RevealTimeout, detail.SettleTimeout)
-	return
 }
 
 func (w *withDraw) openDb() {
@@ -265,7 +154,42 @@ func (w *withDraw) openDb() {
 		log.Crit("cannot open db")
 	}
 }
+func (w *withDraw) channelSerilization2Channel(c *channeltype.Serialization, tokenNetwork *rpc.TokenNetworkProxy) (ch *channel.Channel, err error) {
+	OurState := channel.NewChannelEndState(c.OurAddress, c.OurContractBalance,
+		c.OurBalanceProof, mtree.NewMerkleTree(c.OurLeaves))
+	PartnerState := channel.NewChannelEndState(c.PartnerAddress(),
+		c.PartnerContractBalance,
+		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
+	ExternState := channel.NewChannelExternalState(nil, tokenNetwork,
+		c.ChannelIdentifier, w.PrivateKey,
+		w.Conn, w.db, c.ClosedBlock,
+		c.OurAddress, c.PartnerAddress())
+	ch, err = channel.NewChannel(OurState, PartnerState, ExternState, c.TokenAddress(), c.ChannelIdentifier, c.RevealTimeout, c.SettleTimeout)
+	if err != nil {
+		return
+	}
 
+	ch.OurState.Lock2PendingLocks = c.OurLock2PendingLocks()
+	ch.OurState.Lock2UnclaimedLocks = c.OurLock2UnclaimedLocks()
+	ch.PartnerState.Lock2PendingLocks = c.PartnerLock2PendingLocks()
+	ch.PartnerState.Lock2UnclaimedLocks = c.PartnerLock2UnclaimedLocks()
+	ch.State = c.State
+	ch.OurState.ContractBalance = c.OurContractBalance
+	ch.PartnerState.ContractBalance = c.PartnerContractBalance
+	ch.ExternState.ClosedBlock = c.ClosedBlock
+	ch.ExternState.SettledBlock = c.SettledBlock
+	return
+}
+func (w *withDraw) getTokenNetworkProxy(tokenAddress common.Address) (tokenNetwork *rpc.TokenNetworkProxy, err error) {
+	registryAddress := w.db.GetRegistryAddress()
+	r := w.bcs.Registry(registryAddress)
+	tokenNetworkAddr, err := r.TokenNetworkByToken(tokenAddress)
+	if err != nil {
+		return
+	}
+	tokenNetwork, err = w.bcs.TokenNetwork(tokenNetworkAddr)
+	return
+}
 func (w *withDraw) restoreChannel() error {
 	var err error
 	allChannels, err := w.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
@@ -274,30 +198,20 @@ func (w *withDraw) restoreChannel() error {
 		return err
 	}
 	for _, cs := range allChannels {
-		if cs.ChannelAddress == w.WithDrawChannelAddress {
-			//log.Info(fmt.Sprintf("db channel=%s", utils.StringInterface(cs, 5)))
+		if bytes.Compare(cs.Key, w.WithDrawChannelAddress[:]) != 0 {
+			//continue
 		}
-		c, err := w.NewChannel(cs.ChannelAddress)
+		tn, err := w.getTokenNetworkProxy(cs.TokenAddress())
 		if err != nil {
-			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.APex(cs.ChannelAddress)))
+			log.Crit(fmt.Sprintf("getTokenNetworkProxy err %s", err))
+			return err
+		}
+		c, err := w.channelSerilization2Channel(cs, tn)
+		if err != nil {
+			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.BPex(cs.Key)))
 			continue
 		}
-
-		if cs.OurAddress != c.OurState.Address ||
-			cs.PartnerAddress != c.PartnerState.Address {
-			log.Error(fmt.Sprintf("snapshot data error, channel data error for  db=%s,contract=%s ", utils.StringInterface(cs, 3), utils.StringInterface(c, 3)))
-			continue
-		} else {
-			c.OurState.BalanceProofState = cs.OurBalanceProof
-			c.OurState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.OurLeaves)
-			c.OurState.Lock2PendingLocks = cs.OurLock2PendingLocks
-			c.OurState.Lock2UnclaimedLocks = cs.OurLock2UnclaimedLocks
-			c.PartnerState.BalanceProofState = cs.PartnerBalanceProof
-			c.PartnerState.TreeState = transfer.NewMerkleTreeStateFromLeaves(cs.PartnerLeaves)
-			c.PartnerState.Lock2PendingLocks = cs.PartnerLock2PendingLocks
-			c.PartnerState.Lock2UnclaimedLocks = cs.PartnerLock2UnclaimedLocks
-		}
-		w.ChannelAddress2Channel[cs.ChannelAddress] = c
+		w.ChannelAddress2Channel[common.BytesToHash(cs.Key)] = c
 	}
 	return nil
 }
@@ -306,16 +220,30 @@ func (w *withDraw) WithDrawOnChannel() {
 		if addr == w.WithDrawChannelAddress {
 			err := c.RegisterSecret(w.Secret)
 			if err != nil {
-				log.Error(fmt.Sprintf("regist secret %s on channel %s error %s", utils.HPex(w.Secret), utils.APex(w.WithDrawChannelAddress), err))
+				log.Error(fmt.Sprintf("regist secret %s on channel %s error %s", utils.HPex(w.Secret), utils.HPex(w.WithDrawChannelAddress), err))
 				return
 			}
-			err = c.ExternState.Close(c.PartnerState.BalanceProofState)
+			isReg, err := w.bcs.SecretRegistryProxy.IsSecretRegistered(w.Secret)
 			if err != nil {
-				log.Error(fmt.Sprintf("close channel %s error %s", utils.APex(c.MyAddress), err))
+				log.Error(fmt.Sprintf("IsSecretRegistered err %s", err))
+				return
+			}
+			if !isReg {
+				err = w.bcs.SecretRegistryProxy.RegisterSecret(w.Secret)
+				if err != nil {
+					log.Error(fmt.Sprintf("RegisterSecret %s", err))
+				}
+			}
+			//todo 链上注册密码
+			result := c.Close()
+			err = <-result.Result
+			if err != nil {
+				log.Error(fmt.Sprintf("close channel %s error %s", c.ChannelIdentifier, err))
 				break
 			}
 			unlockProofs2 := c.PartnerState.GetKnownUnlocks()
-			err = c.ExternState.WithDraw(unlockProofs2)
+			result = c.ExternState.Unlock(unlockProofs2, c.PartnerState.TransferAmount())
+			err = <-result.Result
 			if err != nil {
 				log.Error(err.Error())
 			}

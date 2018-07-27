@@ -1,28 +1,48 @@
 package params
 
-//NameTokenAdded name from contract
-const NameTokenAdded = "TokenAdded"
+//NameTokenNetworkCreated event TokenNetworkCreated(address indexed token_address, address indexed token_network_address);
+const NameTokenNetworkCreated = "TokenNetworkCreated"
 
-//NameChannelNew name from contract
-const NameChannelNew = "ChannelNew"
+//NameChannelOpened new channel event of token network
+const NameChannelOpened = "ChannelOpened"
 
-//NameChannelDeleted  name from contract
-const NameChannelDeleted = "ChannelDeleted"
+//NameChannelNewDeposit deposit event of token network
+const NameChannelNewDeposit = "ChannelNewDeposit"
 
-//NameChannelNewBalance name from contract
-const NameChannelNewBalance = "ChannelNewBalance"
+//NameChannelWithdraw withdraw event of token network
+const NameChannelWithdraw = "ChannelWithdraw"
 
-//NameChannelClosed name from contract
+//NameChannelClosed event ChannelClosed(bytes32 indexed channel_identifier, address indexed closing_participant);
 const NameChannelClosed = "ChannelClosed"
 
-//NameTransferUpdated name from contract
-const NameTransferUpdated = "TransferUpdated"
+//NameChannelPunished punish event of token network
+const NameChannelPunished = "ChannelPunished"
 
-//NameChannelSettled name from contract
+//NameChannelUnlocked unlock event of token network
+const NameChannelUnlocked = "ChannelUnlocked"
+
+//NameBalanceProofUpdated  update balance proof event of token network
+const NameBalanceProofUpdated = "BalanceProofUpdated"
+
+//NameChannelSettled  settle channel event of token network
 const NameChannelSettled = "ChannelSettled"
 
-//NameChannelSecretRevealed name from contract
-const NameChannelSecretRevealed = "ChannelSecretRevealed"
+//NameChannelCooperativeSettled represents channel cooperatively settled
+const NameChannelCooperativeSettled = "ChannelCooperativeSettled"
 
-//NameAddressRegistered name from contract
-const NameAddressRegistered = "AddressRegistered"
+//NameSecretRevealed name from contract
+const NameSecretRevealed = "SecretRevealed"
+
+//name of Monitoring Service
+
+//NameNewDeposit event NewDeposit(address indexed receiver, uint amount);
+const NameNewDeposit = "NewDeposit"
+
+//NameNewBalanceProofReceived event of monitoring service
+const NameNewBalanceProofReceived = "NewBalanceProofReceived"
+
+//NameRewardClaimed event RewardClaimed(address indexed ms_address, uint amount, bytes32 indexed reward_identifier);
+const NameRewardClaimed = "RewardClaimed"
+
+//NameWithdrawn event Withdrawn(address indexed account, uint amount);
+const NameWithdrawn = "Withdrawn"

@@ -31,10 +31,11 @@ EventTransferSentSuccess emitted by the initiator when a transfer is considered 
         sucessful but there is no knowledge about the global transfer.
 */
 type EventTransferSentSuccess struct {
-	Identifier     uint64
-	Amount         *big.Int
-	Target         common.Address
-	ChannelAddress common.Address
+	LockSecretHash    common.Hash
+	Amount            *big.Int
+	Target            common.Address
+	ChannelIdentifier common.Hash
+	Token             common.Address
 }
 
 /*
@@ -45,10 +46,10 @@ EventTransferSentFailed emitted by the payer when a transfer has failed.
         has failed, they may infer about lock successes and failures.
 */
 type EventTransferSentFailed struct {
-	Identifier     uint64
+	LockSecretHash common.Hash
 	Reason         string
 	Target         common.Address //transfer's target, may be not the same as receipient
-	ChannelAddress common.Address //收到 refund transfer 而失败的那个 channel 地址
+	Token          common.Address
 }
 
 /*
@@ -61,10 +62,10 @@ EventTransferReceivedSuccess emitted when a payee has received a payment.
         there is no correspoding `EventTransferReceivedFailed`.
 */
 type EventTransferReceivedSuccess struct {
-	Identifier     uint64
-	Amount         *big.Int
-	Initiator      common.Address
-	ChannelAddress common.Address
+	LockSecretHash    common.Hash
+	Amount            *big.Int
+	Initiator         common.Address
+	ChannelIdentifier common.Hash
 }
 
 func init() {

@@ -21,14 +21,10 @@ func TestXMPPTransport(t *testing.T) {
 	x2.Start()
 	defer x1.Stop()
 	defer x2.Stop()
-	err := x1.conn.SubscribeNeighbour(x2.NodeAddress)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+
 	deviceType, isOnline := x1.NodeStatus(x2.NodeAddress)
 	if deviceType != DeviceTypeOther || !isOnline {
-		t.Errorf("node status error deviceType=%s,isonline=%v", deviceType, isOnline)
+		t.Error("node status error")
 		return
 	}
 	deviceType, isOnline = x1.NodeStatus(utils.NewRandomAddress())
@@ -36,7 +32,7 @@ func TestXMPPTransport(t *testing.T) {
 		t.Error("should unkown")
 		return
 	}
-	err = x1.Send(x2.NodeAddress, []byte("abcdefg"))
+	err := x1.Send(x2.NodeAddress, []byte("abcdefg"))
 	if err != nil {
 		t.Error(err)
 		return

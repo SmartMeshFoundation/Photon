@@ -25,6 +25,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/satori/go.uuid"
 )
 
 // BytesToString accepts bytes and returns their string presentation
@@ -107,8 +108,18 @@ func NewRandomAddress() common.Address {
 	return common.BytesToAddress(hash[12:])
 }
 
+//NewRandomHash generate random hash,for testonly
+func NewRandomHash() common.Hash {
+	u2, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("Something went wrong: %s", err))
+	}
+	return Sha3(u2.Bytes())
+}
+
 //MakePrivateKeyAddress generate a private key and it's address
 func MakePrivateKeyAddress() (*ecdsa.PrivateKey, common.Address) {
+	//#nosec
 	key, _ := crypto.GenerateKey()
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return key, addr
@@ -136,7 +147,7 @@ func StringInterface1(i interface{}) string {
 		return stringer.String()
 	}
 	c := spew.Config
-	spew.Config.DisableMethods = true
+	spew.Config.DisableMethods = false
 	spew.Config.MaxDepth = 1
 	s := spew.Sdump(i)
 	spew.Config = c

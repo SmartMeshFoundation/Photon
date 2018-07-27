@@ -58,6 +58,6 @@ func Main(ctx *cli.Context) (err error) {
 		}
 		return
 	}
-	cli.ShowAppHelp(ctx)
+	err = cli.ShowAppHelp(ctx)
 	return
 }

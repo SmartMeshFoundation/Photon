@@ -15,39 +15,41 @@ import (
 
 //SentTransfer transfer's I have sent and success.
 type SentTransfer struct {
-	Key            string         `storm:"id"`
-	BlockNumber    int64          `json:"block_number" storm:"index"`
-	ChannelAddress common.Address `json:"channel_address"`
-	ToAddress      common.Address `json:"to_address"`
-	TokenAddress   common.Address `json:"token_address"`
-	Nonce          int64          `json:"nonce"`
-	Amount         *big.Int       `json:"amount"`
+	Key               string `storm:"id"`
+	BlockNumber       int64  `json:"block_number" storm:"index"`
+	OpenBlockNumber   int64
+	ChannelIdentifier common.Hash    `json:"channel_address"`
+	ToAddress         common.Address `json:"to_address"`
+	TokenAddress      common.Address `json:"token_address"`
+	Nonce             int64          `json:"nonce"`
+	Amount            *big.Int       `json:"amount"`
 }
 
 //ReceivedTransfer tokens I have received and where it comes from
 type ReceivedTransfer struct {
-	Key            string         `storm:"id"`
-	BlockNumber    int64          `json:"block_number" storm:"index"`
-	ChannelAddress common.Address `json:"channel_address"`
-	TokenAddress   common.Address `json:"token_address"`
-	FromAddress    common.Address `json:"from_address"`
-	Nonce          int64          `json:"nonce"`
-	Amount         *big.Int       `json:"amount"`
+	Key               string `storm:"id"`
+	BlockNumber       int64  `json:"block_number" storm:"index"`
+	OpenBlockNumber   int64
+	ChannelIdentifier common.Hash    `json:"channel_address"`
+	TokenAddress      common.Address `json:"token_address"`
+	FromAddress       common.Address `json:"from_address"`
+	Nonce             int64          `json:"nonce"`
+	Amount            *big.Int       `json:"amount"`
 }
 
 /*
 NewSentTransfer save a new sent transfer to db,this trqnsfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr, tokenAddr, toAddr common.Address, nonce int64, amount *big.Int) {
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce int64, amount *big.Int) {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &SentTransfer{
-		Key:            key,
-		BlockNumber:    blockNumber,
-		ChannelAddress: channelAddr,
-		TokenAddress:   tokenAddr,
-		ToAddress:      toAddr,
-		Nonce:          nonce,
-		Amount:         amount,
+		Key:               key,
+		BlockNumber:       blockNumber,
+		ChannelIdentifier: channelAddr,
+		TokenAddress:      tokenAddr,
+		ToAddress:         toAddr,
+		Nonce:             nonce,
+		Amount:            amount,
 	}
 	if ost, err := model.GetSentTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
@@ -66,16 +68,16 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr, tokenAddr,
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr, tokenAddr, fromAddr common.Address, nonce int64, amount *big.Int) {
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce int64, amount *big.Int) {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &ReceivedTransfer{
-		Key:            key,
-		BlockNumber:    blockNumber,
-		ChannelAddress: channelAddr,
-		TokenAddress:   tokenAddr,
-		FromAddress:    fromAddr,
-		Nonce:          nonce,
-		Amount:         amount,
+		Key:               key,
+		BlockNumber:       blockNumber,
+		ChannelIdentifier: channelAddr,
+		TokenAddress:      tokenAddr,
+		FromAddress:       fromAddr,
+		Nonce:             nonce,
+		Amount:            amount,
 	}
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",

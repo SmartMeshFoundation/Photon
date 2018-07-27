@@ -9,11 +9,13 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -25,13 +27,16 @@ func init() {
 
 var big10 = big.NewInt(10)
 var x = big.NewInt(0)
+var testOpenBlockNumber int64 = 3
 
 func TestEndState(t *testing.T) {
-	tokenAddress := utils.NewRandomAddress()
 	bcs := rpc.MakeTestBlockChainService()
 	address1 := bcs.NodeAddress
 	address2 := utils.NewRandomAddress()
-	channelAddress := utils.NewRandomAddress()
+	channelAddress := &contracts.ChannelUniqueID{
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   testOpenBlockNumber,
+	}
 
 	var balance1 = big.NewInt(70)
 	var balance2 = big.NewInt(110)
@@ -39,8 +44,8 @@ func TestEndState(t *testing.T) {
 	var lockAmount = big.NewInt(30)
 	var lockExpiration int64 = 10
 	lockHashlock := utils.Sha3(lockSecret[:])
-	state1 := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	state2 := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	state1 := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	state2 := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
 	assert.EqualValues(t, state1.Balance(state2), balance1)
@@ -48,28 +53,39 @@ func TestEndState(t *testing.T) {
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
 
-	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
-	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 	assert.EqualValues(t, state1.nonce(), 0)
 	assert.EqualValues(t, state2.nonce(), 0)
-	lock := &encoding.Lock{
-		Expiration: lockExpiration,
-		Amount:     lockAmount,
-		HashLock:   lockHashlock,
+	lock := &mtree.Lock{
+		Expiration:     lockExpiration,
+		Amount:         lockAmount,
+		LockSecretHash: lockHashlock,
 	}
 	lockHash := utils.Sha3(lock.AsBytes())
 	var transferedAmount = utils.BigInt0
 	_, locksroot := state2.computeMerkleRootWith(lock)
 	/*
-		identifier uint64, nonce int64, token common.Address,
-		channel common.Address, transferAmount *big.Int,
-		recipient common.Address, locksroot common.Hash, lock *Lock,
-		target common.Address, initiator common.Address, fee int64
+		ChannelIdentifier   common.Hash
+			OpenBlockNumber     int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识
+			TransferAmount      *big.Int //The number has been transferred to the other party
+			Locksroot           common.Hash
+
 	*/
-	mtr := encoding.NewMediatedTransfer(1, 1, tokenAddress, channelAddress, transferedAmount, state2.Address, locksroot,
-		lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+	bp := &encoding.BalanceProof{
+		Nonce:             1,
+		ChannelIdentifier: channelAddress.ChannelIdentifier,
+		OpenBlockNumber:   testOpenBlockNumber,
+		TransferAmount:    transferedAmount,
+		Locksroot:         locksroot,
+	}
+	mtr := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(bcs.PrivKey, mtr)
-	state1.registerLockedTransfer(mtr)
+	err := state1.registerLockedTransfer(mtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	assert.EqualValues(t, state1.ContractBalance, balance1)
 	assert.EqualValues(t, state2.ContractBalance, balance2)
 	assert.EqualValues(t, state1.Balance(state2), balance1)
@@ -83,13 +99,14 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), true)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
 	if state1.UpdateContractBalance(new(big.Int).Sub(balance1, big10)) != errBalanceDecrease {
 		t.Error(errBalanceDecrease)
+		return
 	}
 	assert.Equal(t, state1.UpdateContractBalance(new(big.Int).Add(balance1, big10)), nil)
 	assert.EqualValues(t, state1.ContractBalance, new(big.Int).Add(balance1, big10))
@@ -103,13 +120,17 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), true)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
 
-	state1.RegisterSecret(lockSecret)
+	err = state1.RegisterSecret(lockSecret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	assert.EqualValues(t, state1.ContractBalance, x.Add(balance1, big10))
 	assert.EqualValues(t, state2.ContractBalance, balance2)
 	assert.EqualValues(t, state1.Balance(state2), x.Add(balance1, big10))
@@ -121,12 +142,13 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), lockHash)
-	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), lockHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
-	secretMessage := encoding.NewSecret(1, 2, channelAddress, x.Add(transferedAmount, lockAmount), utils.EmptyHash, lockSecret)
+
+	secretMessage := encoding.NewUnlock(encoding.NewBalanceProof(2, x.Add(transferedAmount, lockAmount), utils.EmptyHash, channelAddress), lockSecret)
 	secretMessage.Sign(bcs.PrivKey, secretMessage)
 	state1.registerSecretMessage(secretMessage)
 
@@ -142,57 +164,75 @@ func TestEndState(t *testing.T) {
 
 	assert.Equal(t, state1.IsLocked(lockHashlock), false)
 	assert.Equal(t, state2.IsLocked(lockHashlock), false)
-	assert.Equal(t, state1.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
-	assert.Equal(t, state2.TreeState.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state1.Tree.MerkleRoot(), utils.EmptyHash)
+	assert.Equal(t, state2.Tree.MerkleRoot(), utils.EmptyHash)
 
 	assert.EqualValues(t, state1.nonce(), 2)
 	assert.EqualValues(t, state2.nonce(), 0)
 }
 func makeExternState() *ExternalState {
 	bcs := newTestBlockChainService()
-	ch := os.Getenv("CHANNEL")
+	ch := common.HexToHash(os.Getenv("CHANNEL"))
 	//must provide a valid netting channel address
-	nettingChannel, _ := bcs.NettingChannel(common.HexToAddress(ch))
-	return NewChannelExternalState(func(channel *Channel, hashlock common.Hash) {}, nettingChannel, nettingChannel.Address, bcs, newMockChannelDb(), 0, 0)
+	tokenNetwork, _ := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
+	return NewChannelExternalState(testFuncRegisterChannelForHashlock,
+		tokenNetwork,
+		&contracts.ChannelUniqueID{
+			ChannelIdentifier: ch,
+			OpenBlockNumber:   testOpenBlockNumber,
+		},
+		bcs.PrivKey, bcs.Client,
+		channeltype.NewMockChannelDb(),
+		0,
+		bcs.NodeAddress, utils.NewRandomAddress())
 }
 func TestSenderCannotOverSpend(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
-	bcs := rpc.MakeTestBlockChainService()
-	address1 := bcs.NodeAddress
-	privkey1 := bcs.PrivKey
+	privkey1, address1 := utils.MakePrivateKeyAddress()
 	address2 := utils.NewRandomAddress()
 	var balance1 = big.NewInt(70)
 	var balance2 = big.NewInt(110)
 	revealTimeout := 5
 	settleTimeout := 15
 	var blockNumber int64 = 10
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
+	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
 	amount := balance1
 	expiration := blockNumber + int64(settleTimeout)
-	sentMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	sentMediatedTransfer0, err := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	sentMediatedTransfer0.Sign(privkey1, sentMediatedTransfer0)
 	testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer0)
-	lock2 := &encoding.Lock{
-		Expiration: expiration,
-		Amount:     amount,
-		HashLock:   utils.Sha3([]byte("test_locked_amount_cannot_be_spent2")),
+	lock2 := &mtree.Lock{
+		Expiration:     expiration,
+		Amount:         amount,
+		LockSecretHash: utils.Sha3([]byte("test_locked_amount_cannot_be_spent2")),
 	}
-	leaves := []common.Hash{utils.Sha3(sentMediatedTransfer0.GetLock().AsBytes()), utils.Sha3(lock2.AsBytes())}
-	tree2, _ := transfer.NewMerkleTree(leaves)
+	leaves := []*mtree.Lock{sentMediatedTransfer0.GetLock(), lock2}
+	tree2 := mtree.NewMerkleTree(leaves)
 	locksroot2 := tree2.MerkleRoot()
-	sentMediatedTransfer1 := encoding.NewMediatedTransfer(2, sentMediatedTransfer0.Nonce+1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
+	bp := &encoding.BalanceProof{
+		Nonce:             sentMediatedTransfer0.Nonce + 1,
+		ChannelIdentifier: testChannel.ChannelIdentifier.ChannelIdentifier,
+		OpenBlockNumber:   testChannel.ChannelIdentifier.OpenBlockNumber,
+		TransferAmount:    utils.BigInt0,
+		Locksroot:         locksroot2,
+	}
+	sentMediatedTransfer1 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0)
 	sentMediatedTransfer1.Sign(privkey1, sentMediatedTransfer1)
-	err := testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer1)
+	err = testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer1)
 	if err != rerr.ErrInsufficientBalance {
 		t.Error(err)
+		return
 	}
 }
 func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
-	bcs := rpc.MakeTestBlockChainService()
 	privkey1, address1 := utils.MakePrivateKeyAddress()
 	privkey2, address2 := utils.MakePrivateKeyAddress()
 	var balance1 = big.NewInt(33)
@@ -200,13 +240,13 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	revealTimeout := 7
 	settleTimeout := 11
 	var blockNumber int64 = 7
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
+	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
 	amount1 := balance2
 	expiration := blockNumber + int64(settleTimeout)
-	receiveMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	receiveMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
 	receiveMediatedTransfer0.Sign(privkey2, receiveMediatedTransfer0)
 	err := testChannel.RegisterTransfer(blockNumber, receiveMediatedTransfer0)
 	if err != nil {
@@ -214,14 +254,21 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	}
 	t.Log("after tr1 channel=", testChannel.String())
 	amount2 := x.Add(balance1, big.NewInt(1))
-	lock2 := &encoding.Lock{
-		Expiration: expiration,
-		Amount:     amount2,
-		HashLock:   utils.Sha3([]byte("lxllx")),
+	lock2 := &mtree.Lock{
+		Expiration:     expiration,
+		Amount:         amount2,
+		LockSecretHash: utils.Sha3([]byte("lxllx")),
 	}
-	tree2, _ := transfer.NewMerkleTree([]common.Hash{utils.Sha3(lock2.AsBytes())})
+	tree2 := mtree.NewMerkleTree([]*mtree.Lock{lock2})
 	locksroot2 := tree2.MerkleRoot()
-	sendMediatedTransfer0 := encoding.NewMediatedTransfer(1, 1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address2, locksroot2, lock2, address2, address1, utils.BigInt0)
+	bp := &encoding.BalanceProof{
+		Nonce:             1,
+		ChannelIdentifier: testChannel.ChannelIdentifier.ChannelIdentifier,
+		OpenBlockNumber:   testChannel.ChannelIdentifier.OpenBlockNumber,
+		TransferAmount:    utils.BigInt0,
+		Locksroot:         locksroot2,
+	}
+	sendMediatedTransfer0 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0)
 	sendMediatedTransfer0.Sign(privkey1, sendMediatedTransfer0)
 	if testChannel.RegisterTransfer(blockNumber, sendMediatedTransfer0) != rerr.ErrInsufficientBalance {
 		t.Error("RegisterTransfer should be failed ")
@@ -237,18 +284,17 @@ func TestInvalidTimeouts(t *testing.T) {
 	address2 := utils.NewRandomAddress()
 	var balance1 = big.NewInt(10)
 	var balance2 = big.NewInt(10)
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	bcs := rpc.MakeTestBlockChainService()
-	_, err := NewChannel(ourState, partnerState, externState, externState.ChannelAddress, tokenAddress, bcs, 50, 49)
+	_, err := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, 50, 49)
 	if err == nil {
 		t.Error("should failed")
 	}
 	for _, invalidValue := range []int{-1, 0, 1} {
-		_, err = NewChannel(ourState, partnerState, externState, externState.ChannelAddress, tokenAddress, bcs, invalidValue, settleTimeout)
+		_, err = NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, invalidValue, settleTimeout)
 		assert.NotEqual(t, err, nil)
-		_, err = NewChannel(ourState, partnerState, externState, externState.ChannelAddress, tokenAddress, bcs, reavealTimeout, invalidValue)
+		_, err = NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, reavealTimeout, invalidValue)
 		assert.NotEqual(t, err, nil)
 	}
 }
@@ -261,17 +307,16 @@ func TestPythonChannel(t *testing.T) {
 	var balance1 = big.NewInt(70)
 	var balance2 = big.NewInt(110)
 	var blockNumber int64 = 10
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	bcs := rpc.MakeTestBlockChainService()
-	testchannel, _ := NewChannel(ourState, partnerState, externState, externState.ChannelAddress, tokenAddress, bcs, reavealTimeout, settleTimeout)
-	_, err := testchannel.CreateDirectTransfer(big.NewInt(-10), 1)
+	testchannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, reavealTimeout, settleTimeout)
+	_, err := testchannel.CreateDirectTransfer(big.NewInt(-10))
 	assert.NotEqual(t, err, nil)
-	_, err = testchannel.CreateDirectTransfer(x.Add(balance1, big10), 1)
+	_, err = testchannel.CreateDirectTransfer(x.Add(balance1, big10))
 	assert.NotEqual(t, err, nil)
 	var amount1 = big.NewInt(10)
-	directTransfer, _ := testchannel.CreateDirectTransfer(amount1, 1)
+	directTransfer, _ := testchannel.CreateDirectTransfer(amount1)
 	directTransfer.Sign(privkey1, directTransfer)
 	testchannel.RegisterTransfer(blockNumber, directTransfer)
 
@@ -289,8 +334,7 @@ func TestPythonChannel(t *testing.T) {
 	hashlock := utils.Sha3(secret[:])
 	var amount2 = big.NewInt(10)
 	expiration := blockNumber + int64(settleTimeout) - 5
-	var identifier uint64 = 2
-	mediatedTransfer, _ := testchannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount2, identifier, expiration, hashlock)
+	mediatedTransfer, _ := testchannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount2, expiration, hashlock)
 	mediatedTransfer.Sign(privkey1, mediatedTransfer)
 	testchannel.RegisterTransfer(blockNumber, mediatedTransfer)
 
@@ -304,15 +348,24 @@ func TestPythonChannel(t *testing.T) {
 	assert.EqualValues(t, testchannel.PartnerState.amountLocked(), utils.BigInt0)
 	assert.EqualValues(t, testchannel.GetNextNonce(), 3)
 
-	secretMessage, _ := testchannel.CreateSecret(identifier, secret)
+	err = testchannel.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	secretMessage, err := testchannel.CreateUnlock(utils.Sha3(secret[:]))
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	secretMessage.Sign(privkey1, secretMessage)
 	log.Info(fmt.Sprintf("secret message=%s", utils.StringInterface(secretMessage, 4)))
-	log.Info("bofore reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2))
+	log.Info(fmt.Sprintf("bofore reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2)))
 	err = testchannel.RegisterTransfer(blockNumber, secretMessage)
 	if err != nil {
 		t.Error(err)
 	}
-	log.Info("after reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2))
+	log.Info(fmt.Sprintf("after reg sec proof=%s", utils.StringInterface(testchannel.OurState.BalanceProofState, 2)))
 	assert.EqualValues(t, testchannel.ContractBalance(), balance1)
 	assert.EqualValues(t, testchannel.Balance(), x.Sub(balance1, amount1).Sub(x, amount2))
 	assert.EqualValues(t, testchannel.TransferAmount(), x.Add(amount1, amount2))
@@ -336,16 +389,15 @@ func TestChannelIncreaseNonceAndTransferedAmount(t *testing.T) {
 	var balance1 = big.NewInt(70)
 	var balance2 = big.NewInt(110)
 	var blockNumber int64 = 1
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	bcs := rpc.MakeTestBlockChainService()
-	tch, _ := NewChannel(ourState, partnerState, externState, externState.ChannelAddress, tokenAddress, bcs, reavealTimeout, settleTimeout)
+	tch, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, reavealTimeout, settleTimeout)
 	previousNonce := tch.GetNextNonce()
 	previousTransfered := tch.TransferAmount()
 	var amount = big.NewInt(7)
 	for i := 0; i < 10; i++ {
-		directTransfer, _ := tch.CreateDirectTransfer(amount, 1)
+		directTransfer, _ := tch.CreateDirectTransfer(amount)
 		directTransfer.Sign(privkey1, directTransfer)
 		tch.RegisterTransfer(blockNumber, directTransfer)
 		newNonce := tch.GetNextNonce()
@@ -364,14 +416,14 @@ func makePairChannel() (*Channel, *Channel) {
 	var balance2 = big.NewInt(110)
 	revealTimeout := 7
 	settleTimeout := 30
-	ourState := NewChannelEndState(externState1.bcs.NodeAddress, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(externState2.bcs.NodeAddress, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
 
-	testChannel, _ := NewChannel(ourState, partnerState, externState1, tokenAddress, externState1.ChannelAddress, externState1.bcs, revealTimeout, settleTimeout)
+	testChannel, _ := NewChannel(ourState, partnerState, externState1, tokenAddress, &externState1.ChannelIdentifier, revealTimeout, settleTimeout)
 
-	ourState = NewChannelEndState(externState1.bcs.NodeAddress, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState = NewChannelEndState(externState2.bcs.NodeAddress, balance2, nil, transfer.EmptyMerkleTreeState)
-	testChannel2, _ := NewChannel(partnerState, ourState, externState2, tokenAddress, externState2.ChannelAddress, externState2.bcs, revealTimeout, settleTimeout)
+	ourState = NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
+	partnerState = NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
+	testChannel2, _ := NewChannel(partnerState, ourState, externState2, tokenAddress, &externState2.ChannelIdentifier, revealTimeout, settleTimeout)
 	return testChannel, testChannel2
 }
 
@@ -380,8 +432,8 @@ Assert that `channel0` has a correct `partner_state` to represent
     `channel1` and vice-versa.
 */
 func assertMirror(ch0, ch1 *Channel, t *testing.T) {
-	unclaimed0 := ch0.OurState.TreeState.Tree.MerkleRoot()
-	unclaimed1 := ch1.PartnerState.TreeState.Tree.MerkleRoot()
+	unclaimed0 := ch0.OurState.Tree.MerkleRoot()
+	unclaimed1 := ch1.PartnerState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
 	assert.EqualValues(t, ch0.OurState.amountLocked(), ch1.PartnerState.amountLocked())
@@ -393,8 +445,8 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 	assert.EqualValues(t, ch0.Distributable(), ch0.OurState.Distributable(ch0.PartnerState))
 	assert.EqualValues(t, ch0.Distributable(), ch1.PartnerState.Distributable(ch1.OurState))
 
-	unclaimed0 = ch1.OurState.TreeState.Tree.MerkleRoot()
-	unclaimed1 = ch0.PartnerState.TreeState.Tree.MerkleRoot()
+	unclaimed0 = ch1.OurState.Tree.MerkleRoot()
+	unclaimed1 = ch0.PartnerState.Tree.MerkleRoot()
 	assert.EqualValues(t, unclaimed0, unclaimed1)
 
 	assert.EqualValues(t, ch1.OurState.amountLocked(), ch0.PartnerState.amountLocked())
@@ -408,25 +460,21 @@ func assertMirror(ch0, ch1 *Channel, t *testing.T) {
 }
 
 //Assert the locks created from `from_channel`.
-func assertLocked(ch *Channel, pendingLocks []*encoding.Lock, t *testing.T) {
+func assertLocked(ch *Channel, pendingLocks []*mtree.Lock, t *testing.T) {
 	var root common.Hash
 	if pendingLocks != nil {
-		var leaves []common.Hash
-		for _, lock := range pendingLocks {
-			leaves = append(leaves, utils.Sha3(lock.AsBytes()))
-		}
-		tree, _ := transfer.NewMerkleTree(leaves)
+		tree := mtree.NewMerkleTree(pendingLocks)
 		root = tree.MerkleRoot()
 	}
 	assert.EqualValues(t, len(ch.OurState.Lock2PendingLocks), len(pendingLocks))
-	assert.EqualValues(t, ch.OurState.TreeState.Tree.MerkleRoot(), root)
+	assert.EqualValues(t, ch.OurState.Tree.MerkleRoot(), root)
 	var sum = big.NewInt(0)
 	for _, lock := range pendingLocks {
 		sum.Add(sum, lock.Amount)
 	}
 	assert.EqualValues(t, ch.OurState.amountLocked(), sum)
 	for _, lock := range pendingLocks {
-		assert.Equal(t, ch.OurState.IsLocked(lock.HashLock), true)
+		assert.Equal(t, ch.OurState.IsLocked(lock.LockSecretHash), true)
 	}
 }
 
@@ -454,7 +502,7 @@ Assert the values of two synched channels.
         This assert does not work if for a intermediate state, were one message
         hasn't being delivered yet or has been completely lost.
 */
-func assertSyncedChannels(ch0 *Channel, balance0 *big.Int, outstandingLocks0 []*encoding.Lock, ch1 *Channel, balance1 *big.Int, outstandingLocks1 []*encoding.Lock, t *testing.T) {
+func assertSyncedChannels(ch0 *Channel, balance0 *big.Int, outstandingLocks0 []*mtree.Lock, ch1 *Channel, balance1 *big.Int, outstandingLocks1 []*mtree.Lock, t *testing.T) {
 	totalToken := new(big.Int).Set(x.Add(ch0.ContractBalance(), ch1.ContractBalance()))
 	assert.EqualValues(t, totalToken, x.Add(ch0.Balance(), ch1.Balance()))
 
@@ -486,7 +534,7 @@ func TestInterwovenTransfers(t *testing.T) {
 	ch0, ch1 := makePairChannel()
 	contractBalance0 := ch0.ContractBalance()
 	contractBalance1 := ch1.ContractBalance()
-	var unclaimedLocks []*encoding.Lock
+	var unclaimedLocks []*mtree.Lock
 	var transfersList []*encoding.MediatedTransfer
 	var transfersClaimed []bool
 	var transfersAmount []*big.Int
@@ -506,11 +554,10 @@ func TestInterwovenTransfers(t *testing.T) {
 		amount := transfersAmount[i]
 		secret := transfersSecret[i]
 		expiration := blockNumber + settleTimeout - 1
-		identifier := uint64(i)
 		var mtr *encoding.MediatedTransfer
-		mtr, err = ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, identifier, expiration, utils.Sha3(secret[:]))
+		mtr, err = ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, utils.Sha3(secret[:]))
 		assert.Equal(t, err, nil)
-		mtr.Sign(ch0.ExternState.bcs.PrivKey, mtr)
+		mtr.Sign(ch0.ExternState.privKey, mtr)
 		err = ch0.RegisterTransfer(blockNumber, mtr)
 		assert.Equal(t, err, nil)
 		err = ch1.RegisterTransfer(blockNumber, mtr)
@@ -529,9 +576,18 @@ func TestInterwovenTransfers(t *testing.T) {
 		if i > 0 && i%2 == 0 {
 			transfer := transfersList[i-1]
 			secret := transfersSecret[i-1]
+			err = ch0.RegisterSecret(secret)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			//synchronized claiming
-			secretMessage, _ := ch0.CreateSecret(identifier, secret)
-			secretMessage.Sign(ch0.ExternState.bcs.PrivKey, secretMessage)
+			secretMessage, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			secretMessage.Sign(ch0.ExternState.privKey, secretMessage)
 			err = ch0.RegisterTransfer(blockNumber, secretMessage)
 			assert.Equal(t, err, nil)
 			err = ch1.RegisterTransfer(blockNumber, secretMessage)
@@ -557,9 +613,9 @@ func TestInterwovenTransfers(t *testing.T) {
 func TestTransfer(t *testing.T) {
 	ch0, ch1 := makePairChannel()
 	var amount = big.NewInt(10)
-	directTransfer, err := ch0.CreateDirectTransfer(amount, 1)
+	directTransfer, err := ch0.CreateDirectTransfer(amount)
 	assert.Equal(t, err, nil)
-	directTransfer.Sign(ch0.ExternState.bcs.PrivKey, directTransfer)
+	directTransfer.Sign(ch0.ExternState.privKey, directTransfer)
 	err = ch0.RegisterTransfer(10, directTransfer)
 	assert.Equal(t, err, nil)
 	err = ch1.RegisterTransfer(10, directTransfer)
@@ -586,24 +642,24 @@ func TestRegisterInvalidTransfer(t *testing.T) {
 	expiration := blockNumber + int64(settleTimeout) - 1
 	secret := utils.Sha3([]byte("secret"))
 	hashlock := utils.Sha3(secret[:])
-	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, 1, expiration, hashlock)
+	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, hashlock)
 	assert.Equal(t, err, nil)
-	transfer1.Sign(ch0.ExternState.bcs.PrivKey, transfer1)
+	transfer1.Sign(ch0.ExternState.privKey, transfer1)
 	err = ch0.RegisterTransfer(blockNumber, transfer1)
 	assert.Equal(t, err, nil)
 	err = ch1.RegisterTransfer(blockNumber, transfer1)
 	assert.Equal(t, err, nil)
 	assertSyncedChannels(ch0, balance0, nil,
-		ch1, balance1, []*encoding.Lock{transfer1.GetLock()}, t)
+		ch1, balance1, []*mtree.Lock{transfer1.GetLock()}, t)
 	// handcrafted transfer because channel.create_transfer won't create it
-	transfer2 := encoding.NewDirectTransfer(1, ch0.GetNextNonce(), ch0.TokenAddress, ch0.MyAddress, x.Add(ch1.Balance(), balance0).Add(x, amount), ch0.PartnerState.Address, ch0.PartnerState.TreeState.Tree.MerkleRoot())
-	transfer2.Sign(ch0.ExternState.bcs.PrivKey, transfer2)
+	transfer2 := encoding.NewDirectTransfer(encoding.NewBalanceProof(ch0.GetNextNonce(), x.Add(ch1.Balance(), balance0).Add(x, amount), ch0.PartnerState.Tree.MerkleRoot(), &ch0.ChannelIdentifier))
+	transfer2.Sign(ch0.ExternState.privKey, transfer2)
 	err = ch0.RegisterTransfer(blockNumber, transfer2)
 	assert.Equal(t, err != nil, true)
 	err = ch1.RegisterTransfer(blockNumber, transfer2)
 	assert.Equal(t, err != nil, true)
 	assertSyncedChannels(ch0, balance0, nil,
-		ch1, balance1, []*encoding.Lock{transfer1.GetLock()}, t)
+		ch1, balance1, []*mtree.Lock{transfer1.GetLock()}, t)
 }
 
 /*
@@ -623,7 +679,6 @@ A node may go offline for an undetermined period of time, and when it
 */
 func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
-	bcs := rpc.MakeTestBlockChainService()
 	_, address1 := utils.MakePrivateKeyAddress()
 	privkey2, address2 := utils.MakePrivateKeyAddress()
 	var balance1 = big.NewInt(33)
@@ -631,15 +686,22 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 	revealTimeout := 7
 	settleTimeout := 11
 	var blockNumber int64 = 7
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
-	lock := &encoding.Lock{Expiration: blockNumber + int64(settleTimeout),
-		Amount:   big.NewInt(1),
-		HashLock: utils.EmptyHash,
+	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
+	lock := &mtree.Lock{Expiration: blockNumber + int64(settleTimeout),
+		Amount:         big.NewInt(1),
+		LockSecretHash: utils.EmptyHash,
 	}
-	transfer := encoding.NewMediatedTransfer(1, testChannel.GetNextNonce(), testChannel.TokenAddress, testChannel.MyAddress, big.NewInt(1), address1, utils.Sha3(lock.AsBytes()), lock, utils.EmptyAddress, utils.EmptyAddress, utils.BigInt0)
+	bp := &encoding.BalanceProof{
+		Nonce:             testChannel.GetNextNonce(),
+		ChannelIdentifier: testChannel.ChannelIdentifier.ChannelIdentifier,
+		OpenBlockNumber:   testChannel.ChannelIdentifier.OpenBlockNumber,
+		TransferAmount:    big.NewInt(1),
+		Locksroot:         utils.Sha3(lock.AsBytes()),
+	}
+	transfer := encoding.NewMediatedTransfer(bp, lock, utils.EmptyAddress, utils.EmptyAddress, utils.BigInt0)
 	transfer.Sign(privkey2, transfer)
 	err := testChannel.RegisterTransfer(blockNumber+int64(settleTimeout)+1, transfer)
 	assert.Equal(t, err, nil)
@@ -647,7 +709,6 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 
 func TestRemoveExpiredHashlock(t *testing.T) {
 	tokenAddress := utils.NewRandomAddress()
-	bcs := rpc.MakeTestBlockChainService()
 	privkey1, address1 := utils.MakePrivateKeyAddress()
 	privkey2, address2 := utils.MakePrivateKeyAddress()
 	var balance1 = big.NewInt(33)
@@ -655,14 +716,14 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	revealTimeout := 7
 	settleTimeout := 11
 	var blockNumber int64 = 7
-	ourState := NewChannelEndState(address1, balance1, nil, transfer.EmptyMerkleTreeState)
-	partnerState := NewChannelEndState(address2, balance2, nil, transfer.EmptyMerkleTreeState)
+	ourState := NewChannelEndState(address1, balance1, nil, mtree.EmptyTree)
+	partnerState := NewChannelEndState(address2, balance2, nil, mtree.EmptyTree)
 	externState := makeExternState()
-	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, externState.ChannelAddress, bcs, revealTimeout, settleTimeout)
+	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
 	amount1 := balance2
 	expiration := blockNumber + int64(settleTimeout)
 	//smtr: the mediated transfer i sent out
-	smtr, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, 1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
+	smtr, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.Sha3([]byte("test_locked_amount_cannot_be_spent")))
 	smtr.Sign(privkey1, smtr)
 	err := testChannel.RegisterTransfer(blockNumber, smtr)
 	if err != nil {
@@ -671,15 +732,22 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	}
 	t.Log("after tr1 channel=", testChannel.String())
 	amount2 := balance2
-	lock2 := &encoding.Lock{
-		Expiration: expiration,
-		Amount:     amount2,
-		HashLock:   utils.Sha3([]byte("lxllx")),
+	lock2 := &mtree.Lock{
+		Expiration:     expiration,
+		Amount:         amount2,
+		LockSecretHash: utils.Sha3([]byte("lxllx")),
 	}
-	tree2, _ := transfer.NewMerkleTree([]common.Hash{utils.Sha3(lock2.AsBytes())})
+	tree2 := mtree.NewMerkleTree([]*mtree.Lock{lock2})
 	locksroot2 := tree2.MerkleRoot()
 	//rmtr the mediatedtransfer i receive
-	rmtr := encoding.NewMediatedTransfer(1, 1, tokenAddress, testChannel.MyAddress, big.NewInt(0), address1, locksroot2, lock2, address1, address2, utils.BigInt0)
+	bp := &encoding.BalanceProof{
+		Nonce:             1,
+		ChannelIdentifier: testChannel.ChannelIdentifier.ChannelIdentifier,
+		OpenBlockNumber:   testChannel.ChannelIdentifier.OpenBlockNumber,
+		TransferAmount:    big.NewInt(0),
+		Locksroot:         locksroot2,
+	}
+	rmtr := encoding.NewMediatedTransfer(bp, lock2, address1, address2, utils.BigInt0)
 	rmtr.Sign(privkey2, rmtr)
 	err = testChannel.RegisterTransfer(blockNumber, rmtr)
 	if err != nil {
@@ -694,22 +762,29 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	*/
 
 	//remove a not expired hashlock
-	_, err = testChannel.CreateRemoveExpiredHashLockTransfer(smtr.HashLock, blockNumber)
+	_, err = testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, blockNumber)
 	if err == nil {
 		t.Error("cannot remove a hashlock which is not expired.")
 		return
 	}
-	_, _, _, err = testChannel.PartnerState.TryRemoveExpiredHashLock(rmtr.HashLock, blockNumber)
+	_, _, _, err = testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, blockNumber, true)
 	if err == nil {
 		t.Error("cannot remove not expired hashlock")
 		return
 	}
-	_, _, locksroot, err := testChannel.PartnerState.TryRemoveExpiredHashLock(rmtr.HashLock, expiration)
+	_, _, locksroot, err := testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, expiration, true)
 	if err != nil {
 		t.Error("can remove a expired hashlock")
 		return
 	}
-	removeTransferFromPartner := encoding.NewRemoveExpiredHashlockTransfer(0, rmtr.Nonce+1, rmtr.Channel, rmtr.TransferAmount, locksroot, rmtr.HashLock)
+	bp = &encoding.BalanceProof{
+		Nonce:             rmtr.Nonce + 1,
+		ChannelIdentifier: rmtr.ChannelIdentifier,
+		OpenBlockNumber:   rmtr.OpenBlockNumber,
+		TransferAmount:    rmtr.TransferAmount,
+		Locksroot:         locksroot,
+	}
+	removeTransferFromPartner := encoding.NewRemoveExpiredHashlockTransfer(bp, rmtr.LockSecretHash)
 	removeTransferFromPartner.Sign(privkey2, removeTransferFromPartner)
 	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner, blockNumber)
 	if err == nil {
@@ -721,7 +796,7 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		t.Error("must be  removed ", err)
 		return
 	}
-	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.HashLock, expiration)
+	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, expiration)
 	if err != nil {
 		t.Error("must be removed for a expired hashlock®")
 		return
@@ -738,4 +813,274 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	assert.Equal(t, testChannel.PartnerState.BalanceProofState.IsBalanceProofValid(), true)
 	assert.Equal(t, testChannel.OurState.amountLocked(), utils.BigInt0)
 	assert.Equal(t, testChannel.PartnerState.amountLocked(), utils.BigInt0)
+}
+
+func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
+	var blockNumber int64 = 7
+	ch0, ch1 := makePairChannel()
+	expiration := blockNumber + int64(ch0.SettleTimeout)
+	lockSecretHash := utils.Sha3([]byte("123"))
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	err := smtr.Sign(ch0.ExternState.privKey, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log("after tr1 channel=", ch0.String())
+	err = ch1.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	ch0s := NewChannelSerialization(ch0)
+	ch1s := NewChannelSerialization(ch1)
+	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(ch0s, 3)))
+	log.Trace(fmt.Sprintf("ch1=%s", utils.StringInterface(ch1s, 3)))
+	assertMirror(ch0, ch1, t)
+	req, err := ch1.CreateAnnouceDisposed(lockSecretHash, blockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = req.Sign(ch1.ExternState.privKey, req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterAnnouceDisposed(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterAnnouceDisposed(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res, err := ch0.CreateAnnounceDisposedResponse(lockSecretHash, blockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = res.Sign(ch0.ExternState.privKey, res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterAnnounceDisposedResponse(res, blockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterAnnounceDisposedResponse(res, blockNumber)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assertMirror(ch0, ch1, t)
+}
+
+func TestChannel_RegisterWithdrawRequest(t *testing.T) {
+	var blockNumber int64 = 7
+	ch0, ch1 := makePairChannel()
+	expiration := blockNumber + int64(ch0.SettleTimeout)
+	secret := utils.Sha3([]byte("123"))
+	lockSecretHash := utils.Sha3(secret[:])
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	err := smtr.Sign(ch0.ExternState.privKey, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log("after tr1 channel=", ch0.String())
+	err = ch1.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ch0.CreateWithdrawRequest(big.NewInt(1))
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	_, err = ch1.CreateWithdrawRequest(big.NewInt(1))
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	err = ch0.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock.Sign(ch0.ExternState.privKey, unlock)
+	err = ch0.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), true)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), true)
+	assert.EqualValues(t, ch1.CanTransfer(), true)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), true)
+
+	req, err := ch0.CreateWithdrawRequest(big.NewInt(1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
+	log.Trace(fmt.Sprintf("req=%s", req))
+	req.Sign(ch0.ExternState.privKey, req)
+	err = ch0.RegisterWithdrawRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterWithdrawRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), false)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), false)
+	assert.EqualValues(t, ch1.CanTransfer(), false)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
+	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
+	res, err := ch1.CreateWithdrawResponse(req, big.NewInt(1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res.Sign(ch1.ExternState.privKey, res)
+	err = ch0.RegisterWithdrawResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterWithdrawResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
+	var blockNumber int64 = 7
+	ch0, ch1 := makePairChannel()
+	expiration := blockNumber + int64(ch0.SettleTimeout)
+	secret := utils.Sha3([]byte("123"))
+	lockSecretHash := utils.Sha3(secret[:])
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	err := smtr.Sign(ch0.ExternState.privKey, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch0.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Log("after tr1 channel=", ch0.String())
+	err = ch1.RegisterTransfer(blockNumber, smtr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ch0.CreateCooperativeSettleRequest()
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	_, err = ch1.CreateCooperativeSettleRequest()
+	if err == nil {
+		t.Error("have lock doesn't allow withdraw")
+		return
+	}
+	err = ch0.RegisterSecret(secret)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock, err := ch0.CreateUnlock(utils.Sha3(secret[:]))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	unlock.Sign(ch0.ExternState.privKey, unlock)
+	err = ch0.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterTransfer(blockNumber, unlock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), true)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), true)
+	assert.EqualValues(t, ch1.CanTransfer(), true)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), true)
+
+	req, err := ch0.CreateCooperativeSettleRequest()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
+	log.Trace(fmt.Sprintf("req=%s", req))
+	req.Sign(ch0.ExternState.privKey, req)
+	err = ch0.RegisterCooperativeSettleRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterCooperativeSettleRequest(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ch0.CanTransfer(), false)
+	assert.EqualValues(t, ch0.CanContinueTransfer(), false)
+	assert.EqualValues(t, ch1.CanTransfer(), false)
+	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
+	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
+	res, err := ch1.CreateCooperativeSettleResponse(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res.Sign(ch1.ExternState.privKey, res)
+	err = ch0.RegisterCooperativeSettleResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = ch1.RegisterCooperativeSettleResponse(res)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }

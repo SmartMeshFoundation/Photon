@@ -1,10 +1,7 @@
 package smartraiden
 
 import (
-	"fmt"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -26,35 +23,5 @@ func (ah *AckHelper) GetAck(echohash common.Hash) []byte {
 
 //SaveAck save ack to db
 func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
-	data := ah.GetAck(echohash)
-	var ok bool
-	switch msg.(type) {
-	case *encoding.RevealSecret:
-		ok = true
-	case *encoding.SecretRequest:
-		ok = true
-	case *encoding.DirectTransfer:
-		ok = true
-	case *encoding.RefundTransfer:
-		ok = true
-	case *encoding.RemoveExpiredHashlockTransfer:
-		ok = true
-	}
-	if ok {
-		if len(data) > 0 {
-			log.Error(fmt.Sprintf("save ack for  %s which is already exist", msg.String()))
-		} else {
-			tx := ah.db.StartTx()
-			ah.db.SaveAck(echohash, ack, tx)
-			err := tx.Commit()
-			if err != nil {
-				log.Error(fmt.Sprintf("SaveAck err %s", err))
-			}
-		}
-
-	} else {
-		if len(data) == 0 {
-			log.Error(fmt.Sprintf("save ack for non revealsecret which should be saved before,msg  is %s", msg))
-		}
-	}
+	ah.db.SaveAckNoTx(echohash, ack)
 }

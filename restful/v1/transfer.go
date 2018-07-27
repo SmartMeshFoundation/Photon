@@ -63,7 +63,10 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
 	req.Target = target
 	req.Token = token
-	w.WriteJson(req)
+	err = w.WriteJson(req)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -77,7 +80,10 @@ func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(trs)
+	err = w.WriteJson(trs)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -91,5 +97,8 @@ func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(trs)
+	err = w.WriteJson(trs)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

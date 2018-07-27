@@ -2,6 +2,7 @@ package network
 
 import (
 	"crypto/ecdsa"
+	"math/rand"
 	"time"
 
 	"fmt"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -38,10 +40,23 @@ func MakeTestUDPTransport(name string, port int) *UDPTransport {
 	}
 	return t
 }
+func randomPort() int {
+	/* #nosec */
+	return rand.Int()%1000 + 40000
+}
 
 //MakeTestXMPPTransport create a test xmpp transport
 func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
-	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther, nil)
+	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
+}
+
+//MakeTestMixTransport creat a test mix transport
+func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
+	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", randomPort(), key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 type testBlockNumberGetter struct{}
@@ -69,6 +84,7 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 
 //MakeTestRaidenProtocol test only
 func MakeTestRaidenProtocol(name string) *RaidenProtocol {
+	////#nosec
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testBlockNumberGetter{})
 	return rp
@@ -76,7 +92,14 @@ func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 
 //MakeTestDiscardExpiredTransferRaidenProtocol test only
 func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
+	//#nosec
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
 	return rp
+}
+
+//SubscribeNeighbor subscribe neighbor's online and offline status
+func SubscribeNeighbor(p *RaidenProtocol, addr common.Address) error {
+	xt := p.Transport.(*XMPPTransport)
+	return xt.conn.SubscribeNeighbour(addr)
 }

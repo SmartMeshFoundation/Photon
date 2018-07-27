@@ -16,11 +16,9 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -44,18 +42,15 @@ func (r *RaidenAPI) Address() common.Address {
 
 //Tokens Return a list of the tokens registered with the default registry.
 func (r *RaidenAPI) Tokens() (addresses []common.Address) {
-	addresses, err := r.Raiden.Registry.TokenAddresses()
-	if err == nil {
-		return
-	}
-	tm, err := r.Raiden.db.GetAllTokens()
+	tokens, err := r.Raiden.db.GetAllTokens()
 	if err != nil {
+		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 		return
 	}
-	for t := range tm {
+	for t := range tokens {
 		addresses = append(addresses, t)
 	}
-	return addresses
+	return
 }
 
 /*
@@ -72,21 +67,21 @@ Args:
         Raises:
             KeyError: An error occurred when the token address is unknown to the node.
 */
-func (r *RaidenAPI) GetChannelList(tokenAddress common.Address, partnerAddress common.Address) (cs []*channel.Serialization, err error) {
+func (r *RaidenAPI) GetChannelList(tokenAddress common.Address, partnerAddress common.Address) (cs []*channeltype.Serialization, err error) {
 	return r.Raiden.db.GetChannelList(tokenAddress, partnerAddress)
 }
 
 //GetChannel get channel by address
-func (r *RaidenAPI) GetChannel(channelAddress common.Address) (c *channel.Serialization, err error) {
+func (r *RaidenAPI) GetChannel(channelAddress common.Hash) (c *channeltype.Serialization, err error) {
 	return r.Raiden.db.GetChannelByAddress(channelAddress)
 }
 
 /*
-ManagerAddressIfTokenRegistered return the channel manager address,If the token is registered then
+TokenAddressIfTokenRegistered return the channel manager address,If the token is registered then
 Also make sure that the channel manager is registered with the node.
 */
-func (r *RaidenAPI) ManagerAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	mgrAddr, err = r.Raiden.Registry.ChannelManagerByToken(tokenAddress)
+func (r *RaidenAPI) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -98,9 +93,9 @@ RegisterToken Will register the token at `token_address` with raiden. If it's al
     registered, will throw an exception.
 */
 func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	mgrAddr, err = r.Raiden.Registry.ChannelManagerByToken(tokenAddress)
+	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err == nil && mgrAddr != utils.EmptyAddress {
-		err = errors.New("Token already registered")
+		err = errors.New("TokenNetworkAddres already registered")
 		return
 	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
@@ -136,7 +131,7 @@ func (r *RaidenAPI) ConnectTokenNetwork(tokenAddress common.Address, funds *big.
 LeaveTokenNetwork Instruct the ConnectionManager to close all channels and wait for
     settlement
 */
-func (r *RaidenAPI) LeaveTokenNetwork(tokenAddress common.Address, onlyReceiving bool) ([]*channel.Serialization, error) {
+func (r *RaidenAPI) LeaveTokenNetwork(tokenAddress common.Address, onlyReceiving bool) ([]*channeltype.Serialization, error) {
 	cm, err := r.Raiden.connectionManagerForToken(tokenAddress)
 	if err != nil {
 		return nil, err
@@ -177,7 +172,7 @@ func (r *RaidenAPI) GetConnectionManagersInfo() map[string]interface{} {
 Open a channel with the peer at `partner_address`
     with the given `token_address`.
 */
-func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int) (ch *channel.Serialization, err error) {
+func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
 		revealTimeout = r.Raiden.Config.RevealTimeout
 	}
@@ -190,8 +185,8 @@ func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTime
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Raiden.db.RegisterNewChannellCallback(func(c *channel.Serialization) (remove bool) {
-		if c.TokenAddress == tokenAddress && c.PartnerAddress == partnerAddress {
+	r.Raiden.db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
+		if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
 			wg.Done()
 			return true
 		}
@@ -224,8 +219,8 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         AddressWithoutCode: The channel was settled during the deposit
         execution.
 */
-func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (err error) {
-	c, err := r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (c *channeltype.Serialization, err error) {
+	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
 	}
@@ -242,23 +237,20 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	if balance.Cmp(amount) < 0 {
 		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
 		log.Error(err.Error())
-		return rerr.ErrInsufficientFunds
-	}
-	err = token.Approve(c.ChannelAddress, amount)
-	if err != nil {
-		return err
+		err = rerr.ErrInsufficientFunds
+		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Raiden.db.RegisterChannelDepositCallback(func(c2 *channel.Serialization) (remove bool) {
-		if c2.ChannelAddress == c.ChannelAddress {
+	r.Raiden.db.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
 		return false
 	})
 	//deposit move ... todo
-	result := r.Raiden.depositChannelClient(c.ChannelAddress, amount)
+	result := r.Raiden.depositChannelClient(c.ChannelIdentifier.ChannelIdentifier, amount)
 	err = <-result.Result
 	if err != nil {
 		return
@@ -267,7 +259,8 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	 Wait until the `ChannelNewBalance` event is processed.
 	*/
 	wg.Wait()
-	return nil
+	//reload data from database,
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 /*
@@ -276,7 +269,7 @@ TokenSwapAndWait Start an atomic swap operation by sending a MediatedTransfer wi
     new valid MediatedTransfer is received with `taker_amount` of
     `taker_token`.
 */
-func (r *RaidenAPI) TokenSwapAndWait(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
+func (r *RaidenAPI) TokenSwapAndWait(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) error {
 	result, err := r.tokenSwapAsync(identifier, makerToken, takerToken, makerAddress, takerAddress,
 		makerAmount, takerAmount)
@@ -287,8 +280,8 @@ func (r *RaidenAPI) TokenSwapAndWait(identifier uint64, makerToken, takerToken, 
 	return err
 }
 
-func (r *RaidenAPI) tokenSwapAsync(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int) (result *network.AsyncResult, err error) {
+func (r *RaidenAPI) tokenSwapAsync(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount *big.Int) (result *utils.AsyncResult, err error) {
 	chs, err := r.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
@@ -299,8 +292,9 @@ func (r *RaidenAPI) tokenSwapAsync(identifier uint64, makerToken, takerToken, ma
 		err = errors.New("unkown maker token")
 		return
 	}
+
 	tokenSwap := &TokenSwap{
-		Identifier:      identifier,
+		LockSecretHash:  utils.Sha3([]byte(identifier)),
 		FromToken:       makerToken,
 		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
@@ -319,7 +313,7 @@ ExpectTokenSwap Register an expected transfer for this node.
     `maker_amount` then proceed to send a MediatedTransfer to
     `maker_address` for `taker_asset` with `taker_amount`.
 */
-func (r *RaidenAPI) ExpectTokenSwap(identifier uint64, makerToken, takerToken, makerAddress, takerAddress common.Address,
+func (r *RaidenAPI) ExpectTokenSwap(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) (err error) {
 	chs, err := r.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
@@ -332,7 +326,7 @@ func (r *RaidenAPI) ExpectTokenSwap(identifier uint64, makerToken, takerToken, m
 		return
 	}
 	tokenSwap := &TokenSwap{
-		Identifier:      identifier,
+		LockSecretHash:  utils.Sha3([]byte(identifier)),
 		FromToken:       makerToken,
 		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
@@ -357,9 +351,21 @@ func (r *RaidenAPI) StartHealthCheckFor(nodeAddress common.Address) (deviceType 
 
 //GetTokenList returns all available tokens
 func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
-	tokensmap, _ := r.Raiden.db.GetAllTokens()
+	tokensmap, err := r.Raiden.db.GetAllTokens()
+	if err != nil {
+		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
+	}
 	for k := range tokensmap {
 		tokens = append(tokens, k)
+	}
+	return
+}
+
+//GetTokenTokenNetorks return all tokens and token networks
+func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
+	tokens, err := r.Raiden.db.GetAllTokens()
+	if err != nil {
+		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 	}
 	return
 }
@@ -389,7 +395,7 @@ func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int
 }
 
 //transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) (result *network.AsyncResult, err error) {
+func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -403,14 +409,14 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 		return
 	}
 	if isDirectTransfer {
-		var c *channel.Serialization
+		var c *channeltype.Serialization
 		c, err = r.Raiden.db.GetChannel(tokenAddress, target)
 		if err != nil {
 			err = fmt.Errorf("no direct channel token:%s,partner:%s", tokenAddress.String(), target.String())
 			return
 		}
-		if c.State != transfer.ChannelStateOpened {
-			err = fmt.Errorf("channel %s not opened", c.ChannelAddress.String())
+		if c.State != channeltype.StateOpened {
+			err = fmt.Errorf("channel %s not opened", c.ChannelIdentifier)
 			return
 		}
 	}
@@ -425,209 +431,209 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 }
 
 //Close a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
-func (r *RaidenAPI) Close(tokenAddress, partnerAddress common.Address) (c *channel.Serialization, err error) {
+func (r *RaidenAPI) Close(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
 	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channel.Serialization) (remove bool) {
+	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
-			utils.APex2(c.ChannelAddress), utils.APex2(c2.ChannelAddress)))
-		if c2.ChannelAddress == c.ChannelAddress {
+			c.ChannelIdentifier, c2.ChannelIdentifier))
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
 		return false
 	})
 	//send close channel request
-	result := r.Raiden.closeChannelClient(c.ChannelAddress)
+	result := r.Raiden.closeChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
 	wg.Wait()
 	//reload data from database,
-	return r.Raiden.db.GetChannelByAddress(c.ChannelAddress)
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //Settle a closed channel with `partner_address` for the given `token_address`.return when state has been updated to database
-func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (ch *channel.Serialization, err error) {
+func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (ch *channeltype.Serialization, err error) {
 	c, err := r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
-	if c.State == transfer.ChannelStateOpened {
+	if c.State == channeltype.StateOpened {
 		err = rerr.InvalidState("channel is still open")
 		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channel.Serialization) (remove bool) {
+	r.Raiden.db.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
-			utils.APex2(c.ChannelAddress), utils.APex2(c2.ChannelAddress)))
-		if c2.ChannelAddress == c.ChannelAddress {
+			c.ChannelIdentifier, c2.ChannelIdentifier))
+		if bytes.Compare(c2.Key, c.Key) == 0 {
 			wg.Done()
 			return true
 		}
 		return false
 	})
 	//send settle request
-	result := r.Raiden.settleChannelClient(c.ChannelAddress)
+	result := r.Raiden.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", utils.APex(c.ChannelAddress), err))
+	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
 	wg.Wait()
-	//reload data from database,
-	return r.Raiden.db.GetChannelByAddress(c.ChannelAddress)
+	//reload data from database, this channel has been removed.
+	return r.Raiden.db.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
 }
 
 //GetTokenNetworkEvents return events about this token
 func (r *RaidenAPI) GetTokenNetworkEvents(tokenAddress common.Address, fromBlock, toBlock int64) (data []interface{}, err error) {
-	type eventData struct {
-		/*
-					 {
-			        "event_type": "ChannelNew",
-			        "settle_timeout": 10,
-			        "netting_channel": "0xc0ea08a2d404d3172d2add29a45be56da40e2949",
-			        "participant1": "0x4894a542053248e0c504e3def2048c08f73e1ca6",
-			        "participant2": "0x356857Cd22CBEFccDa4e96AF13b408623473237A"
-			    }
-		*/
-		EventType      string `json:"event_type"`
-		SettleTimeout  int    `json:"settle_timeout"`
-		NettingChannel string `json:"netting_channel"`
-		Participant1   string `json:"participant1"`
-		Participant2   string `json:"participant2"`
-		TokenAddress   string `json:"token_address"`
-	}
-	tokens, err := r.Raiden.db.GetAllTokens()
-	if err != nil {
-		return
-	}
-	for t, manager := range tokens {
-		if tokenAddress == utils.EmptyAddress || t == tokenAddress {
-			events, err := r.Raiden.BlockChainEvents.GetAllChannelManagerEvents(manager, fromBlock, toBlock)
-			if err != nil {
-				return nil, err
-			}
-			for _, e := range events {
-				e2 := e.(*blockchain.EventChannelNew)
-				ed := &eventData{
-					EventType:      e2.EventName,
-					SettleTimeout:  e2.SettleTimeout,
-					NettingChannel: e2.NettingChannelAddress.String(),
-					Participant1:   e2.Participant1.String(),
-					Participant2:   e2.Participant2.String(),
-					TokenAddress:   t.String(),
-				}
-				data = append(data, ed)
-			}
-		}
-	}
+	//type eventData struct {
+	//	/*
+	//				 {
+	//		        "event_type": "ChannelNew",
+	//		        "settle_timeout": 10,
+	//		        "netting_channel": "0xc0ea08a2d404d3172d2add29a45be56da40e2949",
+	//		        "participant1": "0x4894a542053248e0c504e3def2048c08f73e1ca6",
+	//		        "participant2": "0x356857Cd22CBEFccDa4e96AF13b408623473237A"
+	//		    }
+	//	*/
+	//	EventType      string `json:"event_type"`
+	//	SettleTimeout  int    `json:"settle_timeout"`
+	//	NettingChannel string `json:"netting_channel"`
+	//	Participant1   string `json:"participant1"`
+	//	Participant2   string `json:"participant2"`
+	//	TokenAddress   string `json:"token_address"`
+	//}
+	//tokens, err := r.Raiden.db.GetAllTokens()
+	//if err != nil {
+	//	return
+	//}
+	//for t, manager := range tokens {
+	//	if tokenAddress == utils.EmptyAddress || t == tokenAddress {
+	//		events, err := r.Raiden.BlockChainEvents.GetAllChannelManagerEvents(manager, fromBlock, toBlock)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		for _, e := range events {
+	//			e2 := e.(*blockchain.EventChannelOpen)
+	//			ed := &eventData{
+	//				EventType:      e2.EventName,
+	//				SettleTimeout:  e2.SettleTimeout,
+	//				NettingChannel: e2.NettingChannelAddress.String(),
+	//				Participant1:   e2.Participant1.String(),
+	//				Participant2:   e2.Participant2.String(),
+	//				TokenAddress:   t.String(),
+	//			}
+	//			data = append(data, ed)
+	//		}
+	//	}
+	//}
 	return
 }
 
 //GetNetworkEvents all raiden events
 func (r *RaidenAPI) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, error) {
-	type eventData struct {
-		/*
-					 "event_type": "TokenAdded",
-			        "token_address": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
-			        "channel_manager_address": "0xc0ea08a2d404d3172d2add29a45be56da40e2949"
-		*/
-		EventType             string `json:"event_type"`
-		TokenAddress          string `json:"token_address"`
-		ChannelManagerAddress string `json:"channel_manager_address"`
-	}
-	events, err := r.Raiden.BlockChainEvents.GetAllRegistryEvents(r.Raiden.RegistryAddress, fromBlock, toBlock)
-	if err != nil {
-		return nil, err
-	}
-	var data []interface{}
-	for _, e := range events {
-		e2 := e.(*blockchain.EventTokenAdded)
-		ed := &eventData{
-			EventType:             e2.EventName,
-			TokenAddress:          e2.TokenAddress.String(),
-			ChannelManagerAddress: e2.ChannelManagerAddress.String(),
-		}
-		data = append(data, ed)
-	}
-	return data, nil
+	//type eventData struct {
+	//	/*
+	//				 "event_type": "TokenAdded",
+	//		        "token_address": "0xea674fdde714fd979de3edf0f56aa9716b898ec8",
+	//		        "channel_manager_address": "0xc0ea08a2d404d3172d2add29a45be56da40e2949"
+	//	*/
+	//	EventType             string `json:"event_type"`
+	//	TokenAddress          string `json:"token_address"`
+	//	ChannelManagerAddress string `json:"channel_manager_address"`
+	//}
+	//events, err := r.Raiden.BlockChainEvents.GetAllRegistryEvents(r.Raiden.RegistryAddress, fromBlock, toBlock)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//var data []interface{}
+	//for _, e := range events {
+	//	e2 := e.(*blockchain.EventTokenNetworkCreated)
+	//	ed := &eventData{
+	//		EventType:             e2.EventName,
+	//		TokenAddress:          e2.TokenAddress.String(),
+	//		ChannelManagerAddress: e2.TokenNetworkAddress.String(),
+	//	}
+	//	data = append(data, ed)
+	//}
+	return nil, nil
 }
 
 //GetChannelEvents events of this channel
-func (r *RaidenAPI) GetChannelEvents(channelAddress common.Address, fromBlock, toBlock int64) (data []transfer.Event, err error) {
+func (r *RaidenAPI) GetChannelEvents(channelAddress common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
 
-	var events []transfer.Event
-	events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
-	if err != nil {
-		return
-	}
-	for _, e := range events {
-		m := make(map[string]interface{})
-		switch e2 := e.(type) {
-		case *blockchain.EventChannelNewBalance:
-			m["event_type"] = e2.EventName
-			m["participant"] = e2.ParticipantAddress.String()
-			m["balance"] = e2.Balance
-			m["block_number"] = e2.BlockNumber
-			data = append(data, m)
-		case *blockchain.EventChannelClosed:
-			m["event_type"] = e2.EventName
-			m["netting_channel_address"] = e2.ContractAddress.String()
-			m["closing_address"] = e2.ClosingAddress.String()
-			data = append(data, m)
-		case *blockchain.EventChannelSettled:
-			m["event_type"] = e2.EventName
-			m["netting_channel_address"] = e2.ContractAddress.String()
-			m["block_number"] = e2.BlockNumber
-			data = append(data, m)
-		case *blockchain.EventChannelSecretRevealed:
-			m["event_type"] = e2.EventName
-			m["netting_channel_address"] = e2.ContractAddress.String()
-			m["secret"] = e2.Secret.String()
-			data = append(data, m)
-			//case *blockchain.EventTransferUpdated:
-			//	m["event_type"] = e2.EventName
-			//	m["token_address"] = t.String()
-			//	m["channel_manager_address"] = graph.ChannelManagerAddress.String()
-		}
-
-	}
-
-	var raidenEvents []*models.InternalEvent
-	raidenEvents, err = r.Raiden.db.GetEventsInBlockRange(fromBlock, toBlock)
-	if err != nil {
-		return
-	}
-	//Here choose which raiden internal events we want to expose to the end user
-	for _, ev := range raidenEvents {
-		m := make(map[string]interface{})
-		switch e2 := ev.EventObject.(type) {
-		case *transfer.EventTransferSentSuccess:
-			m["event_type"] = "EventTransferSentSuccess"
-			m["identifier"] = e2.Identifier
-			m["block_number"] = ev.BlockNumber
-			m["amount"] = e2.Amount
-			m["target"] = e2.Target
-			data = append(data, m)
-		case *transfer.EventTransferSentFailed:
-			m["event_type"] = "EventTransferSentFailed"
-			m["identifier"] = e2.Identifier
-			m["block_number"] = ev.BlockNumber
-			m["reason"] = e2.Reason
-			data = append(data, m)
-		case *transfer.EventTransferReceivedSuccess:
-			m["event_type"] = "EventTransferReceivedSuccess"
-			m["identifier"] = e2.Identifier
-			m["block_number"] = ev.BlockNumber
-			m["amount"] = e2.Amount
-			m["initiator"] = e2.Initiator.String()
-			data = append(data, m)
-		}
-	}
+	//var events []transfer.Event
+	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
+	//if err != nil {
+	//	return
+	//}
+	//for _, e := range events {
+	//	m := make(map[string]interface{})
+	//	switch e2 := e.(type) {
+	//	case *blockchain.EventChannelNewBalance:
+	//		m["event_type"] = e2.EventName
+	//		m["participant"] = e2.ParticipantAddress.String()
+	//		m["balance"] = e2.Balance
+	//		m["block_number"] = e2.BlockNumber
+	//		data = append(data, m)
+	//	case *blockchain.EventChannelClosed:
+	//		m["event_type"] = e2.EventName
+	//		m["netting_channel_address"] = e2.ContractAddress.String()
+	//		m["closing_address"] = e2.ClosingAddress.String()
+	//		data = append(data, m)
+	//	case *blockchain.EventChannelSettled:
+	//		m["event_type"] = e2.EventName
+	//		m["netting_channel_address"] = e2.ContractAddress.String()
+	//		m["block_number"] = e2.BlockNumber
+	//		data = append(data, m)
+	//	case *blockchain.EventSecretRevealed:
+	//		m["event_type"] = e2.EventName
+	//		m["netting_channel_address"] = e2.ContractAddress.String()
+	//		m["secret"] = e2.Secret.String()
+	//		data = append(data, m)
+	//		//case *blockchain.EventNonClosingBalanceProofUpdated:
+	//		//	m["event_type"] = e2.EventName
+	//		//	m["token_address"] = t.String()
+	//		//	m["channel_manager_address"] = graph.TokenAddress.String()
+	//	}
+	//
+	//}
+	//
+	//var raidenEvents []*models.InternalEvent
+	//raidenEvents, err = r.Raiden.db.GetEventsInBlockRange(fromBlock, toBlock)
+	//if err != nil {
+	//	return
+	//}
+	////Here choose which raiden internal events we want to expose to the end user
+	//for _, ev := range raidenEvents {
+	//	m := make(map[string]interface{})
+	//	switch e2 := ev.EventObject.(type) {
+	//	case *transfer.EventTransferSentSuccess:
+	//		m["event_type"] = "EventTransferSentSuccess"
+	//		m["identifier"] = e2.LockSecretHash
+	//		m["block_number"] = ev.BlockNumber
+	//		m["amount"] = e2.Amount
+	//		m["target"] = e2.Target
+	//		data = append(data, m)
+	//	case *transfer.EventTransferSentFailed:
+	//		m["event_type"] = "EventTransferSentFailed"
+	//		m["identifier"] = e2.LockSecretHash
+	//		m["block_number"] = ev.BlockNumber
+	//		m["reason"] = e2.Reason
+	//		data = append(data, m)
+	//	case *transfer.EventTransferReceivedSuccess:
+	//		m["event_type"] = "EventTransferReceivedSuccess"
+	//		m["identifier"] = e2.LockSecretHash
+	//		m["block_number"] = ev.BlockNumber
+	//		m["amount"] = e2.Amount
+	//		m["initiator"] = e2.Initiator.String()
+	//		data = append(data, m)
+	//	}
+	//}
 	return
 }
 
@@ -685,7 +691,7 @@ type updateTransfer struct {
 	ClosingSignature    string   `json:"closing_signature"`
 	NonClosingSignature string   `json:"non_closing_signature"`
 }
-type withdraw struct {
+type unlock struct {
 	LockedEncoded string `json:"locked_encoded"`
 	MerkleProof   string `json:"merkle_proof"`
 	Secret        string `json:"secret"`
@@ -695,13 +701,13 @@ type withdraw struct {
 type ChannelFor3rd struct {
 	ChannelAddress string         `json:"channel_address"`
 	UpdateTransfer updateTransfer `json:"update_transfer"`
-	Withdraws      []*withdraw    `json:"withdraws"`
+	Withdraws      []*unlock      `json:"withdraws"`
 }
 
 /*
 ChannelInformationFor3rdParty generate all information need by 3rd party
 */
-func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
+func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr common.Hash, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
 	var sig []byte
 	c, err := r.GetChannel(channelAddr)
 	if err != nil {
@@ -723,41 +729,42 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr, thirdAddr common.
 		return
 	}
 	c3.UpdateTransfer.NonClosingSignature = common.Bytes2Hex(sig)
-	tree, err := transfer.NewMerkleTree(c.PartnerLeaves)
-	if err != nil {
-		return
-	}
-	var ws []*withdraw
-	for _, l := range c.PartnerLock2UnclaimedLocks {
-		proof := channel.ComputeProofForLock(l.Secret, l.Lock, tree)
-		w := &withdraw{
-			LockedEncoded: common.Bytes2Hex(proof.LockEncoded),
-			Secret:        l.Secret.String(),
-			MerkleProof:   common.Bytes2Hex(transfer.Proof2Bytes(proof.MerkleProof)),
-		}
-		log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
-		ws = append(ws, w)
-	}
-	c3.Withdraws = ws
+	//todo 以后添加
+	//tree := mtree.NewMerkleTree(c.PartnerLeaves)
+	//var ws []*unlock
+	//for _, l := range c.PartnerLock2UnclaimedLocks() {
+	//	//proof := channel.ComputeProofForLock( l.Lock, tree)
+	//	//w := &unlock{
+	//	//	LockedEncoded: common.Bytes2Hex(mtree.Proof2Bytes(proof)),
+	//	//	Secret:        l.Secret.String(),
+	//	//	MerkleProof:   common.Bytes2Hex(transfer.Proof2Bytes(proof.MerkleProof)),
+	//	//}
+	//	//log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
+	//	//ws = append(ws, w)
+	//}
+	//c3.Withdraws = ws
 
 	result = c3
 	return
 }
 
 //make sure PartnerBalanceProof is not nil
-func signFor3rd(c *channel.Serialization, thirdAddr common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
+func signFor3rd(c *channeltype.Serialization, thirdAddr common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
 	if c.PartnerBalanceProof == nil {
 		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
 		return nil, errors.New("empty PartnerBalanceProof")
 	}
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
-	buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	buf.Write(c.PartnerBalanceProof.LocksRoot[:])
-	buf.Write(c.ChannelAddress[:])
-	buf.Write(c.PartnerBalanceProof.MessageHash[:])
-	buf.Write(c.PartnerBalanceProof.Signature)
-	buf.Write(thirdAddr[:])
+	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
+	_, err = buf.Write(c.PartnerBalanceProof.LocksRoot[:])
+	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
+	_, err = buf.Write(c.PartnerBalanceProof.MessageHash[:])
+	_, err = buf.Write(c.PartnerBalanceProof.Signature)
+	_, err = buf.Write(thirdAddr[:])
+	if err != nil {
+		log.Error(fmt.Sprintf("buf write error %s", err))
+	}
 	dataToSign := buf.Bytes()
 	return utils.SignData(privkey, dataToSign)
 }

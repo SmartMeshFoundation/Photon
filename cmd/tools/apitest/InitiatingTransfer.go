@@ -75,7 +75,7 @@ func InitiatingTransferTest(url string, TargetUrl string) {
 	Amount = 1
 	for i := 0; i < len(Tokens); i++ {
 		Token = Tokens[i]
-		fmt.Printf("Token:[%s]\n", Token)
+		fmt.Printf("TokenNetworkAddres:[%s]\n", Token)
 		_, Status, err := InitiatingTransfer(url, Token, TargetAddress, Amount)
 		ShowError(err)
 		ShowInitiatingTransferMsgDetail(Status)
@@ -105,7 +105,7 @@ func ResultJudge(TransferResult TransferResponse, Status string, err error, Init
 			e = true
 		}
 		if TransferResult.Amount != Amount {
-			log.Println("Transfer failed:Amount mismatching")
+			log.Println("Transfer failed:PaymentAmount mismatching")
 			e = true
 		}
 		if e == false {

@@ -12,8 +12,8 @@ import (
 func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	m := setupDb(t)
 	taddr := utils.NewRandomAddress()
-	caddr := utils.NewRandomAddress()
-	m.NewReceivedTransfer(2, caddr, caddr, taddr, 3, big.NewInt(10))
+	caddr := utils.NewRandomHash()
+	m.NewReceivedTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10))
 	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
 	r, err := m.GetReceivedTransfer(key)
 	if err != nil {
@@ -21,12 +21,12 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 		return
 	}
 	assert.Equal(t, r.FromAddress, taddr)
-	assert.Equal(t, r.ChannelAddress, caddr)
+	assert.Equal(t, r.ChannelIdentifier, caddr)
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
 
-	m.NewReceivedTransfer(3, caddr, caddr, taddr, 4, big.NewInt(10))
-	m.NewReceivedTransfer(5, caddr, caddr, taddr, 6, big.NewInt(10))
+	m.NewReceivedTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10))
+	m.NewReceivedTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10))
 
 	trs, err := m.GetReceivedTransferInBlockRange(0, 3)
 	if err != nil {
@@ -52,8 +52,8 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 func TestModelDB_NewSentTransfer(t *testing.T) {
 	m := setupDb(t)
 	taddr := utils.NewRandomAddress()
-	caddr := utils.NewRandomAddress()
-	m.NewSentTransfer(2, caddr, caddr, taddr, 3, big.NewInt(10))
+	caddr := utils.NewRandomHash()
+	m.NewSentTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10))
 	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
 	r, err := m.GetSentTransfer(key)
 	if err != nil {
@@ -61,12 +61,12 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 		return
 	}
 	assert.Equal(t, r.ToAddress, taddr)
-	assert.Equal(t, r.ChannelAddress, caddr)
+	assert.Equal(t, r.ChannelIdentifier, caddr)
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
 
-	m.NewSentTransfer(3, caddr, caddr, taddr, 4, big.NewInt(10))
-	m.NewSentTransfer(5, caddr, caddr, taddr, 6, big.NewInt(10))
+	m.NewSentTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10))
+	m.NewSentTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10))
 
 	trs, err := m.GetSentTransferInBlockRange(0, 3)
 	if err != nil {

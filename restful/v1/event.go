@@ -54,7 +54,10 @@ func EventNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -76,7 +79,10 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -85,19 +91,22 @@ EventChannels returns all events about the channel specified
 func EventChannels(w rest.ResponseWriter, r *rest.Request) {
 	fromBlock, toBlock := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,toblock=%d", fromBlock, toBlock))
-	var channel common.Address
+	var channel common.Hash
 	channelstr := r.PathParam("channel")
 	log.Trace(fmt.Sprintf("channels %s", channelstr))
 	if len(channelstr) != len(channel.String()) {
 		rest.Error(w, "adderss error", http.StatusBadRequest)
 		return
 	}
-	channel = common.HexToAddress(channelstr)
+	channel = common.HexToHash(channelstr)
 	events, err := RaidenAPI.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

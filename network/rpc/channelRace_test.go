@@ -12,18 +12,24 @@ import (
 
 func TestChannelConcurrentQuery(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	ch, err := bcs.NettingChannel(common.HexToAddress(os.Getenv("CHANNEL")))
+	tn, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	s, _ := ch.SettleTimeout()
-	t.Log("settile:", s)
+	_, p1 := TestGetParticipant1()
+	_, p2 := TestGetParticipant2()
+	_, s, _, _, _, err := tn.GetChannelInfo(p1, p2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("settile: %d", s)
 	wg := sync.WaitGroup{}
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			s2, _ := ch.SettleTimeout()
+			_, s2, _, _, _, _ := tn.GetChannelInfo(p1, p2)
 			if s != s2 {
 				t.Error("not equal")
 			}

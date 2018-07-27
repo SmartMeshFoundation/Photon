@@ -11,7 +11,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +28,7 @@ func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{
 func deployAToken(t *testing.T, raiden *RaidenService) (addr common.Address) {
 	n := new(big.Int)
 	n.SetBytes(raiden.NodeAddress[:])
-	addr, tx, _, err := contracts.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, "Contracts in Go!!!", 0, "Go!")
+	addr, tx, _, err := tokencontract.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, 1, "Contracts in Go!!!", "Go!")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -66,8 +66,10 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
-	assert(t, ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute), nil)
-	assert(t, rb.Deposit(tokenAddr, ra.Raiden.NodeAddress, contractBalance, time.Minute), nil)
+	_, err = ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
+	_, err = rb.Deposit(tokenAddr, ra.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
 
 	log.Info("step 3.2 channel B-C")
 	_, err = rb.Open(tokenAddr, rc.Raiden.NodeAddress, ra.Raiden.Config.SettleTimeout, ra.Raiden.Config.RevealTimeout)
@@ -76,8 +78,10 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
-	assert(t, rb.Deposit(tokenAddr, rc.Raiden.NodeAddress, contractBalance, time.Minute), nil)
-	assert(t, rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute), nil)
+	_, err = rb.Deposit(tokenAddr, rc.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
+	_, err = rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
 }
 func newEnv(t *testing.T, ra, rb, rc, rd *RaidenAPI) (addr1, addr2 common.Address) {
 	var contractBalance = big.NewInt(100)
@@ -137,23 +141,15 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
 	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
-	log.Info("step 4 D connect to this token network")
-	if false {
-		err = rd.ConnectTokenNetwork(tokenAddr, big.NewInt(300), 3, 0.4)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-	}
 	log.Info(" step 5 make a token swap between A and B")
 	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
 	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
-	err = rb.ExpectTokenSwap(32, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = rb.ExpectTokenSwap("32", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = ra.TokenSwapAndWait(32, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = ra.TokenSwapAndWait("32", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
@@ -170,12 +166,12 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 
 	log.Info(" step 6 make a token swap between A and c through b")
-	err = rc.ExpectTokenSwap(33, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = rc.ExpectTokenSwap("33", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = ra.TokenSwapAndWait(33, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
+	err = ra.TokenSwapAndWait("33", tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
 		return
@@ -196,13 +192,6 @@ func TestSmoke(t *testing.T) {
 	//channel b-c of tokenaddr2 b+2amount c-2*amount
 	assert(t, rb.Raiden.getChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 	assert(t, rc.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
-	log.Info(" step 8 test leave network take a long long time")
-	if false {
-		_, err = rd.LeaveTokenNetwork(tokenAddr, true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
 }
 
 func TestFeeCharger(t *testing.T) {

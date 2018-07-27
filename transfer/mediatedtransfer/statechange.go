@@ -5,10 +5,12 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -18,33 +20,42 @@ ActionInitInitiatorStateChange start a mediated transfer
  useful work, ie. there must /not/ be an event for requesting new data.
 */
 type ActionInitInitiatorStateChange struct {
-	OurAddress      common.Address        //This node address.
-	Tranfer         *LockedTransferState  //A state object containing the transfer details.
-	Routes          *transfer.RoutesState //The current available routes.
-	RandomGenerator utils.SecretGenerator //A generator for secrets.
-	BlockNumber     int64                 //The current block number.
-	Db              channel.Db            //get the latest channel state
+	OurAddress     common.Address       //This node address.
+	Tranfer        *LockedTransferState //A state object containing the transfer details.
+	Routes         *route.RoutesState   //The current available routes.
+	BlockNumber    int64                //The current block number.
+	Db             channeltype.Db       //get the latest channel state
+	LockSecretHash common.Hash
+	Secret         common.Hash
 }
 
 //ActionInitMediatorStateChange  Initial state for a new mediator.
 type ActionInitMediatorStateChange struct {
 	OurAddress  common.Address             //This node address.
 	FromTranfer *LockedTransferState       //The received MediatedTransfer.
-	Routes      *transfer.RoutesState      //The current available routes.
-	FromRoute   *transfer.RouteState       //The route from which the MediatedTransfer was received.
+	Routes      *route.RoutesState         //The current available routes.
+	FromRoute   *route.State               //The route from which the MediatedTransfer was received.
 	BlockNumber int64                      //The current block number.
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channel.Db                 //get the latest channel state
+	Db          channeltype.Db             //get the latest channel state
+}
+
+//MediatorReReceiveStateChange 中间节点再次收到 MediatedTransfer
+type MediatorReReceiveStateChange struct {
+	Message      *encoding.MediatedTransfer //it two message
+	FromRoute    *route.State
+	FromTransfer *LockedTransferState
+	BlockNumber  int64
 }
 
 //ActionInitTargetStateChange Initial state for a new target.
 type ActionInitTargetStateChange struct {
 	OurAddress  common.Address       //This node address.
 	FromTranfer *LockedTransferState //The received MediatedTransfer.
-	FromRoute   *transfer.RouteState //The route from which the MediatedTransfer was received.
+	FromRoute   *route.State         //The route from which the MediatedTransfer was received.
 	BlockNumber int64
 	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channel.Db                 //get the latest channel state
+	Db          channeltype.Db             //get the latest channel state
 }
 
 /*
@@ -54,16 +65,15 @@ ActionCancelRouteStateChange Cancel the current route.
         timeouts.
 */
 type ActionCancelRouteStateChange struct {
-	Identifier uint64
+	LockSecretHash common.Hash
 }
 
 //ReceiveSecretRequestStateChange A SecretRequest message received.
 type ReceiveSecretRequestStateChange struct {
-	Identifier uint64
-	Amount     *big.Int
-	Hashlock   common.Hash
-	Sender     common.Address
-	Message    *encoding.SecretRequest //the message trigger this statechange
+	Amount         *big.Int
+	LockSecretHash common.Hash
+	Sender         common.Address
+	Message        *encoding.SecretRequest //the message trigger this statechange
 }
 
 //ReceiveSecretRevealStateChange A SecretReveal message received
@@ -73,85 +83,189 @@ type ReceiveSecretRevealStateChange struct {
 	Message *encoding.RevealSecret //the message trigger this statechange
 }
 
-//ReceiveTransferRefundStateChange A RefundTransfer message received.
-type ReceiveTransferRefundStateChange struct {
-	Sender   common.Address
-	Transfer *LockedTransferState
-	Message  *encoding.RefundTransfer //the message trigger this statechange
+//ReceiveAnnounceDisposedStateChange A AnnounceDisposed message received.
+type ReceiveAnnounceDisposedStateChange struct {
+	Sender  common.Address
+	Lock    *mtree.Lock
+	Token   common.Address
+	Message *encoding.AnnounceDisposed //the message trigger this statechange
 }
 
 //ReceiveBalanceProofStateChange A balance proof `identifier` was received.
 type ReceiveBalanceProofStateChange struct {
-	Identifier   uint64
-	NodeAddress  common.Address
-	BalanceProof *transfer.BalanceProofState
-	Message      encoding.EnvelopMessager //the message trigger this statechange
+	LockSecretHash common.Hash
+	NodeAddress    common.Address
+	BalanceProof   *transfer.BalanceProofState
+	Message        encoding.EnvelopMessager //the message trigger this statechange
+}
+
+//EventRemoveStateManager notify that a state manager is finished.
+type EventRemoveStateManager struct {
+	Key common.Hash
 }
 
 /*
-ContractReceiveWithdrawStateChange A lock was withdrawn via the blockchain.
-
-    Used when a hash time lock was withdrawn and a log ChannelSecretRevealed is
-    emited by the netting channel.
-
-    Note:
-        For this state change the contract caller is not important but only the
-        receiving address. `receiver` is the address to which the lock's token
-        was transferred, this may be either of the channel participants.
-
-        If the channel was used for a mediated transfer that was refunded, this
-        event must be used twice, once for each receiver.
+ContractStateChange  所有的合约事件都应该是按照链上发生的顺序抵达,这样可以保证同一个通道 settle 重新打开以后,不至于把事件发送给错误的通道.
 */
-type ContractReceiveWithdrawStateChange struct {
-	ChannelAddress common.Address
-	Secret         common.Hash
-	Receiver       common.Address //this address use secret to withdraw onchain
+type ContractStateChange interface {
+	GetBlockNumber() int64
 }
 
-//ContractReceiveClosedStateChange a channel was closed
-type ContractReceiveClosedStateChange struct {
-	ChannelAddress common.Address
-	ClosingAddress common.Address
-	ClosedBlock    int64 //block number when close
+/*
+ContractSecretRevealOnChainStateChange 密码在链上注册了
+1.诚实的节点在检查对方可以在链上unlock 这个锁的时候,应该主动发送unloc消息,移除此锁
+2.自己应该把密码保存在本地,然后在需要的时候链上兑现
+*/
+type ContractSecretRevealOnChainStateChange struct {
+	LockSecretHash common.Hash
+	BlockNumber    int64
 }
 
-//ContractReceiveSettledStateChange a channel was settled
-type ContractReceiveSettledStateChange struct {
-	ChannelAddress common.Address
-	SettledBlock   int64
+//GetBlockNumber return when this event occur
+func (e *ContractSecretRevealOnChainStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
 }
 
-//ContractReceiveBalanceStateChange new deposit on channel
-type ContractReceiveBalanceStateChange struct {
-	ChannelAddress     common.Address
-	TokenAddress       common.Address
-	ParticipantAddress common.Address
-	Balance            *big.Int //todo type error?
-	BlockNumber        int64
+//ContractUnlockStateChange unlock event of contract
+type ContractUnlockStateChange struct {
+	ChannelIdentifier   common.Hash
+	BlockNumber         int64
+	TokenNetworkAddress common.Address
+	LockHash            common.Hash //hash of the lock, not secret hash
+	Participant         common.Address
+	TransferAmount      *big.Int
 }
 
-//ContractReceiveNewChannelStateChange new channel created on block chain
-type ContractReceiveNewChannelStateChange struct {
-	ManagerAddress common.Address
-	ChannelAddress common.Address
-	Participant1   common.Address
-	Participant2   common.Address
-	SettleTimeout  int
+//GetBlockNumber return when this event occur
+func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
 }
 
-//ContractReceiveTokenAddedStateChange a new token registered
-type ContractReceiveTokenAddedStateChange struct {
-	RegistryAddress common.Address
-	TokenAddress    common.Address
-	ManagerAddress  common.Address
+//ContractChannelWithdrawStateChange withdraw event of contract
+type ContractChannelWithdrawStateChange struct {
+	ChannelAddress *contracts.ChannelUniqueID
+	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
+	Participant1        common.Address
+	Participant1Balance *big.Int
+	Participant2        common.Address
+	Participant2Balance *big.Int
+	TokenNetworkAddress common.Address
+	BlockNumber         int64
 }
 
-//ContractTransferUpdatedStateChange contrct TransferUpdated event
-type ContractTransferUpdatedStateChange struct {
-	ChannelAddress common.Address
-	Participant    common.Address
+//GetBlockNumber return when this event occur
+func (e *ContractChannelWithdrawStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
 }
 
+//ContractClosedStateChange a channel was closed
+type ContractClosedStateChange struct {
+	ChannelIdentifier   common.Hash
+	ClosingAddress      common.Address
+	ClosedBlock         int64 //block number when close
+	LocksRoot           common.Hash
+	TransferredAmount   *big.Int
+	TokenNetworkAddress common.Address
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractClosedStateChange) GetBlockNumber() int64 {
+	return e.ClosedBlock
+}
+
+//ContractSettledStateChange a channel was settled
+type ContractSettledStateChange struct {
+	ChannelIdentifier   common.Hash
+	SettledBlock        int64
+	TokenNetworkAddress common.Address
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractSettledStateChange) GetBlockNumber() int64 {
+	return e.SettledBlock
+}
+
+//ContractCooperativeSettledStateChange a channel was cooperatively settled
+type ContractCooperativeSettledStateChange struct {
+	ChannelIdentifier   common.Hash
+	SettledBlock        int64
+	TokenNetworkAddress common.Address
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractCooperativeSettledStateChange) GetBlockNumber() int64 {
+	return e.SettledBlock
+}
+
+//ContractPunishedStateChange punished events on channel
+type ContractPunishedStateChange struct {
+	ChannelIdentifier   common.Hash
+	TokenNetworkAddress common.Address
+	Beneficiary         common.Address
+	BlockNumber         int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractPunishedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractBalanceStateChange new deposit on channel
+type ContractBalanceStateChange struct {
+	ChannelIdentifier   common.Hash
+	ParticipantAddress  common.Address
+	Balance             *big.Int
+	TokenNetworkAddress common.Address
+	BlockNumber         int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractBalanceStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractNewChannelStateChange new channel created on block chain
+type ContractNewChannelStateChange struct {
+	ChannelIdentifier   *contracts.ChannelUniqueID
+	Participant1        common.Address
+	Participant2        common.Address
+	SettleTimeout       int
+	TokenNetworkAddress common.Address
+	BlockNumber         int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractNewChannelStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractTokenAddedStateChange a new token registered
+type ContractTokenAddedStateChange struct {
+	RegistryAddress     common.Address
+	TokenAddress        common.Address
+	TokenNetworkAddress common.Address
+	BlockNumber         int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractTokenAddedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
+//ContractBalanceProofUpdatedStateChange contrct TransferUpdated event
+type ContractBalanceProofUpdatedStateChange struct {
+	ChannelIdentifier   common.Hash
+	Participant         common.Address
+	LocksRoot           common.Hash
+	TransferAmount      *big.Int
+	TokenNetworkAddress common.Address
+	BlockNumber         int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractBalanceProofUpdatedStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
 func init() {
 	gob.Register(&ActionInitInitiatorStateChange{})
 	gob.Register(&ActionInitMediatorStateChange{})
@@ -159,13 +273,13 @@ func init() {
 	gob.Register(&ActionCancelRouteStateChange{})
 	gob.Register(&ReceiveSecretRequestStateChange{})
 	gob.Register(&ReceiveSecretRevealStateChange{})
-	gob.Register(&ReceiveTransferRefundStateChange{})
+	gob.Register(&ReceiveAnnounceDisposedStateChange{})
 	gob.Register(&ReceiveBalanceProofStateChange{})
-	gob.Register(&ContractReceiveWithdrawStateChange{})
-	gob.Register(&ContractReceiveClosedStateChange{})
-	gob.Register(&ContractReceiveSettledStateChange{})
-	gob.Register(&ContractReceiveBalanceStateChange{})
-	gob.Register(&ContractReceiveNewChannelStateChange{})
-	gob.Register(&ContractReceiveTokenAddedStateChange{})
-	gob.Register(&ContractTransferUpdatedStateChange{})
+	gob.Register(&ContractSecretRevealOnChainStateChange{})
+	gob.Register(&ContractClosedStateChange{})
+	gob.Register(&ContractSettledStateChange{})
+	gob.Register(&ContractBalanceStateChange{})
+	gob.Register(&ContractNewChannelStateChange{})
+	gob.Register(&ContractTokenAddedStateChange{})
+	gob.Register(&ContractBalanceProofUpdatedStateChange{})
 }

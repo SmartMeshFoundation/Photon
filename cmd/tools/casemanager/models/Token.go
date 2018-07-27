@@ -6,6 +6,6 @@ import "github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 type Token struct {
 	Name    string
 	Address string
-	Manager *contracts.ChannelManagerContract
+	Manager *contracts.TokenNetwork
 	Token   *contracts.Token
 }

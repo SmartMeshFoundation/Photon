@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+//#nosec
 const passwordFormat = "2006-01-02"
 
 //CreatePassword is helper function for login to xmpp server

@@ -18,6 +18,7 @@ func Import(filename string) (g Graph, err error) {
 	var arc int
 	var dist int64
 	var ok bool
+	//#nosec
 	got, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return
@@ -94,10 +95,11 @@ func Import(filename string) (g Graph, err error) {
 func (g Graph) ExportToFile(filename string) error {
 	var i string
 	var err error
-	os.MkdirAll(filename, 0700)
+	err = os.MkdirAll(filename, 0700)
 	if _, err = os.Stat(filename); err == nil {
-		os.Remove(filename)
+		err = os.Remove(filename)
 	}
+	//#nosec
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		return err

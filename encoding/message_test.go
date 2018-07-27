@@ -15,14 +15,21 @@ import (
 
 	"encoding/json"
 
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 const TestPrivkey = "4359f525e2b373089be5fe8f9a4e8ffb6d30e2960918be426217921e1b2547f7"
 
+func init() {
+
+}
 func GetTestPrivKey() *ecdsa.PrivateKey {
 	key, _ := hex.DecodeString(TestPrivkey)
 	privkey, _ := crypto.ToECDSA(key)
@@ -92,11 +99,14 @@ func TestType(t *testing.T) {
 	//}
 }
 func TestEnvelopeMessage(t *testing.T) {
-	tokenaddress := utils.NewRandomAddress()
-	channel := utils.NewRandomAddress()
-	p := NewDirectTransfer(32, 11, tokenaddress, channel,
-		big.NewInt(11), utils.EmptyAddress,
-		utils.EmptyHash)
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.EmptyHash,
+	}
+	p := NewDirectTransfer(bp)
 	var sm SignedMessager = p
 	err := p.Sign(GetTestPrivKey(), p)
 	if err != nil {
@@ -113,7 +123,7 @@ func TestEnvelopeMessage(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if p2.Channel != p.Channel || p.Token != p2.Token ||
+	if p2.ChannelIdentifier != p.ChannelIdentifier ||
 		p.Locksroot != p2.Locksroot || p.Nonce != p.Nonce ||
 		!bytes.Equal(p2.Signature, p.Signature) {
 		t.Error(errors.New("data pack unpack error"))
@@ -133,30 +143,39 @@ func TestHash(t *testing.T) {
 }
 
 func TestDirectTransfer(t *testing.T) {
-	d1 := NewDirectTransfer(22, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(12), utils.NewRandomAddress(), utils.Sha3([]byte("abd")))
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.EmptyHash,
+	}
+	d1 := NewDirectTransfer(bp)
 	d1.Sign(GetTestPrivKey(), d1)
 	d2 := new(DirectTransfer)
 	err := d2.UnPack(d1.Pack())
 	if err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(d1, d2) {
-		t.Error("not equal")
-	}
-	//T.Log(utils.StringInterface(d1, 3))
-	//if utils.StringInterface(d1, 3) != utils.StringInterface(d2, 3) {
-	//
-	//}
+	assert.EqualValues(t, d1, d2)
+	t.Logf("d1=%s\n", utils.StringInterface(d1, 3))
+	t.Logf("d2=%s\n", utils.StringInterface(d2, 3))
 }
 
 func TestMediatedTransfer(t *testing.T) {
-	lock := &Lock{
-		Amount:     big.NewInt(34),
-		Expiration: 4589895, //expiration block number
-		HashLock:   utils.Sha3([]byte("hashlock")),
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.EmptyHash,
 	}
-	m1 := NewMediatedTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
-		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
+	lock := &mtree.Lock{
+		Amount:         big.NewInt(34),
+		Expiration:     4589895, //expiration block number
+		LockSecretHash: utils.Sha3([]byte("hashlock")),
+	}
+	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	m1.Sign(GetTestPrivKey(), m1)
 	data := m1.Pack()
 	m2 := new(MediatedTransfer)
@@ -168,18 +187,31 @@ func TestMediatedTransfer(t *testing.T) {
 	}
 }
 
-func TestNewRefundTransfer(t *testing.T) {
-	lock := &Lock{
-		Amount:     big.NewInt(34),
-		Expiration: 4589895, //expiration block number
-		HashLock:   utils.Sha3([]byte("hashlock")),
+func TestNewAnnounceDisposedTransfer(t *testing.T) {
+	bp := &AnnounceDisposedProof{
+		ChannelIDInMessage: ChannelIDInMessage{
+			ChannelIdentifier: utils.Sha3([]byte("123")),
+			OpenBlockNumber:   3,
+		},
+		Lock: &mtree.Lock{
+			Amount:         big.NewInt(34),
+			Expiration:     4589895, //expiration block number
+			LockSecretHash: utils.Sha3([]byte("hashlock")),
+		},
 	}
-	m1 := NewRefundTransfer(11, 32, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), utils.NewRandomAddress(),
-		utils.Sha3([]byte("ddd")), lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
-	m1.Sign(GetTestPrivKey(), m1)
+	m1 := NewAnnounceDisposed(bp)
+	err := m1.Sign(GetTestPrivKey(), m1)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	data := m1.Pack()
-	m2 := new(RefundTransfer)
-	m2.UnPack(data)
+	m2 := new(AnnounceDisposed)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	spew.Dump("m1", m1)
 	spew.Dump("m2", m2)
 	if !reflect.DeepEqual(m1, m2) {
@@ -188,10 +220,17 @@ func TestNewRefundTransfer(t *testing.T) {
 }
 
 func TestNewSecret(t *testing.T) {
-	s1 := NewSecret(30, 40, utils.NewRandomAddress(), big.NewInt(50), utils.Sha3([]byte("oo")), utils.Sha3([]byte("xxx")))
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.EmptyHash,
+	}
+	s1 := NewUnlock(bp, utils.Sha3([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
-	s2 := new(Secret)
+	s2 := new(UnLock)
 	err := s2.UnPack(data)
 	if err != nil {
 		t.Error(err)
@@ -218,7 +257,7 @@ func TestNewRevealSecret(t *testing.T) {
 }
 
 func TestNewSecretRequest(t *testing.T) {
-	s1 := NewSecretRequest(606, utils.Sha3([]byte("xxx")), big.NewInt(506))
+	s1 := NewSecretRequest(utils.Sha3([]byte("xxx")), big.NewInt(506))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(SecretRequest)
@@ -232,7 +271,14 @@ func TestNewSecretRequest(t *testing.T) {
 	}
 }
 func TestNewRemoveExpiredHashlockTransfer(t *testing.T) {
-	s1 := NewRemoveExpiredHashlockTransfer(0, 40, utils.NewRandomAddress(), big.NewInt(50), utils.Sha3([]byte("oo")), utils.Sha3([]byte("xxx")))
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.EmptyHash,
+	}
+	s1 := NewRemoveExpiredHashlockTransfer(bp, utils.Sha3([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(RemoveExpiredHashlockTransfer)
@@ -246,18 +292,158 @@ func TestNewRemoveExpiredHashlockTransfer(t *testing.T) {
 	}
 }
 func TestLock_AsBytes(t *testing.T) {
-	lock := &Lock{
-		Amount:     big.NewInt(34),
-		Expiration: 4589895, //expiration block number
-		HashLock:   utils.Sha3([]byte("hashlock")),
+	lock := &mtree.Lock{
+		Amount:         big.NewInt(34),
+		Expiration:     4589895, //expiration block number
+		LockSecretHash: utils.Sha3([]byte("hashlock")),
 	}
 	t.Log("\n", hex.Dump(lock.AsBytes()))
-	lock2 := new(Lock)
+	lock2 := new(mtree.Lock)
 	lock2.FromBytes(lock.AsBytes())
 	if !reflect.DeepEqual(lock, lock2) {
 		t.Error("not equal")
 	}
 	//T.Log(lock.AsBytes())
+}
+
+func TestNewAnnounceDisposedTransferResponse(t *testing.T) {
+	bp := &BalanceProof{
+		Nonce:             11,
+		ChannelIdentifier: utils.Sha3([]byte("123")),
+		TransferAmount:    big.NewInt(12),
+		OpenBlockNumber:   3,
+		Locksroot:         utils.NewRandomHash(),
+	}
+	m := NewAnnounceDisposedResponse(bp, utils.NewRandomHash())
+	err := m.Sign(GetTestPrivKey(), m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	data := m.Pack()
+	m2 := new(AnnounceDisposedResponse)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if !reflect.DeepEqual(m, m2) {
+		t.Error("not equal")
+	}
+}
+
+func TestWithdrawRequest(t *testing.T) {
+	p1key, p1addr := utils.MakePrivateKeyAddress()
+	_, p2addr := utils.MakePrivateKeyAddress()
+	bp := new(WithdrawRequestData)
+	bp.ChannelIdentifier = utils.NewRandomHash()
+	bp.OpenBlockNumber = 3
+	bp.Participant1 = p1addr
+	bp.Participant1Balance = big.NewInt(10)
+	bp.Participant1Withdraw = big.NewInt(3)
+	bp.Participant2 = p2addr
+	bp.Participant2Balance = big.NewInt(30)
+	m := NewWithdrawRequest(bp)
+	err := m.Sign(p1key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Printf("m=%s\n", utils.StringInterface(m, 3))
+	data := m.Pack()
+	m2 := new(WithdrawRequest)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
+}
+
+func TestWithdrawResponse(t *testing.T) {
+	_, p1addr := utils.MakePrivateKeyAddress()
+	p2key, p2addr := utils.MakePrivateKeyAddress()
+	bp := new(WithdrawReponseData)
+	bp.ChannelIdentifier = utils.NewRandomHash()
+	bp.ChannelIdentifier = utils.NewRandomHash()
+	bp.OpenBlockNumber = 3
+	bp.Participant1 = p1addr
+	bp.Participant1Balance = big.NewInt(10)
+	bp.Participant1Withdraw = big.NewInt(3)
+	bp.Participant2 = p2addr
+	bp.Participant2Balance = big.NewInt(30)
+	bp.Participant2Withdraw = big.NewInt(2)
+
+	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
+	m := NewWithdrawResponse(bp)
+	err := m.Sign(p2key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Printf("m=%s\n", utils.StringInterface(m, 3))
+	data := m.Pack()
+	m2 := new(WithdrawResponse)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
+}
+func TestSettleRequest(t *testing.T) {
+	p1key, p1addr := utils.MakePrivateKeyAddress()
+	_, p2addr := utils.MakePrivateKeyAddress()
+	bp := new(SettleRequestData)
+	bp.ChannelIdentifier = utils.NewRandomHash()
+	bp.OpenBlockNumber = 3
+	bp.Participant1 = p1addr
+	bp.Participant1Balance = big.NewInt(10)
+	bp.Participant2 = p2addr
+	bp.Participant2Balance = big.NewInt(30)
+	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
+	m := NewSettleRequest(bp)
+	err := m.Sign(p1key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Printf("m=%s\n", utils.StringInterface(m, 3))
+	data := m.Pack()
+	m2 := new(SettleRequest)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
+}
+func TestSettleResponse(t *testing.T) {
+	_, p1addr := utils.MakePrivateKeyAddress()
+	p2key, p2addr := utils.MakePrivateKeyAddress()
+	bp := new(SettleResponseData)
+	bp.ChannelIdentifier = utils.NewRandomHash()
+	bp.OpenBlockNumber = 3
+	bp.Participant1 = p1addr
+	bp.Participant1Balance = big.NewInt(10)
+	bp.Participant2 = p2addr
+	bp.Participant2Balance = big.NewInt(30)
+	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
+	m := NewSettleResponse(bp)
+	err := m.Sign(p2key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Printf("m=%s\n", utils.StringInterface(m, 3))
+	data := m.Pack()
+	m2 := new(SettleResponse)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
 }
 
 type testStruct struct {

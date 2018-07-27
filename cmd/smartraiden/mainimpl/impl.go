@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"io/ioutil"
-
 	"encoding/hex"
 
 	"path"
@@ -14,19 +12,16 @@ import (
 
 	"encoding/json"
 	"os/signal"
-	debug2 "runtime/debug"
 	"time"
-
-	"errors"
 
 	"net"
 	"strconv"
 
 	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -41,7 +36,7 @@ import (
 )
 
 func init() {
-	debug2.SetTraceback("crash")
+	//debug2.SetTraceback("crash")
 }
 
 var api *smartraiden.RaidenAPI
@@ -125,7 +120,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
 	app.Name = "smartraiden"
-	app.Version = "0.3"
+	app.Version = "1.0"
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
 			return err
@@ -148,11 +143,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	db, err := models.OpenDb(cfg.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		return
-	}
 	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	client, err := helper.NewSafeClient(ethEndpoint)
@@ -161,11 +151,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
-	transport, err := buildTransportAndDiscovery(cfg, bcs, db)
+	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, db)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg)
 	if err != nil {
 		transport.Stop()
 		return
@@ -194,7 +184,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService, db *models.ModelDB) (transport network.Transporter, err error) {
+func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
@@ -210,14 +200,14 @@ func buildTransportAndDiscovery(cfg *params.Config, bcs *rpc.BlockChainService, 
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, nil, policy)
 	case params.XMPPOnly:
-		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther, db)
+		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, db)
+		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }
@@ -231,77 +221,6 @@ func regQuitHandler(api *smartraiden.RaidenAPI) {
 		api.Stop()
 		utils.SystemExit(0)
 	}()
-}
-func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte, err error) {
-	am := smartraiden.NewAccountManager(keystorePath)
-	if len(am.Accounts) == 0 {
-		err = fmt.Errorf("No Ethereum accounts found in the directory %s", keystorePath)
-		return
-	}
-	if !am.AddressInKeyStore(adviceAddress) {
-		if adviceAddress != utils.EmptyAddress {
-			err = fmt.Errorf("account %s could not be found on the sytstem. aborting", adviceAddress.String())
-			return
-		}
-		shouldPromt := true
-		fmt.Println("The following accounts were found in your machine:")
-		for i := 0; i < len(am.Accounts); i++ {
-			fmt.Printf("%3d -  %s\n", i, am.Accounts[i].Address.String())
-		}
-		fmt.Println("")
-		for shouldPromt {
-			fmt.Printf("Select one of them by index to continue:\n")
-			idx := -1
-			_, err = fmt.Scanf("%d", &idx)
-			if err != nil {
-				return
-			}
-			if idx >= 0 && idx < len(am.Accounts) {
-				shouldPromt = false
-				addr = am.Accounts[idx].Address
-			} else {
-				fmt.Printf("Error: Provided index %d is out of bounds", idx)
-			}
-		}
-	} else {
-		addr = adviceAddress
-	}
-	if len(passwordfile) > 0 {
-		var data []byte
-		data, err = ioutil.ReadFile(passwordfile)
-		if err != nil {
-			//pass, err := utils.PasswordDecrypt(passwordfile)
-			//if err != nil {
-			//	panic("decrypt pass err " + err.Error())
-			//}
-			//data = []byte(pass)
-			data = []byte(passwordfile)
-		}
-		password := string(data)
-		log.Trace(fmt.Sprintf("password is %s", password))
-		keybin, err = am.GetPrivateKey(addr, password)
-		if err != nil {
-			err = fmt.Errorf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err)
-			return
-		}
-	} else {
-		//for i := 0; i < 3; i++ {
-		//	//retries three times
-		//	password = getpass.Prompt("Enter the password to unlock:")
-		//	keybin, err = am.GetPrivateKey(addr, password)
-		//	if err != nil && i == 3 {
-		//		log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-		//		utils.SystemExit(1)
-		//	}
-		//	if err != nil {
-		//		log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
-		//		continue
-		//	}
-		//	break
-		//}
-		err = errors.New("must specified password")
-	}
-	return
 }
 func config(ctx *cli.Context) (config *params.Config, err error) {
 	config = &params.DefaultConfig
@@ -325,7 +244,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		return
 	}
 	address := common.HexToAddress(ctx.String("address"))
-	address, privkeyBin, err := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	address, privkeyBin, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
 	if err != nil {
 		return
 	}
@@ -348,7 +267,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(config.DataDir) {
 		err = os.MkdirAll(config.DataDir, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("Datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
+			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -358,7 +277,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(userDbPath) {
 		err = os.MkdirAll(userDbPath, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("Datadir:%s doesn't exist and cannot create %v", userDbPath, err)
+			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", userDbPath, err)
 			return
 		}
 	}

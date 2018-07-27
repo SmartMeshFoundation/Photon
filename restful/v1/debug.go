@@ -1,11 +1,13 @@
 package v1
 
 import (
+	"fmt"
 	"math/big"
 	"net/http"
 
 	"context"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +28,10 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	w.(http.ResponseWriter).Write([]byte(v.String()))
+	_, err = w.(http.ResponseWriter).Write([]byte(v.String()))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -50,7 +55,10 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson("ok")
+	err = w.WriteJson("ok")
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 //EthBalance how many eth `addr` have.
@@ -62,7 +70,10 @@ func EthBalance(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	w.(http.ResponseWriter).Write([]byte(v.String()))
+	_, err = w.(http.ResponseWriter).Write([]byte(v.String()))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 //BlockTimeFormat  is time format of last block
@@ -89,5 +100,8 @@ func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	} else {
 		cs.EthStatus = netshare.Disconnected
 	}
-	w.WriteJson(cs)
+	err := w.WriteJson(cs)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

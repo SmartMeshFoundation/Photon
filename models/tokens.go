@@ -3,8 +3,12 @@ package models
 import (
 	"fmt"
 
-	log "github.com/SmartMeshFoundation/SmartRaiden/log"
+	"encoding/gob"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -14,16 +18,25 @@ type AddressMap map[common.Address]common.Address
 const bucketToken = "bucketToken"
 const keyToken = "tokens"
 const bucketTokenNodes = "bucketTokenNodes"
-const keyTokenNodes = "nodes"
+
+func init() {
+	gob.Register(common.Address{})
+	gob.Register(make(AddressMap))
+}
 
 //GetAllTokens returna all tokens on this registry contract
 func (model *ModelDB) GetAllTokens() (tokens AddressMap, err error) {
 	err = model.db.Get(bucketToken, keyToken, &tokens)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			tokens = make(AddressMap)
+		}
+	}
 	return
 }
 
 //AddToken add a new token to db,
-func (model *ModelDB) AddToken(token common.Address, manager common.Address) error {
+func (model *ModelDB) AddToken(token common.Address, tokenNetworkAddress common.Address) error {
 	var m AddressMap
 	err := model.db.Get(bucketToken, keyToken, &m)
 	if err != nil {
@@ -34,13 +47,13 @@ func (model *ModelDB) AddToken(token common.Address, manager common.Address) err
 		log.Info("AddToken ,but already exists,should be ignored when startup...")
 		return nil
 	}
-	m[token] = manager
+	m[token] = tokenNetworkAddress
 	err = model.db.Set(bucketToken, keyToken, m)
 	model.handleTokenCallback(model.newTokenCallbacks, token)
 	return err
 }
-func (model *ModelDB) handleTokenCallback(m map[*NewTokenCb]bool, token common.Address) {
-	var cbs []*NewTokenCb
+func (model *ModelDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
+	var cbs []*cb.NewTokenCb
 	model.mlock.Lock()
 	for f := range m {
 		remove := (*f)(token)

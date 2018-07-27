@@ -9,8 +9,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -28,7 +28,7 @@ type MixTransporter struct {
 }
 
 //NewMixTranspoter create a MixTransporter and discover
-func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string, db *models.ModelDB) (t *MixTransporter, err error) {
+func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MixTransporter, err error) {
 	t = &MixTransporter{
 		name:     name,
 		protocol: protocol,
@@ -37,7 +37,7 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	if err != nil {
 		return
 	}
-	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType, db)
+	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
 	t.RegisterProtocol(protocol)
 	return
 }
@@ -118,9 +118,9 @@ func (t *MixTransporter) GetNotify() (notify <-chan netshare.Status, err error) 
 }
 
 //SubscribeNeighbor get the status change notification of partner node
-func (t *MixTransporter) SubscribeNeighbor() error {
+func (t *MixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 	if t.xmpp.conn == nil {
 		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
 	}
-	return t.xmpp.conn.CollectNeighbors()
+	return t.xmpp.conn.CollectNeighbors(db)
 }

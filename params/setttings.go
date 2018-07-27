@@ -2,6 +2,7 @@ package params
 
 import (
 	"fmt"
+	"math/big"
 
 	"time"
 
@@ -24,10 +25,10 @@ const defaultProtocolThrottleFillRate = 10.
 const defaultprotocolRetryInterval = 1.
 
 //DefaultRevealTimeout blocks needs to update transfer
-const DefaultRevealTimeout = 3
+const DefaultRevealTimeout = 5
 
 //DefaultSettleTimeout settle time of channel
-const DefaultSettleTimeout = DefaultRevealTimeout * 9
+const DefaultSettleTimeout = 600
 
 //DefaultPollTimeout  request wait time
 const DefaultPollTimeout = 180 * time.Second
@@ -48,16 +49,16 @@ var gasLimitHex string
 //RopstenRegistryAddress Registry contract address
 var RopstenRegistryAddress = common.HexToAddress("0xFAFB55c642f8907bB5D0915AeDA8Cc5A79F6a523")
 
-//NettingChannelSettleTimeoutMin min settle timeout
-const NettingChannelSettleTimeoutMin = 6
+//ChannelSettleTimeoutMin min settle timeout
+const ChannelSettleTimeoutMin = 6
 
 /*
-NettingChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
+ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
  1 year with the assumption of very fast block times of 12 seconds.
  There is a maximum to avoidpotential overflows as described here:
  https://github.com/SmartRaiden/raiden/issues/1038
 */
-const NettingChannelSettleTimeoutMax = 2700000
+const ChannelSettleTimeoutMax = 2700000
 
 //UDPMaxMessageSize message size
 const UDPMaxMessageSize = 1200
@@ -85,3 +86,6 @@ var MobileMode bool
 InTest are we test now?
 */
 var InTest = true
+
+//ChainID of this tokenNetwork
+var ChainID = big.NewInt(1)

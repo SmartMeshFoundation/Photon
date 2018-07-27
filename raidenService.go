@@ -10,10 +10,6 @@ import (
 
 	"time"
 
-	"math/rand"
-
-	"sync"
-
 	"sync/atomic"
 
 	"math/big"
@@ -26,21 +22,25 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -72,21 +72,21 @@ RaidenService is a raiden node
 most of raidenService's member is not thread safe, and should not visit outside the loop method.
 */
 type RaidenService struct {
-	Chain              *rpc.BlockChainService
-	Registry           *rpc.RegistryProxy
-	RegistryAddress    common.Address
-	PrivateKey         *ecdsa.PrivateKey
-	Transport          network.Transporter
-	Config             *params.Config
-	Protocol           *network.RaidenProtocol
-	NodeAddress        common.Address
-	Token2ChannelGraph map[common.Address]*network.ChannelGraph
-	//Token2ConnectionsManager todo fix later
-	//swapkey_to_tokenswap
-	//swapkey_to_greenlettask
-	Manager2Token            map[common.Address]common.Address
-	Identifier2StateManagers map[uint64][]*transfer.StateManager
-	Identifier2Results       map[uint64][]*network.AsyncResult
+	Chain                 *rpc.BlockChainService
+	Registry              *rpc.RegistryProxy
+	SecretRegistryAddress common.Address
+	RegistryAddress       common.Address
+	PrivateKey            *ecdsa.PrivateKey
+	Transport             network.Transporter
+	Config                *params.Config
+	Protocol              *network.RaidenProtocol
+	NodeAddress           common.Address
+	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
+
+	TokenNetwork2Token       map[common.Address]common.Address
+	Token2TokenNetwork       map[common.Address]common.Address
+	Transfer2StateManager    map[common.Hash]*transfer.StateManager
+	Transfer2Result          map[common.Hash]*utils.AsyncResult
 	SwapKey2TokenSwap        map[swapKey]*TokenSwap
 	Tokens2ConnectionManager map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
 	/*
@@ -96,7 +96,7 @@ type RaidenService struct {
 			         released/withdrawn but not when the secret is registered.
 		TODO remove this,this design is very weird
 	*/
-	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel //Multithread
+	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel
 	MessageHandler           *raidenMessageHandler
 	StateMachineEventHandler *stateMachineEventHandler
 	BlockChainEvents         *blockchain.Events
@@ -132,16 +132,17 @@ type RaidenService struct {
 	quitChan                            chan struct{} //for quit notification
 	ethInited                           bool
 	EthConnectionStatus                 chan netshare.Status
+	ChanStartupComplete                 chan struct{}
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, db *models.ModelDB) (srv *RaidenService, err error) {
-	if config.SettleTimeout < params.NettingChannelSettleTimeoutMin || config.SettleTimeout > params.NettingChannelSettleTimeoutMax {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (rs *RaidenService, err error) {
+	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
-			params.NettingChannelSettleTimeoutMin, params.NettingChannelSettleTimeoutMax)
+			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
 		return
 	}
-	srv = &RaidenService{
+	rs = &RaidenService{
 		Chain:                               chain,
 		Registry:                            chain.Registry(chain.RegistryAddress),
 		RegistryAddress:                     chain.RegistryAddress,
@@ -149,15 +150,15 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Config:                              config,
 		Transport:                           transport,
 		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:                  make(map[common.Address]*network.ChannelGraph),
-		Manager2Token:                       make(map[common.Address]common.Address),
-		Identifier2StateManagers:            make(map[uint64][]*transfer.StateManager),
-		Identifier2Results:                  make(map[uint64][]*network.AsyncResult),
+		Token2ChannelGraph:                  make(map[common.Address]*graph.ChannelGraph),
+		TokenNetwork2Token:                  make(map[common.Address]common.Address),
+		Token2TokenNetwork:                  make(map[common.Address]common.Address),
+		Transfer2StateManager:               make(map[common.Hash]*transfer.StateManager),
+		Transfer2Result:                     make(map[common.Hash]*utils.AsyncResult),
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
 		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
-		BlockChainEvents:                    blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress),
 		BlockNumberChan:                     make(chan int64, 20), //not block alarm task
 		UserReqChan:                         make(chan *apiReq, 10),
 		BlockNumber:                         new(atomic.Value),
@@ -170,25 +171,53 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		HealthCheckMap:                      make(map[common.Address]bool),
 		quitChan:                            make(chan struct{}),
 		EthConnectionStatus:                 make(chan netshare.Status, 10),
-		db:                                  db,
+		ChanStartupComplete:                 make(chan struct{}),
 	}
-	srv.BlockNumber.Store(int64(0))
-	srv.MessageHandler = newRaidenMessageHandler(srv)
-	srv.StateMachineEventHandler = newStateMachineEventHandler(srv)
-	srv.Protocol = network.NewRaidenProtocol(transport, privateKey, srv)
-	srv.Protocol.SetReceivedMessageSaver(NewAckHelper(srv.db))
+	rs.BlockNumber.Store(int64(0))
+	rs.MessageHandler = newRaidenMessageHandler(rs)
+	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
+	rs.Protocol = network.NewRaidenProtocol(transport, privateKey, rs)
+	rs.db, err = models.OpenDb(config.DataBasePath)
+	if err != nil {
+		err = fmt.Errorf("open db error %s", err)
+		return
+	}
+	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.db))
 	/*
 		only one instance for one data directory
 	*/
-	srv.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
-	locked, err := srv.FileLocker.TryLock()
+	rs.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
+	locked, err := rs.FileLocker.TryLock()
 	if err != nil || !locked {
 		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
-	srv.SnapshortDir = filepath.Join(config.DataBasePath)
-	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", srv.RegistryAddress.String(), srv.NodeAddress.String()))
-	return srv, nil
+	rs.SnapshortDir = filepath.Join(config.DataBasePath)
+	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
+	if rs.Registry != nil {
+		//我已经连接到以太坊全节点
+		rs.SecretRegistryAddress, err = rs.Registry.GetContract().Secret_registry_address(nil)
+		if err != nil {
+			return
+		}
+		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
+	} else {
+		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
+		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
+		if rs.SecretRegistryAddress == utils.EmptyAddress {
+			err = fmt.Errorf("first startup without ethereum rpc connection")
+			return
+		}
+	}
+	rs.Token2TokenNetwork, err = rs.db.GetAllTokens()
+	if err != nil {
+		return
+	}
+	for t, tn := range rs.Token2TokenNetwork {
+		rs.TokenNetwork2Token[tn] = t
+	}
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress, rs.SecretRegistryAddress, rs.Token2TokenNetwork)
+	return rs, nil
 }
 
 // Start the node.
@@ -217,34 +246,20 @@ func (rs *RaidenService) Start() (err error) {
 			err = fmt.Errorf("Events listener error %v", err)
 			return
 		}
-		/*
-			  Registry registration must start *after* the alarm task, rs avoid
-				 corner cases were the registry is queried in block A, a new block B
-				 is mined, and the alarm starts polling at block C.
-		*/
-		rs.registerRegistry()
+
 		rs.ethInited = true
 	} else {
 		log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
 		rs.ethInited = false
-		err = rs.startWithoutEthRPC()
-		if err != nil {
-
-		}
 	}
-
-	err = rs.restoreSnapshot()
-	if err != nil {
-		err = fmt.Errorf("restore from snapshot error : %v\n you can delete all the database %s to run. but all your trade will lost", err, rs.Config.DataBasePath)
-		return
-	}
+	/*
+		  Registry registration must start *after* the alarm task, rs avoid
+			 corner cases were the registry is queried in block A, a new block B
+			 is mined, and the alarm starts polling at block C.
+	*/
+	rs.registerRegistry()
 	rs.Protocol.Start()
-	rs.startNeighboursHealthCheck()
-	err = rs.startSubscribeNeighborStatus()
-	if err != nil {
-		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-		return
-	}
+
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -277,76 +292,17 @@ func (rs *RaidenService) Start() (err error) {
 		}
 		rs.loop()
 	}()
-	return nil
-}
-func (rs *RaidenService) startWithoutEthRPC() (err error) {
-	/*
-	   从数据库中把 channel 状态恢复了,等连接上以后再重新把链上信息取过来初始化.
-	*/
-	chmap := make(map[common.Address][]*channel.Serialization)
-	cs, err := rs.db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+
+	//wait for start up complete.
+	<-rs.ChanStartupComplete
+	log.Info(fmt.Sprintf("raide"))
+	rs.startNeighboursHealthCheck()
+	err = rs.startSubscribeNeighborStatus()
 	if err != nil {
+		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
 		return
 	}
-	//group by token
-	for _, c := range cs {
-		if c.State == transfer.ChannelStateSettled {
-			continue
-		}
-		cs2 := chmap[c.TokenAddress]
-		cs2 = append(cs2, c)
-		chmap[c.TokenAddress] = cs2
-	}
-	for t, cs := range chmap {
-		var details []*network.ChannelDetails
-		for _, c := range cs {
-			d := rs.makeChannelDetailFromChannelSerialization(c)
-			details = append(details, d)
-		}
-		graph := network.NewChannelGraph(rs.NodeAddress, t, nil, details)
-		rs.Token2ChannelGraph[t] = graph
-		rs.Tokens2ConnectionManager[t] = NewConnectionManager(rs, t)
-	}
 	return nil
-}
-func (rs *RaidenService) makeChannelDetailFromChannelSerialization(c *channel.Serialization) *network.ChannelDetails {
-	tokenAddress := c.TokenAddress
-	addr1, b1, addr2, b2 := c.OurAddress, c.OurBalance, c.PartnerAddress, c.PartnerBalance
-	var ourAddr, partnerAddr common.Address
-	var ourBalance, partnerBalance *big.Int
-	if addr1 == rs.NodeAddress {
-		ourAddr = addr1
-		partnerAddr = addr2
-		ourBalance = b1
-		partnerBalance = b2
-	} else {
-		ourAddr = addr2
-		partnerAddr = addr1
-		ourBalance = b2
-		partnerBalance = b1
-	}
-	ourAddr, ourBalance, partnerAddr, partnerBalance = c.OurAddress, c.OurContractBalance, c.PartnerAddress, c.PartnerContractBalance
-	proxy, err := rs.Chain.NettingChannelWithoutCheck(c.ChannelAddress)
-	if err != nil {
-		log.Error(fmt.Sprintf("NettingChannelWithoutCheck err %s", err))
-	}
-	ourState := channel.NewChannelEndState(ourAddr, ourBalance, nil, transfer.EmptyMerkleTreeState)
-	partenerState := channel.NewChannelEndState(partnerAddr, partnerBalance, nil, transfer.EmptyMerkleTreeState)
-	channelAddress := proxy.Address
-	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
-		rs.registerChannelForHashlock(tokenAddress, channel, hashlock)
-	}
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db, 0, c.ClosedBlock)
-	channelDetail := &network.ChannelDetails{
-		ChannelAddress:    channelAddress,
-		OurState:          ourState,
-		PartenerState:     partenerState,
-		ExternState:       externState,
-		BlockChainService: rs.Chain,
-		RevealTimeout:     rs.Config.RevealTimeout,
-		SettleTimeout:     c.SettleTimeout,
-	}
-	return channelDetail
 }
 
 //Stop the node.
@@ -357,11 +313,13 @@ func (rs *RaidenService) Stop() {
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.Chain.Client.Close()
-	rs.saveSnapshot()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
 	//anther instance cann run now
-	rs.FileLocker.Unlock()
+	err := rs.FileLocker.Unlock()
+	if err != nil {
+		log.Error(fmt.Sprintf("Unlock err %s", err))
+	}
 	log.Info("raiden service stop ok...")
 }
 
@@ -380,6 +338,7 @@ func (rs *RaidenService) loop() {
 	var blockNumber int64
 	var req *apiReq
 	var sentMessage *protocolMessage
+	firstWaitTime := time.Second
 	defer rpanic.PanicRecover("raiden service")
 	for {
 		select {
@@ -439,6 +398,14 @@ func (rs *RaidenService) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRRCConnectionOK()
 			}
+		case <-time.After(firstWaitTime):
+			/*
+				由于现在所有信息都是通过
+			*/
+			log.Info("startup complete...")
+			firstWaitTime = time.Hour * 900000
+			rs.ChanStartupComplete <- struct{}{}
+			//下次不要在超时了.
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
 			return
@@ -446,17 +413,22 @@ func (rs *RaidenService) loop() {
 	}
 }
 
-//for init
+//for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
 func (rs *RaidenService) registerRegistry() {
-	mgrs, err := rs.Chain.GetAllChannelManagers()
+	dbRegistry := rs.db.GetRegistryAddress()
+	if dbRegistry != rs.RegistryAddress && dbRegistry != utils.EmptyAddress {
+		log.Crit(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+			dbRegistry, rs.RegistryAddress))
+	}
+	token2TokenNetworks, err := rs.db.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
-	for _, mgr := range mgrs {
-		err = rs.registerChannelManager(mgr.Address)
+	for token, tokenNetwork := range token2TokenNetworks {
+		err = rs.registerTokenNetwork(token, tokenNetwork)
 		if err != nil {
-			err = fmt.Errorf("registerChannelManager err:%s", err)
+			err = fmt.Errorf("registerTokenNetwork err:%s", err)
 			return
 		}
 	}
@@ -465,41 +437,39 @@ func (rs *RaidenService) registerRegistry() {
 /*
 quering my channel details on blockchain
 i'm one of the channel participants
+收到来自链上的事件,新创建了 channel
+但是事件有可能重复
 */
-func (rs *RaidenService) getChannelDetail(tokenAddress common.Address, proxy *rpc.NettingChannelContractProxy) *network.ChannelDetails {
-	addr1, b1, addr2, b2, _ := proxy.AddressAndBalance()
-	var ourAddr, partnerAddr common.Address
+func (rs *RaidenService) newChannelFromChain(tokenAddress common.Address, proxy *rpc.TokenNetworkProxy, partnerAddress common.Address) (ch *channel.Channel, err error) {
+	/*
+		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
+		但是保证后续的事件会继续收到,所以应该按照新通道处理.
+	*/
+
 	var ourBalance, partnerBalance *big.Int
-	if addr1 == rs.NodeAddress {
-		ourAddr = addr1
-		partnerAddr = addr2
-		ourBalance = b1
-		partnerBalance = b2
-	} else {
-		ourAddr = addr2
-		partnerAddr = addr1
-		ourBalance = b2
-		partnerBalance = b1
+
+	channelID, _, openBlockNumber, _, settleTimeout, err := proxy.GetChannelInfo(rs.NodeAddress, partnerAddress)
+	if err != nil {
+		return
 	}
-	ourState := channel.NewChannelEndState(ourAddr, ourBalance, nil, transfer.EmptyMerkleTreeState)
-	partenerState := channel.NewChannelEndState(partnerAddr, partnerBalance, nil, transfer.EmptyMerkleTreeState)
-	channelAddress := proxy.Address
-	registerChannelForHashlock := func(channel *channel.Channel, hashlock common.Hash) {
-		rs.registerChannelForHashlock(tokenAddress, channel, hashlock)
+	ourBalance, _, _, err = proxy.GetChannelParticipantInfo(rs.NodeAddress, partnerAddress)
+	if err != nil {
+		return
 	}
-	opened, _ := proxy.Opened()
-	closed, _ := proxy.Closed()
-	externState := channel.NewChannelExternalState(registerChannelForHashlock, proxy, channelAddress, rs.Chain, rs.db, opened, closed)
-	channelDetail := &network.ChannelDetails{
-		ChannelAddress:    channelAddress,
-		OurState:          ourState,
-		PartenerState:     partenerState,
-		ExternState:       externState,
-		BlockChainService: rs.Chain,
-		RevealTimeout:     rs.Config.RevealTimeout,
+	partnerBalance, _, _, err = proxy.GetChannelParticipantInfo(partnerAddress, rs.NodeAddress)
+	if err != nil {
+		return
 	}
-	channelDetail.SettleTimeout, _ = externState.NettingChannel.SettleTimeout()
-	return channelDetail
+	ourState := channel.NewChannelEndState(rs.NodeAddress, ourBalance, nil, mtree.NewMerkleTree(nil))
+	partenerState := channel.NewChannelEndState(partnerAddress, partnerBalance, nil, mtree.NewMerkleTree(nil))
+	channelAddress := &contracts.ChannelUniqueID{
+		ChannelIdentifier: channelID,
+		OpenBlockNumber:   int64(openBlockNumber),
+	}
+
+	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, proxy, channelAddress, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
+	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelAddress, rs.Config.RevealTimeout, int(settleTimeout))
+	return
 }
 
 func (rs *RaidenService) setBlockNumber(blocknumber int64) error {
@@ -511,7 +481,7 @@ func (rs *RaidenService) setBlockNumber(blocknumber int64) error {
 block chain tick,
 it's the core of HTLC
 */
-func (rs *RaidenService) handleBlockNumber(blocknumber int64) error {
+func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 	statechange := &transfer.BlockStateChange{BlockNumber: blocknumber}
 	rs.BlockNumber.Store(blocknumber)
 	/*
@@ -521,11 +491,14 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) error {
 	rs.StateMachineEventHandler.logAndDispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, channel := range cg.ChannelAddress2Channel {
-			rs.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
+			err := rs.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
+			if err != nil {
+				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
+			}
 		}
 	}
 
-	return nil
+	return
 }
 
 //GetBlockNumber return latest blocknumber of ethereum
@@ -533,7 +506,7 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
-func (rs *RaidenService) findChannelByAddress(nettingChannelAddress common.Address) (*channel.Channel, error) {
+func (rs *RaidenService) findChannelByAddress(nettingChannelAddress common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
 		ch := g.GetChannelAddress2Channel(nettingChannelAddress)
 		if ch != nil {
@@ -553,22 +526,6 @@ Send `message` to `recipient` using the raiden protocol.
 func (rs *RaidenService) sendAsync(recipient common.Address, msg encoding.SignedMessager) error {
 	if recipient == rs.NodeAddress {
 		log.Error(fmt.Sprintf("rs must be a bug ,sending message to it self"))
-	}
-	revealSecretMessage, ok := msg.(*encoding.RevealSecret)
-	if ok && revealSecretMessage != nil {
-		srs := models.NewSentRevealSecret(revealSecretMessage, recipient)
-		rs.db.NewSentRevealSecret(srs)
-		if msg.Tag() == nil {
-			msg.SetTag(&transfer.MessageTag{
-				EchoHash:          srs.EchoHash,
-				IsASendingMessage: true,
-			})
-		} else {
-			messageTag := msg.Tag().(*transfer.MessageTag)
-			if messageTag.EchoHash != srs.EchoHash {
-				panic("reveal secret's echo hash not equal")
-			}
-		}
 	}
 	mtr, ok := msg.(*encoding.MediatedTransfer)
 	if ok && mtr != nil {
@@ -612,39 +569,44 @@ func (rs *RaidenService) SendAndWait(recipient common.Address, message encoding.
 Register the secret with any channel that has a hashlock on it.
 
        This must search through all channels registered for a given hashlock
-       and ignoring the tokens. Useful for refund transfer, split transfer,
-       and token swaps.
-
-       Raises:
-           TypeError: If secret is unicode data.
+       and ignoring the tokens.
 */
 func (rs *RaidenService) registerSecret(secret common.Hash) {
 	hashlock := utils.Sha3(secret[:])
-	revealSecretMessage := encoding.NewRevealSecret(secret)
-	revealSecretMessage.Sign(rs.PrivateKey, revealSecretMessage)
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
+			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
-					utils.HPex(secret), utils.APex2(ch.MyAddress), err))
+					utils.HPex(secret), ch.ChannelIdentifier, err))
 			}
-			rs.conditionQuit("BeforeSendRevealSecret")
-			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-			//The protocol ignores duplicated messages.
-			//make sure not send the same instance multi times.
-			rs.sendAsync(ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage))
 		}
 	}
 }
 
-func (rs *RaidenService) registerChannelForHashlock(tokenAddress common.Address,
-	netchannel *channel.Channel, hashlock common.Hash) {
+/*
+链上这个锁对应的密码注册了,
+*/
+func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash common.Hash, blockNumber int64) {
+	for _, hashchannel := range rs.Token2Hashlock2Channels {
+		for _, ch := range hashchannel[lockSecretHash] {
+			err := ch.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
+			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			if err != nil {
+				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
+					utils.HPex(lockSecretHash), ch.ChannelIdentifier, err))
+			}
+		}
+	}
+}
+func (rs *RaidenService) registerChannelForHashlock(netchannel *channel.Channel, hashlock common.Hash) {
+	tokenAddress := netchannel.TokenAddress
 	channelsRegistered := rs.Token2Hashlock2Channels[tokenAddress][hashlock]
 	found := false
 	for _, c := range channelsRegistered {
 		//To determine whether the two channel objects are equal, we simply use the address to identify.
-		if c.ExternState.ChannelAddress == netchannel.ExternState.ChannelAddress {
+		if c.ExternState.ChannelIdentifier == netchannel.ExternState.ChannelIdentifier {
 			found = true
 			break
 		}
@@ -659,291 +621,97 @@ func (rs *RaidenService) registerChannelForHashlock(tokenAddress common.Address,
 		rs.Token2Hashlock2Channels[tokenAddress][hashlock] = channelsRegistered
 	}
 }
-
-/*
-Unlock/Witdraws locks, register the secret, and send Secret
-       messages as necessary.
-
-       This function will:
-           - Unlock the locks created by this node and send a Secret message to
-           the corresponding partner so that she can withdraw the token.
-           - Withdraw the Lock from sender.
-           - Register the secret for the locks received and reveal the secret
-           to the senders
-
-
-       Note:
-           The channel needs to be registered with
-           `raiden.register_channel_for_hashlock`.
-//todo 需要再次确认, refund 处理流程有无问题,以及相关细节必须审核.
-*/
-func (rs *RaidenService) handleSecret(identifier uint64, tokenAddress common.Address, secret common.Hash,
-	partnerSecretMessage *encoding.Secret, hashlock common.Hash) (err error) {
-	/*
-	   handling the secret needs to:
-	         - unlock the token for all `forward_channel` (the current one
-	           and the ones that failed with a refund)
-	         - send a message to each of the forward nodes allowing them
-	           to withdraw the token
-	         - register the secret for the `originating_channel` so that a
-	           proof can be made, if necessary
-	         - reveal the secret to the `sender` node (otherwise we
-	           cannot withdraw the token)
-	*/
-	channelsList := rs.Token2Hashlock2Channels[tokenAddress][hashlock]
-	var channelsToRemove []*channel.Channel
-	revealSecretMessage := encoding.NewRevealSecret(secret)
-	revealSecretMessage.Sign(rs.PrivateKey, revealSecretMessage)
-	type MsgToSend struct {
-		receiver common.Address
-		msg      encoding.SignedMessager
-	}
-	var messagesToSend []*MsgToSend
-	log.Trace(fmt.Sprintf("channelsList for %s =%#v", utils.HPex(hashlock), channelsList))
-	for _, ch := range channelsList { //Dealing with reused nodes in indirect transactions.
-		//unlock a pending Lock
-		log.Trace(fmt.Sprintf("process channel %s-%s", utils.APex2(ch.OurState.Address), utils.APex2((ch.PartnerState.Address))))
-		if ch.OurState.IsKnown(hashlock) {
-			var secretMsg *encoding.Secret
-			secretMsg, err = ch.CreateSecret(identifier, secret)
-			if err != nil {
-				return err
-			}
-			secretMsg.Sign(rs.PrivateKey, secretMsg)
-			//balance proof,Complete rs transaction and receive repeated revealsecret,But secretmsg will only be sent once.
-			err = ch.RegisterTransfer(rs.GetBlockNumber(), secretMsg)
-			if err != nil {
-				return
-			}
-			messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, secretMsg})
-			channelsToRemove = append(channelsToRemove, ch)
-		} else if ch.PartnerState.IsKnown(hashlock) {
-			//withdraw a pending Lock
-			if partnerSecretMessage != nil {
-				msg := partnerSecretMessage
-				isBalanceProof := msg.Sender == ch.PartnerState.Address && msg.Channel == ch.MyAddress
-				if isBalanceProof {
-					err = ch.RegisterTransfer(rs.GetBlockNumber(), msg)
-					if err != nil {
-						return
-					}
-					channelsToRemove = append(channelsToRemove, ch)
-				} else {
-					err = ch.RegisterSecret(secret)
-					if err != nil {
-						return
-					}
-					rs.conditionQuit("BeforeSendRevealSecret")
-					rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-					messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage)})
-				}
-			} else {
-				err = ch.RegisterSecret(secret)
-				if err != nil {
-					return
-				}
-				rs.conditionQuit("BeforeSendRevealSecret")
-				rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-				messagesToSend = append(messagesToSend, &MsgToSend{ch.PartnerState.Address, encoding.CloneRevealSecret(revealSecretMessage)})
-			}
-		} else {
-			/*
-				todo reimplement handleSecret
-			*/
-			log.Warn("Channel is registered for a given Lock but the Lock is not contained in it. can be ignored when I'm a mediated node")
-		}
-
-	}
-
-	for _, ch := range channelsToRemove {
-		//channels_list.remove(channel)
-		for k, ch2 := range channelsList {
-			if ch2 == ch {
-				//to remove
-				channelsList = append(channelsList[:k], channelsList[k+1:]...)
-				break
-			}
-		}
-	}
-	if len(channelsList) == 0 {
-		delete(rs.Token2Hashlock2Channels[tokenAddress], hashlock)
-	} else {
-		rs.Token2Hashlock2Channels[tokenAddress][hashlock] = channelsList
-	}
-	// send the messages last to avoid races
-	for _, msg := range messagesToSend {
-		err = rs.sendAsync(msg.receiver, msg.msg)
-		if err != nil {
-			return
-		}
-	}
-	return
-}
-
-func (rs *RaidenService) registerChannelManager(managerAddress common.Address) (err error) {
-	manager := rs.Chain.Manager(managerAddress)
-	channels, err := manager.NettingChannelByAddress(rs.NodeAddress)
+func (rs *RaidenService) channelSerilization2Channel(c *channeltype.Serialization, tokenNetwork *rpc.TokenNetworkProxy) (ch *channel.Channel, err error) {
+	OurState := channel.NewChannelEndState(c.OurAddress, c.OurContractBalance,
+		c.OurBalanceProof, mtree.NewMerkleTree(c.OurLeaves))
+	PartnerState := channel.NewChannelEndState(c.PartnerAddress(),
+		c.PartnerContractBalance,
+		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
+	ExternState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
+		c.ChannelIdentifier, rs.PrivateKey,
+		rs.Chain.Client, rs.db, c.ClosedBlock,
+		c.OurAddress, c.PartnerAddress())
+	ch, err = channel.NewChannel(OurState, PartnerState, ExternState, c.TokenAddress(), c.ChannelIdentifier, c.RevealTimeout, c.SettleTimeout)
 	if err != nil {
 		return
 	}
-	tokenAddress, _ := manager.TokenAddress()
-	edgeList, _ := manager.GetChannelsParticipants()
-	var channelsDetails []*network.ChannelDetails
-	for _, ch := range channels {
-		d := rs.getChannelDetail(tokenAddress, ch)
-		channelsDetails = append(channelsDetails, d)
+
+	ch.OurState.Lock2PendingLocks = c.OurLock2PendingLocks()
+	ch.OurState.Lock2UnclaimedLocks = c.OurLock2UnclaimedLocks()
+	ch.PartnerState.Lock2PendingLocks = c.PartnerLock2PendingLocks()
+	ch.PartnerState.Lock2UnclaimedLocks = c.PartnerLock2UnclaimedLocks()
+	ch.State = c.State
+	ch.OurState.ContractBalance = c.OurContractBalance
+	ch.PartnerState.ContractBalance = c.PartnerContractBalance
+	ch.ExternState.ClosedBlock = c.ClosedBlock
+	ch.ExternState.SettledBlock = c.SettledBlock
+	return
+}
+
+//read a token network info from db
+func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
+	tokenNetwork, err := rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
+	edges, err := rs.db.GetAllNonParticipantChannel(tokenAddress)
+	if err != nil {
+		return
 	}
-	graph := network.NewChannelGraph(rs.NodeAddress, tokenAddress, edgeList, channelsDetails)
-	rs.Manager2Token[managerAddress] = tokenAddress
+	graph := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
+	rs.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
+	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = graph
 	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)
-	//new token, save to db
-	err = rs.db.AddToken(tokenAddress, managerAddress)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	err = rs.db.UpdateTokenNodes(tokenAddress, graph.AllNodes())
-	if err != nil {
-		log.Error(err.Error())
-	}
-	// we need restore channel status from database after restart...
-	//for _, c := range graph.ChannelAddress2Channel {
-	//	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
-	//	if err != nil {
-	//		log.Info(err.Error())
-	//	}
-	//}
 
+	//add channel I participant
+	css, err := rs.db.GetChannelList(tokenAddress, utils.EmptyAddress)
+
+	for _, cs := range css {
+		//跳过已经 settle 的 channel 加入没有任何意义.
+		if cs.State == channeltype.StateSettled {
+			continue
+		}
+		ch, err := rs.channelSerilization2Channel(cs, tokenNetwork)
+		if err != nil {
+			return err
+		}
+		err = graph.AddChannel(ch)
+		if err != nil {
+			return err
+		}
+	}
 	return
 }
 
 /*
 found new channel on blockchain when running...
 */
-func (rs *RaidenService) registerNettingChannel(tokenAddress, channelAddress common.Address) {
-	nettingChannel, err := rs.Chain.NettingChannel(channelAddress)
+func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, partnerAddress common.Address) {
+	tokenNetwork, err := rs.Chain.TokenNetwork(tokenNetworkAddress)
 	if err != nil {
-		log.Error("try to registerNettingChannel not exist channel %s", channelAddress)
+		log.Error(fmt.Sprintf("try to get tokenNetwork %s, err %s", tokenNetworkAddress.String(), err))
+		return
 	}
-	detail := rs.getChannelDetail(tokenAddress, nettingChannel)
+	tokenAddress := rs.TokenNetwork2Token[tokenNetworkAddress]
+	if rs.getChannel(tokenAddress, partnerAddress) != nil {
+		log.Error(fmt.Sprintf("receive new channel %s-%s,but this channel already exist, maybe a duplicate channel event", utils.APex2(tokenAddress), utils.APex2(partnerAddress)))
+		return
+	}
+	ch, err := rs.newChannelFromChain(tokenAddress, tokenNetwork, partnerAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("newChannelFromChain err %s", err))
+		return
+	}
 	graph := rs.getToken2ChannelGraph(tokenAddress)
-	err = graph.AddChannel(detail)
+	err = graph.AddChannel(ch)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[channelAddress]))
+	err = rs.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	return
-}
-func (rs *RaidenService) connectionManagerForToken(tokenAddress common.Address) (*ConnectionManager, error) {
-	mgr, ok := rs.Tokens2ConnectionManager[tokenAddress]
-	if ok {
-		return mgr, nil
-	}
-	return nil, rerr.InvalidAddress(fmt.Sprintf("token %s is not registered", utils.APex(tokenAddress)))
-}
-func (rs *RaidenService) leaveAllTokenNetworksAsync() *network.AsyncResult {
-	var leaveResults []*network.AsyncResult
-	for token := range rs.Token2ChannelGraph {
-		mgr, err := rs.connectionManagerForToken(token)
-		if err != nil {
-			log.Error(fmt.Sprintf("connectionManagerForToken %s err %s", utils.APex(token), err))
-		}
-		if mgr != nil {
-			leaveResults = append(leaveResults, mgr.LeaveAsync())
-		}
-	}
-	return waitGroupAsyncResult(leaveResults)
-}
-func waitGroupAsyncResult(results []*network.AsyncResult) *network.AsyncResult {
-	totalResult := network.NewAsyncResult()
-	wg := sync.WaitGroup{}
-	wg.Add(len(results))
-	for i := range results {
-		go func(i int) {
-			<-results[i].Result
-			wg.Done()
-		}(i)
-	}
-	go func() {
-		wg.Wait()
-		totalResult.Result <- nil
-		close(totalResult.Result)
-	}()
-	return totalResult
-}
-func (rs *RaidenService) closeAndSettle() {
-	log.Info("raiden will close and settle all channels now")
-	var Mgrs []*ConnectionManager
-	for t := range rs.Token2ChannelGraph {
-		mgr, _ := rs.connectionManagerForToken(t)
-		if mgr != nil {
-			Mgrs = append(Mgrs, mgr)
-		}
-	}
-	blocksToWait := func() int64 {
-		var max int64
-		for _, mgr := range Mgrs {
-			if max < mgr.minSettleBlocks() {
-				max = mgr.minSettleBlocks()
-			}
-		}
-		return max
-	}
-	var AllChannels []*channel.Channel
-	for _, mgr := range Mgrs {
-		for _, c := range mgr.openChannels() {
-			ch, err := rs.findChannelByAddress(c.ChannelAddress)
-			if err != nil {
-				panic(fmt.Sprintf("channel %s must exist", utils.APex(c.ChannelAddress)))
-			}
-			AllChannels = append(AllChannels, ch)
-		}
-	}
-	leavingResult := rs.leaveAllTokenNetworksAsync()
-	//using the un-cached block number here
-	lastBlock := rs.GetBlockNumber()
-	earliestSettlement := lastBlock + blocksToWait()
-	/*
-			    TODO: estimate and set a `timeout` parameter in seconds
-		     based on connection_manager.min_settle_blocks and an average
-		     blocktime from the past
-	*/
-	currentBlock := lastBlock
-	for currentBlock < earliestSettlement {
-		time.Sleep(time.Second * 10)
-		lastBlock := rs.GetBlockNumber()
-		if lastBlock != currentBlock {
-			currentBlock = lastBlock
-			waitBlocksLeft := blocksToWait()
-			notSettled := 0
-			for _, c := range AllChannels {
-				if c.State() != transfer.ChannelStateSettled {
-					notSettled++
-				}
-			}
-			if notSettled == 0 {
-				log.Debug("nothing left to settle")
-				break
-			}
-			log.Info(fmt.Sprintf("waiting at least %d more blocks for %d channels not yet settled", waitBlocksLeft, notSettled))
-		}
-		//why  leaving_greenlet.wait
-		timeoutch := time.After(time.Second * time.Duration(blocksToWait()))
-		select {
-		case <-timeoutch:
-		case <-leavingResult.Result:
-		}
-	}
-	for _, c := range AllChannels {
-		if c.State() != transfer.ChannelStateSettled {
-			log.Error("channels were not settled:", utils.APex(c.MyAddress))
-		}
-	}
 }
 
 /*
@@ -967,40 +735,33 @@ Do a direct tranfer with target.
        are required to complete the transfer (from the payer's perspective),
        whereas the mediated transfer requires 6 messages.
 */
-func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address, amount *big.Int, identifier uint64) (result *network.AsyncResult) {
+func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address, amount *big.Int) (result *utils.AsyncResult) {
 	graph := rs.getToken2ChannelGraph(tokenAddress)
 	directChannel := graph.GetPartenerAddress2Channel(target)
-	result = network.NewAsyncResult()
+	result = utils.NewAsyncResult()
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- errors.New("no available direct channel")
 		return
 	}
-	tr, err := directChannel.CreateDirectTransfer(amount, identifier)
+	tr, err := directChannel.CreateDirectTransfer(amount)
 	if err != nil {
 		result.Result <- err
 		return
 	}
-	tr.Sign(rs.PrivateKey, tr)
-	directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
-	directTransferStateChange := &transfer.ActionTransferDirectStateChange{
-		Identifier:   identifier,
-		Amount:       amount,
-		TokenAddress: tokenAddress,
-		NodeAddress:  directChannel.PartnerState.Address,
-	}
-	// TODO: add the transfer sent event
-	stateChangeID, err := rs.db.LogStateChange(directTransferStateChange)
+	err = tr.Sign(rs.PrivateKey, tr)
+	err = directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
 	if err != nil {
-		log.Error(fmt.Sprintf("LogStateChange %s err %s", utils.StringInterface(directTransferStateChange, 2), err))
+		result.Result <- err
+		return
 	}
 	//This should be set once the direct transfer is acknowledged
 	transferSuccess := &transfer.EventTransferSentSuccess{
-		Identifier:     identifier,
-		Amount:         amount,
-		Target:         target,
-		ChannelAddress: directChannel.MyAddress,
+		LockSecretHash:    utils.EmptyHash,
+		Amount:            amount,
+		Target:            target,
+		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
+		Token:             tokenAddress,
 	}
-	rs.db.LogEvents(stateChangeID, []transfer.Event{transferSuccess}, rs.GetBlockNumber())
 	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
 	err = rs.StateMachineEventHandler.OnEvent(transferSuccess, nil)
 	if err != nil {
@@ -1014,8 +775,8 @@ mediated transfer for token swap
 we must make sure that taker use the maker's secret.
 and taker's lock expiration should be short than maker's todo(fix this)
 */
-func (rs *RaidenService) startTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
-	return rs.startMediatedTransferInternal(tokenAddress, target, amount, utils.BigInt0, identifier, hashlock, expiration)
+func (rs *RaidenService) startTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, lockSecretHash common.Hash, hashlock common.Hash, expiration int64) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+	return rs.startMediatedTransferInternal(tokenAddress, target, amount, utils.BigInt0, lockSecretHash, hashlock, expiration)
 }
 
 /*
@@ -1024,11 +785,10 @@ Args:
  hashlock: caller can specify a hashlock or use empty ,when empty, will generate a random secret.
  expiration: caller can specify a valid blocknumber or 0, when 0 ,will calculate based on settle timeout of channel.
 */
-func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, identifier uint64, hashlock common.Hash, expiration int64) (result *network.AsyncResult, stateManager *transfer.StateManager) {
-	graph := rs.getToken2ChannelGraph(tokenAddress)
-	availableRoutes := graph.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, utils.EmptyAddress, rs)
-	result = network.NewAsyncResult()
-	result.Tag = target //tell the difference when token swap
+func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, hashlock common.Hash, expiration int64) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
+	result = utils.NewAsyncResult()
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -1037,8 +797,10 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 		result.Result <- errors.New("no mediated transfer on mesh only network")
 		return
 	}
-	if identifier == 0 {
-		identifier = rand.New(utils.RandSrc).Uint64()
+	var secret common.Hash
+	if lockSecretHash == utils.EmptyHash {
+		secret = utils.NewRandomHash()
+		lockSecretHash = utils.Sha3(secret[:])
 	}
 	/*
 		when user specified fee, for test or other purpose.
@@ -1048,62 +810,39 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 			r.TotalFee = fee //use the user's fee to replace algorithm's
 		}
 	}
-	routesState := transfer.NewRoutesState(availableRoutes)
+	routesState := route.NewRoutesState(availableRoutes)
 	transferState := &mediatedtransfer.LockedTransferState{
-		Identifier:   identifier,
-		TargetAmount: new(big.Int).Set(amount),
-		Amount:       new(big.Int).Set(amount),
-		Token:        tokenAddress,
-		Initiator:    rs.NodeAddress,
-		Target:       target,
-		Expiration:   expiration,
-		Hashlock:     utils.EmptyHash,
-		Secret:       utils.EmptyHash,
-		Fee:          utils.BigInt0,
+		TargetAmount:   new(big.Int).Set(amount),
+		Amount:         new(big.Int).Set(amount),
+		Token:          tokenAddress,
+		Initiator:      rs.NodeAddress,
+		Target:         target,
+		Expiration:     expiration,
+		LockSecretHash: lockSecretHash,
+		Secret:         secret,
+		Fee:            utils.BigInt0,
 	}
 	/*
-			  Issue #489
-
-		        Raiden may fail after a state change using the random generator is
-		        handled but right before the snapshot is taken. If that happens on
-		        the next initialization when raiden is recovering and applying the
-		        pending state changes a new secret will be generated and the
-		        resulting events won't match, rs breaks the architecture model,
-		        since it's assumed the re-execution of a state change will always
-		        produce the same events.
-
-		        TODO: Removed the secret generator from the InitiatorState and add
-		        the secret into all state changes that require one, rs way the
-		        secret will be serialized with the state change and the recovery will
-		        use the same /random/ secret.
+		发起方每次切换路径不再切换密码,不切换依然可以保证安全
 	*/
 	initInitiator := &mediatedtransfer.ActionInitInitiatorStateChange{
-		OurAddress:  rs.NodeAddress,
-		Tranfer:     transferState,
-		Routes:      routesState,
-		BlockNumber: rs.GetBlockNumber(),
-		Db:          rs.db,
+		OurAddress:     rs.NodeAddress,
+		Tranfer:        transferState,
+		Routes:         routesState,
+		BlockNumber:    rs.GetBlockNumber(),
+		Secret:         secret,
+		LockSecretHash: lockSecretHash,
+		Db:             rs.db,
 	}
-	if hashlock == utils.EmptyHash {
-		initInitiator.RandomGenerator = utils.RandomSecretGenerator
-	} else {
-		initInitiator.RandomGenerator = utils.NewSepecifiedSecretGenerator(hashlock)
+	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, lockSecretHash, transferState.Token)
+	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := rs.Transfer2StateManager[smkey]
+	if manager != nil {
+		panic(fmt.Sprintf("manager must be never exist"))
 	}
-	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, transferState.Identifier, transferState.Token)
-	/*
-		  TODO: implement the network timeout raiden.config['msg_timeout'] and
-			cancel the current transfer if it hapens (issue #374)
-	*/
-	/*
-		first register the rs transfer id, otherwise error may occur imediatelly
-	*/
-	mgrs := rs.Identifier2StateManagers[identifier]
-	mgrs = append(mgrs, stateManager)
-	rs.Identifier2StateManagers[identifier] = mgrs
-	results := rs.Identifier2Results[identifier]
-	results = append(results, result)
-	rs.Identifier2Results[identifier] = results
-	rs.db.AddStateManager(stateManager)
+	rs.Transfer2StateManager[smkey] = stateManager
+	rs.Transfer2Result[smkey] = result
+	//rs.db.AddStateManager(stateManager)
 	rs.StateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
 	return
 }
@@ -1112,47 +851,93 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 1. user start a mediated transfer
 2. user start a maker mediated transfer
 */
-func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, identifier uint64) (result *network.AsyncResult) {
-	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, identifier, utils.EmptyHash, 0)
+func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash) (result *utils.AsyncResult) {
+	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, utils.EmptyHash, 0)
 	return
 }
 
 //receive a MediatedTransfer, i'm a hop node
-func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer) {
-	amount := msg.Amount
-	target := msg.Target
-	token := msg.Token
-	graph := rs.getToken2ChannelGraph(token)
-	avaiableRoutes := graph.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, msg.Sender, rs)
-	fromChannel := graph.GetPartenerAddress2Channel(msg.Sender)
-	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
-	ourAddress := rs.NodeAddress
-	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg)
-	routesState := transfer.NewRoutesState(avaiableRoutes)
-	blockNumber := rs.GetBlockNumber()
-	initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
-		OurAddress:  ourAddress,
-		FromTranfer: fromTransfer,
-		Routes:      routesState,
-		FromRoute:   fromRoute,
-		BlockNumber: blockNumber,
-		Message:     msg,
-		Db:          rs.db,
+func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
+	tokenAddress := ch.TokenAddress
+	smkey := utils.Sha3(msg.LockSecretHash[:], tokenAddress[:])
+	stateManager := rs.Transfer2StateManager[smkey]
+	/*
+			第一次收到这个密码,
+		首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+			锁是有可能重复的,比如 token swap 中.
+	*/
+	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
+		//忽略,什么都不做
+		return
 	}
-	stateManager := transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.Identifier, fromTransfer.Token)
-	rs.db.AddStateManager(stateManager)
-	mgrs := rs.Identifier2StateManagers[msg.Identifier]
-	mgrs = append(mgrs, stateManager)
-	rs.Identifier2StateManagers[msg.Identifier] = mgrs //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
-	rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
+	amount := msg.PaymentAmount
+	target := msg.Target
+	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+	fromChannel := ch
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
+	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
+	if stateManager != nil {
+		if stateManager.Name != mediator.NameMediatorTransition {
+			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a mediator,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
+			return
+		}
+		stateChange := &mediatedtransfer.MediatorReReceiveStateChange{
+			Message:      msg,
+			FromTransfer: fromTransfer,
+			FromRoute:    fromRoute,
+			BlockNumber:  rs.GetBlockNumber(),
+		}
+		rs.StateMachineEventHandler.logAndDispatch(stateManager, stateChange)
+	} else {
+		ourAddress := rs.NodeAddress
+		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
+		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, exclude, rs)
+		routesState := route.NewRoutesState(avaiableRoutes)
+		blockNumber := rs.GetBlockNumber()
+		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
+			OurAddress:  ourAddress,
+			FromTranfer: fromTransfer,
+			Routes:      routesState,
+			FromRoute:   fromRoute,
+			BlockNumber: blockNumber,
+			Message:     msg,
+			Db:          rs.db,
+		}
+		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
+		//rs.db.AddStateManager(stateManager)
+		rs.Transfer2StateManager[smkey] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
+		rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
+	}
 }
 
 //receive a MediatedTransfer, i'm the target
-func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer) {
-	graph := rs.getToken2ChannelGraph(msg.Token)
-	fromChannel := graph.GetPartenerAddress2Channel(msg.Sender)
-	fromRoute := network.Channel2RouteState(fromChannel, msg.Sender, msg.Amount, rs)
-	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg)
+func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
+	smkey := utils.Sha3(msg.LockSecretHash[:], ch.TokenAddress[:])
+	stateManager := rs.Transfer2StateManager[smkey]
+	/*
+		第一次收到这个密码,
+		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+		锁是有可能重复的,比如 token swap 中.
+	*/
+	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
+		//忽略,什么都不做
+		return
+	}
+	if stateManager != nil {
+		if stateManager.Name != target.NameTargetTransition {
+			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a target,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
+			return
+		}
+		log.Error(fmt.Sprintf("receive mediator transfer msg=%s,duplicate? attack?,i'm a target,and has received mediator message. statemanager=%s",
+			msg, utils.StringInterface(stateManager, 3)))
+		return
+	}
+	g := rs.getToken2ChannelGraph(ch.TokenAddress)
+	fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs)
+	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
 		OurAddress:  rs.NodeAddress,
 		FromRoute:   fromRoute,
@@ -1161,14 +946,10 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer) 
 		Message:     msg,
 		Db:          rs.db,
 	}
-	stateManger := transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.Identifier, fromTransfer.Token)
-	rs.db.AddStateManager(stateManger)
-	identifier := msg.Identifier
-	mgrs := rs.Identifier2StateManagers[identifier]
-	mgrs = append(mgrs, stateManger)
-	rs.Identifier2StateManagers[identifier] = mgrs
-
-	rs.StateMachineEventHandler.logAndDispatch(stateManger, initTarget)
+	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
+	//rs.db.AddStateManager(stateManager)
+	rs.Transfer2StateManager[smkey] = stateManager
+	rs.StateMachineEventHandler.logAndDispatch(stateManager, initTarget)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {
@@ -1205,24 +986,41 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	if !ok {
 		return fmt.Errorf("transport is not mix transpoter")
 	}
-	err := mt.SubscribeNeighbor()
-	if err != nil && params.MobileMode {
-		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
-		return nil
-	}
-	return err
+	return mt.SubscribeNeighbor(rs.db)
 }
-func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *network.ChannelGraph) {
+func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
 	if cg == nil {
 		log.Error(fmt.Sprintf("%s token doesn't exist ", utils.APex(tokenAddress)))
 	}
 	return
 }
+func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *graph.ChannelGraph) {
+	ch, err := rs.findChannelByAddress(channelIdentifier)
+	if err != nil {
+		return
+	}
+	cg = rs.Token2ChannelGraph[ch.TokenAddress]
+	if cg == nil {
+		log.Error(fmt.Sprintf("%s token doesn't exist ", utils.APex(ch.TokenAddress)))
+	}
+	return
+}
+func (rs *RaidenService) getTokenForChannelIdentifier(channelidentifier common.Hash) (token common.Address) {
+	ch, err := rs.findChannelByAddress(channelidentifier)
+	if err != nil {
+		return
+	}
+	return ch.TokenAddress
+}
 
 //only for test, should call findChannelByAddress
-func (rs *RaidenService) getChannelWithAddr(channelAddr common.Address) *channel.Channel {
-	c, _ := rs.findChannelByAddress(channelAddr)
+func (rs *RaidenService) getChannelWithAddr(channelAddr common.Hash) *channel.Channel {
+	c, err := rs.findChannelByAddress(channelAddr)
+	if err != nil {
+
+	}
+
 	return c
 }
 
@@ -1238,8 +1036,8 @@ func (rs *RaidenService) getChannel(tokenAddr, partnerAddr common.Address) *chan
 /*
 Process user's new channel request
 */
-func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout int) (result *network.AsyncResult) {
-	result = network.NewAsyncResult()
+func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout int) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	go func() {
 		var err error
 		defer rpanic.PanicRecover(fmt.Sprintf("newChannel token:%s,partner:%s", utils.APex(token), utils.APex(partner)))
@@ -1247,12 +1045,11 @@ func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout
 			result.Result <- err
 			close(result.Result)
 		}()
-		chMgrAddr, err := rs.Registry.ChannelManagerByToken(token)
+		tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
 		if err != nil {
 			return
 		}
-		chMgr := rs.Chain.Manager(chMgrAddr)
-		_, err = chMgr.NewChannel(partner, settleTimeout)
+		err = tokenNetwork.NewChannel(partner, settleTimeout)
 		if err != nil {
 			return
 		}
@@ -1264,46 +1061,36 @@ func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout
 /*
 process user's deposit request
 */
-func (rs *RaidenService) depositChannel(channelAddress common.Address, amount *big.Int) (result *network.AsyncResult) {
-	result = network.NewAsyncResult()
+func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil {
 		result.Result <- err
 		return
 	}
-	go func() {
-		defer rpanic.PanicRecover(fmt.Sprintf("depositChannel %s ,amount %s", utils.APex(channelAddress), amount))
-		err := c.ExternState.Deposit(amount)
-		result.Result <- err
-		close(result.Result)
-	}()
+	if c.State != channeltype.StateOpened {
+		result.Result <- errors.New("channel can deposit only when at open state")
+	}
+	result = c.ExternState.Deposit(c.TokenAddress, amount)
 	return
 }
 
 /*
 process user's close or settle channel request
 */
-func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Address, op string) (result *network.AsyncResult) {
-	result = network.NewAsyncResult()
+func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op string) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.APex(channelAddress)))
-	go func() {
-		var err error
-		defer rpanic.PanicRecover(fmt.Sprintf("closeOrSettleChannel %s %s", op, utils.APex(channelAddress)))
-		c2, _ := rs.db.GetChannelByAddress(c.MyAddress)
-		proof := c2.PartnerBalanceProof
-		if op == closeChannelReqName {
-			err = c.ExternState.Close(proof)
-		} else {
-			err = c.ExternState.Settle()
-		}
-		log.Trace(fmt.Sprintf("%s channel finished err %v", op, err))
-		result.Result <- err
-	}()
+	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelAddress)))
+	if op == closeChannelReqName {
+		result = c.Close()
+	} else {
+		result = c.Settle()
+	}
 	return
 }
 
@@ -1311,7 +1098,7 @@ func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Address, op 
 process user's token swap maker request
 save and restore todo?
 */
-func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
+func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResult) {
 	var hashlock common.Hash
 	var hasReceiveTakerMediatedTransfer bool
 	var sentMtrHook SentMediatedTransferListener
@@ -1330,12 +1117,12 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network.A
 		return false
 	}
 	sentMtrHook = func(mtr *encoding.MediatedTransfer) (remove bool) {
-		if mtr.Identifier == tokenswap.Identifier && mtr.Token == tokenswap.FromToken && mtr.Target == tokenswap.ToNodeAddress && mtr.Amount.Cmp(tokenswap.FromAmount) == 0 {
+		if mtr.LockSecretHash == tokenswap.LockSecretHash && rs.getTokenForChannelIdentifier(mtr.ChannelIdentifier) == tokenswap.FromToken && mtr.Target == tokenswap.ToNodeAddress && mtr.PaymentAmount.Cmp(tokenswap.FromAmount) == 0 {
 			if hashlock != utils.EmptyHash {
 				log.Info(fmt.Sprintf("tokenswap maker select new path ,because of different hash lock"))
 				delete(rs.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
 			}
-			hashlock = mtr.HashLock //hashlock may change when select new route path
+			hashlock = mtr.LockSecretHash //hashlock may change when select new route path
 			rs.SecretRequestPredictorMap[hashlock] = secretRequestHook
 		}
 		return false
@@ -1344,7 +1131,7 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network.A
 		/*
 			recevive taker's mediated transfer , the transfer must use argument of tokenswap and have the same hashlock
 		*/
-		if mtr.Identifier == tokenswap.Identifier && hashlock == mtr.HashLock && mtr.Token == tokenswap.ToToken && mtr.Target == tokenswap.FromNodeAddress && mtr.Amount.Cmp(tokenswap.ToAmount) == 0 {
+		if mtr.LockSecretHash == tokenswap.LockSecretHash && hashlock == mtr.LockSecretHash && rs.getTokenForChannelIdentifier(mtr.ChannelIdentifier) == tokenswap.ToToken && mtr.Target == tokenswap.FromNodeAddress && mtr.PaymentAmount.Cmp(tokenswap.ToAmount) == 0 {
 			hasReceiveTakerMediatedTransfer = true
 			delete(rs.SentMediatedTransferListenerMap, &sentMtrHook)
 			return true
@@ -1353,7 +1140,7 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *network.A
 	}
 	rs.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	rs.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result = rs.startMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.Identifier)
+	result = rs.startMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash)
 	return
 }
 
@@ -1362,10 +1149,14 @@ taker process token swap
 taker's action is triggered by maker's mediated transfer.
 */
 func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokenswap *TokenSwap) (remove bool) {
-	var hashlock = msg.HashLock
+	var hashlock = msg.LockSecretHash
 	var hasReceiveRevealSecret bool
 	var stateManager *transfer.StateManager
-	if msg.Identifier != tokenswap.Identifier || msg.Amount.Cmp(tokenswap.FromAmount) != 0 || msg.Initiator != tokenswap.FromNodeAddress || msg.Token != tokenswap.FromToken || msg.Target != tokenswap.ToNodeAddress {
+	if msg.LockSecretHash != tokenswap.LockSecretHash ||
+		msg.PaymentAmount.Cmp(tokenswap.FromAmount) != 0 ||
+		msg.Initiator != tokenswap.FromNodeAddress ||
+		rs.getTokenForChannelIdentifier(msg.ChannelIdentifier) != tokenswap.FromToken ||
+		msg.Target != tokenswap.ToNodeAddress {
 		log.Info("receive a mediated transfer, not match tokenswap condition")
 		return false
 	}
@@ -1382,7 +1173,7 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		return false
 	}
 	var receiveRevealSecretHook RevealSecretListener = func(msg *encoding.RevealSecret) (remove bool) {
-		if msg.HashLock() != hashlock {
+		if msg.LockSecretHash() != hashlock {
 			return false
 		}
 		state := stateManager.CurrentState
@@ -1390,10 +1181,10 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		if !ok {
 			panic(fmt.Sprintf("must be a InitiatorState"))
 		}
-		if initState.Transfer.Hashlock != msg.HashLock() {
-			panic(fmt.Sprintf("hashlock must be same , state lock=%s,msg lock=%s", utils.HPex(initState.Transfer.Hashlock), utils.HPex(msg.HashLock())))
+		if initState.Transfer.LockSecretHash != msg.LockSecretHash() {
+			panic(fmt.Sprintf("hashlock must be same , state lock=%s,msg lock=%s", utils.HPex(initState.Transfer.LockSecretHash), utils.HPex(msg.LockSecretHash())))
 		}
-		initState.Transfer.Secret = msg.Secret
+		initState.Transfer.Secret = msg.LockSecret
 		hasReceiveRevealSecret = true
 		delete(rs.SecretRequestPredictorMap, hashlock)
 		return true
@@ -1403,7 +1194,7 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		taker and maker may have direct channels on these two tokens.
 	*/
 	takerExpiration := msg.Expiration - params.DefaultRevealTimeout
-	result, stateManager := rs.startTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.Identifier, msg.HashLock, takerExpiration)
+	result, stateManager := rs.startTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.LockSecretHash, msg.LockSecretHash, takerExpiration)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return false
@@ -1417,13 +1208,13 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 process taker's token swap
 only mark, if i receive a valid mediated transfer, then start token swap
 */
-func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *network.AsyncResult) {
-	result = network.NewAsyncResult()
+func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	result.Result <- nil
 	key := swapKey{
-		Identifier: tokenswap.Identifier,
-		FromToken:  tokenswap.FromToken,
-		FromAmount: tokenswap.FromAmount.String(),
+		LockSecretHash: tokenswap.LockSecretHash,
+		FromToken:      tokenswap.FromToken,
+		FromAmount:     tokenswap.FromAmount.String(),
 	}
 	rs.SwapKey2TokenSwap[key] = tokenswap
 	return
@@ -1431,14 +1222,14 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *network.A
 
 //all user's request
 func (rs *RaidenService) handleReq(req *apiReq) {
-	var result *network.AsyncResult
+	var result *utils.AsyncResult
 	switch req.Name {
 	case transferReqName: //mediated transfer only
 		r := req.Req.(*transferReq)
 		if r.IsDirectTransfer {
-			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount, r.Identifier)
+			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Identifier)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, utils.EmptyHash)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
@@ -1468,52 +1259,6 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
-	if sentMessage.Message.Tag() != nil { //
-		sentMessageTag := sentMessage.Message.Tag().(*transfer.MessageTag)
-		if sentMessageTag.GetStateManager() != nil {
-			mgr := sentMessageTag.GetStateManager()
-			mgr.ManagerState = transfer.StateManagerSendMessageSuccesss
-			sentMessageTag.SendingMessageComplete = true
-			tx := rs.db.StartTx()
-			_, ok := sentMessage.Message.(*encoding.Secret)
-			if ok {
-				mgr.IsBalanceProofSent = true
-				if mgr.Name == initiator.NameInitiatorTransition {
-					mgr.ManagerState = transfer.StateManagerTransferComplete
-				} else if mgr.Name == target.NameTargetTransition {
-
-				} else if mgr.Name == mediator.NameMediatorTransition {
-					/*
-						how to detect a mediator node is finish or not?
-							1. receive prev balanceproof
-							2. balanceproof  send to next successfully
-						//todo when refund?
-					*/
-					if mgr.IsBalanceProofSent && mgr.IsBalanceProofReceived {
-						mgr.ManagerState = transfer.StateManagerTransferComplete
-					}
-
-				}
-			}
-			rs.db.UpdateStateManaer(mgr, tx)
-			tx.Commit()
-			rs.conditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-		} else if sentMessageTag.EchoHash != utils.EmptyHash {
-			//log.Trace(fmt.Sprintf("reveal sent complete %s", utils.StringInterface(sentMessage.Message, 5)))
-			rs.conditionQuit(fmt.Sprintf("%sRecevieAck", sentMessage.Message.Name()))
-			switch msg := sentMessage.Message.(type) {
-			case *encoding.RevealSecret:
-				rs.db.UpdateSentRevealSecretComplete(sentMessageTag.EchoHash)
-			default:
-				log.Error(fmt.Sprintf("unknown message %s", utils.StringInterface(msg, 7)))
-			}
-
-		} else {
-			panic(fmt.Sprintf("sent message state unknow :%s", utils.StringInterface(sentMessageTag, 2)))
-		}
-	} else {
-		log.Error(fmt.Sprintf("message must have tag, only when make token swap %s", utils.StringInterface(sentMessage.Message, 3)))
-	}
 }
 
 /*
@@ -1559,23 +1304,13 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 			//must have a valid blocknumber before any transfer operation
 			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
 		}
-		/*
-			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
-		*/
-		err = rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
-		if err != nil {
-			err = fmt.Errorf("Events listener error %v", err)
-			return
-		}
-		/*
-			  Registry registration must start *after* the alarm task, rs avoid
-				 corner cases were the registry is queried in block A, a new block B
-				 is mined, and the alarm starts polling at block C.
-		*/
-		rs.registerRegistry()
-		err = rs.restoreChannel(false)
-		if err != nil {
-			log.Error(fmt.Sprintf("reinit restoreChannel err %s", err))
-		}
+	}
+	/*
+		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+	*/
+	err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
+	if err != nil {
+		err = fmt.Errorf("Events listener error %v", err)
+		return
 	}
 }

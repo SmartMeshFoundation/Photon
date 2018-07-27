@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
@@ -55,47 +57,34 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 }
 
 //CreatAChannelAndDeposit create a channel
-func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, manager *contracts.ChannelManagerContract, token *contracts.Token, conn *ethclient.Client) (channelAddress common.Address) {
+func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
-	//auth1.GasLimit = uint64(params.GasLimit)
-	//auth1.GasPrice = big.NewInt(params.GasPrice)
-	callAuth1 := &bind.CallOpts{
-		Pending: false,
-		From:    account1,
-		Context: context.Background(),
-	}
 	auth2 := bind.NewKeyedTransactor(key2)
-	//auth2.GasLimit = uint64(params.GasLimit)
-	//auth2.GasPrice = big.NewInt(params.GasPrice)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(40))
+	tokenNetwork, err := contracts.NewTokenNetwork(tokenNetworkAddres, conn)
+	if err != nil {
+		log.Fatalf("newtoken network for %s ,err %s", tokenNetworkAddres.String(), err)
+	}
+	tx, err := tokenNetwork.OpenChannel(auth1, account1, account2, 40)
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return
 	}
-	log.Printf("create channel gas %s:%d,channel address=%s\n", tx.Hash().String(), tx.Gas(), tx.To().String())
 	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to NewChannel when mining :%v", err)
 	}
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
+	log.Printf("create channel gas %s:%d,channel identifier=0x%s,tokennetworkaddress=%s\n", tx.Hash().String(), tx.Gas(), hex.EncodeToString(channelID[:]), tokenNetworkAddres.String())
 	fmt.Printf("NewChannel complete...\n")
 	//step 2 deopsit
 	//step 2.1 aprove
-	channelAddress, err = manager.GetChannelWith(callAuth1, account2)
-	if err != nil {
-		log.Fatalf("failed to get channel %s", err)
-		return
-	}
-	channel, err := contracts.NewNettingChannelContract(channelAddress, conn)
-	if err != nil {
-		log.Fatalf("NewNettingChannelContract err%s", err)
-	}
 	wg2 := sync.WaitGroup{}
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth1, channelAddress, big.NewInt(amount))
+		tx, err := token.Approve(auth1, tokenNetworkAddres, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -106,9 +95,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = channel.Deposit(auth1, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth1, account1, account2, big.NewInt(amount))
 		if err != nil {
-			log.Fatalf("Failed to Deposit: %v", err)
+			log.Fatalf("Failed to Deposit1: %v", err)
 		}
 		log.Printf("deposit gas %s:%d\n", tx.Hash().String(), tx.Gas())
 		ctx = context.Background()
@@ -121,7 +110,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth2, channelAddress, big.NewInt(amount))
+		tx, err := token.Approve(auth2, tokenNetworkAddres, big.NewInt(amount))
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -131,9 +120,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = channel.Deposit(auth2, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth2, account2, account1, big.NewInt(amount))
 		if err != nil {
-			log.Fatalf("Failed to Deposit: %v", err)
+			log.Fatalf("Failed to Deposit2: %v", err)
 		}
 		ctx = context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)

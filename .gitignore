@@ -1,4 +1,4 @@
-
+.gitignore
 testdata/.goraiden/1a9ec3b0/log.db
 testdata/.goraiden/1a9ec3b0/log.db.flock.Lock
 testdata/.goraiden/33df901a/log.db
@@ -18,4 +18,7 @@ testdata/log/Node3.log
 testdata/log/Node4.log
 testdata/log/Node5.log
 testdata/log/Node6.log
-testdate/my-keystore
+env.sh
+.idea/*
+build.sh
+.git_mine/*

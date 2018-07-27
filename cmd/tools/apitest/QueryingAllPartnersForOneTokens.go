@@ -47,11 +47,11 @@ func QueryingAllPartnersForOneToken(url string, token string) (Partners []TokenP
 func QueryingAllPartnersForOneTokensTest(url string) {
 	start := time.Now()
 	ShowTime()
-	log.Println("Start Querying All Partners For a Existent Token")
+	log.Println("Start Querying All Partners For a Existent TokenNetworkAddres")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	//fmt.Printf("!!!!!!!!!!!!Token:%s\n", Tokens[0])
 	if Tokens == nil {
-		log.Println("Warning:No registered Token!")
+		log.Println("Warning:No registered TokenNetworkAddres!")
 	} else {
 		_, Status, err := QueryingAllPartnersForOneToken(url, Tokens[0])
 		ShowError(err)
@@ -68,7 +68,7 @@ func QueryingAllPartnersForOneTokensTest(url string) {
 		}
 	}
 
-	log.Println("Start Querying All Partners For a Nonexistent Token")
+	log.Println("Start Querying All Partners For a Nonexistent TokenNetworkAddres")
 	_, Status, err := QueryingAllPartnersForOneToken(url, "0x0000")
 	ShowError(err)
 	//display the details of the error

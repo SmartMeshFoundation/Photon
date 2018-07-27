@@ -104,13 +104,13 @@ type StateManager struct {
 	FuncStateTransition FuncStateTransition
 	CurrentState        State
 	Name                string
-	LastActive          time.Time //the latest message sent time
-	ManagerState        string    `storm:"index"` //state for initiator and target ,distingush operation from crash
-	Identifier          uint64    //transfer identifier
+	LastActive          time.Time   //the latest message sent time
+	ManagerState        string      `storm:"index"` //state for initiator and target ,distingush operation from crash
+	Identifier          common.Hash //transfer identifier
 	TokenAddress        common.Address
-	ChannelAddress      common.Address //channel address from initiator A-B-C channel A-B
-	ChannelAddressTo    common.Address //mediated transfer will send to. A-B-C channel B-C
-	ChannelAddresRefund common.Address //node received a refund transfer, should save and forget.
+	ChannelAddress      common.Hash //channel address from initiator A-B-C channel A-B
+	ChannelAddressTo    common.Hash //mediated transfer will send to. A-B-C channel B-C
+	ChannelAddresRefund common.Hash //node received a refund transfer, should save and forget.
 
 	LastReceivedMessage    interface{}       //message received status, except reveal secret,may be init statechange
 	LastSendMessage        encoding.Messager //sending message.
@@ -137,27 +137,11 @@ const StateManagerTransferComplete = "ManagerTransferComplete"
 
 //MessageTag for save and restore
 type MessageTag struct {
-	stateManager           *StateManager //message related statemanager, this field should not save to database because of cycle reference
-	ReceiveProcessComplete bool          //Whether the receipt of the message has been processed,
-	SendingMessageComplete bool          //Whether the message sent has received ACK
-	IsASendingMessage      bool          //this message is on sending or receiveing?
-	MessageID              string        //messageId for ping message
-	EchoHash               common.Hash
-	Receiver               common.Address
-}
-
-//GetStateManager return stateManager
-func (mt *MessageTag) GetStateManager() *StateManager {
-	return mt.stateManager
-}
-
-//SetStateManager set statemanager
-func (mt *MessageTag) SetStateManager(stateManager *StateManager) {
-	mt.stateManager = stateManager
+	EchoHash common.Hash
 }
 
 //NewStateManager create a StateManager
-func NewStateManager(stateTransition FuncStateTransition, currentState State, name string, identifier uint64, tokenAddress common.Address) *StateManager {
+func NewStateManager(stateTransition FuncStateTransition, currentState State, name string, identifier common.Hash, tokenAddress common.Address) *StateManager {
 	return &StateManager{
 		FuncStateTransition: stateTransition,
 		CurrentState:        currentState,

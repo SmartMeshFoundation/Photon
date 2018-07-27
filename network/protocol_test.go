@@ -15,6 +15,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -38,13 +40,25 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 	}
 }
 func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
+	var err error
 	log.Trace("log...")
-	p1 := MakeTestRaidenProtocol("p1")
 	p2 := MakeTestRaidenProtocol("p2")
+	p1 := MakeTestRaidenProtocol("p1")
+
+	//err := SubscribeNeighbor(p1, p2.nodeAddr)
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
+	//err = SubscribeNeighbor(p2, p1.nodeAddr)
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
 	p1.Start()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
-	err := p1.SendAndWait(p2.nodeAddr, ping, time.Second*2)
+	err = p1.SendAndWait(p2.nodeAddr, ping, time.Second*2)
 	if err == nil {
 		t.Error(errors.New("should timeout"))
 		return
@@ -74,17 +88,17 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 		t.Errorf("recevied message type error")
 		return
 	}
-	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
+	if revealSecretMsg.LockSecret != revealSecretMsg2.LockSecret {
 		t.Errorf("secret not match")
 	}
 }
 
 func TestNew(t *testing.T) {
-	msger := encoding.MessageMap[encoding.SecretCmdID]
+	msger := encoding.MessageMap[encoding.UnlockCmdID]
 	msg := New(msger)
 	spew.Dump(msg)
 	switch m2 := msg.(type) {
-	case *encoding.Secret:
+	case *encoding.UnLock:
 		t.Log("m2 type correct ", m2.CmdID)
 	default:
 		t.Error("type convert error")
@@ -105,7 +119,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		t.Logf("client2 received msg :%#v", m)
 		msg = m.Msg
 		p2.ReceivedMessageResultChan <- nil
-		secretRequest := encoding.NewSecretRequest(33, utils.EmptyHash, big.NewInt(12))
+		secretRequest := encoding.NewSecretRequest(utils.EmptyHash, big.NewInt(12))
 		secretRequest.Sign(p2.privKey, secretRequest)
 		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Minute)
 		if err != nil {
@@ -130,7 +144,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		t.Errorf("recevied message type error")
 		return
 	}
-	if revealSecretMsg.Secret != revealSecretMsg2.Secret {
+	if revealSecretMsg.LockSecret != revealSecretMsg2.LockSecret {
 		t.Errorf("secret not match")
 	}
 	wg.Wait()
@@ -141,13 +155,17 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	p1 := MakeTestDiscardExpiredTransferRaidenProtocol("p1")
 	p1.Start()
 	expiration := 7 //7 second
-	lock := encoding.Lock{
-		Expiration: int64(expiration),
-		Amount:     big.NewInt(10),
-		HashLock:   utils.Sha3([]byte("test")),
+	lock := mtree.Lock{
+		Expiration:     int64(expiration),
+		Amount:         big.NewInt(10),
+		LockSecretHash: utils.Sha3([]byte("test")),
 	}
 	reciever := utils.NewRandomAddress()
-	mtr := encoding.NewMediatedTransfer(1, 1, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, reciever, utils.EmptyHash, &lock,
+	bp := encoding.NewBalanceProof(1, utils.BigInt0, utils.EmptyHash, &contracts.ChannelUniqueID{
+		ChannelIdentifier: utils.NewRandomHash(),
+		OpenBlockNumber:   3,
+	})
+	mtr := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(p1.privKey, mtr)
 	err := p1.SendAndWait(reciever, mtr, time.Second*5)
@@ -156,7 +174,7 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 		return
 	}
 	lock.Expiration = 3
-	mtr2 := encoding.NewMediatedTransfer(1, 1, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, reciever, utils.EmptyHash, &lock,
+	mtr2 := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr2.Sign(p1.privKey, mtr2)
 	err = p1.SendAndWait(reciever, mtr2, time.Second*5)

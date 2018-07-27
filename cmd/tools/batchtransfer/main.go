@@ -66,8 +66,8 @@ func doRequest(c *http.Client, req *http.Request) (Status string, body []byte, e
 	if len(body) > 0 {
 		log.Printf("receive <- :\n%s\n", string(body))
 	}
-	req.Body.Close()
-	resp.Body.Close()
+	err = req.Body.Close()
+	err = resp.Body.Close()
 	return
 }
 func main() {

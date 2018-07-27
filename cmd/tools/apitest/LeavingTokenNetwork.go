@@ -46,7 +46,7 @@ func LeavingTokenNetworkTest(url string) {
 	var Status string
 	start := time.Now()
 	ShowTime()
-	log.Println("Start Leaving Token Network")
+	log.Println("Start Leaving TokenNetworkAddres Network")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 
 	//test the token which doesn't exist.

@@ -54,10 +54,10 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Role == "maker" {
-		err = RaidenAPI.TokenSwapAndWait(uint64(id), common.HexToAddress(req.SendingToken), common.HexToAddress(req.ReceivingToken),
+		err = RaidenAPI.TokenSwapAndWait(strconv.Itoa(id), common.HexToAddress(req.SendingToken), common.HexToAddress(req.ReceivingToken),
 			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount)
 	} else if req.Role == "taker" {
-		err = RaidenAPI.ExpectTokenSwap(uint64(id), common.HexToAddress(req.ReceivingToken), common.HexToAddress(req.SendingToken),
+		err = RaidenAPI.ExpectTokenSwap(strconv.Itoa(id), common.HexToAddress(req.ReceivingToken), common.HexToAddress(req.SendingToken),
 			target, RaidenAPI.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)
@@ -67,6 +67,9 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
 		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
-		w.(http.ResponseWriter).Write(nil)
+		_, err = w.(http.ResponseWriter).Write(nil)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 	}
 }

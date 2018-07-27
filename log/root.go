@@ -13,7 +13,8 @@ var (
 )
 
 func init() {
-	root.SetHandler(DiscardHandler())
+	//必须提供一个缺省的有效的 log 输出,否则启动没有任何输出,错误无法发现.
+	root.SetHandler(StdoutHandler)
 }
 
 // New returns a new logger with the given context.

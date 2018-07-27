@@ -50,7 +50,7 @@ func makeTargetState(ouraddress common.Address, amount, blocknumber int64, initi
 	return state
 }
 
-//" Channel must be closed when the unsafe region is reached and the secret is known.
+//" ch must be closed when the unsafe region is reached and the secret is known.
 func TestEventsForClose(t *testing.T) {
 	var amount int64 = 3
 	var expire int64 = 10
@@ -58,8 +58,8 @@ func TestEventsForClose(t *testing.T) {
 	ourAddress := utest.ADDR
 	secret := utest.UnitSecret
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, secret)
-	safeToWait := expire - int64(fromRoute.RevealTimeout) - 1
-	unsafeToWait := expire - int64(fromRoute.RevealTimeout)
+	safeToWait := expire - int64(fromRoute.RevealTimeout()) - 1
+	unsafeToWait := expire - int64(fromRoute.RevealTimeout())
 
 	state := &mediatedtransfer.TargetState{
 		OurAddress:   ourAddress,
@@ -67,19 +67,19 @@ func TestEventsForClose(t *testing.T) {
 		FromTransfer: fromTransfer,
 		BlockNumber:  safeToWait,
 	}
-	events := eventsForClose(state)
+	events := eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
 	state.BlockNumber = unsafeToWait
-	events = eventsForClose(state)
+	events = eventsForRegisterSecret(state)
 	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediatedtransfer.EventContractSendChannelClose)
+	ev, ok := events[0].(*mediatedtransfer.EventContractSendRegisterSecret)
 	assert(t, ok, true)
 	assert(t, fromTransfer.Secret != utils.EmptyHash, true)
-	assert(t, ev.ChannelAddress, fromRoute.ChannelAddress)
+	assert(t, ev.Secret, fromTransfer.Secret)
 }
 
 /*
-Channel must not be closed when the unsafe region is reached and the
+ch must not be closed when the unsafe region is reached and the
     secret is not known.
 */
 func TestEventsForCloseSecretUnkown(t *testing.T) {
@@ -96,35 +96,11 @@ func TestEventsForCloseSecretUnkown(t *testing.T) {
 		FromTransfer: fromTransfer,
 		BlockNumber:  expire,
 	}
-	events := eventsForClose(state)
+	events := eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
-	events = eventsForClose(state)
+	events = eventsForRegisterSecret(state)
 	assert(t, len(events), 0)
 	assert(t, fromTransfer.Secret, utils.EmptyHash)
-}
-
-/*
-On-chain withdraw must be done if the channel is closed, regardless of
-    the unsafe region.
-*/
-func TestEventsForWithDraw(t *testing.T) {
-	var amount = big.NewInt(3)
-	var expire int64 = 10
-	initiator := utest.HOP1
-	tr := utest.MakeTransfer(amount, initiator, utest.ADDR, expire, utest.UnitSecret, utils.Sha3(utest.UnitSecret[:]), 1, utest.UnitTokenAddress)
-	route := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress())
-	state := &mediatedtransfer.TargetState{
-		FromTransfer: tr,
-		FromRoute:    route,
-	}
-	events := eventsForWithdraw(state, route)
-	assert(t, len(events), 0)
-	route.State = transfer.ChannelStateClosed
-	events = eventsForWithdraw(state, route)
-	assert(t, len(events) > 0, true)
-	ev, ok := events[0].(*mediatedtransfer.EventContractSendWithdraw)
-	assert(t, ok, true)
-	assert(t, ev.ChannelAddress, route.ChannelAddress)
 }
 
 /*
@@ -143,9 +119,8 @@ func TestHandleInitTarget(t *testing.T) {
 	assert(t, len(it.Events) > 0, true)
 	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
-	assert(t, ev.Identifer, fromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, fromTransfer.LockSecretHash)
 	assert(t, ev.Amount, fromTransfer.Amount)
-	assert(t, ev.Hashlock, fromTransfer.Hashlock)
 	assert(t, ev.Receiver, initiator)
 }
 
@@ -182,15 +157,15 @@ func TestHandleSecretReveal(t *testing.T) {
 	//it := handleSecretReveal(state, stateChange)
 	//assert(t, len(it.Events), 0)
 	//real mediatedTransfere, have a hopnode
-	state.FromRoute = utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomAddress())
+	state.FromRoute = utest.MakeRoute(utest.HOP2, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())
 	it := handleSecretReveal(state, stateChange)
 
 	assert(t, len(it.Events), 1)
 	ev := it.Events[0].(*mediatedtransfer.EventSendRevealSecret)
 	assert(t, state.State, mediatedtransfer.StateRevealSecret)
-	assert(t, ev.Identifier, state.FromTransfer.Identifier)
+	assert(t, ev.LockSecretHash, state.FromTransfer.LockSecretHash)
 	assert(t, ev.Secret, secret)
-	assert(t, ev.Receiver, state.FromRoute.HopNode)
+	assert(t, ev.Receiver, state.FromRoute.HopNode())
 	assert(t, ev.Sender, ourAddress)
 
 }

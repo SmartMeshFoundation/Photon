@@ -12,8 +12,8 @@ import (
 
 	"sync"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -36,7 +36,7 @@ func newTestRaiden() *RaidenService {
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	bcs := newTestBlockChainService()
-	transport := network.MakeTestXMPPTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
+	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey
@@ -45,14 +45,12 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
-	os.MkdirAll(config.DataDir, os.ModePerm)
-	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	db, err := models.OpenDb(config.DataBasePath)
+	err := os.MkdirAll(config.DataDir, os.ModePerm)
 	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		panic(err)
+		log.Error(err.Error())
 	}
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, db)
+	config.DataBasePath = path.Join(config.DataDir, "log.db")
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -70,7 +68,7 @@ func newTestRaidenAPI() *RaidenAPI {
 
 //maker sure these accounts are valid, and  engouh eths for test
 func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
-	am := NewAccountManager("testdata/keystore")
+	am := accounts.NewAccountManager("testdata/keystore")
 	privkeybin, err := am.GetPrivateKey(am.Accounts[curAccountIndex].Address, "123")
 	if err != nil {
 		log.Error(fmt.Sprintf("testGetnextValidAccount err: %s", err))
@@ -99,12 +97,15 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 	r2 = newTestRaiden()
 	r3 = newTestRaiden()
 	go func() {
+		/*#nosec*/
 		r1.Start()
 	}()
 	go func() {
+		/*#nosec*/
 		r2.Start()
 	}()
 	go func() {
+		/*#nosec*/
 		r3.Start()
 	}()
 	time.Sleep(time.Second * 3)
@@ -113,6 +114,7 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 func newTestRaidenAPIQuick() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
 	go func() {
+		/*#nosec*/
 		api.Raiden.Start()
 	}()
 	return api
@@ -126,18 +128,22 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
+		/*#nosec*/
 		rA.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rB.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rC.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rD.Raiden.Start()
 		wg.Done()
 	}()
@@ -153,18 +159,22 @@ func makeTestRaidenAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *RaidenAPI) {
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
+		/*#nosec*/
 		rA.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rB.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rC.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rD.Raiden.Start()
 		wg.Done()
 	}()

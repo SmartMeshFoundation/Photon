@@ -28,7 +28,10 @@ func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 	} else {
 		ret := &Ret{ChannelManagerAddress: mgr.String()}
-		w.WriteJson(ret)
+		err = w.WriteJson(ret)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 	}
 }
 
@@ -39,7 +42,10 @@ func Stop(w rest.ResponseWriter, r *rest.Request) {
 	//test only
 	RaidenAPI.Stop()
 	w.Header().Set("Content-Type", "text/plain")
-	w.(http.ResponseWriter).Write([]byte("ok"))
+	_, err := w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -57,7 +63,10 @@ func UpdateMeshNetworkNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.(http.ResponseWriter).Write([]byte("ok"))
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -71,5 +80,8 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	RaidenAPI.Raiden.Config.IsMeshNetwork = isMesh
-	w.(http.ResponseWriter).Write([]byte("ok"))
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

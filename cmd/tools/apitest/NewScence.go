@@ -47,7 +47,7 @@ func NewScene() (NewTokenName string) {
 	}
 	registryAddress := c.RdString("common", "registry_contract_address", "")
 	NewTokenName = CreateTokenAndChannels(KeyStorePath, conn, common.HexToAddress(registryAddress), true)
-	log.Println("New Token=", NewTokenName)
+	log.Println("New TokenNetworkAddres=", NewTokenName)
 
 	//start the raiden client
 	datadir := c.RdString("common", "datadir", "/smtwork/share/.smartraiden")

@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const bucketAck = "ack"
+
 //StartTx start a new tx of db
 func (model *ModelDB) StartTx() (tx storm.Node) {
 	var err error
@@ -53,7 +55,7 @@ func (model *ModelDB) GetAllStateManager() []*transfer.StateManager {
 //GetAck get message related ack message
 func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 	var data []byte
-	err := model.db.Get("ack", echohash.String(), &data)
+	err := model.db.Get(bucketAck, echohash[:], &data)
 	if err != nil && err != storm.ErrNotFound {
 		panic(fmt.Sprintf("GetAck err %s", err))
 	}
@@ -64,5 +66,16 @@ func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 //SaveAck save a new ack to db
 func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echohash)))
-	tx.Set("ack", echohash.String(), ack)
+	err := tx.Set(bucketAck, echohash[:], ack)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
+}
+
+//SaveAckNoTx save a ack to db
+func (model *ModelDB) SaveAckNoTx(echohash common.Hash, ack []byte) {
+	err := model.db.Set(bucketAck, echohash[:], ack)
+	if err != nil {
+		log.Error(fmt.Sprintf("save ack to db err %s", err))
+	}
 }

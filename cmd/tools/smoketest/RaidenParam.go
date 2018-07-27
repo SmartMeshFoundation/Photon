@@ -35,9 +35,7 @@ func (rp *RaidenParam) getParam() []string {
 	param = append(param, "--keystore-path="+rp.keystorePath)
 	param = append(param, "--registry-contract-address="+rp.registryContractAddress)
 	param = append(param, "--password-file="+rp.passwordFile)
-	if rp.xmppServer != "" {
-		param = append(param, "--xmpp-server="+rp.xmppServer)
-	}
+	param = append(param, "--xmpp-server="+rp.xmppServer)
 	param = append(param, "--eth-rpc-endpoint="+rp.ethRPCEndpoint)
 	param = append(param, "--verbosity=5")
 	if rp.debug == true {

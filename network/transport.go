@@ -174,7 +174,7 @@ func (ut *UDPTransport) Start() {
 				if err != nil {
 					if !ut.stopped {
 						ut.log.Error(fmt.Sprintf("udp read data failure! %s", err))
-						ut.conn.Close()
+						err = ut.conn.Close()
 						break
 					} else {
 						return
@@ -183,7 +183,7 @@ func (ut *UDPTransport) Start() {
 				}
 				ut.log.Trace(fmt.Sprintf("receive from %s ,message=%s,hash=%s", remoteAddr,
 					encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data[:read]))))
-				ut.Receive(data[:read])
+				err = ut.Receive(data[:read])
 			}
 		}
 
@@ -256,7 +256,10 @@ func (ut *UDPTransport) Stop() {
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
 	if ut.conn != nil {
-		ut.conn.Close()
+		err := ut.conn.Close()
+		if err != nil {
+			log.Warn(fmt.Sprintf("close err %s ", err))
+		}
 	}
 }
 

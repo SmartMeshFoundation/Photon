@@ -49,7 +49,7 @@ func QueryingTokenNetworkEventsTest(url string) {
 	var err error
 	start := time.Now()
 	ShowTime()
-	log.Println("Start Querying Token Network Events")
+	log.Println("Start Querying TokenNetworkAddres Network Events")
 	Tokens, _, _ := QueryingRegisteredTokens(url)
 	//test the token which doesn't exist.
 	_, Status, err = QueryingTokenNetworkEvents(url, "0xffffffffffffffffffffffffffffffffffffffff")
