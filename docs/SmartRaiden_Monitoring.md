@@ -20,18 +20,14 @@ For the purpose of convenience in implement and usage, all third-parties require
 
 Once settlement window pops up, third-parties will invoke updateTransferDelegate on behalf of their offline delegators to update transaction states of channel-closers, then it will invoke withdrawDelegate to unlock transaction. It is permitted that any third-party can invoke updateTransferDelegate in multiple times.
 
-```
-Figure 1 shows the framework of third-party settlement
-```
+![](/docs/images/third_party_settlement.png)
 
 ### updateTransferDelegate()
 
 updateTransferDelegate() is designed to empower a third-party with the ability to update transaction state. This method can be invoked by the third-party in multiple times.
 
-```
-Figure 2 shows workflow diagram of updateTransferDelegate
+![](/docs/images/updateTransferDelegate.png)
 
-```
 ### withdrawDelegate() 
 
 withdrawDelegate() is designed to allow the third-party to unclock transaction. It requires signature from the delegator, for the reason that updateTransfer and updateTransferDelegate can be invoked, respectively, by our delegator and the third-party node. Both methods will update the value of transferred_amount in the transaction but the number of tokens unlocked by withdrawDelegate has to be added onto unlocked_amount, not transferred_amount mentioned above. When settle() is invoked, after settlement window close, we have:
@@ -39,18 +35,17 @@ withdrawDelegate() is designed to allow the third-party to unclock transaction. 
 `transferred_amount = transferred_amount + unlocked_amount
 `
 
-```
-fig3
-```
+![](/docs/images/withdrawDelegate.png)
+
 ##  Empower / Revoke Third-Party Delegation
 SmartRaiden provides new APIs so that any node on the network can delegate and revoke their jobs to the third-party node. Once delegated, third-party node is able to obtain messages fed by his delegator. When delegation has been revoked, third-party node has no access to those messages. 
 ## Feed Data to Third-Parties
 Nodes requires to feed messages to their third-parties,these messages contains whatever needed by updateTransferDelegate and withdrawDelegate
 ## Payment of Third-Party Fees
 SMT, as a unified digital monetary for SmartRaiden, is applied to pay for third-parties. Via the app layer, any node can transfer SMT to his third-party miners.
-```
-Figure 4 shows the diagram of payment for third-party fees. 
-```
+
+![](/docs/images/third_party_fees.png)
+
 #  Start up SmartRaiden Monitoring(SM)
 ## Preparation 
 ### 1. Nodes
