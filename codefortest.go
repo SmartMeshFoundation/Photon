@@ -45,7 +45,10 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
-	os.MkdirAll(config.DataDir, os.ModePerm)
+	err := os.MkdirAll(config.DataDir, os.ModePerm)
+	if err != nil {
+		log.Error(err.Error())
+	}
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
 	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
 	if err != nil {
@@ -94,12 +97,15 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 	r2 = newTestRaiden()
 	r3 = newTestRaiden()
 	go func() {
+		/*#nosec*/
 		r1.Start()
 	}()
 	go func() {
+		/*#nosec*/
 		r2.Start()
 	}()
 	go func() {
+		/*#nosec*/
 		r3.Start()
 	}()
 	time.Sleep(time.Second * 3)
@@ -108,6 +114,7 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 func newTestRaidenAPIQuick() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
 	go func() {
+		/*#nosec*/
 		api.Raiden.Start()
 	}()
 	return api
@@ -121,18 +128,22 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
+		/*#nosec*/
 		rA.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rB.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rC.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rD.Raiden.Start()
 		wg.Done()
 	}()
@@ -148,18 +159,22 @@ func makeTestRaidenAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *RaidenAPI) {
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
+		/*#nosec*/
 		rA.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rB.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rC.Raiden.Start()
 		wg.Done()
 	}()
 	go func() {
+		/*#nosec*/
 		rD.Raiden.Start()
 		wg.Done()
 	}()

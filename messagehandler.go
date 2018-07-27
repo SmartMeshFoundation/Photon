@@ -151,7 +151,10 @@ func (mh *raidenMessageHandler) updateChannelAndSaveAck(c *channel.Channel, tag 
 	}
 	echohash := t.EchoHash
 	ack := mh.raiden.Protocol.CreateAck(echohash)
-	mh.raiden.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	err := mh.raiden.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	if err != nil {
+		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
+	}
 }
 
 /*

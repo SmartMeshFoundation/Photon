@@ -132,6 +132,7 @@ type RaidenService struct {
 	quitChan                            chan struct{} //for quit notification
 	ethInited                           bool
 	EthConnectionStatus                 chan netshare.Status
+	ChanStartupComplete                 chan struct{}
 }
 
 //NewRaidenService create raiden service
@@ -170,6 +171,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		HealthCheckMap:                      make(map[common.Address]bool),
 		quitChan:                            make(chan struct{}),
 		EthConnectionStatus:                 make(chan netshare.Status, 10),
+		ChanStartupComplete:                 make(chan struct{}),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newRaidenMessageHandler(rs)
@@ -257,12 +259,7 @@ func (rs *RaidenService) Start() (err error) {
 	*/
 	rs.registerRegistry()
 	rs.Protocol.Start()
-	rs.startNeighboursHealthCheck()
-	err = rs.startSubscribeNeighborStatus()
-	if err != nil {
-		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-		return
-	}
+
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -295,6 +292,16 @@ func (rs *RaidenService) Start() (err error) {
 		}
 		rs.loop()
 	}()
+
+	//wait for start up complete.
+	<-rs.ChanStartupComplete
+	log.Info(fmt.Sprintf("raide"))
+	rs.startNeighboursHealthCheck()
+	err = rs.startSubscribeNeighborStatus()
+	if err != nil {
+		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
+		return
+	}
 	return nil
 }
 
@@ -309,7 +316,10 @@ func (rs *RaidenService) Stop() {
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
 	//anther instance cann run now
-	rs.FileLocker.Unlock()
+	err := rs.FileLocker.Unlock()
+	if err != nil {
+		log.Error(fmt.Sprintf("Unlock err %s", err))
+	}
 	log.Info("raiden service stop ok...")
 }
 
@@ -394,6 +404,7 @@ func (rs *RaidenService) loop() {
 			*/
 			log.Info("startup complete...")
 			firstWaitTime = time.Hour * 900000
+			rs.ChanStartupComplete <- struct{}{}
 			//下次不要在超时了.
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -470,7 +481,7 @@ func (rs *RaidenService) setBlockNumber(blocknumber int64) error {
 block chain tick,
 it's the core of HTLC
 */
-func (rs *RaidenService) handleBlockNumber(blocknumber int64) error {
+func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 	statechange := &transfer.BlockStateChange{BlockNumber: blocknumber}
 	rs.BlockNumber.Store(blocknumber)
 	/*
@@ -480,11 +491,14 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) error {
 	rs.StateMachineEventHandler.logAndDispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, channel := range cg.ChannelAddress2Channel {
-			rs.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
+			err := rs.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
+			if err != nil {
+				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
+			}
 		}
 	}
 
-	return nil
+	return
 }
 
 //GetBlockNumber return latest blocknumber of ethereum
@@ -562,11 +576,11 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
+			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier, err))
 			}
-			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		}
 	}
 }
@@ -578,11 +592,11 @@ func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash common.Ha
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {
 			err := ch.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
+			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(lockSecretHash), ch.ChannelIdentifier, err))
 			}
-			rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		}
 	}
 }
@@ -670,7 +684,7 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 /*
 found new channel on blockchain when running...
 */
-func (rs *RaidenService) registerNettingChannel(tokenNetworkAddress common.Address, partnerAddress common.Address) {
+func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, partnerAddress common.Address) {
 	tokenNetwork, err := rs.Chain.TokenNetwork(tokenNetworkAddress)
 	if err != nil {
 		log.Error(fmt.Sprintf("try to get tokenNetwork %s, err %s", tokenNetworkAddress.String(), err))
@@ -734,8 +748,12 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		result.Result <- err
 		return
 	}
-	tr.Sign(rs.PrivateKey, tr)
-	directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
+	err = tr.Sign(rs.PrivateKey, tr)
+	err = directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
+	if err != nil {
+		result.Result <- err
+		return
+	}
 	//This should be set once the direct transfer is acknowledged
 	transferSuccess := &transfer.EventTransferSentSuccess{
 		LockSecretHash:    utils.EmptyHash,
@@ -978,8 +996,8 @@ func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg 
 	return
 }
 func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *graph.ChannelGraph) {
-	ch := rs.getChannelWithAddr(channelIdentifier)
-	if ch == nil {
+	ch, err := rs.findChannelByAddress(channelIdentifier)
+	if err != nil {
 		return
 	}
 	cg = rs.Token2ChannelGraph[ch.TokenAddress]
@@ -989,8 +1007,8 @@ func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *gra
 	return
 }
 func (rs *RaidenService) getTokenForChannelIdentifier(channelidentifier common.Hash) (token common.Address) {
-	ch := rs.getChannelWithAddr(channelidentifier)
-	if ch == nil {
+	ch, err := rs.findChannelByAddress(channelidentifier)
+	if err != nil {
 		return
 	}
 	return ch.TokenAddress
@@ -998,7 +1016,11 @@ func (rs *RaidenService) getTokenForChannelIdentifier(channelidentifier common.H
 
 //only for test, should call findChannelByAddress
 func (rs *RaidenService) getChannelWithAddr(channelAddr common.Hash) *channel.Channel {
-	c, _ := rs.findChannelByAddress(channelAddr)
+	c, err := rs.findChannelByAddress(channelAddr)
+	if err != nil {
+
+	}
+
 	return c
 }
 

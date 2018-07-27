@@ -98,7 +98,10 @@ func (cm *ConnectionManager) Connect(funds *big.Int, initialChannelTarget int64,
 	return err
 }
 func (cm *ConnectionManager) openChannels() []*channeltype.Serialization {
-	chs, _ := cm.api.GetChannelList(cm.tokenAddress, utils.EmptyAddress)
+	chs, err := cm.api.GetChannelList(cm.tokenAddress, utils.EmptyAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("GetChannelList err %s", err))
+	}
 	var chs2 []*channeltype.Serialization
 	for _, c := range chs {
 		if c.State == channeltype.StateOpened {
@@ -227,8 +230,8 @@ func (cm *ConnectionManager) LeaveAsync() *utils.AsyncResult {
 	result := utils.NewAsyncResult()
 	go func() {
 		defer rpanic.PanicRecover("LeaveAsync")
-		cm.Leave(true)
-		result.Result <- nil
+		_, err := cm.Leave(true)
+		result.Result <- err
 	}()
 	return result
 }
@@ -354,7 +357,10 @@ func (cm *ConnectionManager) RetryConnect() {
 		return
 	}
 	//try to fullfill our connection goal
-	cm.addNewPartners()
+	err := cm.addNewPartners()
+	if err != nil {
+		log.Error(fmt.Sprintf("addNewPartners err %s", err))
+	}
 }
 
 /*

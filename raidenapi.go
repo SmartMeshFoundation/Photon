@@ -351,7 +351,10 @@ func (r *RaidenAPI) StartHealthCheckFor(nodeAddress common.Address) (deviceType 
 
 //GetTokenList returns all available tokens
 func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
-	tokensmap, _ := r.Raiden.db.GetAllTokens()
+	tokensmap, err := r.Raiden.db.GetAllTokens()
+	if err != nil {
+		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
+	}
 	for k := range tokensmap {
 		tokens = append(tokens, k)
 	}
@@ -360,7 +363,10 @@ func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
 
 //GetTokenTokenNetorks return all tokens and token networks
 func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
-	tokens, _ = r.Raiden.db.GetAllTokens()
+	tokens, err := r.Raiden.db.GetAllTokens()
+	if err != nil {
+		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
+	}
 	return
 }
 
@@ -749,13 +755,16 @@ func signFor3rd(c *channeltype.Serialization, thirdAddr common.Address, privkey 
 		return nil, errors.New("empty PartnerBalanceProof")
 	}
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
-	buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	buf.Write(c.PartnerBalanceProof.LocksRoot[:])
-	buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	buf.Write(c.PartnerBalanceProof.MessageHash[:])
-	buf.Write(c.PartnerBalanceProof.Signature)
-	buf.Write(thirdAddr[:])
+	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
+	_, err = buf.Write(c.PartnerBalanceProof.LocksRoot[:])
+	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
+	_, err = buf.Write(c.PartnerBalanceProof.MessageHash[:])
+	_, err = buf.Write(c.PartnerBalanceProof.Signature)
+	_, err = buf.Write(thirdAddr[:])
+	if err != nil {
+		log.Error(fmt.Sprintf("buf write error %s", err))
+	}
 	dataToSign := buf.Bytes()
 	return utils.SignData(privkey, dataToSign)
 }

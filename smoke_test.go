@@ -141,14 +141,6 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, tAmount))
 	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
-	log.Info("step 4 D connect to this token network")
-	if false {
-		err = rd.ConnectTokenNetwork(tokenAddr, big.NewInt(300), 3, 0.4)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-	}
 	log.Info(" step 5 make a token swap between A and B")
 	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
 	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
@@ -200,13 +192,6 @@ func TestSmoke(t *testing.T) {
 	//channel b-c of tokenaddr2 b+2amount c-2*amount
 	assert(t, rb.Raiden.getChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance(), x.Add(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 	assert(t, rc.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
-	log.Info(" step 8 test leave network take a long long time")
-	if false {
-		_, err = rd.LeaveTokenNetwork(tokenAddr, true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
 }
 
 func TestFeeCharger(t *testing.T) {

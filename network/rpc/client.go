@@ -277,6 +277,7 @@ func (t *TokenNetworkProxy) NewChannel(partnerAddress common.Address, settleTime
 	return
 }
 
+//NewChannelAsync create channel async
 func (t *TokenNetworkProxy) NewChannelAsync(partnerAddress common.Address, settleTimeout int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
@@ -398,6 +399,7 @@ type SecretRegistryProxy struct {
 	lock     sync.Mutex
 }
 
+//RegisterSecret register secret on chain
 func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) error {
 	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
 	if err != nil {
@@ -411,7 +413,7 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) error {
 		log.Info(fmt.Sprintf("RegisterSecret failed %s,receipt=%s", utils.HPex(secret), receipt))
 		return errors.New("RegisterSecret tx execution failed")
 	}
-	log.Info(fmt.Sprintf("RegisterSecret success %s,secret=%s", utils.HPex(secret)))
+	log.Info(fmt.Sprintf("RegisterSecret success %s,secret=%s", utils.HPex(secret), secret.String()))
 	return nil
 }
 

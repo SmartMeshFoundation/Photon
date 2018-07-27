@@ -54,10 +54,11 @@ func (rs *RaidenService) closeAndSettle() {
 	log.Info("raiden will close and settle all channels now")
 	var Mgrs []*ConnectionManager
 	for t := range rs.Token2ChannelGraph {
-		mgr, _ := rs.connectionManagerForToken(t)
-		if mgr != nil {
-			Mgrs = append(Mgrs, mgr)
+		mgr, err := rs.connectionManagerForToken(t)
+		if err != nil {
+			continue
 		}
+		Mgrs = append(Mgrs, mgr)
 	}
 	blocksToWait := func() int64 {
 		var max int64
