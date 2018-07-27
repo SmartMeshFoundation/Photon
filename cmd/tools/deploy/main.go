@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"strings"
 
 	"context"
 
@@ -12,7 +11,8 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -64,8 +64,8 @@ func mainctx(ctx *cli.Context) error {
 }
 func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	auth := bind.NewKeyedTransactor(key)
-	//DeployNettingChannelLibrary
-	NettingChannelLibraryAddress, tx, _, err := contracts.DeployNettingChannelLibrary(auth, conn)
+	//Deploy Secret Registry
+	secretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
@@ -74,47 +74,27 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployNettingChannelLibrary complete...\n")
-	//DeployChannelManagerLibrary link nettingchannle library before deploy
-	contracts.ChannelManagerLibraryBin = strings.Replace(contracts.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
-	ChannelManagerLibraryAddress, tx, _, err := contracts.DeployChannelManagerLibrary(auth, conn)
+	fmt.Printf("Deploy Secret Registry complete...\n")
+	chainId, err := conn.NetworkID(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
+		log.Fatalf("failed to get network id %s", err)
+	}
+	registryAddress, tx, _, err := contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainId)
+	if err != nil {
+		log.Fatalf("failed to deploy registry %s", err)
 	}
 	ctx = context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployChannelManagerLibrary complete...\n")
-	//DeployRegistry link channelmanagerlibrary before deploy
-	contracts.RegistryBin = strings.Replace(contracts.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
-	RegistryAddress, tx, _, err := contracts.DeployRegistry(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("DeployRegistry complete...\n")
-	//DeployEndpointRegistry
-	EndpointRegistryAddress, tx, _, err := contracts.DeployEndpointRegistry(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("RegistryAddress=%s\nEndpointRegistryAddress=%s\n", RegistryAddress.String(), EndpointRegistryAddress.String())
+	fmt.Printf("deploy registry complete...\n")
+	fmt.Printf("RegistryAddress=%s\nSecretyRegistryAddress=%s\n", registryAddress.String(), secretRegistryAddress.String())
 	//RegistryAddress=0x1026a4441921EcF88aaF13014d96aF90f735a02c
 	//EndpointRegistryAddress=0xB85b8b57e2b701d5E918D7d9027A7330472a663a
 }
 func promptAccount(adviceAddress common.Address, keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
-	am := smartraiden.NewAccountManager(keystorePath)
+	am := accounts.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
 		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		os.Exit(1)
