@@ -61,7 +61,7 @@ go install
 ```
 
 ## Firing it up
-### Using geth
+### Ethereum
 Run the Ethereum client and let it sync with the Ropsten testnet:
 ```
 geth --testnet --fast --rpc --rpcapi eth,net,web3 --bootnodes "enode://20c9ad97c081d63397d7b685a412227a40e23c8bdc6688c6f37e97cfbc22d2b4d1db1510d8f61e6a8866ad7f0e17c02b14182d37ea7c3c8b9c2683aeb6b733a1@52.169.14.227:30303,enode://6ce05930c72abc632c58e2e4324f7c7ea478cec0ed4fa2528982cf34483094e9cbc9216e7aa349691242576d552a2a56aaeae426c5303ded677ce455ba1acd9d@13.84.180.240:30303"
@@ -75,3 +75,14 @@ Then launch SmartRaiden with the default testnet keystore path:
 smartraiden --keystore-path  ~/.ethereum/testnet/keystore
 ```
 
+### Spectrum
+Run SmartRaiden nodes on the Spectrum testnet
+#### Installing Spectrum
+For prerequisites and detailed build instructions please read the  [Installation Instructions](https://github.com/SmartMeshFoundation/Spectrum/wiki/Building-Specturm)  on the wiki.
+
+Building geth requires both a Go (version 1.9.2 or later) and a C compiler. You can install them using your favourite package manager.
+#### Starting Spectrum testnet
+Run boot script
+```sh
+geth  --datadir=. --testnet --syncmode full     --ws --wsapi  "eth,admin,web3,net,debug,personal"   --rpc  --rpccorsdomain "*" --rpcapi "eth,admin,web3,net,debug,personal"   --wsaddr "0.0.0.0" --rpcaddr "0.0.0.0"   --wsorigins "*"
+```
