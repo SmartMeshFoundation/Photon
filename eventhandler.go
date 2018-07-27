@@ -526,13 +526,28 @@ func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtr
 
 //avoid dead lock
 func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
+	blockNumber := eh.raiden.GetBlockNumber()
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
 		if c.State == channeltype.StateClosed {
-			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
+			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout) //todo punish time
 			if st2.BlockNumber > settlementEnd {
 				//should not block todo fix it
 				//err = c.ExternState.Settle()
+			}
+		}
+		//已经进入了 reveal timeout 阶段
+		if true {
+			//secret registery
+			//应该主动去注册密码
+			secrets := c.GetNeedRegisterSecrets(blockNumber)
+			for _, s := range secrets {
+				err = eh.eventContractSendRegisterSecret(&mediatedtransfer.EventContractSendRegisterSecret{
+					Secret: s,
+				})
+				if err != nil {
+					log.Error(fmt.Sprintf("eventContractSendRegisterSecret err %s", err))
+				}
 			}
 		}
 	case *mediatedtransfer.ContractClosedStateChange:

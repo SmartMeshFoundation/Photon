@@ -161,7 +161,7 @@ func (s *Serialization) OurLock2PendingLocks() map[common.Hash]PendingLock {
 	m2 := s.getSecretHashMap(s.OurKnownSecrets)
 	for _, l := range s.OurLeaves {
 		if m2[l.LockSecretHash] == utils.EmptyHash {
-			//知道密码
+			//不知道密码
 			m[l.LockSecretHash] = PendingLock{
 				Lock:     l,
 				LockHash: l.Hash(),
@@ -177,7 +177,7 @@ func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
 	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
 	for _, l := range s.PartnerLeaves {
 		if m2[l.LockSecretHash] == utils.EmptyHash {
-			//知道密码
+			//不知道密码
 			m[l.LockSecretHash] = PendingLock{
 				Lock:     l,
 				LockHash: l.Hash(),
@@ -185,6 +185,22 @@ func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
 		}
 	}
 	return m
+}
+
+//MinExpiration 返回对方所有锁中,
+// 知道密码过期时间最小的那个,如果已经超过了 expiration,忽略就可.
+func (s *Serialization) MinExpiration(blockNumber int64) int64 {
+	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
+	var min int64
+	for _, l := range s.PartnerLeaves {
+		if m2[l.LockSecretHash] != utils.EmptyHash {
+			//知道密码
+			if l.Expiration > blockNumber && l.Expiration > min {
+				min = l.Expiration
+			}
+		}
+	}
+	return min
 }
 func init() {
 	gob.Register(&PendingLock{})

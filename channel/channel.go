@@ -267,7 +267,10 @@ func (c *Channel) RegisterSecret(secret common.Hash) error {
 			utils.Pex(c.OurState.Address[:]), utils.Pex(c.PartnerState.Address[:]),
 			utils.Pex(c.OurState.Address[:]), utils.APex(c.TokenAddress),
 			utils.Pex(hashlock[:]), lock.Amount))
-		return c.PartnerState.RegisterSecret(secret)
+		err := c.PartnerState.RegisterSecret(secret)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1019,6 +1022,17 @@ func (c *Channel) Settle() (result *utils.AsyncResult) {
 		PartnerTransferAmount = utils.BigInt0
 	}
 	return c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+}
+
+//GetNeedRegisterSecrets find all secres need to reveal on secret
+func (c *Channel) GetNeedRegisterSecrets(blockNumber int64) (secrets []common.Hash) {
+	for _, l := range c.PartnerState.Lock2UnclaimedLocks {
+		if l.Lock.Expiration > blockNumber-int64(c.RevealTimeout) && l.Lock.Expiration < blockNumber {
+			//底层负责处理重复的问题
+			secrets = append(secrets, l.Secret)
+		}
+	}
+	return
 }
 
 // String fmt.Stringer
