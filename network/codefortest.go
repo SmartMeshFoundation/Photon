@@ -84,6 +84,7 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 
 //MakeTestRaidenProtocol test only
 func MakeTestRaidenProtocol(name string) *RaidenProtocol {
+	////#nosec
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testBlockNumberGetter{})
 	return rp
@@ -91,6 +92,7 @@ func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 
 //MakeTestDiscardExpiredTransferRaidenProtocol test only
 func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
+	//#nosec
 	privkey, _ := crypto.GenerateKey()
 	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
 	return rp

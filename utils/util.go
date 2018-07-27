@@ -119,6 +119,7 @@ func NewRandomHash() common.Hash {
 
 //MakePrivateKeyAddress generate a private key and it's address
 func MakePrivateKeyAddress() (*ecdsa.PrivateKey, common.Address) {
+	//#nosec
 	key, _ := crypto.GenerateKey()
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return key, addr

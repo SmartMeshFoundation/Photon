@@ -3,11 +3,12 @@ package mainimpl
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 func TestPromptAccount(t *testing.T) {
-	promptAccount(utils.EmptyAddress, `../../../testdata/keystore`, "")
+	accounts.PromptAccount(utils.EmptyAddress, `../../../testdata/keystore`, "")
 }
 func panicOnNullValue() {
 	var c []int

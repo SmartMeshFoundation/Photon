@@ -54,7 +54,10 @@ func EventNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -76,7 +79,10 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -99,5 +105,8 @@ func EventChannels(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(events)
+	err = w.WriteJson(events)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

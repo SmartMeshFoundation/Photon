@@ -19,7 +19,10 @@ GetConnections Get a dict whose keys are token addresses and whose values are
 open channels, funds of last request, sum of deposits and number of channels
 */
 func GetConnections(w rest.ResponseWriter, r *rest.Request) {
-	w.WriteJson(RaidenAPI.GetConnectionManagersInfo())
+	err := w.WriteJson(RaidenAPI.GetConnectionManagersInfo())
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -54,7 +57,10 @@ func ConnectTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
-	w.(http.ResponseWriter).Write(nil)
+	_, err = w.(http.ResponseWriter).Write(nil)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -89,11 +95,17 @@ func LeaveTokenNetwork(w rest.ResponseWriter, r *rest.Request) {
 		for _, c := range chs {
 			addrs = append(addrs, c.ChannelIdentifier.ChannelIdentifier.String())
 		}
-		w.WriteJson(addrs)
+		err = w.WriteJson(addrs)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 		return
 	} else {
 		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
-		w.(http.ResponseWriter).Write(nil)
+		_, err = w.(http.ResponseWriter).Write(nil)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 	}
 
 }

@@ -118,7 +118,10 @@ func mainctx(ctx *cli.Context) error {
 		log.Crit("must specified a valid address")
 	}
 	w.Address = address
-	_, key := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	_, key, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	if err != nil {
+		log.Crit(fmt.Sprintf("unlock acccount err %s", err))
+	}
 	privateKey, err := crypto.ToECDSA(key)
 	if err != nil {
 		log.Crit("private key is invalid, wrong password?")

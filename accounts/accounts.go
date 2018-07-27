@@ -83,17 +83,17 @@ func (am *AccountManager) GetPrivateKey(addr common.Address, password string) (p
 	return
 }
 
-//PromptAccount unlock account by input password or password stored in file
-func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
+//PromptAccount get account private key by input password or password stored in file
+func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte, err error) {
 	am := NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
-		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
-		utils.SystemExit(1)
+		err = fmt.Errorf("No Ethereum accounts found in the directory %s", keystorePath)
+		return
 	}
 	if !am.AddressInKeyStore(adviceAddress) {
 		if adviceAddress != utils.EmptyAddress {
-			log.Error(fmt.Sprintf("account %s could not be found on the sytstem. aborting...", adviceAddress))
-			utils.SystemExit(1)
+			err = fmt.Errorf("account %s could not be found on the sytstem. aborting", adviceAddress.String())
+			return
 		}
 		shouldPromt := true
 		fmt.Println("The following accounts were found in your machine:")
@@ -104,9 +104,9 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 		for shouldPromt {
 			fmt.Printf("Select one of them by index to continue:\n")
 			idx := -1
-			_, err := fmt.Scanf("%d", &idx)
+			_, err = fmt.Scanf("%d", &idx)
 			if err != nil {
-				log.Error(fmt.Sprintf("input password err %s", err))
+				return
 			}
 			if idx >= 0 && idx < len(am.Accounts) {
 				shouldPromt = false
@@ -118,31 +118,28 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 	} else {
 		addr = adviceAddress
 	}
-	var password string
-	var err error
 	if len(passwordfile) > 0 {
 		var data []byte
 		//#nosec
 		data, err = ioutil.ReadFile(passwordfile)
 		if err != nil {
-			log.Error(fmt.Sprintf("password_file error:%s", err))
-			utils.SystemExit(1)
+			data = []byte(passwordfile)
 		}
-		password = string(data)
+		password := string(data)
 		log.Trace(fmt.Sprintf("password is %s", password))
 		keybin, err = am.GetPrivateKey(addr, password)
 		if err != nil {
-			log.Error(fmt.Sprintf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err))
-			utils.SystemExit(1)
+			err = fmt.Errorf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err)
+			return
 		}
 	} else {
 		for i := 0; i < 3; i++ {
 			//retries three times
-			password = getpass.Prompt("Enter the password to unlock:")
+			password := getpass.Prompt("Enter the password to unlock:")
 			keybin, err = am.GetPrivateKey(addr, password)
 			if err != nil && i == 3 {
 				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-				utils.SystemExit(1)
+				return
 			}
 			if err != nil {
 				log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
@@ -150,6 +147,7 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			}
 			break
 		}
+		err = errors.New("must specified password")
 	}
 	return
 }

@@ -470,7 +470,7 @@ func (x *XMPPConnection) SubscribeNeighbors(addrs []common.Address) error {
 }
 
 /*
-解耦 db 依赖
+XMPPDb 解耦 db 依赖
 */
 type XMPPDb interface {
 	XMPPIsAddrSubed(addr common.Address) bool

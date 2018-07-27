@@ -30,5 +30,7 @@ test -z "$(gometalinter -j 4 --disable-all \
 --vendor \
 --skip cmd/tools/apitest \
 --skip network/rpc/contracts \
---skip cmd/tools/test ./... 2>&1 | grep -v 'ALL_CAPS\|OP_' 2>&1 | tee /dev/stderr)"
+--skip internal/debug \
+--skip log \
+--skip cmd/tools/test  ./... 2>&1 | grep -v 'ALL_CAPS\|OP_' 2>&1 | tee /dev/stderr)"
 

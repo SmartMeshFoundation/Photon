@@ -9,6 +9,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
-	"github.com/nkbai/defcon26/accounts"
 )
 
 // RegisteringTokenTest : test case for register token

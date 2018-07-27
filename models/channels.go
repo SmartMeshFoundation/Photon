@@ -3,7 +3,6 @@ package models
 import (
 	"fmt"
 
-	"bytes"
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -41,7 +40,7 @@ func (model *ModelDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echo
 	tx := model.StartTx()
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
 		}
 	}()
 	err = model.UpdateChannel(c, tx)
@@ -50,7 +49,7 @@ func (model *ModelDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echo
 		return
 	}
 	model.SaveAck(echohash, ack, tx)
-	tx.Commit()
+	err = tx.Commit()
 	return
 }
 func (model *ModelDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
@@ -166,10 +165,8 @@ IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 */
 func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
-	key := new(bytes.Buffer)
-	key.Write(channel[:])
-	key.Write(lockHash[:])
-	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
+	key := utils.Sha3(channel[:], lockHash[:])
+	err := model.db.Get(bucketWithDraw, key, &result)
 	if err != nil {
 		return false
 	}
@@ -183,9 +180,7 @@ func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common
 UnlockThisLock marks that I have withdrawed this secret on channel.
 */
 func (model *ModelDB) UnlockThisLock(channel common.Hash, lockHash common.Hash) {
-	key := new(bytes.Buffer)
-	key.Write(channel[:])
-	key.Write(lockHash[:])
+	key := utils.Sha3(channel[:], lockHash[:])
 	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
@@ -199,10 +194,7 @@ IsThisLockRemoved return true when  a expired hashlock has been removed from cha
 */
 func (model *ModelDB) IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool {
 	var result bool
-	key := new(bytes.Buffer)
-	key.Write(channel[:])
-	key.Write(lockHash[:])
-	key.Write(sender[:])
+	key := utils.Sha3(channel[:], lockHash[:], sender[:])
 	err := model.db.Get(bucketExpiredHashlock, key.Bytes(), &result)
 	if err != nil {
 		return false
@@ -217,10 +209,7 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Hash, sender common.Addre
 RemoveLock remember this lock has been removed from channel status.
 */
 func (model *ModelDB) RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash) {
-	key := new(bytes.Buffer)
-	key.Write(channel[:])
-	key.Write(lockHash[:])
-	key.Write(sender[:])
+	key := utils.Sha3(channel[:], lockHash[:], sender[:])
 	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))

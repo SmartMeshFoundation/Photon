@@ -61,11 +61,12 @@ func MakeTestPairChannel() (*Channel, *Channel) {
 	settleTimeout := 30
 	ourState := NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
 	partnerState := NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
-
+	//#nosec
 	testChannel, _ := NewChannel(ourState, partnerState, externState1, tokenAddr, &externState1.ChannelIdentifier, revealTimeout, settleTimeout)
 
 	ourState = NewChannelEndState(externState1.MyAddress, balance1, nil, mtree.EmptyTree)
 	partnerState = NewChannelEndState(externState2.MyAddress, balance2, nil, mtree.EmptyTree)
+	//#nosec
 	testChannel2, _ := NewChannel(partnerState, ourState, externState2, tokenAddr, &externState2.ChannelIdentifier, revealTimeout, settleTimeout)
 	return testChannel, testChannel2
 }

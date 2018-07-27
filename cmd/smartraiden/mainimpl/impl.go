@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"io/ioutil"
-
 	"encoding/hex"
 
 	"path"
@@ -15,8 +13,6 @@ import (
 	"encoding/json"
 	"os/signal"
 	"time"
-
-	"errors"
 
 	"net"
 	"strconv"
@@ -226,77 +222,6 @@ func regQuitHandler(api *smartraiden.RaidenAPI) {
 		utils.SystemExit(0)
 	}()
 }
-func promptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte, err error) {
-	am := accounts.NewAccountManager(keystorePath)
-	if len(am.Accounts) == 0 {
-		err = fmt.Errorf("No Ethereum accounts found in the directory %s", keystorePath)
-		return
-	}
-	if !am.AddressInKeyStore(adviceAddress) {
-		if adviceAddress != utils.EmptyAddress {
-			err = fmt.Errorf("account %s could not be found on the sytstem. aborting", adviceAddress.String())
-			return
-		}
-		shouldPromt := true
-		fmt.Println("The following accounts were found in your machine:")
-		for i := 0; i < len(am.Accounts); i++ {
-			fmt.Printf("%3d -  %s\n", i, am.Accounts[i].Address.String())
-		}
-		fmt.Println("")
-		for shouldPromt {
-			fmt.Printf("Select one of them by index to continue:\n")
-			idx := -1
-			_, err = fmt.Scanf("%d", &idx)
-			if err != nil {
-				return
-			}
-			if idx >= 0 && idx < len(am.Accounts) {
-				shouldPromt = false
-				addr = am.Accounts[idx].Address
-			} else {
-				fmt.Printf("Error: Provided index %d is out of bounds", idx)
-			}
-		}
-	} else {
-		addr = adviceAddress
-	}
-	if len(passwordfile) > 0 {
-		var data []byte
-		data, err = ioutil.ReadFile(passwordfile)
-		if err != nil {
-			//pass, err := utils.PasswordDecrypt(passwordfile)
-			//if err != nil {
-			//	panic("decrypt pass err " + err.Error())
-			//}
-			//data = []byte(pass)
-			data = []byte(passwordfile)
-		}
-		password := string(data)
-		log.Trace(fmt.Sprintf("password is %s", password))
-		keybin, err = am.GetPrivateKey(addr, password)
-		if err != nil {
-			err = fmt.Errorf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err)
-			return
-		}
-	} else {
-		//for i := 0; i < 3; i++ {
-		//	//retries three times
-		//	password = getpass.Prompt("Enter the password to unlock:")
-		//	keybin, err = am.GetPrivateKey(addr, password)
-		//	if err != nil && i == 3 {
-		//		log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
-		//		utils.SystemExit(1)
-		//	}
-		//	if err != nil {
-		//		log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
-		//		continue
-		//	}
-		//	break
-		//}
-		err = errors.New("must specified password")
-	}
-	return
-}
 func config(ctx *cli.Context) (config *params.Config, err error) {
 	config = &params.DefaultConfig
 	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
@@ -319,7 +244,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		return
 	}
 	address := common.HexToAddress(ctx.String("address"))
-	address, privkeyBin, err := promptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	address, privkeyBin, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
 	if err != nil {
 		return
 	}
@@ -342,7 +267,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(config.DataDir) {
 		err = os.MkdirAll(config.DataDir, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("Datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
+			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -352,7 +277,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(userDbPath) {
 		err = os.MkdirAll(userDbPath, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("Datadir:%s doesn't exist and cannot create %v", userDbPath, err)
+			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", userDbPath, err)
 			return
 		}
 	}

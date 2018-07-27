@@ -67,6 +67,9 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
 		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
-		w.(http.ResponseWriter).Write(nil)
+		_, err = w.(http.ResponseWriter).Write(nil)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 	}
 }

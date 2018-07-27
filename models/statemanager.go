@@ -66,7 +66,10 @@ func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 //SaveAck save a new ack to db
 func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echohash)))
-	tx.Set(bucketAck, echohash[:], ack)
+	err := tx.Set(bucketAck, echohash[:], ack)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 }
 
 //SaveAckNoTx save a ack to db

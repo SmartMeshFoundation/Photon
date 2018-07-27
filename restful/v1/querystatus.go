@@ -18,14 +18,20 @@ Address is api of /api/1/address
 func Address(w rest.ResponseWriter, r *rest.Request) {
 	data := make(dataMap)
 	data["our_address"] = RaidenAPI.Raiden.NodeAddress.String()
-	w.WriteJson(data)
+	err := w.WriteJson(data)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
 Tokens is api of /api/1/tokens
 */
 func Tokens(w rest.ResponseWriter, r *rest.Request) {
-	w.WriteJson(RaidenAPI.GetTokenTokenNetorks())
+	err := w.WriteJson(RaidenAPI.GetTokenTokenNetorks())
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 type partnersData struct {
@@ -64,5 +70,8 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 		}
 		datas = append(datas, d)
 	}
-	w.WriteJson(datas)
+	err = w.WriteJson(datas)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

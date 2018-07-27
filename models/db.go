@@ -108,7 +108,10 @@ Third step  recovers the data according to the second step
 Fourth step mark the database for processing the data normally. MarkDbOpenedStatus
 */
 func (model *ModelDB) MarkDbOpenedStatus() {
-	model.db.Set(bucketMeta, "close", false)
+	err := model.db.Set(bucketMeta, "close", false)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 }
 
 //IsDbCrashedLastTime return true when quit but  db not closed
@@ -124,32 +127,47 @@ func (model *ModelDB) IsDbCrashedLastTime() bool {
 //CloseDB close db
 func (model *ModelDB) CloseDB() {
 	model.lock.Lock()
-	model.db.Set(bucketMeta, "close", true)
-	model.db.Close()
+	err := model.db.Set(bucketMeta, "close", true)
+	err = model.db.Close()
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 	model.lock.Unlock()
 }
 
 //SaveRegistryAddress save registry address to db
 func (model *ModelDB) SaveRegistryAddress(registryAddress common.Address) {
-	model.db.Set(bucketMeta, "registry", registryAddress)
+	err := model.db.Set(bucketMeta, "registry", registryAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 }
 
 //GetRegistryAddress returns registry address in db
 func (model *ModelDB) GetRegistryAddress() common.Address {
 	var registry common.Address
-	model.db.Get(bucketMeta, "registry", &registry)
+	err := model.db.Get(bucketMeta, "registry", &registry)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 	return registry
 }
 
 //SaveSecretRegistryAddress save secret registry contract address to db
 func (model *ModelDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
-	model.db.Set(bucketMeta, "secretregistry", secretRegistryAddress)
+	err := model.db.Set(bucketMeta, "secretregistry", secretRegistryAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 }
 
 //GetSecretRegistryAddress return secret registry contract address
 func (model *ModelDB) GetSecretRegistryAddress() common.Address {
 	var secretRegistry common.Address
-	model.db.Get(bucketMeta, "secretregistry", &secretRegistry)
+	err := model.db.Get(bucketMeta, "secretregistry", &secretRegistry)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 	return secretRegistry
 }
 func init() {
@@ -157,7 +175,10 @@ func init() {
 }
 
 func (model *ModelDB) initDb() {
-	model.db.Init(&SentTransfer{})
-	model.db.Init(&ReceivedTransfer{})
-	model.db.Set(bucketBlockNumber, keyBlockNumber, 0)
+	err := model.db.Init(&SentTransfer{})
+	err = model.db.Init(&ReceivedTransfer{})
+	err = model.db.Set(bucketBlockNumber, keyBlockNumber, 0)
+	if err != nil {
+		log.Error(fmt.Sprintf("db err %s", err))
+	}
 }

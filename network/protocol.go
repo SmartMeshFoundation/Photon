@@ -164,11 +164,17 @@ func (p *RaidenProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
 
 func (p *RaidenProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
 	p.log.Trace(fmt.Sprintf("send to %s, ack=%s", utils.APex2(receiver), ack))
-	p.sendRawWitNoAck(receiver, ack.Pack())
+	err := p.sendRawWitNoAck(receiver, ack.Pack())
+	if err != nil {
+		log.Warn(fmt.Sprintf("sesendRawWitNoAck err %s ", err))
+	}
 }
 func (p *RaidenProtocol) sendRawAck(receiver common.Address, data []byte) {
 	p.log.Trace(fmt.Sprintf("send to %s raw ack", utils.APex2(receiver)))
-	p.sendRawWitNoAck(receiver, data)
+	err := p.sendRawWitNoAck(receiver, data)
+	if err != nil {
+		log.Warn(fmt.Sprintf("sesendRawWitNoAck err %s ", err))
+	}
 }
 func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
 	return p.Transport.Send(receiver, data)
@@ -177,7 +183,10 @@ func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) e
 //SendPing PingSender
 func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
-	ping.Sign(p.privKey, ping)
+	err := ping.Sign(p.privKey, ping)
+	if err != nil {
+		return err
+	}
 	data := ping.Pack()
 	return p.sendRawWitNoAck(receiver, data)
 }

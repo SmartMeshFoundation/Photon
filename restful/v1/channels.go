@@ -92,7 +92,10 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 		}
 		datas = append(datas, d)
 	}
-	w.WriteJson(datas)
+	err = w.WriteJson(datas)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -113,7 +116,10 @@ func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteJson(result)
+	err = w.WriteJson(result)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -150,7 +156,10 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 		OurBalanceProof:          c.OurBalanceProof,
 		PartnerBalanceProof:      c.PartnerBalanceProof,
 	}
-	w.WriteJson(d)
+	err = w.WriteJson(d)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
 
 /*
@@ -200,7 +209,10 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 				log.Error(fmt.Sprintf(" RaidenAPI.Deposit error : %s", err))
 			}
 		}
-		w.WriteJson(d)
+		err = w.WriteJson(d)
+		if err != nil {
+			log.Warn(fmt.Sprintf("writejson err %s", err))
+		}
 		return
 	}
 	rest.Error(w, "argument error", http.StatusBadRequest)
@@ -286,5 +298,8 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		PartnerLockedAmount: c.PartnerAmountLocked(),
 		RevealTimeout:       c.RevealTimeout,
 	}
-	w.WriteJson(d)
+	err = w.WriteJson(d)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
