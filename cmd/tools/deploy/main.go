@@ -47,7 +47,10 @@ func main() {
 	app.Action = mainctx
 	app.Name = "raidendeploy"
 	app.Version = "0.1"
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func mainctx(ctx *cli.Context) error {
@@ -75,11 +78,11 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
 	fmt.Printf("Deploy Secret Registry complete...\n")
-	chainId, err := conn.NetworkID(context.Background())
+	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
 		log.Fatalf("failed to get network id %s", err)
 	}
-	registryAddress, tx, _, err := contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainId)
+	registryAddress, tx, _, err := contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainID)
 	if err != nil {
 		log.Fatalf("failed to deploy registry %s", err)
 	}
@@ -113,7 +116,10 @@ func promptAccount(adviceAddress common.Address, keystorePath string) (addr comm
 		for shouldPromt {
 			fmt.Printf("Select one of them by index to continue:")
 			idx := -1
-			fmt.Scanf("%d\n", &idx)
+			_, err := fmt.Scanf("%d\n", &idx)
+			if err != nil {
+				log.Fatal(err)
+			}
 			if idx >= 0 && idx < len(am.Accounts) {
 				shouldPromt = false
 				addr = am.Accounts[idx].Address

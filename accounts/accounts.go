@@ -11,10 +11,13 @@ import (
 
 	"errors"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/slonzok/getpass"
 )
 
 var errNoSuchAddress = errors.New("can not found this address")
@@ -77,5 +80,76 @@ func (am *AccountManager) GetPrivateKey(addr common.Address, password string) (p
 		return
 	}
 	privKeyBin = crypto.FromECDSA(key.PrivateKey)
+	return
+}
+
+//PromptAccount unlock account by input password or password stored in file
+func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte) {
+	am := NewAccountManager(keystorePath)
+	if len(am.Accounts) == 0 {
+		log.Error(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
+		utils.SystemExit(1)
+	}
+	if !am.AddressInKeyStore(adviceAddress) {
+		if adviceAddress != utils.EmptyAddress {
+			log.Error(fmt.Sprintf("account %s could not be found on the sytstem. aborting...", adviceAddress))
+			utils.SystemExit(1)
+		}
+		shouldPromt := true
+		fmt.Println("The following accounts were found in your machine:")
+		for i := 0; i < len(am.Accounts); i++ {
+			fmt.Printf("%3d -  %s\n", i, am.Accounts[i].Address.String())
+		}
+		fmt.Println("")
+		for shouldPromt {
+			fmt.Printf("Select one of them by index to continue:\n")
+			idx := -1
+			_, err := fmt.Scanf("%d", &idx)
+			if err != nil {
+				log.Error(fmt.Sprintf("input password err %s", err))
+			}
+			if idx >= 0 && idx < len(am.Accounts) {
+				shouldPromt = false
+				addr = am.Accounts[idx].Address
+			} else {
+				fmt.Printf("Error: Provided index %d is out of bounds", idx)
+			}
+		}
+	} else {
+		addr = adviceAddress
+	}
+	var password string
+	var err error
+	if len(passwordfile) > 0 {
+		var data []byte
+		//#nosec
+		data, err = ioutil.ReadFile(passwordfile)
+		if err != nil {
+			log.Error(fmt.Sprintf("password_file error:%s", err))
+			utils.SystemExit(1)
+		}
+		password = string(data)
+		log.Trace(fmt.Sprintf("password is %s", password))
+		keybin, err = am.GetPrivateKey(addr, password)
+		if err != nil {
+			log.Error(fmt.Sprintf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err))
+			utils.SystemExit(1)
+		}
+	} else {
+		for i := 0; i < 3; i++ {
+			//retries three times
+			password = getpass.Prompt("Enter the password to unlock:")
+			keybin, err = am.GetPrivateKey(addr, password)
+			if err != nil && i == 3 {
+				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
+				utils.SystemExit(1)
+			}
+			if err != nil {
+				log.Error(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
+				continue
+			}
+			break
+		}
+	}
 	return
 }

@@ -9,13 +9,14 @@ import (
 
 	"math/big"
 
-	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
+	"github.com/nkbai/defcon26/accounts"
 )
 
 // RegisteringTokenTest : test case for register token
@@ -84,7 +85,7 @@ func deployNewToken() (newTokenAddress string) {
 func deployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr common.Address) {
 	key := getDeployKey(keystorePath)
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := contracts.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
+	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), 0, "test", "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -97,7 +98,7 @@ func deployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr comm
 }
 
 func getDeployKey(keystorePath string) (key *ecdsa.PrivateKey) {
-	am := smartraiden.NewAccountManager(keystorePath)
+	am := accounts.NewAccountManager(keystorePath)
 	if len(am.Accounts) <= 0 {
 		log.Fatalf("no accounts @%s", keystorePath)
 	}
