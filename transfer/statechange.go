@@ -52,6 +52,16 @@ type ReceiveTransferDirectStateChange struct {
 	Message      *encoding.DirectTransfer
 }
 
+//CooperativeSettleStateChange user request to cooperative settle
+type CooperativeSettleStateChange struct {
+	Message *encoding.SettleRequest
+}
+
+//WithdrawRequestStateChange user request to withdraw on chain
+type WithdrawRequestStateChange struct {
+	Message *encoding.WithdrawRequest
+}
+
 /*
 StopTransferRightNowStateChange 收到了 WithdrawRequest 或者 CooperativeSettleRequest, 应该理解停止进行中的交易.
 */

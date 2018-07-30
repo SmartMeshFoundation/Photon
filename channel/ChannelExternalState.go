@@ -8,6 +8,8 @@ import (
 
 	"crypto/ecdsa"
 
+	"encoding/hex"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
@@ -377,10 +379,15 @@ CooperativeSettle 收到对方 cooperativeSettleReponse 消息以后调用
 func (e *ExternalState) CooperativeSettle(myBalance, partnerBalance *big.Int, mySignature, PartnerSignature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
-		log.Info(fmt.Sprintf("CooperativeSettle called %s", e.ChannelIdentifier))
+		log.Info(fmt.Sprintf("CooperativeSettle called %s,myaddr=%s,partner=%s,myBalance=%s,partnerBalance=%s,mySignature=%s,partnerSignature=%s",
+			e.ChannelIdentifier,
+			utils.APex2(e.MyAddress), utils.APex2(e.PartnerAddress),
+			myBalance, partnerBalance,
+			hex.EncodeToString(mySignature), hex.EncodeToString(PartnerSignature),
+		))
 		tx, err := e.TokenNetwork.GetContract().CooperativeSettle(e.auth, e.MyAddress, myBalance, e.PartnerAddress, partnerBalance, mySignature, PartnerSignature)
 		if err != nil {
-			err = fmt.Errorf("%s CooperativeSettle failed %s", e.ChannelIdentifier, err)
+			err = fmt.Errorf("%s CooperativeSettle failed %s", e.ChannelIdentifier.String(), err)
 			log.Info(err.Error())
 			result.Result <- err
 			return
@@ -394,12 +401,12 @@ func (e *ExternalState) CooperativeSettle(myBalance, partnerBalance *big.Int, my
 			return
 		}
 		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("CooperativeSettle failed %s,receipt=%s", e.ChannelIdentifier, receipt)
+			err = fmt.Errorf("CooperativeSettle failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
 			log.Info(err.Error())
 			result.Result <- err
 			return
 		}
-		log.Info(fmt.Sprintf("CooperativeSettle success %s", e.ChannelIdentifier))
+		log.Info(fmt.Sprintf("CooperativeSettle success %s", e.ChannelIdentifier.String()))
 		result.Result <- nil
 	}()
 	return

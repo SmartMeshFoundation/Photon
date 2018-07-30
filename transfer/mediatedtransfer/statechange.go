@@ -143,7 +143,7 @@ func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
 
 //ContractChannelWithdrawStateChange withdraw event of contract
 type ContractChannelWithdrawStateChange struct {
-	ChannelAddress *contracts.ChannelUniqueID
+	ChannelIdentifier *contracts.ChannelUniqueID
 	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
 	Participant1        common.Address
 	Participant1Balance *big.Int

@@ -236,6 +236,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		State    string
 		StateInt channeltype.State
 		Balance  *big.Int
+		Force    bool
 	}
 	req := &Req{}
 	err := r.DecodeJsonPayload(req)
@@ -269,12 +270,23 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		if req.StateInt == channeltype.StateClosed {
-			c, err = RaidenAPI.Close(c.TokenAddress(), c.PartnerAddress())
-			if err != nil {
-				log.Error(err.Error())
-				rest.Error(w, err.Error(), http.StatusConflict)
-				return
+			if req.Force {
+				c, err = RaidenAPI.Close(c.TokenAddress(), c.PartnerAddress())
+				if err != nil {
+					log.Error(err.Error())
+					rest.Error(w, err.Error(), http.StatusConflict)
+					return
+				}
+			} else {
+				//cooperative settle channel
+				c, err = RaidenAPI.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
+				if err != nil {
+					log.Error(err.Error())
+					rest.Error(w, err.Error(), http.StatusConflict)
+					return
+				}
 			}
+
 		} else if req.StateInt == channeltype.StateSettled {
 			c, err = RaidenAPI.Settle(c.TokenAddress(), c.PartnerAddress())
 			if err != nil {

@@ -114,6 +114,7 @@ func (at *AlarmTask) waitNewBlock() error {
 				log.Warn(fmt.Sprintf("alarm missed %d blocks", h.Number.Int64()-currentBlock))
 			}
 			currentBlock = h.Number.Int64()
+			at.LastBlockNumber = currentBlock
 			if currentBlock%10 == 0 {
 				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
 			}

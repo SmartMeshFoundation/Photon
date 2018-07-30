@@ -35,19 +35,18 @@ func newStateMachineEventHandler(raiden *RaidenService) *stateMachineEventHandle
 }
 
 /*
-Log a state change, dispatch it to all state managers and log generated events
+dispatch it to all state managers and log generated events
 */
-func (eh *stateMachineEventHandler) logAndDispatchToAllTasks(st transfer.StateChange) {
+func (eh *stateMachineEventHandler) dispatchToAllTasks(st transfer.StateChange) {
 	for _, mgrs := range eh.raiden.Transfer2StateManager {
 		eh.dispatch(mgrs, st)
 	}
 }
 
 /*
-Log a state change, dispatch it to the state manager corresponding to `idenfitier`
-        and log generated events
+dispatch it to the state manager corresponding to `lockSecretHash`
 */
-func (eh *stateMachineEventHandler) logAndDispatchBySecretHash(lockSecretHash common.Hash, st transfer.StateChange) {
+func (eh *stateMachineEventHandler) dispatchBySecretHash(lockSecretHash common.Hash, st transfer.StateChange) {
 	for _, mgr := range eh.raiden.Transfer2StateManager {
 		//todo 这个未必是高效的方式,因为同时进行的 transfer 可能很多,会比较慢.
 		if mgr.Identifier == lockSecretHash {
@@ -56,11 +55,6 @@ func (eh *stateMachineEventHandler) logAndDispatchBySecretHash(lockSecretHash co
 	}
 }
 
-//Log a state change, dispatch it to the given state manager and log generated events
-func (eh *stateMachineEventHandler) logAndDispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) []transfer.Event {
-	events := eh.dispatch(stateManager, stateChange)
-	return events
-}
 func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
 	events = stateManager.Dispatch(stateChange)
 	for _, e := range events {
@@ -474,6 +468,35 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 	return eh.removeSettledChannel(ch)
 }
 
+//大部分与 settle 相同,是否可以合并呢?或者合约上干脆合并了?
+func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
+	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
+	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	if err != nil {
+		return nil
+	}
+	err = eh.ChannelStateTransition(ch, st)
+	if err != nil {
+		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+		return err
+	}
+	return eh.removeSettledChannel(ch)
+}
+func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
+	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
+	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier.ChannelIdentifier)
+	if err != nil {
+		return nil
+	}
+	panic("unhandled event ")
+	err = eh.ChannelStateTransition(ch, st)
+	if err != nil {
+		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
+		return err
+	}
+	return eh.removeSettledChannel(ch)
+}
+
 //如果是对方 unlock 我的锁,那么有可能需要 punish 对方,即使不需要 punish 对方,settle 的时候也需要用到新的 locksroot 和 transferamount
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
@@ -520,7 +543,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
-	eh.logAndDispatchBySecretHash(st.LockSecretHash, st)
+	eh.dispatchBySecretHash(st.LockSecretHash, st)
 	return nil
 }
 
@@ -561,6 +584,16 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 			}
 		}
 	case *mediatedtransfer.ContractSettledStateChange:
+		//settled channel should be removed.
+		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
+			if c.ExternState.SetSettled(st2.SettledBlock) {
+				c.HandleSettled(st2.SettledBlock)
+			} else {
+				log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+					c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
+			}
+		}
+	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		//settled channel should be removed.
 		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
 			if c.ExternState.SetSettled(st2.SettledBlock) {
@@ -638,6 +671,10 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		err = eh.handlePunishedOnChain(st2)
 	case *mediatedtransfer.ContractBalanceProofUpdatedStateChange:
 		//do nothing
+	case *mediatedtransfer.ContractCooperativeSettledStateChange:
+		err = eh.handleCooperativeSettled(st2)
+	case *mediatedtransfer.ContractChannelWithdrawStateChange:
+		err = eh.handleWithdraw(st2)
 	default:
 		err = fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())
