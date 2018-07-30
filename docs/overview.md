@@ -1,11 +1,37 @@
 # Smartraiden Overview
 ## Introduction
-Smartraiden is a standard compliant implementation of the Raiden Network protocol using Golang, which enforces small-amount off-chain transactions on the mobile platform, and is free from Internet connection. For users can have a in-depth understanding about Smartraiden and feel free using it, we offer an outline briefly introducing relative concepts and procedures. At the beginning, there is a review of the Raiden Network. Next, we introduce primary functions and characteristics of Smartraiden. Then, we will give a showcase of fund-transferring transaction in the Smartraiden. In further detail, we have API specification and standard.
+Smartraiden is a standard compliant implementation of the Raiden Network protocol using Golang, which enforces small-amount off-chain transactions on the mobile platform, and is free from Internet connection. For users can have a in-depth understanding about Smartraiden and feel free using it, we offer an outline briefly introducing relative concepts and procedures. At the beginning, there is a review of the Raiden Network.  Then, we will give a showcase of fund-transferring transaction in the Smartraiden. In further detail, we have API specification and standard.
 
 ## SmartRaiden Network
 SmartRaiden Network is an off-chain scalability solution enforcing erc-20 compliant token transferring on the Ethereal. It allows for secure token transactions among participants without any global consensus mechanism, which is implemented through pre-set on-chain deposits transferring with digital signature and lock hash. We still rely on several on-chain processes to open and close a payment channel within a pair of nodes, so that it is incredibly hard for every pair of nodes on the network to create channels. However, if there exists one channel (at least), connecting two nodes through other nodes in the network, then we have no need to create another individual channel for these two nodes. This network is named as the Raiden Network, with all the contracts as to route algorithms and interlock channel communications. 
 
 ![](/docs/images/Smartraiden_network.png)
+
+## Primary Functionalities and Characteristics in Smartraiden
+The primary goal for Smartraiden aims to construct a structure to enforce an off-chain scalability solution for Raiden Network, which improves usability, compatibility, and security. 
+ 
+Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api]().
+
+Additional functions include :
+- Multiplatform & Mobile Adaptability  
+
+Smartraiden network will be available on multiple platforms and decentralized micropayment on smart mobile devices can be realized. Smartraiden currently can work on Windows, Linux, Android, iOS etc. Smartraiden builds its own messaging mechanism on XMPP, not P2P, and separate nodes and start-up processes, making sure that it is capable of running on multiple platform with correct operations.  
+
+- Nodes State Synchronization
+
+To make transaction secure, Smartraiden adopts state machine to the design of nodes, ensuring relevant operations are atomic. For instance, it must be consistent with information of received unlock record of data and information sending out in the ACK message, both or neither are successful, no medium state existed. In the process of transactions, if any faulty condition occurs, ensure transaction state of both parties are consistent, and after crash recovery, either transaction continues or transaction fails, without any token loss.
+
+- Internet-free Payment 
+
+It is a special functionality added in the Smartraiden. Via network construction functions in meshbox, Smartraiden is able to enforce off-chain fund transferring without any reliance on the Internet.
+
+- Third-party Delegation 
+
+ Third-party delegation service, also known as SmartRaiden Monitoring, mainly used to facilitate mobile devices to enforce UpdateTransferDelegate & WithDraw on the blockchain by third-party delegation when they’re offline. Third-party service interacts with three parts in the system of out service, App, Smartraiden, and spectrum. 
+
+- Fixed-rate Charge 
+
+ Similar to Lightning Network, we have an additional fixed-rate charge function in the process of transferring tokens. Incentivized by this charge, all the nodes on this route will retain channel balance to improve the efficiency and higher the rate of successful transactions.
 
 ## Showcases of Transactions in Smartraiden
  Assume that we have one node using AET token connected to our channel network, in which case, this node connects to another 5 nodes, and easy to transfer tokens to direct nodes. If this channel network gets complicated, then we have our tokens transferred though several nodes, and the state of nodes of this channel will alter successively. 
