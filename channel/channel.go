@@ -789,6 +789,16 @@ func (c *Channel) preCheckSettleDataInMessage(tr encoding.SignedMessager, sd *en
 	return nil
 }
 
+func (c *Channel) hasAnyLock() bool {
+	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
+		len(c.PartnerState.Lock2PendingLocks) > 0 ||
+		len(c.OurState.Lock2UnclaimedLocks) > 0 ||
+		len(c.OurState.Lock2PendingLocks) > 0 {
+		return true
+	}
+	return false
+}
+
 /*RegisterWithdrawRequest :
 1. 验证信息准确
 2. 通道状态要切换到StateWithdraw
@@ -797,6 +807,16 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 	err = c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
 	if err != nil {
 		return
+	}
+	/*
+		有可能在我收到 request 的前一刻,我正在发出一笔交易,
+		如果我是中间节点,相当于我收到了 announce disposed 一样处理
+		如果我是发起方,认为此交易立即失败.
+	*/
+	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
+		len(c.PartnerState.Lock2PendingLocks) > 0 ||
+		len(c.OurState.Lock2UnclaimedLocks) > 0 {
+		return errors.New("cannot withdraw when has unlock")
 	}
 	c.State = channeltype.StateWithdraw
 	return nil
@@ -844,10 +864,17 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdraw
 }
 
 //RegisterWithdrawResponse check withdraw response
+//外部应该验证响应与请求是一致的
 func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error {
 	err := c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
 	if err != nil {
 		return err
+	}
+	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
+		len(c.PartnerState.Lock2PendingLocks) > 0 ||
+		len(c.OurState.Lock2UnclaimedLocks) > 0 ||
+		len(c.OurState.Lock2PendingLocks) > 0 {
+		return errors.New("cannot withdraw when has unlock")
 	}
 	c.State = channeltype.StateWithdraw
 	return nil
@@ -886,6 +913,12 @@ func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) 
 	if err != nil {
 		return err
 	}
+	/*
+		不能持有任何锁,除了在收到 settle request 前一刻,我正在发出交易
+		如果我是交易发起方,认为交易理解失败
+		如果我是交易的中间节点,就相当于收到了对方的 annouce disposed 一样处理.
+		这需要我保存 settle request,如果 cooperative settle 失败怎么处理呢?!!
+	*/
 	c.State = channeltype.StateCooprativeSettle
 	return nil
 }
@@ -1044,6 +1077,44 @@ func (c *Channel) GetNeedRegisterSecrets(blockNumber int64) (secrets []common.Ha
 		}
 	}
 	return
+}
+
+/*
+CooperativeSettleChannel 收到对方的 settle response, 关闭通道即可.
+*/
+func (c *Channel) CooperativeSettleChannel(res *encoding.SettleResponse) (result *utils.AsyncResult) {
+	w, err := c.CreateCooperativeSettleRequest()
+	if err != nil {
+		panic(err)
+	}
+	err = w.Sign(c.ExternState.privKey, w)
+	if err != nil {
+		panic(err)
+	}
+	return c.ExternState.CooperativeSettle(res.Participant2Balance, res.Participant2Balance, w.Participant1Signature, res.Participant2Signature)
+}
+
+/*
+Withdraw 收到对方的 withdraw response,
+需要先验证参数有效
+*/
+func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncResult) {
+	//没有保存,需要重新签名.
+	w, err := c.CreateWithdrawRequest(res.Participant1Withdraw)
+	if err != nil {
+		panic(err)
+	}
+	err = w.Sign(c.ExternState.privKey, w)
+	if err != nil {
+		panic(err)
+	}
+	return c.ExternState.WithDraw(res.Participant1Balance,
+		res.Participant2Balance,
+		res.Participant1Withdraw,
+		res.Participant2Withdraw,
+		w.Participant1Signature,
+		res.Participant2Signature,
+	)
 }
 
 // String fmt.Stringer
