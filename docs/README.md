@@ -16,5 +16,4 @@ Looking to read the code?  [Github](https://github.com/SmartMeshFoundation/Smart
 Follow the  [SmartRaiden Labs community blog]()  to keep posted about SmartRaiden.
 
 Join the  [Smartraiden Developer Slack]()  to meet the team, discuss development, and hang out!
-## Ecosystem
-See the cool apps and wallets built on SmartRaiden: [Ozone](https://smartmesh.io/ozone/)
+
