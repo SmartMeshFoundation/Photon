@@ -267,8 +267,11 @@ type BalanceData struct {
 // Hash :
 func (b *BalanceData) Hash() common.Hash {
 	buf := new(bytes.Buffer)
-	_,_ = buf.Write(b.LocksRoot[:])
-	_,_ = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_,err := buf.Write(b.LocksRoot[:])
+	_,err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	if err != nil {
+		panic(err)
+	}
 	return utils.Sha3(buf.Bytes())
 }
 
@@ -286,14 +289,14 @@ type BalanceProofForContract struct {
 
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	_,_ = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
-	_,_ = buf.Write(b.LocksRoot[:])
+	_,err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_,err = buf.Write(b.LocksRoot[:])
 	_ = binary.Write(buf, binary.BigEndian, b.Nonce)
-	_,_ = buf.Write(b.AdditionalHash[:])
-	_,_ = buf.Write(b.ChannelIdentifier[:])
+	_,err = buf.Write(b.AdditionalHash[:])
+	_,err = buf.Write(b.ChannelIdentifier[:])
 	_ = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
-	_,_ = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	_,err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
