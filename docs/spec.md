@@ -2,9 +2,7 @@
 ## Introduction
 This document, just like the SmartRaiden protocol is a constant work in progress
 
-SmartRaiden is a payment network built on top of the ethereum network. The goal of the SmartRaiden project is to provide an easy to use conduit for off-chain payments without the need of trust among the involved parties.
-
-While there are plans to extend SmartRaiden to generalized state channels and channels with multiple parties, this documentation concerns only off-chain payment channels.
+SmartRaiden is a payment network built on top of the spectrum network. The goal of the SmartRaiden project is to provide an easy to use conduit for off-chain payments without the need of trust among the involved parties.
 
 #### How does the SmartRaiden Network provide safety without trust?
 To achieve safety, all value transfers done off-chain must be backed up by value stored in the blockchain. Off-chain payments would be susceptible to double spending if that was not the case. The payment channel is represented in the blockchain by a smart contract which:
@@ -58,7 +56,7 @@ A [DirectTransfer]() does not rely on locks to complete. It is automatically com
 - The messages are not locked, meaning the envelope transferred_amount is incremented and the message may be used to withdraw the token. This means that a [payer]() is unconditionally transferring the token, regardless of getting a service or not. Trust is assumed among the payer/[payee]() to complete the goods transaction.
 - The sender must assume the transfer is completed once the message is sent to the network, there is no workaround. The acknowledgement in this case is only used as a synchronization primitive, the payer will only know about the transfer once the message is received.
 
-A succesfull direct transfer involves only 2 messages. The direct transfer message and an `PROCESSED`. For an Alice - Bob example:
+A succesfull direct transfer involves only 2 messages. The direct transfer message and an `ACK`. For an Alice - Bob example:
 
 - Alice wants to transfer n tokens to Bob.  
 - **Alice creates a new transfer with**.       
@@ -78,7 +76,7 @@ Mediated transfers have an [initiator]() and a [target]() and a number of hops i
 - 1 secret request    
 - N + 1 secret reveal    
 - N + 1 secret    
-- 3N + 4 PROCESSED    
+- 3N + 4 ACK    
 
 For the simplest Alice - Bob example:  
 
@@ -100,13 +98,9 @@ For the simplest Alice - Bob example:
 A [RefundTransfer]() is a mediated transfer used in the special circumstance of when a node cannot make forward progress, and a routing backtrack must be done.
 
 ## Third parties
-Third parties are required to provide for safe operation. Since a single node cannot be expected to have 100% up-time, third parties are required to operate the netting channels for the period of time the node is offline.
-
-The purpose of a third party is to update the netting channel during settlement on behalf of a participant. For this reason SmartRaiden must be configured to keep the third party up-to-date with its received transfers, locks, and secrets. If a channel is closed while this node is offline then the third party must be capable of calling updateTransfer/withdraw on its behalf.
-
-In order to avoid collusion among third parties and the channel counterparty and protect from DoS attacks, a node cannot rely on only a single third party. Given that a node relies on more than one third party, and that these services won’t have 100% uptime, out-of-sync third parties, that not always have the latest known balance proof, must be handled. The smart contract must have logic to totally order a stream of balance proofs from a single participant to do conflict resolution.
-
-Additional problems can arise with the usage of multiple third parties. Because third parties can easily be impersonated, penalization is not an option for netting channels. If a user is using too many third parties, once a channel is closed there could be a [thundering herd]() problem.
+Third parties are required to provide for safe operation. Since a single node cannot be expected to have 100% up-time, third parties are required to operate the netting channels for the period of time the node is offline.The purpose of a third party is to update the netting channel during settlement on behalf of a participant.
+For this reason SmartRaiden must be configured to keep the third party up-to-date with its received transfers, locks, and secrets. If a channel is closed while this node is offline then the third party must be capable of calling updateTransferDelegate/withdraw on its behalf.
+For the purpose of convenience in implement and usage, The Single trustworthy third-parties was selected to delegate, to avoid any case that they are in collusion with the channel-closer and do nothing when fraud behaviors occur. The most serious situation is that nodes will not have any response once their counterparts close the payment channel on the condition that third-parties is dishonest.
 
 ## Mediating Transfers
 SmartRaiden cannot rely on direct channels for most of its operations, especially if the majority of them are for target nodes that will only receive a transfer once. Mediated transfers are a form of value transfer that allows trustless cooperation among SmartRaiden nodes to facilitate movement of value.
@@ -127,9 +121,6 @@ Once the transfer target has received the mediated transfer it will request from
 
 Once the secret is known by the target the payments flow from the back to the front of the payment chain. That means they start at Charlie who will request a withdrawal from Bob, informing Bob about the known secret, allowing Bob to request a withdrawal from Alice.
 
-**Alternative Protocol Implementation**
-There is nothing about the way that locks operate that forbids transfer splitting, i.e.: a mediator doesn’t have enough capacity on a channel but it can forward the transfer to two or more channels that on aggregate have the correct amount. Although that scheme is possible, it is not currently considered because of some added complexity. The target node would either need to know the transfer id and amount prior to its start, or it would need to make multiple secret requests to the initiator, as new transfers with the same hashlock arrives, until the correct transfer amount is reached.
-
 ## Locks
 A lock has two parts, an amount used to track how much token is being locked, and rules to define how it may be unlocked. The lock itself is independent from the channel or token associated with it. What binds the lock to a specific channel is the balance proof’s merkle tree.
 
@@ -137,15 +128,7 @@ SmartRaiden currently relies on hash time locks heavily. They are the essential 
 
 With this lock construct it is possible to:
 - Mediate token transfers, by relying on the same hashlock but different expiration times.
-- Perform token swaps. Two mediated transfers for different tokens are made with the same hashlock and once the secret is revealed we end up having an atomic swap of the tokens. (Token swaps are not part of the Red Eyes release.)
-
-**Alternative Protocol Implementation**
-
-The preimage could be a hash of another structure, e.g. a written contract. This would bind the action of unlocking a lock release to a document.
-
-The lock could require two hashlocks to unlock. This construct if used in a proper order, would allow for receipts to be generated.
-
-The lock could require either of two hashlocks to unlock. This construct allows for safe refunds that don’t need to wait for the lock expiration.
+- Perform token swaps. Two mediated transfers for different tokens are made with the same hashlock and once the secret is revealed we end up having an atomic swap of the tokens.
 
 ## Safety of Mediated Transfers
 The safety of mediated transfers relies on two rules:
@@ -163,23 +146,16 @@ The second is the mediator’s responsibility to choose a lock expiration for th
 
 The number of blocks for the above is named [reveal timeout]().
 
-**Alternative Protocol Implementation**   
-The reveal timeout is large because the blockchain can be congested due to large amount of traffic. This delays the processing of closing/withdraw transactions enough that token loss is possible. At the same time it is impossible to predict how long congestion would last. Ideally the smart contract would be able compute the unlock operations that could have been executed and count lock expiration to the available [gas slots]() of the mined blocks.
-
 ## Failed Mediated Transfers
 Failed mediated transfers are defined as transfers for which the initiator does not reveal the secret making it impossible to withdraw the lock. This may happen for two reasons. Either the initiator didn’t receive a [SecretRequest](), or the initiator discarded the secret to retry the transfer with a different route.
 
 The initiator might not have received the SecretRequest for yet another set of reasons:
 
 - Connectivity problems between the initiator and the target.
-- The maximum number of hops was reached, the lock expiration cannot be further decremented so the last node is not willing to make progress.
+- The lock expiration cannot be further decremented so the last node is not willing to make progress.
 - Some byzantine node along the path is not proceeding with the protocol.
 
 For any of the above scenarios, each hop must hold the lock and wait until it expires before unlocking the token and letting the payer add it back to its available balance.
-
-**Alternative Protocol Implementation**  
-Use a new lock type that can be withdrawn if any of two secrets is revealed. Each mediator sends the payee transfer with a controlled refund secret. If the next hop cannot proceed with the transfer it sends back a mediated transfer using the same refund hashlock. This allows the mediator controlling the refund secret to release both locks without a risk of double spending.
-
 
 ## Channel Closing and Settlement
 There are multiple reasons for which a channel might need to be closed:
@@ -191,16 +167,6 @@ There are multiple reasons for which a channel might need to be closed:
 At any point in time any of the participants may close the smart contract. From the point the channel is closed and onwards transfers can not be done using the channel.
 
 Once the channel enters the settlement window the partner state can be updated by calling `updateTransfer`. After the partner state is updated by the participant, locks may be withdrawn. A `withdraw` checks the lock and updates the partner’s current transferred amount. This is safe since a participant is allowed to provide the partner state only once and neither the transferred amount nor the locksroot will change after that call.
-
-With third parties the process changes slightly. Since third parties are allowed to call `updateTransfer` multiple times, the transferred amount and locksroot must be reset each time a new transfer is provided and locks that have been withdrawn must be withdrawn again.
-
-**Alternative Protocol Implementation**  
-
-The current implementation has a local unlock, meaning that the same hashlock may be provided multiple times, once for each mediator that is closing the channel. The [sprites approach]() uses a global registry of known secrets and requires the secret to be unlocked only once. This saves the computation of the hash function for each additional withdraw.
-
-- Nodes don’t need to close the channel to unlock, since the secret can be registered with the secret manager.
-- Nodes doen’t need to care about learning the secret through the blockchain and reapplying it in their own channel.
-- It really simplifies thinking about lock expiration for refunds since the expiration has a fixed lower bound.
 
 ## Transfer Routing
 Routing is a hard problem and because of the lack of a global view SmartRaiden has a graph search strategy. The packet routing may be looked at as an `A*` search, using the sorted path with capacity as an heuristic to do the packet routing.
@@ -215,12 +181,6 @@ The transfer initiator is `A`, the transfer target is `G`. `A` decides locally t
 
 Each of these hops forwarded a MediatedTransfer paying fees and sending the transfer value to the next hop to mediate the transfer.
 
-**Alternative Protocol Implementation**  
-
-Path finding services: Nodes may choose routing services to update with their current available balance, the routing services will charge a fee to the users to provide routes.
-
-Onion encryption: To improve anonymity, encryption may be used. The initiator will choose a path that cannot be changed during the transfer and onion encrypt the hops. Garbage of a variable length must be added to the end of the onion encrypted path to hide the path length.
-
 ## Merkle Tree
 ![merkletree](/docs/images/merkletree.png)
 
@@ -228,15 +188,12 @@ The [merkle tree]() data blocks are composed of the hashes of the locks. The uni
 
 The merkle tree must have a deterministic order, that can be computed by any participant or the channel contract. The leaf nodes are defined to be in lexicographical order of the elements (lock hashes). For the other levels the interior nodes are also computed from the lexicographical order.
 
-**Alternative Protocol Implementation**  
-
-Use time order for the leaves and lexicographical for the intermediary nodes. This will greatly improve insertion performance since only the rightmost side of the tree must be recomputed. It may also improve removals since the nodes to the left don’t need to be recomputed.
-
 ## SmartRaiden Design Choices
 
 ### One Contract per Channel
 At the beginning SmartRaiden was designed with simplicity in mind and the one contract per channel made the code simpler. We have plans to change to a single contract per token.
-
+### Nodes can not Update their Own State
+This greatly reduces the possible interactions with the smart contract and effectively makes cheating impossible. Either party may only provide messages that contain an unforgeable signature.
 ### Network Protocol Messages Must not have Inherited Trust
 
 We don’t support informational messages like `TransferTimeout`, `TransferCancelled`, nor messages that can lead to change of the channel state without some mechanism backed by the smart contract as this would imply trust between participants and open attack vectors.
@@ -270,18 +227,19 @@ Let’s still take Alice & Bob as our example. When Alice proposes to give 30 to
 
 Alice :` { ‘address’ :  “0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa”, ‘ip_port’ : “192.168.0.5:40001”}`
 
-Bob :`{ ‘address’ : “0x8c1b2E9e838e2Bf510eC7Ff49CC607b718Ce8401”,
-‘ip_port’ : “192.168.0.7:40001”}`
+Bob :`{ ‘address’ : “0x8c1b2E9e838e2Bf510eC7Ff49CC607b718Ce8401”,‘ip_port’ : “192.168.0.7:40001”}`
 
 then the payment channel between Alice & Bob is still effective.
 
-Right now, Alice can invoke SwitchNetwork to alter to Internet-free state, and with resort to meshbox, Alice can give her 30 tokens directly to Bob. While Internet-free state has its limitation, that is, it does not support any indirect transaction with regard to sending, transferring, and receiving. Besides, nodes can only create direct channel to do transactions, in Internet-free state.
+Right now, Alice can invoke SwitchNetwork to alter to Internet-free state, and with resort to meshbox, Alice can give her 30 tokens directly to Bob. While Internet-free state has its limitation, that is, it does not support any indirect transaction with regard to sending, transferring, and receiving. Besides, nodes can only create direct channel to do transactions, in Internet-free state.And for the security reason, the transaction processes should not exceed half of the settletimeout.
 
 ### Node synchronization state description
 It is quite significant for transaction security to keep states of participants synchronized. At the time SmartRaiden adopts the way of state machine to maintain this synchronization among nodes. Assume that we have two participants, Alice and Bob, who want to use SmartRaiden as a system for off-chain transactions. For example, if Alice plans to transfer 30 tokens to Bob, by MediatedTransfer, then what will it be that synchronization states of Alice and Bob.
 
-#### 1.Node synchronization when sending MediatedTransfer messages
-In the event that Alice sends MediatedTransfer message to Bob, like to transfer 20 tokens, to make sure this message is the most recent one, Alice has to store data of MediatedTransfer into local storage. After Bob has received this message, the first thing to do is that, he extracts the history of records from local memory to check whether the nounce of this message is consecutive with the one before it, and to verify the balance proofs. If no faulty event, write this newest message into local storage and return a ACK to Alice. When Alice gets messages from Bob, the process of synchronization completes. If Alice goes offline before she gets any ACK from Bob, then both parties revoke all the state changes back to the one prior to Alice sending MediatedTranfer to Bob, which is atomic. After Alice goes online again, she will gets another ACK resent from Bob, then both of them starts into synchronization again. Then communication of messages continues till all the transactions complete.
+- Data State Synchronization of Nodes when   Alice sending MediatedTransfer   
 
-#### 2. Node synchronization when receiving MediatedTransfer messages.
-Alice sends MediatedTransfer messages to Bob, like to transfer 20 tokens, then Bob received them and verify with history record, after that Bob sends ACK message back to Alice. If Bob goes offline before sending ACK, operations of local record storage fail in order to secure atomicity of relevant operations by Bob, then all the states go back to states before Bob receiving any MediatedTransfer message. At the moment Alice has no certainty that Bob has already received messages sent by her, so that tokens in this transaction will lock up. When Bob is online, he will send another ACK message to Alice, and the state alters to one representing the lock-up state of tokens. After Alice gets ACK from Bob, both of their states start to synchronize. Then communication of messages goes on till all the transaction s complete.
+Assume that Alice sends a MediatedTransfer message to Bob (eg. transfer 20 tokens). At this time, to make sure that states are the newest ones, Alice will keep the data of MediatedTransfer into local storage and update channel state.  Then Alice waits for the ACK confirmation from Bob. If receiving ACK, which means that Bob has got MediatedTransfer message from Alice and updated his channel state, data within Alice and Bob are identical and both states are synchronized. If Alice crashed prior to her receiving ACK message, she is required to repeat this process after she recovered, and when she gets ACK, data within them are identical and states of them have been synchronized.
+
+- Data State Synchronization of Nodes when Bob receiving MediatedTransfer   
+
+After Bob received MediatedTransfer message, he first need to verify whether this message has been processed, if so, immediately send ACK to Alice.  But if not, then Bob has to retrieve history data from local storage, and compare whether the values of nonce of both data are consecutive. If there is no fault about this data, then he updates payment channel, and keep the newest data record into local storage. After that, mark that this message has been processed and send ACK back to Alice.  Now, Data within Alice and Bob are identical and states of them are consistent. If Bob crashed before sending ACK to Alice, then after he recovered and goes online again, he can receive a second MediatedTransfer from Alice. For the reason that this message has been processed, Bob will directly send ACK to Alice. At this time, data within Alice and Bob are identical and states of them have been synchronized.
