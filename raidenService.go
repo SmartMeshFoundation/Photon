@@ -243,7 +243,7 @@ func (rs *RaidenService) Start() (err error) {
 		*/
 		err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
 		if err != nil {
-			err = fmt.Errorf("Events listener error %v", err)
+			err = fmt.Errorf("events listener error %v", err)
 			return
 		}
 
@@ -488,10 +488,10 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 		todo when to remove statemanager ?
 			when currentState==nil && StateManager.ManagerState!=StateManagerStateInit ,should delete rs statemanager.
 	*/
-	rs.StateMachineEventHandler.logAndDispatchToAllTasks(statechange)
+	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
-		for _, channel := range cg.ChannelAddress2Channel {
-			err := rs.StateMachineEventHandler.ChannelStateTransition(channel, statechange)
+		for _, c := range cg.ChannelAddress2Channel {
+			err := rs.StateMachineEventHandler.ChannelStateTransition(c, statechange)
 			if err != nil {
 				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
 			}
@@ -655,10 +655,10 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 	if err != nil {
 		return
 	}
-	graph := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
+	g := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
 	rs.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
-	rs.Token2ChannelGraph[tokenAddress] = graph
+	rs.Token2ChannelGraph[tokenAddress] = g
 	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)
 
 	//add channel I participant
@@ -673,7 +673,7 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 		if err != nil {
 			return err
 		}
-		err = graph.AddChannel(ch)
+		err = g.AddChannel(ch)
 		if err != nil {
 			return err
 		}
@@ -700,13 +700,13 @@ func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, par
 		log.Error(fmt.Sprintf("newChannelFromChain err %s", err))
 		return
 	}
-	graph := rs.getToken2ChannelGraph(tokenAddress)
-	err = graph.AddChannel(ch)
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	err = g.AddChannel(ch)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(graph.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
+	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -736,8 +736,8 @@ Do a direct tranfer with target.
        whereas the mediated transfer requires 6 messages.
 */
 func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address, amount *big.Int) (result *utils.AsyncResult) {
-	graph := rs.getToken2ChannelGraph(tokenAddress)
-	directChannel := graph.GetPartenerAddress2Channel(target)
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	directChannel := g.GetPartenerAddress2Channel(target)
 	result = utils.NewAsyncResult()
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- errors.New("no available direct channel")
@@ -843,7 +843,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.Transfer2Result[smkey] = result
 	//rs.db.AddStateManager(stateManager)
-	rs.StateMachineEventHandler.logAndDispatch(stateManager, initInitiator)
+	rs.StateMachineEventHandler.dispatch(stateManager, initInitiator)
 	return
 }
 
@@ -872,7 +872,7 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		return
 	}
 	amount := msg.PaymentAmount
-	target := msg.Target
+	targetAddr := msg.Target
 	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
 	fromChannel := ch
 	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
@@ -888,11 +888,11 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 			FromRoute:    fromRoute,
 			BlockNumber:  rs.GetBlockNumber(),
 		}
-		rs.StateMachineEventHandler.logAndDispatch(stateManager, stateChange)
+		rs.StateMachineEventHandler.dispatch(stateManager, stateChange)
 	} else {
 		ourAddress := rs.NodeAddress
 		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, exclude, rs)
+		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, exclude, rs)
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
@@ -907,7 +907,7 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 		//rs.db.AddStateManager(stateManager)
 		rs.Transfer2StateManager[smkey] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
-		rs.StateMachineEventHandler.logAndDispatch(stateManager, initMediator)
+		rs.StateMachineEventHandler.dispatch(stateManager, initMediator)
 	}
 }
 
@@ -949,7 +949,7 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 	//rs.db.AddStateManager(stateManager)
 	rs.Transfer2StateManager[smkey] = stateManager
-	rs.StateMachineEventHandler.logAndDispatch(stateManager, initTarget)
+	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {
@@ -1093,6 +1093,63 @@ func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op str
 	}
 	return
 }
+func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	c, err := rs.findChannelByAddress(channelAddress)
+	if err != nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
+	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelAddress)))
+	s, err := c.CreateCooperativeSettleRequest()
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	c.State = channeltype.StateCooprativeSettle
+	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	if err != nil {
+		result.Result <- err
+	}
+	err = s.Sign(rs.PrivateKey, s)
+	err = rs.sendAsync(c.PartnerState.Address, s)
+	result.Result <- err
+	return
+}
+func (rs *RaidenService) markCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	c, err := rs.findChannelByAddress(channelAddress)
+	if err != nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
+	log.Trace(fmt.Sprintf("markCooperativeSettleChannel settle channel %s\n", utils.HPex(channelAddress)))
+	err = c.PrepareForCooperativeSettle()
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	result.Result <- err
+	return
+}
+func (rs *RaidenService) cancelMarkCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	c, err := rs.findChannelByAddress(channelAddress)
+	if err != nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
+	log.Trace(fmt.Sprintf("cancelMarkCooperativeSettleChannel   channel %s\n", utils.HPex(channelAddress)))
+	err = c.CancelWithdrawOrCooperativeSettle()
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	result.Result <- err
+	return
+}
 
 /*
 process user's token swap maker request
@@ -1220,42 +1277,6 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 	return
 }
 
-//all user's request
-func (rs *RaidenService) handleReq(req *apiReq) {
-	var result *utils.AsyncResult
-	switch req.Name {
-	case transferReqName: //mediated transfer only
-		r := req.Req.(*transferReq)
-		if r.IsDirectTransfer {
-			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
-		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, utils.EmptyHash)
-		}
-	case newChannelReqName:
-		r := req.Req.(*newChannelReq)
-		result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
-	case depositChannelReqName:
-		r := req.Req.(*depositChannelReq)
-		result = rs.depositChannel(r.addr, r.amount)
-	case closeChannelReqName:
-		r := req.Req.(*closeSettleChannelReq)
-		result = rs.closeOrSettleChannel(r.addr, req.Name)
-	case settleChannelReqName:
-		r := req.Req.(*closeSettleChannelReq)
-		result = rs.closeOrSettleChannel(r.addr, req.Name)
-	case tokenSwapMakerReqName:
-		r := req.Req.(*tokenSwapMakerReq)
-		result = rs.tokenSwapMaker(r.tokenSwap)
-	case tokenSwapTakerReqName:
-		r := req.Req.(*tokenSwapTakerReq)
-		result = rs.tokenSwapTaker(r.tokenSwap)
-	default:
-		panic("unkown req")
-	}
-	r := req
-	r.result <- result
-}
-
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
@@ -1310,7 +1331,55 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 	*/
 	err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
 	if err != nil {
-		err = fmt.Errorf("Events listener error %v", err)
+		err = fmt.Errorf("events listener error %v", err)
 		return
 	}
+}
+
+//all user's request
+func (rs *RaidenService) handleReq(req *apiReq) {
+	var result *utils.AsyncResult
+	switch req.Name {
+	case transferReqName: //mediated transfer only
+		r := req.Req.(*transferReq)
+		if r.IsDirectTransfer {
+			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
+		} else {
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, utils.EmptyHash)
+		}
+	case newChannelReqName:
+		r := req.Req.(*newChannelReq)
+		result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
+	case depositChannelReqName:
+		r := req.Req.(*depositChannelReq)
+		result = rs.depositChannel(r.addr, r.amount)
+	case closeChannelReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.closeOrSettleChannel(r.addr, req.Name)
+	case settleChannelReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.closeOrSettleChannel(r.addr, req.Name)
+	case tokenSwapMakerReqName:
+		r := req.Req.(*tokenSwapMakerReq)
+		result = rs.tokenSwapMaker(r.tokenSwap)
+	case tokenSwapTakerReqName:
+		r := req.Req.(*tokenSwapTakerReq)
+		result = rs.tokenSwapTaker(r.tokenSwap)
+	case cooperativeSettleChannelReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.cooperativeSettleChannel(r.addr)
+	case markChannelForCooperativeSettleReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.markCooperativeSettleChannel(r.addr)
+	case cancelMarkChannelForCooperativeSettleReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.cancelMarkCooperativeSettleChannel(r.addr)
+	case withdrawReqName:
+	case markWithdrawReqName:
+	case cancelMarkWithdrawReqName:
+	default:
+		panic("unkown req")
+	}
+	r := req
+	r.result <- result
 }

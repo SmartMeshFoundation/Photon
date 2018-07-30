@@ -22,7 +22,7 @@ func (model *ModelDB) XMPPIsAddrSubed(addr common.Address) bool {
 	var r bool
 	err := model.db.Get(bucketXMPP, addr[:], &r)
 	if err != nil {
-		log.Error(fmt.Sprintf("db err %s", err))
+		log.Trace(fmt.Sprintf("db err %s", err))
 	}
 	return r
 }

@@ -174,7 +174,7 @@ func EventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished)
 //EventChannelWithdraw2StateChange to stateChange
 func EventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw) *mediatedtransfer.ContractChannelWithdrawStateChange {
 	return &mediatedtransfer.ContractChannelWithdrawStateChange{
-		ChannelAddress: &contracts.ChannelUniqueID{
+		ChannelIdentifier: &contracts.ChannelUniqueID{
 
 			ChannelIdentifier: common.Hash(ev.Channel_identifier),
 			OpenBlockNumber:   int64(ev.Raw.BlockNumber),

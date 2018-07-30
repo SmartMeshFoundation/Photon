@@ -822,6 +822,11 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 	return nil
 }
 
+//HasAnyUnkonwnSecretTransferOnRoad 是否还有任何我发出的交易,并且对方不知道密码的
+func (c *Channel) HasAnyUnkonwnSecretTransferOnRoad() bool {
+	return len(c.OurState.Lock2PendingLocks) > 0
+}
+
 /*
 CreateWithdrawResponse :
 我已经验证过了,对方的 withdrawRequest 是合理,可以接受的,
@@ -991,7 +996,7 @@ func (c *Channel) PrepareForCooperativeSettle() error {
 	if c.State != channeltype.StateOpened {
 		return fmt.Errorf("state must be opened when cooperative settle, but state is %s", c.State)
 	}
-	c.State = channeltype.StatePrepareForSettle
+	c.State = channeltype.StatePrepareForCooperativeSettle
 	return nil
 }
 
@@ -1003,7 +1008,7 @@ func (c *Channel) CancelWithdrawOrCooperativeSettle() error {
 	if c.ExternState.ClosedBlock != 0 {
 		return fmt.Errorf("no need cancel because of channel is closed")
 	}
-	if c.State != channeltype.StatePrepareForSettle && c.State != channeltype.StatePrepareForWithdraw {
+	if c.State != channeltype.StatePrepareForCooperativeSettle && c.State != channeltype.StatePrepareForWithdraw {
 		return fmt.Errorf("state is %s,cannot cancel withdraw or cooperative", c.State)
 	}
 	c.State = channeltype.StateOpened
@@ -1091,7 +1096,12 @@ func (c *Channel) CooperativeSettleChannel(res *encoding.SettleResponse) (result
 	if err != nil {
 		panic(err)
 	}
-	return c.ExternState.CooperativeSettle(res.Participant2Balance, res.Participant2Balance, w.Participant1Signature, res.Participant2Signature)
+	return c.ExternState.CooperativeSettle(res.Participant1Balance, res.Participant2Balance, w.Participant1Signature, res.Participant2Signature)
+}
+
+//CooperativeSettleChannelOnRequest 收到对方的 settle requet, 但是由于某些原因,需要我自己立即关闭通道
+func (c *Channel) CooperativeSettleChannelOnRequest(partnerSignature []byte, res *encoding.SettleResponse) (result *utils.AsyncResult) {
+	return c.ExternState.CooperativeSettle(res.Participant1Balance, res.Participant2Balance, partnerSignature, res.Participant2Signature)
 }
 
 /*
@@ -1113,6 +1123,18 @@ func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncR
 		res.Participant1Withdraw,
 		res.Participant2Withdraw,
 		w.Participant1Signature,
+		res.Participant2Signature,
+	)
+}
+
+//WithdrawOnRequest 收到对方的 withdraw 请求,因为某些原因,需要我自己关闭通道
+func (c *Channel) WithdrawOnRequest(partnerSignature []byte, res *encoding.WithdrawResponse) (result *utils.AsyncResult) {
+	//没有保存,需要重新签名.
+	return c.ExternState.WithDraw(res.Participant1Balance,
+		res.Participant2Balance,
+		res.Participant1Withdraw,
+		res.Participant2Withdraw,
+		partnerSignature,
 		res.Participant2Signature,
 	)
 }

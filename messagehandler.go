@@ -110,7 +110,7 @@ func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 		BalanceProof:   blanceProof,
 		Message:        msg,
 	}
-	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
+	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
 }
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
@@ -118,7 +118,7 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
 
-	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(msg.LockSecretHash(), stateChange)
+	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
@@ -128,7 +128,7 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 		Sender:         msg.Sender,
 		Message:        msg,
 	}
-	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(stateChange.LockSecretHash, stateChange)
+	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
@@ -191,7 +191,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
 	}
 	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
-		err = fmt.Errorf("Direct transfer from node without an existing channel: %s", msg.Sender)
+		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
@@ -214,7 +214,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Lock:    msg.Lock,
 		Message: msg,
 	}
-	mh.raiden.StateMachineEventHandler.logAndDispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
+	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
 	return nil
 }
 func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
@@ -223,7 +223,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
 	}
 	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
-		err = fmt.Errorf("Direct transfer from node without an existing channel: %s", msg.Sender)
+		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
@@ -314,7 +314,11 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	/*
 		start  taker's tokenswap ,only if receive a valid mediated transfer
 	*/
-	key := swapKey{msg.LockSecretHash, token, msg.PaymentAmount.String()}
+	key := swapKey{
+		LockSecretHash: msg.LockSecretHash,
+		FromToken:      token,
+		FromAmount:     msg.PaymentAmount.String(),
+	}
 	if tokenswap, ok := mh.raiden.SwapKey2TokenSwap[key]; ok {
 		remove := mh.raiden.messageTokenSwapTaker(msg, tokenswap)
 		if remove { //once the swap start,remove mh key immediately. otherwise,maker may repeat mh tokenswap operation.
@@ -348,6 +352,20 @@ func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 		//if err, channel can only be closed /settled
 		log.Error(fmt.Sprintf("CreateCooperativeSettleResponse err %s", err))
 		return err
+	}
+	if ch.HasAnyUnkonwnSecretTransferOnRoad() {
+		//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
+		result := ch.CooperativeSettleChannelOnRequest(msg.Participant1Signature, settleResponse)
+		go func() {
+			var err2 error
+			err2 = <-result.Result
+			if err2 != nil {
+				log.Error(fmt.Sprintf("CooperativeSettleChannelOnRequest err %s", err2))
+			} else {
+				log.Info(fmt.Sprintf("CooperativeSettleChannelOnRequest success on channel %s", ch.ChannelIdentifier))
+			}
+		}()
+		return nil
 	}
 	err = settleResponse.Sign(mh.raiden.PrivateKey, settleResponse)
 	if err != nil {
@@ -389,7 +407,7 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	go func() {
 		err = <-result.Result
 		if err != nil {
-			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel", msg.ChannelIdentifier))
+			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel", utils.HPex(msg.ChannelIdentifier)))
 		}
 	}()
 	return nil
@@ -418,6 +436,20 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 		//if err, channel can only be closed /settled
 		log.Error(fmt.Sprintf("CreateWithdrawResponse err %s", err))
 		return err
+	}
+	if ch.HasAnyUnkonwnSecretTransferOnRoad() {
+		//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
+		result := ch.WithdrawOnRequest(msg.Participant1Signature, withdrawResponse)
+		go func() {
+			var err2 error
+			err2 = <-result.Result
+			if err2 != nil {
+				log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
+			} else {
+				log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier))
+			}
+		}()
+		return nil
 	}
 	err = withdrawResponse.Sign(mh.raiden.PrivateKey, withdrawResponse)
 	if err != nil {
