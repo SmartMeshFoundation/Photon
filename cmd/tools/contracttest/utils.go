@@ -158,10 +158,8 @@ func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Accoun
 }
 
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
-	channelID, _, openBlockNumber, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
-	if err != nil {
-		panic(err)
-	}
+	var err error
+	channelID, _, openBlockNumber, state, _, ChainID := getChannelInfo(a1, a2)
 	if state == ChannelStateSettledOrNotExist {
 		return nil
 	}
@@ -174,10 +172,6 @@ func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) 
 		if err != nil {
 			panic(err)
 		}
-	}
-	ChainID, err := env.TokenNetwork.Chain_id(nil)
-	if err != nil {
-		panic(err)
 	}
 	return &CoOperativeSettleForContracts{
 		Particiant1:         a1.Address,
@@ -219,25 +213,18 @@ func openChannelAndDeposit(a1, a2 *Account, depositA1, depositA2 *big.Int, settl
 	}
 }
 
-func withdraw(a1 *Account, withdrawA1,depositA1 *big.Int, a2 *Account, withdrawA2,depositA2 *big.Int) {
-	channelID, _, openBlockNumber, _, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
-	if err != nil {
-		panic(err)
-	}
-	ChainID, err := env.TokenNetwork.Chain_id(nil)
-	if err != nil {
-		panic(err)
-	}
+func withdraw(a1 *Account, withdrawA1, depositA1 *big.Int, a2 *Account, withdrawA2, depositA2 *big.Int) {
+	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(a1, a2)
 	param1 := &WithDraw1ForContract{
-		Participant1: a1.Address,
-		Participant2: a2.Address,
-		Participant1Deposit  : depositA1,
-		Participant2Deposit  : depositA2,
-		Participant1Withdraw : withdrawA1,
-		ChannelIdentifier    : channelID,
-		OpenBlockNumber      : openBlockNumber,
-		TokenNetworkAddress  : env.TokenNetworkAddress,
-		ChainID              : ChainID,
+		Participant1:         a1.Address,
+		Participant2:         a2.Address,
+		Participant1Deposit:  depositA1,
+		Participant2Deposit:  depositA2,
+		Participant1Withdraw: withdrawA1,
+		ChannelIdentifier:    channelID,
+		OpenBlockNumber:      openBlockNumber,
+		TokenNetworkAddress:  env.TokenNetworkAddress,
+		ChainID:              ChainID,
 	}
 	param2 := &WithDraw2ForContract{
 		Participant1:         a1.Address,
@@ -269,6 +256,80 @@ func withdraw(a1 *Account, withdrawA1,depositA1 *big.Int, a2 *Account, withdrawA
 	if err != nil {
 		panic(err)
 	}
+}
+
+//BalanceData of contract
+type BalanceData struct {
+	TransferAmount *big.Int
+	LocksRoot      common.Hash
+}
+
+// Hash :
+func (b *BalanceData) Hash() common.Hash {
+	buf := new(bytes.Buffer)
+	buf.Write(b.LocksRoot[:])
+	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	return utils.Sha3(buf.Bytes())
+}
+
+//BalanceProofForContract for contract
+type BalanceProofForContract struct {
+	AdditionalHash      common.Hash
+	ChannelIdentifier   contracts.ChannelIdentifier
+	TokenNetworkAddress common.Address
+	ChainID             *big.Int
+	Signature           []byte
+	OpenBlockNumber     uint64
+	Nonce               uint64
+	BalanceData
+}
+
+func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
+	buf := new(bytes.Buffer)
+	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	buf.Write(b.LocksRoot[:])
+	binary.Write(buf, binary.BigEndian, b.Nonce)
+	buf.Write(b.AdditionalHash[:])
+	buf.Write(b.ChannelIdentifier[:])
+	binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
+	//buf.Write(b.TokenNetworkAddress[:])
+	buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	sig, err := utils.SignData(key, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	b.Signature = sig
+}
+
+func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *big.Int, locksroot common.Hash, additionalHash common.Hash, nonce uint64) *BalanceProofForContract {
+	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(self, partner)
+	bd := &BalanceData{
+		TransferAmount: transferAmount,
+		LocksRoot:      locksroot,
+	}
+	bp := &BalanceProofForContract{
+		BalanceData:         *bd,
+		OpenBlockNumber:     openBlockNumber,
+		AdditionalHash:      additionalHash,
+		ChannelIdentifier:   channelID,
+		TokenNetworkAddress: env.TokenNetworkAddress,
+		ChainID:             ChainID,
+		Nonce:               nonce,
+	}
+	bp.sign(self.Key)
+	return bp
+}
+
+func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNum uint64, openBlockNumber uint64, state uint8, settleTimeout uint64, ChainID *big.Int) {
+	channelID, settleBlockNum, openBlockNumber, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
+	if err != nil {
+		panic(err)
+	}
+	ChainID, err = env.TokenNetwork.Chain_id(nil)
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
 func endMsg(name string, count int, accounts ...*Account) string {
