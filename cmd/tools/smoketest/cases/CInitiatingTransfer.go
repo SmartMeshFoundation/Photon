@@ -85,7 +85,10 @@ func testTransfer(param *testTransferParams) {
 	payload.Amount = 5
 	payload.Fee = 0
 	payload.IsDirect = param.IsDirect
-	p, _ := json.Marshal(payload)
+	p, err := json.Marshal(payload)
+	if err != nil {
+		panic(err)
+	}
 	// run case
 	case1 := &APITestCase{
 		CaseName:  param.CaseName,

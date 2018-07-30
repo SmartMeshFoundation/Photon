@@ -60,7 +60,10 @@ func (env *RaidenEnvReader) RefreshNodes() {
 		var addr struct {
 			OurAddress string `json:"our_address"`
 		}
-		json.Unmarshal(body, &addr)
+		err = json.Unmarshal(body, &addr)
+		if err != nil {
+			panic(err)
+		}
 		node.AccountAddress = strings.ToUpper(addr.OurAddress)
 	}
 	log.Println("RaidenEnvReader refresh nodes done")
@@ -80,7 +83,10 @@ func (env *RaidenEnvReader) RefreshTokens() {
 		panic(err)
 	}
 	var tokenAddrs []string
-	json.Unmarshal(body, &tokenAddrs)
+	err = json.Unmarshal(body, &tokenAddrs)
+	if err != nil {
+		panic(err)
+	}
 	env.Tokens = []*Token{}
 	for _, addr := range tokenAddrs {
 		if env.HasToken(addr) {
@@ -114,7 +120,10 @@ func (env *RaidenEnvReader) RefreshChannels() {
 			panic(err)
 		}
 		var nodeChannels []Channel
-		json.Unmarshal(body, &nodeChannels)
+		err = json.Unmarshal(body, &nodeChannels)
+		if err != nil {
+			panic(err)
+		}
 		if len(nodeChannels) == 0 {
 			continue
 		}
@@ -155,7 +164,10 @@ func (env *RaidenEnvReader) SaveToFile(filepath string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	dataFile.Write(data)
+	_, err = dataFile.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	log.Println("Write env data to " + filepath + " done")
 }
 

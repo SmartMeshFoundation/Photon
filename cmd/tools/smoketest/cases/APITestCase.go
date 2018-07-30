@@ -49,7 +49,10 @@ func (c *APITestCase) Run() {
 		Logger.Printf("Expect response http code : [%d]", c.TargetStatusCode)
 	}
 	if c.TargetBody != nil && c.TargetBody != "" {
-		bodyStr, _ := json.MarshalIndent(c.TargetBody, "", "\t")
+		bodyStr, err := json.MarshalIndent(c.TargetBody, "", "\t")
+		if err != nil {
+			panic(err)
+		}
 		Logger.Printf("Expect response http body : \n%s\n", bodyStr)
 	}
 	Logger.SetFlags(0)

@@ -128,7 +128,10 @@ func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 
 		ReceivingToken:  token2.Address,
 		ReceivingAmount: amount2,
 	}
-	p, _ := json.Marshal(payload)
+	p, err := json.Marshal(payload)
+	if err != nil {
+		panic(err)
+	}
 	// run case
 	case1 := &APITestCase{
 		CaseName:  caseName + " " + role,

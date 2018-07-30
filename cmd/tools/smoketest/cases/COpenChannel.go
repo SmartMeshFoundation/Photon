@@ -24,7 +24,10 @@ func OpenChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 	newchannel.TokenAddress = env.RandomToken().Address
 	newchannel.Balance = 50
 	newchannel.SettleTimeout = 35
-	payload, _ := json.Marshal(newchannel)
+	payload, err := json.Marshal(newchannel)
+	if err != nil {
+		panic(err)
+	}
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "OpenChannel",
