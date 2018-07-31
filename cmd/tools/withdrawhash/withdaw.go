@@ -238,7 +238,7 @@ func (w *withDraw) WithDrawOnChannel() {
 			result := c.Close()
 			err = <-result.Result
 			if err != nil {
-				log.Error(fmt.Sprintf("close channel %s error %s", c.ChannelIdentifier, err))
+				log.Error(fmt.Sprintf("close channel %s error %s", c.ChannelIdentifier.String(), err))
 				break
 			}
 			unlockProofs2 := c.PartnerState.GetKnownUnlocks()

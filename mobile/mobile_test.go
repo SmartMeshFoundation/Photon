@@ -64,7 +64,7 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, err = api.CloseChannel(c.ChannelAddress)
+	_, err = api.CloseChannel(c.ChannelAddress, true)
 	if err != nil {
 		t.Error(err)
 		return

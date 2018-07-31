@@ -155,7 +155,7 @@ func (cg *ChannelGraph) AddChannel(ch *channel.Channel) error {
 		cg.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier] = ch
 		cg.AddPath(ch.OurState.Address, ch.PartnerState.Address)
 	} else {
-		log.Info(fmt.Sprintf("add channel %s,but channel already exist", ch.ChannelIdentifier))
+		log.Info(fmt.Sprintf("add channel %s,but channel already exist", ch.ChannelIdentifier.String()))
 	}
 	return nil
 }
