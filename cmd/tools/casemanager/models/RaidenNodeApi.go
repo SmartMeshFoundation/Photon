@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -22,7 +21,10 @@ func (node *RaidenNode) GetChannelWith(partnerNode *RaidenNode, tokenAddr string
 		panic(err)
 	}
 	var nodeChannels []Channel
-	json.Unmarshal(body, &nodeChannels)
+	err = json.Unmarshal(body, &nodeChannels)
+	if err != nil {
+		panic(err)
+	}
 	if len(nodeChannels) == 0 {
 		return nil
 	}
@@ -63,7 +65,7 @@ type TransferPayload struct {
 }
 
 // SendTrans send a transfer
-func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddress string, isDirect bool) error {
+func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
 	p, _ := json.Marshal(TransferPayload{
 		Amount:   amount,
 		Fee:      0,
@@ -77,10 +79,9 @@ func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
-		return err
+		panic(err)
 	}
 	if statusCode != 200 {
-		return errors.New(string(statusCode))
+		panic(err)
 	}
-	return nil
 }

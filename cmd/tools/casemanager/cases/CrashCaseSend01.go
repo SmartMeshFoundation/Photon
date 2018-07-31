@@ -25,7 +25,7 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	// 源数据
 	var transAmount int32
 	transAmount = 5
-	tokenAddress := env.Tokens[0].Address
+	tokenAddress := env.Tokens[0].TokenAddress.String()
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	N1, N2 := env.Nodes[0], env.Nodes[1]
 
