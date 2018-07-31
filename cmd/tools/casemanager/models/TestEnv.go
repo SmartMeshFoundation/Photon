@@ -209,7 +209,7 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 		addr := c.RdString("TOKEN", option, "")
 		if addr == "new" {
 			tokenNetwork, tokenNetworkAddress, token, tokenAddress := deployNewToken(env, conn, key, registry)
-			Logger.Printf("New TokenAddress %s : token=%s\n token_network=%s", option, tokenAddress.String(), tokenNetworkAddress.String())
+			Logger.Printf("New TokenAddress %s : token=%s token_network=%s", option, tokenAddress.String(), tokenNetworkAddress.String())
 			tokens = append(tokens, &Token{
 				Name:                option,
 				Token:               token,
@@ -279,7 +279,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contr
 		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
 	tokenNetworkAddr, err = tokenNetwork.Token_to_token_networks(nil, tokenAddr)
-	fmt.Printf("DeployHumanStandardToken complete... %s,mgr=%s\n", tokenAddr.String(), tokenNetworkAddr.String())
+	fmt.Printf("DeployHumanStandardToken complete... %s,token_network_address=%s\n", tokenAddr.String(), tokenNetworkAddr.String())
 	return
 }
 
@@ -331,22 +331,23 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 		key2 := env.Keys[index2]
 		amount2, _ := strconv.ParseInt(s[4], 10, 64)
 		settledTimeout, _ := strconv.ParseUint(s[5], 10, 64)
-		creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token.TokenNetwork, conn)
+		creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
 	}
 	Logger.Println("Load and create channels SUCCESS")
 	return nil
 }
 
-func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, tokenNetwork *contracts.TokenNetwork, conn *ethclient.Client) {
+func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	var tx *types.Transaction
 	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
-		tx, err = tokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, settledTimeout, amount1)
+		approveAccount(token.Token, auth1, token.TokenNetworkAddress, amount1, conn)
+		tx, err = token.TokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, settledTimeout, amount1)
 	} else {
-		tx, err = tokenNetwork.OpenChannel(auth1, account1, account2, settledTimeout)
+		tx, err = token.TokenNetwork.OpenChannel(auth1, account1, account2, settledTimeout)
 	}
 	if err != nil {
 		panic(err)
@@ -356,7 +357,8 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		panic(err)
 	}
 	if amount2.Int64() > 0 {
-		tx, err = tokenNetwork.Deposit(auth2, account2, account1, amount2)
+		approveAccount(token.Token, auth2, token.TokenNetworkAddress, amount2, conn)
+		tx, err = token.TokenNetwork.Deposit(auth2, account2, account1, amount2)
 		if err != nil {
 			panic(err)
 		}
@@ -364,6 +366,19 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
+	tx, err := token.Approve(auth, tokenNetworkAddress, amount)
+	if err != nil {
+		log.Fatalf("Failed to Approve: %v", err)
+	}
+	log.Printf("approve gas %s:%d\n", tx.Hash().String(), tx.Gas())
+	ctx := context.Background()
+	_, err = bind.WaitMined(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to Approve when mining :%v", err)
 	}
 }
 
