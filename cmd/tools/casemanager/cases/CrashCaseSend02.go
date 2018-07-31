@@ -25,7 +25,7 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 	// 源数据
 	var transAmount int32
 	transAmount = 20
-	tokenAddress := env.Tokens[0].Address
+	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2, EventSendRevealSecretAfter

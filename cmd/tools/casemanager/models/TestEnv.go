@@ -22,12 +22,13 @@ import (
 
 	"io"
 
-	"github.com/SmartMeshFoundation/SmartRaiden"
+	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
@@ -40,9 +41,9 @@ type TestEnv struct {
 	DataDir                 string
 	KeystorePath            string
 	PasswordFile            string
-	RegistryContractAddress string
 	XMPPServer              string
 	EthRPCEndpoint          string
+	RegistryContractAddress string
 	Verbosity               int
 	Debug                   bool
 	Nodes                   []*RaidenNode
@@ -97,8 +98,8 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 		Logger.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
 	_, key := promptAccount(env.KeystorePath)
-	registryAddress, registry := loadRegistryContract(c, conn, key)
-	env.RegistryContractAddress = registryAddress
+	registryAddress, registry := loadTokenNetworkContract(c, conn, key)
+	env.RegistryContractAddress = registryAddress.String()
 	env.Nodes = loadNodes(c)
 	env.Tokens = loadTokenAddrs(c, env, conn, key, registry)
 	env.Channels = loadAndBuildChannels(c, env, conn)
@@ -109,61 +110,51 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	return
 }
 
-func loadRegistryContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (addr string, registry *contracts.Registry) {
-	addr = c.RdString("COMMON", "registry_contract_address", "new")
+func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (registryAddress common.Address, registry *contracts.TokenNetworkRegistry) {
+	addr := c.RdString("COMMON", "token_network_address", "new")
 	if addr == "new" {
-		addr, registry = deployRegistryContract(conn, key)
-		Logger.Printf("New RegistryContractAddress : %s\n", addr)
+		registryAddress, registry = deployRegistryContract(conn, key)
+		Logger.Printf("New RegistryAddress : %s\n", registryAddress.String())
+	} else {
+		registryAddress = common.HexToAddress(addr)
 	}
-	Logger.Println("Load RegistryContractAddress SUCCESS")
+	Logger.Println("Load RegistryAddress SUCCESS")
 	return
 }
-func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (registryContractAddress string, registry *contracts.Registry) {
+func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (registryAddress common.Address, registry *contracts.TokenNetworkRegistry) {
 	auth := bind.NewKeyedTransactor(key)
-	//DeployNettingChannelLibrary
-	NettingChannelLibraryAddress, tx, _, err := contracts.DeployNettingChannelLibrary(auth, conn)
+	//Deploy Secret Registry
+	secretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
 	if err != nil {
-		Logger.Fatalf("Failed to DeployNettingChannelLibrary: %v", err)
+		log.Fatalf("Failed to deploy SecretRegistry contract: %v", err)
 	}
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
-		Logger.Fatalf("failed to deploy contact when mining :%v", err)
+		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	//DeployChannelManagerLibrary link nettingchannle library before deploy
-	contracts.ChannelManagerLibraryBin = strings.Replace(contracts.ChannelManagerLibraryBin, "__NettingChannelLibrary.sol:NettingCha__", NettingChannelLibraryAddress.String()[2:], -1)
-	ChannelManagerLibraryAddress, tx, _, err := contracts.DeployChannelManagerLibrary(auth, conn)
+	fmt.Printf("Deploy SecretRegistry complete...\n")
+	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
-		Logger.Fatalf("Failed to deploy new token contract: %v", err)
+		log.Fatalf("failed to get network id %s", err)
+	}
+	registryAddress, tx, registry, err = contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainID)
+	if err != nil {
+		log.Fatalf("failed to deploy TokenNetworkRegistry %s", err)
 	}
 	ctx = context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
-		Logger.Fatalf("failed to deploy contact when mining :%v", err)
+		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	//DeployRegistry link channelmanagerlibrary before deploy
-	contracts.RegistryBin = strings.Replace(contracts.RegistryBin, "__ChannelManagerLibrary.sol:ChannelMan__", ChannelManagerLibraryAddress.String()[2:], -1)
-	RegistryContractAddress, tx, _, err := contracts.DeployRegistry(auth, conn)
-	if err != nil {
-		Logger.Fatalf("Failed to deploy new token contract: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		Logger.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("RegistryAddress=%s\n", RegistryContractAddress.String())
-	registry, err = contracts.NewRegistry(RegistryContractAddress, conn)
-	if err != nil {
-		panic(err)
-	}
-	registryContractAddress = RegistryContractAddress.String()
+	fmt.Printf("deploy TokenNetworkRegistry complete...\n")
+	fmt.Printf("TokenNetworkRegistry=%s\n", registryAddress.String())
 	return
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
-	am := smartraiden.NewAccountManager(keystorePath)
+	am := accounts.NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {
-		Logger.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
+		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", keystorePath))
 		os.Exit(1)
 	}
 	addr = am.Accounts[0].Address
@@ -171,20 +162,23 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 		//retries three times
 		if len(globalPassword) <= 0 {
 			fmt.Printf("Enter the password to unlock")
-			fmt.Scanln(&globalPassword)
+			_, err := fmt.Scanln(&globalPassword)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		keybin, err := am.GetPrivateKey(addr, globalPassword)
+		keyBin, err := am.GetPrivateKey(addr, globalPassword)
 		if err != nil && i == 3 {
-			Logger.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
+			log.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
 			os.Exit(1)
 		}
 		if err != nil {
-			Logger.Println(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
+			log.Println(fmt.Sprintf("password incorrect\n Please try again or kill the process to quit.\nUsually Ctrl-c."))
 			continue
 		}
-		key, err = crypto.ToECDSA(keybin)
+		key, err = crypto.ToECDSA(keyBin)
 		if err != nil {
-			Logger.Println(fmt.Sprintf("private key to bytes err %s", err))
+			log.Println(fmt.Sprintf("private key to bytes err %s", err))
 		}
 		break
 	}
@@ -208,35 +202,35 @@ func loadNodes(c *config.Config) (nodes []*RaidenNode) {
 	return
 }
 
-func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.Registry) (tokens []*Token) {
+func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.TokenNetworkRegistry) (tokens []*Token) {
 	options, _ := c.Options("TOKEN")
 	sort.Strings(options)
 	for _, option := range options {
 		addr := c.RdString("TOKEN", option, "")
 		if addr == "new" {
-			manager, token, tokenAddress := deployNewToken(env, conn, key, registry)
-			addr = tokenAddress.String()
-			Logger.Printf("New TokenAddress %s : %s\n", option, addr)
+			tokenNetwork, tokenNetworkAddress, token, tokenAddress := deployNewToken(env, conn, key, registry)
+			Logger.Printf("New TokenAddress %s : token=%s\n token_network=%s", option, tokenAddress.String(), tokenNetworkAddress.String())
 			tokens = append(tokens, &Token{
-				Name:    option,
-				Address: addr,
-				Manager: manager,
-				Token:   token,
+				Name:                option,
+				Token:               token,
+				TokenAddress:        tokenAddress,
+				TokenNetwork:        tokenNetwork,
+				TokenNetworkAddress: tokenNetworkAddress,
 			})
 		} else {
 			tokens = append(tokens, &Token{
-				Name:    option,
-				Address: addr,
+				Name:         option,
+				TokenAddress: common.HexToAddress(addr),
 			})
 		}
 	}
 	Logger.Println("Load Tokens SUCCESS")
 	return
 }
-func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.Registry) (manager *contracts.ChannelManagerContract, token *contracts.Token, tokenAddress common.Address) {
+func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.TokenNetworkRegistry) (tokenNetwork *contracts.TokenNetwork, tokenNetworkAddress common.Address, token *contracts.Token, tokenAddress common.Address) {
 	var err error
-	mgrAddress, tokenAddress := newToken(key, conn, registry)
-	manager, err = contracts.NewChannelManagerContract(mgrAddress, conn)
+	tokenNetworkAddress, tokenAddress = newToken(key, conn, registry)
+	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, conn)
 	if err != nil {
 		panic(fmt.Sprintf("err for NewChannelManagerContract %s", err))
 	}
@@ -244,46 +238,48 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey,
 	if err != nil {
 		panic(fmt.Sprintf("err for newtoken err %s", err))
 	}
-	am := smartraiden.NewAccountManager(env.KeystorePath)
+	am := accounts.NewAccountManager(env.KeystorePath)
 	var accounts []common.Address
 	for _, node := range env.Nodes {
 		address := common.HexToAddress(node.Address)
 		accounts = append(accounts, address)
-		keybin, err := am.GetPrivateKey(address, globalPassword)
+		keyBin, err := am.GetPrivateKey(address, globalPassword)
 		if err != nil {
 			Logger.Fatalf("password error for %s", address.String())
 		}
-		keytemp, err := crypto.ToECDSA(keybin)
+		keyTemp, err := crypto.ToECDSA(keyBin)
 		if err != nil {
 			Logger.Fatalf("ToECDSA err %s", err)
 		}
-		env.Keys = append(env.Keys, keytemp)
+		env.Keys = append(env.Keys, keyTemp)
 	}
 	transferMoneyForAccounts(key, conn, accounts, token)
-	return manager, token, tokenAddress
+	return
 }
-func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.Registry) (mgrAddress common.Address, tokenAddr common.Address) {
+func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contracts.TokenNetworkRegistry) (tokenNetworkAddr common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := contracts.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), "test", 2, "test symoble")
+	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), 0, "test", "test symoble")
 	if err != nil {
-		Logger.Fatalf("Failed to DeployHumanStandardToken: %v", err)
+		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
+	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
-		Logger.Fatalf("failed to deploy contact when mining :%v", err)
+		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	tx, err = registry.AddToken(auth, tokenAddr)
+	fmt.Printf("DeployHumanStandardToken complete...\n")
+	tx, err = tokenNetwork.CreateERC20TokenNetwork(auth, tokenAddr)
 	if err != nil {
-		Logger.Fatalf("Failed to AddToken: %v", err)
+		log.Fatalf("Failed to AddToken: %v", err)
 	}
 	ctx = context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
-		Logger.Fatalf("failed to AddToken when mining :%v", err)
+		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
-	mgrAddress, err = registry.ChannelManagerByToken(nil, tokenAddr)
-	fmt.Printf("DeployHumanStandardToken complete... token=%s,mgr=%s\n", tokenAddr.String(), mgrAddress.String())
+	tokenNetworkAddr, err = tokenNetwork.Token_to_token_networks(nil, tokenAddr)
+	fmt.Printf("DeployHumanStandardToken complete... %s,mgr=%s\n", tokenAddr.String(), tokenNetworkAddr.String())
 	return
 }
 
@@ -334,95 +330,41 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 		index2, account2 := env.GetNodeAddressByName(s[1])
 		key2 := env.Keys[index2]
 		amount2, _ := strconv.ParseInt(s[4], 10, 64)
-		settledTimeout, _ := strconv.ParseInt(s[5], 10, 64)
-		creatAChannelAndDeposit(account1, account2, key1, key2, amount1, amount2, settledTimeout, token.Manager, token.Token, conn)
+		settledTimeout, _ := strconv.ParseUint(s[5], 10, 64)
+		creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token.TokenNetwork, conn)
 	}
 	Logger.Println("Load and create channels SUCCESS")
 	return nil
 }
 
-func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 int64, amount2 int64, settledTimeout int64, manager *contracts.ChannelManagerContract, token *contracts.Token, conn *ethclient.Client) {
+func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, tokenNetwork *contracts.TokenNetwork, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
+	var tx *types.Transaction
+	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
-	auth1.GasLimit = uint64(params.GasLimit)
-	auth1.GasPrice = big.NewInt(params.GasPrice)
-	callAuth1 := &bind.CallOpts{
-		Pending: false,
-		From:    account1,
-		Context: context.Background(),
-	}
 	auth2 := bind.NewKeyedTransactor(key2)
-	auth2.GasLimit = uint64(params.GasLimit)
-	auth2.GasPrice = big.NewInt(params.GasPrice)
-	tx, err := manager.NewChannel(auth1, account2, big.NewInt(settledTimeout))
-	if err != nil {
-		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
-		return
+	if amount1.Int64() > 0 {
+		tx, err = tokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, settledTimeout, amount1)
+	} else {
+		tx, err = tokenNetwork.OpenChannel(auth1, account1, account2, settledTimeout)
 	}
-	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
-		log.Fatalf("failed to NewChannel when mining :%v", err)
+		panic(err)
 	}
-	//step 2 deopsit
-	//step 2.1 aprove
-	channelAddress, err := manager.GetChannelWith(callAuth1, account2)
+	_, err = bind.WaitMined(context.Background(), conn, tx)
 	if err != nil {
-		log.Fatalf("failed to get channel %s", err)
-		return
+		panic(err)
 	}
-	Logger.Printf("New Channel : %s\n", channelAddress.String())
-	channel, _ := contracts.NewNettingChannelContract(channelAddress, conn)
-	wg2 := sync.WaitGroup{}
-	go func() {
-		wg2.Add(1)
-		defer wg2.Done()
-		tx, err := token.Approve(auth1, channelAddress, big.NewInt(amount1))
+	if amount2.Int64() > 0 {
+		tx, err = tokenNetwork.Deposit(auth2, account2, account1, amount2)
 		if err != nil {
-			log.Fatalf("Failed to Approve: %v", err)
+			panic(err)
 		}
-		log.Printf("approve gas %s:%d\n", tx.Hash().String(), tx.Gas())
-		ctx = context.Background()
-		_, err = bind.WaitMined(ctx, conn, tx)
+		_, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
-			log.Fatalf("failed to Approve when mining :%v", err)
+			panic(err)
 		}
-		tx, err = channel.Deposit(auth1, big.NewInt(amount1))
-		if err != nil {
-			log.Fatalf("Failed to Deposit: %v", err)
-		}
-		ctx = context.Background()
-		_, err = bind.WaitMined(ctx, conn, tx)
-		if err != nil {
-			log.Fatalf("failed to Deposit when mining :%v", err)
-		}
-		fmt.Printf("Deposit to account1 %d tokends complete...\n", amount1)
-	}()
-	go func() {
-		wg2.Add(1)
-		defer wg2.Done()
-		tx, err := token.Approve(auth2, channelAddress, big.NewInt(amount2))
-		if err != nil {
-			log.Fatalf("Failed to Approve: %v", err)
-		}
-		ctx = context.Background()
-		_, err = bind.WaitMined(ctx, conn, tx)
-		if err != nil {
-			log.Fatalf("failed to Approve when mining :%v", err)
-		}
-		tx, err = channel.Deposit(auth2, big.NewInt(amount2))
-		if err != nil {
-			log.Fatalf("Failed to Deposit: %v", err)
-		}
-		ctx = context.Background()
-		_, err = bind.WaitMined(ctx, conn, tx)
-		if err != nil {
-			log.Fatalf("failed to Deposit when mining :%v", err)
-		}
-		fmt.Printf("Deposit to account2 %d tokens complete...\n", amount2)
-	}()
-	time.Sleep(time.Second * 10)
-	wg2.Wait()
+	}
 }
 
 // KillAllRaidenNodes kill all raiden node

@@ -25,7 +25,7 @@ func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
 	var transAmount int32
 	var msg string
 	transAmount = 20
-	tokenAddress := env.Tokens[0].Address
+	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
