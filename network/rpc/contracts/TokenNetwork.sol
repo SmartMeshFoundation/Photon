@@ -79,7 +79,13 @@ contract TokenNetwork is Utils {
         address participant2,
         uint256 settle_timeout
     );
-
+    event ChannelOpenedAndDeposit(
+        bytes32 indexed channel_identifier,
+        address participant1,
+        address participant2,
+        uint256 settle_timeout,
+        uint256 participant1_deposit
+    );
     event ChannelNewDeposit(
         bytes32 indexed channel_identifier,
         address participant,
@@ -103,8 +109,8 @@ contract TokenNetwork is Utils {
     );
     //通道上发生了惩罚事件,受益人是谁.
     event ChannelPunished(
-    bytes32 indexed channel_identifier,
-    address beneficiary
+        bytes32 indexed channel_identifier,
+        address beneficiary
     );
     event ChannelSettled(
         bytes32 indexed channel_identifier,
@@ -208,7 +214,7 @@ contract TokenNetwork is Utils {
         channel.state = 1;
         require(token.transferFrom(msg.sender, address(this), deposit));
         participant_state.deposit = deposit;
-        emit ChannelOpened(channel_identifier, participant, partner, settle_timeout);
+        emit ChannelOpenedAndDeposit(channel_identifier, participant, partner, settle_timeout,deposit);
     }
     /*
     必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
@@ -655,7 +661,7 @@ contract TokenNetwork is Utils {
         beneficiary_state.nonce = 0xffffffffffffffff;
         beneficiary_state.deposit += cheater_state.deposit;
         cheater_state.deposit = 0;
-        emit ChannelPunished(channel_identifier,beneficiary);
+        emit ChannelPunished(channel_identifier, beneficiary);
     }
     /*
     任何人都可以调用,只能调用一次
@@ -788,7 +794,7 @@ contract TokenNetwork is Utils {
             open_blocknumber,
             participant1_signature
         ));
-        require(participant2== recoverAddressFromCooperativeSettleSignature(
+        require(participant2 == recoverAddressFromCooperativeSettleSignature(
             channel_identifier,
             participant1,
             participant1_balance,
