@@ -63,7 +63,10 @@ type logTee struct {
 
 func (t *logTee) Write(p []byte) (n int, err error) {
 	n, err = t.w1.Write(p)
-	t.w2.Write(p)
+	_, err = t.w2.Write(p)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 
@@ -185,7 +188,10 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	return
 }
 func loadNodes(c *config.Config) (nodes []*RaidenNode) {
-	options, _ := c.Options("NODE")
+	options, err := c.Options("NODE")
+	if err != nil {
+		panic(err)
+	}
 	sort.Strings(options)
 	for _, option := range options {
 		s := strings.Split(c.RdString("NODE", option, ""), ",")
@@ -203,7 +209,10 @@ func loadNodes(c *config.Config) (nodes []*RaidenNode) {
 }
 
 func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.TokenNetworkRegistry) (tokens []*Token) {
-	options, _ := c.Options("TOKEN")
+	options, err := c.Options("TOKEN")
+	if err != nil {
+		panic(err)
+	}
 	sort.Strings(options)
 	for _, option := range options {
 		addr := c.RdString("TOKEN", option, "")
@@ -288,7 +297,10 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
 	auth := bind.NewKeyedTransactor(key)
-	nonce, _ := conn.PendingNonceAt(context.Background(), auth.From)
+	nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
+	if err != nil {
+		panic(err)
+	}
 	for index, account := range accounts {
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
@@ -308,12 +320,18 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 	}
 	wg.Wait()
 	for _, account := range accounts {
-		b, _ := token.BalanceOf(nil, account)
+		b, err := token.BalanceOf(nil, account)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Printf("account %s has token %s\n", utils.APex(account), b)
 	}
 }
 func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client) (channels []*Channel) {
-	options, _ := c.Options("CHANNEL")
+	options, err := c.Options("CHANNEL")
+	if err != nil {
+		panic(err)
+	}
 	if options == nil || len(options) == 0 {
 		return
 	}
@@ -326,11 +344,14 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 		}
 		index1, account1 := env.GetNodeAddressByName(s[0])
 		key1 := env.Keys[index1]
-		amount1, _ := strconv.ParseInt(s[3], 10, 64)
+		amount1, err := strconv.ParseInt(s[3], 10, 64)
 		index2, account2 := env.GetNodeAddressByName(s[1])
 		key2 := env.Keys[index2]
-		amount2, _ := strconv.ParseInt(s[4], 10, 64)
-		settledTimeout, _ := strconv.ParseUint(s[5], 10, 64)
+		amount2, err := strconv.ParseInt(s[4], 10, 64)
+		settledTimeout, err := strconv.ParseUint(s[5], 10, 64)
+		if err != nil {
+			panic(err)
+		}
 		creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
 	}
 	Logger.Println("Load and create channels SUCCESS")
