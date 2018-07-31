@@ -34,11 +34,11 @@ const newChannelReqName = "newchannel"
 const closeChannelReqName = "closechannel"
 const settleChannelReqName = "settlechannel"
 const cooperativeSettleChannelReqName = "cooperativeSettlechannel"
-const markChannelForCooperativeSettleReqName = "mark channel cooperative settle"
-const cancelMarkChannelForCooperativeSettleReqName = "cancel mark cooperative settle"
+const prepareForCooperativeSettleReqName = "mark channel cooperative settle"
+const cancelPrepareForCooperativeSettleReqName = "cancel mark cooperative settle"
 const withdrawReqName = "withdraw"
-const markWithdrawReqName = "mark withdraw"
-const cancelMarkWithdrawReqName = "cancel mark withdraw"
+const prepareWithdrawReqName = "mark withdraw"
+const cancelPrepareWithdrawReqName = "cancel mark withdraw"
 const depositChannelReqName = "deposit"
 const tokenSwapMakerReqName = "tokenswapmaker"
 const tokenSwapTakerReqName = "tokenswaptaker"
@@ -70,6 +70,11 @@ settle channel api
 */
 type closeSettleChannelReq struct {
 	addr common.Hash //channel address
+}
+
+type withdrawReq struct {
+	addr   common.Hash //channel address
+	amount *big.Int
 }
 
 /*
@@ -193,7 +198,7 @@ func (rs *RaidenService) cooperativeSettleChannelClient(channelAddress common.Ha
 func (rs *RaidenService) markChannelForCooperativeSettleClient(channelAddress common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
-		Name:  markChannelForCooperativeSettleReqName,
+		Name:  prepareForCooperativeSettleReqName,
 		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},
@@ -203,19 +208,20 @@ func (rs *RaidenService) markChannelForCooperativeSettleClient(channelAddress co
 func (rs *RaidenService) cancelMarkChannelForCooperativeSettleClient(channelAddress common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
-		Name:  cancelMarkChannelForCooperativeSettleReqName,
+		Name:  cancelPrepareForCooperativeSettleReqName,
 		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) withdrawClient(channelAddress common.Hash) *utils.AsyncResult {
+func (rs *RaidenService) withdrawClient(channelAddress common.Hash, amount *big.Int) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  withdrawReqName,
-		Req: &closeSettleChannelReq{
-			addr: channelAddress,
+		Req: &withdrawReq{
+			addr:   channelAddress,
+			amount: amount,
 		},
 	}
 	return rs.sendReqClient(req)
@@ -223,7 +229,7 @@ func (rs *RaidenService) withdrawClient(channelAddress common.Hash) *utils.Async
 func (rs *RaidenService) markWithdraw(channelAddress common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
-		Name:  markWithdrawReqName,
+		Name:  prepareWithdrawReqName,
 		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},
@@ -233,7 +239,7 @@ func (rs *RaidenService) markWithdraw(channelAddress common.Hash) *utils.AsyncRe
 func (rs *RaidenService) cancelMarkWithdraw(channelAddress common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
-		Name:  cancelMarkWithdrawReqName,
+		Name:  cancelPrepareWithdrawReqName,
 		Req: &closeSettleChannelReq{
 			addr: channelAddress,
 		},

@@ -50,18 +50,46 @@ func TestFilter(t *testing.T) {
 	for it.Next() {
 		fmt.Printf("event=%s", utils.StringInterface(it.Event, 3))
 	}
-	ch := make(chan *contracts.TokenNetworkRegistryTokenNetworkCreated, 10)
+	//ch := make(chan *contracts.TokenNetworkRegistryTokenNetworkCreated, 10)
+	//var start uint64
+	//sub, err := f.WatchTokenNetworkCreated(&bind.WatchOpts{
+	//	Start: &start,
+	//}, ch, nil, nil)
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
+	//for {
+	//	select {
+	//	case <-time.After(1 * time.Second):
+	//		sub.Unsubscribe()
+	//		return
+	//	case e := <-ch:
+	//		fmt.Printf("sub event=%s", utils.StringInterface(e, 3))
+	//	}
+	//}
+}
+
+func TestFilter2(t *testing.T) {
+	client, err := ethclient.Dial(rpc.TestRPCEndpoint)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tokenNetorkAddr := common.HexToAddress("0x67ac5bda210c1d3e5362dc85ba455a8a291323cc")
+	f, err := contracts.NewTokenNetworkFilterer(tokenNetorkAddr, client)
+	ch := make(chan *contracts.TokenNetworkChannelNewDeposit, 10)
 	var start uint64
-	sub, err := f.WatchTokenNetworkCreated(&bind.WatchOpts{
+	sub, err := f.WatchChannelNewDeposit(&bind.WatchOpts{
 		Start: &start,
-	}, ch, nil, nil)
+	}, ch, nil)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	for {
 		select {
-		case <-time.After(10 * time.Second):
+		case <-time.After(50 * time.Second):
 			sub.Unsubscribe()
 			return
 		case e := <-ch:

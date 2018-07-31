@@ -1,11 +1,10 @@
 package blockchain
 
 import (
+	"fmt"
 	"os"
 
 	"testing"
-
-	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"

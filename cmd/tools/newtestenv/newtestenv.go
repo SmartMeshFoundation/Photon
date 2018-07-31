@@ -192,6 +192,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	if err != nil {
 		log.Fatalf("Failed to AddToken: %v", err)
 	}
+	log.Printf("CreateERC20TokenNetwork tx=%s", tx.Hash().String())
 	ctx = context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
@@ -215,7 +216,7 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
-			tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
+			tx, err := token.Transfer(auth2, account, big.NewInt(500000000000))
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
 			}

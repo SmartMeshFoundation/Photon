@@ -299,7 +299,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
 	}
 	if !ch.CanTransfer() {
-		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is  can not accept any transfer %s", ch.ChannelIdentifier))
+		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is  can not accept any transfer %s", ch.ChannelIdentifier.String()))
 	}
 	err := ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
@@ -362,7 +362,7 @@ func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 			if err2 != nil {
 				log.Error(fmt.Sprintf("CooperativeSettleChannelOnRequest err %s", err2))
 			} else {
-				log.Info(fmt.Sprintf("CooperativeSettleChannelOnRequest success on channel %s", ch.ChannelIdentifier))
+				log.Info(fmt.Sprintf("CooperativeSettleChannelOnRequest success on channel %s", ch.ChannelIdentifier.String()))
 			}
 		}()
 		return nil
@@ -446,7 +446,7 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 			if err2 != nil {
 				log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
 			} else {
-				log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier))
+				log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier.String()))
 			}
 		}()
 		return nil
@@ -489,7 +489,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	go func() {
 		err = <-result.Result
 		if err != nil {
-			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier))
+			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
 		}
 	}()
 	return nil

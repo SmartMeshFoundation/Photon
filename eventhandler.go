@@ -179,7 +179,7 @@ func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransf
 	go func() {
 		err := <-result.Result
 		if err != nil {
-			log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", ch.ChannelIdentifier, err))
+			log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", ch.ChannelIdentifier.String(), err))
 		}
 	}()
 	return nil
@@ -368,7 +368,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		partner = st.Participant2
 	}
 	if isParticipant {
-		eh.raiden.registerChannel(tokenNetworkAddress, partner)
+		eh.raiden.registerChannel(tokenNetworkAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
 		if !isBootstrap {
 			other := participant2
 			if other == eh.raiden.NodeAddress {
@@ -488,13 +488,13 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 	if err != nil {
 		return nil
 	}
-	panic("unhandled event ")
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 		return err
 	}
-	return eh.removeSettledChannel(ch)
+	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	return err
 }
 
 //如果是对方 unlock 我的锁,那么有可能需要 punish 对方,即使不需要 punish 对方,settle 的时候也需要用到新的 locksroot 和 transferamount
@@ -574,34 +574,36 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 			}
 		}
 	case *mediatedtransfer.ContractClosedStateChange:
-		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
-			if c.State != channeltype.StateClosed {
-				c.ExternState.SetClosed(st2.ClosedBlock)
-				c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
-			} else {
-				log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%d,thisblock=%d",
-					c.ChannelIdentifier.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
-			}
+		if c.State != channeltype.StateClosed {
+			c.ExternState.SetClosed(st2.ClosedBlock)
+			c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
+		} else {
+			log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%d,thisblock=%d",
+				c.ChannelIdentifier.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
 		}
 	case *mediatedtransfer.ContractSettledStateChange:
 		//settled channel should be removed.
-		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
-			if c.ExternState.SetSettled(st2.SettledBlock) {
-				c.HandleSettled(st2.SettledBlock)
-			} else {
-				log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
-					c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
-			}
+		if c.ExternState.SetSettled(st2.SettledBlock) {
+			c.HandleSettled(st2.SettledBlock)
+		} else {
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		//settled channel should be removed.
-		if st2.ChannelIdentifier == c.ChannelIdentifier.ChannelIdentifier {
-			if c.ExternState.SetSettled(st2.SettledBlock) {
-				c.HandleSettled(st2.SettledBlock)
-			} else {
-				log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
-					c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
-			}
+		if c.ExternState.SetSettled(st2.SettledBlock) {
+			c.HandleSettled(st2.SettledBlock)
+		} else {
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
+		}
+	case *mediatedtransfer.ContractChannelWithdrawStateChange:
+		if c.ChannelIdentifier.OpenBlockNumber < st2.BlockNumber {
+			c.HandleWithdrawed(st2.BlockNumber, st2.Participant1, st2.Participant2, st2.Participant1Balance, st2.Participant2Balance)
+		} else {
+			log.Warn(fmt.Sprintf("receive withdraw event,but channel's openblocknumber=%d,new openblocknumber=%d",
+				c.ChannelIdentifier.OpenBlockNumber, st2.BlockNumber,
+			))
 		}
 	case *mediatedtransfer.ContractBalanceStateChange:
 		participant := st2.ParticipantAddress

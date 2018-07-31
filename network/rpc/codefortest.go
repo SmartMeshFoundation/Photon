@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -70,6 +71,7 @@ func TestGetTokenNetworkAddress() common.Address {
 	if addr == utils.EmptyAddress {
 		panic("TOKENNETWORK env error")
 	}
+	log.Trace(fmt.Sprintf("test TOKENNETWORK=%s ", addr.String()))
 	return addr
 }
 
@@ -79,6 +81,7 @@ func TestGetTokenNetworkRegistryAddress() common.Address {
 	if addr == utils.EmptyAddress {
 		panic("REGISTRY env error")
 	}
+	log.Info(fmt.Sprintf("token network registry=%s", addr.String()))
 	return addr
 }
 

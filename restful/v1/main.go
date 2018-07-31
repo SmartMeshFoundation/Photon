@@ -57,6 +57,22 @@ func Start() {
 		rest.Patch("/api/1/channels/:channel", CloseSettleDepositChannel),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
 		/*
+			1. withdraw
+			{ "amount":3333,}
+			2. prepare for withdraw:
+			{"op":"preparewithdraw",}
+			3. cancel prepare:
+			{"op": "cancelprepare"}
+		*/
+		rest.Put("/api/1/withdraw/:channel", withdraw),
+		/*
+			1. prepare for withdraw:
+			{"op":"preparesettle",}
+			3. cancel prepare:
+			{"op": "cancelprepare"}
+		*/
+		rest.Put("/api/1/settle/:channel", nil),
+		/*
 			connections
 		*/
 		rest.Get("/api/1/connections", GetConnections),

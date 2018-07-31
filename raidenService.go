@@ -227,31 +227,30 @@ func (rs *RaidenService) Start() (err error) {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
 	})
-	if rs.Chain.Client.IsConnected() {
-		lastHandledBlockNumber := rs.db.GetLatestBlockNumber()
-		err = rs.AlarmTask.Start()
-		if err != nil {
-			log.Error(fmt.Sprintf("alarm task start err %s", err))
-			n := rs.db.GetLatestBlockNumber()
-			rs.BlockNumber.Store(n)
-		} else {
-			//must have a valid blocknumber before any transfer operation
-			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-		}
-		/*
-			events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
-		*/
-		err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
-		if err != nil {
-			err = fmt.Errorf("events listener error %v", err)
-			return
-		}
-
-		rs.ethInited = true
-	} else {
-		log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
-		rs.ethInited = false
-	}
+	//if rs.Chain.Client.IsConnected() {
+	//	err = rs.AlarmTask.Start()
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("alarm task start err %s", err))
+	//		n := rs.db.GetLatestBlockNumber()
+	//		rs.BlockNumber.Store(n)
+	//	} else {
+	//		//must have a valid blocknumber before any transfer operation
+	//		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+	//	}
+	//	///*
+	//	//	events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
+	//	//*/
+	//	//err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
+	//	//if err != nil {
+	//	//	err = fmt.Errorf("events listener error %v", err)
+	//	//	return
+	//	//}
+	//
+	//	rs.ethInited = true
+	//} else {
+	//	log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
+	//	rs.ethInited = false
+	//}
 	/*
 		  Registry registration must start *after* the alarm task, rs avoid
 			 corner cases were the registry is queried in block A, a new block B
@@ -440,35 +439,17 @@ i'm one of the channel participants
 收到来自链上的事件,新创建了 channel
 但是事件有可能重复
 */
-func (rs *RaidenService) newChannelFromChain(tokenAddress common.Address, proxy *rpc.TokenNetworkProxy, partnerAddress common.Address) (ch *channel.Channel, err error) {
+func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, tokenAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) (ch *channel.Channel, err error) {
 	/*
 		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
 		但是保证后续的事件会继续收到,所以应该按照新通道处理.
 	*/
 
-	var ourBalance, partnerBalance *big.Int
+	ourState := channel.NewChannelEndState(rs.NodeAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
+	partenerState := channel.NewChannelEndState(partnerAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 
-	channelID, _, openBlockNumber, _, settleTimeout, err := proxy.GetChannelInfo(rs.NodeAddress, partnerAddress)
-	if err != nil {
-		return
-	}
-	ourBalance, _, _, err = proxy.GetChannelParticipantInfo(rs.NodeAddress, partnerAddress)
-	if err != nil {
-		return
-	}
-	partnerBalance, _, _, err = proxy.GetChannelParticipantInfo(partnerAddress, rs.NodeAddress)
-	if err != nil {
-		return
-	}
-	ourState := channel.NewChannelEndState(rs.NodeAddress, ourBalance, nil, mtree.NewMerkleTree(nil))
-	partenerState := channel.NewChannelEndState(partnerAddress, partnerBalance, nil, mtree.NewMerkleTree(nil))
-	channelAddress := &contracts.ChannelUniqueID{
-		ChannelIdentifier: channelID,
-		OpenBlockNumber:   int64(openBlockNumber),
-	}
-
-	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, proxy, channelAddress, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
-	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelAddress, rs.Config.RevealTimeout, int(settleTimeout))
+	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
+	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelIdentifier, rs.Config.RevealTimeout, settleTimeout)
 	return
 }
 
@@ -579,7 +560,7 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
-					utils.HPex(secret), ch.ChannelIdentifier, err))
+					utils.HPex(secret), ch.ChannelIdentifier.String(), err))
 			}
 		}
 	}
@@ -595,7 +576,7 @@ func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash common.Ha
 			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
-					utils.HPex(lockSecretHash), ch.ChannelIdentifier, err))
+					utils.HPex(lockSecretHash), ch.ChannelIdentifier.String(), err))
 			}
 		}
 	}
@@ -684,20 +665,21 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 /*
 found new channel on blockchain when running...
 */
-func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, partnerAddress common.Address) {
+func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) {
 	tokenNetwork, err := rs.Chain.TokenNetwork(tokenNetworkAddress)
 	if err != nil {
-		log.Error(fmt.Sprintf("try to get tokenNetwork %s, err %s", tokenNetworkAddress.String(), err))
-		return
+		log.Error(fmt.Sprintf("receive new channel %s-%s,but cannot create tokennetwork err %s",
+			utils.APex2(tokenNetworkAddress), utils.APex2(partnerAddress), err,
+		))
 	}
 	tokenAddress := rs.TokenNetwork2Token[tokenNetworkAddress]
 	if rs.getChannel(tokenAddress, partnerAddress) != nil {
 		log.Error(fmt.Sprintf("receive new channel %s-%s,but this channel already exist, maybe a duplicate channel event", utils.APex2(tokenAddress), utils.APex2(partnerAddress)))
 		return
 	}
-	ch, err := rs.newChannelFromChain(tokenAddress, tokenNetwork, partnerAddress)
+	ch, err := rs.newChannelFromEvent(tokenNetwork, tokenAddress, partnerAddress, channelIdentifier, settleTimeout)
 	if err != nil {
-		log.Error(fmt.Sprintf("newChannelFromChain err %s", err))
+		log.Error(fmt.Sprintf("newChannelFromEvent err %s", err))
 		return
 	}
 	g := rs.getToken2ChannelGraph(tokenAddress)
@@ -1116,14 +1098,14 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) markCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) prepareCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("markCooperativeSettleChannel settle channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelAddress)))
 	err = c.PrepareForCooperativeSettle()
 	if err != nil {
 		result.Result <- err
@@ -1133,15 +1115,56 @@ func (rs *RaidenService) markCooperativeSettleChannel(channelAddress common.Hash
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) cancelMarkCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("cancelMarkCooperativeSettleChannel   channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelAddress)))
 	err = c.CancelWithdrawOrCooperativeSettle()
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	result.Result <- err
+	return
+}
+
+func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	c, err := rs.findChannelByAddress(channelAddress)
+	if err != nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
+	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelAddress), amount))
+	s, err := c.CreateWithdrawRequest(amount)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	c.State = channeltype.StateWithdraw
+	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	if err != nil {
+		result.Result <- err
+	}
+	err = s.Sign(rs.PrivateKey, s)
+	err = rs.sendAsync(c.PartnerState.Address, s)
+	result.Result <- err
+	return
+}
+func (rs *RaidenService) prepareForWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	c, err := rs.findChannelByAddress(channelAddress)
+	if err != nil { //settled channel can be queried from db.
+		result.Result <- errors.New("channel not exist")
+		return
+	}
+	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelAddress)))
+	err = c.PrepareForWithdraw()
 	if err != nil {
 		result.Result <- err
 		return
@@ -1368,15 +1391,21 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 	case cooperativeSettleChannelReqName:
 		r := req.Req.(*closeSettleChannelReq)
 		result = rs.cooperativeSettleChannel(r.addr)
-	case markChannelForCooperativeSettleReqName:
+	case prepareForCooperativeSettleReqName:
 		r := req.Req.(*closeSettleChannelReq)
-		result = rs.markCooperativeSettleChannel(r.addr)
-	case cancelMarkChannelForCooperativeSettleReqName:
+		result = rs.prepareCooperativeSettleChannel(r.addr)
+	case cancelPrepareForCooperativeSettleReqName:
 		r := req.Req.(*closeSettleChannelReq)
-		result = rs.cancelMarkCooperativeSettleChannel(r.addr)
+		result = rs.cancelPrepareForCooperativeSettleChannelOrWithdraw(r.addr)
 	case withdrawReqName:
-	case markWithdrawReqName:
-	case cancelMarkWithdrawReqName:
+		r := req.Req.(*withdrawReq)
+		result = rs.withdraw(r.addr, r.amount)
+	case prepareWithdrawReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.prepareForWithdraw(r.addr)
+	case cancelPrepareWithdrawReqName:
+		r := req.Req.(*closeSettleChannelReq)
+		result = rs.cancelPrepareForCooperativeSettleChannelOrWithdraw(r.addr)
 	default:
 		panic("unkown req")
 	}

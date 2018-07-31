@@ -315,3 +315,68 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
+
+func withdraw(w rest.ResponseWriter, r *rest.Request) {
+	chstr := r.PathParam("channel")
+	if len(chstr) != len(utils.EmptyHash.String()) {
+		rest.Error(w, "argument error", http.StatusBadRequest)
+		return
+	}
+	chAddr := common.HexToHash(chstr)
+	type Req struct {
+		Amount *big.Int
+		Op     string
+	}
+	const OpPrepareWithdraw = "preparewithdraw"
+	const OpCancelPrepare = "cancelprepare"
+
+	req := &Req{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	c, err := RaidenAPI.GetChannel(chAddr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	if req.Amount != nil && req.Amount.Cmp(utils.BigInt0) > 0 { //deposit
+		c, err = RaidenAPI.Withdraw(c.TokenAddress(), c.PartnerAddress(), req.Amount)
+		if err != nil {
+			rest.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else {
+		if req.Op == OpPrepareWithdraw {
+			c, err = RaidenAPI.PrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+		} else if req.Op == OpCancelPrepare {
+			c, err = RaidenAPI.CancelPrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+		} else {
+			err = fmt.Errorf("unkown operation %s", req.Op)
+		}
+		if err != nil {
+			rest.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	d := &ChannelData{
+		ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	err = w.WriteJson(d)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}

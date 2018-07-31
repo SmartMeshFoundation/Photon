@@ -100,7 +100,7 @@ CanTransfer  a closed channel and has no Balance channel cannot
 transfer tokens to partner.
 */
 func (c *Channel) CanTransfer() bool {
-	return channeltype.CanTransferMap[c.State] && c.Distributable().Cmp(utils.BigInt0) > 0
+	return channeltype.CanTransferMap[c.State]
 }
 
 //CanContinueTransfer unfinished transfer can continue?
@@ -205,6 +205,47 @@ there is nothing tod rightnow
 */
 func (c *Channel) HandleSettled(blockNumber int64) {
 	c.State = channeltype.StateSettled
+}
+
+//HandleWithdrawed 需要重新分配初始化整个通道的信息
+func (c *Channel) HandleWithdrawed(newOpenBlockNumber int64, participant1, participant2 common.Address, participant1Balance, participant2Balance *big.Int) {
+	var p1, p2 *EndState
+	if c.OurState.Address == participant1 && c.PartnerState.Address == participant2 {
+		p1 = c.OurState
+		p2 = c.PartnerState
+	} else if c.OurState.Address == participant2 && c.PartnerState.Address == participant1 {
+		p1 = c.PartnerState
+		p2 = c.OurState
+	} else {
+		panic(fmt.Sprintf("channel event error, ourAddress=%s,partnerAddress=%s,p1=%s,p2=%s",
+			c.OurState.Address.String(), c.PartnerState.Address.String(),
+			participant1.String(), participant2.String(),
+		))
+	}
+	if len(p1.Lock2UnclaimedLocks) > 0 || len(p2.Lock2UnclaimedLocks) > 0 {
+		log.Warn(fmt.Sprintf("channel %s receive contract withdraw event, but has unclaimed locks."+
+			"p1lock=%s,p2lock=%s", c.ChannelIdentifier.String(), utils.StringInterface(p1.Lock2UnclaimedLocks, 3),
+			utils.StringInterface(p2.Lock2UnclaimedLocks, 3)))
+	}
+	/*
+		通道所有的历史交易直接抛弃,并且不会在 settle 历史中保存,
+	*/
+	c.ChannelIdentifier.OpenBlockNumber = newOpenBlockNumber
+	c.State = channeltype.StateOpened
+	c.ExternState.ChannelIdentifier.OpenBlockNumber = newOpenBlockNumber
+	c.ExternState.ClosedBlock = 0
+	c.ExternState.SettledBlock = 0
+	p1.ContractBalance = participant1Balance
+	p1.BalanceProofState = nil
+	p1.Lock2PendingLocks = make(map[common.Hash]channeltype.PendingLock)
+	p1.Lock2UnclaimedLocks = make(map[common.Hash]channeltype.UnlockPartialProof)
+	p1.Tree = mtree.NewMerkleTree(nil)
+	p2.ContractBalance = participant2Balance
+	p2.BalanceProofState = nil
+	p2.Lock2PendingLocks = make(map[common.Hash]channeltype.PendingLock)
+	p2.Lock2UnclaimedLocks = make(map[common.Hash]channeltype.UnlockPartialProof)
+	p2.Tree = mtree.NewMerkleTree(nil)
+
 }
 
 /*
@@ -333,7 +374,7 @@ PreCheckRecievedTransfer pre check received message(directtransfer,mediatedtrans
 func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromState *EndState, toState *EndState, err error) {
 	evMsg := tr.GetEnvelopMessage()
 	if !c.isValidEnvelopMessage(evMsg) {
-		err = fmt.Errorf("ch address mismatch,expect=%s,got=%s", c.ChannelIdentifier, evMsg)
+		err = fmt.Errorf("ch address mismatch,expect=%s,got=%s", c.ChannelIdentifier.String(), evMsg)
 		return
 	}
 	if tr.GetSender() == c.OurState.Address {
@@ -351,7 +392,7 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
 		         fails either we are out of sync, a message out of order, or it's a
 		         forged transfer
 	*/
-	isInvalidNonce := (evMsg.Nonce < 1 || (fromState.nonce() != 0 && evMsg.Nonce != fromState.nonce()+1))
+	isInvalidNonce := evMsg.Nonce < 1 || (fromState.nonce() != 0 && evMsg.Nonce != fromState.nonce()+1)
 	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		//c may occur on normal operation
@@ -366,7 +407,7 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
 		log.Error(fmt.Sprintf("NEGATIVE TRANSFER node=%s,from=%s,to=%s,transfer=%s",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]), utils.Pex(toState.Address[:]),
 			utils.StringInterface(tr, 3))) //for nest struct
-		err = fmt.Errorf("Negative transfer")
+		err = fmt.Errorf("negative transfer")
 		return
 	}
 	return
@@ -593,7 +634,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 	}
 	if amount.Cmp(utils.BigInt0) <= 0 || amount.Cmp(c.Distributable()) > 0 {
 		log.Info(fmt.Sprintf("Insufficient funds  amount=%s,Distributable=%s", amount, c.Distributable()))
-		return nil, fmt.Errorf("Insufficient funds")
+		return nil, fmt.Errorf("insufficient funds")
 	}
 	from := c.OurState
 	lock := &mtree.Lock{

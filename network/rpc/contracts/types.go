@@ -16,7 +16,7 @@ type ChannelUniqueID struct {
 	OpenBlockNumber   int64
 }
 
-func (c ChannelUniqueID) String() string {
+func (c *ChannelUniqueID) String() string {
 	return fmt.Sprintf("{ch=%s,OpenBlockNumber=%d}",
 		utils.HPex(c.ChannelIdentifier), c.OpenBlockNumber)
 }

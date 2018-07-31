@@ -506,8 +506,8 @@ func (r *RaidenAPI) CooperativeSettle(tokenAddress, partnerAddress common.Addres
 	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
-//MarkForCooperativeSettle  mark a channel prepared for settle,  return when state has been updated to database
-func (r *RaidenAPI) MarkForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+//PrepareForCooperativeSettle  mark a channel prepared for settle,  return when state has been updated to database
+func (r *RaidenAPI) PrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
 	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened {
 		err = rerr.InvalidState("channel must be  open")
@@ -516,7 +516,7 @@ func (r *RaidenAPI) MarkForCooperativeSettle(tokenAddress, partnerAddress common
 	//send settle request
 	result := r.Raiden.markChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Trace(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -524,8 +524,8 @@ func (r *RaidenAPI) MarkForCooperativeSettle(tokenAddress, partnerAddress common
 	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
-//CancelMarkForCooperativeSettle  cancel a mark. return when state has been updated to database
-func (r *RaidenAPI) CancelMarkForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+//CancelPrepareForCooperativeSettle  cancel a mark. return when state has been updated to database
+func (r *RaidenAPI) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
 	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StatePrepareForCooperativeSettle {
 		err = rerr.InvalidState("channel must be  open")
@@ -534,7 +534,65 @@ func (r *RaidenAPI) CancelMarkForCooperativeSettle(tokenAddress, partnerAddress 
 	//send settle request
 	result := r.Raiden.cancelMarkChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Trace(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	if err != nil {
+		return
+	}
+	//reload data from database, this channel has been removed.
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+}
+
+//Withdraw on a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
+func (r *RaidenAPI) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.Int) (c *channeltype.Serialization, err error) {
+	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
+		err = rerr.InvalidState("channel must be  open")
+		return
+	}
+	if c.OurBalance().Cmp(amount) < 0 {
+		err = fmt.Errorf("invalid withdraw amount, availabe=%s,want=%s", c.OurBalance(), amount)
+		return
+	}
+	//send settle request
+	result := r.Raiden.withdrawClient(c.ChannelIdentifier.ChannelIdentifier, amount)
+	err = <-result.Result
+	log.Trace(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
+	if err != nil {
+		return
+	}
+	//reload data from database, this channel has been removed.
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+}
+
+//PrepareForWithdraw  mark a channel prepared for withdraw,  return when state has been updated to database
+func (r *RaidenAPI) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+	if c.State != channeltype.StateOpened {
+		err = rerr.InvalidState("channel must be  open")
+		return
+	}
+	//send settle request
+	result := r.Raiden.markWithdraw(c.ChannelIdentifier.ChannelIdentifier)
+	err = <-result.Result
+	log.Trace(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	if err != nil {
+		return
+	}
+	//reload data from database, this channel has been removed.
+	return r.Raiden.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+}
+
+//CancelPrepareForWithdraw  cancel a mark. return when state has been updated to database
+func (r *RaidenAPI) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+	c, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+	if c.State != channeltype.StatePrepareForWithdraw {
+		err = rerr.InvalidState("channel must be  open")
+		return
+	}
+	//send settle request
+	result := r.Raiden.cancelMarkWithdraw(c.ChannelIdentifier.ChannelIdentifier)
+	err = <-result.Result
+	log.Trace(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
