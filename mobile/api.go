@@ -143,7 +143,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 }
 
 //CloseChannel close a channel
-func (a *API) CloseChannel(channelAddress string) (channel string, err error) {
+func (a *API) CloseChannel(channelAddress string, force bool) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api CloseChannel in channelAddress=%s,out channel=\n%s,err=%v",
 			channelAddress, channel, err,
@@ -155,10 +155,18 @@ func (a *API) CloseChannel(channelAddress string) (channel string, err error) {
 		log.Error(err.Error())
 		return
 	}
-	c, err = a.api.Close(c.TokenAddress(), c.PartnerAddress())
-	if err != nil {
-		log.Error(err.Error())
-		return
+	if force {
+		c, err = a.api.Close(c.TokenAddress(), c.PartnerAddress())
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+	} else {
+		c, err = a.api.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
 	}
 	d := &v1.ChannelData{
 		ChannelAddress:      common.BytesToHash(c.Key).String(),
