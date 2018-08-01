@@ -94,3 +94,12 @@ func TestEvents_GetAllSecretRevealed(t *testing.T) {
 	}
 	t.Logf("events=\n%s", utils.StringInterface(events, 3))
 }
+
+func TestEvents_GetChannelNewAndDeposit(t *testing.T) {
+	events, err := be.GetChannelNewAndDeposit(0, utils.EmptyAddress)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("events=\n%s", utils.StringInterface(events, 3))
+}

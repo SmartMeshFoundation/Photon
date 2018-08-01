@@ -6,6 +6,9 @@ const NameTokenNetworkCreated = "TokenNetworkCreated"
 //NameChannelOpened new channel event of token network
 const NameChannelOpened = "ChannelOpened"
 
+//NameChannelOpenedAndDeposit new channel and deposit event of token network
+const NameChannelOpenedAndDeposit = "ChannelOpenedAndDeposit"
+
 //NameChannelNewDeposit deposit event of token network
 const NameChannelNewDeposit = "ChannelNewDeposit"
 

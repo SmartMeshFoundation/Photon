@@ -50,6 +50,15 @@ func newEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpe
 	event.Raw = *el
 	return
 }
+func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
+	event = &contracts.TokenNetworkChannelOpenedAndDeposit{}
+	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelOpenedAndDeposit, el)
+	if err != nil {
+		return
+	}
+	event.Raw = *el
+	return
+}
 func newEventChannelNewDeposit(el *types.Log) (event *contracts.TokenNetworkChannelNewDeposit, err error) {
 	event = &contracts.TokenNetworkChannelNewDeposit{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelNewDeposit, el)

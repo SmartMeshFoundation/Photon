@@ -64,6 +64,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRe
 var eventAbiMap = map[string]string{
 	params.NameTokenNetworkCreated:       contracts.TokenNetworkRegistryABI,
 	params.NameChannelOpened:             contracts.TokenNetworkABI,
+	params.NameChannelOpenedAndDeposit:   contracts.TokenNetworkABI,
 	params.NameChannelNewDeposit:         contracts.TokenNetworkABI,
 	params.NameChannelClosed:             contracts.TokenNetworkABI,
 	params.NameChannelSettled:            contracts.TokenNetworkABI,
@@ -191,6 +192,29 @@ func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *medi
 	}
 }
 
+//EventChannelOpenAndDeposit2StateChange to statechange
+func EventChannelOpenAndDeposit2StateChange(ev *contracts.TokenNetworkChannelOpenedAndDeposit) (ch1 *mediatedtransfer.ContractNewChannelStateChange, ch2 *mediatedtransfer.ContractBalanceStateChange) {
+	ch1 = &mediatedtransfer.ContractNewChannelStateChange{
+		ChannelIdentifier: &contracts.ChannelUniqueID{
+			ChannelIdentifier: ev.Channel_identifier,
+			OpenBlockNumber:   int64(ev.Raw.BlockNumber),
+		},
+		TokenNetworkAddress: ev.Raw.Address,
+		Participant1:        ev.Participant1,
+		Participant2:        ev.Participant2,
+		SettleTimeout:       int(ev.Settle_timeout.Int64()),
+		BlockNumber:         int64(ev.Raw.BlockNumber),
+	}
+	ch2 = &mediatedtransfer.ContractBalanceStateChange{
+		ChannelIdentifier:   ev.Channel_identifier,
+		ParticipantAddress:  ev.Participant1,
+		BlockNumber:         int64(ev.Raw.BlockNumber),
+		Balance:             ev.Participant1_deposit,
+		TokenNetworkAddress: ev.Raw.Address,
+	}
+	return
+}
+
 //EventChannelNewDeposit2StateChange to statechange
 func EventChannelNewDeposit2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractBalanceStateChange {
 	return &mediatedtransfer.ContractBalanceStateChange{
@@ -275,6 +299,19 @@ func (be *Events) startListenEvent() {
 							continue
 						}
 						be.sendStateChange(EventChannelOpen2StateChange(ev))
+					case params.NameChannelOpenedAndDeposit:
+						ev, err := newEventChannelOpenAndDeposit(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelOpen err=%s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("receive event ChannelOpened, but it's not our contract, ev=\n%s", utils.StringInterface(ev, 3)))
+							continue
+						}
+						nev, dev := EventChannelOpenAndDeposit2StateChange(ev)
+						be.sendStateChange(nev)
+						be.sendStateChange(dev)
 					case params.NameChannelNewDeposit:
 						ev, err := newEventChannelNewDeposit(&l)
 						if err != nil {
@@ -439,6 +476,30 @@ func (be *Events) GetChannelNew(fromBlock int64, tokenNetworkAddress common.Addr
 	for _, l := range logs {
 		var e *contracts.TokenNetworkChannelOpened
 		e, err = newEventChannelOpen(&l)
+		if err != nil {
+			log.Error(fmt.Sprintf("newEventChannelOpen err %s", err))
+			continue
+		}
+		events = append(events, e)
+	}
+	return
+}
+
+/*
+GetChannelNewAndDeposit return's a token network's channel since `fromBlock` on tokenNetworkAddress
+if tokenNetworkAddress is empty, return all events have this sigature
+如果 channel 特别多,比如十万个,怎么办,
+为了防止出现这样的情况,应该一个一个 tokennetwork 获取事件,而不要是一起获取.
+*/
+func (be *Events) GetChannelNewAndDeposit(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+		params.NameChannelOpenedAndDeposit, eventAbiMap[params.NameChannelOpenedAndDeposit], be.client)
+	if err != nil {
+		return
+	}
+	for _, l := range logs {
+		var e *contracts.TokenNetworkChannelOpenedAndDeposit
+		e, err = newEventChannelOpenAndDeposit(&l)
 		if err != nil {
 			log.Error(fmt.Sprintf("newEventChannelOpen err %s", err))
 			continue
@@ -707,6 +768,14 @@ func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []m
 		}
 		for _, e := range events10 {
 			stateChangs = append(stateChangs, EventChannelPunished2StateChange(e))
+		}
+		events11, err := be.GetChannelNewAndDeposit(lastBlockNumber, tokenNetwork)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range events11 {
+			st1, st2 := EventChannelOpenAndDeposit2StateChange(e)
+			stateChangs = append(stateChangs, st1, st2)
 		}
 	}
 	return
