@@ -28,7 +28,6 @@ test -z "$(gometalinter -j 4 --disable-all \
 --enable=vetshadow \
 --deadline=10m  \
 --vendor \
---skip cmd/tools/apitest \
 --skip network/rpc/contracts \
 --skip internal/debug \
 --skip log \
