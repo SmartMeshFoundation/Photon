@@ -10,7 +10,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
@@ -339,7 +338,6 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	eh.raiden.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	eh.raiden.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	eh.raiden.Token2ChannelGraph[tokenAddress] = g
-	eh.raiden.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(eh.raiden, tokenAddress)
 	return nil
 }
 func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.ContractNewChannelStateChange) error {
@@ -356,31 +354,22 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 	g := eh.raiden.getToken2ChannelGraph(tokenAddress)
 	g.AddPath(participant1, participant2)
 	err := eh.raiden.db.NewNonParticipantChannel(tokenAddress, st.ChannelIdentifier.ChannelIdentifier, participant1, participant2)
-	connectionManager, err := eh.raiden.connectionManagerForToken(tokenAddress)
 	if err != nil {
 		log.Error(err.Error())
 		return err
 	}
 	isParticipant := eh.raiden.NodeAddress == participant2 || eh.raiden.NodeAddress == participant1
-	isBootstrap := connectionManager.BootstrapAddr == participant1 || connectionManager.BootstrapAddr == participant2
 	partner := st.Participant1
 	if partner == eh.raiden.NodeAddress {
 		partner = st.Participant2
 	}
 	if isParticipant {
 		eh.raiden.registerChannel(tokenNetworkAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
-		if !isBootstrap {
-			other := participant2
-			if other == eh.raiden.NodeAddress {
-				other = participant1
-			}
-			eh.raiden.startHealthCheckFor(other)
+		other := participant2
+		if other == eh.raiden.NodeAddress {
+			other = participant1
 		}
-	} else if connectionManager.WantsMoreChannels() {
-		go func() {
-			defer rpanic.PanicRecover("RetryConnect")
-			connectionManager.RetryConnect()
-		}()
+		eh.raiden.startHealthCheckFor(other)
 	} else {
 		log.Trace("ignoring new channel, this node is not a participant.")
 	}
@@ -388,9 +377,6 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 }
 
 func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractBalanceStateChange) error {
-	tokenAddress := eh.raiden.TokenNetwork2Token[st.TokenNetworkAddress]
-	participant := st.ParticipantAddress
-	balance := st.Balance
 	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
 	if err != nil {
 		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
@@ -402,16 +388,6 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
 	err = eh.raiden.db.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
-	if ch.ContractBalance().Cmp(utils.BigInt0) == 0 {
-		connectionManager, err := eh.raiden.connectionManagerForToken(tokenAddress)
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer rpanic.PanicRecover(fmt.Sprintf("JoinChannel %s", utils.APex(participant)))
-			connectionManager.JoinChannel(participant, balance)
-		}()
-	}
 	return nil
 }
 

@@ -106,73 +106,10 @@ func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.A
 }
 
 /*
-ConnectTokenNetwork Instruct the ConnectionManager to establish and maintain a connection to the token
-    network.
-
-    If the `token_address` is not already part of the raiden network, this will also register
-    the token. //
-
-    Args:
-        token_address (bin): the ERC20 token network to connect to.
-        funds (int): the amount of funds that can be used by the ConnectionMananger.
-        initial_channel_target (int): number of channels to open proactively.
-        joinable_funds_target (float): fraction of the funds that will be used to join
-            channels opened by other participants.
-*/
-func (r *RaidenAPI) ConnectTokenNetwork(tokenAddress common.Address, funds *big.Int, initialChannelTarget int64, joinableFundsTarget float64) error {
-	cm, err := r.Raiden.connectionManagerForToken(tokenAddress)
-	if err != nil {
-		return err
-	}
-	return cm.Connect(funds, initialChannelTarget, joinableFundsTarget)
-}
-
-/*
-LeaveTokenNetwork Instruct the ConnectionManager to close all channels and wait for
-    settlement
-*/
-func (r *RaidenAPI) LeaveTokenNetwork(tokenAddress common.Address, onlyReceiving bool) ([]*channeltype.Serialization, error) {
-	cm, err := r.Raiden.connectionManagerForToken(tokenAddress)
-	if err != nil {
-		return nil, err
-	}
-	chs, err := cm.Leave(onlyReceiving)
-	return chs, err
-}
-
-/*
-GetConnectionManagersInfo Get a dict whose keys are token addresses and whose values are
-    open channels, funds of last request, sum of deposits and number of channels
-*/
-func (r *RaidenAPI) GetConnectionManagersInfo() map[string]interface{} {
-	type info struct {
-		Funds       *big.Int `json:"funds"`
-		SumDeposits *big.Int `json:"sum_deposits"`
-		Channels    int      `json:"channels"`
-	}
-	infos := make(map[string]interface{})
-	for _, t := range r.GetTokenList() {
-		cm, err := r.Raiden.connectionManagerForToken(t)
-		if err != nil {
-			continue
-		}
-		if len(cm.openChannels()) > 0 {
-			info := &info{
-				Funds:       cm.funds,
-				SumDeposits: cm.sumDeposits(),
-				Channels:    len(cm.openChannels()),
-			}
-			infos[cm.tokenAddress.String()] = info
-		}
-	}
-	return infos
-}
-
-/*
 Open a channel with the peer at `partner_address`
     with the given `token_address`.
 */
-func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int) (ch *channeltype.Serialization, err error) {
+func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
 		revealTimeout = r.Raiden.Config.RevealTimeout
 	}
@@ -192,14 +129,19 @@ func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTime
 		}
 		return false
 	})
-	result := r.Raiden.newChannelClient(tokenAddress, partnerAddress, settleTimeout)
+	result := r.Raiden.newChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
 	//wait
 	wg.Wait()
-	return r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+	ch, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
+	if err == nil {
+		//must be success, no need to wait event and register a callback
+		ch.OurContractBalance = deposit
+	}
+	return
 }
 
 /*
@@ -224,7 +166,10 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	if err != nil {
 		return
 	}
-	token := r.Raiden.Chain.Token(tokenAddress)
+	token, err := r.Raiden.Chain.Token(tokenAddress)
+	if err != nil {
+		return
+	}
 	balance, err := token.BalanceOf(r.Raiden.NodeAddress)
 	if err != nil {
 		return
@@ -235,7 +180,7 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 		     user spent his balance before deposit.
 	*/
 	if balance.Cmp(amount) < 0 {
-		err = fmt.Errorf("Not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
+		err = fmt.Errorf("not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
 		log.Error(err.Error())
 		err = rerr.ErrInsufficientFunds
 		return

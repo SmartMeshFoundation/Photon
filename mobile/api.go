@@ -112,7 +112,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 	partnerAddr := common.HexToAddress(partnerAddress)
 	tokenAddr := common.HexToAddress(tokenAddress)
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout)
+	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout, balance)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -127,15 +127,6 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		TokenAddress:        c.TokenAddress().String(),
 		LockedAmount:        c.OurAmountLocked(),
 		PartnerLockedAmount: c.PartnerAmountLocked(),
-	}
-	if balance.Cmp(utils.BigInt0) > 0 {
-		c, err = a.api.Deposit(tokenAddr, partnerAddr, balance, params.DefaultPollTimeout)
-		if err == nil {
-			d.Balance = c.OurBalance()
-		} else {
-			log.Error(fmt.Sprintf(" RaidenAPI.Deposit error : %s", err))
-			return
-		}
 	}
 	channel, err = marshal(d)
 	return
@@ -409,7 +400,7 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 		err = a.api.ExpectTokenSwap(Identifier, common.HexToAddress(ReceivingToken), common.HexToAddress(SendingToken),
 			target, a.api.Raiden.NodeAddress, ReceivingAmount, SendingAmount)
 	} else {
-		err = fmt.Errorf("Provided invalid token swap role %s", role)
+		err = fmt.Errorf("provided invalid token swap role %s", role)
 	}
 	return
 }
@@ -419,57 +410,6 @@ func (a *API) Stop() {
 	log.Trace("Api Stop")
 	//test only
 	a.api.Stop()
-}
-
-/*
-QueryingConnections Querying connections details
-
-GET /api/<version>/connections
-*/
-func (a *API) QueryingConnections() string {
-	connections := a.api.GetConnectionManagersInfo()
-	s, err := marshal(connections)
-	if err != nil {
-		log.Error(fmt.Sprintf("marshal connections error %s", err))
-	}
-	return s
-}
-
-/*
-ConnectToTokenNetwork Connecting to a token network
-PUT /api/1/connections/0x2a65aca4d5fc5b5c859090a6c34d164135398226
-*/
-//Connecting to a token network
-func (a *API) ConnectToTokenNetwork(tokenAddress string, fundsStr string) (err error) {
-	token := common.HexToAddress(tokenAddress)
-	funds, _ := new(big.Int).SetString(fundsStr, 0)
-	if funds.Cmp(utils.BigInt0) <= 0 {
-		err = errors.New("funds <=0")
-		return
-	}
-	err = a.api.ConnectTokenNetwork(token, funds, params.DefaultInitialChannelTarget, params.DefaultJoinableFundsTarget)
-	return
-}
-
-/*
-LeaveTokenNetwork leave a token network
-*/
-func (a *API) LeaveTokenNetwork(OnlyReceivingChannels bool, tokenAddress string) (channels string, err error) {
-	token := common.HexToAddress(tokenAddress)
-
-	chs, err := a.api.LeaveTokenNetwork(token, OnlyReceivingChannels)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-
-	var addrs []string
-	for _, c := range chs {
-		addrs = append(addrs, c.OurAddress.String())
-	}
-	channels, err = marshal(addrs)
-	return
-
 }
 
 /*

@@ -131,18 +131,18 @@ func (bcs *BlockChainService) nextBlock() (currentBlock *big.Int, err error) {
 }
 
 // Token return a proxy to interact with a token.
-func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy) {
+func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy, err error) {
 	_, ok := bcs.addressTokens[tokenAddress]
 	if !ok {
 		token, err := contracts.NewToken(tokenAddress, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewToken %s err %s", tokenAddress.String(), err))
-			return
+			return nil, err
 		}
 		bcs.addressTokens[tokenAddress] = &TokenProxy{
 			Address: tokenAddress, bcs: bcs, Token: token}
 	}
-	return bcs.addressTokens[tokenAddress]
+	return bcs.addressTokens[tokenAddress], nil
 }
 
 //TokenNetwork return a proxy to interact with a NettingChannelContract.
@@ -287,6 +287,48 @@ func (t *TokenNetworkProxy) NewChannelAsync(partnerAddress common.Address, settl
 	return result
 }
 
+//NewChannelAndDeposit create new channel ,block until a new channel create
+func (t *TokenNetworkProxy) NewChannelAndDeposit(partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+	tokenAddr, err := t.ch.Token(nil)
+	if err != nil {
+		return
+	}
+	token, err := t.bcs.Token(tokenAddr)
+	if err != nil {
+		return
+	}
+	err = token.Approve(t.Address, amount)
+	if err != nil {
+		return
+	}
+	tx, err := t.ch.OpenChannelWithDeposit(t.bcs.Auth, t.bcs.NodeAddress, partnerAddress, uint64(settleTimeout), amount)
+	if err != nil {
+		return
+	}
+	log.Info(fmt.Sprintf("OpenChannelWithDeposit txhash=%s", tx.Hash().String()))
+	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	if err != nil {
+		return
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Info(fmt.Sprintf("NewChannelAndDeposit failed %s,receipt=%s", utils.APex(t.Address), receipt))
+		err = errors.New("NewChannelAndDeposit tx execution failed")
+		return
+	}
+	log.Info(fmt.Sprintf("NewChannelAndDeposit success %s, partnerAddress=%s,amount=%s", utils.APex(t.Address), utils.APex(partnerAddress), amount))
+	return
+}
+
+//NewChannelAndDepositAsync create channel async
+func (t *TokenNetworkProxy) NewChannelAndDepositAsync(partnerAddress common.Address, settleTimeout int, amount *big.Int) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	go func() {
+		err := t.NewChannelAndDeposit(partnerAddress, settleTimeout, amount)
+		result.Result <- err
+	}()
+	return result
+}
+
 /*GetChannelInfo Returns the channel specific data.
 @param participant1 Address of one of the channel participants.
 @param participant2 Address of the other channel participant.
@@ -311,11 +353,12 @@ func (t *TokenNetworkProxy) GetContract() *contracts.TokenNetwork {
 }
 
 //GetTokenProxy 应该考虑重构,放在这里并不合适
-func (t *TokenNetworkProxy) GetTokenProxy(tokenAddress common.Address) *TokenProxy {
+func (t *TokenNetworkProxy) GetTokenProxy(tokenAddress common.Address) (token *TokenProxy, err error) {
 	return t.bcs.Token(tokenAddress)
 }
 
 //TokenProxy proxy of ERC20 token
+//todo test if support ApproveAndCall ,ERC223 etc
 type TokenProxy struct {
 	Address common.Address
 	bcs     *BlockChainService

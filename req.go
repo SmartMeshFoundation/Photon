@@ -62,6 +62,7 @@ type newChannelReq struct {
 	tokenAddress   common.Address
 	partnerAddress common.Address
 	settleTimeout  int
+	amount         *big.Int
 }
 
 /*
@@ -142,7 +143,7 @@ func (rs *RaidenService) sendReqClient(req *apiReq) *utils.AsyncResult {
 	ar := <-req.result
 	return ar
 }
-func (rs *RaidenService) newChannelClient(token, partner common.Address, settleTimeout int) *utils.AsyncResult {
+func (rs *RaidenService) newChannelClient(token, partner common.Address, settleTimeout int, deposit *big.Int) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  newChannelReqName,
@@ -150,6 +151,7 @@ func (rs *RaidenService) newChannelClient(token, partner common.Address, settleT
 			tokenAddress:   token,
 			partnerAddress: partner,
 			settleTimeout:  settleTimeout,
+			amount:         deposit,
 		},
 	}
 	return rs.sendReqClient(req)

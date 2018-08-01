@@ -178,7 +178,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 	partnerAddr := common.HexToAddress(req.PartnerAddrses)
 	tokenAddr := common.HexToAddress(req.TokenAddress)
 	if req.State == 0 { //open channel
-		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DefaultRevealTimeout)
+		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DefaultRevealTimeout, req.Balance)
 		if err != nil {
 			log.Error(err.Error())
 			rest.Error(w, err.Error(), http.StatusConflict)
@@ -196,18 +196,6 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 			TokenAddress:        c.TokenAddress().String(),
 			LockedAmount:        c.OurAmountLocked(),
 			PartnerLockedAmount: c.PartnerAmountLocked(),
-		}
-		if req.Balance.Cmp(utils.BigInt0) > 0 {
-			c, err = RaidenAPI.Deposit(tokenAddr, partnerAddr, req.Balance, params.DefaultPollTimeout)
-			if err == nil {
-				c2, err2 := RaidenAPI.GetChannel(c.ChannelIdentifier.ChannelIdentifier)
-				if err2 != nil {
-					rest.Error(w, err2.Error(), http.StatusInternalServerError)
-				}
-				d.Balance = c2.OurBalance()
-			} else {
-				log.Error(fmt.Sprintf(" RaidenAPI.Deposit error : %s", err))
-			}
 		}
 		err = w.WriteJson(d)
 		if err != nil {

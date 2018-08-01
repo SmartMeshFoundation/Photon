@@ -22,7 +22,11 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 	addrstr := r.PathParam("addr")
 	token := common.HexToAddress(tokenstr)
 	addr := common.HexToAddress(addrstr)
-	t := RaidenAPI.Raiden.Chain.Token(token)
+	t, err := RaidenAPI.Raiden.Chain.Token(token)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	v, err := t.BalanceOf(addr)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -49,8 +53,12 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "arg error ", http.StatusBadRequest)
 		return
 	}
-	t := RaidenAPI.Raiden.Chain.Token(token)
-	err := t.Transfer(addr, v)
+	t, err := RaidenAPI.Raiden.Chain.Token(token)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = t.Transfer(addr, v)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

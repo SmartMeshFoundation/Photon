@@ -83,12 +83,11 @@ type RaidenService struct {
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
 
-	TokenNetwork2Token       map[common.Address]common.Address
-	Token2TokenNetwork       map[common.Address]common.Address
-	Transfer2StateManager    map[common.Hash]*transfer.StateManager
-	Transfer2Result          map[common.Hash]*utils.AsyncResult
-	SwapKey2TokenSwap        map[swapKey]*TokenSwap
-	Tokens2ConnectionManager map[common.Address]*ConnectionManager //how to save and restore for token swap? todo fix it
+	TokenNetwork2Token    map[common.Address]common.Address
+	Token2TokenNetwork    map[common.Address]common.Address
+	Transfer2StateManager map[common.Hash]*transfer.StateManager
+	Transfer2Result       map[common.Hash]*utils.AsyncResult
+	SwapKey2TokenSwap     map[swapKey]*TokenSwap
 	/*
 				   This is a map from a hashlock to a list of channels, the same
 			         hashlock can be used in more than one token (for tokenswaps), a
@@ -157,7 +156,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Transfer2Result:                     make(map[common.Hash]*utils.AsyncResult),
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
-		Tokens2ConnectionManager:            make(map[common.Address]*ConnectionManager),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
 		BlockNumberChan:                     make(chan int64, 20), //not block alarm task
 		UserReqChan:                         make(chan *apiReq, 10),
@@ -640,8 +638,6 @@ func (rs *RaidenService) registerTokenNetwork(tokenAddress, tokenNetworkAddress 
 	rs.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
-	rs.Tokens2ConnectionManager[tokenAddress] = NewConnectionManager(rs, tokenAddress)
-
 	//add channel I participant
 	css, err := rs.db.GetChannelList(tokenAddress, utils.EmptyAddress)
 
@@ -1019,24 +1015,25 @@ func (rs *RaidenService) getChannel(tokenAddr, partnerAddr common.Address) *chan
 Process user's new channel request
 */
 func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout int) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		var err error
-		defer rpanic.PanicRecover(fmt.Sprintf("newChannel token:%s,partner:%s", utils.APex(token), utils.APex(partner)))
-		defer func() {
-			result.Result <- err
-			close(result.Result)
-		}()
-		tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
-		if err != nil {
-			return
-		}
-		err = tokenNetwork.NewChannel(partner, settleTimeout)
-		if err != nil {
-			return
-		}
-		//defer write result
-	}()
+	tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
+	if err != nil {
+		result = utils.NewAsyncResultWithError(err)
+		return
+	}
+	result = tokenNetwork.NewChannelAsync(partner, settleTimeout)
+	return
+}
+
+/*
+Process user's new channel request
+*/
+func (rs *RaidenService) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int) (result *utils.AsyncResult) {
+	tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
+	if err != nil {
+		result = utils.NewAsyncResultWithError(err)
+		return
+	}
+	result = tokenNetwork.NewChannelAndDepositAsync(partner, settleTimeout, amount)
 	return
 }
 
@@ -1061,10 +1058,9 @@ func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.
 process user's close or settle channel request
 */
 func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op string) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil { //settled channel can be queried from db.
-		result.Result <- errors.New("channel not exist")
+		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
 		return
 	}
 	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelAddress)))
@@ -1372,7 +1368,11 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
-		result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
+		if r.amount != nil && r.amount.Cmp(utils.BigInt0) > 0 {
+			result = rs.newChannelAndDeposit(r.tokenAddress, r.partnerAddress, r.settleTimeout, r.amount)
+		} else {
+			result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
+		}
 	case depositChannelReqName:
 		r := req.Req.(*depositChannelReq)
 		result = rs.depositChannel(r.addr, r.amount)

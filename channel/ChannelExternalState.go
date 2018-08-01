@@ -265,8 +265,12 @@ func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (r
 	result = utils.NewAsyncResult()
 	go func() {
 		//首先 approve, 然后才能 deposit
-		token := e.TokenNetwork.GetTokenProxy(tokenAddress)
-		err := token.Approve(e.TokenNetwork.Address, amount)
+		token, err := e.TokenNetwork.GetTokenProxy(tokenAddress)
+		if err != nil {
+			result.Result <- err
+			return
+		}
+		err = token.Approve(e.TokenNetwork.Address, amount)
 		if err != nil {
 			result.Result <- err
 			return

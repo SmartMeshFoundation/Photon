@@ -73,13 +73,6 @@ func Start() {
 		*/
 		rest.Put("/api/1/settle/:channel", nil),
 		/*
-			connections
-		*/
-		rest.Get("/api/1/connections", GetConnections),
-		rest.Put("/api/1/connections/:token", ConnectTokenNetwork),
-		rest.Delete("/api/1/connections/:token", LeaveTokenNetwork),
-
-		/*
 			events
 		*/
 		rest.Get("/api/1/events/network", EventNetwork),
