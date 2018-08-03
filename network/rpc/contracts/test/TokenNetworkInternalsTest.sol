@@ -1,11 +1,11 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
-import "../TokenNetwork.sol";
+import "smartraiden/TokenNetwork.sol";
 
 contract TokenNetworkInternalsTest is TokenNetwork {
     constructor (address _token_address, address _secret_registry, uint256 _chain_id)
-        TokenNetwork(_token_address, _secret_registry, _chain_id)
-        public
+    TokenNetwork(_token_address, _secret_registry, _chain_id)
+    public
     {
 
     }
@@ -14,28 +14,34 @@ contract TokenNetworkInternalsTest is TokenNetwork {
         return uint256(0 - 1);
     }
 
-    function getMerkleRootAndUnlockedAmountPublic(bytes merkle_tree)
-        view
-        public
-        returns (bytes32, uint256)
+    function computeMerkleRootPublic(bytes32 lockhash, bytes merkle_proof)
+    pure
+    public
+    returns (bytes32)
     {
-        return getMerkleRootAndUnlockedAmount(merkle_tree);
+        return computeMerkleRoot(lockhash, merkle_proof);
     }
 
-    function recoverAddressFromWithdrawMessagePublic(
+    function recoverAddressFromCooperativeSettleSignaturePublic(
         bytes32 channel_identifier,
-        address participant,
-        uint256 amount_to_withdraw,
+        address participant1,
+        uint256 participant1_balance,
+        address participant2,
+        uint256 participant2_balance,
+        uint64 open_blocknumber,
         bytes signature
     )
-        view
-        public
-        returns (address signature_address)
+    view
+    public
+    returns (address signature_address)
     {
-        return recoverAddressFromWithdrawMessage(
+        return recoverAddressFromCooperativeSettleSignature(
             channel_identifier,
-            participant,
-            amount_to_withdraw,
+            participant1,
+            participant1_balance,
+            participant2,
+            participant2_balance,
+            open_blocknumber,
             signature
         );
     }

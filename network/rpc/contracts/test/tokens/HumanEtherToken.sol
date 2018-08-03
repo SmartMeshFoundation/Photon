@@ -11,10 +11,10 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 
 .*/
 
-pragma solidity ^0.4.23;
-import "./StandardToken.sol";
+pragma solidity ^0.4.24;
+import "./EtherToken.sol";
 
-contract HumanStandardToken is StandardToken {
+contract HumanEtherToken is EtherToken {
     /* Public variables of the token */
 
     /*
@@ -29,38 +29,16 @@ contract HumanStandardToken is StandardToken {
     string public version = 'H0.1';       //human 0.1 standard. Just an arbitrary versioning scheme.
 
     constructor(
-        uint256 _initialAmount,
-        uint8 _decimalUnits,
-        string _tokenName,
         string _tokenSymbol
-    )
+    ) payable
         public
     {
-        balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
-        _total_supply = _initialAmount;                        // Update total supply
-        name = _tokenName;                                   // Set the name for display purposes
-        decimals = _decimalUnits;                            // Amount of decimals for display purposes
+        name = "etherToken";                                   // Set the name for display purposes
+        decimals = 18;                            // Amount of decimals for display purposes
         symbol = _tokenSymbol;                               // Set the symbol for display purposes
+        require(msg.value>0);
+        balances[msg.sender] = msg.value;
+        totalSupply_ = msg.value;
     }
-
-    /* Approves and then calls the receiving contract */
-    function approveAndCall(address _spender, uint256 _value, bytes _extraData)
-        public
-        returns (bool success)
-    {
-        allowed[msg.sender][_spender] = _value;
-        //call the receiveApproval function on the contract you want to be notified. This crafts the function signature manually so one doesn't have to include a contract in here just for this.
-        //receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
-        require(_spender.call(
-            bytes4(bytes32(keccak256("receiveApproval(address,uint256,address,bytes)"))),
-            msg.sender,
-            _value,
-            this,
-            _extraData)
-        );
-        emit Approval(msg.sender, _spender, _value);
-        return true;
-    }
-
     function () external { revert(); }
 }

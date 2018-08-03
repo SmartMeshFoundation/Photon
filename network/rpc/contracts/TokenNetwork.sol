@@ -192,8 +192,32 @@ contract TokenNetwork is Utils {
     这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
     */
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
+    external
+    {
+        openChannelWithDepositInternal(participant, partner, settle_timeout, deposit,msg.sender, true);
+    }
+    /*
+    必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
+    参数说明:
+    participant 存钱给谁
+    partner 通道另一方
+    amount 存多少 token
+    */
+    function deposit(address participant, address partner, uint256 amount)
+    external
+    {
+        depositInternal(participant, partner, amount, msg.sender,true);
+    }
+    /*
+    有三种调用途径:
+    分别是
+    1. 用户直接调用openChannelWithDeposit,
+    2. token 是 ERC223,通过 tokenFallback 调用
+    3. token 提供了 ApproveAndCall, 通过receiveApproval调用
+    */
+    function openChannelWithDepositInternal(address participant, address partner, uint64 settle_timeout, uint256 amount,address from, bool need_transfer)
     settleTimeoutValid(settle_timeout)
-    public
+    internal
     {
         bytes32 channel_identifier;
         require(participant != 0x0);
@@ -212,9 +236,11 @@ contract TokenNetwork is Utils {
         channel.open_block_number = uint64(block.number);
         // Mark channel as opened
         channel.state = 1;
-        require(token.transferFrom(msg.sender, address(this), deposit));
-        participant_state.deposit = deposit;
-        emit ChannelOpenedAndDeposit(channel_identifier, participant, partner, settle_timeout,deposit);
+        if (need_transfer) {
+            require(token.transferFrom(from, address(this), amount));
+        }
+        participant_state.deposit = amount;
+        emit ChannelOpenedAndDeposit(channel_identifier, participant, partner, settle_timeout, amount);
     }
     /*
     必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
@@ -223,8 +249,8 @@ contract TokenNetwork is Utils {
     partner 通道另一方
     amount 存多少 token
     */
-    function deposit(address participant, address partner, uint256 amount)
-    public
+    function depositInternal(address participant, address partner, uint256 amount, address from,bool need_transfer)
+    internal
     {
         require(amount > 0);
         uint256 total_deposit;
@@ -233,9 +259,10 @@ contract TokenNetwork is Utils {
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
         total_deposit = participant_state.deposit;
-
-        // Do the transfer
-        require(token.transferFrom(msg.sender, address(this), amount));
+        if (need_transfer) {
+            // Do the transfer
+            require(token.transferFrom(from, address(this), amount));
+        }
         require(channel.state == 1);
         // Update the participant's channel deposit
         total_deposit += amount;
@@ -244,16 +271,54 @@ contract TokenNetwork is Utils {
         emit ChannelNewDeposit(channel_identifier, participant, total_deposit);
     }
     /*
-    功能:在不关闭通道的情况下提现,任何人都可以调用
-
-    一旦一方提出 withdraw, 实际上和提出 cooperative settle 效果是一样的,就是不能再进行任何交易了.
-    必须等待 withdraw 完成才能重置交易数据,重新开始交易
-    参数说明:
-    participant1,participant2 通道参与双方
-    participant1_balance,participant2_balance 通道双方认为现在通道上的 token 如何分配,各取多少 token
-    participant1_withdraw,participant2_withdraw 各自需要提前多少 token
-    participant1_signature,participant2_signature 双方对这次提现的签名
+    erc223 tokenFallback
+    允许用户
     */
+    function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
+        require(msg.sender == address(token));
+        fallback(0,value, data, false);
+        return true;
+    }
+    /*
+ 常用的 approve and call
+ */
+    function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
+        require(token_ == address(token));
+        fallback(from,value, data, true);
+        return true;
+    }
+
+    function fallback(address from,uint256 value, bytes data, bool need_transfer) internal {
+        uint256 func;
+        address participant;
+        address partner;
+        uint64 settle_timeout;
+        assembly {
+            func := mload(add(data, 32))
+        }
+        if (func == 1) {
+            (participant, partner, settle_timeout) = getOpenWithDepositArg(data);
+            openChannelWithDepositInternal(participant, partner, settle_timeout, value,from, need_transfer);
+
+        } else if (func == 2) {
+            (participant, partner) = getDepositArg(data);
+            depositInternal(participant, partner, value, from,need_transfer);
+        } else {
+            revert();
+        }
+    }
+
+    /*
+        功能:在不关闭通道的情况下提现,任何人都可以调用
+
+        一旦一方提出 withdraw, 实际上和提出 cooperative settle 效果是一样的,就是不能再进行任何交易了.
+        必须等待 withdraw 完成才能重置交易数据,重新开始交易
+        参数说明:
+        participant1,participant2 通道参与双方
+        participant1_balance,participant2_balance 通道双方认为现在通道上的 token 如何分配,各取多少 token
+        participant1_withdraw,participant2_withdraw 各自需要提前多少 token
+        participant1_signature,participant2_signature 双方对这次提现的签名
+        */
     function withDraw(
         address participant1,
         uint256 participant1_balance,
@@ -1029,6 +1094,28 @@ contract TokenNetwork is Utils {
         }
 
         return lockhash;
+    }
+
+    function getOpenWithDepositArg(bytes data) pure internal returns (address, address, uint64)  {
+        address participant;
+        address partner;
+        uint64 settle_timeout;
+        assembly {
+            participant := mload(add(data, 64))
+            partner := mload(add(data, 96))
+            settle_timeout := mload(add(data, 128))
+        }
+        return (participant, partner, settle_timeout);
+    }
+
+    function getDepositArg(bytes data) pure internal returns (address, address)  {
+        address participant;
+        address partner;
+        assembly {
+            participant := mload(add(data, 64))
+            partner := mload(add(data, 96))
+        }
+        return (participant, partner);
     }
 
     function min(uint256 a, uint256 b) pure internal returns (uint256)

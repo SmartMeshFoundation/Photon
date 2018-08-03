@@ -12,7 +12,7 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 
 .*/
 
-import "./StandardToken.sol";
+import "./openzeppelin-token/ERC20/StandardToken.sol";
 
 /// @title CustomToken
 contract CustomToken is StandardToken {
@@ -38,23 +38,19 @@ contract CustomToken is StandardToken {
      */
     /// @dev Contract constructor function.
     /// @param initial_supply Initial supply of tokens.
-    /// @param token_name Token name for display.
     /// @param token_symbol Token symbol.
-    /// @param decimal_units Number of token decimals.
     constructor(
         uint256 initial_supply,
-        uint8 decimal_units,
-        string token_name,
         string token_symbol
     )
         public
     {
         // Set the name for display purposes
-        name = token_name;
+        name = "customToken";
 
         // Amount of decimals for display purposes
-        decimals = decimal_units;
-        multiplier = 10**(uint256(decimal_units));
+        decimals = 18;
+        multiplier = 10**18;
 
         // Set the symbol for display purposes
         symbol = token_symbol;
@@ -62,18 +58,18 @@ contract CustomToken is StandardToken {
         // Initial supply is assigned to the owner
         owner_address = msg.sender;
         balances[owner_address] = initial_supply;
-        _total_supply = initial_supply;
+        totalSupply_ = initial_supply;
     }
 
     /// @notice Allows tokens to be minted and assigned to `msg.sender`
     function mint(uint256 num) public {
         balances[msg.sender] += num;
-        _total_supply += num;
+        totalSupply_ += num;
 
         emit Minted(msg.sender, num);
 
         require(balances[msg.sender] >= num);
-        assert(_total_supply >= num);
+        assert(totalSupply_ >= num);
     }
 
     /// @notice Transfers the collected ETH to the contract owner.

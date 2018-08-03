@@ -245,7 +245,7 @@ func testApprove(t *testing.T) {
 		t.Error("receipt status error")
 		return
 	}
-	t.Logf("%s approve token %s for %s", auth.From.String(), tokenAddress.String(), tokenNetworkAddress.String())
+	t.Logf("%s approve token %s for %s,gasUsed=%d,gasLimit=%d", auth.From.String(), tokenAddress.String(), tokenNetworkAddress.String(), r.GasUsed, tx.Gas())
 }
 
 //跑一次就够了,这样后续创建通道就不用每次 appro
@@ -1391,4 +1391,166 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("beneficiary deposit=%s,nonce=%d,balance_hash=%s", deposit, nonce, hex.EncodeToString(balancehash[:])))
+}
+
+func TestTokenFallback(t *testing.T) {
+	var err error
+	setup()
+	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
+	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
+	if err != nil {
+		panic(err)
+	}
+	ChainID, err = tokenNetwork.Chain_id(nil)
+	if err != nil {
+		panic(err)
+	}
+	tokenAddress, err = tokenNetwork.Token(nil)
+	if err != nil {
+		panic(err)
+	}
+	token, err = contracts.NewToken(tokenAddress, client)
+	if err != nil {
+		panic(err)
+	}
+	log.Info(fmt.Sprintf("tokenAddr=%s,tokenNetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
+	punishBlockNumber, err = tokenNetwork.Punish_block_number(nil)
+	if err != nil {
+		panic(err)
+	}
+	partnerAddr := testOpenChannelAndDepositFallback(t)
+	testDepositFallback(t, partnerAddr)
+}
+func to32bytes(src []byte) []byte {
+	dst := common.BytesToHash(src)
+	return dst[:]
+}
+func testOpenChannelAndDepositFallback(t *testing.T) (partnerAddr common.Address) {
+	buf := new(bytes.Buffer)
+	_, partnerAddr = utils.MakePrivateKeyAddress()
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(1)))
+	buf.Write(to32bytes(auth.From[:]))
+	buf.Write(to32bytes(partnerAddr[:]))
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(300))) //settle_timeout
+	tx, err := token.Transfer(auth, tokenNetworkAddress, big.NewInt(10), buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
+	log.Info(fmt.Sprintf("open channel and deposit by tokenFallback success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
+	return
+}
+
+func testDepositFallback(t *testing.T, partnerAddr common.Address) {
+	buf := new(bytes.Buffer)
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2)))
+	buf.Write(to32bytes(auth.From[:]))
+	buf.Write(to32bytes(partnerAddr[:]))
+	log.Info(fmt.Sprintf("channel=%s,%s", auth.From.String(), partnerAddr.String()))
+	tx, err := token.Transfer(auth, tokenNetworkAddress, big.NewInt(61), buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
+	log.Info(fmt.Sprintf("deposit by tokenFallback success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
+}
+
+func TestApproveAndCall(t *testing.T) {
+	var err error
+	setup()
+	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
+	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
+	if err != nil {
+		panic(err)
+	}
+	ChainID, err = tokenNetwork.Chain_id(nil)
+	if err != nil {
+		panic(err)
+	}
+	tokenAddress, err = tokenNetwork.Token(nil)
+	if err != nil {
+		panic(err)
+	}
+	token, err = contracts.NewToken(tokenAddress, client)
+	if err != nil {
+		panic(err)
+	}
+	log.Info(fmt.Sprintf("tokenAddr=%s,tokenNetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
+	punishBlockNumber, err = tokenNetwork.Punish_block_number(nil)
+	if err != nil {
+		panic(err)
+	}
+	partnerAddr := testOpenChannelAndDepositApproveCall(t)
+	testDepositApproveCall(t, partnerAddr)
+}
+
+func testOpenChannelAndDepositApproveCall(t *testing.T) (partnerAddr common.Address) {
+	buf := new(bytes.Buffer)
+	_, partnerAddr = utils.MakePrivateKeyAddress()
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(1)))
+	buf.Write(to32bytes(auth.From[:]))
+	buf.Write(to32bytes(partnerAddr[:]))
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(300))) //settle_timeout
+	log.Info(fmt.Sprintf("ApproveAndCall tokenNetworkAddress=%s,value=%d,extra=%s",
+		tokenNetworkAddress.String(), 10, hex.EncodeToString(buf.Bytes()),
+	))
+	tx, err := token.ApproveAndCall(auth, tokenNetworkAddress, big.NewInt(10), buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
+	log.Info(fmt.Sprintf("open channel and deposit by ApproveAndCall success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
+	return
+}
+
+func testDepositApproveCall(t *testing.T, partnerAddr common.Address) {
+	buf := new(bytes.Buffer)
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2)))
+	buf.Write(to32bytes(auth.From[:]))
+	buf.Write(to32bytes(partnerAddr[:]))
+	log.Info(fmt.Sprintf("channel=%s,%s", auth.From.String(), partnerAddr.String()))
+	tx, err := token.ApproveAndCall(auth, tokenNetworkAddress, big.NewInt(61), buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), client, tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		t.Errorf("receipient err ,r=%s", r)
+		return
+	}
+	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
+	log.Info(fmt.Sprintf("deposit by ApproveAndCall success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
 }
