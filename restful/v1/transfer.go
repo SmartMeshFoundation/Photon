@@ -1,12 +1,9 @@
 package v1
 
 import (
-	"math/big"
-	"math/rand"
-	"net/http"
-	"time"
-
 	"fmt"
+	"math/big"
+	"net/http"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -17,13 +14,13 @@ import (
 
 //TransferData post for transfers
 type TransferData struct {
-	Initiator  string   `json:"initiator_address"`
-	Target     string   `json:"target_address"`
-	Token      string   `json:"token_address"`
-	Amount     *big.Int `json:"amount"`
-	Identifier uint64   `json:"identifier"`
-	Fee        *big.Int `json:"fee"`
-	IsDirect   bool     `json:"is_direct"`
+	Initiator      string   `json:"initiator_address"`
+	Target         string   `json:"target_address"`
+	Token          string   `json:"token_address"`
+	Amount         *big.Int `json:"amount"`
+	LockSecretHash string   `json:"lock_secret_hash"`
+	Fee            *big.Int `json:"fee"`
+	IsDirect       bool     `json:"is_direct"`
 }
 
 /*
@@ -41,9 +38,6 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.Identifier == 0 {
-		req.Identifier = rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
-	}
 	if req.Amount.Cmp(utils.BigInt0) <= 0 {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -55,7 +49,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, req.Identifier, params.MaxRequestTimeout, req.IsDirect)
+	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.LockSecretHash), params.MaxRequestTimeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

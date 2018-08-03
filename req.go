@@ -50,8 +50,8 @@ type transferReq struct {
 	TokenAddress     common.Address
 	Amount           *big.Int
 	Target           common.Address
-	Identifier       uint64
 	Fee              *big.Int
+	LockSecretHash   common.Hash
 	IsDirectTransfer bool
 }
 
@@ -121,7 +121,7 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) *utils.AsyncResult {
+func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, isDirectTransfer bool) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  transferReqName,
@@ -129,7 +129,7 @@ func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount
 			TokenAddress:     tokenAddress,
 			Amount:           amount,
 			Target:           target,
-			Identifier:       identifier,
+			LockSecretHash:   lockSecretHash,
 			Fee:              fee,
 			IsDirectTransfer: isDirectTransfer,
 		},

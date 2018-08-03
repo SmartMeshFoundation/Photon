@@ -225,35 +225,6 @@ func (rs *RaidenService) Start() (err error) {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
 	})
-	//if rs.Chain.Client.IsConnected() {
-	//	err = rs.AlarmTask.Start()
-	//	if err != nil {
-	//		log.Error(fmt.Sprintf("alarm task start err %s", err))
-	//		n := rs.db.GetLatestBlockNumber()
-	//		rs.BlockNumber.Store(n)
-	//	} else {
-	//		//must have a valid blocknumber before any transfer operation
-	//		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-	//	}
-	//	///*
-	//	//	events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
-	//	//*/
-	//	//err = rs.BlockChainEvents.Start(lastHandledBlockNumber)
-	//	//if err != nil {
-	//	//	err = fmt.Errorf("events listener error %v", err)
-	//	//	return
-	//	//}
-	//
-	//	rs.ethInited = true
-	//} else {
-	//	log.Warn(fmt.Sprintf("raiden start without eth rpc server"))
-	//	rs.ethInited = false
-	//}
-	/*
-		  Registry registration must start *after* the alarm task, rs avoid
-			 corner cases were the registry is queried in block A, a new block B
-			 is mined, and the alarm starts polling at block C.
-	*/
 	rs.registerRegistry()
 	rs.Protocol.Start()
 
@@ -1374,7 +1345,7 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 		if r.IsDirectTransfer {
 			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, utils.EmptyHash)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.LockSecretHash)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
