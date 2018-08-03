@@ -57,8 +57,9 @@ go install
 #### Start Up Nodes 
 To start up a SmartRaiden Service, there are at least two nodes required, one is Carl - the charge node for smartraiden, the other is the SM node.
 
-For Example : 
-- **Carl**    0x69c5621db8093ee9a26cc2e253f929316e6e5b92
+For Example :   
+
+- **Carl**    0x69c5621db8093ee9a26cc2e253f929316e6e5b92  
 - **SM Node** 0x6b9e4d89ee3828e7a477ea9aa7b62810260e27e9
 
 **start charge node Carl :**
