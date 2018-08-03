@@ -1078,6 +1078,11 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 		result.Result <- errors.New("channel not exist")
 		return
 	}
+	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
+	if !isOnline {
+		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
+		return
+	}
 	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelAddress)))
 	s, err := c.CreateCooperativeSettleRequest()
 	if err != nil {
@@ -1134,6 +1139,11 @@ func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (
 	c, err := rs.findChannelByAddress(channelAddress)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
+		return
+	}
+	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
+	if !isOnline {
+		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
 	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelAddress), amount))
