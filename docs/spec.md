@@ -107,7 +107,7 @@ SmartRaiden cannot rely on direct channels for most of its operations, especiall
 
 Mediated transfers rely on locks for safety. Locks can be unlocked only by knowledge of the secret behind it. This information is used to determine whether a transfer was complete and is shared among all nodes in a mediation chain. The lock operation allows each participant to safely finalize their transfers without requiring trust.
 
-For a mediated transfer to work a number of nodes need to collaborate. Which nodes that would be is determined by the path, detailed in the [transfer routing section]().
+For a mediated transfer to work a number of nodes need to collaborate. Which nodes that would be is determined by the path, detailed in the transfer routing section.
 
 Let’s assume a path of Alice <-> Bob <-> Charlie. Alice does not have a direct channel with Charlie, therefore Alice can either open a new channel or mediate the transfer through other nodes. In our example Bob is a hop to whom Alice has an open channel and is considered good for routing.
 

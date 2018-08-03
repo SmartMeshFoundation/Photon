@@ -2,7 +2,7 @@
 
 ## Objective
 
-Once payment channels are closed, settlement window pops up. During this period, any participant of non channel-closing requires to invoke updateTransfer, to update states of transaction, and withdraw, to release locks on transactions, or those participants will not get tokens sent from their counterparts. Nodes, especially mobile nodes, hardly keep connected to the network all the time, whereby there is required any trusted third-party node to facilitate the process of settlement on behalf of offline nodes. 
+Once payment channels are closed, settlement window pops up. During this period, any participant of non channel-closing requires to invoke updateTransfer, to update states of transaction, and withdraw, to release locks on transactions, or those participants will not get all the tokens sent from their counterparts. Nodes, especially mobile nodes, hardly keep connected to the network all the time, whereby there is required any trusted third-party node to facilitate the process of settlement on behalf of offline nodes. 
 
 Please note that  for all third-party nodes in this article, we name them as **SmartRaiden Monitoring node**, short as **SM node**. 
 For all nodes that delegate or entrust their work to SM nodes, we call them **delegator**.
@@ -12,7 +12,7 @@ For all nodes that delegate or entrust their work to SM nodes, we call them **de
 - Any settlement message can be grabbed by SM nodes.  
 
 
-SM nodes are responsible for updating settlement channel, during period of settlment, on behalf of any participant. For which, any SM node must be capable in the ability of receiving messages of transferring or unlocking from any delegator with signature. 
+SM nodes are responsible for updating settlement channel, during period of settlment, on behalf of any participant.For which, any SM node must be capable in the ability of receiving messages of transferring or unlocking from any delegator with signature. 
 
 - Any SM node enables to enforce the process of settlement. 
 
@@ -22,23 +22,23 @@ At the moment that any channel is closed once delegator goes offline, SM node ca
 -  Any single SM node is **trustworthy**.  
 
 
-In order to reduce the cost, SM node has to be honest and without any fraudulent intention. It's presumed that any SM node will not be in coalition with participants that closes the channel and do nothing with fraudulent behavior. If SM nodes act fraudulently, the maximum cost is that delegator will not commit to the underlying blockchain.
+In order to reduce the cost, A single SM node was choosen which has to be honest and without any fraudulent intention. It's presumed that any SM node will not be in coalition with participants that closes the channel and do nothing with fraudulent behavior. If SM nodes act fraudulently, the maximum cost is that delegator will not commit to the underlying blockchain.
 
 ## SM Settlement Process
 
-When settlement process occurs, the SM node update balance proofs of one closing payment channel on behalf of delegator, by invoking `updateTransferDelegate`, and to release locks on the transaction by `withdraw`. Any SM node is permitte with invocation of `updateTransferDelegate` with only one time. Presumed that Alice and Bob are APPs for both sides of the payment channel, SM node is the trusted node for delegation service, and carl is a node for charge (a smartraiden node), SMT as a token for fee to pay for any transaction. Bob attempts to disconnect the network, before which he calls for a SM node to help him with the following procedures. 
+When settlement process occurs, the SM node update balance proofs of one closing payment channel on behalf of delegator, by invoking `updateTransferDelegate`, and to unlock the locks by `withdraw`. Any SM node is permitted with invocation of `updateTransferDelegate` with only one time. Presumed that Alice and Bob are APPs for both sides of the payment channel, SM node is the trusted node for delegation service, and carl is a node for charge (a smartraiden node), SMT as a token for fee to pay for any transaction. Bob attempts to disconnect the network, before which he calls for a SM node to help him with the following procedures. 
 
 SM Settlement Process works as follow.
 
 1. Starup the SmartRaiden Monitoring Service.
 2. Bob checks the set of smartraiden nodes, to obtain committed data for SM node.
 3. Bob commits to a SM node with a proof of transaction.
-4. The SM node accepts requests from delegators, and enquires whether sufficient balances are held in SM nodes.
-5. If there is deficient balance in SM accounts, then Bob transfers some amount of SMT to the account of carl, in order to pay for transaction gas. This is the regular process.
+4. The SM node accepts requests from delegators,and Bob enquires whether sufficient balances are held in SM nodes.
+5. If there is deficient balance in SM accounts, then Bob transfers some amount of SMT to carl, in order to pay for delegation fee. This is the regular smartraiden transfer.
 6. Alice closes the payment channel.
 7. SM node waits for half the period of settle timeout.
 8. SM node commits to the chain with proofs of delegation.
-9. At the time settlement process has completed, Alice invokes `settle`, so that Alice and Bob get their SMT, and Carl gets his fee.
+9. After the settle timeout window, Alice invokes `settle`, so that Alice and Bob get their SMT, and Carl gets his fee.
 
 ## Data Feed of SM 
 One delegator requires to feed his signature to his trusted SM node, in which all the information of `updateTransferDelegate` and `withdraw` gets contained.
@@ -93,10 +93,10 @@ Once SM service has launched, APP of smartraiden has the ability to enforce dele
 - Alice 0x31ddac67e610c22d19e887fb1937bee3079b56cd
 - Bob 0xf0f6e53d6bbb9debf35da6531ec9f1141cd549d5
 
-At the first step, we can check balance proofs for Alice and Bob, to verify whether smartraiden monitoring service has worked, or whether tokens in channels has already been settled, or that is there any change for balances on chain ?
+At the first step, we can check balance proofs for Alice and Bob, to verify whether smartraiden monitoring service has worked, or whether tokens in channels has already been settled, or that is there any change for balances on chain.
 
 ### Delegation
-In our example, Bob is a **delegator** which submits delegation proofs to SmartRaiden Monitoring node. To verify that data of delegation from Bob is in the newest version, first we check the balances in the payment channel of Alice & Bob (it is not conpulsory).
+In our example, Bob is a **delegator** which submits delegation proofs to SM node. To verify that data of delegation from Bob is in the newest version, first we check the balances in the payment channel of Alice & Bob (it is not conpulsory).
 
 **1. Bob checks local chennel information of smartraiden nodes.**
 
@@ -211,7 +211,7 @@ Status tag has 3 values :
 - status = 2 : delegation success but lack of fund  
 - status = 3 : delegation success with sufficient fund
 
-**4. Bob checks whether sufficient balances are in the charge node.**  
+**4. Bob checks whether sufficient balances are in the SM node.**  
 
 Via API below :   
 **`GET: http://<sm_server_address:port>/fee/<address_of_delegator>`**
@@ -228,15 +228,15 @@ Via API below :
 }
 ```
 
-Only does Bob have sufficient balance in his account that he can make a successful delegate and make payments. If Bob has deficient balance in his account, then SM node may accept delegation from Bob without any attempt to invoke `updateTransferDelegate`. Hence, Bob has to transfer funds into the charge node, in this example it's carl. This is the normal procedure.
+Only does Bob have sufficient balance that he can make a successful delegate and make payments. If Bob has deficient balance, then SM node may accept delegation from Bob but will not attempt to invoke `updateTransferDelegate`. Hence, Bob has to transfer funds to the charge node, in this example it's carl. This is the normal smartraiden transfer.
 
 **5. Bob disconnects to the network.**  
 
-Bob gets disconnected from the network, then he is in offline state. When using delegation service, Bob must be unconnected to the network, if not, he will automatically submit balance proofs on chain while Alice closes the payment channel, which eventually will lead to SM node having no ability to submit proofs.
+Bob gets disconnected from the network, then he is in offline state. When using delegation service, Bob must be unconnected to the network, if not, he will automatically submit balance proofs on chain while Alice closes the payment channel, which eventually will lead to SM node having no chance to submit proofs.
 
 **6. Alice closes payment channel.**  
 
-Alice closes the payment channel, and submits her balance proof.
+Alice closes the payment channel, and submits her evidence.
 
 **7. SM waits for half the period of settle timeout.**  
 
@@ -244,7 +244,7 @@ SM nodes are responsible for monitoring the event of `updateTransfer`. If Bob go
 
 **8. Alice settles the channel.**  
 
-Alice waits for the time of settle timeout, then she starts to settle the channel. In the process of channel settlement, Alice and Bob both get their token. According to verify on-chain balances of Alice and Bob, they can check whether tokens are correctly transferred. (one can also check balances on his wallet, and compares the value with on-chain balance.)
+Alice waits for the time of settle timeout, then she starts to settle the channel. After the process of channel settlement, Alice and Bob both get their token. According to verify on-chain balances of Alice and Bob, they can check whether tokens are correctly transferred. (one can also check balances on his wallet, and compares the value with on-chain balance.)
 
 Original Balance :   
 Alice = 4989125  
