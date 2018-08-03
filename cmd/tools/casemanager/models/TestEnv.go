@@ -24,7 +24,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -267,7 +267,7 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey,
 }
 func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contracts.TokenNetworkRegistry) (tokenNetworkAddr common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), 0, "test", "test symoble")
+	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -305,7 +305,10 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
-			tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
+			tx, err := token.Transfer(auth2, account, big.NewInt(5000000), nil)
+			if tx == nil {
+				panic("transfer should use approve and transfer from instead")
+			}
 			if err != nil {
 				Logger.Fatalf("Failed to Transfer: %v", err)
 			}
