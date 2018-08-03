@@ -9,14 +9,19 @@ For all nodes that delegate or entrust their work to SM nodes, we call them **de
 
 ## Requirement
 
-1. Any settlement message can be grabbed by SM nodes.
+- Any settlement message can be grabbed by SM nodes.  
+
+
 SM nodes are responsible for updating settlement channel, during period of settlment, on behalf of any participant. For which, any SM node must be capable in the ability of receiving messages of transferring or unlocking from any delegator with signature. 
 
+- Any SM node enables to enforce the process of settlement. 
 
-2. Any SM node enables to enforce the process of settlement.
+
 At the moment that any channel is closed once delegator goes offline, SM node can invoke `updateTransferDelegate` or `withdraw`, to continue settlement process.
 
-3. Any single SM node is **trustworthy**.
+-  Any single SM node is **trustworthy**.  
+
+
 In order to reduce the cost, SM node has to be honest and without any fraudulent intention. It's presumed that any SM node will not be in coalition with participants that closes the channel and do nothing with fraudulent behavior. If SM nodes act fraudulently, the maximum cost is that delegator will not commit to the underlying blockchain.
 
 ## SM Settlement Process
