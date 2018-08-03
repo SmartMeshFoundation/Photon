@@ -171,7 +171,7 @@ Once the channel enters the settlement window the partner state can be updated b
 ## Transfer Routing
 Routing is a hard problem and because of the lack of a global view SmartRaiden has a graph search strategy. The packet routing may be looked at as an `A*` search, using the sorted path with capacity as an heuristic to do the packet routing.
 
-![channelsgraph](/docs/images/channelsgraph.png)
+![channelsgraph](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/images/channelsgraph.png)
 
 Consider the above graph where each graph node represents a SmartRaiden node, each edge an existing channel, arrows represent the direction of the transfers, solid lines the current searched space of the graph, dashed lines the rest of the path and the red line an exhausted/closed channel.
 
@@ -182,7 +182,7 @@ The transfer initiator is `A`, the transfer target is `G`. `A` decides locally t
 Each of these hops forwarded a MediatedTransfer paying fees and sending the transfer value to the next hop to mediate the transfer.
 
 ## Merkle Tree
-![merkletree](/docs/images/merkletree.png)
+![merkletree](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/images/merkletree.png)
 
 The [merkle tree]() data blocks are composed of the hashes of the locks. The unique purpose of the merkle tree is to have an `O(log N)` proof of containment and a constant `O(1)` storage requirement for the signed messages. The alternative is to have linear space `O(n)` for the signed messages by having a list of all the pending locks in each message.
 
