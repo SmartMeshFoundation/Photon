@@ -133,7 +133,7 @@ Status Codes:
 * `200 OK`-Successful query
 * `404 Not Found` -If the channel does not exist
 
-Querying all registered Tokens,Returns  a list of addresses of all registered tokens.  
+Querying all registered Tokens.Returns  a list of addresses of all registered tokens.  
 **Example Request**:  
 `GET http://localhost:5004/api/1/tokens`  
 **Example Response**:  
@@ -285,9 +285,19 @@ with payload:
 **Example Response**:  
 *`200 OK`* and 
 ```json
+"channel_address": "0xD955A1BA24058BFbFfD98dF78253a861e5B029b9",
+    "partner_address": "0x1DdaC67E610c22d19e887FB1937bEe3079B56CD1",
+    "balance": 200,
+    "partner_balance": 0,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
+    "state": "settled",
+    "settle_timeout": 100,
+    "reveal_timeout": 0
 ```
 **`PATCH  /api/<version>/channels/<channel_address>`**  
- Deposit to a Channel
+ Deposit to a Channel    
  You can deposit more of a particular token to a channel by updating the `balance` field of the channel in the corresponding endpoint with a `PATCH` http request.  
  **Example Request**:  
  `PATCH http://localhost:5002/api/1/channels/0x7f9bc53F7b3e08a3A9De564740f7FAf9Decb16B9`  
@@ -319,7 +329,7 @@ Status Codes:
 ### Connection Management
 
 **`GET  /api/<version>/connections`**  
- Querying connections details
+ Querying connections details  
 You can query for details of previously joined token networks by making a GET request to the connection endpoint.  
  **Example Request**:  
  `GET http:// localhost:5003/api/1/connections`  
@@ -366,7 +376,7 @@ Status Codes:
 **`DELETE  /api/<version>/connections/<token_address>`**  
 The request will only return once all blockchain calls for closing/settling a channel have completed.  
 
-Important note. If no arguments are given then raiden will only close and settle channels where your node has received transfers. This is safe from an accounting point of view since deposits can’t be lost and provides for the fastest and cheapest way to leave a token network when you want to shut down your node.
+Important note. If no arguments are given then SmartRaiden will only close and settle channels where your node has received transfers. This is safe from an accounting point of view since deposits can’t be lost and provides for the fastest and cheapest way to leave a token network when you want to shut down your node.
 
 If the default behaviour is not desired and the goal is to leave all channels irrespective of having received transfers or not then you should provide as payload to the request  `only_receiving_channels=false`
 
