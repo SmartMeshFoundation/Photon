@@ -147,7 +147,6 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			}
 			break
 		}
-		err = errors.New("must specified password")
 	}
 	return
 }
