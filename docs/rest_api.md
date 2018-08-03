@@ -57,10 +57,12 @@ Registers a token. If a token is not registered yet (i.e.: A token network for t
 }
 ```
 Status Codes:
-* `200 Created`– A token network for the token has been successfully created
+
+* `200 Created`– A token network for the token has been successfully created  
 * `409 Conflict` – The token was already registered before or  The registering transaction failed.
 
 Response JSON Object:
+
 - **channel_manager_address** Channel management contract address
 
 ### Querying Information About Channels and Tokens
@@ -97,6 +99,7 @@ Querying all channels
     }
 ```
 Status Codes:
+
 * `200 OK`-Successful query
 
 Querying a specific channel  
@@ -130,7 +133,8 @@ Querying a specific channel
 }
 ```
 Status Codes:
-* `200 OK`-Successful query
+
+* `200 OK`-Successful query  
 * `404 Not Found` -If the channel does not exist
 
 Querying all registered Tokens.Returns  a list of addresses of all registered tokens.  
@@ -147,11 +151,12 @@ Querying all registered Tokens.Returns  a list of addresses of all registered to
 ]
 ```
 Status Codes:
-* `200 OK`-Successful query
+
+* `200 OK`-Successful query  
 * `404 Not Found` -If the token does not exist
 
 
- Querying all partners for a Token,Returns a list of all partners with whom you have non-settled channels for a certain token.  
+ Querying all partners for a Token.Returns a list of all partners with whom you have non-settled channels for a certain token.  
  **Example Request**:  
  `GET http://localhost:5004/api/1/tokens/0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE/partners`  
  **Example Response**:      
@@ -169,11 +174,13 @@ Status Codes:
 ]
 ```
 Status Codes:
-* `200 OK`-Successful query
+
+* `200 OK`-Successful query  
 * `404 Not Found` -If the token does not exist
 
 Response JSON Array of Objects:
--   **partner_address**  (_address_) – The partner we have a channel with
+
+-   **partner_address**  (_address_) – The partner we have a channel with  
 -   **channel**  (_link_) – A link to the channel resource
   
 Token Swaps  
@@ -182,11 +189,13 @@ Token Swaps
 
 You can perform a token swap by using the  `token_swaps`  endpoint. A swap consists of two users agreeing on atomically exchanging two different tokens at a particular exchange rate.
 tips：
+
 * The parties involved in Swaps have an effective channel
 * Call *taker* first and then call *maker*
 
-**Example Request**:  
-*the taker:*  `PUT http://localhost:5001/api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/3333`  
+**Example Request**:    
+*the taker:*  
+`PUT http://localhost:5001/api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/3333`  
 with payload:
 ```json
 {
@@ -197,7 +206,7 @@ with payload:
     "receiving_token": "0x541eefe890a10d27d947190ea976cb6dcbba650f"
 }
 ```
-*the maker:*
+*the maker:*  
 `PUT http:// localhost:5002/api/1/token_swaps/0x69C5621db8093ee9a26cc2e253f929316E6E5b92/3333`  
 with payload:
 ```json
@@ -210,7 +219,8 @@ with payload:
 }
 ```
 Status Codes:
-* `201 Created`-Successful query
+
+* `201 Created`-Successful query  
 * `400  Bad Request` -no available route
 
 ### Channel Management
@@ -247,9 +257,10 @@ The request to the endpoint should later return the fully created channel object
 }
 ```
 Status Codes:
-* `200 OK`-Channel created successfully
-* `404 Not Found` -If the token does not exist
-* `409  Conflict` -NewChannel tx execution failed
+
+* `200 OK`-Channel created successfully  
+* `404 Not Found` -If the token does not exist  
+* `409  Conflict` -NewChannel tx execution failed  
 
 **`PATCH/api/<version>/channels/<channel_address>`**  
  Close Channel  
@@ -323,8 +334,9 @@ with payload:
     "reveal_timeout": 0
 }
 ```
-Status Codes:
-* `200 OK`-For successful Deposit
+Status Codes:  
+
+* `200 OK`-For successful Deposit   
 * `400 Bad Request` -If the provided json is in some way malformed
 ### Connection Management
 
@@ -356,11 +368,13 @@ You can query for details of previously joined token networks by making a GET re
 }
 ```
 Response JSON Array of Objects:
--   **funds**  (_int_) – Funds from last connect request
--   **sum_deposits**  (_int_) – Sum of deposits of all currently open channels
+
+-   **funds**  (_int_) – Funds from last connect request  
+-   **sum_deposits**  (_int_) – Sum of deposits of all currently open channels  
 -   **channels**  (_int_) – Number of channels currently open for that token 
 
 Status Codes:
+
 * `200 OK`-For a successful query
 
 **`PUT  /api/<version>/connections/<token_address>`**  
@@ -369,8 +383,10 @@ Automatically join a token network. The request will only return once all blockc
  `PUT http://localhost:5001/api/1/connections/0xf1b0964f1e19ecf07ddd3bd8e20138c82680395d`  
  **Example Response**:  
 *`201 Created`*   
+
 Status Codes:
-* `201 Created`-For a successful connection creation
+
+* `201 Created`-For a successful connection creation  
 * `500  Internal Server Error`-Internal SmartRaiden node error
 
 **`DELETE  /api/<version>/connections/<token_address>`**  
@@ -402,11 +418,14 @@ The response is a list with the addresses of all closed channels.
 
 Request JSON Object:
 
--   **only_receiving_channels**  (_boolean_) – Only close and settle channels where your node has received transfers. Defaults to  `true`.
+-   **only_receiving_channels**  (_boolean_) – Only close and settle channels where your node has received transfers. Defaults to  `true`.  
 
 Status Codes:
-- `200 OK`-For successfully leaving a token network
+
+- `200 OK`-For successfully leaving a token network  
 - `500  Internal Server Error`-Internal SmartRaiden node error
+
+
 ### Transfers
 **`POST  /api/<version>/transfers/<token_address>/<target_address>`**
 
@@ -439,13 +458,14 @@ with payload:
 ```
 Request JSON Object:
 
--   **amount**  (_int_) – Amount to be transferred
--   **fee**  (_int_) –  incentivize nodes to retain more balance in payment channels via a method to take a charge for them(default:0)
-- **is_direct"**(_boolean_)–  If it is set to true, it can only satisfy the two parties who have direct access to the transaction. If the two sides do not have direct access, they will give up the transaction.
+-   **amount**  (_int_) – Amount to be transferred   
+-   **fee**  (_int_) –  incentivize nodes to retain more balance in payment channels via a method to take a charge for them(default:0)  
+- **is_direct"**(_boolean_)–  If it is set to true, it can only satisfy the two parties who have direct access to the transaction. If the two sides do not have direct access, they will give up the transaction.  
 
 Status Codes:
-- `200 OK` – Successful transfer
-- `409 Conflict`– If the address or the amount is invalid or if there is no path to the target
+
+- `200 OK` – Successful transfer  
+- `409 Conflict`– If the address or the amount is invalid or if there is no path to the target  
 -  `500  Internal Server Error`-Internal SmartRaiden node error
 ### Querying Events
 
@@ -485,8 +505,9 @@ Query for registry network events.
 ]
 ```
 Status Codes:
-- `200 OK` – For successful Query
-- `404  Not Found`–If the provided query string is malformed
+
+- `200 OK` – For successful Query  
+- `404  Not Found`–If the provided query string is malformed  
 
 **`GET  /api/<version>/events/tokens/<token_address>`**  
 Querying token network events  
@@ -516,7 +537,8 @@ Querying token network events
 ]
 ```
 Status Codes:
-- `200 OK` – For successful Query
+
+- `200 OK` – For successful Query  
 - `404  Not Found`–If the provided query string is malformed
 
 **`GET  /api/<version>/events/channels/<channel_registry_address>`**  
@@ -549,6 +571,7 @@ Status Codes:
 ]
 ```
 Status Codes:
-- `200 OK` – For successful Query
-- `400  Bad Request`–If the channel does not exist
+
+- `200 OK` – For successful Query  
+- `400  Bad Request`–If the channel does not exist  
 
