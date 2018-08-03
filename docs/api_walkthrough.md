@@ -229,7 +229,7 @@ with the payload:
     "state":"settled"
 }
 ```
-this will trigger the `settle()` function in the [NettingChannel smart contract](https://github.com/SmartMeshFoundation/SmartRaiden/blob/v0.3/network/rpc/contracts/NettingChannelContract.sol). Once settlement is successful a channel object will be returned:
+this will trigger the `settle()` function in the [Netting Channel contract](https://github.com/SmartMeshFoundation/SmartRaiden/blob/v0.3/network/rpc/contracts/NettingChannelContract.sol). Once settlement is successful a channel object will be returned:
 
 
 ```
@@ -260,7 +260,7 @@ Where the first part after `token_swaps` is the address of Bob and the second pa
 }
 ```
 
-There are some interesting parameters to note here. The role defines whether the address sending the message is the maker or the taker. The `taker` call must be carried out before the `maker` call can be carried out. In our design,`taker` just reigster the token swap info of which node will accept the swap, the `maker`really implement the token swap. The `sending_amount` and the `sending_token` represent the token for which the maker wants to send some amount in return for a `receiving_token` and a `receiving_amount`. So in this specific case Alice is making an offer of 50 of tokenA with the address 0xea674fdde714fd979de3edf0f56aa9716b898ec8 for 5 of tokenB with the address 0x2a65aca4d5fc5b5c859090a6c34d164135398226.
+There are some interesting parameters to note here. The role defines whether the address sending the message is the maker or the taker. The `taker` call must be carried out before the `maker` call can be carried out. In our design,`taker` just reigster the token swap info of which node will accept the swap, the `maker`really implement the token swap. The `sending_amount` and the `sending_token` represent the token for which the maker wants to send some amount in return for a `receiving_token` and a `receiving_amount`. So Alice is making an offer of 50 of tokenA with the address `0xea674fdde714fd979de3edf0f56aa9716b898ec8` for 5 of tokenB with the address `0x2a65aca4d5fc5b5c859090a6c34d164135398226`.
 The `taker` is someone to take the offer. It could be that Alice and Bob have decided on the swap in private and thus Alice simply tells Bob the identifier. Bob can take the offer by using the same endpoint as above, but with some changes:
 ```
 PUT /api/1/token_swaps/0xbbc5ee8be95683983df67260b0ab033c237bde60/1337
