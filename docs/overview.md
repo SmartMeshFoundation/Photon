@@ -4,6 +4,7 @@ Smartraiden is a standard compliant implementation of the Raiden Network protoco
 
 ## Review Raiden Network
 Raiden Network is an off-chain scalability solution enforcing erc-20 compliant token transferring on the Ethereal. It allows for secure token transactions among participants without any global consensus mechanism, which is implemented through pre-set on-chain deposits transferring with digital signature and lock hash. We still rely on several on-chain processes to open and close a payment channel within a pair of nodes, so that it is incredibly hard for every pair of nodes on the network to create channels. However, if there exists one channel (at least), connecting two nodes through other nodes in the network, then we have no need to create another individual channel for these two nodes. This network is named as the Raiden Network, with all the contracts as to route algorithms and interlock channel communications. 
+
 Figure Payment Channel Network:  
 ![](/docs/images/Smartraiden_network.png)
 
