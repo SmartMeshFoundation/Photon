@@ -26,7 +26,6 @@ EventTransferSentSuccess emitted by the initiator when a transfer is considered 
     - The lock expires and an EventUnlockFailed follows, contradicting the
       EventTransferSentSuccess.
 
-    Note:
         Mediators cannot use this event, since an unlock may be locally
         sucessful but there is no knowledge about the global transfer.
 */
@@ -55,7 +54,6 @@ type EventTransferSentFailed struct {
 /*
 EventTransferReceivedSuccess emitted when a payee has received a payment.
 
-    Note:
         A payee knows if a lock withdraw has failed, but this is not sufficient
         information to deduce when a transfer has failed, because the initiator may
         try again at a different time and/or with different routes, for this reason

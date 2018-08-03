@@ -15,19 +15,6 @@ type BlockStateChange struct {
 }
 
 /*
-ActionRouteChangeStateChange is A route change.
-
-    State change used for:
-        - when a new route is added.
-	 我们不考虑路由已经建立以后新添加的通道,简化实现,
-至于通道状态的改变,我们本来用的就是 channel 本身,所以没什么问题
-*/
-//type ActionRouteChangeStateChange struct {
-//	Route      *RouteState
-//	LockSecretHash uint64
-//}
-
-/*
 ActionCancelTransferStateChange The user requests the transfer to be cancelled.
 
     This state change can fail, it depends on the node's role and the current

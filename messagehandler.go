@@ -22,7 +22,6 @@ import (
 /*
  Class responsible to handle the protocol messages.
 
-    Note:
         This class is not intended to be used standalone, use RaidenService
         instead.
 */

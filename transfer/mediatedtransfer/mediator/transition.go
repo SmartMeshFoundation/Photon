@@ -26,7 +26,7 @@ const NameMediatorTransition = "MediatorTransition"
  reveal_timeout blocks away the mediator will be forced to close the channel
  to be safe.
 */
-const transitBlocks = 2 // TODO: make this a configuration variable
+const transitBlocks = 10 // TODO: make this a configuration variable
 
 var stateSecretKnownMaps = map[string]bool{
 	mediatedtransfer.StatePayeeSecretRevealed: true,
@@ -120,15 +120,14 @@ Return the timeout blocks, it's the base value from which the payee's
 
     The timeout blocks must be the smallest of:
 
-    - payer_transfer.expiration: The payer lock expiration, to force the payee
+    - payerTransfer.expiration: The payer lock expiration, to force the payee
       to reveal the secret before the lock expires.
-    - payer_route.settle_timeout: Lock expiration must be lower than
+    - payerRoute.settleTimeout: Lock expiration must be lower than
       the settlement period since the lock cannot be claimed after the channel is
       settled.
-    - payer_route.closed_block: If the channel is closed then the settlement
+    - payerRoute.ClosedBlock: If the channel is closed then the settlement
       period is running and the lock expiration must be lower than number of
       blocks left.
-这个函数实际上是说下一跳最多还有多少块时间可利用。
 */
 func getTimeoutBlocks(payerRoute *route.State, payerTransfer *mediatedtransfer.LockedTransferState, blockNumber int64) int64 {
 	blocksUntilSettlement := int64(payerRoute.SettleTimeout())
@@ -230,16 +229,13 @@ func clearIfFinalized(result *transfer.TransitionResult) *transfer.TransitionRes
 
 /*
 Finds the first route available that may be used.
-
-    Args:
         rss (RoutesState): Current available routes that may be used,
             it's assumed that the available_routes list is ordered from best to
             worst.
-        timeout_blocks (int): Base number of available blocks used to compute
+        timeoutBlocks (int): Base number of available blocks used to compute
             the lock timeout.
-        transfer_amount (int): The amount of tokens that will be transferred
+        transferAmount (int): The amount of tokens that will be transferred
             through the given route.
-
     Returns:
         (RouteState): The next route.
 */
@@ -271,17 +267,16 @@ func nextRoute(rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *b
 /*
 Given a payer transfer tries a new route to proceed with the mediation.
 
-    Args:
-        payer_route (RouteState): The previous route in the path that provides
+        payerRoute  : The previous route in the path that provides
             the token for the mediation.
-        payer_transfer (LockedTransferState): The transfer received from the
-            payer_route.
-        routes_state (RoutesState): Current available routes that may be used,
+        payerTransfer : The transfer received from the
+            payerRoute.
+        routesState  : Current available routes that may be used,
             it's assumed that the available_routes list is ordered from best to
             worst.
-        timeout_blocks (int): Base number of available blocks used to compute
+        timeoutBlocks : Base number of available blocks used to compute
             the lock timeout.
-        block_number (int): The current block number.
+        blockNumber  : The current block number.
 */
 func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.LockedTransferState,
 	routesState *route.RoutesState, timeoutBlocks int, blockNumber int64) (
@@ -333,7 +328,6 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 Set the state of a transfer *sent* to a payee and check the secret is
     being revealed backwards.
 
-    Note:
         The elements from transfers_pair are changed in place, the list must
         contain all the known transfers to properly check reveal order.
 */
@@ -562,7 +556,7 @@ func eventsForRegisterSecret(transfersPair []*mediatedtransfer.MediationPairStat
 }
 
 /*
-Set the state of the `payee_address` transfer, check the secret is
+Set the state of the `payeeAddress` transfer, check the secret is
     being revealed backwards, and if necessary send out RevealSecret,
     SendBalanceProof, and Withdraws.
 */
@@ -641,9 +635,7 @@ func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *medi
 /*
 After Raiden learns about a new block this function must be called to
     handle expiration of the hash time locks.
-
-    Args:
-        state (MediatorState): The current state.
+        state : The current state.
 
     Return:
         TransitionResult: The resulting iteration
@@ -685,9 +677,8 @@ Validate and handle a ReceiveTransferRefund state change.
         payer:A payee:C from the first SendMediatedTransfer
         payer:F payee:D from the following SendRefundTransfer
 
-    Args:
-        state (MediatorState): Current state.
-        state_change (ReceiveAnnounceDisposedStateChange): The state change.
+        state : Current state.
+        st : The state change.
 
     Returns:
         TransitionResult: The resulting iteration.

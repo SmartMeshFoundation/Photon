@@ -156,13 +156,11 @@ func NewStateManager(stateTransition FuncStateTransition, currentState State, na
 /*
 Dispatch Apply the `state_change` in the current machine and return the
          resulting events.
-
-        Args:
-            state_change (StateChange): An object representation of a state
+            stateChange : An object representation of a state
             change.
 
         Return:
-            Event: A list of events produced by the state transition, it's
+            events: A list of events produced by the state transition, it's
             the upper layer's responsibility to decided how to handle these
             events.
 */
@@ -171,8 +169,6 @@ func (sm *StateManager) Dispatch(stateChange StateChange) (events []Event) {
 	/*
 			     the state objects must be treated as immutable, so make a copy of the
 		         current state and pass the copy to the state machine to be modified.
-		        next_state = deepcopy(self.current_state)
-			todo why clone?
 	*/
 	transitionResult := sm.FuncStateTransition(sm.CurrentState, stateChange)
 	sm.CurrentState, events = transitionResult.NewState, transitionResult.Events

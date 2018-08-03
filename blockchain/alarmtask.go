@@ -45,7 +45,6 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 /*
 RegisterCallback register a new callback.
 
-        Note:
             The callback will be executed in the AlarmTask context and for
             this reason it should not block, otherwise we can miss block
             changes.

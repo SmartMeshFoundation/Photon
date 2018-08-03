@@ -13,15 +13,6 @@ import (
 
 /*
 LockedTransferState is State of a transfer that is time hash locked.
-
-    Args:
-        identifier (int): A unique identifer for the transfer.
-        amount (int): Amount of `token` being transferred.
-        token (address): Token being transferred.
-        target (address): Transfer target address.
-        expiration (int): The absolute block number that the lock expires.
-        hashlock (bin): The hashlock.
-        secret (bin): The secret that unlocks the lock, may be None.
 */
 type LockedTransferState struct {
 	TargetAmount   *big.Int       //amount target should recevied
@@ -61,13 +52,6 @@ func LockedTransferFromMessage(msg *encoding.MediatedTransfer, tokenAddress comm
 
 /*
 InitiatorState is State of a node initiating a mediated transfer.
-
-    Args:
-        our_address (address): This node address.
-        transfer (LockedTransferState): The description of the mediated transfer.
-        routes (RoutesState): Routes available for this transfer.
-        block_number (int): Latest known block number.
-        random_generator (generator): A generator that yields valid secrets.
 */
 type InitiatorState struct {
 	OurAddress        common.Address       //This node address.
@@ -86,12 +70,6 @@ type InitiatorState struct {
 
 /*
 MediatorState is State of a node mediating a transfer.
-
-    Args:
-        our_address (address): This node address.
-        routes (RoutesState): Routes available for this transfer.
-        block_number (int): Latest known block number.
-        hashlock (bin): The hashlock used for this transfer.
 */
 type MediatorState struct {
 	OurAddress  common.Address     //This node address.
@@ -226,13 +204,11 @@ const StatePayerExpired = "payer_expired"
 
 /*
 NewMediationPairState create mediated state
-  Args:
-           payer_route (RouteState): The details of the route with the payer.
-           payer_transfer (LockedTransferState): The transfer this node
+           payerRoute : The details of the route with the payer.
+           payerTransfer  : The transfer this node
                *received* that will cover the expenses.
-
-           payee_route (RouteState): The details of the route with the payee.
-           payee_transfer (LockedTransferState): The transfer this node *sent*
+           payeeRoute  : The details of the route with the payee.
+           payeeTransfer  : The transfer this node *sent*
                that will be withdrawn by the payee.
 */
 func NewMediationPairState(payerRoute, payeeRoute *route.State, payerTransfer, payeeTransfer *LockedTransferState) *MediationPairState {
