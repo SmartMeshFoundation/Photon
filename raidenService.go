@@ -1020,7 +1020,7 @@ func (rs *RaidenService) newChannel(token, partner common.Address, settleTimeout
 		result = utils.NewAsyncResultWithError(err)
 		return
 	}
-	result = tokenNetwork.NewChannelAsync(partner, settleTimeout)
+	result = tokenNetwork.NewChannelAsync(rs.NodeAddress, partner, settleTimeout)
 	return
 }
 
@@ -1033,7 +1033,7 @@ func (rs *RaidenService) newChannelAndDeposit(token, partner common.Address, set
 		result = utils.NewAsyncResultWithError(err)
 		return
 	}
-	result = tokenNetwork.NewChannelAndDepositAsync(partner, settleTimeout, amount)
+	result = tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount)
 	return
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/monitoringcontracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -75,10 +74,10 @@ var eventAbiMap = map[string]string{
 	params.NameChannelPunished:           contracts.TokenNetworkABI,
 	params.NameSecretRevealed:            contracts.SecretRegistryABI,
 	//the following event is for 3rd party
-	params.NameNewDeposit:              monitoringcontracts.MonitoringServiceABI,
-	params.NameNewBalanceProofReceived: monitoringcontracts.MonitoringServiceABI,
-	params.NameRewardClaimed:           monitoringcontracts.MonitoringServiceABI,
-	params.NameWithdrawn:               monitoringcontracts.MonitoringServiceABI,
+	//params.NameNewDeposit:              monitoringcontracts.MonitoringServiceABI,
+	//params.NameNewBalanceProofReceived: monitoringcontracts.MonitoringServiceABI,
+	//params.NameRewardClaimed:           monitoringcontracts.MonitoringServiceABI,
+	//params.NameWithdrawn:               monitoringcontracts.MonitoringServiceABI,
 }
 
 /*

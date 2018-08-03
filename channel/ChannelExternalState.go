@@ -8,8 +8,6 @@ import (
 
 	"crypto/ecdsa"
 
-	"encoding/hex"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
@@ -20,7 +18,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 //FuncRegisterChannelForHashlock is the callback for notify a new hashlock comes
@@ -83,84 +80,40 @@ func (e *ExternalState) SetSettled(blocknumber int64) bool {
 //Close call close function of smart contract
 //todo fix somany duplicate codes
 func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
 	if e.ClosedBlock != 0 {
+		result = utils.NewAsyncResult()
 		result.Result <- fmt.Errorf("%s already closed,closeBlock=%d", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), e.ClosedBlock)
 		return
 	}
 	//start tx close and wait.
-	go func() {
-		var Nonce int64
-		TransferAmount := utils.BigInt0
-		var LocksRoot = utils.EmptyHash
-		//var ChannelIdentifier common.Address = utils.EmptyAddress
-		var MessageHash = utils.EmptyHash
-		var Signature []byte
-		if balanceProof != nil {
-			Nonce = balanceProof.Nonce
-			TransferAmount = balanceProof.TransferAmount
-			LocksRoot = balanceProof.LocksRoot
-			//ChannelIdentifier = balanceProof.ChannelIdentifier
-			MessageHash = balanceProof.MessageHash
-			Signature = balanceProof.Signature
-		}
-		tx, err := e.TokenNetwork.GetContract().CloseChannel(e.auth,
-			e.PartnerAddress,
-			TransferAmount, LocksRoot, uint64(Nonce),
-			MessageHash, Signature)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("Close channel %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		//log.Trace(fmt.Sprintf("receipt=%s", receipt))
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			result.Result <- errors.New("tx execution failed")
-			return
-		}
-		result.Result <- nil
-		log.Info(fmt.Sprintf("channel %s closed success", e.ChannelIdentifier.String()))
-		return
-	}()
+	var Nonce int64
+	TransferAmount := utils.BigInt0
+	var LocksRoot = utils.EmptyHash
+	//var ChannelIdentifier common.Address = utils.EmptyAddress
+	var MessageHash = utils.EmptyHash
+	var Signature []byte
+	if balanceProof != nil {
+		Nonce = balanceProof.Nonce
+		TransferAmount = balanceProof.TransferAmount
+		LocksRoot = balanceProof.LocksRoot
+		//ChannelIdentifier = balanceProof.ChannelIdentifier
+		MessageHash = balanceProof.MessageHash
+		Signature = balanceProof.Signature
+	}
+	result = e.TokenNetwork.CloseChannelAsync(e.PartnerAddress, TransferAmount, LocksRoot, Nonce, MessageHash, Signature)
 	return
 }
 
 //UpdateTransfer call updateTransfer of contract
 func (e *ExternalState) UpdateTransfer(bp *transfer.BalanceProofState) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
 	if bp == nil {
+		result = utils.NewAsyncResult()
 		result.Result <- errors.New("bp is nil")
 		return
 	}
-	go func() {
-		log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
-			utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface(bp, 3)))
-		tx, err := e.TokenNetwork.GetContract().UpdateBalanceProof(e.auth, e.PartnerAddress, bp.TransferAmount, bp.LocksRoot, uint64(bp.Nonce),
-			bp.MessageHash, bp.Signature)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("UpdateTransfer %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Info(fmt.Sprintf("updatetransfer failed %s,receipt=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), receipt))
-			result.Result <- errors.New("tx execution failed")
-			return
-		}
-		log.Info(fmt.Sprintf("updatetransfer success %s,balanceproof=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface1(bp)))
-		result.Result <- nil
-	}()
-
+	log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
+		utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface(bp, 3)))
+	result = e.TokenNetwork.UpdateBalanceProofAsync(e.PartnerAddress, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.MessageHash, bp.Signature)
 	return
 }
 
@@ -179,29 +132,8 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 				log.Info(fmt.Sprintf("withdraw secret has been used %s  %s", e.ChannelIdentifier.String(), utils.HPex(proof.Lock.LockSecretHash)))
 				continue
 			}
-			tx, err := e.TokenNetwork.GetContract().Unlock(
-				e.auth,
-				e.PartnerAddress,
-				transferAmount,
-				big.NewInt(proof.Lock.Expiration),
-				proof.Lock.Amount,
-				proof.Lock.LockSecretHash,
-				mtree.Proof2Bytes(proof.MerkleProof))
-			lock := proof.Lock
+			err := e.TokenNetwork.Unlock(e.PartnerAddress, transferAmount, proof.Lock, mtree.Proof2Bytes(proof.MerkleProof))
 			if err != nil {
-				failed = true
-				log.Info(fmt.Sprintf("withdraw failed %s on channel %s,lock=%s", err, utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface(lock, 7)))
-				continue
-				//return err
-			}
-			log.Info(fmt.Sprintf("withdraw on %s ,txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-			receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-			if err != nil {
-				log.Info(fmt.Sprintf("Unlock failed with error:%s", err))
-				failed = true
-			}
-			if receipt.Status != types.ReceiptStatusSuccessful {
-				log.Info(fmt.Sprintf("withdraw failed %s,receipt=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), receipt))
 				failed = true
 			} else {
 				/*
@@ -226,120 +158,22 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 
 //Settle call settle function of contract
 func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
 	if e.SettledBlock != 0 {
+		result = utils.NewAsyncResult()
 		result.Result <- fmt.Errorf("channel %s already settled", e.ChannelIdentifier.String())
 		return
 	}
-	go func() {
-		log.Info(fmt.Sprintf("settle called %s", e.ChannelIdentifier.String()))
-		tx, err := e.TokenNetwork.GetContract().SettleChannel(e.auth, e.MyAddress, MyTransferAmount, MyLocksroot, e.PartnerAddress, PartnerTransferAmount, PartnerLocksroot)
-		if err != nil {
-			err = fmt.Errorf("settle failed %s,closedblock=%d, err=%s", e.ChannelIdentifier.String(), e.ClosedBlock, err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("Settle ch %s, err %s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			err = fmt.Errorf("%s settle WaitMined failed with error:%s", e.ChannelIdentifier.String(), err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("settle failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("settle success %s", e.ChannelIdentifier.String()))
-		result.Result <- nil
-	}()
+	log.Info(fmt.Sprintf("settle called %s", e.ChannelIdentifier.String()))
+	result = e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
+		MyTransferAmount, PartnerTransferAmount,
+		MyLocksroot, PartnerLocksroot,
+	)
 	return
 }
 
 //Deposit call deposit of contract
 func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		//首先 approve, 然后才能 deposit
-		token, err := e.TokenNetwork.GetTokenProxy(tokenAddress)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		err = token.Approve(e.TokenNetwork.Address, amount)
-		if err != nil {
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("Deposit called %s", e.ChannelIdentifier.String()))
-		tx, err := e.TokenNetwork.GetContract().Deposit(e.auth, e.MyAddress, e.PartnerAddress, amount)
-		if err != nil {
-			err = fmt.Errorf("%s Deposit failed %s", e.ChannelIdentifier.String(), err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("Deposit to %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			err = fmt.Errorf("deposit WaitMined failed with error:%s", err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("deposit failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("deposit success %s", e.ChannelIdentifier.String()))
-		result.Result <- nil
-	}()
-	return
-}
-
-/*
-WithDraw on contract
-应该是在我收到 withdrawresponse消息 以后调用
-*/
-func (e *ExternalState) WithDraw(myBalance, partnerBalance *big.Int, myWithdraw, partnerWithDraw *big.Int, mySignature, PartnerSignature []byte) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		log.Info(fmt.Sprintf("WithDraw called %s", e.ChannelIdentifier.String()))
-		tx, err := e.TokenNetwork.GetContract().WithDraw(
-			e.auth,
-			e.MyAddress, myBalance, myWithdraw,
-			e.PartnerAddress, partnerBalance, partnerWithDraw,
-			mySignature, PartnerSignature,
-		)
-		if err != nil {
-			err = fmt.Errorf("%s WithDraw failed %s", e.ChannelIdentifier.String(), err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("WithDraw to %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			err = fmt.Errorf("WithDraw WaitMined failed with error:%s", err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("WithDraw failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("WithDraw success %s", e.ChannelIdentifier.String()))
-		result.Result <- nil
-	}()
+	result = e.TokenNetwork.DepositAsync(e.MyAddress, e.PartnerAddress, amount)
 	return
 }
 
@@ -347,71 +181,7 @@ func (e *ExternalState) WithDraw(myBalance, partnerBalance *big.Int, myWithdraw,
 PunishObsoleteUnlock 惩罚对手 unlock 一个声明放弃了的锁.
 */
 func (e *ExternalState) PunishObsoleteUnlock(lockhash, additionalHash common.Hash, cheaterSignature []byte) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		log.Info(fmt.Sprintf("PunishObsoleteUnlock called %s", e.ChannelIdentifier.String()))
-		tx, err := e.TokenNetwork.GetContract().PunishObsoleteUnlock(e.auth, e.MyAddress, e.PartnerAddress, lockhash, additionalHash, cheaterSignature)
-		if err != nil {
-			err = fmt.Errorf("%s PunishObsoleteUnlock failed %s", e.ChannelIdentifier.String(), err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("PunishObsoleteUnlock to %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			err = fmt.Errorf("PunishObsoleteUnlock WaitMined failed with error:%s", err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("PunishObsoleteUnlock failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("PunishObsoleteUnlock success %s", e.ChannelIdentifier.String()))
-		result.Result <- nil
-	}()
-	return
-}
-
-/*
-CooperativeSettle 收到对方 cooperativeSettleReponse 消息以后调用
-*/
-func (e *ExternalState) CooperativeSettle(myBalance, partnerBalance *big.Int, mySignature, PartnerSignature []byte) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		log.Info(fmt.Sprintf("CooperativeSettle called %s,myaddr=%s,partner=%s,myBalance=%s,partnerBalance=%s,mySignature=%s,partnerSignature=%s",
-			e.ChannelIdentifier.String(),
-			utils.APex2(e.MyAddress), utils.APex2(e.PartnerAddress),
-			myBalance, partnerBalance,
-			hex.EncodeToString(mySignature), hex.EncodeToString(PartnerSignature),
-		))
-		tx, err := e.TokenNetwork.GetContract().CooperativeSettle(e.auth, e.MyAddress, myBalance, e.PartnerAddress, partnerBalance, mySignature, PartnerSignature)
-		if err != nil {
-			err = fmt.Errorf("%s CooperativeSettle failed %s", e.ChannelIdentifier.String(), err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("CooperativeSettle to %s, txhash=%s", e.ChannelIdentifier.String(), tx.Hash().String()))
-		receipt, err := bind.WaitMined(rpc.GetCallContext(), e.Client, tx)
-		if err != nil {
-			err = fmt.Errorf("CooperativeSettle WaitMined failed with error:%s", err)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			err = fmt.Errorf("CooperativeSettle failed %s,receipt=%s", e.ChannelIdentifier.String(), receipt)
-			log.Info(err.Error())
-			result.Result <- err
-			return
-		}
-		log.Info(fmt.Sprintf("CooperativeSettle success %s", e.ChannelIdentifier.String()))
-		result.Result <- nil
-	}()
+	log.Info(fmt.Sprintf("PunishObsoleteUnlock called %s", e.ChannelIdentifier.String()))
+	result = e.TokenNetwork.PunishObsoleteUnlockAsync(e.MyAddress, e.PartnerAddress, lockhash, additionalHash, cheaterSignature)
 	return
 }

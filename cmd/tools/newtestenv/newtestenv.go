@@ -20,16 +20,28 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenether"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenstandard"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"gopkg.in/urfave/cli.v1"
 )
 
 var globalPassword = "123"
+
+const (
+	tokenERC223   = "erc223"
+	tokenStandard = "standard"
+	//#nosec
+	tokenERC223Approve = "erc223_approve"
+	tokenEther         = "ether"
+)
 
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
@@ -81,8 +93,10 @@ func mainctx(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
-	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223Approve)
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenEther)
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenStandard)
+	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223)
 	return nil
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
@@ -131,10 +145,13 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	}
 	fmt.Printf("deploy SecretRegistry complete...\n")
 	//Deploy TokenNetorkRegistry
+	//auth.GasLimit = 4000000 //最大gas
+	//auth.GasPrice = big.NewInt(2000)
 	tokenNetworkRegistryAddress, tx, _, err = contracts.DeployTokenNetworkRegistry(auth, conn, SecretRegistryAddress, chainID)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
+	fmt.Printf("tokenNetworkRegistryAddress=%s\n", tokenNetworkRegistryAddress.String())
 	ctx = context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
@@ -145,8 +162,8 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	fmt.Printf("tokenNetworkRegistryAddress=%s\n", tokenNetworkRegistryAddress.String())
 	return
 }
-func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool) {
-	tokenNetworkAddress, tokenAddress := newToken(key, conn, registry)
+func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool, tokenType string) {
+	tokenNetworkAddress, tokenAddress := newToken(key, conn, registry, tokenType)
 	//tokenAddress := common.HexToAddress("0xD29A9Cbf2Ca88981D0794ce94e68495c4bC16F28")
 	//tokenNetworkAddress, _ := registry.Token_to_token_networks(nil, tokenAddress)
 	token, err := contracts.NewToken(tokenAddress, conn)
@@ -155,10 +172,10 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 		return
 	}
 	am := accounts.NewAccountManager(keystorepath)
-	var accounts []common.Address
+	var localAccounts []common.Address
 	var keys []*ecdsa.PrivateKey
 	for _, account := range am.Accounts {
-		accounts = append(accounts, account.Address)
+		localAccounts = append(localAccounts, account.Address)
 		keybin, err := am.GetPrivateKey(account.Address, globalPassword)
 		if err != nil {
 			log.Fatalf("password error for %s,err=%s", utils.APex2(account.Address), err)
@@ -170,16 +187,29 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 		keys = append(keys, keytemp)
 	}
 	//fmt.Printf("key=%s\n", key)
-	transferMoneyForAccounts(key, conn, accounts[1:], token)
+	transferMoneyForAccounts(key, conn, localAccounts[1:], keys[1:], token)
 	if createchannel {
-		createChannels(conn, accounts, keys, tokenNetworkAddress, token)
+		createChannels(conn, localAccounts, keys, tokenNetworkAddress, token)
 	}
 }
-func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry) (tokenNetworkAddress common.Address, tokenAddr common.Address) {
+
+func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, tokenType string) (tokenNetworkAddress common.Address, tokenAddr common.Address) {
+	var tx *types.Transaction
+	var err error
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(500000000000000000), 0, "test", "test symoble")
+	switch tokenType {
+	case tokenERC223:
+		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, big.NewInt(500000000000000000), "test erc223")
+	case tokenStandard:
+		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, big.NewInt(500000000000000000), "test standard")
+	case tokenERC223Approve:
+		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(500000000000000000), "test erc223 approve")
+	case tokenEther:
+		auth.Value = big.NewInt(500000000000000000)
+		tokenAddr, tx, _, err = tokenether.DeployHumanEtherToken(auth, conn, "test ether")
+	}
 	if err != nil {
-		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
+		log.Fatalf("Failed to deploy %s: %v", tokenType, err)
 	}
 	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
 	ctx := context.Background()
@@ -187,7 +217,8 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployHumanStandardToken complete...\n")
+	auth.Value = nil // ether will modify auth
+	fmt.Printf("Deploy %s  %s complete...\n", tokenType, tokenAddr.String())
 	tx, err = registry.CreateERC20TokenNetwork(auth, tokenAddr)
 	if err != nil {
 		log.Fatalf("Failed to AddToken: %v", err)
@@ -199,10 +230,10 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
 	tokenNetworkAddress, err = registry.Token_to_token_networks(nil, tokenAddr)
-	fmt.Printf("DeployHumanStandardToken complete... %s,tokennetwork=%s\n", tokenAddr.String(), tokenNetworkAddress.String())
+	fmt.Printf("Deploy %s complete... %s,tokennetwork=%s\n", tokenType, tokenAddr.String(), tokenNetworkAddress.String())
 	return
 }
-func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *contracts.Token) {
+func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, token *contracts.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
 	auth := bind.NewKeyedTransactor(key)
@@ -216,11 +247,25 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
-			tx, err := token.Transfer(auth2, account, big.NewInt(500000000000))
+			//由于生成的 Transfer 不能很好处理重载,因此需要用 approve and transfer from
+			amount := big.NewInt(500000000000)
+			tx, err := token.Approve(auth2, account, amount)
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
 			}
 			ctx := context.Background()
+			_, err = bind.WaitMined(ctx, conn, tx)
+			if err != nil {
+				log.Fatalf("failed to Transfer when mining :%v", err)
+			}
+			fmt.Printf("approve %s complete\n", account.String())
+			auth3 := bind.NewKeyedTransactor(keys[i])
+			tx, err = token.TransferFrom(auth3, auth2.From, account, amount)
+			if err != nil {
+				log.Fatalf("Failed to Transfer: %v", err)
+			}
+			fmt.Printf("transfer from %s,txhash=%s\n", account.String(), tx.Hash().String())
+			ctx = context.Background()
 			_, err = bind.WaitMined(ctx, conn, tx)
 			if err != nil {
 				log.Fatalf("failed to Transfer when mining :%v", err)
