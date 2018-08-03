@@ -232,14 +232,8 @@ func (node *EndState) computeMerkleRootWithout(without *mtree.Lock) (*mtree.Merk
        hashlock included, otherwise it won't be able to claim it.
 
        Args:
-           transfer (LockedTransfer): The transfer to be added.
+          lockedTransfer: The transfer to be added.
 
-       Raises:
-           InvalidLocksRoot: If the merkleroot of `locked_transfer` does not
-           match with the expected value.
-
-           ValueError: If the transfer contains a lock that was registered
-           previously.
 //Calculate the banlanceproof locksroot position before sending
 */
 func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMessager) error {
@@ -271,9 +265,6 @@ func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMess
 /*
 registerDirectTransfer register a direct_transfer.
 
-       Raises:
-           InvalidLocksRoot: If the merkleroot of `direct_transfer` does not
-           match the current value.
 安全检查:
 nonce,channel 由前置检查保证
 transferAmount 必须增大,
@@ -409,7 +400,6 @@ func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber 
 /*
 RegisterSecret register a secret(not secret message) so that it can be used in a Balance proof.
 
-        Note:
             This methods needs to be called once a `Secret` message is received
 */
 func (node *EndState) RegisterSecret(secret common.Hash) error {

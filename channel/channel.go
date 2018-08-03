@@ -46,26 +46,6 @@ func NewChannel(ourState, partenerState *EndState, externState *ExternalState, t
 		return
 	}
 	if revealTimeout < 3 {
-		/*
-						 To guarantee that tokens won't be lost the expiration needs to
-			             decrease at each hop, this is what forces the next hop to reveal
-			             the secret with enough time for this node to unlock the lock with
-			             the previous.
-
-			             This /should be/ at least:
-
-			               reveal_timeout = blocks_to_learn + blocks_to_mine * 2
-
-			             Where:
-
-			             - `blocks_to_learn` is the estimated worst case for a given block
-			             to propagate to the full network. This is the time to learn a
-			             secret revealed throught the blockchain.
-			             - `blocks_to_mine * 2` is the estimated worst case for a given
-			             transfer to be included in a block. This is the time to close a
-			             channel and then to unlock a lock on chain.
-
-		*/
 		err = errors.New("reveal_timeout must be at least 3")
 		return
 	}

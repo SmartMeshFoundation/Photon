@@ -17,12 +17,11 @@ import (
 const NameInitiatorTransition = "InitiatorTransition"
 
 /*
-""" Clear current state and try a new route.
+Clear current state and try a new route.
 
-    - Discards the current secret
-    - Add the current route to the canceled list
-    - Add the current message to the canceled transfers
-    """
+- Discards the current secret
+- Add the current route to the canceled list
+- Add the current message to the canceled transfers
 */
 func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
@@ -300,7 +299,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 	if st.Sender == state.Route.HopNode() && st.Secret == state.Transfer.Secret {
 		/*
 					   next hop learned the secret, unlock the token locally and send the
-			         withdraw message to next hop
+			         unlock message to next hop
 		*/
 		return &transfer.TransitionResult{
 			NewState: nil,

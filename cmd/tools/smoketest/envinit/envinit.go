@@ -20,10 +20,11 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
@@ -192,7 +193,7 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 // NewToken ：
 func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry) (tokenNetoworkAddr common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := tokencontract.DeployHumanStandardToken(auth, conn, big.NewInt(50000000000), 0, "test", "test symoble")
+	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble")
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
@@ -231,7 +232,11 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2 := bind.NewKeyedTransactor(key)
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
-			tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
+			var tx *types.Transaction
+			if tx == nil {
+				panic("should use approve and transfer from instead")
+			}
+			//tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
 			}

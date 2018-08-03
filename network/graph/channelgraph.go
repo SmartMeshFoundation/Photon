@@ -161,37 +161,6 @@ func (cg *ChannelGraph) AddChannel(ch *channel.Channel) error {
 }
 
 /*
-Compute all shortest paths in the graph.
-
-        Returns:
-            all paths between source and     target.
-*/
-func (cg *ChannelGraph) getShortestPaths(source, target common.Address) (paths [][]common.Address, err error) {
-	panic("not implement")
-	//cg.Lock.Lock()
-	//defer cg.Lock.Unlock()
-	//sourceIndex, ok := cg.address2index[source]
-	//if !ok {
-	//	err = errors.New("source address is unkown")
-	//	return
-	//}
-	//targetIndex, ok := cg.address2index[target]
-	//if !ok {
-	//	err = errors.New("target address is unkown")
-	//	return
-	//}
-	//indexPaths := dijkstra.NewGraph(cg.g.GetAllVertices()).AllShortestPath(sourceIndex, targetIndex)
-	//for _, ip := range indexPaths {
-	//	var p []common.Address
-	//	for _, i := range ip {
-	//		p = append(p, cg.index2address[i])
-	//	}
-	//	paths = append(paths, p)
-	//}
-	//return
-}
-
-/*
 HasChannel return  True if there is a connecting path regardless of the number of hops.
 */
 func (cg *ChannelGraph) HasChannel(source, target common.Address) bool {

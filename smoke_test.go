@@ -5,13 +5,12 @@ import (
 
 	"context"
 	"math/big"
-	"math/rand"
 
 	"time"
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +27,7 @@ func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{
 func deployAToken(t *testing.T, raiden *RaidenService) (addr common.Address) {
 	n := new(big.Int)
 	n.SetBytes(raiden.NodeAddress[:])
-	addr, tx, _, err := tokencontract.DeployHumanStandardToken(raiden.Chain.Auth, raiden.Chain.Client, n, 1, "Contracts in Go!!!", "Go!")
+	addr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(raiden.Chain.Auth, raiden.Chain.Client, n, "Go!")
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -112,7 +111,7 @@ func TestSmoke(t *testing.T) {
 	}
 
 	log.Info("step 2 transfer from A to B")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rb.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute, false)
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -124,7 +123,7 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 3 transfer from A to C")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute, false)
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -214,7 +213,7 @@ func TestFeeCharger(t *testing.T) {
 	}
 	log.Info("tokenAddr=%s,tokenaddr2=%s", tokenAddr.String(), tokenAddr2.String())
 	log.Info("transfer from A to C")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute, false)
+	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -230,7 +229,7 @@ func TestFeeCharger(t *testing.T) {
 	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, bcAmount))
 
 	//specifed a  wrong fee,
-	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), time.Minute, false)
+	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err == nil {
 		t.Errorf("should fail because of not engough fee.")
 		return

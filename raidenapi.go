@@ -316,8 +316,8 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
 }
 
 //TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration, isDirectTransfer bool) (err error) {
-	result, err := r.transferAsync(token, amount, fee, target, identifier, isDirectTransfer)
+func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, timeout time.Duration, isDirectTransfer bool) (err error) {
+	result, err := r.transferAsync(token, amount, fee, target, lockSecretHash, isDirectTransfer)
 	if err != nil {
 		return err
 	}
@@ -335,12 +335,12 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 }
 
 //Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, timeout time.Duration, isDirectTransfer bool) error {
-	return r.TransferAndWait(token, amount, fee, target, identifier, timeout, isDirectTransfer)
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, timeout time.Duration, isDirectTransfer bool) error {
+	return r.TransferAndWait(token, amount, fee, target, lockSecretHash, timeout, isDirectTransfer)
 }
 
 //transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, identifier uint64, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -369,9 +369,9 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 		err = rerr.ErrInvalidAmount
 		return
 	}
-	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d identifier=%d",
-		r.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, identifier))
-	result = r.Raiden.transferAsyncClient(tokenAddress, amount, fee, target, identifier, isDirectTransfer)
+	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d lockSecretHash=%s",
+		r.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, lockSecretHash.String()))
+	result = r.Raiden.transferAsyncClient(tokenAddress, amount, fee, target, lockSecretHash, isDirectTransfer)
 	return
 }
 
