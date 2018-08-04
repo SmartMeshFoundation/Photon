@@ -24,7 +24,7 @@ contract SecretRegistry {
     function registerSecret(bytes32 secret) public returns (bool) {
         bytes32 secrethash = keccak256(abi.encodePacked(secret));
         if (secret == 0x0 || secrethash_to_block[secrethash] > 0) {
-            return false;
+            revert();
         }
         secrethash_to_block[secrethash] = block.number;
         emit SecretRevealed(secrethash);
