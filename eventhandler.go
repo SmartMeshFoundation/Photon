@@ -64,6 +64,22 @@ func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager
 	}
 	return
 }
+
+/*
+我要发送 reveal secret 出去了,应该让每个与密码相关的通道都知道密码.
+1.如果我是发送方,多注册一个密码没坏处
+2. 如果我参与到的的是 token swap, 那么必须在告诉对方密码的同时,我要知道密码,虽然我自己知道,但必须注册到响应的通道中,
+ 比如 A-B-C A-D-C ,AC进行 token swap,A 是 maker,C 是 taker,A 给 C 的 expiration 是1000,C 给 A 的 expiration 是500,
+那么 C 完全可以不理 A 发出的 secret request,然后在500块以后把 A 给 C 的 token 取走.
+*/
+func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfer.EventSendRevealSecret, stateManager *transfer.StateManager) (err error) {
+	eh.raiden.conditionQuit("EventSendRevealSecretBefore")
+	eh.raiden.registerSecret(event.Secret)
+	revealMessage := encoding.NewRevealSecret(event.Secret)
+	err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
+	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
+	return err
+}
 func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtransfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
 	g := eh.raiden.getToken2ChannelGraph(event.Token)
@@ -220,10 +236,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventSendMediatedTransfer(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendMediatedTransferAfter")
 	case *mediatedtransfer.EventSendRevealSecret:
-		eh.raiden.conditionQuit("EventSendRevealSecretBefore")
-		revealMessage := encoding.NewRevealSecret(e2.Secret)
-		err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
-		err = eh.raiden.sendAsync(e2.Receiver, revealMessage) //单独处理 reaveal secret
+		err = eh.eventSendRevealSecret(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendRevealSecretAfter")
 	case *mediatedtransfer.EventSendBalanceProof:
 		//unlock and update remotely (send the LockSecretHash message)
