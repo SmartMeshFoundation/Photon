@@ -229,15 +229,15 @@ func clearIfFinalized(result *transfer.TransitionResult) *transfer.TransitionRes
 
 /*
 Finds the first route available that may be used.
-        rss (RoutesState): Current available routes that may be used,
+        rss  : Current available routes that may be used,
             it's assumed that the available_routes list is ordered from best to
             worst.
-        timeoutBlocks (int): Base number of available blocks used to compute
+        timeoutBlocks : Base number of available blocks used to compute
             the lock timeout.
-        transferAmount (int): The amount of tokens that will be transferred
+        transferAmount : The amount of tokens that will be transferred
             through the given route.
     Returns:
-        (RouteState): The next route.
+         The next route.
 */
 /*
 找到一个满足下面提交的 route
@@ -471,6 +471,8 @@ Reveal the secret backwards.
     risk, N won't lose tokens since it knows the secret can go on-chain at any
     time.
 这些transfersPair,都是我介入的中介传输
+如果我收到密码的时候已经临近上家密码的 reveal timeout,这样的做法会不会造成连锁反应,造成所有的人都主动去链上注册密码呢?
+我要不要发送 reveal secret 给上家呢?
 */
 func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState, ourAddress common.Address) (events []transfer.Event) {
 	for j := len(transfersPair) - 1; j >= 0; j-- {
@@ -500,16 +502,20 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 		payeeKnowsSecret := stateSecretKnownMaps[pair.PayeeState]
 		payeePayed := stateTransferPaidMaps[pair.PayeeState]
 		payeeChannelOpen := pair.PayeeRoute.State() == channeltype.StateOpened
-
 		/*
-					  todo: All nodes must close the channel and withdraw on-chain if the
+			如果我收到密码的时候已经临近上家密码的 reveal timeout,那么安全的做法就是什么都不做.
+				强迫这个交易失败,或者强迫下家去注册密码,对方就不应该在临近过期的时候才告诉我密码,应该提早告诉.
+		*/
+		payerTransferInDanger := blockNumber > pair.PayerTransfer.Expiration-int64(pair.PayerRoute.RevealTimeout())
+		/*
+					  todo: All nodes must register the secret  on-chain if the
 			         lock is nearing it's expiration block, what should be the strategy
 			         for sending a balance proof to a node that knowns the secret but has
 			         not gone on-chain while near the expiration? (The problem is how to
 			         define the unsafe region, since that is a local configuration)
 		*/
 		lockValid := isLockValid(pair.PayeeTransfer, blockNumber)
-		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid {
+		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid && !payerTransferInDanger {
 			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			tr := pair.PayeeTransfer
 			balanceProof := &mediatedtransfer.EventSendBalanceProof{
