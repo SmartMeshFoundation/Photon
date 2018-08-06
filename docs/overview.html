@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>overview.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+<script src="https://unpkg.com/mermaid@8.0.0-rc.8/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true});</script>
+
+<style>
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: "Segoe WPC", "Segoe UI", "SFUIText-Light", "HelveticaNeue-Light", sans-serif, "Droid Sans Fallback";
+	font-size: 14px;
+	padding: 0 12px;
+	line-height: 22px;
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	color: #4080D0;
+	text-decoration: none;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+h1 code,
+h2 code,
+h3 code,
+h4 code,
+h5 code,
+h6 code {
+	font-size: inherit;
+	line-height: auto;
+}
+
+a:hover {
+	color: #4080D0;
+	text-decoration: underline;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left: 5px solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 14px;
+	line-height: 19px;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+.mac code {
+	font-size: 12px;
+	line-height: 18px;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+/** Theming */
+
+.vscode-light,
+.vscode-light pre code {
+	color: rgb(30, 30, 30);
+}
+
+.vscode-dark,
+.vscode-dark pre code {
+	color: #DDD;
+}
+
+.vscode-high-contrast,
+.vscode-high-contrast pre code {
+	color: white;
+}
+
+.vscode-light code {
+	color: #A31515;
+}
+
+.vscode-dark code {
+	color: #D7BA7D;
+}
+
+.vscode-light pre:not(.hljs),
+.vscode-light code > div {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre:not(.hljs),
+.vscode-dark code > div {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre:not(.hljs),
+.vscode-high-contrast code > div {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+.vscode-light blockquote,
+.vscode-dark blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.vscode-high-contrast blockquote {
+	background: transparent;
+	border-color: #fff;
+}
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family:  "Meiryo", "Segoe WPC", "Segoe UI", "SFUIText-Light", "HelveticaNeue-Light", sans-serif, "Droid Sans Fallback";
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+</head>
+<body>
+<h1 id="smartraiden-overview">Smartraiden Overview</h1>
+<h2 id="introduction">Introduction</h2>
+<p>Smartraiden is a standard compliant implementation of the Raiden Network protocol using Golang, which enforces small-amount off-chain transactions on the mobile platform, and is able to run without Internet connection. For users can have a in-depth understanding about Smartraiden and feel free using it, we offer an outline briefly introducing relative concepts and procedures. At the beginning, there is a review of the Raiden Network.Next, we introduce primary functions and characteristics of Smartraiden. Then, we will give a showcase of fund-transferring transaction in the Smartraiden. In further detail, we have API specification and standard.</p>
+<h2 id="review-raiden-network">Review Raiden Network</h2>
+<p>Raiden Network is an off-chain scalability solution enforcing erc-20 compliant token transferring on the Ethereal. It allows for secure token transactions among participants without any global consensus mechanism, which is implemented through pre-set on-chain deposits transferring with digital signature and lock hash. We still rely on several on-chain processes to open and close a payment channel within a pair of nodes, so that it is incredibly hard for every pair of nodes on the network to create channels. However, if there exists one channel (at least), connecting two nodes through other nodes in the network, then we have no need to create another individual channel for these two nodes. This network is named as the Raiden Network, with all the contracts as to route algorithms and interlock channel communications.</p>
+<p>Figure Payment Channel Network:<br>
+<img src="/docs/images/Smartraiden_network.png" alt=""></p>
+<h2 id="primary-functionalities-and-characteristics-in-smartraiden">Primary Functionalities and Characteristics in SmartRaiden</h2>
+<p>The primary goal for SmartRaiden aims to construct a structure to enforce an off-chain scalability solution for SmartRaiden Network, which improves usability, compatibility, and security.</p>
+<p>Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in <a href="https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/rest_api.md">rest_api</a>.</p>
+<p>Additional functions include :</p>
+<ul>
+<li>Multiplatform &amp; Mobile Adaptability</li>
+</ul>
+<p>SmartRaiden network will be available on multiple platforms and decentralized micropayment on smart mobile devices can be realized. SmartRaiden currently can work on Windows, Linux, Android, iOS etc. SmartRaiden builds its own messaging mechanism on XMPP, not P2P, and separate nodes and start-up processes, making sure that it is capable of running on multiple platform with correct operations.</p>
+<ul>
+<li>Nodes State Synchronization</li>
+</ul>
+<p>To make transaction secure, SmartRaiden adopts state machine to the design of nodes, ensuring relevant operations are atomic. For instance, it must be consistent with information of received unlock record of data and information sending out in the ACK message, both or neither are successful, no medium state existed. In the process of transactions, if any faulty condition occurs, ensure transaction state of both parties are consistent, and after crash recovery, either transaction continues or transaction fails, without any token loss.</p>
+<ul>
+<li>Internet-free Payment</li>
+</ul>
+<p>It is a special functionality added in the SmartRaiden. Via network construction functions in meshbox, SmartRaiden is able to enforce off-chain fund transferring without reliance on the Internet.</p>
+<ul>
+<li>Third-party Delegation</li>
+</ul>
+<p>Third-party delegation service, also known as SmartRaiden Monitoring, mainly used to facilitate mobile devices to enforce UpdateTransferDelegate &amp; WithDraw on the blockchain by third-party delegation when they’re offline. Third-party service interacts with three parts in the system of out service, App, SmartRaiden, and spectrum.</p>
+<ul>
+<li>Fixed-rate Charge</li>
+</ul>
+<p>Similar to Lightning Network, we have an additional fixed-rate charge function in the process of transferring tokens. Incentivized by this charge, all the nodes on this route will retain channel balance to improve the efficiency and higher the rate of successful transactions.</p>
+<h2 id="showcases-of-transactions-in-smartraiden">Showcases of Transactions in SmartRaiden</h2>
+<p>Assume that we have one node using AET token connected to our channel network, in which case, this node connects to another 5 nodes, and easy to transfer tokens to direct nodes. If this channel network gets complicated, then we have our tokens transferred though several nodes, and the state of nodes of this channel will alter successively.</p>
+<p>Before the tx :</p>
+<pre class="hljs"><code><div class="mermaid"> graph LR
+a((node1))--  200   100 ---b((node2))
+b((node2))--  100   100 ---c((node 3))
+b((node2))--  200   100 ---d((node4))
+d((node4))--  100   100 ---e((node5))                             
+</div></code></pre>
+<p>After the tx:</p>
+<pre class="hljs"><code><div class="mermaid">graph LR
+
+a((node1))--  150   150 ---b((node2))
+b((node2))--  100   100 ---c((node3))
+b((node2))--  150   150 ---d((node4))
+d((node4))--  50    150 ---e((node5))
+</div></code></pre>
+<p>In this diagram, the addresses of each node are</p>
+<ul>
+<li>node 1 : <code>0x69C5621db8093ee9a26cc2e253f929316E6E5b92</code></li>
+<li>node 2 : <code>0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd</code></li>
+<li>node 3 : <code>0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5</code></li>
+<li>node 4 : <code>0x6B9E4D89EE3828e7a477eA9AA7B62810260e27E9</code></li>
+<li>node 5 : <code>0x088da4d932A716946B3542A10a7E84edc98F72d8</code></li>
+</ul>
+<p>And our transaction process starts from node 1, ends at node 5. However, we have only one route to 5, in the diagram, namely 1 to 2 to 4 to 5. After transaction completes, the alteration of balance tokens in this channel is</p>
+<p>node 1 to node 2 : <code>0xc4327c664D9c47230Be07436980Ea633cA3265e4</code><br>
+<strong>node 1 initial deposit</strong> : <code>200</code><br>
+<strong>node 2 initial deposit</strong> : <code>100</code><br>
+<strong>node 1 balance</strong> : <code>150</code><br>
+<strong>node 2 balance</strong> : <code>150</code></p>
+<p>node 2 to node 3 : <code>0xd1102D7a78B6f92De1ed3C7a182788DA3a630DDA</code><br>
+<strong>node 2 initial deposit</strong> : <code>100</code><br>
+<strong>node 3 initial deposit</strong> : <code>100</code><br>
+<strong>node 2 balance</strong> : <code>100</code><br>
+<strong>node 3 balance</strong> : <code>100</code></p>
+<p>node 2 to node 4 : <code>0xdF474bBc5802bFadc4A25cf46ad9a06589D5AF7D</code><br>
+<strong>node 2 initial deposit</strong> : <code>200</code><br>
+<strong>node 4 initial deposit</strong> : <code>100</code><br>
+<strong>node 2 balance</strong> : <code>150</code><br>
+<strong>node 4 balance</strong> : <code>150</code></p>
+<p>node 4 to node 5 : <code>0xd5CF2248292e75531d314B118a0390132bc7a5F0</code><br>
+<strong>node 4 initial deposit</strong> : <code>100</code><br>
+<strong>node 5 initial deposit</strong> : <code>100</code><br>
+<strong>node 4 balance</strong> : <code>50</code><br>
+<strong>node 5 balance</strong> : <code>150</code></p>
+<h2 id="smartraiden-contract-and-channel-lifecycle">SmartRaiden Contract and Channel lifecycle</h2>
+<p>SmartRaiden contract includes :</p>
+<ul>
+<li>Netting Channel Library : <code>0xad5cb8fa8813f3106f3ab216176b6457ab08eb75</code></li>
+<li>Channel Manager Library : <code>0xdb3a4dbae2b761ed2751f867ce197c531911382a</code></li>
+<li>Registry Contract : <code>0x68e1b6ed7d2670e2211a585d68acfa8b60ccb828</code></li>
+<li>Discovery Contract : <code>0x1e3941d8c05fffa7466216480209240cc26ea577</code></li>
+</ul>
+<p>Spectrum contract registry address  = <code>0x41Df0be8c4e4917f9Fc5F6F5F32e03F226E2410B</code></p>
+<h3 id="channel-lifecycle">Channel lifecycle</h3>
+<ul>
+<li>Channel nonexistence</li>
+</ul>
+<p>There are two cases for channel nonexistence : one is our channel never exists, the other is we have already settled our transaction, so that all the data of channel and participants have been removed. Under both cases, we can not verify transactions among nodes, except that we create channels for our transactions.</p>
+<ul>
+<li>Channel open</li>
+</ul>
+<p>There is channel creation between a node and its directly connected counterpart, channel creation operator has the right to indicate addresses of tokens, counterpart, and the number of token to deposit, and time period for settlement. Once channel opens, whereby participants can make their transactions.</p>
+<ul>
+<li>Channel deposit</li>
+</ul>
+<p>We have only one node made deposits, after payment channel opens, so that only this node can transfer his tokens to his counterpart. Then this node can send a message informing that there is a payment channel opened for transaction to the counterpart, after which the counterpart is also able to deposit its tokens.</p>
+<ul>
+<li>Channel transfer</li>
+</ul>
+<p>Once a node has connected to the payment channel network, by AET token, under which it has access to another 5 nodes. It is quite easy for this node to transfer its token to another directly-connected node, but if it wants to transfer to the intermediate nodes among them, they both need to construct channels to the intermediate nodes, and if tokens in these nodes is sufficient for this transaction, then transaction occurs.</p>
+<ul>
+<li>Channel close</li>
+</ul>
+<p>If any node wants to shut down a certain channel connected to it, he can invoke close function. After that, channel close operator and its counterpart need to submit their balance proofs during the settlement.</p>
+<ul>
+<li>Channel settle</li>
+</ul>
+<p>Once payment channel close is invoked, settle timeout starts to count. During this period, both nodes submit the most recent message. After timeout, channel finishes the settlement.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>At here, you have finished your learning about all the concepts and functionality specifications about SmartRaiden. For further usage, please go through installation <a href="https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/installation_guide.md">instruction</a> and <a href="https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/api_walkthrough.md">tutorials</a> or <a href="https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/spec.md">SmartRaiden Specification</a></p>
+
+</body>
+</html>
