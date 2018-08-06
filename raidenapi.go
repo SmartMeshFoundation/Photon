@@ -188,7 +188,7 @@ func (r *RaidenAPI) Deposit(tokenAddress, partnerAddress common.Address, amount 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	r.Raiden.db.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		if bytes.Compare(c2.Key, c.Key) == 0 {
+		if bytes.Equal(c2.Key, c.Key) {
 			wg.Done()
 			return true
 		}
@@ -386,7 +386,7 @@ func (r *RaidenAPI) Close(tokenAddress, partnerAddress common.Address) (c *chann
 	r.Raiden.db.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Compare(c2.Key, c.Key) == 0 {
+		if bytes.Equal(c2.Key, c.Key) {
 			wg.Done()
 			return true
 		}
@@ -415,7 +415,7 @@ func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (c *chan
 	r.Raiden.db.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Compare(c2.Key, c.Key) == 0 {
+		if bytes.Equal(c2.Key, c.Key) {
 			wg.Done()
 			return true
 		}

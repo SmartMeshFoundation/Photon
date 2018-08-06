@@ -37,26 +37,25 @@ It is a special functionality added in the SmartRaiden. Via network construction
 ## Showcases of Transactions in SmartRaiden
  Assume that we have one node using AET token connected to our channel network, in which case, this node connects to another 5 nodes, and easy to transfer tokens to direct nodes. If this channel network gets complicated, then we have our tokens transferred though several nodes, and the state of nodes of this channel will alter successively. 
 
-Showcase is as follows :
+Before the tx :
 
+```mermaid
+ graph LR
+a((node1))--  200   100 ---b((node2))
+b((node2))--  100   100 ---c((node3))
+b((node2))--  200   100 ---d((node4))
+d((node4))--  100   100 ---e((node5))                             
+``` 
+After the tx:
+
+```mermaid
+graph LR
+
+a((node1))--  150   150 ---b((node2))
+b((node2))--  100   100 ---c((node3))
+b((node2))--  150   150 ---d((node4))
+d((node4))--  50    150 ---e((node5))
 ```
-                              
-
-+ --- + (200)          (100)   + --- +  (100)           (100)  + --- +
-|node1| <----- channel ----->  |node2|  <----- channel ----->  |node3|
-+ --- + (150)          (150)   + --- +  (100)           (100)  + --- +
-                             (150)|(100)
-                                  |
-                                  |
-                                  |
-                                  |
-                                  |
-                             (150)|(100)
-                               + --- +  (50)            (150) + --- +
-                               |node4|  <----- channel -----> |node5|
-                               + --- +  (100)           (100) + --- +
-
-```                               
 
 In this diagram, the addresses of each node are
 
