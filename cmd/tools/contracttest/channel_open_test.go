@@ -80,6 +80,7 @@ func TestOpenChannelEdge(t *testing.T) {
 	// self地址为0x0000000000000000000000000000000000000000
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, EmptyAccountAddress, a2.Address, testSettleTimeout)
 	assertTxFail(t, &count, tx, err)
+
 	// partner地址为0x0
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, common.StringToAddress("0x0"), testSettleTimeout)
 	assertTxFail(t, &count, tx, err)
@@ -92,6 +93,7 @@ func TestOpenChannelEdge(t *testing.T) {
 	// partner地址为0x0000000000000000000000000000000000000000
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, EmptyAccountAddress, testSettleTimeout)
 	assertTxFail(t, &count, tx, err)
+
 	// 通道双方地址相同
 	tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a1.Address, testSettleTimeout)
 	assertTxFail(t, &count, tx, err)
