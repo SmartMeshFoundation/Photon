@@ -255,8 +255,9 @@ func nextRoute(rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *b
 			1.通道金额足够
 			2. 给出的收费也够
 			3. 时间还安全
+			4. 通道可以发起交易
 		*/
-		if route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 {
+		if route.CanTransfer() && route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 {
 			return route
 		}
 		rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
