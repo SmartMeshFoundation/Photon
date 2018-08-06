@@ -48,7 +48,7 @@ func TestSwapKeyAsMapKey(t *testing.T) {
 	key2 := key1
 	m := make(map[swapKey]bool)
 	m[key1] = true
-	if m[key2] != true {
+	if !m[key2] {
 		t.Error("expect equal")
 	}
 }
