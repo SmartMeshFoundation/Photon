@@ -87,6 +87,28 @@ For the simplest Alice - Bob example:
     - locksroot = `updated value containing  the lock`   
     - nonce = `current_value + 1`    
 
+
+```mermaid
+sequenceDiagram
+    participant A as Alice
+    participant B as Bob
+    participant C as Charle
+    participant D as Dave
+    A  ->>  B: (nonce=2,transferred=10,H(secret),expiration=3000)
+    B  ->>  C: (nonce=3,transferred=10,H(secret),expiration=2900)
+    C  ->>  D: (nonce=4,transferred=10,H(secret),expiration=2800)
+    Note over C,D: exiration should less than 2800
+    Note over A,D: secret should be the same
+    D  ->>  A: Secre Request
+    A  ->>  D: Reveal Secre
+    D  ->>  C: Reveal Secre
+    C  ->>  D: Unlock
+    C  ->>  B: Reveal Secre
+    B  ->>  C: Unlock
+    B  ->>  A: Reveal Secre
+    A  ->>  B: Unlock
+```
+
 - Alice signs the transfer and sends it to Bob
 - Bob requests the secret that can be used for withdrawing the transfer by sending a [SecretRequest](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) message.
 - Alice sends the [RevealSecret](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) to Bob and at this point she must assume the transfer is complete.
