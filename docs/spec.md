@@ -31,16 +31,16 @@ The channel capacity is equal to the total deposits by both participants. The ca
 3. Close
 4. Settle
 
-After being deployed the channel may receive multiple deposits from either participant. Once the [counterparty](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) acknowledges it, the depositor may do transfers with the available balance.
+After being deployed the channel may receive multiple deposits from either participant. Once the [counterparty](./glossary.md) acknowledges it, the depositor may do transfers with the available balance.
 
-Once either party wants to withdraw their tokens or a dispute arises the channel must be closed. After the close function is called the [settlement window](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) opens. Within the settlement window both participants must update the counterparty state and withdraw the unlocked locks. A party can not perform a partial withdrawal.
+Once either party wants to withdraw their tokens or a dispute arises the channel must be closed. After the close function is called the [settlement window](./glossary.md) opens. Within the settlement window both participants must update the counterparty state and withdraw the unlocked locks. A party can not perform a partial withdrawal.
 
-The `updateTransfer()` function call receives a signed balance proof which contains an envelope with channel specific data. These are the [merkletree root](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md), the [transferred amount](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md), and a nonce. Since a node can only provide a signed message from the counterparty we know the data wasn’t tampered with and that it is valid. To disincentivize a node from providing an older message, withdraw balances are netted from the transferred amount, a monotonically increasing value. As a consequence there are no negative value transfers and if a participant provides an older message the wrongdoer’s netted balance will end up being smaller.
+The `updateTransfer()` function call receives a signed balance proof which contains an envelope with channel specific data. These are the [merkletree root](./glossary.md), the [transferred amount](./glossary.md), and a nonce. Since a node can only provide a signed message from the counterparty we know the data wasn’t tampered with and that it is valid. To disincentivize a node from providing an older message, withdraw balances are netted from the transferred amount, a monotonically increasing value. As a consequence there are no negative value transfers and if a participant provides an older message the wrongdoer’s netted balance will end up being smaller.
 
 Another netting channel operation is the lock withdrawal. It receives an unlock proof composed of the lock data structure, a proof that this lock was contained in the merkle tree and the secret that unlocks it. The channel validates the lock, checks the containment proof by recomputing the merkle tree root and checks the secret. If all checks pass the transferred amount of the counterparty is increased.
 
 ### Balance Proofs
-The netting channel requires a [balance proof](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) containing the information to properly settle. These are:
+The netting channel requires a [balance proof](./glossary.md) containing the information to properly settle. These are:
 - A nonce
 - The transferred amount
 - The root node of the pending locks merkle tree
@@ -51,9 +51,9 @@ For this reason each transfer must be encoded as a balance proof, this follows f
 ## SmartRaiden Transfers
 Transfers in SmartRaiden come in three different flavors.
 ### Direct Transfers
-A [DirectTransfer](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) does not rely on locks to complete. It is automatically completed once the network packet is sent off. Since SmartRaiden runs on top of an asynchronous network that can not guarantee delivery, transfers can not be completed atomically. The main points to consider about direct transfers are the following:
+A [DirectTransfer](./glossary.md) does not rely on locks to complete. It is automatically completed once the network packet is sent off. Since SmartRaiden runs on top of an asynchronous network that can not guarantee delivery, transfers can not be completed atomically. The main points to consider about direct transfers are the following:
 
-- The messages are not locked, meaning the envelope transferred_amount is incremented and the message may be used to withdraw the token. This means that a [payer](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) is unconditionally transferring the token, regardless of getting a service or not. Trust is assumed among the payer/[payee](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) to complete the goods transaction.
+- The messages are not locked, meaning the envelope transferred_amount is incremented and the message may be used to withdraw the token. This means that a [payer](./glossary.md) is unconditionally transferring the token, regardless of getting a service or not. Trust is assumed among the payer/[payee](./glossary.md) to complete the goods transaction.
 - The sender must assume the transfer is completed once the message is sent to the network, there is no workaround. The acknowledgement in this case is only used as a synchronization primitive, the payer will only know about the transfer once the message is received.
 
 A succesfull direct transfer involves only 2 messages. The direct transfer message and an `ACK`. For an Alice - Bob example:
@@ -62,15 +62,15 @@ A succesfull direct transfer involves only 2 messages. The direct transfer messa
 - **Alice creates a new transfer with**.       
 
     - transferred_amount = `current_value + n`    
-    - [locksroot](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) = `current_locksroot_value`    
+    - [locksroot](./glossary.md) = `current_locksroot_value`    
     - nonce = `current_value + 1`     
 
 - Alice signs the transfer and sends it to Bob and at this point should consider the transfer complete.
 
 ### Mediated Transfers
-A [MediatedTransfer](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) is a hashlocked transfer. Currently SmartRaiden supports only one type of lock. The lock has an amount that is being transferred, a [hashlock](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) used to verify the secret that unlocks it, and a [lock expiration](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) to determine its validity.
+A [MediatedTransfer](./glossary.md) is a hashlocked transfer. Currently SmartRaiden supports only one type of lock. The lock has an amount that is being transferred, a [hashlock](./glossary.md) used to verify the secret that unlocks it, and a [lock expiration](./glossary.md) to determine its validity.
 
-Mediated transfers have an [initiator](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) and a [target](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) and a number of hops in between. The number of hops can also be zero as these transfers can also be sent to a direct partner. Assuming `N` number of hops a mediated transfer will require `6N + 8` messages to complete. These are:  
+Mediated transfers have an [initiator](./glossary.md) and a [target](./glossary.md) and a number of hops in between. The number of hops can also be zero as these transfers can also be sent to a direct partner. Assuming `N` number of hops a mediated transfer will require `6N + 8` messages to complete. These are:  
 
 - N + 1 mediated or refund messages    
 - 1 secret request    
@@ -97,27 +97,26 @@ sequenceDiagram
     A  ->>  B: (nonce=2,transferred=10,H(secret),expiration=3000)
     B  ->>  C: (nonce=3,transferred=10,H(secret),expiration=2900)
     C  ->>  D: (nonce=4,transferred=10,H(secret),expiration=2800)
-    Note over C,D: exiration should less than 2800
     Note over A,D: secret should be the same
-    D  ->>  A: Secre Request
-    A  ->>  D: Reveal Secre
-    D  ->>  C: Reveal Secre
-    C  ->>  D: Unlock
-    C  ->>  B: Reveal Secre
-    B  ->>  C: Unlock
-    B  ->>  A: Reveal Secre
-    A  ->>  B: Unlock
+    D  ->>  A: Secret Request
+    A  ->>  D: Reveal Secret
+    D  ->>  C: Reveal Secret
+    C  ->>  D: Secret
+    C  ->>  B: Reveal Secret
+    B  ->>  C: Secret
+    B  ->>  A: Reveal Secret
+    A  ->>  B: Secret
 ```
 
 - Alice signs the transfer and sends it to Bob
-- Bob requests the secret that can be used for withdrawing the transfer by sending a [SecretRequest](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) message.
-- Alice sends the [RevealSecret](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) to Bob and at this point she must assume the transfer is complete.
+- Bob requests the secret that can be used for withdrawing the transfer by sending a [SecretRequest](./glossary.md) message.
+- Alice sends the [RevealSecret](./glossary.md) to Bob and at this point she must assume the transfer is complete.
 - Bob receives the secret and at this point has effectively secured the transfer of n tokens to his side.
-- Bob sends a [secret message](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) back to Alice to inform her that the secret is known and acts as a request for off-chain synchronization.
+- Bob sends a [secret message](./glossary.md) back to Alice to inform her that the secret is known and acts as a request for off-chain synchronization.
 - Finally Alice sends a secret message to Bob. This acts also as a synchronization message informing Bob that the lock will be removed from the merkle tree and that the transferred_amount and locksroot values are updated.
 
 ### Refund Transfers
-A [RefundTransfer](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) is a mediated transfer used in the special circumstance of when a node cannot make forward progress, and a routing backtrack must be done.
+A [RefundTransfer](./glossary.md) is a mediated transfer used in the special circumstance of when a node cannot make forward progress, and a routing backtrack must be done.
 
 ## Third parties
 Third parties are required to provide for safe operation. Since a single node cannot be expected to have 100% up-time, third parties are required to operate the netting channels for the period of time the node is offline.The purpose of a third party is to update the netting channel during settlement on behalf of a participant.
@@ -146,7 +145,7 @@ Once the secret is known by the target the payments flow from the back to the fr
 ## Locks
 A lock has two parts, an amount used to track how much token is being locked, and rules to define how it may be unlocked. The lock itself is independent from the channel or token associated with it. What binds the lock to a specific channel is the balance proof’s merkle tree.
 
-SmartRaiden currently relies on hash time locks heavily. They are the essential ingredient for safe trustless mediated transfers. This kind of lock has two additional data attributes, a hash image and a expiration. The lock is unlocked if the [preimage](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) of the hash is revealed prior to its expiration. In Smartraiden the preimage is called secret and its hash is called the hashlock. The [secret](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) is just 32 bytes of cryptographically secure random data. The hashlock can be the result of any cryptographically secure hash function but SmartRaiden currently relies on the keccak hash function.
+SmartRaiden currently relies on hash time locks heavily. They are the essential ingredient for safe trustless mediated transfers. This kind of lock has two additional data attributes, a hash image and a expiration. The lock is unlocked if the [preimage](./glossary.md) of the hash is revealed prior to its expiration. In Smartraiden the preimage is called secret and its hash is called the hashlock. The [secret](./glossary.md) is just 32 bytes of cryptographically secure random data. The hashlock can be the result of any cryptographically secure hash function but SmartRaiden currently relies on the keccak hash function.
 
 With this lock construct it is possible to:
 - Mediate token transfers, by relying on the same hashlock but different expiration times.
@@ -166,10 +165,10 @@ The second is the mediator’s responsibility to choose a lock expiration for th
 - Updating the counter party transfer.
 - Withdrawing the lock on the closed channel.
 
-The number of blocks for the above is named [reveal timeout](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md).
+The number of blocks for the above is named [reveal timeout](./glossary.md).
 
 ## Failed Mediated Transfers
-Failed mediated transfers are defined as transfers for which the initiator does not reveal the secret making it impossible to withdraw the lock. This may happen for two reasons. Either the initiator didn’t receive a [SecretRequest](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md), or the initiator discarded the secret to retry the transfer with a different route.
+Failed mediated transfers are defined as transfers for which the initiator does not reveal the secret making it impossible to withdraw the lock. This may happen for two reasons. Either the initiator didn’t receive a [SecretRequest](./glossary.md), or the initiator discarded the secret to retry the transfer with a different route.
 
 The initiator might not have received the SecretRequest for yet another set of reasons:
 
@@ -206,7 +205,7 @@ Each of these hops forwarded a MediatedTransfer paying fees and sending the tran
 ## Merkle Tree
 ![merkletree](https://raw.githubusercontent.com/SmartMeshFoundation/SmartRaiden/master/docs/images/merkletree.png)
 
-The [merkle tree](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/glossary.md) data blocks are composed of the hashes of the locks. The unique purpose of the merkle tree is to have an `O(log N)` proof of containment and a constant `O(1)` storage requirement for the signed messages. The alternative is to have linear space `O(n)` for the signed messages by having a list of all the pending locks in each message.
+The [merkle tree](./glossary.md) data blocks are composed of the hashes of the locks. The unique purpose of the merkle tree is to have an `O(log N)` proof of containment and a constant `O(1)` storage requirement for the signed messages. The alternative is to have linear space `O(n)` for the signed messages by having a list of all the pending locks in each message.
 
 The merkle tree must have a deterministic order, that can be computed by any participant or the channel contract. The leaf nodes are defined to be in lexicographical order of the elements (lock hashes). For the other levels the interior nodes are also computed from the lexicographical order.
 

@@ -8,12 +8,12 @@ Raiden Network is an off-chain scalability solution enforcing erc-20 compliant t
 Figure Payment Channel Network:  
 ![](https://raw.githubusercontent.com/SmartMeshFoundation/SmartRaiden/master/docs/images/Smartraiden_network.png)
 
-smartraiden uses payment channel network technology with the same principles of raiden network, but smartraiden is special designed in order to better fit for mobile nodes.We called the payment channel network which includes mobile nodes as smartraiden network for distinguishing the traditional raiden network
+Smartraiden uses payment channel network technology with the same principles of raiden network, but smartraiden is special designed in order to better fit for mobile nodes.We called the payment channel network which includes mobile nodes as smartraiden network for distinguishing the traditional raiden network.
 
 ## Primary Functionalities and Characteristics in SmartRaiden
 The primary goal for SmartRaiden aims to construct a structure to enforce an off-chain scalability solution for SmartRaiden Network, which improves usability, compatibility, and security. 
  
-Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/rest_api.md).
+Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api](./rest_api.md).
 
 
 Additional functions include :
@@ -132,7 +132,7 @@ Once payment channel close is invoked, settle timeout starts to count. During th
 
 ## Conclusion 
 
-At here, you have finished your learning about all the concepts and functionality specifications about SmartRaiden. For further usage, please go through installation [instruction](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/installation_guide.md) and [tutorials](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/api_walkthrough.md) or [SmartRaiden Specification](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/spec.md)
+At here, you have finished your learning about all the concepts and functionality specifications about SmartRaiden. For further usage, please go through installation [instruction](./installation_guide.md) and [tutorials](./api_walkthrough.md) or [SmartRaiden Specification](./spec.md)
 
 
 

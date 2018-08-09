@@ -4,9 +4,9 @@ SmartRaiden has a Restful API with URL endpoints corresponding to actions that u
 
 This section will walk through the steps necessary to participate in a SmartRaiden Token Network. Some different scenarios such as joining an already existing token network, registering a new token network, together with opening, closing and settling channels, will be provided.
 
-Before getting started with below guides, please see [Overview and Guide](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/overview.md), to make sure that a proper connection to SmartRaiden is established.
+Before getting started with below guides, please see [Overview and Guide](./overview.md), to make sure that a proper connection to SmartRaiden is established.
 
-Furthermore, to see all available endpoints, please see [REST API Endpoints](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/rest_api.md).
+Furthermore, to see all available endpoints, please see [REST API Endpoints](./rest_api.md).
 ## Scenarios
 Below is a series of different scenarios showing different ways a user can interact with the SmartRaiden API.
 
@@ -76,7 +76,7 @@ Successfully opening a channel will return the following information:
     "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
     "state": "opened",
     "settle_timeout": 100,
-    "reveal_timeout": 0
+    "reveal_timeout": 10
 }
 ```
 Here it’s interesting to notice that a channel_address has been generated. This means that a [Netting Channel contract](https://github.com/SmartMeshFoundation/SmartRaiden/blob/v0.3/network/rpc/contracts/NettingChannelContract.sol) has been deployed to the blockchain. Furthermore it also represents the address of the payment channel between two parties for a specific token.
