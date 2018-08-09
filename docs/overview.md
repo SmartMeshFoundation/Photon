@@ -8,12 +8,16 @@ Raiden Network is an off-chain scalability solution enforcing erc-20 compliant t
 Figure Payment Channel Network:  
 ![](https://raw.githubusercontent.com/SmartMeshFoundation/SmartRaiden/master/docs/images/Smartraiden_network.png)
 
+smartraiden uses payment channel network technology with the same principles of raiden network, but smartraiden is special designed in order to better fit for mobile nodes.We called the payment channel network which includes mobile nodes as smartraiden network for distinguishing the traditional raiden network
+
 ## Primary Functionalities and Characteristics in SmartRaiden
 The primary goal for SmartRaiden aims to construct a structure to enforce an off-chain scalability solution for SmartRaiden Network, which improves usability, compatibility, and security. 
  
 Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api](https://github.com/SmartMeshFoundation/SmartRaiden/blob/master/docs/rest_api.md).
 
+
 Additional functions include :
+
 - Multiplatform & Mobile Adaptability  
 
 SmartRaiden network will be available on multiple platforms and decentralized micropayment on smart mobile devices can be realized. SmartRaiden currently can work on Windows, Linux, Android, iOS etc. SmartRaiden builds its own messaging mechanism on XMPP, not P2P, and separate nodes and start-up processes, making sure that it is capable of running on multiple platform with correct operations.  
