@@ -1,6 +1,6 @@
-site_name: raiden
+site_name: SmartRaiden
 pages:
--  readSmartRaiden Developer Site: index.md
+-  SmartRaiden Developer Site: index.md
 -  System Requirements and Installation Guide: installation_guide.md
 -  Smartraiden Overview: overview.md
 -  Getting started with the SmartRaiden API: api_walkthrough.md
