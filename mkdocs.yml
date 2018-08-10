@@ -5,6 +5,7 @@ pages:
 -  Smartraiden Overview: overview.md
 -  Getting started with the SmartRaiden API: api_walkthrough.md
 -  SmartRaiden’s API Documentation: rest_api.md
+-  Web Application Tutorial: webui_tutorial.md
 -  SmartRaiden Specification: spec.md
 -  SmartRaiden Monitoring Service: SmartRaiden_Monitoring_Service.md
 -  SmartRaiden Glossary: glossary.md
