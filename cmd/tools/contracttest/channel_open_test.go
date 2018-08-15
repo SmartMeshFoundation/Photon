@@ -20,9 +20,11 @@ func TestOpenChannelRight(t *testing.T) {
 	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
 	assertTxSuccess(t, &count, tx, err)
 	// 查询通道
-	_, _, _, state, _, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
+	_, settleBlockNumber, _, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
 	assertSuccess(t, nil, err)
 	assertEqual(t, &count, ChannelStateOpened, state)
+	assertEqual(t, nil, uint64(0), settleBlockNumber)
+	assertEqual(t, nil, testSettleTimeout, settleTimeout)
 	// 查询通道双方信息
 	deposit, balanceHash, nonce, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
 	assertSuccess(t, &count, err)

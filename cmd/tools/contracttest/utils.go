@@ -33,13 +33,13 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(c.Particiant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
-	_,err= buf.Write(c.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.Participant2Balance))
-	_,err= buf.Write(c.ChannelIdentifier[:])
+	_, err := buf.Write(c.Particiant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
+	_, err = buf.Write(c.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant2Balance))
+	_, err = buf.Write(c.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, c.OpenBlockNumber)
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -62,15 +62,15 @@ type WithDraw1ForContract struct {
 
 func (w *WithDraw1ForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(w.Participant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_,err= buf.Write(w.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_,err= buf.Write(w.ChannelIdentifier[:])
+	_, err := buf.Write(w.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
+	_, err = buf.Write(w.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
+	_, err = buf.Write(w.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -94,16 +94,16 @@ type WithDraw2ForContract struct {
 
 func (w *WithDraw2ForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(w.Participant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_,err= buf.Write(w.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
-	_,err= buf.Write(w.ChannelIdentifier[:])
+	_, err := buf.Write(w.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
+	_, err = buf.Write(w.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
+	_, err = buf.Write(w.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -267,8 +267,8 @@ type BalanceData struct {
 // Hash :
 func (b *BalanceData) Hash() common.Hash {
 	buf := new(bytes.Buffer)
-	_,err := buf.Write(b.LocksRoot[:])
-	_,err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err := buf.Write(b.LocksRoot[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	if err != nil {
 		panic(err)
 	}
@@ -289,14 +289,14 @@ type BalanceProofForContract struct {
 
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	_,err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
-	_,err = buf.Write(b.LocksRoot[:])
+	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err = buf.Write(b.LocksRoot[:])
 	err = binary.Write(buf, binary.BigEndian, b.Nonce)
-	_,err = buf.Write(b.AdditionalHash[:])
-	_,err = buf.Write(b.ChannelIdentifier[:])
+	_, err = buf.Write(b.AdditionalHash[:])
+	_, err = buf.Write(b.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
-	_,err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -333,6 +333,20 @@ func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNu
 		panic(err)
 	}
 	return
+}
+
+func approve(account *Account, amount *big.Int) {
+	tx, err := env.Token.Approve(account.Auth, env.TokenNetworkAddress, amount)
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), env.Client, tx)
+	if err != nil {
+		panic(err)
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		panic(err)
+	}
 }
 
 func endMsg(name string, count int, accounts ...*Account) string {
