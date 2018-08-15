@@ -1,9 +1,10 @@
 package contracttest
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // TestChannelDepositRight : 正确调用测试
