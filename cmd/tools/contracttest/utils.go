@@ -14,7 +14,10 @@ import (
 
 	"time"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -343,6 +346,12 @@ func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	b.Signature = sig
 }
 
+// BalanceProofUpdateForContracts :
+type BalanceProofUpdateForContracts struct {
+	BalanceProofForContract
+	NonClosingSignature []byte
+}
+
 func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *big.Int, locksroot common.Hash, additionalHash common.Hash, nonce uint64) *BalanceProofForContract {
 	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(self, partner)
 	bd := &BalanceData{
@@ -358,9 +367,32 @@ func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *
 		ChainID:             ChainID,
 		Nonce:               nonce,
 	}
-	bp.sign(self.Key)
+	bp.sign(partner.Key)
 	return bp
 }
+
+func createLock(expiredBlock int64, amounts ...*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
+	for i := 0; i < len(amounts); i++ {
+		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secrets = append(secrets, secret)
+		l := &mtree.Lock{
+			Expiration:     expiredBlock,
+			Amount:         amounts[i],
+			LockSecretHash: utils.Sha3(secret[:]),
+		}
+		locks = append(locks, l)
+	}
+	return
+}
+
+//func createBalanceProofUpdateForContractsWithLocks(self, partner *Account, lockNumber int, expiredBlock int64) (bp *BalanceProofUpdateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
+//	bp1, locks, secrets := createPartnerBalanceProofWithLocks(self, partner, lockNumber, expiredBlock)
+//	bp = &BalanceProofUpdateForContracts{
+//		BalanceProofForContract: *bp1,
+//	}
+//	bp.sign(partner.Key)
+//	return
+//}
 
 func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNum uint64, openBlockNumber uint64, state uint8, settleTimeout uint64, ChainID *big.Int) {
 	channelID, settleBlockNum, openBlockNumber, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
@@ -397,4 +429,36 @@ func endMsg(name string, count int, accounts ...*Account) string {
 		msg = msg + fmt.Sprintf("a%d=%s ", index+1, account.Address.String())
 	}
 	return msg
+}
+
+func getTokenBalance(account *Account) *big.Int {
+	balance, err := env.Token.BalanceOf(nil, account.Address)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
+
+func getTokenBalanceByAddess(address common.Address) *big.Int {
+	balance, err := env.Token.BalanceOf(nil, address)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
+
+func waitForSettle(settleTimeout uint64) {
+	temp, err := strconv.ParseInt(strconv.FormatUint(settleTimeout, 10), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(time.Second * time.Duration(temp) * 2)
+}
+
+func getLatestBlockNumber() *types.Header {
+	h, err := env.Client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+	return h
 }
