@@ -2,10 +2,7 @@ package contracttest
 
 import (
 	"math/big"
-	"strconv"
 	"testing"
-
-	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
@@ -104,8 +101,7 @@ func TestChannelCloseAttack(t *testing.T) {
 	// close new channel with old balance proof
 	tx, err = env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	assertTxSuccess(t, nil, tx, err) // close
-	temp, _ := strconv.ParseInt(strconv.FormatUint(testSettleTimeout, 10), 10, 64)
-	time.Sleep(time.Second * time.Duration(temp) * 2) // wait for settle
+	waitForSettle(testSettleTimeout)
 	tx, err = env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, trasAmtA1, locksrootA1, a2.Address, trasAmtA2, locksrootA2)
 	assertTxSuccess(t, nil, tx, err)                                       // settle
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout) // reopen

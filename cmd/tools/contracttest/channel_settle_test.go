@@ -4,8 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"fmt"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
@@ -176,8 +174,6 @@ func runSettleWithUnregisteredLock(a1 *Account, a2 *Account, t *testing.T, count
 	// check balance
 	tokenBalanceA1, tokenBalanceA2 := getTokenBalance(a1), getTokenBalance(a2)
 	tokenBalanceContract := getTokenBalanceByAddess(env.TokenNetworkAddress)
-	fmt.Println(preTokenBalanceA1, preTokenBalanceA2)
-	fmt.Println(tokenBalanceA1, tokenBalanceA2)
 	assertEqual(t, count, preTokenBalanceA1.Add(preTokenBalanceA1, transferAmountA2), tokenBalanceA1)
 	assertEqual(t, count, preTokenBalanceA2.Sub(preTokenBalanceA2, transferAmountA2), tokenBalanceA2)
 	assertEqual(t, count, preTokenBalanceContract, tokenBalanceContract)

@@ -6,29 +6,32 @@ import (
 
 	"testing"
 
+	"context"
+	"math/big"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
-	"math/big"
-	"github.com/ethereum/go-ethereum/core/types"
-	"context"
 )
 
 // Env :
 type Env struct {
-	KeystorePath        string
-	EthRPCEndpoint      string
-	Token 				*contracts.Token
-	TokenNetworkAddress common.Address
-	Client              *ethclient.Client
-	TokenNetwork        *contracts.TokenNetwork
-	Accounts            []*Account
-	isFirst             bool
+	KeystorePath          string
+	EthRPCEndpoint        string
+	Token                 *contracts.Token
+	TokenNetworkAddress   common.Address
+	Client                *ethclient.Client
+	TokenNetwork          *contracts.TokenNetwork
+	SecretRegistryAddress common.Address
+	SecretRegistry        *contracts.SecretRegistry
+	Accounts              []*Account
+	isFirst               bool
 }
 
 // Account :
@@ -63,6 +66,13 @@ func InitEnv(t *testing.T, configFilePath string) {
 		panic(err)
 	}
 	t.Logf("Geth client = %s", env.EthRPCEndpoint)
+	// get secret registry
+	env.SecretRegistryAddress = common.HexToAddress(c.RdString("COMMON", "secret_registry_address", "new"))
+	env.SecretRegistry, err = contracts.NewSecretRegistry(env.SecretRegistryAddress, env.Client)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	// get token
 	tokenAddress := common.HexToAddress(c.RdString("COMMON", "token_address", "new"))
 	env.Token, err = contracts.NewToken(tokenAddress, env.Client)

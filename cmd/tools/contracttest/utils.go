@@ -136,6 +136,32 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 	}
 }
 
+func closeOrSettleChannelIfExists(a1 *Account, a2 *Account) {
+	_, _, _, state, settleTimeout, _ := getChannelInfo(a1, a2)
+	if state == ChannelStateSettledOrNotExist {
+		return
+	}
+	if state == ChannelStateOpened {
+		cooperativeSettleChannelIfExists(a1, a2)
+	}
+	if state == ChannelStateClosed {
+		waitForSettle(settleTimeout)
+		depositA1, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
+		if err != nil {
+			panic(err)
+		}
+		depositA2, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
+		if err != nil {
+			panic(err)
+		}
+		tx, err := env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, depositA1, utils.EmptyHash, a2.Address, depositA2, utils.EmptyHash)
+		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	var index1, index2 int
 	n := len(env.Accounts)
@@ -202,7 +228,7 @@ func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Acco
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
 	var err error
 	channelID, _, openBlockNumber, state, _, ChainID := getChannelInfo(a1, a2)
-	if state == ChannelStateSettledOrNotExist || state == ChannelStateClosed {
+	if state != ChannelStateOpened {
 		return nil
 	}
 	if state == ChannelStateOpened {
@@ -385,14 +411,40 @@ func createLock(expiredBlock int64, amounts ...*big.Int) (locks []*mtree.Lock, s
 	return
 }
 
-//func createBalanceProofUpdateForContractsWithLocks(self, partner *Account, lockNumber int, expiredBlock int64) (bp *BalanceProofUpdateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
-//	bp1, locks, secrets := createPartnerBalanceProofWithLocks(self, partner, lockNumber, expiredBlock)
-//	bp = &BalanceProofUpdateForContracts{
-//		BalanceProofForContract: *bp1,
-//	}
-//	bp.sign(partner.Key)
-//	return
-//}
+func createLockByArray(expiredBlock int64, amounts []*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
+	for i := 0; i < len(amounts); i++ {
+		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secrets = append(secrets, secret)
+		l := &mtree.Lock{
+			Expiration:     expiredBlock,
+			Amount:         amounts[i],
+			LockSecretHash: utils.Sha3(secret[:]),
+		}
+		locks = append(locks, l)
+	}
+	return
+}
+
+func registrySecrets(account *Account, secrets []common.Hash) {
+	maxLocks := 5
+	for i := 0; i < len(secrets); i++ {
+		s := secrets[i]
+		if i > maxLocks { //最多注册前五个密码,否则太浪费时间了.
+			break
+		}
+		tx, err := env.SecretRegistry.RegisterSecret(account.Auth, s)
+		if err != nil {
+			panic(err)
+		}
+		r, err := bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
+		if r.Status != types.ReceiptStatusSuccessful {
+			panic(err)
+		}
+	}
+}
 
 func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNum uint64, openBlockNumber uint64, state uint8, settleTimeout uint64, ChainID *big.Int) {
 	channelID, settleBlockNum, openBlockNumber, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
@@ -452,7 +504,7 @@ func waitForSettle(settleTimeout uint64) {
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(time.Second * time.Duration(temp) * 2)
+	time.Sleep(time.Second * time.Duration(temp+5) * 2)
 }
 
 func getLatestBlockNumber() *types.Header {

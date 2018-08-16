@@ -143,7 +143,7 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("deploy SecretRegistry complete...\n")
+	fmt.Printf("deploy SecretRegistry[%s] complete...\n", SecretRegistryAddress.String())
 	//Deploy TokenNetorkRegistry
 	//auth.GasLimit = 4000000 //最大gas
 	//auth.GasPrice = big.NewInt(2000)
