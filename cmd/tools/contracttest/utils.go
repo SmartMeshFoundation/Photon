@@ -12,6 +12,8 @@ import (
 
 	"fmt"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -134,33 +136,70 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	var index1, index2 int
 	n := len(env.Accounts)
-	index1 = rand.Intn(n)
-	index2 = rand.Intn(n)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	index1 = r1.Intn(n)
+	index2 = r1.Intn(n)
 	for index1 == index2 {
-		index2 = rand.Intn(n)
+		index2 = r1.Intn(n)
 	}
 	return env.Accounts[index1], env.Accounts[index2]
+}
+
+func (env *Env) getTwoAccountWithoutChannelClose(t *testing.T) (*Account, *Account) {
+	for index1, a1 := range env.Accounts {
+		for index2, a2 := range env.Accounts {
+			if index1 == index2 {
+				continue
+			}
+			_, _, _, channelState, _, _ := getChannelInfo(a1, a2)
+			if channelState != ChannelStateClosed {
+				return a1, a2
+			}
+		}
+	}
+	panic("no usable account, need to run cmd/newTestEnv")
 }
 
 func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Account) {
 	var index1, index2, index3 int
 	n := len(env.Accounts)
-	index1 = rand.Intn(n)
-	index2 = rand.Intn(n)
-	index3 = rand.Intn(n)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	index1 = r1.Intn(n)
+	index2 = r1.Intn(n)
+	index3 = r1.Intn(n)
 	for index1 == index2 {
-		index2 = rand.Intn(n)
+		index2 = r1.Intn(n)
 	}
 	for index3 == index1 || index3 == index2 {
-		index3 = rand.Intn(n)
+		index3 = r1.Intn(n)
 	}
 	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
+}
+
+func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Account {
+	n := len(env.Accounts)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	usable := true
+	for {
+		account := env.Accounts[r1.Intn(n)]
+		for _, t := range accounts {
+			if account.Address.String() == t.Address.String() {
+				usable = false
+			}
+		}
+		if usable {
+			return account
+		}
+	}
 }
 
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
 	var err error
 	channelID, _, openBlockNumber, state, _, ChainID := getChannelInfo(a1, a2)
-	if state == ChannelStateSettledOrNotExist {
+	if state == ChannelStateSettledOrNotExist || state == ChannelStateClosed {
 		return nil
 	}
 	if state == ChannelStateOpened {
