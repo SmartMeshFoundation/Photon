@@ -307,8 +307,13 @@ func (rs *RaidenService) loop() {
 	var req *apiReq
 	var sentMessage *protocolMessage
 	firstWaitTime := time.Second
+	var tm = time.NewTimer(firstWaitTime)
 	defer rpanic.PanicRecover("raiden service")
 	for {
+		if tm.Stop() {
+			//上一次没有结束,是到现在还没有超时?考虑过事件处理时间么
+			tm = time.NewTimer(firstWaitTime)
+		}
 		select {
 		//message from other nodes
 		case m, ok = <-rs.Protocol.ReceivedMessageChan:
@@ -366,12 +371,12 @@ func (rs *RaidenService) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRRCConnectionOK()
 			}
-		case <-time.After(firstWaitTime):
+		case <-tm.C:
 			/*
-				由于现在所有信息都是通过
+				第一次等到超时,认为所有的启动事件处理完毕了.否则无从知道启动完毕了.
 			*/
 			log.Info("startup complete...")
-			firstWaitTime = time.Hour * 900000
+			tm.Stop()
 			rs.ChanStartupComplete <- struct{}{}
 			//下次不要在超时了.
 		case <-rs.quitChan:
