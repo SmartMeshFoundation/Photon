@@ -322,6 +322,18 @@ func (be *Events) startListenEvent() {
 							continue
 						}
 						be.sendStateChange(EventChannelNewDeposit2StateChange(ev))
+					case params.NameChannelUnlocked:
+						ev, err := newEventChannelUnlocked(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelUnlocked err=%s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("recevie event channel unlocked ,but it's not our contract,ev=\n%s",
+								utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventChannelUnlocked2StateChange(ev))
 					case params.NameChannelClosed:
 						ev, err := newEventChannelClosed(&l)
 						if err != nil {
