@@ -5,6 +5,8 @@ import (
 
 	"math/big"
 
+	"math"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -109,6 +111,15 @@ ContractStateChange  所有的合约事件都应该是按照链上发生的顺�
 */
 type ContractStateChange interface {
 	GetBlockNumber() int64
+}
+
+//FakeContractInfoCompleteStateChange 主要用来通知上层,第一次启动获取历史事件完毕
+type FakeContractInfoCompleteStateChange struct {
+}
+
+//GetBlockNumber 返回一个不可能存在的块数,
+func (e *FakeContractInfoCompleteStateChange) GetBlockNumber() int64 {
+	return math.MaxInt64
 }
 
 /*
