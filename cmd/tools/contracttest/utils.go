@@ -372,10 +372,45 @@ func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	b.Signature = sig
 }
 
+func (b *BalanceProofForContract) signWithoutChange(key *ecdsa.PrivateKey) []byte {
+	buf := new(bytes.Buffer)
+	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err = buf.Write(b.LocksRoot[:])
+	err = binary.Write(buf, binary.BigEndian, b.Nonce)
+	_, err = buf.Write(b.AdditionalHash[:])
+	_, err = buf.Write(b.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
+	//buf.Write(b.TokenNetworkAddress[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	sig, err := utils.SignData(key, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	return sig
+}
+
 // BalanceProofUpdateForContracts :
 type BalanceProofUpdateForContracts struct {
 	BalanceProofForContract
 	NonClosingSignature []byte
+}
+
+func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
+	buf := new(bytes.Buffer)
+	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err = buf.Write(b.LocksRoot[:])
+	err = binary.Write(buf, binary.BigEndian, b.Nonce)
+	_, err = buf.Write(b.AdditionalHash[:])
+	_, err = buf.Write(b.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
+	//buf.Write(b.TokenNetworkAddress[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	_, err = buf.Write(b.Signature)
+	sig, err := utils.SignData(key, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	b.NonClosingSignature = sig
 }
 
 func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *big.Int, locksroot common.Hash, additionalHash common.Hash, nonce uint64) *BalanceProofForContract {
