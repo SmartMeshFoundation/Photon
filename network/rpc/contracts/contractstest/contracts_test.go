@@ -868,7 +868,6 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("close channel successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
-	//锁最多是2两个,三个就会失败
 	bp2, locks, secrets := NewBalanceProofUpdateForContractsWithLocks(TestPrivKey, partnerKey, channelID, totalLockNumber, expiredBlock)
 	//注册密码
 	maxLocks := 5

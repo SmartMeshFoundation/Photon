@@ -514,3 +514,31 @@ func getLatestBlockNumber() *types.Header {
 	}
 	return h
 }
+
+// UnlockDelegateForContract :
+type UnlockDelegateForContract struct {
+	Agent             common.Address
+	Expiraition       int64
+	Amount            *big.Int
+	SecretHash        common.Hash
+	ChannelIdentifier contracts.ChannelIdentifier
+	ChainID           *big.Int
+	OpenBlockNumber   uint64
+	MerkleProof       []byte
+}
+
+func (u *UnlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
+	buf := new(bytes.Buffer)
+	_, err := buf.Write(u.Agent[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
+	_, err = buf.Write(utils.BigIntTo32Bytes(u.Amount))
+	_, err = buf.Write(u.SecretHash[:])
+	_, err = buf.Write(u.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, u.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(u.ChainID))
+	sig, err := utils.SignData(key, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	return sig
+}
