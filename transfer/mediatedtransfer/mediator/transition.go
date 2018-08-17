@@ -192,8 +192,8 @@ func sanityCheck(state *mediatedtransfer.MediatorState) {
 		if !original.PayeeTransfer.AlmostEqual(refund.PayerTransfer) {
 			panic("sanity check failed:original.PayeeTransfer.AlmostEqual(refund.PayerTransfer)")
 		}
-		if original.PayeeRoute.HopNode() != refund.PayerRoute.HopNode() {
-			panic("sanity check failed:original.PayeeRoute.HopNode!=refund.PayerRoute.HopNode")
+		if original.PayeeRoute.HopNode() == refund.PayerRoute.HopNode() {
+			panic("sanity check failed:original.PayeeRoute.HopNode==refund.PayerRoute.HopNode")
 		}
 		if original.PayeeTransfer.Expiration < refund.PayerTransfer.Expiration {
 			panic("sanity check failed:original.PayeeTransfer.Expiration>refund.PayerTransfer.Expiration")
@@ -246,18 +246,20 @@ Finds the first route available that may be used.
 3.时间还足够安全
 */
 
-func nextRoute(rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) *route.State {
+func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) *route.State {
 	for len(rss.AvailableRoutes) > 0 {
 		route := rss.AvailableRoutes[0]
 		rss.AvailableRoutes = rss.AvailableRoutes[1:]
 		lockTimeout := timeoutBlocks - route.RevealTimeout()
 		/*
-			1.通道金额足够
-			2. 给出的收费也够
-			3. 时间还安全
-			4. 通道可以发起交易
+				1.通道金额足够
+				2. 给出的收费也够
+				3. 时间还安全
+				4. 通道可以发起交易
+				5. 不能使用再次使用上家做下一跳.
+			 有可能形成环路的时候,上家已经在我认为可用的路由节点中,但是实际上就是从他发过来的 lockedTransfer
 		*/
-		if route.CanTransfer() && route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 {
+		if route.CanTransfer() && route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 && route.HopNode() != fromRoute.HopNode() {
 			return route
 		}
 		rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
@@ -288,7 +290,7 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	if int64(timeoutBlocks) > payerTransfer.Expiration-blockNumber {
 		panic("timeoutBlocks >payerTransfer.Expiration-blockNumber")
 	}
-	payeeRoute := nextRoute(routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
+	payeeRoute := nextRoute(payerRoute, routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
 	if payeeRoute != nil {
 		/*
 					有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.

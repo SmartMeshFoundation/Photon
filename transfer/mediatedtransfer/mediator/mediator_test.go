@@ -278,23 +278,24 @@ func TestNextRouteAmount(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, x.Div(amount, big.NewInt(2)), 0, revealTimeout, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, amount, 0, revealTimeout, 0, utils.NewRandomHash()),
 	}
+	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, revealTimeout, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1 := nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1 := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
 	assert(t, route1, routes[0])
 	assert(t, routesState.AvailableRoutes, routes[1:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route2 := nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2 := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
 	assert(t, route2, routes[1])
 	assert(t, routesState.AvailableRoutes, routes[2:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route3 := nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0)
+	route3 := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
 	assert(t, route3, routes[3])
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, []*route.State{routes[2]})
 
-	assert(t, nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0) == nil, true)
+	assert(t, nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0) == nil, true)
 
 }
 
@@ -310,13 +311,13 @@ func TestNextRouteRevealTimeout(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, balance, 0, timeoutBlocks/2, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, balance, 0, timeoutBlocks, 0, utils.NewRandomHash()),
 	}
-
+	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, 10, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1 := nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1 := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
 	assert(t, route1, routes[2])
 	assert(t, routesState.AvailableRoutes, routes[3:])
 	assert(t, routesState.IgnoredRoutes, routes[0:2])
-	route2 := nextRoute(routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2 := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
 	assert(t, route2 == nil, true)
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, append(routes[0:2], routes[3]))
