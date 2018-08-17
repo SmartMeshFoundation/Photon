@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -91,6 +92,20 @@ func TestCooperativeSettleException(t *testing.T) {
 	tx, err := env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxSuccess(t, nil, tx, err)
+	tx, err = env.TokenNetwork.CooperativeSettle(
+		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
+	assertTxFail(t, &count, tx, err)
+
+	// close状态下CooperativeSettle
+	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
+	// get new cs
+	cs = getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
+	cs.Participant1Balance = balanceA1
+	cs.Participant2Balance = balanceA2
+	// a1 close channel
+	tx, err = env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
+	assertTxSuccess(t, nil, tx, err)
+	// close状态下CooperativeSettle
 	tx, err = env.TokenNetwork.CooperativeSettle(
 		a3.Auth, a1.Address, cs.Participant1Balance, a2.Address, cs.Participant2Balance, cs.sign(a1.Key), cs.sign(a2.Key))
 	assertTxFail(t, &count, tx, err)
