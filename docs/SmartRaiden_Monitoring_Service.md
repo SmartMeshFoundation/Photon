@@ -122,7 +122,7 @@ Example Response :
     "token_address": "0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE",
     "state": "settled",
     "settle_timeout": 100,
-    "reveal_timeout": 0,
+    "reveal_timeout": 10,
     "ClosedBlock": 3850465,
     "SettledBlock": 3850645,
     "OurUnkownSecretLocks": {},

@@ -16,7 +16,7 @@ The objects that are sent to and received from the API are JSON-encoded. Followi
         "token_address": "0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE",
         "state": "opened",
         "settle_timeout": 100,
-        "reveal_timeout": 3
+        "reveal_timeout": 10
     }
 ```
 A channel object consists of a:
@@ -83,7 +83,7 @@ Querying all channels
         "token_address": "0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE",
         "state": "opened",
         "settle_timeout": 100,
-        "reveal_timeout": 3
+        "reveal_timeout": 10
     },
     {
         "channel_address": "0xdF474bBc5802bFadc4A25cf46ad9a06589D5AF7D",
@@ -95,7 +95,7 @@ Querying all channels
         "token_address": "0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE",
         "state": "opened",
         "settle_timeout": 100,
-        "reveal_timeout": 3
+        "reveal_timeout": 10
     }
 ```
 Status Codes:
@@ -118,7 +118,7 @@ Querying a specific channel
     "token_address": "0x745D52e50cd1b19563D3a3B7B6d2eB60b17E6bAE",
     "state": "opened",
     "settle_timeout": 100,
-    "reveal_timeout": 0,
+    "reveal_timeout": 10,
     "ClosedBlock": 0,
     "SettledBlock": 0,
     "OurUnkownSecretLocks": {},
@@ -253,7 +253,7 @@ The request to the endpoint should later return the fully created channel object
     "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
     "state": "opened",
     "settle_timeout": 100,
-    "reveal_timeout": 0
+    "reveal_timeout": 10
 }
 ```
 Status Codes:
@@ -283,7 +283,7 @@ with payload:
     "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
     "state": "closed",
     "settle_timeout": 100,
-    "reveal_timeout": 0
+    "reveal_timeout": 10
 }
 ```
 Settle Channel  
@@ -296,7 +296,8 @@ with payload:
 **Example Response**:  
 *`200 OK`* and 
 ```json
-"channel_address": "0xD955A1BA24058BFbFfD98dF78253a861e5B029b9",
+{
+    "channel_address": "0xD955A1BA24058BFbFfD98dF78253a861e5B029b9",
     "partner_address": "0x1DdaC67E610c22d19e887FB1937bEe3079B56CD1",
     "balance": 200,
     "partner_balance": 0,
@@ -305,11 +306,13 @@ with payload:
     "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
     "state": "settled",
     "settle_timeout": 100,
-    "reveal_timeout": 0
+    "reveal_timeout": 10
+}
 ```
 **`PATCH  /api/<version>/channels/<channel_address>`**  
  Deposit to a Channel    
  You can deposit more of a particular token to a channel by updating the `balance` field of the channel in the corresponding endpoint with a `PATCH` http request.  
+
  **Example Request**:  
  `PATCH http://localhost:5002/api/1/channels/0x7f9bc53F7b3e08a3A9De564740f7FAf9Decb16B9`  
  with payload:
@@ -331,7 +334,7 @@ with payload:
     "token_address": "0x541eeFe890A10D27d947190EA976CB6DCBba650f",
     "state": "opened",
     "settle_timeout": 100,
-    "reveal_timeout": 0
+    "reveal_timeout": 10
 }
 ```
 Status Codes:  
@@ -406,8 +409,10 @@ A list with the addresses of all the closed channels will be returned.
 }
 ```
  **Example Response**:  
-*`200 OK`* and 
-```js
+
+*`200 OK`* and   
+
+```json
 [
     "0x08Bb272f51c8974ACe71648d01afE933384A762e",
     "0x68f9390554789c2D658540C1d3A450fb858a849e",

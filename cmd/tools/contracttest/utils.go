@@ -12,7 +12,12 @@ import (
 
 	"fmt"
 
+	"time"
+
+	"strconv"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,13 +38,13 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(c.Particiant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
-	_,err= buf.Write(c.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.Participant2Balance))
-	_,err= buf.Write(c.ChannelIdentifier[:])
+	_, err := buf.Write(c.Particiant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
+	_, err = buf.Write(c.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant2Balance))
+	_, err = buf.Write(c.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, c.OpenBlockNumber)
-	_,err= buf.Write(utils.BigIntTo32Bytes(c.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -62,15 +67,15 @@ type WithDraw1ForContract struct {
 
 func (w *WithDraw1ForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(w.Participant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_,err= buf.Write(w.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_,err= buf.Write(w.ChannelIdentifier[:])
+	_, err := buf.Write(w.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
+	_, err = buf.Write(w.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
+	_, err = buf.Write(w.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -94,16 +99,16 @@ type WithDraw2ForContract struct {
 
 func (w *WithDraw2ForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_,err:= buf.Write(w.Participant1[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_,err= buf.Write(w.Participant2[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
-	_,err= buf.Write(w.ChannelIdentifier[:])
+	_, err := buf.Write(w.Participant1[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
+	_, err = buf.Write(w.Participant2[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
+	_, err = buf.Write(w.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
-	_,err= buf.Write(utils.BigIntTo32Bytes(w.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -131,36 +136,99 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 	}
 }
 
+func closeOrSettleChannelIfExists(a1 *Account, a2 *Account) {
+	_, _, _, state, settleTimeout, _ := getChannelInfo(a1, a2)
+	if state == ChannelStateSettledOrNotExist {
+		return
+	}
+	if state == ChannelStateOpened {
+		cooperativeSettleChannelIfExists(a1, a2)
+	}
+	if state == ChannelStateClosed {
+		waitForSettle(settleTimeout)
+		depositA1, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
+		if err != nil {
+			panic(err)
+		}
+		depositA2, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
+		if err != nil {
+			panic(err)
+		}
+		tx, err := env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, depositA1, utils.EmptyHash, a2.Address, depositA2, utils.EmptyHash)
+		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
 	var index1, index2 int
 	n := len(env.Accounts)
-	index1 = rand.Intn(n)
-	index2 = rand.Intn(n)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	index1 = r1.Intn(n)
+	index2 = r1.Intn(n)
 	for index1 == index2 {
-		index2 = rand.Intn(n)
+		index2 = r1.Intn(n)
 	}
 	return env.Accounts[index1], env.Accounts[index2]
+}
+
+func (env *Env) getTwoAccountWithoutChannelClose(t *testing.T) (*Account, *Account) {
+	for index1, a1 := range env.Accounts {
+		for index2, a2 := range env.Accounts {
+			if index1 == index2 {
+				continue
+			}
+			_, _, _, channelState, _, _ := getChannelInfo(a1, a2)
+			if channelState != ChannelStateClosed {
+				return a1, a2
+			}
+		}
+	}
+	panic("no usable account, need to run cmd/newTestEnv")
 }
 
 func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Account) {
 	var index1, index2, index3 int
 	n := len(env.Accounts)
-	index1 = rand.Intn(n)
-	index2 = rand.Intn(n)
-	index3 = rand.Intn(n)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	index1 = r1.Intn(n)
+	index2 = r1.Intn(n)
+	index3 = r1.Intn(n)
 	for index1 == index2 {
-		index2 = rand.Intn(n)
+		index2 = r1.Intn(n)
 	}
 	for index3 == index1 || index3 == index2 {
-		index3 = rand.Intn(n)
+		index3 = r1.Intn(n)
 	}
 	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
+}
+
+func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Account {
+	n := len(env.Accounts)
+	seed := rand.NewSource(time.Now().Unix())
+	r1 := rand.New(seed)
+	usable := true
+	for {
+		account := env.Accounts[r1.Intn(n)]
+		for _, t := range accounts {
+			if account.Address.String() == t.Address.String() {
+				usable = false
+			}
+		}
+		if usable {
+			return account
+		}
+	}
 }
 
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
 	var err error
 	channelID, _, openBlockNumber, state, _, ChainID := getChannelInfo(a1, a2)
-	if state == ChannelStateSettledOrNotExist {
+	if state != ChannelStateOpened {
 		return nil
 	}
 	if state == ChannelStateOpened {
@@ -267,8 +335,8 @@ type BalanceData struct {
 // Hash :
 func (b *BalanceData) Hash() common.Hash {
 	buf := new(bytes.Buffer)
-	_,err := buf.Write(b.LocksRoot[:])
-	_,err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err := buf.Write(b.LocksRoot[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	if err != nil {
 		panic(err)
 	}
@@ -289,19 +357,25 @@ type BalanceProofForContract struct {
 
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	_,err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
-	_,err = buf.Write(b.LocksRoot[:])
+	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err = buf.Write(b.LocksRoot[:])
 	err = binary.Write(buf, binary.BigEndian, b.Nonce)
-	_,err = buf.Write(b.AdditionalHash[:])
-	_,err = buf.Write(b.ChannelIdentifier[:])
+	_, err = buf.Write(b.AdditionalHash[:])
+	_, err = buf.Write(b.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
-	_,err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
 	}
 	b.Signature = sig
+}
+
+// BalanceProofUpdateForContracts :
+type BalanceProofUpdateForContracts struct {
+	BalanceProofForContract
+	NonClosingSignature []byte
 }
 
 func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *big.Int, locksroot common.Hash, additionalHash common.Hash, nonce uint64) *BalanceProofForContract {
@@ -319,8 +393,57 @@ func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *
 		ChainID:             ChainID,
 		Nonce:               nonce,
 	}
-	bp.sign(self.Key)
+	bp.sign(partner.Key)
 	return bp
+}
+
+func createLock(expiredBlock int64, amounts ...*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
+	for i := 0; i < len(amounts); i++ {
+		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secrets = append(secrets, secret)
+		l := &mtree.Lock{
+			Expiration:     expiredBlock,
+			Amount:         amounts[i],
+			LockSecretHash: utils.Sha3(secret[:]),
+		}
+		locks = append(locks, l)
+	}
+	return
+}
+
+func createLockByArray(expiredBlock int64, amounts []*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
+	for i := 0; i < len(amounts); i++ {
+		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secrets = append(secrets, secret)
+		l := &mtree.Lock{
+			Expiration:     expiredBlock,
+			Amount:         amounts[i],
+			LockSecretHash: utils.Sha3(secret[:]),
+		}
+		locks = append(locks, l)
+	}
+	return
+}
+
+func registrySecrets(account *Account, secrets []common.Hash) {
+	maxLocks := 5
+	for i := 0; i < len(secrets); i++ {
+		s := secrets[i]
+		if i > maxLocks { //最多注册前五个密码,否则太浪费时间了.
+			break
+		}
+		tx, err := env.SecretRegistry.RegisterSecret(account.Auth, s)
+		if err != nil {
+			panic(err)
+		}
+		r, err := bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
+		if r.Status != types.ReceiptStatusSuccessful {
+			panic(err)
+		}
+	}
 }
 
 func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNum uint64, openBlockNumber uint64, state uint8, settleTimeout uint64, ChainID *big.Int) {
@@ -335,6 +458,20 @@ func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNu
 	return
 }
 
+func approve(account *Account, amount *big.Int) {
+	tx, err := env.Token.Approve(account.Auth, env.TokenNetworkAddress, amount)
+	if err != nil {
+		panic(err)
+	}
+	r, err := bind.WaitMined(context.Background(), env.Client, tx)
+	if err != nil {
+		panic(err)
+	}
+	if r.Status != types.ReceiptStatusSuccessful {
+		panic(err)
+	}
+}
+
 func endMsg(name string, count int, accounts ...*Account) string {
 	msg := fmt.Sprintf("%s完成 CaseNum=%d", name, count)
 	if accounts != nil && len(accounts) > 0 {
@@ -344,4 +481,36 @@ func endMsg(name string, count int, accounts ...*Account) string {
 		msg = msg + fmt.Sprintf("a%d=%s ", index+1, account.Address.String())
 	}
 	return msg
+}
+
+func getTokenBalance(account *Account) *big.Int {
+	balance, err := env.Token.BalanceOf(nil, account.Address)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
+
+func getTokenBalanceByAddess(address common.Address) *big.Int {
+	balance, err := env.Token.BalanceOf(nil, address)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
+
+func waitForSettle(settleTimeout uint64) {
+	temp, err := strconv.ParseInt(strconv.FormatUint(settleTimeout, 10), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(time.Second * time.Duration(temp+5) * 2)
+}
+
+func getLatestBlockNumber() *types.Header {
+	h, err := env.Client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+	return h
 }
