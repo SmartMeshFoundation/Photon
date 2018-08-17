@@ -306,7 +306,7 @@ func (rs *RaidenService) loop() {
 	var blockNumber int64
 	var req *apiReq
 	var sentMessage *protocolMessage
-	firstWaitTime := time.Second
+
 	defer rpanic.PanicRecover("raiden service")
 	for {
 		select {
@@ -325,9 +325,15 @@ func (rs *RaidenService) loop() {
 			// contract events from block chain
 		case st, ok = <-rs.BlockChainEvents.StateChangeChannel:
 			if ok {
-				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
-				if err != nil {
-					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
+				_, ok = st.(*mediatedtransfer.FakeContractInfoCompleteStateChange)
+				if ok {
+					rs.ChanStartupComplete <- struct{}{}
+					log.Info("raiden startup complete")
+				} else {
+					err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
+					if err != nil {
+						log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
+					}
 				}
 			} else {
 				log.Info("Events.StateChangeChannel closed")
@@ -366,14 +372,6 @@ func (rs *RaidenService) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRRCConnectionOK()
 			}
-		case <-time.After(firstWaitTime):
-			/*
-				由于现在所有信息都是通过
-			*/
-			log.Info("startup complete...")
-			firstWaitTime = time.Hour * 900000
-			rs.ChanStartupComplete <- struct{}{}
-			//下次不要在超时了.
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
 			return

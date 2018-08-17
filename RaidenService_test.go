@@ -136,3 +136,13 @@ func TestRestart3(t *testing.T) {
 	}
 
 }
+
+func TestTimer(t *testing.T) {
+	tm := time.NewTimer(time.Second)
+	//<-tm.C
+	fmt.Println("fired")
+	fmt.Printf("called stop %v\n", tm.Stop())
+	fmt.Printf("called stop2 %v\n", tm.Stop())
+	<-tm.C
+	fmt.Println("fired after stop")
+}

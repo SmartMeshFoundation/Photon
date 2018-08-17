@@ -322,6 +322,18 @@ func (be *Events) startListenEvent() {
 							continue
 						}
 						be.sendStateChange(EventChannelNewDeposit2StateChange(ev))
+					case params.NameChannelUnlocked:
+						ev, err := newEventChannelUnlocked(&l)
+						if err != nil {
+							log.Error(fmt.Sprintf("newEventChannelUnlocked err=%s", err))
+							continue
+						}
+						if !be.TokenNetworks[ev.Raw.Address] {
+							log.Info(fmt.Sprintf("recevie event channel unlocked ,but it's not our contract,ev=\n%s",
+								utils.StringInterface(ev, 3)))
+							continue
+						}
+						be.sendStateChange(EventChannelUnlocked2StateChange(ev))
 					case params.NameChannelClosed:
 						ev, err := newEventChannelClosed(&l)
 						if err != nil {
@@ -791,6 +803,7 @@ Start listening events send to  channel can duplicate but cannot lose.
 */
 func (be *Events) Start(LastBlockNumber int64) error {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
+	firstStartup := false
 	err := be.installEventListener()
 	if err != nil {
 		return err
@@ -798,6 +811,11 @@ func (be *Events) Start(LastBlockNumber int64) error {
 	oldstateChanges, err := be.GetAllStateChangeSince(LastBlockNumber)
 	if err != nil {
 		return err
+	}
+	log.Info(fmt.Sprintf("get state change since %d complete", LastBlockNumber))
+	if !be.historyEventsGot {
+		//程序第一次启动,需要等初始化数据完成以后,通知上层
+		firstStartup = true
 	}
 	be.historyEventsGot = true
 
@@ -821,6 +839,9 @@ func (be *Events) Start(LastBlockNumber int64) error {
 		sortContractStateChange(oldstateChanges)
 		for _, st := range oldstateChanges {
 			be.sendStateChange(st)
+		}
+		if firstStartup {
+			be.sendStateChange(new(mediatedtransfer.FakeContractInfoCompleteStateChange))
 		}
 	}()
 	return nil
