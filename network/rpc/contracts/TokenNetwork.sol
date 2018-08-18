@@ -627,7 +627,7 @@ contract TokenNetwork is Utils {
         bytes32 lockhash;
         uint256 reveal_block;
         bytes32 locksroot;
-        require(merkle_proof.length > 0);
+
         channel_identifier = getChannelIdentifier(partner, participant);
         Channel storage channel = channels[channel_identifier];
         Participant storage partner_state = channel.participants[partner];
@@ -962,7 +962,21 @@ contract TokenNetwork is Utils {
         participant_state.nonce
         );
     }
+    function queryUnlockedLocks(address participant, address partner,bytes32 lockhash)
+    view
+    external
+    returns (bool)
+    {
+        bytes32 lockhash_hash;
+        bytes32 channel_identifier = getChannelIdentifier(participant, partner);
+        Channel storage channel = channels[channel_identifier];
+        Participant storage participant_state = channel.participants[participant];
+        lockhash_hash = keccak256(abi.encodePacked(participant_state.nonce, lockhash));
 
+        return (
+        participant_state.unlocked_locks[lockhash_hash]
+        );
+    }
     /*
      * Internal Functions
      */
