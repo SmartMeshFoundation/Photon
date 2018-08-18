@@ -567,7 +567,7 @@ func waitByBlocknum(blocknum uint64) {
 
 func waitToPunish(a1, a2 *Account) {
 	_, settleBlockNum, _, _, _, _ := getChannelInfo(a1, a2)
-	waitUntilBlockNo(settleBlockNum)
+	waitUntilBlockNo(settleBlockNum + 1)
 }
 
 func waitToUpdateBalanceProofDelegate(a1, a2 *Account) {

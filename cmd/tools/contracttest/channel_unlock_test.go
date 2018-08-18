@@ -245,26 +245,32 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 	// get pre token balance
 	preTokenBalanceSelf, preTokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
 	preTokenBalanceContract := getTokenBalanceByAddess(env.TokenNetworkAddress)
+
 	// create new channel
 	cooperativeSettleChannelIfExists(self, partner)
 	testSettleTimeout := TestSettleTimeoutMin + 30
 	openChannelAndDeposit(self, partner, depositSelf, depositPartner, testSettleTimeout)
+
 	// build locks
 	locksSelf, secretsSelf := createLockByArray(expireBlockNumber, selfLockAmounts)
 	mpSelf := mtree.NewMerkleTree(locksSelf)
 	locksPartner, secretsPartner := createLockByArray(expireBlockNumber, partnerLockAmounts)
 	mpPartner := mtree.NewMerkleTree(locksPartner)
+
 	// register secrets
 	registrySecrets(self, secretsSelf)
 	registrySecrets(self, secretsPartner)
+
 	// self close channel with partner's lock
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mpPartner.MerkleRoot(), utils.EmptyHash, 3)
 	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
+
 	// partner update proof with self's lock
 	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(0), mpSelf.MerkleRoot(), utils.EmptyHash, 4)
 	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
+
 	// self unlock with partner's lock -------Case1
 	partnerTransferAmount := bpPartner.TransferAmount
 	for _, lock := range locksPartner {
@@ -273,6 +279,7 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 		assertTxSuccess(t, count, tx, err)
 		partnerTransferAmount = partnerTransferAmount.Add(partnerTransferAmount, lock.Amount)
 	}
+
 	// partner unlock with self's lock -------Case1
 	selfTransferAmount := bpSelf.TransferAmount
 	for _, lock := range locksSelf {
@@ -281,16 +288,19 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 		assertTxSuccess(t, count, tx, err)
 		selfTransferAmount = selfTransferAmount.Add(selfTransferAmount, lock.Amount)
 	}
+
 	// partner unlock with self's lock repeat -------Case2
 	for _, lock := range locksSelf {
 		proof := mpSelf.MakeProof(lock.Hash())
 		tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, selfTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
+
 	// settled for cases after this
 	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
+
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
 	tokenBalanceContract := getTokenBalanceByAddess(env.TokenNetworkAddress)

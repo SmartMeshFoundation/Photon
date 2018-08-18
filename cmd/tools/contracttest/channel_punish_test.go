@@ -18,29 +18,38 @@ func TestChannelPunishRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	testSettleTimeout := TestSettleTimeoutMin + 1
 	self, partner := env.getTwoAccountWithoutChannelClose(t)
 	depositSelf := big.NewInt(25)
 	depositPartner := big.NewInt(20)
+	testSettleTimeout := TestSettleTimeoutMin + 30
+	expireBlockNumber := getLatestBlockNumber().Number.Int64() + 100
+	selfLockAmounts := []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(1)}
+	// get pre token balance
+	//preTokenBalanceSelf, preTokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
+	//preTokenBalanceContract := getTokenBalanceByAddess(env.TokenNetworkAddress)
 	// open channel
 	cooperativeSettleChannelIfExists(self, partner)
 	openChannelAndDeposit(self, partner, depositSelf, depositPartner, testSettleTimeout)
 
 	// self close channel
-	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(10), utils.EmptyHash, utils.EmptyHash, 3)
+	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), utils.EmptyHash, utils.EmptyHash, 0)
 	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner update proof with locks
-	locksSelf, secretsSelf := createLock(20, big.NewInt(1))
+	locksSelf, secretsSelf := createLockByArray(expireBlockNumber, selfLockAmounts)
 	registrySecrets(self, secretsSelf)
-	mp := mtree.NewMerkleTree(locksSelf)
-	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(0), mp.MerkleRoot(), utils.EmptyHash, 1)
+	mpSelf := mtree.NewMerkleTree(locksSelf)
+	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(3), mpSelf.MerkleRoot(), utils.EmptyHash, 2)
 	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
-	// wait to punish window
-	waitToPunish(self, partner)
+	// partner unlock
+	lock := locksSelf[0]
+	proof := mpSelf.MakeProof(lock.Hash())
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+	assertTxSuccess(t, nil, tx, err)
+
 	// self punish partner
 	ou := &ObseleteUnlockForContract{
 		ChannelIdentifier:   bpSelf.ChannelIdentifier,
@@ -48,13 +57,13 @@ func TestChannelPunishRight(t *testing.T) {
 		TokenNetworkAddress: env.TokenNetworkAddress,
 		ChainID:             bpSelf.ChainID,
 		BeneficiaryAddress:  self.Address,
-		LockHash:            locksSelf[0].Hash(),
+		LockHash:            lock.Hash(),
 		AdditionalHash:      utils.EmptyHash,
-		MerkleProof:         mtree.Proof2Bytes(mp.MakeProof(locksSelf[0].Hash())),
+		MerkleProof:         mtree.Proof2Bytes(proof),
 	}
 	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxSuccess(t, &count, tx, err)
-	t.Log(endMsg("ChannelPunish 正确调用测试", count))
+	t.Log(endMsg("ChannelPunish 正确调用测试", count, self, partner))
 }
 
 // TestChannelPunishException : 异常调用测试
