@@ -208,21 +208,20 @@ func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Accoun
 }
 
 func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Account {
-	n := len(env.Accounts)
-	seed := rand.NewSource(time.Now().Unix())
-	r1 := rand.New(seed)
 	usable := true
-	for {
-		account := env.Accounts[r1.Intn(n)]
+	for _, account := range env.Accounts {
+		usable = true
 		for _, t := range accounts {
 			if account.Address.String() == t.Address.String() {
 				usable = false
+				break
 			}
 		}
 		if usable {
 			return account
 		}
 	}
+	panic("no usable account")
 }
 
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
@@ -281,7 +280,7 @@ func openChannelAndDeposit(a1, a2 *Account, depositA1, depositA2 *big.Int, settl
 	}
 }
 
-func withdraw(a1 *Account, withdrawA1, depositA1 *big.Int, a2 *Account, withdrawA2, depositA2 *big.Int) {
+func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA2, withdrawA2 *big.Int) {
 	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(a1, a2)
 	param1 := &WithDraw1ForContract{
 		Participant1:         a1.Address,
@@ -324,6 +323,34 @@ func withdraw(a1 *Account, withdrawA1, depositA1 *big.Int, a2 *Account, withdraw
 	if err != nil {
 		panic(err)
 	}
+}
+
+func createWithdrawParam(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA2, withdrawA2 *big.Int) (*WithDraw1ForContract, *WithDraw2ForContract) {
+	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(a1, a2)
+	param1 := &WithDraw1ForContract{
+		Participant1:         a1.Address,
+		Participant2:         a2.Address,
+		Participant1Deposit:  depositA1,
+		Participant2Deposit:  depositA2,
+		Participant1Withdraw: withdrawA1,
+		ChannelIdentifier:    channelID,
+		OpenBlockNumber:      openBlockNumber,
+		TokenNetworkAddress:  env.TokenNetworkAddress,
+		ChainID:              ChainID,
+	}
+	param2 := &WithDraw2ForContract{
+		Participant1:         a1.Address,
+		Participant2:         a2.Address,
+		Participant1Deposit:  depositA1,
+		Participant2Deposit:  depositA2,
+		Participant1Withdraw: withdrawA1,
+		Participant2Withdraw: withdrawA2,
+		ChannelIdentifier:    channelID,
+		OpenBlockNumber:      openBlockNumber,
+		TokenNetworkAddress:  env.TokenNetworkAddress,
+		ChainID:              ChainID,
+	}
+	return param1, param2
 }
 
 //BalanceData of contract
@@ -539,7 +566,23 @@ func waitForSettle(settleTimeout uint64) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("wait %d second for settle\n", (temp+5)*2)
 	time.Sleep(time.Second * time.Duration(temp+5) * 2)
+}
+
+func waitUntilBlock(blockNum uint64) {
+	fmt.Printf("wait until block %d, about %d seconds...\n", blockNum, blockNum*2)
+	for {
+		var h *types.Header
+		h, err := env.Client.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			panic(err)
+		}
+		if h.Number.Uint64() >= blockNum {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 func getLatestBlockNumber() *types.Header {

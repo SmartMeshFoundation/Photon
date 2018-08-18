@@ -192,6 +192,10 @@ func TestUpdateBalanceProofAttack(t *testing.T) {
 	tx, err = env.TokenNetwork.UpdateBalanceProof(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, &count, tx, err)
 
+	// settle
+	waitForSettle(testSettleTimeout)
+	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	assertTxSuccess(t, nil, tx, err)
 	t.Log(endMsg("UpdateBalanceProof 恶意调用测试", count))
 }
 
@@ -200,44 +204,55 @@ func TestUpdateBalanceProofDelegate(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	testSettleTimeout := TestSettleTimeoutMin + 10
+	testSettleTimeout := TestSettleTimeoutMin + 30
 	self, partner := env.getTwoAccountWithoutChannelClose(t)
 	third := env.getRandomAccountExcept(t, self, partner)
 	// open channel
 	cooperativeSettleChannelIfExists(self, partner)
-	openChannelAndDeposit(self, partner, big.NewInt(15), big.NewInt(10), testSettleTimeout)
+	openChannelAndDeposit(self, partner, big.NewInt(15), big.NewInt(11), testSettleTimeout)
 	// partner close channel
 	tx, err := env.TokenNetwork.CloseChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
 	assertTxSuccess(t, nil, tx, err)
 	// create balance proof
-	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(10), utils.EmptyHash, utils.Sha3([]byte("123")), 5)
-	//tx, err = env.TokenNetwork.UpdateBalanceProof(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
-	//assertTxSuccess(t, &count, tx, err)
+	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(10), utils.EmptyHash, utils.Sha3([]byte("123")), 3)
 	bpPartnerSelf := &BalanceProofUpdateForContracts{
 		BalanceProofForContract: *bpPartner,
 	}
+	// update at the first half of settle window
 	bpPartnerSelf.sign(self.Key)
-	// update delegate right
-	//fmt.Printf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
-	//	third.Address.String(),
-	//	self.Address.String(),
-	//	bpPartnerSelf.TransferAmount.String(),
-	//	bpPartnerSelf.LocksRoot.String(),
-	//	bpPartnerSelf.Nonce,
-	//	utils.BigInt0, utils.EmptyHash.String(), utils.BigInt0,
-	//	bpPartnerSelf.AdditionalHash.String(),
-	//	hex.EncodeToString(bpPartnerSelf.Signature),
-	//	hex.EncodeToString(bpPartnerSelf.NonClosingSignature),
-	//)
-	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address,
-		bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash,
-		bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
+	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash, bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
+	assertTxFail(t, &count, tx, err)
+
+	// wait to the last half of settle window
+	_, settleBlockNum, _, _, _, _ := getChannelInfo(self, partner)
+	waitUntilBlock(settleBlockNum - testSettleTimeout/2)
+
+	// update with wrong signature
+	bpPartnerSelf.sign(third.Key)
+	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash, bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
+	assertTxFail(t, &count, tx, err)
+	bpPartnerSelf.sign(partner.Key)
+	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash, bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
+	assertTxFail(t, &count, tx, err)
+
+	// update right
+	bpPartnerSelf.sign(self.Key)
+	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash, bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
 	assertTxSuccess(t, &count, tx, err)
 
 	// settle
-	waitForSettle(testSettleTimeout)
-	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	waitUntilBlock(settleBlockNum + 5)
+	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
-	t.Log(endMsg("UpdateBalanceProof 授权调用测试", count))
+	// update after settle
+	bpPartner = createPartnerBalanceProof(self, partner, big.NewInt(11), utils.EmptyHash, utils.Sha3([]byte("123")), 4)
+	bpPartnerSelf = &BalanceProofUpdateForContracts{
+		BalanceProofForContract: *bpPartner,
+	}
+	bpPartnerSelf.sign(self.Key)
+	tx, err = env.TokenNetwork.UpdateBalanceProofDelegate(third.Auth, partner.Address, self.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot, bpPartnerSelf.Nonce, bpPartnerSelf.AdditionalHash, bpPartnerSelf.Signature, bpPartnerSelf.NonClosingSignature)
+	assertTxFail(t, &count, tx, err)
+
+	t.Log(endMsg("UpdateBalanceProof 授权调用测试", count, self, partner, third))
 }
