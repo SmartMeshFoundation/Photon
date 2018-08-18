@@ -208,21 +208,20 @@ func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Accoun
 }
 
 func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Account {
-	n := len(env.Accounts)
-	seed := rand.NewSource(time.Now().Unix())
-	r1 := rand.New(seed)
 	usable := true
-	for {
-		account := env.Accounts[r1.Intn(n)]
+	for _, account := range env.Accounts {
+		usable = true
 		for _, t := range accounts {
 			if account.Address.String() == t.Address.String() {
 				usable = false
+				break
 			}
 		}
 		if usable {
 			return account
 		}
 	}
+	panic("no usable account")
 }
 
 func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) *CoOperativeSettleForContracts {
@@ -539,7 +538,23 @@ func waitForSettle(settleTimeout uint64) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("wait %d second for settle\n", (temp+5)*2)
 	time.Sleep(time.Second * time.Duration(temp+5) * 2)
+}
+
+func waitUntilBlock(blockNum uint64) {
+	fmt.Printf("wait until block %d\n", blockNum)
+	for {
+		var h *types.Header
+		h, err := env.Client.HeaderByNumber(context.Background(), nil)
+		if err != nil {
+			panic(err)
+		}
+		if h.Number.Uint64() >= blockNum {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 func getLatestBlockNumber() *types.Header {
