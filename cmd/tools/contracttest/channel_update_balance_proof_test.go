@@ -51,7 +51,7 @@ func TestUpdateBalanceProofRight(t *testing.T) {
 	assertEqual(t, &count, bpPartner.Nonce, noncePartner)
 
 	// settle
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	t.Log(endMsg("UpdateBalanceProof 正确调用测试", count))
@@ -104,7 +104,7 @@ func TestUpdateBalanceProofException(t *testing.T) {
 	assertTxFail(t, &count, tx, err)
 
 	// after settle timeout, MUST FAIL
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.UpdateBalanceProof(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxFail(t, &count, tx, err)
 
@@ -150,7 +150,7 @@ func TestUpdateBalanceProofEdge(t *testing.T) {
 	tx, err = env.TokenNetwork.UpdateBalanceProof(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxFail(t, &count, tx, err)
 	// wait for settle
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	// settle
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, big.NewInt(0), utils.EmptyHash)
 	assertTxSuccess(t, nil, tx, err)
@@ -176,7 +176,7 @@ func TestUpdateBalanceProofAttack(t *testing.T) {
 	tx, err = env.TokenNetwork.UpdateBalanceProof(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, &count, tx, err)
 	// settle
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
@@ -193,7 +193,7 @@ func TestUpdateBalanceProofAttack(t *testing.T) {
 	assertTxSuccess(t, &count, tx, err)
 
 	// settle
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	t.Log(endMsg("UpdateBalanceProof 恶意调用测试", count))
@@ -224,8 +224,7 @@ func TestUpdateBalanceProofDelegate(t *testing.T) {
 	assertTxFail(t, &count, tx, err)
 
 	// wait to the last half of settle window
-	_, settleBlockNum, _, _, _, _ := getChannelInfo(self, partner)
-	waitUntilBlock(settleBlockNum - testSettleTimeout/2)
+	waitToUpdateBalanceProofDelegate(self, partner)
 
 	// update with wrong signature
 	bpPartnerSelf.sign(third.Key)
@@ -241,7 +240,7 @@ func TestUpdateBalanceProofDelegate(t *testing.T) {
 	assertTxSuccess(t, &count, tx, err)
 
 	// settle
-	waitUntilBlock(settleBlockNum + 5)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartnerSelf.TransferAmount, bpPartnerSelf.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 

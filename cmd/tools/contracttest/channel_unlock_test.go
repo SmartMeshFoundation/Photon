@@ -218,7 +218,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 	}
 
 	// settled for cases after this
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
@@ -288,7 +288,7 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
@@ -336,7 +336,7 @@ func runUnlockWithWrongLocksrootTest(self, partner *Account, t *testing.T, count
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
@@ -377,7 +377,7 @@ func runUnlockAfterExpirationTest(self, partner *Account, t *testing.T, count *i
 	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for lock to expiration
-	waitForSettle(uint64(3))
+	waitByBlocknum(uint64(3))
 	// unlock with right locks
 	for _, lock := range locks {
 		proof := mp.MakeProof(lock.Hash())
@@ -385,7 +385,7 @@ func runUnlockAfterExpirationTest(self, partner *Account, t *testing.T, count *i
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
@@ -434,7 +434,7 @@ func runUnlockWithTamperedProofTest(self, partner *Account, t *testing.T, count 
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
@@ -470,7 +470,7 @@ func runUnlockAfterSettleTimeoutTest(self, partner *Account, t *testing.T, count
 	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for settleTimeout
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	// unlock with right locks
 	for _, lock := range locks {
 		proof := mp.MakeProof(lock.Hash())
