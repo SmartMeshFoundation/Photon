@@ -14,8 +14,6 @@ import (
 
 	"time"
 
-	"strconv"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -133,32 +131,6 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 	_, err = bind.WaitMined(context.Background(), env.Client, tx)
 	if err != nil {
 		panic(err)
-	}
-}
-
-func closeOrSettleChannelIfExists(a1 *Account, a2 *Account) {
-	_, _, _, state, settleTimeout, _ := getChannelInfo(a1, a2)
-	if state == ChannelStateSettledOrNotExist {
-		return
-	}
-	if state == ChannelStateOpened {
-		cooperativeSettleChannelIfExists(a1, a2)
-	}
-	if state == ChannelStateClosed {
-		waitForSettle(settleTimeout)
-		depositA1, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
-		if err != nil {
-			panic(err)
-		}
-		depositA2, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
-		if err != nil {
-			panic(err)
-		}
-		tx, err := env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, depositA1, utils.EmptyHash, a2.Address, depositA2, utils.EmptyHash)
-		_, err = bind.WaitMined(context.Background(), env.Client, tx)
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 
@@ -561,28 +533,46 @@ func getTokenBalanceByAddess(address common.Address) *big.Int {
 	return balance
 }
 
-func waitForSettle(settleTimeout uint64) {
-	temp, err := strconv.ParseInt(strconv.FormatUint(settleTimeout, 10), 10, 64)
+func waitToSettle(a1 *Account, a2 *Account) {
+	_, settleBlockNum, _, _, _, _ := getChannelInfo(a1, a2)
+	punishBlockNumber, err := env.TokenNetwork.Punish_block_number(nil)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("wait %d second for settle\n", (temp+5)*2)
-	time.Sleep(time.Second * time.Duration(temp+5) * 2)
+	waitUntilBlockNo(settleBlockNum + punishBlockNumber)
 }
 
-func waitUntilBlock(blockNum uint64) {
-	fmt.Printf("wait until block %d, about %d seconds...\n", blockNum, blockNum*2)
+func waitUntilBlockNo(blockNo uint64) {
+	fmt.Printf("wait until block %d ...\n", blockNo)
 	for {
 		var h *types.Header
 		h, err := env.Client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
 			panic(err)
 		}
-		if h.Number.Uint64() >= blockNum {
+		if h.Number.Uint64() >= blockNo {
 			break
 		}
 		time.Sleep(time.Second)
 	}
+}
+
+func waitByBlocknum(blocknum uint64) {
+	h, err := env.Client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+	waitUntilBlockNo(h.Number.Uint64() + blocknum)
+}
+
+func waitToPunish(a1, a2 *Account) {
+	_, settleBlockNum, _, _, _, _ := getChannelInfo(a1, a2)
+	waitUntilBlockNo(settleBlockNum + 1)
+}
+
+func waitToUpdateBalanceProofDelegate(a1, a2 *Account) {
+	_, settleBlockNum, _, _, settleTimeout, _ := getChannelInfo(a1, a2)
+	waitUntilBlockNo(settleBlockNum - settleTimeout/2)
 }
 
 func getLatestBlockNumber() *types.Header {

@@ -29,8 +29,9 @@ func assertTxSuccess(t *testing.T, count *int, tx *types.Transaction, err error)
 	}
 	assert.Empty(t, err)
 	if tx != nil {
-		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		r, err := bind.WaitMined(context.Background(), env.Client, tx)
 		assert.Empty(t, err)
+		assert.EqualValues(t, 1, r.Status)
 	}
 }
 

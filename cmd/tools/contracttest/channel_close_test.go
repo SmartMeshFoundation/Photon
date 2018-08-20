@@ -101,7 +101,7 @@ func TestChannelCloseAttack(t *testing.T) {
 	// close new channel with old balance proof
 	tx, err = env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	assertTxSuccess(t, nil, tx, err) // close
-	waitForSettle(testSettleTimeout)
+	waitToSettle(a1, a2)
 	tx, err = env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, trasAmtA1, locksrootA1, a2.Address, trasAmtA2, locksrootA2)
 	assertTxSuccess(t, nil, tx, err)                                       // settle
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout) // reopen

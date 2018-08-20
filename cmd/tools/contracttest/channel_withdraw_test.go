@@ -112,7 +112,7 @@ func TestChannelWithdrawException(t *testing.T) {
 	assertTxFail(t, &count, tx, err)
 
 	// with draw when channel settled
-	waitForSettle(testSettleTimeout)
+	waitToSettle(self, partner)
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, big.NewInt(0), utils.EmptyHash)
 	assertTxSuccess(t, nil, tx, err)
 	withdrawSelf, withdrawPartner = big.NewInt(1), big.NewInt(0)
