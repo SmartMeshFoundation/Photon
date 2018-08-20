@@ -25,8 +25,10 @@ type Env struct {
 	KeystorePath          string
 	EthRPCEndpoint        string
 	Token                 *contracts.Token
+	TokenAddress          common.Address
 	TokenNetworkAddress   common.Address
 	Client                *ethclient.Client
+	TokenNetworkRegistry  *contracts.TokenNetworkRegistry
 	TokenNetwork          *contracts.TokenNetwork
 	SecretRegistryAddress common.Address
 	SecretRegistry        *contracts.SecretRegistry
@@ -74,12 +76,12 @@ func InitEnv(t *testing.T, configFilePath string) {
 		return
 	}
 	// get token
-	tokenAddress := common.HexToAddress(c.RdString("COMMON", "token_address", "new"))
-	env.Token, err = contracts.NewToken(tokenAddress, env.Client)
+	env.TokenAddress = common.HexToAddress(c.RdString("COMMON", "token_address", "new"))
+	env.Token, err = contracts.NewToken(env.TokenAddress, env.Client)
 	if err != nil {
 		panic(err)
 	}
-	t.Logf("Token = %s", tokenAddress.String())
+	t.Logf("Token = %s", env.TokenAddress.String())
 	// get token_network
 	tokenNetworkAddress := c.RdString("COMMON", "token_network_address", "")
 	if tokenNetworkAddress == "new" || tokenNetworkAddress == "" {
@@ -92,6 +94,12 @@ func InitEnv(t *testing.T, configFilePath string) {
 		}
 	}
 	t.Logf("TokenNetwork = %s", tokenNetworkAddress)
+	// get token network registry
+	tokenNetworkRegistryAddress := common.HexToAddress(c.RdString("COMMON", "token_network_registry_address", "new"))
+	env.TokenNetworkRegistry, err = contracts.NewTokenNetworkRegistry(tokenNetworkRegistryAddress, env.Client)
+	if err != nil {
+		panic(err)
+	}
 	// init accounts, keys and auths
 	initAccounts(t, env)
 	t.Log("=======================================> env init done, test BEGIN ...")
