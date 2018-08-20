@@ -19,11 +19,11 @@ import (
 
 func TestStruct(t *testing.T) {
 	tt := contracts.TokenNetworkRegistryTokenNetworkCreated{
-		Token_address: utils.NewRandomAddress(),
+		TokenAddress: utils.NewRandomAddress(),
 	}
 	t2 := tt
-	t2.Token_address = utils.NewRandomAddress()
-	t.Logf(fmt.Sprintf("tt=%s,t2=%s", tt.Token_address.String(), t2.Token_address.String()))
+	t2.TokenAddress = utils.NewRandomAddress()
+	t.Logf(fmt.Sprintf("tt=%s,t2=%s", tt.TokenAddress.String(), t2.TokenAddress.String()))
 }
 func TestFilter(t *testing.T) {
 	client, err := ethclient.Dial(rpc.TestRPCEndpoint)

@@ -287,7 +287,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contr
 	if err != nil {
 		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
-	tokenNetworkAddr, err = tokenNetwork.Token_to_token_networks(nil, tokenAddr)
+	tokenNetworkAddr, err = tokenNetwork.TokenToTokenNetworks(nil, tokenAddr)
 	fmt.Printf("DeployHumanStandardToken complete... %s,token_network_address=%s\n", tokenAddr.String(), tokenNetworkAddr.String())
 	return
 }

@@ -24,7 +24,7 @@ type RegistryProxy struct {
 // @param token_address The address of the given token
 // @return Address of tokenNetwork
 func (r *RegistryProxy) TokenNetworkByToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
-	tokenNetworkAddress, err = r.registry.Token_to_token_networks(r.bcs.getQueryOpts(), tokenAddress)
+	tokenNetworkAddress, err = r.registry.TokenToTokenNetworks(r.bcs.getQueryOpts(), tokenAddress)
 	if err != nil && err.Error() == "abi: unmarshalling empty output" {
 		err = rerr.ErrNoTokenManager
 	}
@@ -52,5 +52,5 @@ func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddre
 		return
 	}
 	log.Info(fmt.Sprintf("AddToken success %s,token=%s", utils.APex(r.Address), tokenAddress.String()))
-	return r.registry.Token_to_token_networks(r.bcs.getQueryOpts(), tokenAddress)
+	return r.registry.TokenToTokenNetworks(r.bcs.getQueryOpts(), tokenAddress)
 }

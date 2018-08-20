@@ -183,7 +183,7 @@ func (bcs *BlockChainService) Registry(address common.Address) (t *RegistryProxy
 		return
 	}
 	r := &RegistryProxy{address, bcs, reg}
-	secAddr, err := r.registry.Secret_registry_address(nil)
+	secAddr, err := r.registry.SecretRegistryAddress(nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
 		return

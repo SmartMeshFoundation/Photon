@@ -151,7 +151,7 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
-	fmt.Printf("tokenNetworkRegistryAddress=%s, txhash=%s\n", tokenNetworkRegistryAddress.String(),tx.Hash().String())
+	fmt.Printf("tokenNetworkRegistryAddress=%s, txhash=%s\n", tokenNetworkRegistryAddress.String(), tx.Hash().String())
 	ctx = context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
@@ -229,7 +229,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	if err != nil {
 		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
-	tokenNetworkAddress, err = registry.Token_to_token_networks(nil, tokenAddr)
+	tokenNetworkAddress, err = registry.TokenToTokenNetworks(nil, tokenAddr)
 	fmt.Printf("Deploy %s complete... %s,tokennetwork=%s\n", tokenType, tokenAddr.String(), tokenNetworkAddress.String())
 	return
 }

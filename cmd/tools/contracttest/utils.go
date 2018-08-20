@@ -485,7 +485,7 @@ func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNu
 	if err != nil {
 		panic(err)
 	}
-	ChainID, err = env.TokenNetwork.Chain_id(nil)
+	ChainID, err = env.TokenNetwork.ChainId(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -535,7 +535,7 @@ func getTokenBalanceByAddess(address common.Address) *big.Int {
 
 func waitToSettle(a1 *Account, a2 *Account) {
 	_, settleBlockNum, _, _, _, _ := getChannelInfo(a1, a2)
-	punishBlockNumber, err := env.TokenNetwork.Punish_block_number(nil)
+	punishBlockNumber, err := env.TokenNetwork.PunishBlockNumber(nil)
 	if err != nil {
 		panic(err)
 	}

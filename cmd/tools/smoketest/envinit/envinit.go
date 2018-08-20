@@ -213,7 +213,7 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	if err != nil {
 		log.Fatalf("failed to AddToken when mining :%v", err)
 	}
-	tokenNetoworkAddr, err = registry.Token_to_token_networks(nil, tokenAddr)
+	tokenNetoworkAddr, err = registry.TokenToTokenNetworks(nil, tokenAddr)
 	fmt.Printf("DeployHumanStandardToken complete... %s,mgr=%s\n", tokenAddr.String(), tokenNetoworkAddr.String())
 	return
 }

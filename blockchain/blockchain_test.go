@@ -35,7 +35,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	secretRegistryAddress, err = tokenNetworkRegistry.Secret_registry_address(nil)
+	secretRegistryAddress, err = tokenNetworkRegistry.SecretRegistryAddress(nil)
 	if err != nil {
 		panic(err)
 	}

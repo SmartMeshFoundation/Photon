@@ -194,7 +194,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
 	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
-		rs.SecretRegistryAddress, err = rs.Registry.GetContract().Secret_registry_address(nil)
+		rs.SecretRegistryAddress, err = rs.Registry.GetContract().SecretRegistryAddress(nil)
 		if err != nil {
 			return
 		}
