@@ -12,10 +12,6 @@ contract TokenNetwork is Utils {
      */
 
     string constant public contract_version = "0.3._";
-    /*
-    用于惩罚不诚实节点,让自己的nonce最大, transferamount 为0,locksroot 为0,
-    */
-    bytes24 constant public invalid_balance_hash = bytes24(keccak256(abi.encodePacked(bytes32(0), uint256(0))));
 
     // Instance of the token used as digital currency by the channels
     Token public token;
@@ -721,8 +717,9 @@ contract TokenNetwork is Utils {
         delete beneficiary_state.unlocked_locks[lockhash_hash];
         /*
         punish the cheater.
+        set the transferAmount and locksroot to 0, nonce to max_uint64 and deposit to 0.
         */
-        beneficiary_state.balance_hash = invalid_balance_hash;
+        beneficiary_state.balance_hash = bytes24(0);
         beneficiary_state.nonce = 0xffffffffffffffff;
         beneficiary_state.deposit += cheater_state.deposit;
         cheater_state.deposit = 0;
