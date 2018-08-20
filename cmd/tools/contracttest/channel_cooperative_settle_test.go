@@ -14,7 +14,8 @@ func TestCooperativeSettleRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	a1, a2, a3 := env.getThreeRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
+	a3 := env.getRandomAccountExcept(t, a1, a2)
 	// cases
 	// 正常调用
 	depositA1 := big.NewInt(20)
@@ -78,7 +79,8 @@ func TestCooperativeSettleException(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	a1, a2, a3 := env.getThreeRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
+	a3 := env.getRandomAccountExcept(t, a1, a2)
 	depositA1 := big.NewInt(20)
 	depositA2 := big.NewInt(10)
 	balanceA1 := big.NewInt(4)
@@ -117,7 +119,8 @@ func TestCooperativeSettleEdge(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	a1, a2, a3 := env.getThreeRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
+	a3 := env.getRandomAccountExcept(t, a1, a2)
 	depositA1 := big.NewInt(20)
 	depositA2 := big.NewInt(10)
 	balanceA1 := big.NewInt(4)
@@ -164,7 +167,8 @@ func TestCooperativeSettleAttack(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	a1, a2, a3 := env.getThreeRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
+	a3 := env.getRandomAccountExcept(t, a1, a2)
 	depositA1 := big.NewInt(20)
 	depositA2 := big.NewInt(10)
 	balanceA1 := big.NewInt(4)

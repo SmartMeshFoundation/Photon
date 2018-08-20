@@ -11,7 +11,8 @@ import (
 func TestChannelDepositRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
-	a1, a2, a3 := env.getThreeRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
+	a3 := env.getRandomAccountExcept(t, a1, a2)
 	cooperativeSettleChannelIfExists(a1, a2)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	depositA1 := big.NewInt(200)
@@ -64,7 +65,7 @@ func TestChannelDepositException(t *testing.T) {
 func TestChannelDepositEdge(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
-	a1, a2 := env.getTwoRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
 	cooperativeSettleChannelIfExists(a1, a2)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	depositA1 := big.NewInt(200)
