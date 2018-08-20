@@ -326,7 +326,7 @@ type BasicTokenTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_BasicToken *BasicTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*BasicTokenTransferIterator, error) {
 
 	var fromRule []interface{}
@@ -347,7 +347,7 @@ func (_BasicToken *BasicTokenFilterer) FilterTransfer(opts *bind.FilterOpts, fro
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_BasicToken *BasicTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *BasicTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
@@ -770,7 +770,7 @@ type ERC20Approval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_ERC20 *ERC20Filterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*ERC20ApprovalIterator, error) {
 
 	var ownerRule []interface{}
@@ -791,7 +791,7 @@ func (_ERC20 *ERC20Filterer) FilterApproval(opts *bind.FilterOpts, owner []commo
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_ERC20 *ERC20Filterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *ERC20Approval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
@@ -912,7 +912,7 @@ type ERC20Transfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_ERC20 *ERC20Filterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*ERC20TransferIterator, error) {
 
 	var fromRule []interface{}
@@ -933,7 +933,7 @@ func (_ERC20 *ERC20Filterer) FilterTransfer(opts *bind.FilterOpts, from []common
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_ERC20 *ERC20Filterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *ERC20Transfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
@@ -1288,7 +1288,7 @@ type ERC20BasicTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_ERC20Basic *ERC20BasicFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*ERC20BasicTransferIterator, error) {
 
 	var fromRule []interface{}
@@ -1309,7 +1309,7 @@ func (_ERC20Basic *ERC20BasicFilterer) FilterTransfer(opts *bind.FilterOpts, fro
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_ERC20Basic *ERC20BasicFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *ERC20BasicTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
@@ -1816,7 +1816,7 @@ type EtherTokenApproval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_EtherToken *EtherTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*EtherTokenApprovalIterator, error) {
 
 	var ownerRule []interface{}
@@ -1837,7 +1837,7 @@ func (_EtherToken *EtherTokenFilterer) FilterApproval(opts *bind.FilterOpts, own
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_EtherToken *EtherTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *EtherTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
@@ -1958,7 +1958,7 @@ type EtherTokenTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_EtherToken *EtherTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*EtherTokenTransferIterator, error) {
 
 	var fromRule []interface{}
@@ -1979,7 +1979,7 @@ func (_EtherToken *EtherTokenFilterer) FilterTransfer(opts *bind.FilterOpts, fro
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_EtherToken *EtherTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *EtherTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
@@ -2590,7 +2590,7 @@ type HumanEtherTokenApproval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_HumanEtherToken *HumanEtherTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*HumanEtherTokenApprovalIterator, error) {
 
 	var ownerRule []interface{}
@@ -2611,7 +2611,7 @@ func (_HumanEtherToken *HumanEtherTokenFilterer) FilterApproval(opts *bind.Filte
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_HumanEtherToken *HumanEtherTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *HumanEtherTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
@@ -2732,7 +2732,7 @@ type HumanEtherTokenTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_HumanEtherToken *HumanEtherTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*HumanEtherTokenTransferIterator, error) {
 
 	var fromRule []interface{}
@@ -2753,7 +2753,7 @@ func (_HumanEtherToken *HumanEtherTokenFilterer) FilterTransfer(opts *bind.Filte
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_HumanEtherToken *HumanEtherTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *HumanEtherTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
@@ -3379,7 +3379,7 @@ type StandardTokenApproval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_StandardToken *StandardTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*StandardTokenApprovalIterator, error) {
 
 	var ownerRule []interface{}
@@ -3400,7 +3400,7 @@ func (_StandardToken *StandardTokenFilterer) FilterApproval(opts *bind.FilterOpt
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: event Approval(owner indexed address, spender indexed address, value uint256)
+// Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
 func (_StandardToken *StandardTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *StandardTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
@@ -3521,7 +3521,7 @@ type StandardTokenTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_StandardToken *StandardTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*StandardTokenTransferIterator, error) {
 
 	var fromRule []interface{}
@@ -3542,7 +3542,7 @@ func (_StandardToken *StandardTokenFilterer) FilterTransfer(opts *bind.FilterOpt
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: event Transfer(from indexed address, to indexed address, value uint256)
+// Solidity: e Transfer(from indexed address, to indexed address, value uint256)
 func (_StandardToken *StandardTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *StandardTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
