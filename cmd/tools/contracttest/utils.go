@@ -461,20 +461,6 @@ func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNu
 	return
 }
 
-func approve(account *Account, amount *big.Int) {
-	tx, err := env.Token.Approve(account.Auth, env.TokenNetworkAddress, amount)
-	if err != nil {
-		panic(err)
-	}
-	r, err := bind.WaitMined(context.Background(), env.Client, tx)
-	if err != nil {
-		panic(err)
-	}
-	if r.Status != types.ReceiptStatusSuccessful {
-		panic(err)
-	}
-}
-
 func endMsg(name string, count int, accounts ...*Account) string {
 	msg := fmt.Sprintf("%s完成 CaseNum=%d", name, count)
 	if accounts != nil && len(accounts) > 0 {
