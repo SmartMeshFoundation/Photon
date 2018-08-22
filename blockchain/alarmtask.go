@@ -27,7 +27,7 @@ type AlarmTask struct {
 	quitChan        chan struct{}
 	stopped         bool
 	waitTime        time.Duration
-	callback        []AlarmCallback
+	callback        []*AlarmCallback
 	lock            sync.Mutex
 }
 
@@ -49,19 +49,20 @@ RegisterCallback register a new callback.
             this reason it should not block, otherwise we can miss block
             changes.
 */
-func (at *AlarmTask) RegisterCallback(callback AlarmCallback) {
+func (at *AlarmTask) RegisterCallback(callback *AlarmCallback) {
 	at.lock.Lock()
 	defer at.lock.Unlock()
+	fmt.Println("registry:", callback)
 	at.callback = append(at.callback, callback)
 }
 
 //RemoveCallback remove callback from the list of callbacks if it exists
-func (at *AlarmTask) RemoveCallback(cb AlarmCallback) {
+func (at *AlarmTask) RemoveCallback(cb *AlarmCallback) {
 	at.lock.Lock()
 	defer at.lock.Unlock()
 	for k, c := range at.callback {
-		addr1 := &c
-		addr2 := &cb
+		addr1 := c
+		addr2 := cb
 		if addr1 == addr2 {
 			at.callback = append(at.callback[:k], at.callback[k+1:]...)
 		}
@@ -119,13 +120,13 @@ func (at *AlarmTask) waitNewBlock() error {
 			}
 			var removes []AlarmCallback
 			for _, cb := range at.callback {
-				err2 := cb(currentBlock)
+				err2 := (*cb)(currentBlock)
 				if err2 != nil {
-					removes = append(removes, cb)
+					removes = append(removes, *cb)
 				}
 			}
 			for _, cb := range removes {
-				at.RemoveCallback(cb)
+				at.RemoveCallback(&cb)
 			}
 		case <-at.quitChan:
 			sub.Unsubscribe()
