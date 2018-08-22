@@ -154,9 +154,7 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 //
 // The client reconnects automatically if the connection is lost.
 func Dial(rawurl string) (*Client, error) {
-	ctx,cancel:=context.WithTimeout(context.Background(),time.Second*5)
-	defer cancel()
-	return DialContext(ctx, rawurl)
+	return DialContext(context.Background(), rawurl)
 }
 
 // DialContext creates a new RPC client, just like Dial.
@@ -420,9 +418,9 @@ func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMes
 func (c *Client) send(ctx context.Context, op *requestOp, msg interface{}) error {
 	select {
 	case c.requestOp <- op:
-		//log.Trace("", "msg", log.Lazy{Fn: func() string {
-		//	return fmt.Sprint("sending ", msg)
-		//}})
+		log.Trace("", "msg", log.Lazy{Fn: func() string {
+			return fmt.Sprint("sending ", msg)
+		}})
 		err := c.write(ctx, msg)
 		c.sendDone <- err
 		return err
@@ -508,14 +506,14 @@ func (c *Client) dispatch(conn net.Conn) {
 			for _, msg := range batch {
 				switch {
 				case msg.isNotification():
-					//log.Trace("", "msg", log.Lazy{Fn: func() string {
-					//	return fmt.Sprint("<-readResp: notification ", msg)
-					//}})
+					log.Trace("", "msg", log.Lazy{Fn: func() string {
+						return fmt.Sprint("<-readResp: notification ", msg)
+					}})
 					c.handleNotification(msg)
 				case msg.isResponse():
-					//log.Trace("", "msg", log.Lazy{Fn: func() string {
-					//	return fmt.Sprint("<-readResp: response ", msg)
-					//}})
+					log.Trace("", "msg", log.Lazy{Fn: func() string {
+						return fmt.Sprint("<-readResp: response ", msg)
+					}})
 					c.handleResponse(msg)
 				default:
 					log.Debug("", "msg", log.Lazy{Fn: func() string {
