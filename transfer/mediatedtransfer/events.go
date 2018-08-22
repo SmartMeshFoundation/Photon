@@ -144,11 +144,11 @@ type EventContractSendRegisterSecret struct {
 }
 
 /*
+EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 上家不知什么原因要关闭channel，我一旦知道密码，应该立即到链上提现。
 channel 自己会关注是否要提现，但是如果是在关闭以后才获取到密码的呢？
+目前完全无用,如果 unlock 放在 settle 之后,还有可能有用.
 */
-
-//EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 type EventContractSendWithdraw struct {
 	Transfer          *LockedTransferState
 	ChannelIdentifier common.Hash

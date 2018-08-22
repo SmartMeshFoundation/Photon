@@ -65,7 +65,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	if err != nil {
 		log.Fatalf("newtoken network for %s ,err %s", tokenNetworkAddres.String(), err)
 	}
-	tx, err := tokenNetwork.OpenChannel(auth1, account1, account2, 40)
+	tx, err := tokenNetwork.OpenChannel(auth1, account1, account2, 600)
 	if err != nil {
 		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
 		return

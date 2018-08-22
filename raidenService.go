@@ -227,7 +227,7 @@ func (rs *RaidenService) Start() (err error) {
 	})
 	rs.registerRegistry()
 	rs.Protocol.Start()
-
+	rs.restore()
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -1281,13 +1281,11 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
-	if sentMessage.Message.Tag() == nil {
-		panic(fmt.Sprintf("sent message has no tag %s", utils.StringInterface(sentMessage, 3)))
-	}
-	t, ok1 := sentMessage.Message.Tag().(*transfer.MessageTag)
+	data := sentMessage.Message.Pack()
+	echohash := utils.Sha3(data, sentMessage.receiver[:])
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
-	if ok1 && ok2 {
-		rs.db.DeleteEnvelopMessager(t.EchoHash)
+	if ok2 {
+		rs.db.DeleteEnvelopMessager(echohash)
 	}
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }

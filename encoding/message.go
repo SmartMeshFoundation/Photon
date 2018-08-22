@@ -161,7 +161,7 @@ func (t MessageType) String() string {
 	case SecretRequestCmdID:
 		return "SecretRequest"
 	case UnlockCmdID:
-		return "Secret"
+		return "Unlock"
 	case DirectTransferCmdID:
 		return "DirectTransfer"
 	case MediatedTransferCmdID:

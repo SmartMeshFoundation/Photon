@@ -11,6 +11,8 @@ import (
 
 	"crypto/ecdsa"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -195,9 +197,10 @@ func (bcs *BlockChainService) Registry(address common.Address) (t *RegistryProxy
 	}
 	bcs.RegistryProxy = r
 	bcs.SecretRegistryProxy = &SecretRegistryProxy{
-		Address:  secAddr,
-		bcs:      bcs,
-		registry: s,
+		Address:          secAddr,
+		bcs:              bcs,
+		registry:         s,
+		RegisteredSecret: make(map[common.Hash]*sync.Mutex),
 	}
 	return bcs.RegistryProxy
 }
