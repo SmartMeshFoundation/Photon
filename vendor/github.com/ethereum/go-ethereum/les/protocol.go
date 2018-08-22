@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -152,7 +153,7 @@ func (a *announceData) checkSignature(pubKey *ecdsa.PublicKey) error {
 		return err
 	}
 	rlp, _ := rlp.EncodeToBytes(announceBlock{a.Hash, a.Number, a.Td})
-	recPubkey, err := crypto.Ecrecover(crypto.Keccak256(rlp), sig) //secp256k1.RecoverPubkey(crypto.Keccak256(rlp), sig)
+	recPubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(rlp), sig)
 	if err != nil {
 		return err
 	}

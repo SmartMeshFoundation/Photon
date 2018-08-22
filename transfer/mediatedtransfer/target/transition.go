@@ -54,9 +54,10 @@ func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfe
 	*/
 	if safeToWait {
 		secretRequest := &mediatedtransfer.EventSendSecretRequest{
-			LockSecretHash: tr.LockSecretHash,
-			Amount:         tr.Amount,
-			Receiver:       tr.Initiator,
+			ChannelIdentifier: route.ChannelIdentifier,
+			LockSecretHash:    tr.LockSecretHash,
+			Amount:            tr.Amount,
+			Receiver:          tr.Initiator,
 		}
 		return &transfer.TransitionResult{
 			NewState: state,
@@ -125,7 +126,7 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 /*
 我收到了对方的 unlock 消息以后,就算是彻底结束了.
 */
-func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveBalanceProofStateChange) (it *transfer.TransitionResult) {
+func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveUnlockStateChange) (it *transfer.TransitionResult) {
 	var events []transfer.Event
 	//TODO: byzantine behavior event when the sender doesn't match
 	if st.NodeAddress == state.FromRoute.HopNode() && state.FromTransfer.LockSecretHash == st.LockSecretHash {
@@ -230,7 +231,7 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 				//可能会反复收到 reveal secret, 比如 token swap的时候,再比如存在环路的时候
 				it = handleSecretReveal(state, st2)
 			}
-		case *mediatedtransfer.ReceiveBalanceProofStateChange:
+		case *mediatedtransfer.ReceiveUnlockStateChange:
 			//有可能在不知道密码的情况下直接收到 unlock 消息,比如
 			it = handleBalanceProof(state, st2)
 		default:

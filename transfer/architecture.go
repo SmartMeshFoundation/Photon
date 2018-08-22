@@ -2,7 +2,6 @@ package transfer
 
 import (
 	"encoding/gob"
-	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/ethereum/go-ethereum/common"
@@ -103,37 +102,10 @@ type StateManager struct {
 	ID                  int64 `storm:"id,increment"`
 	FuncStateTransition FuncStateTransition
 	CurrentState        State
-	Name                string
-	LastActive          time.Time   //the latest message sent time
-	ManagerState        string      `storm:"index"` //state for initiator and target ,distingush operation from crash
 	Identifier          common.Hash //transfer identifier
-	TokenAddress        common.Address
-	ChannelAddress      common.Hash //channel address from initiator A-B-C channel A-B
-	ChannelAddressTo    common.Hash //mediated transfer will send to. A-B-C channel B-C
-	ChannelAddresRefund common.Hash //node received a refund transfer, should save and forget.
-
-	LastReceivedMessage    interface{}       //message received status, except reveal secret,may be init statechange
-	LastSendMessage        encoding.Messager //sending message.
-	IsBalanceProofSent     bool              //mediatedtransfer must both true for finish
-	IsBalanceProofReceived bool              //mediatedtransfer must both true for finish
+	Name                string
+	LastReceivedMessage encoding.SignedMessager
 }
-
-//StateManagerStateInit init State
-const StateManagerStateInit = "ManagerInit"
-
-//StateManagerReceivedMessage StateManager Received one message
-const StateManagerReceivedMessage = "ManagerReceivedOneMessage"
-
-//StateManagerSendMessage send a message last state
-const StateManagerSendMessage = "ManagerSendMessage" //may sending several message, for example reveal secret
-//StateManagerReceivedMessageProcessComplete the received message has been processed and sent out ack
-const StateManagerReceivedMessageProcessComplete = "ManagerReceivedMessageComplete"
-
-//StateManagerSendMessageSuccesss last sent message has received ack
-const StateManagerSendMessageSuccesss = "ManagerSendMessageSuccess"
-
-//StateManagerTransferComplete this transfer has finished
-const StateManagerTransferComplete = "ManagerTransferComplete"
 
 //MessageTag for save and restore
 type MessageTag struct {
@@ -146,10 +118,7 @@ func NewStateManager(stateTransition FuncStateTransition, currentState State, na
 		FuncStateTransition: stateTransition,
 		CurrentState:        currentState,
 		Name:                name,
-		ManagerState:        StateManagerStateInit,
-		LastActive:          time.Now(),
 		Identifier:          identifier,
-		TokenAddress:        tokenAddress,
 	}
 }
 

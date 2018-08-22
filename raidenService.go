@@ -484,6 +484,10 @@ func (rs *RaidenService) sendAsync(recipient common.Address, msg encoding.Signed
 			}
 		}
 	}
+	envelopMessager, ok := msg.(encoding.EnvelopMessager)
+	if ok && envelopMessager != nil {
+		rs.db.NewSentEnvelopMessager(envelopMessager, recipient)
+	}
 	result := rs.Protocol.SendAsync(recipient, msg)
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
@@ -1277,6 +1281,14 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
+	if sentMessage.Message.Tag() == nil {
+		panic(fmt.Sprintf("sent message has no tag %s", utils.StringInterface(sentMessage, 3)))
+	}
+	t, ok1 := sentMessage.Message.Tag().(*transfer.MessageTag)
+	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
+	if ok1 && ok2 {
+		rs.db.DeleteEnvelopMessager(t.EchoHash)
+	}
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }
 
@@ -1296,7 +1308,7 @@ func (rs *RaidenService) SetFeePolicy(feePolicy fee.Charger) {
 for debug only,quit if eventName exactly match
 */
 func (rs *RaidenService) conditionQuit(eventName string) {
-	if strings.ToLower(eventName) == strings.ToLower(rs.Config.ConditionQuit.QuitEvent) {
+	if strings.ToLower(eventName) == strings.ToLower(rs.Config.ConditionQuit.QuitEvent) && rs.Config.DebugCrash {
 		log.Error(fmt.Sprintf("quitevent=%s\n", eventName))
 		debug.PrintStack()
 		os.Exit(111)
@@ -1390,4 +1402,17 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 	}
 	r := req
 	r.result <- result
+}
+
+func (rs *RaidenService) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
+	t, ok := tag.(*transfer.MessageTag)
+	if !ok || t == nil {
+		panic("tag is nil")
+	}
+	echohash := t.EchoHash
+	ack := rs.Protocol.CreateAck(echohash)
+	err := rs.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	if err != nil {
+		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
+	}
 }

@@ -5,8 +5,10 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -51,6 +53,25 @@ func LockedTransferFromMessage(msg *encoding.MediatedTransfer, tokenAddress comm
 }
 
 /*
+LockAndChannel the lock and associated channel
+*/
+type LockAndChannel struct {
+	Lock    *mtree.Lock
+	Channel *channel.Channel
+}
+
+//CrashState is state of a node after restarting, but found some transfer is not finished.
+type CrashState struct {
+	OurAddress             common.Address
+	LockSecretHash         common.Hash
+	Token                  common.Address //which token
+	SentLocks              []*LockAndChannel
+	ReceivedLocks          []*LockAndChannel
+	ProcessedSentLocks     []*LockAndChannel
+	ProcessedReceivedLocks []*LockAndChannel
+}
+
+/*
 InitiatorState is State of a node initiating a mediated transfer.
 */
 type InitiatorState struct {
@@ -82,7 +103,6 @@ type MediatorState struct {
 		        reveal and simplifies secret setting
 	*/
 	TransfersPair  []*MediationPairState
-	HasRefunded    bool //此节点已经发送过refund，肯定不能再用了。
 	LockSecretHash common.Hash
 	Token          common.Address
 	Db             channeltype.Db

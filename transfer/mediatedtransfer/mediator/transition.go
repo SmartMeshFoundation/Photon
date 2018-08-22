@@ -424,13 +424,10 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 /*
 Refund the transfer.
 
-    Args:
-        refund_route (RouteState): The original route that sent the mediated
+        refundRoute   The original route that sent the mediated
             transfer to this node.
-        refund_transfer (LockedTransferState): The original mediated transfer
-            from the refund_route.
-
-
+        refundTransfer (LockedTransferState): The original mediated transfer
+            from the refundRoute.
     Returns:
         create a annouceDisposed event
 */
@@ -617,7 +614,6 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
 		refundEvents := eventsForRefund(originalRoute, originalTransfer)
-		state.HasRefunded = true
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   refundEvents,
@@ -792,7 +788,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 }
 
 // Handle a ReceiveBalanceProof state change.
-func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveBalanceProofStateChange) *transfer.TransitionResult {
+func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveUnlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
 	for _, pair := range state.TransfersPair {
 		if pair.PayerRoute.HopNode() == st.NodeAddress {
@@ -857,7 +853,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			it = handleSecretReveal(state, st2)
 		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
 			it = handleSecretRevealOnChain(state, st2)
-		case *mediatedtransfer.ReceiveBalanceProofStateChange:
+		case *mediatedtransfer.ReceiveUnlockStateChange:
 			it = handleBalanceProof(state, st2)
 			if state.Secret == utils.EmptyHash {
 				log.Warn(fmt.Sprintf("mediated state manager recevie unlock,but i don't know secret,this maybe a error "))
