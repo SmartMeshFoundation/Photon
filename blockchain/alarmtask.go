@@ -64,6 +64,7 @@ func (at *AlarmTask) RemoveCallback(cb *AlarmCallback) {
 		addr2 := cb
 		if addr1 == addr2 {
 			at.callback = append(at.callback[:k], at.callback[k+1:]...)
+			break
 		}
 	}
 
