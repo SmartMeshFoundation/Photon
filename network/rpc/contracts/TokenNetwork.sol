@@ -5,13 +5,12 @@ import "./Utils.sol";
 import "./ECVerify.sol";
 import "./SecretRegistry.sol";
 
-///
+///@title
 ///
 ///
 contract TokenNetwork is Utils {
 
     string constant public contract_version = "0.3._";
-
 
     // Instance of the token used as digital currency by the channels
     Token public token;
@@ -46,6 +45,7 @@ contract TokenNetwork is Utils {
             主要是出于节省 gas 的目的,真正的locksroot,transferred_amount都通过参数传递,可以较大幅度降低 gas
         */
         // It is the hash for locksroot & transferred_amount.
+        //
         bytes24 balance_hash;
 
         // nounce is used as the transaction serial number.
@@ -56,7 +56,7 @@ contract TokenNetwork is Utils {
         mapping(bytes32 => bool) unlocked_locks;
     }
 
-    /// @
+    /// @title
     struct Channel {
 
         // The time for channel settle
@@ -348,6 +348,8 @@ contract TokenNetwork is Utils {
         participant1_withdraw,participant2_withdraw 各自需要提前多少 token
         participant1_signature,participant2_signature 双方对这次提现的签名
      */
+    /// @title withdraw tokens without closing channel
+    /// @
     function withDraw(
         address participant1,
         uint256 participant1_balance,
@@ -593,6 +595,7 @@ contract TokenNetwork is Utils {
         merkle_proof: 证明此锁包含在 locksroot 中
         participant_signature: 委托第三方的签名
     */
+    ///
     function unlockDelegate(
         address partner,
         address participant,
@@ -634,6 +637,7 @@ contract TokenNetwork is Utils {
         expiration,amount,secret_hash: 交易中未彻底完成的锁
         merkle_proof: 证明此锁包含在 locksroot 中
     */
+    ///
     function unlock(
         address partner,
         uint256 transferred_amount,
@@ -646,6 +650,7 @@ contract TokenNetwork is Utils {
         unlockInternal(partner, msg.sender, transferred_amount, expiration, amount, secret_hash, merkle_proof);
     }
 
+    ///
     function unlockInternal(
         address partner,
         address participant,
@@ -716,6 +721,7 @@ contract TokenNetwork is Utils {
         additional_hash 实现辅助信息
         cheater_signature 不诚实一方对于放弃此锁的签名
     */
+    ///
     function punishObsoleteUnlock(
         address beneficiary,
         address cheater,
@@ -773,6 +779,7 @@ contract TokenNetwork is Utils {
         participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
         participant1_locksroot,participant2_locksroot 双方的未彻底完成交易集合
     */
+    ///
     function settleChannel(
         address participant1,
         uint256 participant1_transferred_amount,
@@ -868,6 +875,7 @@ contract TokenNetwork is Utils {
         participant1_balance,participant2_balance:双方关于金额的分配方案
         participant1_signature,participant2_signature 双方对于分配方案的签名
     */
+    ///
     function cooperativeSettle(
         address participant1,
         uint256 participant1_balance,
@@ -933,6 +941,7 @@ contract TokenNetwork is Utils {
         emit ChannelCooperativeSettled(channel_identifier, participant1_balance, participant2_balance);
     }
 
+    ///
     function getChannelIdentifier(address participant1, address participant2) view internal returns (bytes32){
         if (participant1 < participant2) {
             return keccak256(abi.encodePacked(participant1, participant2, address(this)));
@@ -941,6 +950,7 @@ contract TokenNetwork is Utils {
         }
     }
 
+    ///
     function calceBalanceHash(uint256 transferred_amount, bytes32 locksroot) pure internal returns (bytes24){
         if (locksroot == 0 && transferred_amount == 0) {
             return 0;
@@ -948,6 +958,7 @@ contract TokenNetwork is Utils {
         return bytes24(keccak256(abi.encodePacked(locksroot, transferred_amount)));
     }
 
+    ///
     function getChannelInfo(address participant1, address participant2)
     view
     external
@@ -967,6 +978,7 @@ contract TokenNetwork is Utils {
         );
     }
 
+    ///
     function getChannelInfoByChannelIdentifier(bytes32 channel_identifier)
     view
     external
@@ -983,6 +995,7 @@ contract TokenNetwork is Utils {
         );
     }
 
+    ///
     function getChannelParticipantInfo(address participant, address partner)
     view
     external
@@ -1045,6 +1058,7 @@ contract TokenNetwork is Utils {
     }
 
 
+    ///
     function recoverAddressFromBalanceProofUpdateMessage(
         bytes32 channel_identifier,
         uint256 transferred_amount,
@@ -1073,6 +1087,7 @@ contract TokenNetwork is Utils {
         signature_address = ECVerify.ecverify(message_hash, non_closing_signature);
     }
 
+    ///
     function recoverAddressFromCooperativeSettleSignature(
         bytes32 channel_identifier,
         address participant1,
@@ -1100,6 +1115,7 @@ contract TokenNetwork is Utils {
         signature_address = ECVerify.ecverify(message_hash, signature);
     }
 
+    ///
     function recoverAddressFromDisposedProof(
         bytes32 channel_identifier,
         bytes32 lockhash,
@@ -1122,6 +1138,7 @@ contract TokenNetwork is Utils {
         signature_address = ECVerify.ecverify(message_hash, signature);
     }
 
+    ///
     function computeMerkleRoot(bytes32 lockhash, bytes merkle_proof)
     pure
     internal
@@ -1147,6 +1164,7 @@ contract TokenNetwork is Utils {
         return lockhash;
     }
 
+    ///
     function getOpenWithDepositArg(bytes data) pure internal returns (address, address, uint64)  {
         address participant;
         address partner;
@@ -1159,6 +1177,7 @@ contract TokenNetwork is Utils {
         return (participant, partner, settle_timeout);
     }
 
+    ///
     function getDepositArg(bytes data) pure internal returns (address, address)  {
         address participant;
         address partner;
