@@ -221,13 +221,14 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 
-	rs.AlarmTask.RegisterCallback(func(number int64) error {
+	var cb blockchain.AlarmCallback = func(number int64) error {
 		rs.db.SaveLatestBlockNumber(number)
 		return rs.setBlockNumber(number)
-	})
+	}
+	rs.AlarmTask.RegisterCallback(&cb)
 	rs.registerRegistry()
 	rs.Protocol.Start()
-	rs.restore()
+
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -1281,11 +1282,13 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
-	data := sentMessage.Message.Pack()
-	echohash := utils.Sha3(data, sentMessage.receiver[:])
+	if sentMessage.Message.Tag() == nil {
+		panic(fmt.Sprintf("sent message has no tag %s", utils.StringInterface(sentMessage, 3)))
+	}
+	t, ok1 := sentMessage.Message.Tag().(*transfer.MessageTag)
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
-	if ok2 {
-		rs.db.DeleteEnvelopMessager(echohash)
+	if ok1 && ok2 {
+		rs.db.DeleteEnvelopMessager(t.EchoHash)
 	}
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }
