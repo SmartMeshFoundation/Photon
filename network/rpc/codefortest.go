@@ -67,21 +67,21 @@ func GetTestChannelUniqueID() *contracts.ChannelUniqueID {
 
 //TestGetTokenNetworkAddress for test only
 func TestGetTokenNetworkAddress() common.Address {
-	addr := common.HexToAddress(os.Getenv("TOKENNETWORK"))
+	addr := common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	if addr == utils.EmptyAddress {
 		panic("TOKENNETWORK env error")
 	}
-	log.Trace(fmt.Sprintf("test TOKENNETWORK=%s ", addr.String()))
+	log.Trace(fmt.Sprintf("test TOKEN_NETWORK=%s ", addr.String()))
 	return addr
 }
 
 //TestGetTokenNetworkRegistryAddress for test only
 func TestGetTokenNetworkRegistryAddress() common.Address {
-	addr := common.HexToAddress(os.Getenv("REGISTRY"))
+	addr := common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
 	if addr == utils.EmptyAddress {
 		panic("REGISTRY env error")
 	}
-	log.Info(fmt.Sprintf("token network registry=%s", addr.String()))
+	log.Info(fmt.Sprintf("TOKEN_NETWORK_REGISTRY=%s", addr.String()))
 	return addr
 }
 

@@ -532,7 +532,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
-	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
+	fmt.Printf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
 		auth.From.String(),
 		partnerAddr.String(),
 		bp2.TransferAmount.String(),
@@ -542,7 +542,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		bp2.AdditionalHash.String(),
 		hex.EncodeToString(bp2.Signature),
 		hex.EncodeToString(bp2.NonClosingSignature),
-	))
+	)
 
 	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
 	if err != nil {
@@ -868,6 +868,7 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("close channel successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
+	//锁最多是2两个,三个就会失败
 	bp2, locks, secrets := NewBalanceProofUpdateForContractsWithLocks(TestPrivKey, partnerKey, channelID, totalLockNumber, expiredBlock)
 	//注册密码
 	maxLocks := 5
