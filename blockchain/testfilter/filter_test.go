@@ -25,13 +25,14 @@ func TestStruct(t *testing.T) {
 	t2.TokenAddress = utils.NewRandomAddress()
 	t.Logf(fmt.Sprintf("tt=%s,t2=%s", tt.TokenAddress.String(), t2.TokenAddress.String()))
 }
-func TestFilter(t *testing.T) {
+
+func TestFilter1(t *testing.T) {
 	client, err := ethclient.Dial(rpc.TestRPCEndpoint)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	registryAddr := common.HexToAddress(os.Getenv("REGISTRY"))
+	registryAddr := common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
 	//registry, err := contracts.NewTokenNetworkRegistry(registryAddr, client)
 	//if err != nil {
 	//	t.Error(err)
@@ -76,13 +77,16 @@ func TestFilter2(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	tokenNetorkAddr := common.HexToAddress("0x67ac5bda210c1d3e5362dc85ba455a8a291323cc")
-	f, err := contracts.NewTokenNetworkFilterer(tokenNetorkAddr, client)
+	tokenNetworkAddr := common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
+	channelIdentifier := "0x53d73bbd584d3154f49db7f5674c7118a08079a0b285016fffa1dc34e4e89fd9"
+	t.Logf("TOKEN_NETWORK = %s\n", tokenNetworkAddr.String())
+	t.Logf("CHANNEL_IDENTIFIER = %s\n", channelIdentifier)
+	f, err := contracts.NewTokenNetworkFilterer(tokenNetworkAddr, client)
 	ch := make(chan *contracts.TokenNetworkChannelNewDeposit, 10)
 	var start uint64
 	sub, err := f.WatchChannelNewDeposit(&bind.WatchOpts{
 		Start: &start,
-	}, ch, nil)
+	}, ch, [][32]byte{common.HexToHash(channelIdentifier)})
 	if err != nil {
 		t.Error(err)
 		return
@@ -91,6 +95,7 @@ func TestFilter2(t *testing.T) {
 		select {
 		case <-time.After(50 * time.Second):
 			sub.Unsubscribe()
+			fmt.Println("timeout")
 			return
 		case e := <-ch:
 			fmt.Printf("sub event=%s", utils.StringInterface(e, 3))
