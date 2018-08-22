@@ -5,9 +5,9 @@ import "./Utils.sol";
 import "./ECVerify.sol";
 import "./SecretRegistry.sol";
 
-///@title
-///
-///
+///@title a token network contract
+///@author SmartMeshFoundation
+///@dev
 contract TokenNetwork is Utils {
 
     string constant public contract_version = "0.3._";
@@ -32,10 +32,7 @@ contract TokenNetwork is Utils {
     // Channel identifier is sha3(participant1,participant2,tokenNetworkAddress)
     mapping(bytes32 => Channel) public channels;
 
-    /**
-      * Data Structure for Transaction Participant.
-      *
-      */
+    // data structure for Channel Participant.
     struct Participant {
         // Total amount of token transferred to this smart contract
         uint256 deposit;
@@ -56,7 +53,7 @@ contract TokenNetwork is Utils {
         mapping(bytes32 => bool) unlocked_locks;
     }
 
-    /// @title
+    // data structure for Payment Channel.
     struct Channel {
 
         // The time for channel settle
@@ -72,6 +69,8 @@ contract TokenNetwork is Utils {
             通道打开时间,主要用于防止重放攻击
             用户关于通道的任何签名都应该包含channel id+open_blocknumber
         */
+        // It represents the time during which a channel is open.
+        // Any user signature should contain channel_id + open_block_number.
         uint64 open_block_number;
 
         // Channel state
@@ -106,9 +105,11 @@ contract TokenNetwork is Utils {
     );
 
     // 如果改变 balance_hash, 那么应该通过 event 把balance_hash 中的两个变量都暴露出来.
+    // If balance_hash changed, then event should be invoked to reveal these two variables in balance_hash.
     event ChannelClosed(bytes32 indexed channel_identifier, address closing_participant, bytes32 locksroot, uint256 transferred_amount);
 
     // 如果改变 balance_hash, 那么应该通过 event 把两个个变量都暴露出来.
+    // If balance_hash changed, then event
     event ChannelUnlocked(
         bytes32 indexed channel_identifier,
         address payer_participant,
@@ -117,6 +118,7 @@ contract TokenNetwork is Utils {
     );
 
     // 如果改变 balance_hash, 那么应该通过 event 把相关变量都暴露出来.
+    // If balance_hash changed, then event should be invoked to reveal relevant variables.
     event BalanceProofUpdated(
         bytes32 indexed channel_identifier,
         address participant,
@@ -125,23 +127,28 @@ contract TokenNetwork is Utils {
     );
 
     // 通道上发生了惩罚事件,受益人是谁.
+    // Event to reveal the beneficiary who will get all the tokens deposited in this channel,
+    // when the other node attempts to do fraudulent behavior.
     event ChannelPunished(
         bytes32 indexed channel_identifier,
         address beneficiary
     );
 
+    // Event to
     event ChannelSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
         uint256 participant2_amount
     );
 
+    //
     event ChannelCooperativeSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
         uint256 participant2_amount
     );
 
+    //
     event ChannelWithdraw(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -150,6 +157,7 @@ contract TokenNetwork is Utils {
         uint256 participant2_balance
     );
 
+    //
     modifier settleTimeoutValid(uint64 timeout) {
         require(timeout >= 6 && timeout <= 2700000);
         _;
@@ -941,7 +949,7 @@ contract TokenNetwork is Utils {
         emit ChannelCooperativeSettled(channel_identifier, participant1_balance, participant2_balance);
     }
 
-    ///
+    /// @notice create a 32-byte channel identifier.
     function getChannelIdentifier(address participant1, address participant2) view internal returns (bytes32){
         if (participant1 < participant2) {
             return keccak256(abi.encodePacked(participant1, participant2, address(this)));

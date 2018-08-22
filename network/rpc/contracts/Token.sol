@@ -1,5 +1,7 @@
 pragma solidity ^0.4.24;
 
+/// @title an interface for Token.
+/// @notice it contains all utility functions that will be used by a token.
 interface Token {
 
     /// @return total amount of tokens

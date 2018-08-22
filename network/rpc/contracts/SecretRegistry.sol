@@ -28,6 +28,7 @@ contract SecretRegistry {
         return true;
     }
 
+    /// @notice Get 
     function getSecretRevealBlockHeight(bytes32 secrethash) public view returns (uint256) {
         return secrethash_to_block[secrethash];
     }
