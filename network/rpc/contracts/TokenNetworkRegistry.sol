@@ -4,12 +4,12 @@ import "./Utils.sol";
 import "./Token.sol";
 import "./TokenNetwork.sol";
 
+/// @title
 contract TokenNetworkRegistry is Utils {
 
     /*
      *  Data structures
      */
-
     string constant public contract_version = "0.3._";
     address public secret_registry_address;
     uint256 public chain_id;
@@ -20,13 +20,11 @@ contract TokenNetworkRegistry is Utils {
     /*
      *  Events
      */
-
     event TokenNetworkCreated(address indexed token_address, address indexed token_network_address);
 
     /*
      *  Constructor
      */
-
     constructor(address _secret_registry_address, uint256 _chain_id) public {
         require(_chain_id > 0);
         require(_secret_registry_address != 0x0);
@@ -38,7 +36,6 @@ contract TokenNetworkRegistry is Utils {
     /*
      *  External Functions
      */
-
     function createERC20TokenNetwork(address _token_address)
         external
         returns (address token_network_address)

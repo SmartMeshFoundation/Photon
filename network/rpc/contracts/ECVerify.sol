@@ -1,7 +1,10 @@
 pragma solidity ^0.4.17;
 
+/// @dev a reusable module that all the contracts can access it.
 library ECVerify {
 
+    /// @title a method to verify whether provided hash can be converted to a signature address.
+    /// @dev
     function ecverify(bytes32 hash, bytes signature)
         internal
         pure
@@ -31,6 +34,7 @@ library ECVerify {
 
         require(v == 27 || v == 28);
 
+        // extract signature address from hash, v, r, s;
         signature_address = ecrecover(hash, v, r, s);
 
         // ecrecover returns zero on error

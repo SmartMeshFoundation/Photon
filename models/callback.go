@@ -2,14 +2,14 @@ package models
 
 import "github.com/SmartMeshFoundation/SmartRaiden/models/cb"
 
-//RegisterNewTokenCallback register a new token callback
+// RegisterNewTokenCallback register a new token callback
 func (model *ModelDB) RegisterNewTokenCallback(f cb.NewTokenCb) {
 	model.mlock.Lock()
 	model.newTokenCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
-//RegisterNewChannellCallback register a new channel callback
+// RegisterNewChannellCallback register a new channel callback
 func (model *ModelDB) RegisterNewChannellCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.newChannelCallbacks[&f] = true

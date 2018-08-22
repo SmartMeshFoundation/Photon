@@ -5,57 +5,72 @@ import "./Utils.sol";
 import "./ECVerify.sol";
 import "./SecretRegistry.sol";
 
+///
+///
+///
 contract TokenNetwork is Utils {
-
-    /*
-     *  Data structures
-     */
 
     string constant public contract_version = "0.3._";
 
+
     // Instance of the token used as digital currency by the channels
     Token public token;
+
     // Instance of SecretRegistry used for storing secrets revealed in a mediating transfer.
     SecretRegistry public secret_registry;
-    /*
-    留给惩罚对手的时间,这个时间专门开辟出来,settle time 之后,可以提交证据而不用担心对手是在临近 settle 之时提交 updatetransfer 和 进行 unlock,
-    从而导致自己没有机会提交惩罚证据.
-    开发期间用较小的数字10,发布时应该改为一个较大的数字,比如100,比较合适.
-    */
+
+    /**
+      * punish_block_number is the time (block number) left for any dishonest counterpart to be punished
+      * After a pre-set 'settle time' period, node can submit proofs without any concern that he has no chance
+      * to submit punish proofs for his counterpart's submitted updatetransfer & unlock at the time of settle.
+      * It's much reasonable to set this variable to a larger digit, like 100 in the version of release.
+      */
     uint64 constant public punish_block_number = 5;
+
     // Chain ID as specified by EIP155 used in balance proof signatures to avoid replay attacks
     uint256 public chain_id;
+
     // Channel identifier is sha3(participant1,participant2,tokenNetworkAddress)
     mapping(bytes32 => Channel) public channels;
 
+    /**
+      * Data Structure for Transaction Participant.
+      *
+      */
     struct Participant {
         // Total amount of token transferred to this smart contract
         uint256 deposit;
+
         /*
-        locksroot,transferred_amount 的 hash
-        主要是出于节省 gas 的目的,真正的locksroot,transferred_amount都通过参数传递,可以较大幅度降低 gas
+            locksroot,transferred_amount 的 hash
+            主要是出于节省 gas 的目的,真正的locksroot,transferred_amount都通过参数传递,可以较大幅度降低 gas
         */
+        // It is the hash for locksroot & transferred_amount.
         bytes24 balance_hash;
-        //交易编号
+
+        // nounce is used as the transaction serial number.
+        // It will increase when a transaction occurs.
         uint64 nonce;
-        /*
-        解锁结果
-        */
+
+        // The result for unlock.
         mapping(bytes32 => bool) unlocked_locks;
     }
 
+    /// @
     struct Channel {
-        /*
-        通道结算等待时间
-        */
+
+        // The time for channel settle
         uint64 settle_timeout;
+
         /*
-        通道 settle block number.
+            通道 settle block number.
         */
+        //
         uint64 settle_block_number;
+
         /*
-        通道打开时间,主要用于防止重放攻击
-        用户关于通道的任何签名都应该包含channel id+open_blocknumber
+            通道打开时间,主要用于防止重放攻击
+            用户关于通道的任何签名都应该包含channel id+open_blocknumber
         */
         uint64 open_block_number;
 
@@ -67,14 +82,15 @@ contract TokenNetwork is Utils {
     }
 
     /*
-    *  Events
-    */
+     *  Events
+     */
     event ChannelOpened(
         bytes32 indexed channel_identifier,
         address participant1,
         address participant2,
         uint256 settle_timeout
     );
+
     event ChannelOpenedAndDeposit(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -82,42 +98,50 @@ contract TokenNetwork is Utils {
         uint256 settle_timeout,
         uint256 participant1_deposit
     );
+
     event ChannelNewDeposit(
         bytes32 indexed channel_identifier,
         address participant,
         uint256 total_deposit
     );
-    //如果改变 balance_hash, 那么应该通过 event 把balance_hash 中的两个变量都暴露出来.
+
+    // 如果改变 balance_hash, 那么应该通过 event 把balance_hash 中的两个变量都暴露出来.
     event ChannelClosed(bytes32 indexed channel_identifier, address closing_participant, bytes32 locksroot, uint256 transferred_amount);
-    //如果改变 balance_hash, 那么应该通过 event 把两个个变量都暴露出来.
+
+    // 如果改变 balance_hash, 那么应该通过 event 把两个个变量都暴露出来.
     event ChannelUnlocked(
         bytes32 indexed channel_identifier,
         address payer_participant,
         bytes32 lockhash, //解锁的lock
         uint256 transferred_amount
     );
-    //如果改变 balance_hash, 那么应该通过 event 把相关变量都暴露出来.
+
+    // 如果改变 balance_hash, 那么应该通过 event 把相关变量都暴露出来.
     event BalanceProofUpdated(
         bytes32 indexed channel_identifier,
         address participant,
         bytes32 locksroot,
         uint256 transferred_amount
     );
-    //通道上发生了惩罚事件,受益人是谁.
+
+    // 通道上发生了惩罚事件,受益人是谁.
     event ChannelPunished(
         bytes32 indexed channel_identifier,
         address beneficiary
     );
+
     event ChannelSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
         uint256 participant2_amount
     );
+
     event ChannelCooperativeSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
         uint256 participant2_amount
     );
+
     event ChannelWithdraw(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -130,10 +154,10 @@ contract TokenNetwork is Utils {
         require(timeout >= 6 && timeout <= 2700000);
         _;
     }
-    /*
-   *  Constructor
-   */
 
+    /*
+     *  Constructor
+     */
     constructor(address _token_address, address _secret_registry, uint256 _chain_id)
     public
     {
@@ -153,13 +177,13 @@ contract TokenNetwork is Utils {
     }
 
     /*
-    允许任何人调用,多次调用.
-    创建通道:
-    1. 允许任意两个不同有效地址之间创建通道
-    2. 两地址之间不能有多个通道
-    参数数说明:
-    participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
-    settle_timeout 通道结算等待时间
+        允许任何人调用,多次调用.
+        创建通道:
+        1. 允许任意两个不同有效地址之间创建通道
+        2. 两地址之间不能有多个通道
+        参数数说明:
+        participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
+        settle_timeout 通道结算等待时间
     */
     function openChannel(address participant1, address participant2, uint64 settle_timeout)
     settleTimeoutValid(settle_timeout)
@@ -172,7 +196,7 @@ contract TokenNetwork is Utils {
         channel_identifier = getChannelIdentifier(participant1, participant2);
         Channel storage channel = channels[channel_identifier];
         /*
-        保证channel没有被创建过
+            保证channel没有被创建过
         */
         require(channel.state == 0);
         // Store channel information
@@ -183,33 +207,36 @@ contract TokenNetwork is Utils {
 
         emit ChannelOpened(channel_identifier, participant1, participant2, settle_timeout);
     }
+
     /*
-    open and deposit 合在一起,节省 gas
-    这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
-    */
+        open and deposit 合在一起,节省 gas
+        这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
+     */
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
     external
     {
         openChannelWithDepositInternal(participant, partner, settle_timeout, deposit,msg.sender, true);
     }
+
     /*
-    必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
-    参数说明:
-    participant 存钱给谁
-    partner 通道另一方
-    amount 存多少 token
+        必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
+        参数说明:
+        participant 存钱给谁
+        partner 通道另一方
+        amount 存多少 token
     */
     function deposit(address participant, address partner, uint256 amount)
     external
     {
         depositInternal(participant, partner, amount, msg.sender,true);
     }
+
     /*
-    有三种调用途径:
-    分别是
-    1. 用户直接调用openChannelWithDeposit,
-    2. token 是 ERC223,通过 tokenFallback 调用
-    3. token 提供了 ApproveAndCall, 通过receiveApproval调用
+        有三种调用途径:
+        分别是
+        1. 用户直接调用openChannelWithDeposit,
+        2. token 是 ERC223,通过 tokenFallback 调用
+        3. token 提供了 ApproveAndCall, 通过receiveApproval调用
     */
     function openChannelWithDepositInternal(address participant, address partner, uint64 settle_timeout, uint256 amount,address from, bool need_transfer)
     settleTimeoutValid(settle_timeout)
@@ -222,14 +249,16 @@ contract TokenNetwork is Utils {
         channel_identifier = getChannelIdentifier(participant, partner);
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
+
         /*
-        保证channel没有被创建过
+            保证channel没有被创建过
         */
         require(channel.state == 0);
 
         // Store channel information
         channel.settle_timeout = settle_timeout;
         channel.open_block_number = uint64(block.number);
+
         // Mark channel as opened
         channel.state = 1;
         if (need_transfer) {
@@ -238,12 +267,13 @@ contract TokenNetwork is Utils {
         participant_state.deposit = amount;
         emit ChannelOpenedAndDeposit(channel_identifier, participant, partner, settle_timeout, amount);
     }
+
     /*
-    必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
-    参数说明:
-    participant 存钱给谁
-    partner 通道另一方
-    amount 存多少 token
+        必须在通道 open 状态调用,可以重复调用多次,任何人都可以调用.
+        参数说明:
+        participant 存钱给谁
+        partner 通道另一方
+        amount 存多少 token
     */
     function depositInternal(address participant, address partner, uint256 amount, address from,bool need_transfer)
     internal
@@ -260,24 +290,27 @@ contract TokenNetwork is Utils {
             require(token.transferFrom(from, address(this), amount));
         }
         require(channel.state == 1);
+
         // Update the participant's channel deposit
         total_deposit += amount;
         participant_state.deposit = total_deposit;
 
         emit ChannelNewDeposit(channel_identifier, participant, total_deposit);
     }
+
     /*
-    erc223 tokenFallback
-    允许用户
+        erc223 tokenFallback
+        允许用户
     */
     function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
         require(msg.sender == address(token));
         fallback(0,value, data, false);
         return true;
     }
+
     /*
- 常用的 approve and call
- */
+        常用的 approve and call
+     */
     function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
         require(token_ == address(token));
         fallback(from,value, data, true);
@@ -314,7 +347,7 @@ contract TokenNetwork is Utils {
         participant1_balance,participant2_balance 通道双方认为现在通道上的 token 如何分配,各取多少 token
         participant1_withdraw,participant2_withdraw 各自需要提前多少 token
         participant1_signature,participant2_signature 双方对这次提现的签名
-        */
+     */
     function withDraw(
         address participant1,
         uint256 participant1_balance,
@@ -332,7 +365,7 @@ contract TokenNetwork is Utils {
         channel_identifier = getChannelIdentifier(participant1, participant2);
         Channel storage channel = channels[channel_identifier];
         require(channel.state == 1);
-        //验证发送方签名
+        // 验证发送方签名
         bytes32 message_hash = keccak256(abi.encodePacked(
                 participant1,
                 participant1_balance,
@@ -344,7 +377,7 @@ contract TokenNetwork is Utils {
                 chain_id
             ));
         require(participant1 == ECVerify.ecverify(message_hash, participant1_signature));
-        //验证接收方签名
+        // 验证接收方签名
         message_hash = keccak256(abi.encodePacked(
                 participant1,
                 participant1_balance,
@@ -365,8 +398,9 @@ contract TokenNetwork is Utils {
         require(participant1_balance <= total_deposit);
         require(participant2_balance <= total_deposit);
         require((participant1_balance + participant2_balance) == total_deposit);
+
         /*
-        谨慎一点,应该先扣钱再转账,尽量按照规范来,如果有的话.
+            谨慎一点,应该先扣钱再转账,尽量按照规范来,如果有的话.
         */
         require(participant1_withdraw <= participant1_balance);
         require(participant2_withdraw <= participant2_balance);
@@ -375,7 +409,7 @@ contract TokenNetwork is Utils {
         participant1_state.deposit = participant1_balance;
         participant2_state.deposit = participant2_balance;
 
-        //相当于 通道 settle 有新开了.老的签名都作废了.
+        // 相当于 通道 settle 有新开了.老的签名都作废了.
         channel.open_block_number = uint64(block.number);
         // Do the token transfers
         if (participant1_withdraw > 0) {
@@ -384,19 +418,19 @@ contract TokenNetwork is Utils {
         if (participant2_withdraw > 0) {
             require(token.transfer(participant2, participant2_withdraw));
         }
-        //channel's status right now
+        // channel's status right now
         emit ChannelWithdraw(channel_identifier, participant1, participant1_balance, participant2, participant2_balance);
 
     }
     /*
-    只能是通道参与方调用,只能调用一次,必须是在通道打开状态调用.
-    参数说明:
-    partner 通道的另一方
-    transferred_amount 另一方给的直接转账金额
-    locksroot 另一方彻底完成交易集合
-    nonce 另一方交易编号
-    additional_hash 为了辅助实现用
-    signature partner 的签名
+        只能是通道参与方调用,只能调用一次,必须是在通道打开状态调用.
+        参数说明:
+        partner 通道的另一方
+        transferred_amount 另一方给的直接转账金额
+        locksroot 另一方彻底完成交易集合
+        nonce 另一方交易编号
+        additional_hash 为了辅助实现用
+        signature partner 的签名
     */
     function closeChannel(
         address partner,
@@ -437,19 +471,20 @@ contract TokenNetwork is Utils {
         }
         emit ChannelClosed(channel_identifier, msg.sender, locksroot, transferred_amount);
     }
+
     /*
-    任何人都可以调用,可以调用多次,只要在有效期内.
-    包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
-    目的是更新partner的 balance proof
-    参数说明:
-    partner: 证据待更新一方
-    participant: 委托第三方进行对手证据更新一方
-    transferred_amount locksroot 的直接转账金额
-    locksroot partner 未彻底完成交易集合
-    nonce partner 给出交易变化
-    additional_hash 实现辅助信息
-    partner_signature partner 一方对于给出证据的签名
-    participant_signature 委托人对于委托的签名
+        任何人都可以调用,可以调用多次,只要在有效期内.
+        包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
+        目的是更新partner的 balance proof
+        参数说明:
+        partner: 证据待更新一方
+        participant: 委托第三方进行对手证据更新一方
+        transferred_amount locksroot 的直接转账金额
+        locksroot partner 未彻底完成交易集合
+        nonce partner 给出交易变化
+        additional_hash 实现辅助信息
+        partner_signature partner 一方对于给出证据的签名
+        participant_signature 委托人对于委托的签名
     */
     function updateBalanceProofDelegate(
         address partner,
@@ -469,8 +504,9 @@ contract TokenNetwork is Utils {
         Channel storage channel = channels[channel_identifier];
         Participant storage partner_state = channel.participants[partner];
         require(channel.state == 2);
+
         /*
-        被委托人只能在结算时间的后一半进行
+            被委托人只能在结算时间的后一半进行
         */
         settle_block_number = channel.settle_block_number;
         require(settle_block_number >= block.number);
@@ -500,17 +536,18 @@ contract TokenNetwork is Utils {
         partner_state.nonce = nonce;
         emit BalanceProofUpdated(channel_identifier, partner, locksroot, transferred_amount);
     }
+
     /*
-   只能通道参与方调用,不限制 close 和非 close 方,可以调用多次,只要在有效期内.
-   包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
-   目的是更新partner 的 balance proof, 只是自己直接调用,不经过第三方委托.
-  参数说明:
-   partner: 证据待更新一方
-    transferred_amount locksroot 的直接转账金额
-    locksroot partner 未彻底完成交易集合
-    nonce partner 给出交易变化
-    additional_hash 实现辅助信息
-    partner_signature partner 一方对于给出证据的签名
+        只能通道参与方调用,不限制 close 和非 close 方,可以调用多次,只要在有效期内.
+        包括 closing 方和非 close 方都可以反复调用在,只要能够提供更新的 nonce 即可.
+        目的是更新partner 的 balance proof, 只是自己直接调用,不经过第三方委托.
+        参数说明:
+        partner: 证据待更新一方
+        transferred_amount locksroot 的直接转账金额
+        locksroot partner 未彻底完成交易集合
+        nonce partner 给出交易变化
+        additional_hash 实现辅助信息
+        partner_signature partner 一方对于给出证据的签名
    */
     function updateBalanceProof(
         address partner,
@@ -543,17 +580,18 @@ contract TokenNetwork is Utils {
         partner_state.nonce = nonce;
         emit BalanceProofUpdated(channel_identifier, partner, locksroot, transferred_amount);
     }
+
     /*
-    任何人都可以调用,可以反复调用多次
-    存在第三方和对手串谋 unlock 的可能,导致委托人损失所有金额
-    所以必须有委托人签名
-    参数说明:
-    partner: 通道参与一方,他发出的某个交易没有彻底完成
-    participant 通道参与另一方,委托人
-    transferred_amount:partner 给出的直接转账金额
-    expiration,amount,secret_hash: 交易中未彻底完成的锁
-    merkle_proof: 证明此锁包含在 locksroot 中
-    participant_signature: 委托第三方的签名
+        任何人都可以调用,可以反复调用多次
+        存在第三方和对手串谋 unlock 的可能,导致委托人损失所有金额
+        所以必须有委托人签名
+        参数说明:
+        partner: 通道参与一方,他发出的某个交易没有彻底完成
+        participant 通道参与另一方,委托人
+        transferred_amount:partner 给出的直接转账金额
+        expiration,amount,secret_hash: 交易中未彻底完成的锁
+        merkle_proof: 证明此锁包含在 locksroot 中
+        participant_signature: 委托第三方的签名
     */
     function unlockDelegate(
         address partner,
@@ -570,7 +608,7 @@ contract TokenNetwork is Utils {
         channel_identifier = getChannelIdentifier(partner, participant);
         Channel storage channel = channels[channel_identifier];
         /*
-        验证授权签名有效
+            验证授权签名有效
         */
         message_hash = keccak256(abi.encodePacked(
                 msg.sender,
@@ -582,18 +620,19 @@ contract TokenNetwork is Utils {
                 chain_id));
         require(participant == ECVerify.ecverify(message_hash, participant_signature));
         /*
-        真正的去 unlock
+            真正的去 unlock
         */
         unlockInternal(partner, participant, transferred_amount, expiration, amount, secret_hash, merkle_proof);
     }
+
     /*
-    只允许通道参与方可以调用,要在有效期内调用.通道状态必须是关闭,
-    并且必须在 settle 之前来调用.只能由通道参与方来调用.
-    参数说明:
-    partner: 通道参与一方,他发出的某个交易没有彻底完成
-    transferred_amount:partner 给出的直接转账金额
-    expiration,amount,secret_hash: 交易中未彻底完成的锁
-    merkle_proof: 证明此锁包含在 locksroot 中
+        只允许通道参与方可以调用,要在有效期内调用.通道状态必须是关闭,
+        并且必须在 settle 之前来调用.只能由通道参与方来调用.
+        参数说明:
+        partner: 通道参与一方,他发出的某个交易没有彻底完成
+        transferred_amount:partner 给出的直接转账金额
+        expiration,amount,secret_hash: 交易中未彻底完成的锁
+        merkle_proof: 证明此锁包含在 locksroot 中
     */
     function unlock(
         address partner,
@@ -628,26 +667,26 @@ contract TokenNetwork is Utils {
         Channel storage channel = channels[channel_identifier];
         Participant storage partner_state = channel.participants[partner];
         /*
-        通道状态正确
+            通道状态正确
         */
         require(channel.settle_block_number >= block.number);
         require(channel.state == 2);
 
         /*
-        对应的锁已经注册过,并且没有过期.
+            对应的锁已经注册过,并且没有过期.
         */
         reveal_block = secret_registry.getSecretRevealBlockHeight(secret_hash);
         require(reveal_block > 0 && reveal_block <= expiration);
 
         /*
-        证明这个所包含在 locksroot 中
+            证明这个所包含在 locksroot 中
         */
         lockhash = keccak256(abi.encodePacked(expiration, amount, secret_hash));
         locksroot = computeMerkleRoot(lockhash, merkle_proof);
         require(partner_state.balance_hash == calceBalanceHash(transferered_amount, locksroot));
 
 
-        //不允许重复 unlock 同一个锁,同时 nonce 变化以后还可以 再次 unlock 同一个锁
+        // 不允许重复 unlock 同一个锁,同时 nonce 变化以后还可以 再次 unlock 同一个锁
         lockhash_hash = keccak256(abi.encodePacked(partner_state.nonce, lockhash));
 
         require(partner_state.unlocked_locks[lockhash_hash] == false);
@@ -655,13 +694,13 @@ contract TokenNetwork is Utils {
 
 
         /*
-        会不会溢出呢? 两人持续交易?
-        正常来说,不会,
-        但是如果是恶意的会溢出,但是溢出对于 自身 也没好处啊
+            会不会溢出呢? 两人持续交易?
+            正常来说,不会,
+            但是如果是恶意的会溢出,但是溢出对于 自身 也没好处啊
         */
         transferered_amount += amount;
         /*
-       注意transferered_amount已经更新了,
+            注意transferered_amount已经更新了,
         */
         partner_state.balance_hash = calceBalanceHash(transferered_amount, locksroot);
         emit ChannelUnlocked(channel_identifier, partner, lockhash, transferered_amount);
@@ -669,13 +708,13 @@ contract TokenNetwork is Utils {
 
 
     /*
-    给 punish 一方留出了专门的 punishBlock 时间,punish 一方可以选择在那个时候提交证据,也可以在这之前.
-    参数说明:
-    beneficiary 惩罚提出者,也是受益人
-    cheater 不诚实的交易一方
-    lockhash 欺骗的具体锁
-    additional_hash 实现辅助信息
-    cheater_signature 不诚实一方对于放弃此锁的签名
+        给 punish 一方留出了专门的 punishBlock 时间,punish 一方可以选择在那个时候提交证据,也可以在这之前.
+        参数说明:
+        beneficiary 惩罚提出者,也是受益人
+        cheater 不诚实的交易一方
+        lockhash 欺骗的具体锁
+        additional_hash 实现辅助信息
+        cheater_signature 不诚实一方对于放弃此锁的签名
     */
     function punishObsoleteUnlock(
         address beneficiary,
@@ -710,12 +749,13 @@ contract TokenNetwork is Utils {
         Participant storage cheater_state = channel.participants[cheater];
 
         /*
-        证明这个 lockhash 被对方提交了.
+            证明这个 lockhash 被对方提交了.
         */
         lockhash_hash = keccak256(abi.encodePacked(beneficiary_state.nonce, lockhash));
         require(beneficiary_state.unlocked_locks[lockhash_hash]);
         delete beneficiary_state.unlocked_locks[lockhash_hash];
         /*
+
         punish the cheater.
         set the transferAmount and locksroot to 0, nonce to max_uint64 and deposit to 0.
         */
@@ -726,12 +766,12 @@ contract TokenNetwork is Utils {
         emit ChannelPunished(channel_identifier, beneficiary);
     }
     /*
-    任何人都可以调用,只能调用一次
-    目的 结算通道,将在通道中的押金退回到双方账户中
-    参数说明:
-    participant1,participant2 通道参与双方
-    participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
-    participant1_locksroot,participant2_locksroot 双方的未彻底完成交易集合
+        任何人都可以调用,只能调用一次
+        目的 结算通道,将在通道中的押金退回到双方账户中
+        参数说明:
+        participant1,participant2 通道参与双方
+        participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
+        participant1_locksroot,participant2_locksroot 双方的未彻底完成交易集合
     */
     function settleChannel(
         address participant1,
@@ -752,16 +792,16 @@ contract TokenNetwork is Utils {
         require(channel.state == 2);
 
         /*
-         Settlement window must be over
-         真正能 settle 并不是 settle block number, 还要加上 punish_block_number,
-         这是给对手提交 punish 证据专门留出的时间.
+            Settlement window must be over
+            真正能 settle 并不是 settle block number, 还要加上 punish_block_number,
+            这是给对手提交 punish 证据专门留出的时间.
          */
         require(channel.settle_block_number + punish_block_number < block.number);
 
         Participant storage participant1_state = channel.participants[participant1];
         Participant storage participant2_state = channel.participants[participant2];
         /*
-        验证提供的参数是有效的
+            验证提供的参数是有效的
         */
         require(participant1_state.balance_hash == calceBalanceHash(participant1_transferred_amount, participant1_locksroot));
         require(participant2_state.balance_hash == calceBalanceHash(participant2_transferred_amount, participant2_locksroot));
@@ -797,7 +837,7 @@ contract TokenNetwork is Utils {
         // valid balance proof.
         participant1_amount = min(participant1_amount, total_deposit);
         // At this point `participant1_amount` is between [0,total_deposit], so this is safe.
-        //变量复用是因为局部变量不能超过16个
+        // 变量复用是因为局部变量不能超过16个
         participant2_transferred_amount = total_deposit - participant1_amount;
 
         // Remove the channel data from storage
@@ -821,12 +861,12 @@ contract TokenNetwork is Utils {
     }
 
     /*
-    任何人都可以调用,只能调用一次.
-    功能:双方协商一致关闭通道,将通道中的金额直接退回到双方账户
-    参数说明:
-    participant1,participant2:通道参与双方
-    participant1_balance,participant2_balance:双方关于金额的分配方案
-    participant1_signature,participant2_signature 双方对于分配方案的签名
+        任何人都可以调用,只能调用一次.
+        功能:双方协商一致关闭通道,将通道中的金额直接退回到双方账户
+        参数说明:
+        participant1,participant2:通道参与双方
+        participant1_balance,participant2_balance:双方关于金额的分配方案
+        participant1_signature,participant2_signature 双方对于分配方案的签名
     */
     function cooperativeSettle(
         address participant1,
@@ -886,7 +926,7 @@ contract TokenNetwork is Utils {
         }
 
         // The sum of the provided balances must be equal to the total available deposit
-        //一定要严防双方互相配合,侵占tokennetwork 资产的行为
+        // 一定要严防双方互相配合,侵占tokennetwork 资产的行为
         require(total_deposit == (participant1_balance + participant2_balance));
         require(total_deposit >= participant1_balance);
         require(total_deposit >= participant2_balance);
@@ -974,10 +1014,10 @@ contract TokenNetwork is Utils {
         participant_state.unlocked_locks[lockhash_hash]
         );
     }
+
     /*
      * Internal Functions
      */
-
     function recoverAddressFromBalanceProof(
         bytes32 channel_identifier,
         uint256 transferred_amount,

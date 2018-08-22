@@ -18,31 +18,32 @@ import (
 
 var errorDuplicateElement = errors.New("Duplicated element")
 
-//LayerLeaves is layer 0
+// LayerLeaves is layer 0
 const LayerLeaves = 0
 
-//LayerMerkleRoot is top layer
+// LayerMerkleRoot is top layer
 const LayerMerkleRoot = -1
 
 /*
-Merkletree is hash tree
+	Merkletree is hash tree
 */
 type Merkletree struct {
 	Layers [][]common.Hash
 	Leaves []*Lock
 }
 
-//EmptyTree contains no locks
+// EmptyTree contains no locks
 var EmptyTree = NewMerkleTree(nil)
 
 /*
-Lock of HTLC
-在消息中 expiration 用的是 int64编码
-而在合约中用的是 big.Int
-todo 要不要统一?
+	The Lock structure for Hashed TimeLock Contract.
+	In our messenger
+	在消息中 expiration 用的是 int64编码
+	而在合约中用的是 big.Int
+	todo 要不要统一?
 */
 type Lock struct {
-	Expiration     int64 //expiration block number
+	Expiration     int64 // expiration block number
 	Amount         *big.Int
 	LockSecretHash common.Hash
 }

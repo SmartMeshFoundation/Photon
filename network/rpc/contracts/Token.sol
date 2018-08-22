@@ -32,14 +32,12 @@ interface Token {
     /// @param _spender The address of the account able to transfer the tokens
     /// @return Amount of remaining tokens allowed to spent
     function allowance(address _owner, address _spender) external view returns (uint256 remaining);
-    /*
-    ERC20 扩展
-    */
+
+    /** ERC20 Extension */
     function approveAndCall(address _spender, uint256 _amount, bytes _extraData) public returns (bool success);
-    /*
-    ERC223 非标准
-    */
-    function transfer(address to, uint256 value, bytes data) external  ;
+
+    /** ERC223 Non-Standard */
+    function transfer(address to, uint256 value, bytes data) external;
     event Transfer(address indexed from, address indexed to, uint256 value, bytes indexed data);
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);

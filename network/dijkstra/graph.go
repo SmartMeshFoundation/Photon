@@ -5,11 +5,11 @@ import (
 	"fmt"
 )
 
-//Graph contains all the graph details
+// Graph contains all the graph details
 type Graph struct {
 	best        int64
 	visitedDest bool
-	//slice of all verticies available
+	// slice of all verticies available
 	Verticies       []Vertex
 	visiting        dijkstraList
 	mapping         map[string]int
@@ -17,14 +17,14 @@ type Graph struct {
 	highestMapIndex int
 }
 
-//NewGraph creates a new empty graph
+// NewGraph creates a new empty graph
 func NewGraph() *Graph {
 	new := &Graph{}
 	new.mapping = map[string]int{}
 	return new
 }
 
-//CloneGraph clone this graph
+// CloneGraph clone this graph
 func (g *Graph) CloneGraph() *Graph {
 	new := &Graph{}
 	new.mapping = map[string]int{}
@@ -41,7 +41,7 @@ func (g *Graph) CloneGraph() *Graph {
 	return new
 }
 
-//AddNewVertex adds a new vertex at the next available index
+// AddNewVertex adds a new vertex at the next available index
 func (g *Graph) AddNewVertex() *Vertex {
 	for i, v := range g.Verticies {
 		if i != v.ID {
@@ -52,13 +52,13 @@ func (g *Graph) AddNewVertex() *Vertex {
 	return g.AddVertex(len(g.Verticies))
 }
 
-//AddVertex adds a single vertex
+// AddVertex adds a single vertex
 func (g *Graph) AddVertex(ID int) *Vertex {
 	g.AddVerticies(Vertex{ID: ID})
 	return &g.Verticies[ID]
 }
 
-//GetVertex gets the reference of the specified vertex. An error is thrown if
+// GetVertex gets the reference of the specified vertex. An error is thrown if
 // there is no vertex with that index/ID.
 func (g *Graph) GetVertex(ID int) (*Vertex, error) {
 	if ID >= len(g.Verticies) {
@@ -78,7 +78,7 @@ func (g Graph) validate() error {
 	return nil
 }
 
-//SetDefaults sets the distance and best node to that specified
+// SetDefaults sets the distance and best node to that specified
 func (g *Graph) setDefaults(Distance int64, BestNode int) {
 	for i := range g.Verticies {
 		g.Verticies[i].bestVertex = BestNode

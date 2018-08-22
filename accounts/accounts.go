@@ -23,14 +23,14 @@ import (
 var errNoSuchAddress = errors.New("can not found this address")
 
 /*
-AccountManager List All Accounts in directory KeyPath
+	AccountManager List All Accounts in directory KeyPath
 */
 type AccountManager struct {
 	KeyPath  string
 	Accounts []accounts.Account
 }
 
-//NewAccountManager create account manager
+// NewAccountManager create account manager
 func NewAccountManager(keyPath string) (mgr *AccountManager) {
 	mgr = &AccountManager{
 		KeyPath: keyPath,
@@ -41,7 +41,7 @@ func NewAccountManager(keyPath string) (mgr *AccountManager) {
 	return
 }
 
-//AddressInKeyStore returns true if found this address
+// AddressInKeyStore returns true if found this address
 func (am *AccountManager) AddressInKeyStore(addr common.Address) bool {
 	for _, acc := range am.Accounts {
 		if bytes.Equal(acc.Address[:], addr[:]) {
@@ -52,8 +52,8 @@ func (am *AccountManager) AddressInKeyStore(addr common.Address) bool {
 }
 
 /*
-GetPrivateKey Find the keystore file for an account, unlock it and get the private key
-   addr: The Ethereum address for which to find the keyfile in the system
+	GetPrivateKey Find the keystore file for an account, unlock it and get the private key
+   	addr: The Ethereum address for which to find the keyfile in the system
 	password: Mostly for testing purposes. A password can be provided
 			  as the function argument here. If it's not then the
               user is interactively queried for one.
@@ -83,7 +83,7 @@ func (am *AccountManager) GetPrivateKey(addr common.Address, password string) (p
 	return
 }
 
-//PromptAccount get account private key by input password or password stored in file
+// PromptAccount get account private key by input password or password stored in file
 func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile string) (addr common.Address, keybin []byte, err error) {
 	am := NewAccountManager(keystorePath)
 	if len(am.Accounts) == 0 {

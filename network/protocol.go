@@ -30,14 +30,14 @@ var errTimeout = errors.New("wait timeout")
 var errExpired = errors.New("message expired")
 
 /*
-MessageToRaiden message and it's echo hash
+	MessageToRaiden message and it's echo hash
 */
 type MessageToRaiden struct {
 	Msg      encoding.SignedMessager
 	EchoHash common.Hash
 }
 
-//SentMessageState is the state of message on sending
+// SentMessageState is the state of message on sending
 type SentMessageState struct {
 	AsyncResult     *utils.AsyncResult
 	AckChannel      chan error
@@ -49,31 +49,31 @@ type SentMessageState struct {
 	Data     []byte            //packed message
 }
 
-//PingSender do send ping task
+// PingSender do send ping task
 type PingSender interface {
 	//SendPing send a ping to receiver,and not block
 	SendPing(receiver common.Address) error
 }
 
 /*
-BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
-for example :
-A send B a mediated transfer, but B is offline
-when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
-message secret,secretRequest,revealSecret won't allow error
+	BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
+	for example :
+		A send B a mediated transfer, but B is offline
+		when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
+		message secret,secretRequest,revealSecret won't allow error
 */
 type BlockNumberGetter interface {
-	//GetBlockNumber return latest block number
+	// GetBlockNumber return latest block number
 	GetBlockNumber() int64
 }
 
 type timeoutGenerator func() time.Duration
 
 /*
-Timeouts generator with an exponential backoff strategy.
+	Timeouts generator with an exponential backoff strategy.
 
-    Timeouts start spaced by `timeout`, after `retries` exponentially increase
-    the retry delays until `maximum`, then maximum is returned indefinitely.
+	Timeouts start spaced by `timeout`, after `retries` exponentially increase
+	the retry delays until `maximum`, then maximum is returned indefinitely.
 */
 func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duration) timeoutGenerator {
 	tries := 1
@@ -93,8 +93,8 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 }
 
 /*
-RaidenProtocol is a UDP  protocol,
-every message needs a ack to make sure sent success.
+	RaidenProtocol is a UDP protocol,
+	every message needs a ack to make sure sent success.
 */
 type RaidenProtocol struct {
 	Transport           Transporter
@@ -124,7 +124,7 @@ type RaidenProtocol struct {
 	log         log.Logger
 }
 
-//NewRaidenProtocol create RaidenProtocol
+// NewRaidenProtocol create RaidenProtocol
 func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
 		Transport:                 transport,
@@ -146,7 +146,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNu
 	return rp
 }
 
-//New create new object from sample.
+// New create new object from sample.
 func New(sample interface{}) interface{} {
 	t := reflect.ValueOf(sample)
 	if t.Kind() == reflect.Ptr {
@@ -157,7 +157,7 @@ func New(sample interface{}) interface{} {
 	return v
 }
 
-//SetReceivedMessageSaver set db saver
+// SetReceivedMessageSaver set db saver
 func (p *RaidenProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
 	p.receivedMessageSaver = saver
 }
@@ -180,7 +180,7 @@ func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) e
 	return p.Transport.Send(receiver, data)
 }
 
-//SendPing PingSender
+// SendPing PingSender
 func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
 	err := ping.Sign(p.privKey, ping)
@@ -192,8 +192,8 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 }
 
 /*
-message mediatedTransfer  can safely be discarded when expired.
-如果丢弃,意味着通道状态将不再同步,通道只能关闭,无法起作用了.
+	message mediatedTransfer  can safely be discarded when expired.
+	如果丢弃,意味着通道状态将不再同步,通道只能关闭,无法起作用了.
 */
 func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	var expired int64
@@ -206,6 +206,7 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
 	}
 	return true
 }
+
 func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr common.Hash) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
@@ -306,8 +307,8 @@ func getMessageChannelAddress(msg encoding.Messager) common.Hash {
 }
 
 /*
-msg should be signed.
-msg must be sent success.
+	msg should be signed.
+	msg must be sent success.
 */
 func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	msg encoding.Messager) (result *utils.AsyncResult) {
@@ -349,7 +350,7 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	return
 }
 
-//SendAndWait send this packet and wait ack until timeout
+// SendAndWait send this packet and wait ack until timeout
 func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messager, timeout time.Duration) error {
 	var err error
 	result := p.sendWithResult(receiver, msg)
@@ -364,26 +365,28 @@ func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messa
 	return err
 }
 
-//SendAsync send a message asynchronize ,notify by `AsyncResult`
+// SendAsync send a message asynchronize ,notify by `AsyncResult`
 func (p *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *utils.AsyncResult {
 	return p.sendWithResult(receiver, msg)
 }
 
-//CreateAck creat a ack message,
+// CreateAck creat a ack message,
 func (p *RaidenProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
 	return encoding.NewAck(p.nodeAddr, echohash)
 }
 
-//GetNetworkStatus return `addr` node's network status
+// GetNetworkStatus return `addr` node's network status
 func (p *RaidenProtocol) GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool) {
 	return p.Transport.NodeStatus(addr)
 }
+
 func (p *RaidenProtocol) receive(data []byte) {
 	//todo fix ,remove copy and fix deadlock of send and receive
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
 	p.receiveChan <- cdata
 }
+
 func (p *RaidenProtocol) loop() {
 	for {
 		select {
@@ -394,6 +397,7 @@ func (p *RaidenProtocol) loop() {
 		}
 	}
 }
+
 func (p *RaidenProtocol) receiveInternal(data []byte) {
 	if len(data) > params.UDPMaxMessageSize {
 		p.log.Error("receive packet larger than maximum size :", len(data))
@@ -476,7 +480,7 @@ func (p *RaidenProtocol) receiveInternal(data []byte) {
 
 }
 
-//StopAndWait stop andf wait for clean.
+// StopAndWait stop andf wait for clean.
 func (p *RaidenProtocol) StopAndWait() {
 	p.log.Info("RaidenProtocol stop...")
 	p.onStop = true
@@ -488,19 +492,19 @@ func (p *RaidenProtocol) StopAndWait() {
 	p.log.Info("raiden protocol stop ok...")
 }
 
-//Start raiden protocol
+// Start raiden protocol
 func (p *RaidenProtocol) Start() {
 	p.Transport.Start()
 }
 
-//NodeInfo get from user
+// NodeInfo get from user
 type NodeInfo struct {
 	Address    string `json:"address"`
 	IPPort     string `json:"ip_port"`
-	DeviceType string `json:"device_type"` //must be mobile?
+	DeviceType string `json:"device_type"` // must be mobile?
 }
 
-//UpdateMeshNetworkNodes update nodes in this intranet
+// UpdateMeshNetworkNodes update nodes in this intranet
 func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 	p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
