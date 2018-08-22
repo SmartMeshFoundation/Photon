@@ -322,7 +322,9 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 		}
 		//log how many tokens fee for this transfer . todo
 		transferPair = mediatedtransfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
-		events = []transfer.Event{mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode())}
+		eventSendMediatedTransfer := mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode())
+		eventSendMediatedTransfer.FromChannel = payerRoute.ChannelIdentifier
+		events = []transfer.Event{eventSendMediatedTransfer}
 	}
 	return
 }

@@ -115,7 +115,24 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
 		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
-		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		var fromCh *channel.Channel
+		fromCh, err = eh.raiden.findChannelByAddress(event.FromChannel)
+		if err != nil {
+			return
+		}
+		t, _ := stateManager.LastReceivedMessage.Tag().(*transfer.MessageTag)
+		echohash := t.EchoHash
+		ack := eh.raiden.Protocol.CreateAck(echohash)
+		tx := eh.raiden.db.StartTx()
+		eh.raiden.db.SaveAck(echohash, ack.Pack(), tx)
+		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
+		if err != nil {
+			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
+			//err=tx.Rollback()
+			panic(fmt.Sprintf("update channel err %s", err))
+		}
+		err = tx.Commit()
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)

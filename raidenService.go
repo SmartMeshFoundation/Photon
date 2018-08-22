@@ -455,14 +455,14 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
-func (rs *RaidenService) findChannelByAddress(nettingChannelAddress common.Hash) (*channel.Channel, error) {
+func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
-		ch := g.GetChannelAddress2Channel(nettingChannelAddress)
+		ch := g.GetChannelAddress2Channel(channelIdentifier)
 		if ch != nil {
 			return ch, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown channel %s", nettingChannelAddress)
+	return nil, fmt.Errorf("unknown channel %s", channelIdentifier)
 }
 
 /*

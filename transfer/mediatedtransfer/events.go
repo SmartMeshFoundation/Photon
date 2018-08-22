@@ -18,6 +18,12 @@ type EventSendMediatedTransfer struct {
 	Expiration     int64
 	Receiver       common.Address
 	Fee            *big.Int // target should get amount-fee.
+	/*
+		which channel received a mediated transfer and then I have to send another mediated transfer,
+		因为哪个 channel 收到了 MediatedTransfer, 导致我需要发送新的 Transfer.
+		如果是我主动发起的 MediatedTransfer, 那么 FromChannel 应该为空
+	*/
+	FromChannel common.Hash
 }
 
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
