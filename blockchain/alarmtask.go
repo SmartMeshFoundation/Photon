@@ -52,7 +52,6 @@ RegisterCallback register a new callback.
 func (at *AlarmTask) RegisterCallback(callback *AlarmCallback) {
 	at.lock.Lock()
 	defer at.lock.Unlock()
-	fmt.Println("registry:", callback)
 	at.callback = append(at.callback, callback)
 }
 
