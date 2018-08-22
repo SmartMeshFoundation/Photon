@@ -247,8 +247,7 @@ func (arguments Arguments) Pack(args ...interface{}) ([]byte, error) {
 	return ret, nil
 }
 
-// capitalise makes the first character of a string upper case, also removing any
-// prefixing underscores from the variable names.
+// capitalise makes a camel-case string which starts with an upper case character.
 func capitalise(input string) string {
 	for len(input) > 0 && input[0] == '_' {
 		input = input[1:]
@@ -256,5 +255,28 @@ func capitalise(input string) string {
 	if len(input) == 0 {
 		return ""
 	}
-	return strings.ToUpper(input[:1]) + input[1:]
+	return toCamelCase(strings.ToUpper(input[:1]) + input[1:])
+}
+// toCamelCase converts an under-score string to a camel-case string
+func toCamelCase(input string) string {
+	toupper := false
+
+	result := ""
+	for k, v := range input {
+		switch {
+		case k == 0:
+			result = strings.ToUpper(string(input[0]))
+
+		case toupper:
+			result += strings.ToUpper(string(v))
+			toupper = false
+
+		case v == '_':
+			toupper = true
+
+		default:
+			result += string(v)
+		}
+	}
+	return result
 }
