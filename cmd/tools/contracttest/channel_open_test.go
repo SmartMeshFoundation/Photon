@@ -11,7 +11,7 @@ import (
 // TestOpenChannelRight : 正确调用测试
 func TestOpenChannelRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
-	a1, a2 := env.getTwoRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
 	cooperativeSettleChannelIfExists(a1, a2)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	count := 0
@@ -43,7 +43,7 @@ func TestOpenChannelRight(t *testing.T) {
 // TestOpenChannelRight : 异常调用测试
 func TestOpenChannelException(t *testing.T) {
 	InitEnv(t, "./env.INI")
-	a1, a2 := env.getTwoRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
 	cooperativeSettleChannelIfExists(a1, a2)
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	count := 0
@@ -63,7 +63,7 @@ func TestOpenChannelEdge(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
 	// prepare
-	a1, a2 := env.getTwoRandomAccount(t)
+	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
 	cooperativeSettleChannelIfExists(a1, a2)
 	testSettleTimeout := TestSettleTimeoutMin + 5
 	// cases

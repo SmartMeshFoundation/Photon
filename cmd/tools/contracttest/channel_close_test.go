@@ -19,8 +19,8 @@ func TestChannelCloseRight(t *testing.T) {
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// cases
 	// close right
-	bp := createPartnerBalanceProof(a1, a2, big.NewInt(1), utils.EmptyHash, utils.EmptyHash, 1)
-	tx, err := env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	bpA2 := createPartnerBalanceProof(a1, a2, big.NewInt(1), utils.EmptyHash, utils.EmptyHash, 1)
+	tx, err := env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bpA2.TransferAmount, bpA2.LocksRoot, bpA2.Nonce, bpA2.AdditionalHash, bpA2.Signature)
 	assertTxSuccess(t, &count, tx, err)
 	// check the state
 	_, _, _, state, _, _ := getChannelInfo(a1, a2)
@@ -28,10 +28,15 @@ func TestChannelCloseRight(t *testing.T) {
 	balanceA1, _, nonceA1, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
 	assertSuccess(t, &count, err)
 	assertEqual(t, &count, depositA1, balanceA1)
-	assertEqual(t, &count, bp.Nonce, nonceA1)
+	assertEqual(t, &count, 0, nonceA1)
 	// close twice
-	tx, err = env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err = env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bpA2.TransferAmount, bpA2.LocksRoot, bpA2.Nonce, bpA2.AdditionalHash, bpA2.Signature)
 	assertTxFail(t, &count, tx, err)
+
+	// settle for other cases
+	waitToSettle(a1, a2)
+	tx, err = env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, big.NewInt(0), utils.EmptyHash, a2.Address, bpA2.TransferAmount, bpA2.LocksRoot)
+	assertTxSuccess(t, nil, tx, err)
 	t.Log(endMsg("ChannelClose 正确调用测试", count, a1, a2))
 }
 
@@ -83,29 +88,29 @@ func TestChannelCloseAttack(t *testing.T) {
 	a1, a2 := env.getTwoAccountWithoutChannelClose(t)
 	cooperativeSettleChannelIfExists(a1, a2)
 	depositA1 := big.NewInt(10)
-	trasAmtA1 := big.NewInt(1)
-	nonceA1 := uint64(1)
+	trasAmtA1 := big.NewInt(0)
 	locksrootA1 := utils.EmptyHash
 
 	depositA2 := big.NewInt(20)
-	trasAmtA2 := big.NewInt(0)
+	trasAmtA2 := big.NewInt(1)
+	nonceA2 := uint64(1)
 	locksrootA2 := utils.EmptyHash
 
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// close with self balance proof
-	bp := createPartnerBalanceProof(a1, a2, trasAmtA1, locksrootA1, locksrootA1, nonceA1)
-	tx, err := env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	bpA2 := createPartnerBalanceProof(a1, a2, trasAmtA2, locksrootA2, locksrootA2, nonceA2)
+	tx, err := env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bpA2.TransferAmount, bpA2.LocksRoot, bpA2.Nonce, bpA2.AdditionalHash, bpA2.Signature)
 	assertTxFail(t, &count, tx, err)
 
 	// close new channel with old balance proof
-	tx, err = env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err = env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bpA2.TransferAmount, bpA2.LocksRoot, bpA2.Nonce, bpA2.AdditionalHash, bpA2.Signature)
 	assertTxSuccess(t, nil, tx, err) // close
 	waitToSettle(a1, a2)
 	tx, err = env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, trasAmtA1, locksrootA1, a2.Address, trasAmtA2, locksrootA2)
 	assertTxSuccess(t, nil, tx, err)                                       // settle
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout) // reopen
-	tx, err = env.TokenNetwork.CloseChannel(a2.Auth, a1.Address, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err = env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bpA2.TransferAmount, bpA2.LocksRoot, bpA2.Nonce, bpA2.AdditionalHash, bpA2.Signature)
 	assertTxFail(t, &count, tx, err) // close with old balance proof
 
 	t.Log(endMsg("ChannelClose 恶意调用测试", count))

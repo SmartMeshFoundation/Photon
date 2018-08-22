@@ -41,8 +41,9 @@ func assertTxFail(t *testing.T, count *int, tx *types.Transaction, err error) {
 	}
 	assert.NotEmpty(t, err)
 	if tx != nil {
-		_, err = bind.WaitMined(context.Background(), env.Client, tx)
-		assert.NotEmpty(t, err)
+		r, err := bind.WaitMined(context.Background(), env.Client, tx)
+		assert.Empty(t, err)
+		assert.EqualValues(t, 0, r.Status)
 	}
 }
 
@@ -50,5 +51,5 @@ func assertEqual(t *testing.T, count *int, expect interface{}, actual interface{
 	if count != nil {
 		*count++
 	}
-	assert.Equal(t, expect, actual)
+	assert.EqualValues(t, expect, actual)
 }

@@ -1,7 +1,6 @@
 package contracttest
 
 import (
-	"math/rand"
 	"testing"
 
 	"bytes"
@@ -134,19 +133,6 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 	}
 }
 
-func (env *Env) getTwoRandomAccount(t *testing.T) (*Account, *Account) {
-	var index1, index2 int
-	n := len(env.Accounts)
-	seed := rand.NewSource(time.Now().Unix())
-	r1 := rand.New(seed)
-	index1 = r1.Intn(n)
-	index2 = r1.Intn(n)
-	for index1 == index2 {
-		index2 = r1.Intn(n)
-	}
-	return env.Accounts[index1], env.Accounts[index2]
-}
-
 func (env *Env) getTwoAccountWithoutChannelClose(t *testing.T) (*Account, *Account) {
 	for index1, a1 := range env.Accounts {
 		for index2, a2 := range env.Accounts {
@@ -160,23 +146,6 @@ func (env *Env) getTwoAccountWithoutChannelClose(t *testing.T) (*Account, *Accou
 		}
 	}
 	panic("no usable account, need to run cmd/newTestEnv")
-}
-
-func (env *Env) getThreeRandomAccount(t *testing.T) (*Account, *Account, *Account) {
-	var index1, index2, index3 int
-	n := len(env.Accounts)
-	seed := rand.NewSource(time.Now().Unix())
-	r1 := rand.New(seed)
-	index1 = r1.Intn(n)
-	index2 = r1.Intn(n)
-	index3 = r1.Intn(n)
-	for index1 == index2 {
-		index2 = r1.Intn(n)
-	}
-	for index3 == index1 || index3 == index2 {
-		index3 = r1.Intn(n)
-	}
-	return env.Accounts[index1], env.Accounts[index2], env.Accounts[index3]
 }
 
 func (env *Env) getRandomAccountExcept(t *testing.T, accounts ...*Account) *Account {
@@ -490,20 +459,6 @@ func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNu
 		panic(err)
 	}
 	return
-}
-
-func approve(account *Account, amount *big.Int) {
-	tx, err := env.Token.Approve(account.Auth, env.TokenNetworkAddress, amount)
-	if err != nil {
-		panic(err)
-	}
-	r, err := bind.WaitMined(context.Background(), env.Client, tx)
-	if err != nil {
-		panic(err)
-	}
-	if r.Status != types.ReceiptStatusSuccessful {
-		panic(err)
-	}
 }
 
 func endMsg(name string, count int, accounts ...*Account) string {
