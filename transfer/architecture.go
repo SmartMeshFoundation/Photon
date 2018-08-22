@@ -3,6 +3,7 @@ package transfer
 import (
 	"encoding/gob"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -103,6 +104,7 @@ type StateManager struct {
 	CurrentState        State
 	Identifier          common.Hash //transfer identifier
 	Name                string
+	LastReceivedMessage encoding.SignedMessager
 }
 
 //MessageTag for save and restore

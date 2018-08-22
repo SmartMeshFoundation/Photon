@@ -136,13 +136,22 @@ func (node *EndState) Distributable(counterpart *EndState) *big.Int {
 }
 
 //IsKnown returns True if the `hashlock` corresponds to a known lock.
-func (node *EndState) IsKnown(hashlock common.Hash) bool {
-	_, ok := node.Lock2PendingLocks[hashlock]
+func (node *EndState) IsKnown(lockSecretHash common.Hash) bool {
+	_, ok := node.Lock2PendingLocks[lockSecretHash]
 	if ok {
 		return ok
 	}
-	_, ok = node.Lock2UnclaimedLocks[hashlock]
+	_, ok = node.Lock2UnclaimedLocks[lockSecretHash]
 	return ok
+}
+
+//GetSecret returns the secret corresponds to the lockSecretHash if found
+func (node *EndState) GetSecret(lockSecretHash common.Hash) (secret common.Hash, found bool) {
+	l, found := node.Lock2UnclaimedLocks[lockSecretHash]
+	if found {
+		secret = l.Secret
+	}
+	return
 }
 
 //IsLocked returns True if the `hashlock` is known and the correspoding secret is not.

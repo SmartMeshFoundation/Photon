@@ -55,6 +55,7 @@ func (eh *stateMachineEventHandler) dispatchBySecretHash(lockSecretHash common.H
 }
 
 func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
+	eh.updateStateManagerFromStateChange(stateManager, stateChange)
 	events = stateManager.Dispatch(stateChange)
 	for _, e := range events {
 		err := eh.OnEvent(e, stateManager)
@@ -80,6 +81,24 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	return err
 }
+func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransfer.EventSendSecretRequest, stateManager *transfer.StateManager) (err error) {
+	secretRequest := encoding.NewSecretRequest(event.LockSecretHash, event.Amount)
+	err = secretRequest.Sign(eh.raiden.PrivateKey, secretRequest)
+	eh.raiden.conditionQuit("EventSendSecretRequestBefore")
+	ch := eh.raiden.getChannelWithAddr(event.ChannelIdentifier)
+	if ch == nil {
+		panic("should not found")
+	}
+	if stateManager.LastReceivedMessage == nil {
+		log.Warn(fmt.Sprintf("EventSendSecretRequest %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	} else {
+		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		stateManager.LastReceivedMessage = nil
+	}
+	err = eh.raiden.sendAsync(event.Receiver, secretRequest)
+	return
+}
 func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtransfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
 	receiver := event.Receiver
 	g := eh.raiden.getToken2ChannelGraph(event.Token)
@@ -94,7 +113,13 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		return
 	}
 	eh.raiden.conditionQuit("EventSendMediatedTransferBefore")
-	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	if stateManager.LastReceivedMessage == nil {
+		log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	} else {
+		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		stateManager.LastReceivedMessage = nil
+	}
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
@@ -133,6 +158,15 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	if err != nil {
 		return
 	}
+	if stateManager.LastReceivedMessage == nil {
+		log.Warn(fmt.Sprintf("EventSendAnnounceDisposed %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	} else {
+		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		//有可能同一个消息会引发两个 event send, 比如收到 中间节点EventAnnouceDisposed
+		// 会触发EventSendAnnounceDisposedResponse 和EventSendMediatedTransfer
+		stateManager.LastReceivedMessage = nil
+	}
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedBefore")
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
@@ -151,7 +185,13 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 		return
 	}
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedResponseBefore")
-	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	if stateManager.LastReceivedMessage == nil {
+		log.Warn(fmt.Sprintf("EventSendAnnounceDisposedResponse %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	} else {
+		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		stateManager.LastReceivedMessage = nil
+	}
 	err = eh.raiden.sendAsync(receiver, mtr)
 	return
 }
@@ -243,10 +283,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventSendUnlock(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendBalanceProofAfter")
 	case *mediatedtransfer.EventSendSecretRequest:
-		secretRequest := encoding.NewSecretRequest(e2.LockSecretHash, e2.Amount)
-		err = secretRequest.Sign(eh.raiden.PrivateKey, secretRequest)
-		eh.raiden.conditionQuit("EventSendSecretRequestBefore")
-		err = eh.raiden.sendAsync(e2.Receiver, secretRequest)
+		err = eh.eventSendSecretRequest(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendSecretRequestAfter")
 	case *mediatedtransfer.EventSendAnnounceDisposed:
 		err = eh.eventSendAnnouncedDisposed(e2, stateManager)
@@ -538,7 +575,6 @@ func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtr
 
 //avoid dead lock
 func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
-	blockNumber := eh.raiden.GetBlockNumber()
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
 		if c.State == channeltype.StateClosed {
@@ -546,20 +582,6 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 			if st2.BlockNumber > settlementEnd {
 				//should not block todo fix it
 				//err = c.ExternState.Settle()
-			}
-		}
-		//已经进入了 reveal timeout 阶段
-		if true {
-			//secret registery
-			//应该主动去注册密码
-			secrets := c.GetNeedRegisterSecrets(blockNumber)
-			for _, s := range secrets {
-				err = eh.eventContractSendRegisterSecret(&mediatedtransfer.EventContractSendRegisterSecret{
-					Secret: s,
-				})
-				if err != nil {
-					log.Error(fmt.Sprintf("eventContractSendRegisterSecret err %s", err))
-				}
 			}
 		}
 	case *mediatedtransfer.ContractClosedStateChange:
@@ -671,4 +693,40 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		log.Error(err.Error())
 	}
 	return
+}
+
+//recive a message and before processed
+func (eh *stateMachineEventHandler) updateStateManagerFromStateChange(mgr *transfer.StateManager, stateChange transfer.StateChange) {
+	var msg encoding.SignedMessager
+	var quitName string
+	switch st2 := stateChange.(type) {
+	case *mediatedtransfer.ActionInitTargetStateChange:
+		quitName = "ActionInitTargetStateChange"
+		msg = st2.Message
+	case *mediatedtransfer.ReceiveSecretRequestStateChange:
+		quitName = "ReceiveSecretRequestStateChange"
+		msg = st2.Message
+	case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
+		quitName = "ReceiveAnnounceDisposedStateChange"
+		msg = st2.Message
+	case *mediatedtransfer.ReceiveUnlockStateChange:
+		quitName = "ReceiveUnlockStateChange"
+	case *mediatedtransfer.ActionInitMediatorStateChange:
+		quitName = "ActionInitMediatorStateChange"
+		msg = st2.Message
+	case *mediatedtransfer.MediatorReReceiveStateChange:
+		quitName = "MediatorReReceiveStateChange"
+		msg = st2.Message
+	case *mediatedtransfer.ActionInitInitiatorStateChange:
+		quitName = "ActionInitInitiatorStateChange"
+		//new transfer trigger from user
+	case *mediatedtransfer.ReceiveSecretRevealStateChange:
+		quitName = "ReceiveSecretRevealStateChange"
+	}
+	if msg != nil {
+		mgr.LastReceivedMessage = msg
+	}
+	if len(quitName) > 0 {
+		eh.raiden.conditionQuit(quitName)
+	}
 }

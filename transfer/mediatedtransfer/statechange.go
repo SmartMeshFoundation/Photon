@@ -17,6 +17,17 @@ import (
 )
 
 /*
+ActionInitCrashRestartStateChange start a state which has the same secretHash after restart
+*/
+type ActionInitCrashRestartStateChange struct {
+	OurAddress     common.Address
+	Token          common.Address
+	LockSecretHash common.Hash
+	SentLocks      []*LockAndChannel
+	ReceivedLocks  []*LockAndChannel
+}
+
+/*
 ActionInitInitiatorStateChange start a mediated transfer
  Note: The init states must contain all the required data for trying doing
  useful work, ie. there must /not/ be an event for requesting new data.
@@ -93,8 +104,8 @@ type ReceiveAnnounceDisposedStateChange struct {
 	Message *encoding.AnnounceDisposed //the message trigger this statechange
 }
 
-//ReceiveBalanceProofStateChange A balance proof `identifier` was received.
-type ReceiveBalanceProofStateChange struct {
+//ReceiveUnlockStateChange A balance proof `identifier` was received.
+type ReceiveUnlockStateChange struct {
 	LockSecretHash common.Hash
 	NodeAddress    common.Address
 	BalanceProof   *transfer.BalanceProofState
@@ -285,7 +296,7 @@ func init() {
 	gob.Register(&ReceiveSecretRequestStateChange{})
 	gob.Register(&ReceiveSecretRevealStateChange{})
 	gob.Register(&ReceiveAnnounceDisposedStateChange{})
-	gob.Register(&ReceiveBalanceProofStateChange{})
+	gob.Register(&ReceiveUnlockStateChange{})
 	gob.Register(&ContractSecretRevealOnChainStateChange{})
 	gob.Register(&ContractClosedStateChange{})
 	gob.Register(&ContractSettledStateChange{})

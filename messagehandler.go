@@ -100,10 +100,9 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 	return err
 }
 
-//这个到底有什么用啊?看不懂
 func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 	blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
-	balanceProof := &mediatedtransfer.ReceiveBalanceProofStateChange{
+	balanceProof := &mediatedtransfer.ReceiveUnlockStateChange{
 		LockSecretHash: msg.LockSecretHash(),
 		NodeAddress:    msg.Sender,
 		BalanceProof:   blanceProof,
@@ -111,15 +110,25 @@ func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
 }
+
+/*
+ todo 收到密码,可能会影响到好多StateManager, 这些 StateManager 我如何做到原子保存呢?
+*/
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
-
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
+
+/*
+引起的通道状态变化有 stateManager 触发保存机制
+1. 找不到对应的 StateManager, 什么都不用做,忽略即可.
+2. 找到了对应的 StateManager, 但是消息内容不对,比如 Amount 不对,忽略即可
+3. 找到了对应的 StateManager, 并且消息内容正确,则肯定回发送 RevealSecret,这时保存消息收到并且更新状态
+*/
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
 	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
 		Amount:         new(big.Int).Set(msg.PaymentAmount),
@@ -130,8 +139,18 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
 }
+
+/*
+收到了 Unlock 消息,首先验证是否正确,如果不正确,则说明节点之间状态同步出错,通道只能关闭了
+如果正确.
+查找相应的StateManager, 肯定能找到,四中 StateManager 都有可能.
+1. InititiatorStateManager ,则认为是错误的,忽略
+2. MediatedStateManager 更新 State, 有可能认为这个交易结束(TransferPair 只有一个),也有可能继续(如果有多个 Transfer Pair).
+3. TargetStateManager  更新 State, 认为交易彻底结束.
+3. CrashStateManager 更新 State, 移除此锁
+因此,适宜直接在此函数更新通道状态并保存ack
+*/
 func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
-	mh.balanceProof(msg)
 	lockSecretHash := msg.LockSecretHash()
 	secret := msg.LockSecret
 	mh.raiden.registerSecret(secret)
@@ -148,30 +167,23 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 		log.Error(fmt.Sprintf("messageUnlock RegisterTransfer err=%s", err))
 		return err
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	/*
+		验证过消息是有效的,然后通知相应的 stateMana 该结束的结束,
+	*/
+	mh.balanceProof(msg)
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
-}
-func (mh *raidenMessageHandler) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
-	t, ok := tag.(*transfer.MessageTag)
-	if !ok || t == nil {
-		panic("tag is nil")
-	}
-	echohash := t.EchoHash
-	ack := mh.raiden.Protocol.CreateAck(echohash)
-	err := mh.raiden.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
-	if err != nil {
-		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
-	}
 }
 
 /*
-if there is any error, just ignore.
+如果消息错误,则说明节点之间状态同步出错,通道只能关闭了
+相关的 StateManager 自己根据超时判断是否结束
+适宜直接更新通道并保存 ack
 */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
 	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
 	if err != nil {
-		log.Warn("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
-		return nil
+		return fmt.Errorf("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 	}
 	if !ch.CanContinueTransfer() {
 		log.Warn(fmt.Sprintf("receive msg %s, but channel cannot continue transfer", msg))
@@ -181,9 +193,22 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	if err != nil {
 		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s", err)
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
+
+/*
+收到 AnnounceDisposed 消息,如果错误,说明节点之间状态不同步了,通道只能关闭了
+收到正常的的 AnnounceDisposed :
+1. InitiatorStateManager 可能会选择其他节点进行路由,也可能会失败,但是肯定会发送 AnnounceDisposedResponse
+2. MediatedStateManager 可能会选择其他节点进行路由,也可能会发送 AnnounceDisposed 表明交易无法继续,但是肯定会发送 AnnounceDisposedResponse
+3. TargetStateManager  状态错误,不可能会出现
+4. CrashStateManager 直接发送AnnounceDisposedResponse
+因此通道状态更新以及保存消息收到,可以放在 EventSendAnnounceDisposedResponse
+但是存在非原子更新的情况
+1. 作为 InitiatorStateManager, 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
+2. 作为MediatedStateManager 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
+*/
 func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -216,6 +241,17 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
 	return nil
 }
+
+/*
+收到 AnnouceDisposedResponse,如果验证不通过,说明节点状态同步出了问题,通道只能关闭
+收到正常的 AnnounceDisposedResponse:
+相应的 StateManager 无需关心这个事件.
+1. InitiatorStateManager 不可能收到,一定是个错误
+2. MediatedStateManager 无需处理
+3. TargetStateManager 不可能收到(目前是这样的,暂不允许接收方拒绝收款).
+4. CrashStateManager 无需处理,等锁自动过期即可,因为这种情况,我是不会知道密码的.
+因此适宜直接更新通道,并保存ack
+*/
 func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -241,9 +277,14 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		return
 	}
 	//保存通道状态即可.
-	return mh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	return nil
 }
 
+/*
+如果验证错误,说明节点状态不同步,只能关闭通道
+没有相关的 StateManager, 直接更新通道并保持 ack
+*/
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	//mh.balanceProof(msg)
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
@@ -273,14 +314,29 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		Initiator:         msg.Sender,
 		ChannelIdentifier: msg.ChannelIdentifier,
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.raiden.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	return err
 }
 
+/*
+收到 MediatedTransfer, 如果验证不通过,说明节点之间状态不同步,通道只能关闭
+验证通过:
+1. 我是接收方, 创建 TargetStateManager, 并发送 SecretRequest, 适宜在 EventSendSecretRequest 更新通道状态并保存 ack
+2. 我是中间节点
+	2.1 第一次收到这个 LockSecretHash 创建 MediatedStateManager, 如果可以继续交易则发送 MediatedTransfer,
+		否则发送 AnnounceDisposed,适宜在相关发送事件中更新通道状态并保存 ack
+	2.2 第 n次收到这个 LockSecretHash, 可能的结果, 如果可以继续交易则发送MediatedTransfer,否则发送 AnnounceDisposed,适宜在相关发送事件中更新通道状态并保存 ack
+3. 如果是 token swap
+todo 需要设计如何保存 token swap 相关数据,并在崩溃恢复以后保证原子性.
+*/
 func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
+		//todo what about return a AnnounceDisposed Message ?
+		/*
+			需要考虑恶意攻击的情况,比如发送一个我已经知道密码,但是尚未 unlock 的锁
+		*/
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
 	if mh.raiden.Config.IsMeshNetwork {
@@ -304,7 +360,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if err != nil {
 		return err
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	//mh.updateChannelAndSaveAck(ch, msg.Tag())
 	if msg.Target == mh.raiden.NodeAddress {
 		mh.raiden.targetMediatedTransfer(msg, ch)
 	} else {
@@ -328,6 +384,11 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	return nil
 }
 
+/*
+如果验证不通过,有可能是节点状态不同步,也有可能是其他链上异步事件导致,
+无论那种情况,这个通道在对方看来都不能再继续使用,只能强制关闭.
+直接更新通道状态并保存 ack 即可
+*/
 func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
@@ -374,7 +435,7 @@ func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", settleResponse, msg.Sender, err))
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
 func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
@@ -401,7 +462,7 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		log.Error(fmt.Sprintf("RegisterCooperativeSettleResponse error %s\n", err))
 		return err
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	result := ch.CooperativeSettleChannel(msg)
 	go func() {
 		err = <-result.Result
@@ -458,7 +519,7 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", withdrawResponse, msg.Sender, err))
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
 func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
@@ -482,7 +543,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
 	}
-	mh.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
 	result := ch.Withdraw(msg)
 	go func() {

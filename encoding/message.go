@@ -1099,11 +1099,11 @@ func (m *AnnounceDisposed) verifySignature(data []byte) error {
 }
 
 /*
-AnnounceDisposedResponse 收到 RefundTransfer为对方提供新的权益证明.
+AnnounceDisposedResponse 收到 AnnounceDisposed为对方提供新的权益证明.
 */
 type AnnounceDisposedResponse struct {
 	EnvelopMessage
-	LockSecretHash common.Hash //这个不是密码的 hash, 而是整个锁的 hash 值.
+	LockSecretHash common.Hash
 }
 
 //NewAnnounceDisposedResponse create

@@ -100,9 +100,10 @@ EventSendSecretRequest used by a target node to request the secret from the init
     (`receiver`).
 */
 type EventSendSecretRequest struct {
-	LockSecretHash common.Hash
-	Amount         *big.Int
-	Receiver       common.Address
+	ChannelIdentifier common.Hash
+	LockSecretHash    common.Hash
+	Amount            *big.Int
+	Receiver          common.Address
 }
 
 /*
