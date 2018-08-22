@@ -48,6 +48,7 @@ func newEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpe
 		return
 	}
 	event.Raw = *el
+	//log.Trace(fmt.Sprintf("newEventChannelOpen el=%s, event=%s", utils.StringInterface(el, 3), utils.StringInterface(event, 3)))
 	return
 }
 func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
