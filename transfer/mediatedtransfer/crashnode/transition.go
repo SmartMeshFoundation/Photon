@@ -268,7 +268,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleAnnounceDisposed(state, st2)
 		default:
 			//我重启了,应该会收到来自对方的消息,但是我都不会处理.
-			log.Warn(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
+			log.Warn(fmt.Sprintf("crash state manager received unkown state change %s", utils.StringInterface(st, 3)))
 		}
 	}
 	return it
