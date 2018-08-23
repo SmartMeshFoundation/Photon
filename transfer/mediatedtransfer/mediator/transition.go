@@ -781,7 +781,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 				Receiver:          route.HopNode(),
 			}
 			events = append(events, ev)
-			pair.PayeeState = mediatedtransfer.StatePayerBalanceProof
+			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
 		}
 	}
