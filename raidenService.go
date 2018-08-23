@@ -455,14 +455,14 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
-func (rs *RaidenService) findChannelByAddress(nettingChannelAddress common.Hash) (*channel.Channel, error) {
+func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
-		ch := g.GetChannelAddress2Channel(nettingChannelAddress)
+		ch := g.GetChannelAddress2Channel(channelIdentifier)
 		if ch != nil {
 			return ch, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown channel %s", nettingChannelAddress)
+	return nil, fmt.Errorf("unknown channel %s", channelIdentifier)
 }
 
 /*
@@ -1282,13 +1282,11 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
-	if sentMessage.Message.Tag() == nil {
-		panic(fmt.Sprintf("sent message has no tag %s", utils.StringInterface(sentMessage, 3)))
-	}
-	t, ok1 := sentMessage.Message.Tag().(*transfer.MessageTag)
+	data := sentMessage.Message.Pack()
+	echohash := utils.Sha3(data, sentMessage.receiver[:])
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
-	if ok1 && ok2 {
-		rs.db.DeleteEnvelopMessager(t.EchoHash)
+	if ok2 {
+		rs.db.DeleteEnvelopMessager(echohash)
 	}
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }
