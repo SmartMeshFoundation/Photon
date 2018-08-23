@@ -18,12 +18,10 @@ contract TokenNetwork is Utils {
     // Instance of SecretRegistry used for storing secrets revealed in a mediating transfer.
     SecretRegistry public secret_registry;
 
-    /**
-      * punish_block_number is the time (block number) left for any dishonest counterpart to be punished
-      * After a pre-set 'settle time' period, node can submit proofs without any concern that he has no chance
-      * to submit punish proofs for his counterpart's submitted updatetransfer & unlock at the time of settle.
-      * It's much reasonable to set this variable to a larger digit, like 100 in the version of release.
-      */
+    // punish_block_number is the time (block number) left for any dishonest counterpart to be punished
+    // After a pre-set 'settle time' period, node can submit proofs without any concern that he has no chance
+    // to submit punish proofs for his counterpart's submitted updatetransfer & unlock at the time of settle.
+    // It's much reasonable to set this variable to a larger digit, like 100 in the version of release.
     uint64 constant public punish_block_number = 5;
 
     // Chain ID as specified by EIP155 used in balance proof signatures to avoid replay attacks
@@ -77,6 +75,7 @@ contract TokenNetwork is Utils {
         // 1 = open, 2 = closed
         // 0 = non-existent or settled
         uint8 state;
+
         mapping(address => Participant) participants;
     }
 
@@ -166,6 +165,8 @@ contract TokenNetwork is Utils {
     /*
      *  Constructor
      */
+    /// @notice contract constructor.
+    /// @dev It is public for all users.
     constructor(address _token_address, address _secret_registry, uint256 _chain_id)
     public
     {
@@ -193,6 +194,10 @@ contract TokenNetwork is Utils {
         participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
         settle_timeout 通道结算等待时间
     */
+    /// @notice Fuction to create channels between two distinct valid addresses. Permitted to any user and multiple invocation.
+    /// @dev    these two addresses can't hold multiple channels, only one.
+    /// @param  participant1 & participant2 denote these two distinct addresses; settle_timeout time that channel enforcing settle process.
+    /// @return
     function openChannel(address participant1, address participant2, uint64 settle_timeout)
     settleTimeoutValid(settle_timeout)
     public
@@ -203,9 +208,11 @@ contract TokenNetwork is Utils {
         require(participant1 != participant2);
         channel_identifier = getChannelIdentifier(participant1, participant2);
         Channel storage channel = channels[channel_identifier];
+
         /*
             保证channel没有被创建过
         */
+        // ensure that channel has not been created.
         require(channel.state == 0);
         // Store channel information
         channel.settle_timeout = settle_timeout;
@@ -220,6 +227,11 @@ contract TokenNetwork is Utils {
         open and deposit 合在一起,节省 gas
         这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
      */
+    /// @notice Function to create channels with some amount of deposits.
+    /// @dev    this function combines features of openChannel & deposit together, as a facilitate function.
+    /// @param  participant & partner  two parties that this channel connects with.
+    /// @param  settle_timeout time period during which channel enforces settle process.
+    /// @param  deposit 256 bits unsigned int digits representing deposit.
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
     external
     {
@@ -233,6 +245,10 @@ contract TokenNetwork is Utils {
         partner 通道另一方
         amount 存多少 token
     */
+    /// @notice Function to deposit valuable tokens into this channel.
+    /// @dev    this function enable to be invoked after anyone have already opened the channel.
+    /// @param  participant the recipient of deposited tokens.
+    /// @param  partner
     function deposit(address participant, address partner, uint256 amount)
     external
     {
@@ -246,6 +262,14 @@ contract TokenNetwork is Utils {
         2. token 是 ERC223,通过 tokenFallback 调用
         3. token 提供了 ApproveAndCall, 通过receiveApproval调用
     */
+    /// @notice funtion to
+    /// @dev
+    /// @param participant      channel creator
+    /// @param partner          the counterpart corresponding to participant.
+    /// @param settle_timeout   time period for channel to settle.
+    /// @param amount           the amount of tokens to be deposited into this channel.
+    /// @param from             another third party address to deposit tokens if need_transfer is true.
+    /// @param need_transfer    a boolean value to confirm whether this channel need any token from outside.
     function openChannelWithDepositInternal(address participant, address partner, uint64 settle_timeout, uint256 amount,address from, bool need_transfer)
     settleTimeoutValid(settle_timeout)
     internal
@@ -261,6 +285,7 @@ contract TokenNetwork is Utils {
         /*
             保证channel没有被创建过
         */
+        // make sure that this channel has not been created.
         require(channel.state == 0);
 
         // Store channel information
@@ -283,7 +308,14 @@ contract TokenNetwork is Utils {
         partner 通道另一方
         amount 存多少 token
     */
-    function depositInternal(address participant, address partner, uint256 amount, address from,bool need_transfer)
+    /// @notice internal function to be invoked when depositing tokens into this channel.
+    /// @dev    this function must be invoked when channel has opened yet.
+    /// @param participant      channel creator
+    /// @param partner          the counterpart corresponding to participant.
+    /// @param amount           the amount of tokens deposited in this channel.
+    /// @param from             another address that transfers tokens to this channel.
+    /// @param need_transfer    a boolean value confirms whether this channel need another source of value.
+    function depositInternal(address participant, address partner, uint256 amount, address from, bool need_transfer)
     internal
     {
         require(amount > 0);
@@ -310,6 +342,7 @@ contract TokenNetwork is Utils {
         erc223 tokenFallback
         允许用户
     */
+    /// @notice
     function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
         require(msg.sender == address(token));
         fallback(0,value, data, false);
@@ -319,6 +352,7 @@ contract TokenNetwork is Utils {
     /*
         常用的 approve and call
      */
+    ///
     function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
         require(token_ == address(token));
         fallback(from,value, data, true);
