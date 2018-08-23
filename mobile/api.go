@@ -108,8 +108,14 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
 		))
 	}()
-	partnerAddr := common.HexToAddress(partnerAddress)
-	tokenAddr := common.HexToAddress(tokenAddress)
+	partnerAddr, err := utils.HexToAddress(partnerAddress)
+	if err != nil {
+		return
+	}
+	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	if err != nil {
+		return
+	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
 	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout, balance)
 	if err != nil {
@@ -256,7 +262,10 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 
 //TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
 func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
-	token := common.HexToAddress(tokenAddress)
+	token, err := utils.HexToAddress(tokenAddress)
+	if err != nil {
+		return
+	}
 	events, err := a.api.GetTokenNetworkEvents(token, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -299,7 +308,10 @@ type partnersData struct {
 
 //TokenPartners GET /api/1/tokens/0x61bb630d3b2e8eda0fc1d50f9f958ec02e3969f6/partners
 func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
-	tokenAddr := common.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	if err != nil {
+		return
+	}
 	chs, err := a.api.GetChannelList(tokenAddr, utils.EmptyAddress)
 	if err != nil {
 		log.Error(err.Error())
@@ -324,7 +336,10 @@ func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err err
 			tokenAddress, managerAddress, err,
 		))
 	}()
-	tokenAddr := common.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	if err != nil {
+		return
+	}
 	mgr, err := a.api.RegisterToken(tokenAddr)
 	if err != nil {
 		log.Error(err.Error())
@@ -344,8 +359,14 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 			tokenAddress, targetAddress, amountstr, feestr, lockSecretHashstr, isDirect, transfer, err,
 		))
 	}()
-	tokenAddr := common.HexToAddress(tokenAddress)
-	targetAddr := common.HexToAddress(targetAddress)
+	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	if err != nil {
+		return
+	}
+	targetAddr, err := utils.HexToAddress(targetAddress)
+	if err != nil {
+		return
+	}
 	amount, _ := new(big.Int).SetString(amountstr, 0)
 	fee, _ := new(big.Int).SetString(feestr, 0)
 	lockSecretHash := common.HexToHash(lockSecretHashstr)
@@ -382,18 +403,29 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	}
 
 	var target common.Address
-	target = common.HexToAddress(TargetAddress)
+	target, err = utils.HexToAddress(TargetAddress)
+	if err != nil {
+		return
+	}
 	if len(Identifier) <= 0 {
 		err = errors.New("LockSecretHash must not be empty")
 		return
 	}
 	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
 	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
+	makerToken, err := utils.HexToAddress(SendingToken)
+	if err != nil {
+		return
+	}
+	takerToken, err := utils.HexToAddress(ReceivingToken)
+	if err != nil {
+		return
+	}
 	if role == "maker" {
-		err = a.api.TokenSwapAndWait(Identifier, common.HexToAddress(SendingToken), common.HexToAddress(ReceivingToken),
+		err = a.api.TokenSwapAndWait(Identifier, makerToken, takerToken,
 			a.api.Raiden.NodeAddress, target, SendingAmount, ReceivingAmount)
 	} else if role == "taker" {
-		err = a.api.ExpectTokenSwap(Identifier, common.HexToAddress(ReceivingToken), common.HexToAddress(SendingToken),
+		err = a.api.ExpectTokenSwap(Identifier, takerToken, makerToken,
 			target, a.api.Raiden.NodeAddress, ReceivingAmount, SendingAmount)
 	} else {
 		err = fmt.Errorf("provided invalid token swap role %s", role)
@@ -414,7 +446,10 @@ for update transfer and withdraw.
 */
 func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
 	channelAddr := common.HexToHash(channelAddress)
-	thirdPartyAddr := common.HexToAddress(thirdPartyAddress)
+	thirdPartyAddr, err := utils.HexToAddress(thirdPartyAddress)
+	if err != nil {
+		return
+	}
 	if channelAddr == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
 		err = errors.New("invalid argument")
 		return

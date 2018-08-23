@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -72,7 +73,12 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "address error", http.StatusBadRequest)
 		return
 	}
-	token = common.HexToAddress(tokenstr)
+	token, err := utils.HexToAddress(tokenstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	events, err := RaidenAPI.GetTokenNetworkEvents(token, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())

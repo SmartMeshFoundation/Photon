@@ -6,8 +6,6 @@ import (
 
 	"fmt"
 
-	"path/filepath"
-
 	"time"
 
 	"sync/atomic"
@@ -102,7 +100,6 @@ type RaidenService struct {
 	AlarmTask                *blockchain.AlarmTask
 	db                       *models.ModelDB
 	FileLocker               *flock.Flock
-	SnapshortDir             string
 	BlockNumber              *atomic.Value
 	/*
 		new block event
@@ -190,7 +187,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
-	rs.SnapshortDir = filepath.Join(config.DataBasePath)
 	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
 	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
