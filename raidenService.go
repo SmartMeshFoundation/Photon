@@ -102,10 +102,6 @@ type RaidenService struct {
 	FileLocker               *flock.Flock
 	BlockNumber              *atomic.Value
 	/*
-		new block event
-	*/
-	BlockNumberChan chan int64
-	/*
 		chan for user request
 	*/
 	UserReqChan                 chan *apiReq
@@ -154,7 +150,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
-		BlockNumberChan:                     make(chan int64, 20), //not block alarm task
 		UserReqChan:                         make(chan *apiReq, 10),
 		BlockNumber:                         new(atomic.Value),
 		ProtocolMessageSendComplete:         make(chan *protocolMessage, 10),
@@ -217,11 +212,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 
-	var cb blockchain.AlarmCallback = func(number int64) error {
-		rs.db.SaveLatestBlockNumber(number)
-		return rs.setBlockNumber(number)
-	}
-	rs.AlarmTask.RegisterCallback(&cb)
 	rs.registerRegistry()
 	rs.Protocol.Start()
 	rs.restore()
@@ -343,7 +333,7 @@ func (rs *RaidenService) loop() {
 				return
 			}
 			// new block event, it's the timer of raiden
-		case blockNumber, ok = <-rs.BlockNumberChan:
+		case blockNumber, ok = <-rs.AlarmTask.LastBlockNumberChan:
 			if ok {
 				rs.handleBlockNumber(blockNumber)
 			} else {
@@ -421,11 +411,6 @@ func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy
 	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
 	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelIdentifier, rs.Config.RevealTimeout, settleTimeout)
 	return
-}
-
-func (rs *RaidenService) setBlockNumber(blocknumber int64) error {
-	rs.BlockNumberChan <- blocknumber
-	return nil
 }
 
 /*
