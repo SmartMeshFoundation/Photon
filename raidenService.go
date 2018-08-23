@@ -228,6 +228,7 @@ func (rs *RaidenService) Start() (err error) {
 	rs.AlarmTask.RegisterCallback(&cb)
 	rs.registerRegistry()
 	rs.Protocol.Start()
+	rs.restore()
 
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {

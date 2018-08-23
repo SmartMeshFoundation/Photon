@@ -89,6 +89,7 @@ func (rs *RaidenService) restoreLocks() {
 			}
 		}
 	}
+	log.Trace(fmt.Sprintf("after restart current locks %s", utils.StringInterface(locks, 4)))
 	//将 lock 转换为ActionInitCrashRestartStateChange
 	for _, l := range locks {
 		key := utils.Sha3(l.l.LockSecretHash[:], l.token[:])
@@ -113,6 +114,7 @@ func (rs *RaidenService) restoreLocks() {
 		}
 		token2ActionInitCrashRestartStateChange[key] = aicr
 	}
+	log.Trace(fmt.Sprintf("after restart ActionInitCrashRestartStateChanges=%s", utils.StringInterface(token2ActionInitCrashRestartStateChange, 5)))
 	//根据ActionInitCrashRestartStateChange,创建对应的 stateManager
 	for k, st := range token2ActionInitCrashRestartStateChange {
 		stateManager := transfer.NewStateManager(crashnode.StateTransition, nil, crashnode.NameCrashNodeTransition, st.LockSecretHash, st.Token)
