@@ -259,8 +259,13 @@ func (rs *RaidenService) Start() (err error) {
 		rs.loop()
 	}()
 
-	//wait for start up complete.
-	<-rs.ChanStartupComplete
+	// 这里如果状态为connected,则等待积压的block events处理完毕后再启动api以及订阅其他节点的消息
+	// 如果状态不为connected,则直接启动api以及订阅其他节点的消息,这样做可能带来的风险:
+	// 1. 积压事件处理完毕之前,用户/其他节点通过api/消息对本地数据作出修改,是否会给后续的链上事件同步工作带来问题???
+	if rs.Chain.Client.Status == netshare.Connected {
+		//wait for start up complete.
+		<-rs.ChanStartupComplete
+	}
 	log.Info(fmt.Sprintf("raide"))
 	rs.startNeighboursHealthCheck()
 	err = rs.startSubscribeNeighborStatus()
