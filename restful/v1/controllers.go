@@ -8,8 +8,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -17,12 +17,17 @@ RegisterToken register a new token to the raiden network.
 this address must be a valid ERC20 token
 */
 func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
-	token := r.PathParam("token")
-	tokenAddr := common.HexToAddress(token)
-	mgr, err := RaidenAPI.RegisterToken(tokenAddr)
 	type Ret struct {
 		ChannelManagerAddress string `json:"channel_manager_address"`
 	}
+	token := r.PathParam("token")
+	tokenAddr, err := utils.HexToAddress(token)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	mgr, err := RaidenAPI.RegisterToken(tokenAddr)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterToken %s err:%s", tokenAddr.String(), err))
 		rest.Error(w, err.Error(), http.StatusConflict)

@@ -9,8 +9,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -20,8 +20,18 @@ query `addr`'s balance on `token`
 func Balance(w rest.ResponseWriter, r *rest.Request) {
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")
-	token := common.HexToAddress(tokenstr)
-	addr := common.HexToAddress(addrstr)
+	token, err := utils.HexToAddress(tokenstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	addr, err := utils.HexToAddress(addrstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	t, err := RaidenAPI.Raiden.Chain.Token(token)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -46,8 +56,18 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")
 	valuestr := r.PathParam("value")
-	token := common.HexToAddress(tokenstr)
-	addr := common.HexToAddress(addrstr)
+	token, err := utils.HexToAddress(tokenstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	addr, err := utils.HexToAddress(addrstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	v, b := new(big.Int).SetString(valuestr, 0)
 	if !b {
 		rest.Error(w, "arg error ", http.StatusBadRequest)
@@ -72,7 +92,12 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 //EthBalance how many eth `addr` have.
 func EthBalance(w rest.ResponseWriter, r *rest.Request) {
 	addrstr := r.PathParam("addr")
-	addr := common.HexToAddress(addrstr)
+	addr, err := utils.HexToAddress(addrstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	v, err := RaidenAPI.Raiden.Chain.Client.BalanceAt(context.Background(), addr, nil)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
