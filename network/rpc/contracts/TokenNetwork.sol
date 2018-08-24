@@ -30,7 +30,7 @@ contract TokenNetwork is Utils {
     // Channel identifier is sha3(participant1,participant2,tokenNetworkAddress)
     mapping(bytes32 => Channel) public channels;
 
-    // data structure for Channel Participant.
+    // data structure for Channel Participant
     struct Participant {
         // Total amount of token transferred to this smart contract
         uint256 deposit;
@@ -51,23 +51,22 @@ contract TokenNetwork is Utils {
         mapping(bytes32 => bool) unlocked_locks;
     }
 
-    // data structure for Payment Channel.
+    // data structure for Payment Channel
     struct Channel {
 
-        // The time for channel settle
+        // time period for channel settlement
         uint64 settle_timeout;
 
         /*
             通道 settle block number.
         */
-        //
         uint64 settle_block_number;
 
         /*
             通道打开时间,主要用于防止重放攻击
             用户关于通道的任何签名都应该包含channel id+open_blocknumber
         */
-        // It represents the time during which a channel is open.
+        // It represents the time period during which a channel is open.
         // Any user signature should contain channel_id + open_block_number.
         uint64 open_block_number;
 
@@ -76,12 +75,11 @@ contract TokenNetwork is Utils {
         // 0 = non-existent or settled
         uint8 state;
 
+        // a hash table the key of which is address and the value of which is Participant structure.
         mapping(address => Participant) participants;
     }
 
-    /*
-     *  Events
-     */
+    // event emitted while channel successfully opened.
     event ChannelOpened(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -89,6 +87,7 @@ contract TokenNetwork is Utils {
         uint256 settle_timeout
     );
 
+    // event emitted while channel opened and some amount of tokens deposited successfully.
     event ChannelOpenedAndDeposit(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -97,6 +96,7 @@ contract TokenNetwork is Utils {
         uint256 participant1_deposit
     );
 
+    // event emitted while
     event ChannelNewDeposit(
         bytes32 indexed channel_identifier,
         address participant,
@@ -133,7 +133,7 @@ contract TokenNetwork is Utils {
         address beneficiary
     );
 
-    // Event to
+    // event emitted while channel successfully settled.
     event ChannelSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
@@ -194,7 +194,7 @@ contract TokenNetwork is Utils {
         participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
         settle_timeout 通道结算等待时间
     */
-    /// @notice Fuction to create channels between two distinct valid addresses. Permitted to any user and multiple invocation.
+    /// @notice Function to create channels between two distinct valid addresses. Permitted to any user and multiple invocation.
     /// @dev    these two addresses can't hold multiple channels, only one.
     /// @param  participant1 & participant2 denote these two distinct addresses; settle_timeout time that channel enforcing settle process.
     /// @return
@@ -248,7 +248,7 @@ contract TokenNetwork is Utils {
     /// @notice Function to deposit valuable tokens into this channel.
     /// @dev    this function enable to be invoked after anyone have already opened the channel.
     /// @param  participant the recipient of deposited tokens.
-    /// @param  partner
+    /// @param  partner     the counterpart corresponding to participant.
     function deposit(address participant, address partner, uint256 amount)
     external
     {
@@ -262,7 +262,7 @@ contract TokenNetwork is Utils {
         2. token 是 ERC223,通过 tokenFallback 调用
         3. token 提供了 ApproveAndCall, 通过receiveApproval调用
     */
-    /// @notice funtion to
+    /// @notice function to
     /// @dev
     /// @param participant      channel creator
     /// @param partner          the counterpart corresponding to participant.
@@ -270,7 +270,7 @@ contract TokenNetwork is Utils {
     /// @param amount           the amount of tokens to be deposited into this channel.
     /// @param from             another third party address to deposit tokens if need_transfer is true.
     /// @param need_transfer    a boolean value to confirm whether this channel need any token from outside.
-    function openChannelWithDepositInternal(address participant, address partner, uint64 settle_timeout, uint256 amount,address from, bool need_transfer)
+    function openChannelWithDepositInternal(address participant, address partner, uint64 settle_timeout, uint256 amount, address from, bool need_transfer)
     settleTimeoutValid(settle_timeout)
     internal
     {
@@ -343,6 +343,8 @@ contract TokenNetwork is Utils {
         允许用户
     */
     /// @notice
+    /// @dev
+    /// @param from
     function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
         require(msg.sender == address(token));
         fallback(0,value, data, false);
@@ -352,14 +354,27 @@ contract TokenNetwork is Utils {
     /*
         常用的 approve and call
      */
-    ///
+    /// @notice
+    /// @dev
+    /// @param from
+    /// @param value
+    /// @param token_
+    /// @param data
+    /// @return success
     function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
         require(token_ == address(token));
         fallback(from,value, data, true);
         return true;
     }
 
-    function fallback(address from,uint256 value, bytes data, bool need_transfer) internal {
+    /// @notice
+    /// @dev
+    /// @param from
+    /// @param value            the amount of tokens to be send back to original address.
+    /// @param data
+    /// @param need_transfer    a boolean value that will be used in internal call under some conditions.
+    function fallback(address from, uint256 value, bytes data, bool need_transfer) internal {
+        // a 256 unsigned int func denoting
         uint256 func;
         address participant;
         address partner;
@@ -367,10 +382,10 @@ contract TokenNetwork is Utils {
         assembly {
             func := mload(add(data, 32))
         }
+
         if (func == 1) {
             (participant, partner, settle_timeout) = getOpenWithDepositArg(data);
             openChannelWithDepositInternal(participant, partner, settle_timeout, value,from, need_transfer);
-
         } else if (func == 2) {
             (participant, partner) = getDepositArg(data);
             depositInternal(participant, partner, value, from,need_transfer);
@@ -1206,7 +1221,10 @@ contract TokenNetwork is Utils {
         return lockhash;
     }
 
-    ///
+    /// @notice function to get all arguments needed in OpenChannelWithDepositInternal.
+    /// @dev
+    /// @param data
+    /// @return a three-value set denoting two addresses and time period for channel settlement.
     function getOpenWithDepositArg(bytes data) pure internal returns (address, address, uint64)  {
         address participant;
         address partner;
