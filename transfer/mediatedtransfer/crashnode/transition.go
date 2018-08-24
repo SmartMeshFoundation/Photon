@@ -46,6 +46,11 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 	}
 	var removedReceviedIndex []int
 	for i, l := range state.ReceivedLocks {
+		if !l.Channel.PartnerState.IsKnown(l.Lock.LockSecretHash) {
+			//有可能有些锁因为收到对方的 AnnounceDisposedResponse, 对方的 unlock 消息直接解锁了,移除即可.
+			removedReceviedIndex = append(removedReceviedIndex, i)
+			continue
+		}
 		if stateChange.BlockNumber > l.Lock.Expiration {
 			removedReceviedIndex = append(removedReceviedIndex, i)
 		} else {
@@ -71,7 +76,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 		}
 		state.SentLocks = removeSliceFromSlice(state.SentLocks, removedSentIndex)
 		state.ReceivedLocks = removeSliceFromSlice(state.ReceivedLocks, removedReceviedIndex)
-		events = append(events, checkFinish(state))
+		events = append(events, checkFinish(state)...)
 	}
 	return &transfer.TransitionResult{
 		NewState: state,
@@ -117,7 +122,7 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 				panic(fmt.Sprintf("receive SecretRevealOnChain for different lockseret mine=%s,statechange=%s", l.Lock.LockSecretHash.String(), st.LockSecretHash.String()))
 			}
 			//send unlock event
-			it.Events = append(it.Events, transferSuccessEvents(l))
+			it.Events = append(it.Events, transferSuccessEvents(l)...)
 			removedIndex = append(removedIndex, i)
 		}
 	}
@@ -126,7 +131,7 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 			state.ProcessedSentLocks = append(state.ProcessedSentLocks, state.SentLocks[i])
 		}
 		state.SentLocks = removeSliceFromSlice(state.SentLocks, removedIndex)
-		it.Events = append(it.Events, checkFinish(state))
+		it.Events = append(it.Events, checkFinish(state)...)
 	}
 
 	/*
@@ -191,6 +196,30 @@ func handleBalanceProof(state *mt.CrashState, st *mt.ReceiveUnlockStateChange) (
 }
 
 /*
+我可能在重启以后收到来自对方的 AnnounceDisposed 消息,如果一切正确,我应该发送AnnounceDisposedResponse
+*/
+func handleAnnounceDisposed(state *mt.CrashState, st *mt.ReceiveAnnounceDisposedStateChange) (it *transfer.TransitionResult) {
+	for i, l := range state.SentLocks {
+		if l.Lock.Equal(st.Lock) && st.Token == l.Channel.TokenAddress && st.Sender == l.Channel.PartnerState.Address {
+			state.SentLocks = append(state.SentLocks[:i], state.SentLocks[i+1:]...)
+			state.ProcessedSentLocks = append(state.ProcessedSentLocks, l)
+			return &transfer.TransitionResult{
+				NewState: state,
+				Events: []transfer.Event{&mt.EventSendAnnounceDisposedResponse{
+					LockSecretHash: l.Lock.LockSecretHash,
+					Token:          state.Token,
+					Receiver:       st.Sender,
+				}},
+			}
+		}
+	}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
+}
+
+/*
 StateTransition is State machine for a node who restart after a crash
     originalState: The current State that is transitioned from.
     st: The state_change that will be applied.
@@ -236,9 +265,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleBalanceProof(state, st2)
 		case *mt.ReceiveAnnounceDisposedStateChange:
 			//有可能重启以后收到对方的 AnnounceDisposed 消息,我也需要正常处理,移除锁.
+			it = handleAnnounceDisposed(state, st2)
 		default:
 			//我重启了,应该会收到来自对方的消息,但是我都不会处理.
-			log.Warn(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
+			log.Warn(fmt.Sprintf("crash state manager received unkown state change %s", utils.StringInterface(st, 3)))
 		}
 	}
 	return it

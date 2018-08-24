@@ -106,7 +106,12 @@ func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
 	thirdParty := r.PathParam("3rd")
 	channelAddress := common.HexToHash(ch)
-	thirdAddress := common.HexToAddress(thirdParty)
+	thirdAddress, err := utils.HexToAddress(thirdParty)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if channelAddress == utils.EmptyHash || thirdAddress == utils.EmptyAddress {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
@@ -175,8 +180,18 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	partnerAddr := common.HexToAddress(req.PartnerAddrses)
-	tokenAddr := common.HexToAddress(req.TokenAddress)
+	partnerAddr, err := utils.HexToAddress(req.PartnerAddrses)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tokenAddr, err := utils.HexToAddress(req.TokenAddress)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if req.State == 0 { //open channel
 		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DefaultRevealTimeout, req.Balance)
 		if err != nil {

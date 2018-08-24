@@ -14,8 +14,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -117,7 +115,24 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
 		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
-		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		var fromCh *channel.Channel
+		fromCh, err = eh.raiden.findChannelByAddress(event.FromChannel)
+		if err != nil {
+			return
+		}
+		t, _ := stateManager.LastReceivedMessage.Tag().(*transfer.MessageTag)
+		echohash := t.EchoHash
+		ack := eh.raiden.Protocol.CreateAck(echohash)
+		tx := eh.raiden.db.StartTx()
+		eh.raiden.db.SaveAck(echohash, ack.Pack(), tx)
+		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
+		if err != nil {
+			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
+			//err=tx.Rollback()
+			panic(fmt.Sprintf("update channel err %s", err))
+		}
+		err = tx.Commit()
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)
@@ -136,7 +151,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	if err != nil {
 		return
 	}
-	eh.raiden.conditionQuit("EventSendBalanceProofBefore")
+	eh.raiden.conditionQuit("EventSendUnlockBefore")
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
 	return
@@ -221,22 +236,22 @@ func (eh *stateMachineEventHandler) eventWithdrawFailed(e2 *mediatedtransfer.Eve
 	return nil
 }
 func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransfer.EventContractSendWithdraw, manager *transfer.StateManager) (err error) {
-	if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
-		panic("EventWithdrawFailed can only comes from a target node or mediated node")
-	}
-	ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
-	if err != nil {
-		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
-		return
-	}
-	unlockProofs := ch.PartnerState.GetKnownUnlocks()
-	result := ch.ExternState.Unlock(unlockProofs, ch.PartnerState.BalanceProofState.ContractTransferAmount)
-	go func() {
-		err := <-result.Result
-		if err != nil {
-			log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", ch.ChannelIdentifier.String(), err))
-		}
-	}()
+	//if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
+	//	panic("EventWithdrawFailed can only comes from a target node or mediated node")
+	//}
+	//ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+	//if err != nil {
+	//	log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
+	//	return
+	//}
+	//unlockProofs := ch.PartnerState.GetKnownUnlocks()
+	//result := ch.ExternState.Unlock(unlockProofs, ch.PartnerState.BalanceProofState.ContractTransferAmount)
+	//go func() {
+	//	err := <-result.Result
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", ch.ChannelIdentifier.String(), err))
+	//	}
+	//}()
 	return nil
 }
 
@@ -244,8 +259,8 @@ func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransf
 the transfer I payed for a payee has expired. give a new balanceproof which doesn't contain this hashlock
 */
 func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.EventUnlockFailed, manager *transfer.StateManager) (err error) {
-	if manager.Name != mediator.NameMediatorTransition && manager.Name != initiator.NameInitiatorTransition {
-		panic("event unlock failed only happen for a mediated node")
+	if manager.Name == target.NameTargetTransition {
+		panic("event unlock failed can not  happen for a target node")
 	}
 	ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
 	if err != nil {
@@ -281,7 +296,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 	case *mediatedtransfer.EventSendBalanceProof:
 		//unlock and update remotely (send the LockSecretHash message)
 		err = eh.eventSendUnlock(e2, stateManager)
-		eh.raiden.conditionQuit("EventSendBalanceProofAfter")
+		eh.raiden.conditionQuit("EventSendUnlockAfter")
 	case *mediatedtransfer.EventSendSecretRequest:
 		err = eh.eventSendSecretRequest(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendSecretRequestAfter")

@@ -33,6 +33,12 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	s.lock.Unlock()
 	sp.Lock()
 	defer sp.Unlock()
+	block, err := s.registry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
+	if err == nil && block.Uint64() > 0 {
+		//已经注册过了,直接报错
+		err = fmt.Errorf("secret %s,secret hash=%s  already registered", secret.String(), utils.Sha3(secret[:]).String())
+		return
+	}
 	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
 	if err != nil {
 		return err

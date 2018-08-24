@@ -322,7 +322,9 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 		}
 		//log how many tokens fee for this transfer . todo
 		transferPair = mediatedtransfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
-		events = []transfer.Event{mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode())}
+		eventSendMediatedTransfer := mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode())
+		eventSendMediatedTransfer.FromChannel = payerRoute.ChannelIdentifier
+		events = []transfer.Event{eventSendMediatedTransfer}
 	}
 	return
 }
@@ -779,7 +781,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 				Receiver:          route.HopNode(),
 			}
 			events = append(events, ev)
-			pair.PayeeState = mediatedtransfer.StatePayerBalanceProof
+			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
 		}
 	}

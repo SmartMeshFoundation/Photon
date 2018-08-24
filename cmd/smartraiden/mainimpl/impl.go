@@ -120,7 +120,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
 	app.Name = "smartraiden"
-	app.Version = "1.0"
+	app.Version = "0.8"
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
 			return err

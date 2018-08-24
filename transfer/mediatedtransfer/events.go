@@ -18,6 +18,12 @@ type EventSendMediatedTransfer struct {
 	Expiration     int64
 	Receiver       common.Address
 	Fee            *big.Int // target should get amount-fee.
+	/*
+		which channel received a mediated transfer and then I have to send another mediated transfer,
+		因为哪个 channel 收到了 MediatedTransfer, 导致我需要发送新的 Transfer.
+		如果是我主动发起的 MediatedTransfer, 那么 FromChannel 应该为空
+	*/
+	FromChannel common.Hash
 }
 
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
@@ -144,11 +150,11 @@ type EventContractSendRegisterSecret struct {
 }
 
 /*
+EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 上家不知什么原因要关闭channel，我一旦知道密码，应该立即到链上提现。
 channel 自己会关注是否要提现，但是如果是在关闭以后才获取到密码的呢？
+目前完全无用,如果 unlock 放在 settle 之后,还有可能有用.
 */
-
-//EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 type EventContractSendWithdraw struct {
 	Transfer          *LockedTransferState
 	ChannelIdentifier common.Hash

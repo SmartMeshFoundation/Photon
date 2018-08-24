@@ -40,7 +40,10 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
 	config.PrivateKey = bcs.PrivKey
-	config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
+	config.DataDir = os.Getenv("DATADIR")
+	if config.DataDir == "" {
+		config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
+	}
 	log.Info(fmt.Sprintf("DataDir=%s", config.DataDir))
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600

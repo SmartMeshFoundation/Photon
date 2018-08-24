@@ -83,6 +83,17 @@ func (l *Lock) String() string {
 	return fmt.Sprintf("{expiration=%d,amount=%s,secrethash=%s}", l.Expiration, l.Amount, utils.HPex(l.LockSecretHash))
 }
 
+//Equal return true when the two locks are exactly the same.
+func (l *Lock) Equal(l2 *Lock) bool {
+	if l2 == nil {
+		return false
+	}
+	if l2.Expiration == l.Expiration && l2.LockSecretHash == l.LockSecretHash && l.Amount.Cmp(l2.Amount) == 0 {
+		return true
+	}
+	return false
+}
+
 /*
 NewMerkleTree create merkle tree from locks
 保证不要包含重复的锁,否则会panic

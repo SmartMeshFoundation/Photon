@@ -22,3 +22,6 @@ env.sh
 .idea/*
 build.sh
 .git_mine/*
+goenv.sh
+build/*
+network/rpc/contracts/test/*

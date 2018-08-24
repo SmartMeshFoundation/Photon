@@ -7,7 +7,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type dataMap map[string]interface{}
@@ -43,7 +42,12 @@ type partnersData struct {
 TokenPartners is api of /api/1/:token/:partner
 */
 func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
-	tokenAddr := common.HexToAddress(r.PathParam("token"))
+	tokenAddr, err := utils.HexToAddress(r.PathParam("token"))
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s", utils.APex(tokenAddr)))
 	tokens := RaidenAPI.GetTokenList()
 	found := false

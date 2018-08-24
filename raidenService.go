@@ -6,8 +6,6 @@ import (
 
 	"fmt"
 
-	"path/filepath"
-
 	"time"
 
 	"sync/atomic"
@@ -102,12 +100,7 @@ type RaidenService struct {
 	AlarmTask                *blockchain.AlarmTask
 	db                       *models.ModelDB
 	FileLocker               *flock.Flock
-	SnapshortDir             string
 	BlockNumber              *atomic.Value
-	/*
-		new block event
-	*/
-	BlockNumberChan chan int64
 	/*
 		chan for user request
 	*/
@@ -157,7 +150,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
 		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
-		BlockNumberChan:                     make(chan int64, 20), //not block alarm task
 		UserReqChan:                         make(chan *apiReq, 10),
 		BlockNumber:                         new(atomic.Value),
 		ProtocolMessageSendComplete:         make(chan *protocolMessage, 10),
@@ -190,7 +182,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
-	rs.SnapshortDir = filepath.Join(config.DataBasePath)
 	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
 	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
@@ -221,12 +212,9 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 
-	rs.AlarmTask.RegisterCallback(func(number int64) error {
-		rs.db.SaveLatestBlockNumber(number)
-		return rs.setBlockNumber(number)
-	})
 	rs.registerRegistry()
 	rs.Protocol.Start()
+	rs.restore()
 
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
@@ -261,8 +249,13 @@ func (rs *RaidenService) Start() (err error) {
 		rs.loop()
 	}()
 
-	//wait for start up complete.
-	<-rs.ChanStartupComplete
+	// 这里如果状态为connected,则等待积压的block events处理完毕后再启动api以及订阅其他节点的消息
+	// 如果状态不为connected,则直接启动api以及订阅其他节点的消息,这样做可能带来的风险:
+	// 1. 积压事件处理完毕之前,用户/其他节点通过api/消息对本地数据作出修改,是否会给后续的链上事件同步工作带来问题???
+	if rs.Chain.Client.Status == netshare.Connected {
+		//wait for start up complete.
+		<-rs.ChanStartupComplete
+	}
 	log.Info(fmt.Sprintf("raide"))
 	rs.startNeighboursHealthCheck()
 	err = rs.startSubscribeNeighborStatus()
@@ -340,7 +333,7 @@ func (rs *RaidenService) loop() {
 				return
 			}
 			// new block event, it's the timer of raiden
-		case blockNumber, ok = <-rs.BlockNumberChan:
+		case blockNumber, ok = <-rs.AlarmTask.LastBlockNumberChan:
 			if ok {
 				rs.handleBlockNumber(blockNumber)
 			} else {
@@ -420,11 +413,6 @@ func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy
 	return
 }
 
-func (rs *RaidenService) setBlockNumber(blocknumber int64) error {
-	rs.BlockNumberChan <- blocknumber
-	return nil
-}
-
 /*
 block chain tick,
 it's the core of HTLC
@@ -445,7 +433,7 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 			}
 		}
 	}
-
+	rs.db.SaveLatestBlockNumber(blocknumber)
 	return
 }
 
@@ -454,14 +442,14 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
-func (rs *RaidenService) findChannelByAddress(nettingChannelAddress common.Hash) (*channel.Channel, error) {
+func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
-		ch := g.GetChannelAddress2Channel(nettingChannelAddress)
+		ch := g.GetChannelAddress2Channel(channelIdentifier)
 		if ch != nil {
 			return ch, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown channel %s", nettingChannelAddress)
+	return nil, fmt.Errorf("unknown channel %s", channelIdentifier)
 }
 
 /*
@@ -1281,13 +1269,11 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
-	if sentMessage.Message.Tag() == nil {
-		panic(fmt.Sprintf("sent message has no tag %s", utils.StringInterface(sentMessage, 3)))
-	}
-	t, ok1 := sentMessage.Message.Tag().(*transfer.MessageTag)
+	data := sentMessage.Message.Pack()
+	echohash := utils.Sha3(data, sentMessage.receiver[:])
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
-	if ok1 && ok2 {
-		rs.db.DeleteEnvelopMessager(t.EchoHash)
+	if ok2 {
+		rs.db.DeleteEnvelopMessager(echohash)
 	}
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }

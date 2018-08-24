@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -40,8 +41,13 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "target address error", http.StatusBadRequest)
 		return
 	}
-	target = common.HexToAddress(targetstr)
-	id, err := strconv.Atoi(idstr)
+	target, err := utils.HexToAddress(targetstr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	id, err = strconv.Atoi(idstr)
 	if id <= 0 || err != nil {
 		rest.Error(w, "must provide a valid id ", http.StatusBadRequest)
 		return
@@ -53,11 +59,23 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	makerToken, err := utils.HexToAddress(req.SendingToken)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	takerToken, err := utils.HexToAddress(req.ReceivingToken)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if req.Role == "maker" {
-		err = RaidenAPI.TokenSwapAndWait(strconv.Itoa(id), common.HexToAddress(req.SendingToken), common.HexToAddress(req.ReceivingToken),
+		err = RaidenAPI.TokenSwapAndWait(strconv.Itoa(id), makerToken, takerToken,
 			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount)
 	} else if req.Role == "taker" {
-		err = RaidenAPI.ExpectTokenSwap(strconv.Itoa(id), common.HexToAddress(req.ReceivingToken), common.HexToAddress(req.SendingToken),
+		err = RaidenAPI.ExpectTokenSwap(strconv.Itoa(id), takerToken, makerToken,
 			target, RaidenAPI.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)

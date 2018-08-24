@@ -28,11 +28,21 @@ Transfers is the api of /transfer/:token/:partner
 */
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	token := r.PathParam("token")
-	tokenAddr := common.HexToAddress(token)
+	tokenAddr, err := utils.HexToAddress(token)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	target := r.PathParam("target")
-	targetAddr := common.HexToAddress(target)
+	targetAddr, err := utils.HexToAddress(target)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	req := &TransferData{}
-	err := r.DecodeJsonPayload(req)
+	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)

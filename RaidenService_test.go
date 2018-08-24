@@ -22,6 +22,14 @@ import (
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
+
+func TestStart(t *testing.T) {
+	reinit()
+	rs := newTestRaiden()
+	rs.Start()
+	defer rs.Stop()
+}
+
 func TestPing(t *testing.T) {
 	reinit()
 	r1 := newTestRaiden()
@@ -38,7 +46,7 @@ func TestPing(t *testing.T) {
 	}
 }
 
-func TestRestart(t *testing.T) {
+func TestRestart1(t *testing.T) {
 	var err error
 	for i := 0; i < 10; i++ {
 		reinit()
@@ -139,8 +147,8 @@ func TestRestart3(t *testing.T) {
 
 func TestTimer(t *testing.T) {
 	tm := time.NewTimer(time.Second)
-	//<-tm.C
-	fmt.Println("fired")
+	t1 := <-tm.C
+	fmt.Printf("t1 = %v\n", t1)
 	fmt.Printf("called stop %v\n", tm.Stop())
 	fmt.Printf("called stop2 %v\n", tm.Stop())
 	<-tm.C
