@@ -58,49 +58,47 @@ func NewChannelEndState(participantAddress common.Address, participantBalance *b
 		Lock2PendingLocks:   make(map[common.Hash]channeltype.PendingLock),
 		Lock2UnclaimedLocks: make(map[common.Hash]channeltype.UnlockPartialProof),
 	}
+	if c.BalanceProofState == nil {
+		c.BalanceProofState = transfer.NewEmptyBalanceProofState()
+	}
 	return c
 }
 
 //TransferAmount is how many tokens I have sent to  partner.
 func (node *EndState) TransferAmount() *big.Int {
-	if node.BalanceProofState != nil {
-		return node.BalanceProofState.TransferAmount
-	}
-	return big.NewInt(0)
+	return node.BalanceProofState.TransferAmount
+}
+
+func (node *EndState) locksRoot() common.Hash {
+	return node.BalanceProofState.LocksRoot
 }
 
 //SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
-	if node.BalanceProofState != nil {
-		if amount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
-			panic(fmt.Sprintf("New ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
-				node.BalanceProofState.ContractTransferAmount,
-				node.BalanceProofState.TransferAmount,
-			))
-		}
-		node.BalanceProofState.ContractTransferAmount = new(big.Int).Set(amount)
+	// amount 为0,只有一种情况就是发生了 punish 事件
+	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
+		panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
+			amount,
+			node.BalanceProofState.TransferAmount,
+		))
 	}
-	return
+	node.BalanceProofState.ContractTransferAmount = new(big.Int).Set(amount)
+}
+func (node *EndState) contractLocksRoot() common.Hash {
+	return node.BalanceProofState.ContractLocksRoot
 }
 func (node *EndState) contractTransferAmount() *big.Int {
-	if node.BalanceProofState != nil {
-		return node.BalanceProofState.ContractTransferAmount
-	}
-	return big.NewInt(0)
+	return node.BalanceProofState.ContractTransferAmount
 }
 
 //SetContractLocksroot update node's locksroot by contract event
 func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
-	if node.BalanceProofState != nil {
-		node.BalanceProofState.ContractLocksRoot = locksroot
-	}
+	node.BalanceProofState.ContractLocksRoot = locksroot
 }
 
 //SetContractNonce update node's nonce by contract event
 func (node *EndState) SetContractNonce(nonce int64) {
-	if node.BalanceProofState != nil {
-		node.BalanceProofState.Nonce = nonce
-	}
+	node.BalanceProofState.Nonce = nonce
 }
 
 //amountLocked is the tokens I have sent but partner doesn't have received the new blanceproof
@@ -117,10 +115,7 @@ func (node *EndState) amountLocked() *big.Int {
 
 //nonce returns next nonce of this node.
 func (node *EndState) nonce() int64 {
-	if node.BalanceProofState != nil {
-		return node.BalanceProofState.Nonce
-	}
-	return 0
+	return node.BalanceProofState.Nonce
 }
 
 //Balance returns the availabe tokens i have
