@@ -433,7 +433,7 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 			}
 		}
 	}
-
+	rs.db.SaveLatestBlockNumber(blocknumber)
 	return
 }
 
