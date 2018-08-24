@@ -244,7 +244,7 @@ func (t *TokenNetworkProxy) UnlockAsync(partnerAddr common.Address, transferAmou
 
 //SettleChannel settle a channel
 func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amount, p2Amount *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
-	tx, err := t.GetContract().SettleChannel(t.bcs.Auth, p1Addr, p1Amount, p2Locksroot, p2Addr, p2Amount, p2Locksroot)
+	tx, err := t.GetContract().SettleChannel(t.bcs.Auth, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
 	if err != nil {
 		return
 	}
