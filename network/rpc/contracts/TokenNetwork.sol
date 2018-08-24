@@ -140,13 +140,14 @@ contract TokenNetwork is Utils {
         uint256 participant2_amount
     );
 
-    //
+    // event emitted while
     event ChannelCooperativeSettled(
         bytes32 indexed channel_identifier,
         uint256 participant1_amount,
         uint256 participant2_amount
     );
 
+    //
     //
     event ChannelWithdraw(
         bytes32 indexed channel_identifier,
@@ -156,7 +157,7 @@ contract TokenNetwork is Utils {
         uint256 participant2_balance
     );
 
-    //
+    // notice that certain conditions must be met with settle_timeout.
     modifier settleTimeoutValid(uint64 timeout) {
         require(timeout >= 6 && timeout <= 2700000);
         _;
@@ -167,6 +168,9 @@ contract TokenNetwork is Utils {
      */
     /// @notice contract constructor.
     /// @dev It is public for all users.
+    /// @param _token_address       address in which tokens of this contract are from.
+    /// @param _secret_registry
+    /// @param _chain_id            no need to explain...
     constructor(address _token_address, address _secret_registry, uint256 _chain_id)
     public
     {
@@ -197,7 +201,6 @@ contract TokenNetwork is Utils {
     /// @notice Function to create channels between two distinct valid addresses. Permitted to any user and multiple invocation.
     /// @dev    these two addresses can't hold multiple channels, only one.
     /// @param  participant1 & participant2 denote these two distinct addresses; settle_timeout time that channel enforcing settle process.
-    /// @return
     function openChannel(address participant1, address participant2, uint64 settle_timeout)
     settleTimeoutValid(settle_timeout)
     public
@@ -262,8 +265,8 @@ contract TokenNetwork is Utils {
         2. token 是 ERC223,通过 tokenFallback 调用
         3. token 提供了 ApproveAndCall, 通过receiveApproval调用
     */
-    /// @notice function to
-    /// @dev
+    /// @notice function to open channel and meanwhile make some deposits inside with certain threshold of settle_timeout.
+    /// @dev    parameter settle_timeout has to meet certain threshold in which case this function is able to operate.
     /// @param participant      channel creator
     /// @param partner          the counterpart corresponding to participant.
     /// @param settle_timeout   time period for channel to settle.
@@ -342,9 +345,11 @@ contract TokenNetwork is Utils {
         erc223 tokenFallback
         允许用户
     */
-    /// @notice
+    /// @notice function to refund tokens to which account they originally belong to.
     /// @dev
-    /// @param from
+    /// @param from     default to 0x0.
+    /// @param value    the amount of tokens to be refund.
+    /// @param data
     function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
         require(msg.sender == address(token));
         fallback(0,value, data, false);
@@ -374,7 +379,6 @@ contract TokenNetwork is Utils {
     /// @param data
     /// @param need_transfer    a boolean value that will be used in internal call under some conditions.
     function fallback(address from, uint256 value, bytes data, bool need_transfer) internal {
-        // a 256 unsigned int func denoting
         uint256 func;
         address participant;
         address partner;
@@ -481,6 +485,7 @@ contract TokenNetwork is Utils {
         emit ChannelWithdraw(channel_identifier, participant1, participant1_balance, participant2, participant2_balance);
 
     }
+
     /*
         只能是通道参与方调用,只能调用一次,必须是在通道打开状态调用.
         参数说明:
@@ -491,6 +496,14 @@ contract TokenNetwork is Utils {
         additional_hash 为了辅助实现用
         signature partner 的签名
     */
+    /// @notice  function to close currently-opened payment channel.
+    /// @dev     It has to be invoked only once, and operator must be channel participants.
+    /// @param partner              participant at the other side of this channel.
+    /// @param transferred_amount   the amount of tokens partner has transferred.
+    /// @param locksroot            transaction set of partner that has been completed.
+    /// @param nounce               transaction serial numbers from partner
+    /// @param additional_hash      auxiliary hash for implementation.
+    /// @param signature            signature from partner
     function closeChannel(
         address partner,
         uint256 transferred_amount,
@@ -545,6 +558,17 @@ contract TokenNetwork is Utils {
         partner_signature partner 一方对于给出证据的签名
         participant_signature 委托人对于委托的签名
     */
+    /// @notice function to offer delegation service to update BalanceProof of partner onto the chain.
+    /// @dev    This is a delegation function so that anyone in this network
+    /// @dev    including not not limited to channel participants can invoke it, even multiple times.
+    /// @param partner                  one whose BalanceProof needs to be updated.
+    /// @param participant              one that delegate another node to update partner's BalanceProof.
+    /// @param transferred_amount       the amount of tokens transferred directly.
+    /// @param locksroot                transaction set that partner has not completed yet.
+    /// @param nounce                   transaction serial number of partner.
+    /// @param additional_hash          auxiliary information
+    /// @param partner_signature        signature from partner
+    /// @param participant_signature    signature from participant
     function updateBalanceProofDelegate(
         address partner,
         address participant,
@@ -608,6 +632,15 @@ contract TokenNetwork is Utils {
         additional_hash 实现辅助信息
         partner_signature partner 一方对于给出证据的签名
    */
+    /// @notice function to update BalanceProof of the other channel participant.
+    /// @dev    only channel participants can invoke this function,
+    /// @dev    and within valid period, it can be invoked multiple times.
+    /// @param partner              one whose BalanceProof needs to be updated.
+    /// @param transferred_amount   the amount of tokens transferred directly.
+    /// @param locksroot            the set of incomplete transactions of partner.
+    /// @param nounce               transaction serial number given by partner.
+    /// @param additional_hash      auxiliary information
+    /// @param partner_signature    signature of partner
     function updateBalanceProof(
         address partner,
         uint256 transferred_amount,
@@ -652,7 +685,17 @@ contract TokenNetwork is Utils {
         merkle_proof: 证明此锁包含在 locksroot 中
         participant_signature: 委托第三方的签名
     */
-    ///
+    /// @notice function to unlock delegation service.
+    /// @dev    Anyone in this network has ability to invoke it, with possibility that node receiving delegate
+    /// @dev    and participant collude to steal tokens in it.
+    /// @param  partner                 one that corresponds to participant in this channel, whose transaction has not completed yet.
+    /// @param  participant             one that delegate services in the channel.
+    /// @param  transferred_amount      the amount of tokens transferred directly from partner.
+    /// @param  expiration
+    /// @param  amount
+    /// @param  secret_hash
+    /// @param  merkle_proof            verify that this lock is contained in locksroot.
+    /// @param  participant_signature   signature from delegation service.
     function unlockDelegate(
         address partner,
         address participant,
@@ -670,6 +713,7 @@ contract TokenNetwork is Utils {
         /*
             验证授权签名有效
         */
+        // verify that valid signature entrusted.
         message_hash = keccak256(abi.encodePacked(
                 msg.sender,
                 expiration,
@@ -682,6 +726,7 @@ contract TokenNetwork is Utils {
         /*
             真正的去 unlock
         */
+        // actual process of unlock.
         unlockInternal(partner, participant, transferred_amount, expiration, amount, secret_hash, merkle_proof);
     }
 
@@ -1237,7 +1282,9 @@ contract TokenNetwork is Utils {
         return (participant, partner, settle_timeout);
     }
 
-    ///
+    /// @notice function to get
+    /// @param data     a byte array denoting
+    /// @return an address pair denoting the channel participants.
     function getDepositArg(bytes data) pure internal returns (address, address)  {
         address participant;
         address partner;
@@ -1248,6 +1295,10 @@ contract TokenNetwork is Utils {
         return (participant, partner);
     }
 
+    /// @notice function to compare unsigned integer a and unsigned integer b.
+    /// @param a    an unsigned integer to be compared.
+    /// @param b    another unsigned integer to be compared.
+    /// @return the smaller one within a and b.
     function min(uint256 a, uint256 b) pure internal returns (uint256)
     {
         return a > b ? b : a;

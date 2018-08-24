@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-/// @title
+/// @title contract for registering secret to unlock transferred transactions.
 contract SecretRegistry {
 
     /** A string literal denoting the version of this contract. */
@@ -28,7 +28,7 @@ contract SecretRegistry {
         return true;
     }
 
-    /// @notice Get 
+    /// @notice Get
     function getSecretRevealBlockHeight(bytes32 secrethash) public view returns (uint256) {
         return secrethash_to_block[secrethash];
     }
