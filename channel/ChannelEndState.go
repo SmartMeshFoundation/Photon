@@ -72,8 +72,8 @@ func (node *EndState) TransferAmount() *big.Int {
 //SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
 	if node.BalanceProofState != nil {
-		if node.BalanceProofState.ContractTransferAmount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
-			panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
+		if amount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
+			panic(fmt.Sprintf("New ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
 				node.BalanceProofState.ContractTransferAmount,
 				node.BalanceProofState.TransferAmount,
 			))
