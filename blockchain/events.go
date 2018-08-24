@@ -231,6 +231,7 @@ func EventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *me
 		TokenNetworkAddress: ev.Raw.Address,
 		ChannelIdentifier:   ev.ChannelIdentifier,
 		ClosingAddress:      ev.ClosingParticipant,
+		LocksRoot:           ev.Locksroot,
 		ClosedBlock:         int64(ev.Raw.BlockNumber),
 	}
 }

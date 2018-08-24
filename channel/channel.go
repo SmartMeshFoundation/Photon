@@ -171,6 +171,7 @@ func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address)
 		go func() {
 			err := <-result.Result
 			if err != nil {
+				//todo 需要回报错误给smartraiden 调用者
 				log.Info(fmt.Sprintf("Unlock failed because of %s", err))
 			}
 		}()
