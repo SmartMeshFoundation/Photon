@@ -163,7 +163,10 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 		result.Result <- fmt.Errorf("channel %s already settled", e.ChannelIdentifier.String())
 		return
 	}
-	log.Info(fmt.Sprintf("settle called %s", e.ChannelIdentifier.String()))
+	log.Info(fmt.Sprintf("settle called %s,myTransferAmount=%s,partnerTransferAmount=%s,mylocksRoot=%s,partnerLocksroot=%s",
+		e.ChannelIdentifier.String(), MyTransferAmount, PartnerTransferAmount,
+		utils.HPex(MyLocksroot), utils.HPex(PartnerLocksroot),
+	))
 	result = e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
 		MyTransferAmount, PartnerTransferAmount,
 		MyLocksroot, PartnerLocksroot,

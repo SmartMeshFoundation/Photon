@@ -13,6 +13,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -157,13 +158,77 @@ func (c *Channel) GetSettleExpiration(blocknumer int64) int64 {
 }
 
 /*
-HandleClosed handles this channel was closed on blockchain
+HandleBalanceProofUpdated 有可能对方使用了旧的信息,这样的话将会导致我无法 settle 通道
 */
-func (c *Channel) HandleClosed(blockNumber int64, closingAddress common.Address) {
+func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, transferAmount *big.Int, locksRoot common.Hash) {
+	endStateContractUpdated := c.OurState
+	if updatedParticipant == c.PartnerState.Address {
+		endStateContractUpdated = c.PartnerState
+	}
+	endStateContractUpdated.SetContractTransferAmount(transferAmount)
+	endStateContractUpdated.SetContractLocksroot(locksRoot)
+}
+
+/*
+HandleChannelPunished 发生了 Punish 事件,意味着受益方合约上的信息发生了变化.
+*/
+func (c *Channel) HandleChannelPunished(beneficiaries common.Address) {
+	var beneficiaryState, cheaterState *EndState
+	if beneficiaries == c.OurState.Address {
+		beneficiaryState = c.OurState
+		cheaterState = c.PartnerState
+	} else if beneficiaries == c.PartnerState.Address {
+		beneficiaryState = c.PartnerState
+		cheaterState = c.OurState
+	} else {
+		panic(fmt.Sprintf("channel=%s,but participant =%s",
+			c.ChannelIdentifier.String(),
+			beneficiaries.String(),
+		))
+	}
+	beneficiaryState.SetContractTransferAmount(utils.BigInt0)
+	beneficiaryState.SetContractLocksroot(utils.EmptyHash)
+	beneficiaryState.SetContractNonce(0xfffffff)
+	beneficiaryState.ContractBalance = beneficiaryState.ContractBalance.Add(
+		beneficiaryState.ContractBalance, cheaterState.ContractBalance,
+	)
+	cheaterState.ContractBalance = new(big.Int).Set(utils.BigInt0)
+}
+
+/*
+HandleClosed handles this channel was closed on blockchain
+1. 更新NonClosing 一方的 ContractTransferAmount 和 LocksRoot,
+2. 对方可能用旧的BalanceProof, 所以未必与我保存的 TransferAmount 和 LocksRoot一致
+3. 如果我不是关闭方,那么需要更新对方的 BalanceProof
+4. 我持有的知道密码的锁,需要解锁.
+*/
+func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount *big.Int, locksRoot common.Hash) {
+	endStateUpdatedOnContract := c.PartnerState
 	balanceProof := c.PartnerState.BalanceProofState
+	//依据合约上保存的 ContractTransferAmount 以及 LocksRoot 来更新我本地的
 	//the channel was closed, update our half of the state if we need to
 	if closingAddress != c.OurState.Address {
 		c.ExternState.UpdateTransfer(balanceProof)
+		endStateUpdatedOnContract = c.OurState
+	}
+	endStateUpdatedOnContract.SetContractTransferAmount(transferredAmount)
+	endStateUpdatedOnContract.SetContractLocksroot(locksRoot)
+	/*
+		校验数据,如果没有用最新的数据来更新链上信息,有可能是一种攻击,也有可能是我本地的数据是错误的.
+	*/
+	if endStateUpdatedOnContract.TransferAmount().Cmp(endStateUpdatedOnContract.contractTransferAmount()) != 0 {
+		log.Error(fmt.Sprintf("Channel %s closed,but contract transfer amount is %s, and local stored %s's transfer amount is %s",
+			utils.HPex(c.ChannelIdentifier.ChannelIdentifier), endStateUpdatedOnContract.contractTransferAmount(),
+			utils.APex2(endStateUpdatedOnContract.Address), endStateUpdatedOnContract.TransferAmount(),
+		))
+		//todo 报告错误给最上层,可能是一个 bug? 一种攻击?,还是我自己存储数据有问题
+	}
+	if endStateUpdatedOnContract.locksRoot() != endStateUpdatedOnContract.contractLocksRoot() {
+		log.Error(fmt.Sprintf("channel %s closed,but contract locksroot is %s, and local stored %s's locksroot is %s",
+			utils.HPex(c.ChannelIdentifier.ChannelIdentifier), utils.HPex(endStateUpdatedOnContract.contractLocksRoot()),
+			utils.APex2(endStateUpdatedOnContract.Address), utils.HPex(endStateUpdatedOnContract.locksRoot()),
+		))
+		//todo 报告错误给最上层,可能是一个 bug? 一种攻击?,还是我自己存储数据有问题
 	}
 	unlockProofs := c.PartnerState.GetKnownUnlocks()
 	if len(unlockProofs) > 0 {
@@ -217,12 +282,12 @@ func (c *Channel) HandleWithdrawed(newOpenBlockNumber int64, participant1, parti
 	c.ExternState.ClosedBlock = 0
 	c.ExternState.SettledBlock = 0
 	p1.ContractBalance = participant1Balance
-	p1.BalanceProofState = nil
+	p1.BalanceProofState = transfer.NewEmptyBalanceProofState()
 	p1.Lock2PendingLocks = make(map[common.Hash]channeltype.PendingLock)
 	p1.Lock2UnclaimedLocks = make(map[common.Hash]channeltype.UnlockPartialProof)
 	p1.Tree = mtree.NewMerkleTree(nil)
 	p2.ContractBalance = participant2Balance
-	p2.BalanceProofState = nil
+	p2.BalanceProofState = transfer.NewEmptyBalanceProofState()
 	p2.Lock2PendingLocks = make(map[common.Hash]channeltype.PendingLock)
 	p2.Lock2UnclaimedLocks = make(map[common.Hash]channeltype.UnlockPartialProof)
 	p2.Tree = mtree.NewMerkleTree(nil)

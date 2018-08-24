@@ -5,8 +5,6 @@ import (
 
 	"errors"
 
-	"math/big"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
@@ -581,6 +579,16 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
+func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
+	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
+	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	if err != nil {
+		return nil
+	}
+	err = eh.ChannelStateTransition(ch, st)
+	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	return err
+}
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
@@ -601,8 +609,9 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		}
 	case *mediatedtransfer.ContractClosedStateChange:
 		if c.State != channeltype.StateClosed {
+			c.State = channeltype.StateClosed
 			c.ExternState.SetClosed(st2.ClosedBlock)
-			c.HandleClosed(st2.ClosedBlock, st2.ClosingAddress)
+			c.HandleClosed(st2.ClosingAddress, st2.TransferredAmount, st2.LocksRoot)
 		} else {
 			log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%d,thisblock=%d",
 				c.ChannelIdentifier.String(), c.ExternState.ClosedBlock, st2.ClosedBlock))
@@ -651,28 +660,12 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.State == channeltype.StateOpened {
 			panic("must closed")
 		}
+		log.Trace(fmt.Sprintf("channel %s unlocked %s", c.ChannelIdentifier.String(), st2.TransferAmount))
 		channelState.SetContractTransferAmount(st2.TransferAmount)
 	case *mediatedtransfer.ContractPunishedStateChange:
-		var beneficiaryState, cheaterState *channel.EndState
-		if st2.Beneficiary == c.OurState.Address {
-			beneficiaryState = c.OurState
-			cheaterState = c.PartnerState
-		} else if st2.Beneficiary == c.PartnerState.Address {
-			beneficiaryState = c.PartnerState
-			cheaterState = c.OurState
-		} else {
-			panic(fmt.Sprintf("channel=%s,but participant =%s",
-				st2.ChannelIdentifier.String(),
-				st2.Beneficiary.String(),
-			))
-		}
-		beneficiaryState.SetContractTransferAmount(utils.BigInt0)
-		beneficiaryState.SetContractLocksroot(utils.EmptyHash)
-		beneficiaryState.SetContractNonce(0xfffffff)
-		beneficiaryState.ContractBalance = beneficiaryState.ContractBalance.Add(
-			beneficiaryState.ContractBalance, cheaterState.ContractBalance,
-		)
-		cheaterState.ContractBalance = new(big.Int).Set(utils.BigInt0)
+		c.HandleChannelPunished(st2.Beneficiary)
+	case *mediatedtransfer.ContractBalanceProofUpdatedStateChange:
+		c.HandleBalanceProofUpdated(st2.Participant, st2.TransferAmount, st2.LocksRoot)
 	}
 	return
 
@@ -698,7 +691,7 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 	case *mediatedtransfer.ContractPunishedStateChange:
 		err = eh.handlePunishedOnChain(st2)
 	case *mediatedtransfer.ContractBalanceProofUpdatedStateChange:
-		//do nothing
+		err = eh.handleBalanceProofOnChain(st2)
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		err = eh.handleCooperativeSettled(st2)
 	case *mediatedtransfer.ContractChannelWithdrawStateChange:
