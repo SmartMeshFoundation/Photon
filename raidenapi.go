@@ -312,7 +312,7 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 	}
-	for k, _ := range tokenMap {
+	for k := range tokenMap {
 		tokens = append(tokens, k.String())
 	}
 	return

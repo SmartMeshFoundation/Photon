@@ -191,7 +191,8 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	}
 	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.raiden.GetBlockNumber())
 	if err != nil {
-		log.Warn("RegisterRemoveExpiredHashlockTransfer err %s", err)
+		log.Warn(fmt.Sprintf("RegisterRemoveExpiredHashlockTransfer err %s", err))
+		return nil
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil

@@ -161,6 +161,7 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(datadirs))
 	for _, datadir := range datadirs {
+		// #nosec
 		os.Setenv("DATADIR", datadir)
 		api := newTestRaidenAPIQuick()
 		go func() {
