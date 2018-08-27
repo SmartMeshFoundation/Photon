@@ -35,7 +35,7 @@ interface Token {
     /*
     ERC20 扩展
     */
-    function approveAndCall(address _spender, uint256 _amount, bytes _extraData) public returns (bool success);
+    function approveAndCall(address _spender, uint256 _amount, bytes _extraData) external returns (bool success);
     /*
     ERC223 非标准
     */
