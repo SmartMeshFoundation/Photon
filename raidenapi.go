@@ -307,10 +307,13 @@ func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
 }
 
 //GetTokenTokenNetorks return all tokens and token networks
-func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
-	tokens, err := r.Raiden.db.GetAllTokens()
+func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
+	tokenMap, err := r.Raiden.db.GetAllTokens()
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
+	}
+	for k, _ := range tokenMap {
+		tokens = append(tokens, k.String())
 	}
 	return
 }

@@ -154,6 +154,25 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	return
 }
 
+func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
+	if datadirs == nil || len(datadirs) == 0 {
+		return
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(datadirs))
+	for _, datadir := range datadirs {
+		os.Setenv("DATADIR", datadir)
+		api := newTestRaidenAPIQuick()
+		go func() {
+			/*#nosec*/
+			api.Raiden.Start()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	return
+}
+
 func makeTestRaidenAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *RaidenAPI) {
 	rA = NewRaidenAPI(newTestRaidenWithPolicy(policy))
 	rB = NewRaidenAPI(newTestRaidenWithPolicy(policy))

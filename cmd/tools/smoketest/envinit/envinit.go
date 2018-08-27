@@ -47,7 +47,7 @@ func main() {
 			Name: "eth-rpc-endpoint",
 			Usage: `"host:port" address of ethereum JSON-RPC server.\n'
 	           'Also accepts a protocol prefix (ws:// or ipc channel) with optional port',`,
-			Value: fmt.Sprintf("http://127.0.0.1:8545"), //, node.DefaultWSEndpoint()),
+			Value: fmt.Sprintf("http://127.0.0.1:9001"), //, node.DefaultWSEndpoint()),
 		},
 		cli.BoolFlag{
 			Name:  "not-create-channel",
@@ -233,10 +233,7 @@ func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
 			var tx *types.Transaction
-			if tx == nil {
-				panic("should use approve and transfer from instead")
-			}
-			//tx, err := token.Transfer(auth2, account, big.NewInt(5000000))
+			tx, err := token.Transfer(auth2, account, big.NewInt(5000000), nil)
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
 			}
