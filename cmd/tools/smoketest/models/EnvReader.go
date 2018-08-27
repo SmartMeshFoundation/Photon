@@ -6,8 +6,9 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 )
 
 // RaidenEnvReader : save all data about raiden nodes and refresh in time
@@ -64,7 +65,7 @@ func (env *RaidenEnvReader) RefreshNodes() {
 		if err != nil {
 			panic(err)
 		}
-		node.AccountAddress = strings.ToUpper(addr.OurAddress)
+		node.AccountAddress = addr.OurAddress
 	}
 	log.Println("RaidenEnvReader refresh nodes done")
 }
@@ -93,7 +94,7 @@ func (env *RaidenEnvReader) RefreshTokens() {
 			continue
 		}
 		env.Tokens = append(env.Tokens, &Token{
-			Address:      strings.ToUpper(addr),
+			Address:      addr,
 			IsRegistered: true,
 		})
 	}
@@ -128,10 +129,7 @@ func (env *RaidenEnvReader) RefreshChannels() {
 			continue
 		}
 		for _, channel := range nodeChannels {
-			channel.ChannelAddress = strings.ToUpper(channel.ChannelAddress)
 			channel.SelfAddress = node.AccountAddress
-			channel.TokenAddress = strings.ToUpper(channel.TokenAddress)
-			channel.PartnerAddress = strings.ToUpper(channel.PartnerAddress)
 			for _, token := range env.Tokens {
 				if channel.TokenAddress == token.Address && !token.hasChannel(channel.ChannelAddress) {
 					token.Channels = append(token.Channels, channel)
@@ -146,7 +144,7 @@ func (env *RaidenEnvReader) RefreshChannels() {
 // HasToken ：
 func (env *RaidenEnvReader) HasToken(tokenAddress string) bool {
 	for _, token := range env.Tokens {
-		if token.Address == strings.ToUpper(tokenAddress) {
+		if token.Address == tokenAddress {
 			return true
 		}
 	}
@@ -195,10 +193,10 @@ func (env *RaidenEnvReader) RandomToken() *Token {
 func (env *RaidenEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channels []Channel) {
 	for _, token := range env.Tokens {
 		for _, channel := range token.Channels {
-			if channel.SelfAddress == strings.ToUpper(nodeAccountAddress) {
+			if channel.SelfAddress == nodeAccountAddress {
 				channels = append(channels, channel)
 			}
-			if strings.ToUpper(channel.PartnerAddress) == strings.ToUpper(nodeAccountAddress) {
+			if channel.PartnerAddress == nodeAccountAddress {
 				// deep copy
 				t := channel
 				new := &t
@@ -214,7 +212,7 @@ func (env *RaidenEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channe
 }
 
 // GetChannelsOfNodeByState get all channels of a smartraiden node by channel state
-func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, state string) (channels []Channel) {
+func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, state int) (channels []Channel) {
 	all := env.GetChannelsOfNode(nodeAccountAddress)
 	for _, channel := range all {
 		if channel.State == state {
@@ -225,7 +223,7 @@ func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, 
 }
 
 // GetChannelsByState : get all channels by channel state
-func (env *RaidenEnvReader) GetChannelsByState(state string) (channels []Channel) {
+func (env *RaidenEnvReader) GetChannelsByState(state int) (channels []Channel) {
 	for _, token := range env.Tokens {
 		for _, channel := range token.Channels {
 			if channel.State == state {
@@ -249,7 +247,7 @@ func (env *RaidenEnvReader) GetNodeByAccountAddress(accountAddress string) (node
 // HasOpenedChannelBetween :
 func (env *RaidenEnvReader) HasOpenedChannelBetween(node1 *RaidenNode, node2 *RaidenNode, token *Token) bool {
 	for _, channel := range token.Channels {
-		if channel.State == "opened" &&
+		if channel.State == contracts.ChannelStateOpened &&
 			((channel.SelfAddress == node1.AccountAddress && channel.PartnerAddress == node2.AccountAddress) ||
 				(channel.PartnerAddress == node1.AccountAddress && channel.SelfAddress == node2.AccountAddress)) {
 			return true

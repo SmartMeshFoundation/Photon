@@ -8,15 +8,16 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 )
 
 // Deposit2ChannelTest : test case for deposit to channel
 func Deposit2ChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 
 	testDepositToNotExistChannel(env, allowFail)
-	testDepositToChannelByState(env, allowFail, "opened", 200)
-	testDepositToChannelByState(env, true, "closed", 408)
-	testDepositToChannelByState(env, true, "settled", 408)
+	testDepositToChannelByState(env, allowFail, contracts.ChannelStateOpened, 200)
+	testDepositToChannelByState(env, true, contracts.ChannelStateClosed, 408)
+	testDepositToChannelByState(env, true, contracts.ChannelStateSettledOrNotExist, 408)
 
 }
 
@@ -36,9 +37,9 @@ func testDepositToNotExistChannel(env *models.RaidenEnvReader, allowFail bool) {
 	case1.Run()
 }
 
-func testDepositToChannelByState(env *models.RaidenEnvReader, allowFail bool, channelState string, targetStatusCode int) {
+func testDepositToChannelByState(env *models.RaidenEnvReader, allowFail bool, channelState int, targetStatusCode int) {
 	// prepare data
-	caseName := fmt.Sprintf("Deposit to %s channel", channelState)
+	caseName := fmt.Sprintf("Deposit to %d channel", channelState)
 	var node *models.RaidenNode
 	var channels []models.Channel
 	for _, n := range env.RaidenNodes {

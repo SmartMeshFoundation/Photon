@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 )
 
 // CloseChannelTest : test case for close a channel
@@ -15,7 +16,7 @@ func CloseChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 	var node *models.RaidenNode
 	var channels []models.Channel
 	for _, n := range env.RaidenNodes {
-		channels = env.GetChannelsOfNodeByState(n.AccountAddress, "opened")
+		channels = env.GetChannelsOfNodeByState(n.AccountAddress, contracts.ChannelStateOpened)
 		if len(channels) > 0 {
 			node = n
 			break
