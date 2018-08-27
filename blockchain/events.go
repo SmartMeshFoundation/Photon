@@ -195,7 +195,7 @@ func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *medi
 		TokenNetworkAddress: ev.Raw.Address,
 		Participant1:        ev.Participant1,
 		Participant2:        ev.Participant2,
-		SettleTimeout:       int(ev.SettleTimeout.Int64()),
+		SettleTimeout:       int(ev.SettleTimeout),
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 }
@@ -210,7 +210,7 @@ func EventChannelOpenAndDeposit2StateChange(ev *contracts.TokenNetworkChannelOpe
 		TokenNetworkAddress: ev.Raw.Address,
 		Participant1:        ev.Participant1,
 		Participant2:        ev.Participant2,
-		SettleTimeout:       int(ev.SettleTimeout.Int64()),
+		SettleTimeout:       int(ev.SettleTimeout),
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 	ch2 = &mediatedtransfer.ContractBalanceStateChange{

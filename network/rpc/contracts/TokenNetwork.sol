@@ -73,13 +73,13 @@ contract TokenNetwork is Utils {
         bytes32 indexed channel_identifier,
         address participant1,
         address participant2,
-        uint256 settle_timeout
+        uint64 settle_timeout
     );
     event ChannelOpenedAndDeposit(
         bytes32 indexed channel_identifier,
         address participant1,
         address participant2,
-        uint256 settle_timeout,
+        uint64 settle_timeout,
         uint256 participant1_deposit
     );
     event ChannelNewDeposit(
