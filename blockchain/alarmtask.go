@@ -70,7 +70,7 @@ func (at *AlarmTask) waitNewBlock() error {
 	sub, err := at.client.SubscribeNewHead(context.Background(), headerCh)
 	if err != nil {
 		//reconnect?
-		log.Warn("SubscribeNewHead block number err:", err)
+		log.Warn(fmt.Sprintf("SubscribeNewHead block number err: %s", err))
 		return err
 	}
 	for {
