@@ -219,6 +219,7 @@ contract TokenNetwork is Utils {
         require(participant != 0x0);
         require(partner != 0x0);
         require(participant != partner);
+        require(amount>0);
         channel_identifier = getChannelIdentifier(participant, partner);
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
@@ -248,6 +249,10 @@ contract TokenNetwork is Utils {
     function depositInternal(address participant, address partner, uint256 amount, address from,bool need_transfer)
     internal
     {
+        /*
+        为0,可能会在 TransferFrom 的时候成功,但是没有任何意义.
+
+        */
         require(amount > 0);
         uint256 total_deposit;
         bytes32 channel_identifier;
@@ -384,6 +389,8 @@ contract TokenNetwork is Utils {
         if (participant2_withdraw > 0) {
             require(token.transfer(participant2, participant2_withdraw));
         }
+        //提议提现的人,金额一定不能是0,否则就应该调用 cooperative settle
+        require(participant1_withdraw>0 );
         //channel's status right now
         emit ChannelWithdraw(channel_identifier, participant1, participant1_balance, participant2, participant2_balance);
 
@@ -528,6 +535,7 @@ contract TokenNetwork is Utils {
         Participant storage partner_state = channel.participants[partner];
         require(channel.state == 2);
         require(channel.settle_block_number >= block.number);
+        //明确要求,必须有更新的 balance proof, 否则没必要调用
         require(nonce > partner_state.nonce);
 
         require(partner == recoverAddressFromBalanceProof(
