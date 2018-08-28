@@ -35,6 +35,11 @@ func Start() {
 		rest.Get("/api/1/tokens", Tokens),
 		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
 		rest.Put("/api/1/tokens/:token", RegisterToken),
+
+		/*
+			api to provide random secret and lockSecretHash pair
+		*/
+		rest.Get("/api/1/secret", GetRandomSecret),
 		/*
 			transfer
 		*/
