@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
-	"math/rand"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/go-errors/errors"
 )
 
@@ -21,6 +19,7 @@ type TokenSwapsPayload struct {
 	SendingToken    string `json:"sending_token"`
 	ReceivingAmount int32  `json:"receiving_amount"`
 	ReceivingToken  string `json:"receiving_token"`
+	Secret          string `json:"secret"`
 }
 
 type testTokenSwapParams struct {
@@ -49,6 +48,7 @@ func TokenSwapsTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 func testTokenSwap(param *testTokenSwapParams) {
+
 	// prepare data
 	node1, node2, token1, token2, err := param.PrepareData(param.Env)
 	if err != nil {
@@ -60,12 +60,11 @@ func testTokenSwap(param *testTokenSwapParams) {
 		}
 		return
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	id := r.Int63n(9223372036854775807)
 
 	// run case
-	invokeTokenSwap(node1, node2, token1, token2, 1, 2, "taker", param.CaseName, param.AllowFail, id)
-	invokeTokenSwap(node2, node1, token2, token1, 2, 1, "maker", param.CaseName, param.AllowFail, id)
+	secret, lockSecretHash := getRandomSecret()
+	invokeTokenSwap(node1, node2, token1, token2, 1, 2, "taker", param.CaseName, param.AllowFail, lockSecretHash, "")
+	invokeTokenSwap(node2, node1, token2, token1, 2, 1, "maker", param.CaseName, param.AllowFail, lockSecretHash, secret)
 }
 
 func prepareDataForDirectTokenSwap(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error) {
@@ -120,13 +119,14 @@ func prepareDataForIndirectTokenSwap(env *models.RaidenEnvReader) (sender *model
 	return
 }
 
-func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, amount1 int32, amount2 int32, role string, caseName string, allowFail bool, id int64) {
+func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, amount1 int32, amount2 int32, role string, caseName string, allowFail bool, lockSecretHash string, secret string) {
 	payload := TokenSwapsPayload{
 		Role:            role,
 		SendingToken:    token1.Address,
 		SendingAmount:   amount1,
 		ReceivingToken:  token2.Address,
 		ReceivingAmount: amount2,
+		Secret:          secret,
 	}
 	p, err := json.Marshal(payload)
 	if err != nil {
@@ -138,12 +138,19 @@ func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "TokenSwap",
-			FullURL: node1.Host + "/api/1/token_swaps/" + node2.AccountAddress + "/" + strconv.FormatInt(id, 10),
+			FullURL: node1.Host + "/api/1/token_swaps/" + node2.AccountAddress + "/" + lockSecretHash,
 			Method:  http.MethodPut,
 			Payload: string(p),
-			Timeout: time.Second * 180,
+			Timeout: time.Second * 240,
 		},
 		TargetStatusCode: 201,
 	}
 	case1.Run()
+}
+
+func getRandomSecret() (string, string) {
+	t := utils.RandomString(5)
+	secret := utils.Sha3([]byte(t))
+	lockSecretHash := utils.Sha3(secret.Bytes())
+	return secret.String(), lockSecretHash.String()
 }

@@ -73,7 +73,7 @@ func (r *Req) Invoke() (int, []byte, error) {
 	var buf [4096 * 1024]byte
 	n := 0
 	n, err = resp.Body.Read(buf[:])
-	if err.Error() == "EOF" {
+	if err != nil && err.Error() == "EOF" {
 		err = nil
 	}
 	return statusCode, buf[:n], err

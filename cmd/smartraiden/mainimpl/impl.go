@@ -17,6 +17,8 @@ import (
 	"net"
 	"strconv"
 
+	"strings"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
@@ -145,6 +147,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
+	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
+	if strings.HasPrefix(ethEndpoint, "http") {
+		err = fmt.Errorf("cannot connect to geth :%s err= does not support http protocol,please use websocket instead", ethEndpoint)
+		return
+	}
 	client, err := helper.NewSafeClient(ethEndpoint)
 	if err != nil {
 		err = fmt.Errorf("cannot connect to geth :%s err=%s", ethEndpoint, err)

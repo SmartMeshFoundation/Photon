@@ -34,19 +34,30 @@ type BalanceProofState struct {
 	ContractLocksRoot      common.Hash
 }
 
+//NewEmptyBalanceProofState init BalanceProof with proper state
+func NewEmptyBalanceProofState() *BalanceProofState {
+	return &BalanceProofState{
+		TransferAmount:         new(big.Int),
+		ContractTransferAmount: new(big.Int),
+	}
+}
+
 //NewBalanceProofState create BalanceProofState
 func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common.Hash,
-	channelAddress contracts.ChannelUniqueID, messageHash common.Hash, signature []byte) *BalanceProofState {
+	channelIdentifier contracts.ChannelUniqueID, messageHash common.Hash, signature []byte) *BalanceProofState {
 	s := &BalanceProofState{
 		Nonce:                  nonce,
 		TransferAmount:         new(big.Int).Set(transferAmount),
 		LocksRoot:              locksRoot,
-		ChannelIdentifier:      channelAddress,
+		ChannelIdentifier:      channelIdentifier,
 		MessageHash:            messageHash,
 		Signature:              signature,
-		ContractTransferAmount: new(big.Int).Set(transferAmount),
+		ContractTransferAmount: new(big.Int),
 		ContractNonce:          nonce,
-		ContractLocksRoot:      locksRoot,
+		//ContractLocksRoot:      locksRoot,
+	}
+	if s.TransferAmount == nil {
+		s.TransferAmount = new(big.Int)
 	}
 	return s
 }

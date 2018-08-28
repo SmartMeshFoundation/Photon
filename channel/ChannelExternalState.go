@@ -125,11 +125,11 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 	result = utils.NewAsyncResult()
 	transferAmount := new(big.Int).Set(argTransferdAmount)
 	go func() {
-		log.Info(fmt.Sprintf("withdraw called %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier)))
+		log.Info(fmt.Sprintf("Unlock called %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier)))
 		failed := false
 		for _, proof := range unlockproofs {
 			if e.db.IsThisLockHasUnlocked(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash) {
-				log.Info(fmt.Sprintf("withdraw secret has been used %s  %s", e.ChannelIdentifier.String(), utils.HPex(proof.Lock.LockSecretHash)))
+				log.Info(fmt.Sprintf("Unlock secret has been used %s  %s", e.ChannelIdentifier.String(), utils.HPex(proof.Lock.LockSecretHash)))
 				continue
 			}
 			err := e.TokenNetwork.Unlock(e.PartnerAddress, transferAmount, proof.Lock, mtree.Proof2Bytes(proof.MerkleProof))
@@ -140,7 +140,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 					allow try withdraw next time if not success?
 				*/
 				e.db.UnlockThisLock(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash)
-				log.Info(fmt.Sprintf("withdraw success %s,proof=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface1(proof)))
+				log.Info(fmt.Sprintf("Unlock success %s,proof=%s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.StringInterface1(proof)))
 				/*
 					一旦 unlock 成功,那么 transferAmount 就会发生变化,下次必须用新的 transferAmount
 				*/
@@ -148,7 +148,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 			}
 		}
 		if failed {
-			result.Result <- fmt.Errorf("there are errors when withdraw on channel %s  for %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.APex2(e.MyAddress))
+			result.Result <- fmt.Errorf("there are errors when Unlock on channel %s  for %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.APex2(e.MyAddress))
 		} else {
 			result.Result <- nil
 		}
@@ -163,7 +163,10 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 		result.Result <- fmt.Errorf("channel %s already settled", e.ChannelIdentifier.String())
 		return
 	}
-	log.Info(fmt.Sprintf("settle called %s", e.ChannelIdentifier.String()))
+	log.Info(fmt.Sprintf("settle called %s,myTransferAmount=%s,partnerTransferAmount=%s,mylocksRoot=%s,partnerLocksroot=%s",
+		e.ChannelIdentifier.String(), MyTransferAmount, PartnerTransferAmount,
+		utils.HPex(MyLocksroot), utils.HPex(PartnerLocksroot),
+	))
 	result = e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
 		MyTransferAmount, PartnerTransferAmount,
 		MyLocksroot, PartnerLocksroot,

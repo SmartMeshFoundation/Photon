@@ -103,6 +103,7 @@ func StartRaidenNode(RegistryAddress string) {
 		pstr2 = append(pstr2, "smartraiden*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
+		pstr2 = append(pstr2, "-s INT")
 		pstr2 = append(pstr2, "smartraiden")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
@@ -119,7 +120,7 @@ func StartRaidenNode(RegistryAddress string) {
 	param.datadir = c.RdString(paramsSection, "datadir", "/smtwork/share/.smartraiden")
 	param.keystorePath = c.RdString(paramsSection, "keystore_path", "/smtwork/privnet3/data/keystore")
 	if RegistryAddress == "" {
-		param.registryContractAddress = c.RdString(paramsSection, "registry_contract_address", "0x069E5c8954b14c7638e8E6479402FDa6F9971036")
+		param.registryContractAddress = c.RdString(paramsSection, "registry_contract_address", "")
 
 	} else {
 		param.registryContractAddress = RegistryAddress
@@ -128,7 +129,6 @@ func StartRaidenNode(RegistryAddress string) {
 	param.passwordFile = c.RdString(paramsSection, "password_file", "")
 	param.ethRPCEndpoint = c.RdString(paramsSection, "eth_rpc_endpoint", "ws://127.0.0.1:8546")
 	param.debug = c.RdBool(paramsSection, "debug", true)
-	param.xmppServer = c.RdString(paramsSection, "xmpp-server", "182.254.155.208:5222")
 	//start 6 raiden node
 	var NODE string
 	exepath := c.RdString(paramsSection, "raidenpath", "")

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
@@ -151,7 +153,7 @@ func EventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished)
 
 //EventChannelWithdraw2StateChange to stateChange
 func EventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw) *mediatedtransfer.ContractChannelWithdrawStateChange {
-	return &mediatedtransfer.ContractChannelWithdrawStateChange{
+	c := &mediatedtransfer.ContractChannelWithdrawStateChange{
 		ChannelIdentifier: &contracts.ChannelUniqueID{
 
 			ChannelIdentifier: common.Hash(ev.ChannelIdentifier),
@@ -164,6 +166,13 @@ func EventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw)
 		Participant2Balance: ev.Participant2Balance,
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
+	if c.Participant1Balance == nil {
+		c.Participant1Balance = new(big.Int)
+	}
+	if c.Participant2Balance == nil {
+		c.Participant2Balance = new(big.Int)
+	}
+	return c
 }
 
 //EventTokenNetworkCreated2StateChange to statechange
@@ -186,7 +195,7 @@ func EventChannelOpen2StateChange(ev *contracts.TokenNetworkChannelOpened) *medi
 		TokenNetworkAddress: ev.Raw.Address,
 		Participant1:        ev.Participant1,
 		Participant2:        ev.Participant2,
-		SettleTimeout:       int(ev.SettleTimeout.Int64()),
+		SettleTimeout:       int(ev.SettleTimeout),
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 }
@@ -201,7 +210,7 @@ func EventChannelOpenAndDeposit2StateChange(ev *contracts.TokenNetworkChannelOpe
 		TokenNetworkAddress: ev.Raw.Address,
 		Participant1:        ev.Participant1,
 		Participant2:        ev.Participant2,
-		SettleTimeout:       int(ev.SettleTimeout.Int64()),
+		SettleTimeout:       int(ev.SettleTimeout),
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
 	ch2 = &mediatedtransfer.ContractBalanceStateChange{
@@ -227,17 +236,23 @@ func EventChannelNewDeposit2StateChange(ev *contracts.TokenNetworkChannelNewDepo
 
 //EventChannelClosed2StateChange to statechange
 func EventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *mediatedtransfer.ContractClosedStateChange {
-	return &mediatedtransfer.ContractClosedStateChange{
+	c := &mediatedtransfer.ContractClosedStateChange{
 		TokenNetworkAddress: ev.Raw.Address,
 		ChannelIdentifier:   ev.ChannelIdentifier,
 		ClosingAddress:      ev.ClosingParticipant,
+		LocksRoot:           ev.Locksroot,
 		ClosedBlock:         int64(ev.Raw.BlockNumber),
+		TransferredAmount:   ev.TransferredAmount,
 	}
+	if ev.TransferredAmount == nil {
+		c.TransferredAmount = new(big.Int)
+	}
+	return c
 }
 
 //EventBalanceProofUpdated2StateChange to statechange
 func EventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProofUpdated) *mediatedtransfer.ContractBalanceProofUpdatedStateChange {
-	return &mediatedtransfer.ContractBalanceProofUpdatedStateChange{
+	c := &mediatedtransfer.ContractBalanceProofUpdatedStateChange{
 		TokenNetworkAddress: ev.Raw.Address,
 		ChannelIdentifier:   ev.ChannelIdentifier,
 		LocksRoot:           ev.Locksroot,
@@ -245,17 +260,25 @@ func EventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProof
 		Participant:         ev.Participant,
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 	}
+	if c.TransferAmount == nil {
+		c.TransferAmount = new(big.Int)
+	}
+	return c
 }
 
 //EventChannelUnlocked2StateChange to statechange
 func EventChannelUnlocked2StateChange(ev *contracts.TokenNetworkChannelUnlocked) *mediatedtransfer.ContractUnlockStateChange {
-	return &mediatedtransfer.ContractUnlockStateChange{
+	c := &mediatedtransfer.ContractUnlockStateChange{
 		TokenNetworkAddress: ev.Raw.Address,
 		ChannelIdentifier:   ev.ChannelIdentifier,
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 		TransferAmount:      ev.TransferredAmount,
 		Participant:         ev.PayerParticipant,
 	}
+	if c.TransferAmount == nil {
+		c.TransferAmount = new(big.Int)
+	}
+	return c
 }
 
 //EventSecretRevealed2StateChange to statechange

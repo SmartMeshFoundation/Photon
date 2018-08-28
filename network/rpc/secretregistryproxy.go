@@ -33,6 +33,7 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	s.lock.Unlock()
 	sp.Lock()
 	defer sp.Unlock()
+	log.Trace(fmt.Sprintf("RegisterSecret %s on chain", secret.String()))
 	block, err := s.registry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
 	if err == nil && block.Uint64() > 0 {
 		//已经注册过了,直接报错
@@ -43,6 +44,7 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	if err != nil {
 		return err
 	}
+	log.Trace(fmt.Sprintf("RegisterSecret on chain tx=%s", tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), s.bcs.Client, tx)
 	if err != nil {
 		return err

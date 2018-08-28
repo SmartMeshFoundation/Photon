@@ -214,10 +214,10 @@ TokenSwapAndWait Start an atomic swap operation by sending a MediatedTransfer wi
     new valid MediatedTransfer is received with `taker_amount` of
     `taker_token`.
 */
-func (r *RaidenAPI) TokenSwapAndWait(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int) error {
-	result, err := r.tokenSwapAsync(identifier, makerToken, takerToken, makerAddress, takerAddress,
-		makerAmount, takerAmount)
+func (r *RaidenAPI) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount *big.Int, secret string) error {
+	result, err := r.tokenSwapAsync(lockSecretHash, makerToken, takerToken, makerAddress, takerAddress,
+		makerAmount, takerAmount, secret)
 	if err != nil {
 		return err
 	}
@@ -225,8 +225,8 @@ func (r *RaidenAPI) TokenSwapAndWait(identifier string, makerToken, takerToken, 
 	return err
 }
 
-func (r *RaidenAPI) tokenSwapAsync(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int) (result *utils.AsyncResult, err error) {
+func (r *RaidenAPI) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
+	makerAmount, takerAmount *big.Int, secret string) (result *utils.AsyncResult, err error) {
 	chs, err := r.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
@@ -239,7 +239,8 @@ func (r *RaidenAPI) tokenSwapAsync(identifier string, makerToken, takerToken, ma
 	}
 
 	tokenSwap := &TokenSwap{
-		LockSecretHash:  utils.Sha3([]byte(identifier)),
+		LockSecretHash:  common.HexToHash(lockSecretHash),
+		Secret:          common.HexToHash(secret),
 		FromToken:       makerToken,
 		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
@@ -258,7 +259,7 @@ ExpectTokenSwap Register an expected transfer for this node.
     `maker_amount` then proceed to send a MediatedTransfer to
     `maker_address` for `taker_asset` with `taker_amount`.
 */
-func (r *RaidenAPI) ExpectTokenSwap(identifier string, makerToken, takerToken, makerAddress, takerAddress common.Address,
+func (r *RaidenAPI) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) (err error) {
 	chs, err := r.Raiden.db.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
@@ -271,7 +272,7 @@ func (r *RaidenAPI) ExpectTokenSwap(identifier string, makerToken, takerToken, m
 		return
 	}
 	tokenSwap := &TokenSwap{
-		LockSecretHash:  utils.Sha3([]byte(identifier)),
+		LockSecretHash:  common.HexToHash(lockSecretHash),
 		FromToken:       makerToken,
 		FromAmount:      new(big.Int).Set(makerAmount),
 		FromNodeAddress: makerAddress,
@@ -307,10 +308,13 @@ func (r *RaidenAPI) GetTokenList() (tokens []common.Address) {
 }
 
 //GetTokenTokenNetorks return all tokens and token networks
-func (r *RaidenAPI) GetTokenTokenNetorks() (tokens models.AddressMap) {
-	tokens, err := r.Raiden.db.GetAllTokens()
+func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
+	tokenMap, err := r.Raiden.db.GetAllTokens()
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
+	}
+	for k := range tokenMap {
+		tokens = append(tokens, k.String())
 	}
 	return
 }

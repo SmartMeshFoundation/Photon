@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strconv"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -32,11 +31,11 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		SendingToken    string   `json:"sending_token"`
 		ReceivingAmount *big.Int `json:"receiving_amount"`
 		ReceivingToken  string   `json:"receiving_token"`
+		Secret          string   `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
 	}
 	targetstr := r.PathParam("target")
-	idstr := r.PathParam("id")
+	lockSecretHash := r.PathParam("locksecrethash")
 	var target common.Address
-	var id int
 	if len(targetstr) != len(target.String()) {
 		rest.Error(w, "target address error", http.StatusBadRequest)
 		return
@@ -47,9 +46,8 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	id, err = strconv.Atoi(idstr)
-	if id <= 0 || err != nil {
-		rest.Error(w, "must provide a valid id ", http.StatusBadRequest)
+	if lockSecretHash == "" {
+		rest.Error(w, "must provide a valid lockSecretHash ", http.StatusBadRequest)
 		return
 	}
 	req := &Req{}
@@ -72,10 +70,15 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Role == "maker" {
-		err = RaidenAPI.TokenSwapAndWait(strconv.Itoa(id), makerToken, takerToken,
-			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount)
+		// 校验secret和lockSecretHash是否匹配
+		if req.Secret == "" || utils.Sha3(common.HexToHash(req.Secret).Bytes()) != common.HexToHash(lockSecretHash) {
+			rest.Error(w, "must provide a matching pair of secret and lockSecretHash", http.StatusBadRequest)
+			return
+		}
+		err = RaidenAPI.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
+			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret)
 	} else if req.Role == "taker" {
-		err = RaidenAPI.ExpectTokenSwap(strconv.Itoa(id), takerToken, makerToken,
+		err = RaidenAPI.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
 			target, RaidenAPI.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)

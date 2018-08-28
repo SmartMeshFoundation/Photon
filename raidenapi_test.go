@@ -172,9 +172,9 @@ func raidenAPISettle(t *testing.T, api *RaidenAPI, ch *channel.Channel) {
 }
 func TestRaidenAPICloseAndSettle(t *testing.T) {
 	reinit()
-	if true {
-		return
-	}
+	//if true {
+	//	return
+	//}
 	api := newTestRaidenAPI()
 	defer api.Stop()
 	ch := api.Raiden.getChannelWithAddr(getAChannel(api))
@@ -233,10 +233,11 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Hash]common.Add
 }
 func TestTransfer(t *testing.T) {
 	reinit()
-	if true {
-		return
-	}
-	ra, rb, rc, rd := makeTestRaidenAPIs()
+	//if true {
+	//	return
+	//}
+	apis := makeTestRaidenAPIArrays("/tmp/testdataA", "/tmp/testdataB", "/tmp/testdataC", "/tmp/testdataD")
+	ra, rb, rc, rd := apis[0], apis[1], apis[2], apis[3]
 	defer ra.Stop()
 	defer rb.Stop()
 	defer rc.Stop()

@@ -21,3 +21,4 @@ smoketest工具使用说明
             after.data      :    测试运行后获取的当前节点所有数据汇总，包含节点、token、channel等数据，方便与before.data做对比
             N0-N5.log       ：   smartraiden节点日志
             killall.log     ：   smartraiden进程kill日志
+            

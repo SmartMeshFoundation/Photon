@@ -35,8 +35,10 @@ interface Token {
     /// @return Amount of remaining tokens allowed to spent
     function allowance(address _owner, address _spender) external view returns (uint256 remaining);
 
+
     /** ERC20 Extension */
-    function approveAndCall(address _spender, uint256 _amount, bytes _extraData) public returns (bool success);
+    function approveAndCall(address _spender, uint256 _amount, bytes _extraData) external returns (bool success);
+
 
     /** ERC223 Non-Standard */
     function transfer(address to, uint256 value, bytes data) external;

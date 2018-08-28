@@ -33,7 +33,7 @@ func SmokeTest() {
 }
 
 func runSmokeCases() {
-	// cases about query api
+	//// cases about query api
 	cases.QueryNodeAddressTest(env, allowFail)
 	cases.QueryRegisteredTokenTest(env, allowFail)
 	cases.QueryAllPartnersForOneTokenTest(env, allowFail)
@@ -42,17 +42,17 @@ func runSmokeCases() {
 	cases.QueryGeneralNetworkEventsTest(env, allowFail)
 	cases.QueryTokenNetworkEventsTest(env, allowFail)
 	cases.QueryChannelEventsTest(env, allowFail)
-
-	// cases about transfer
+	//
+	//// cases about transfer
 	cases.InitiatingTransferTest(env, allowFail)
 	cases.TokenSwapsTest(env, allowFail)
-
-	// cases about token
+	//
+	//// cases about token
 	cases.RegisteringTokenTest(env, allowFail)
-	cases.Connecting2TokenNetworkTest(env, allowFail)
-	cases.LeavingTokenNetworkTest(env, allowFail)
-
-	// cases about channel
+	//cases.Connecting2TokenNetworkTest(env, allowFail)
+	//cases.LeavingTokenNetworkTest(env, allowFail)
+	//
+	//// cases about channel
 	cases.OpenChannelTest(env, allowFail)
 	env.RefreshChannels()
 	cases.CloseChannelTest(env, allowFail)

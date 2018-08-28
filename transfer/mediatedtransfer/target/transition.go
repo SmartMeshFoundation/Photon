@@ -202,6 +202,12 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			Events:   append(it.Events, transferSuccess, unlockSuccess),
 		}
 	}
+	// 一旦锁过期,就结束了,注销StateManager
+	if state.BlockNumber > state.FromTransfer.Expiration {
+		it.Events = append(it.Events, &mediatedtransfer.EventRemoveStateManager{
+			Key: utils.Sha3(state.FromTransfer.LockSecretHash[:], state.FromTransfer.Token[:]),
+		})
+	}
 	return it
 }
 

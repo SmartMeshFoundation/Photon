@@ -109,6 +109,7 @@ func NewRandomAddress() common.Address {
 }
 
 //NewRandomHash generate random hash,for testonly
+//todo 这似乎并不是一个好的生产密码的方式,虽然说不容易重复,但是是不是容易被猜到呢?
 func NewRandomHash() common.Hash {
 	u2, err := uuid.NewV4()
 	if err != nil {

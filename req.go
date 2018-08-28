@@ -21,6 +21,7 @@ type swapKey struct {
 //TokenSwap for tokenswap api
 type TokenSwap struct {
 	LockSecretHash  common.Hash
+	Secret          common.Hash // maker will use
 	FromToken       common.Address
 	FromAmount      *big.Int
 	FromNodeAddress common.Address //the node address of the owner of the `from_token`
