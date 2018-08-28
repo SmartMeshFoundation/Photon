@@ -435,13 +435,17 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
 	}
 	/*
 			  nonce is changed only when a transfer is un/registered, if the test
-		         fails either we are out of sync, a message out of order, or it's a
-		         forged transfer
+		     fails either we are out of sync, a message out of order, or it's a
+		     forged transfer
+			Strictly monotonic value used to order transfers. The nonce starts at 1
 	*/
-	isInvalidNonce := evMsg.Nonce < 1 || (fromState.nonce() != 0 && evMsg.Nonce != fromState.nonce()+1)
+	isInvalidNonce := evMsg.Nonce < 1 || evMsg.Nonce != fromState.nonce()+1
 	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
-		//c may occur on normal operation
+		/*
+			may occur on normal operation
+			todo: give a example
+		*/
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
 			utils.Pex(toState.Address[:]), fromState.nonce()+1, evMsg.Nonce))

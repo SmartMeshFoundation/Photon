@@ -12,6 +12,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/target"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -110,7 +111,9 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	eh.raiden.conditionQuit("EventSendMediatedTransferBefore")
 	if stateManager.LastReceivedMessage == nil {
-		log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		if stateManager.Name != initiator.NameInitiatorTransition {
+			log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
+		}
 		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		var fromCh *channel.Channel
