@@ -1,5 +1,7 @@
 pragma solidity ^0.4.23;
 
+/// @title Utility Contract
+/// @notice a general set of utility functions included into this contract.
 contract Utils {
     string constant public contract_version = "0.3._";
 

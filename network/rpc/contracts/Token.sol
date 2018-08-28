@@ -1,7 +1,7 @@
 pragma solidity ^0.4.24;
 
 /// @title an interface for Token.
-/// @notice it contains all utility functions that will be used by a token.
+/// @notice it contains various utility functions that will be used by a token.
 interface Token {
 
     /// @return total amount of tokens
@@ -40,8 +40,8 @@ interface Token {
 
     /** ERC223 Non-Standard */
     function transfer(address to, uint256 value, bytes data) external;
-    event Transfer(address indexed from, address indexed to, uint256 value, bytes indexed data);
 
+    event Transfer(address indexed from, address indexed to, uint256 value, bytes indexed data);
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 }

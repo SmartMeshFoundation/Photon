@@ -5,9 +5,10 @@ import "./Utils.sol";
 import "./ECVerify.sol";
 import "./SecretRegistry.sol";
 
-///@title a token network contract
-///@author SmartMeshFoundation
-///@dev
+/// @title TokenNetwork -- a network of a specific token
+/// @author SmartMeshFoundation
+/// @notice In our SmartRaiden version 1.0, we prefer an alternative method that just store all tokens in the channel network
+/// @notice into one single contract, instead of dividing them into every single channel.
 contract TokenNetwork is Utils {
 
     string constant public contract_version = "0.3._";
@@ -60,6 +61,7 @@ contract TokenNetwork is Utils {
         /*
             通道 settle block number.
         */
+        // time period for settle represented by block number.
         uint64 settle_block_number;
 
         /*
@@ -147,8 +149,7 @@ contract TokenNetwork is Utils {
         uint256 participant2_amount
     );
 
-    //
-    //
+    // event emitted while one participant has intention to withdraw tokens in the channel.
     event ChannelWithdraw(
         bytes32 indexed channel_identifier,
         address participant1,
@@ -163,13 +164,9 @@ contract TokenNetwork is Utils {
         _;
     }
 
-    /*
-     *  Constructor
-     */
     /// @notice contract constructor.
-    /// @dev It is public for all users.
     /// @param _token_address       address in which tokens of this contract are from.
-    /// @param _secret_registry
+    /// @param _secret_registry     address to register secret for this network.
     /// @param _chain_id            no need to explain...
     constructor(address _token_address, address _secret_registry, uint256 _chain_id)
     public
@@ -212,9 +209,6 @@ contract TokenNetwork is Utils {
         channel_identifier = getChannelIdentifier(participant1, participant2);
         Channel storage channel = channels[channel_identifier];
 
-        /*
-            保证channel没有被创建过
-        */
         // ensure that channel has not been created.
         require(channel.state == 0);
         // Store channel information
@@ -226,10 +220,6 @@ contract TokenNetwork is Utils {
         emit ChannelOpened(channel_identifier, participant1, participant2, settle_timeout);
     }
 
-    /*
-        open and deposit 合在一起,节省 gas
-        这个函数实际上是为用户多提供一个选项,创建通道和存钱合在一起
-     */
     /// @notice Function to create channels with some amount of deposits.
     /// @dev    this function combines features of openChannel & deposit together, as a facilitate function.
     /// @param  participant & partner  two parties that this channel connects with.
@@ -285,9 +275,6 @@ contract TokenNetwork is Utils {
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
 
-        /*
-            保证channel没有被创建过
-        */
         // make sure that this channel has not been created.
         require(channel.state == 0);
 
@@ -409,8 +396,15 @@ contract TokenNetwork is Utils {
         participant1_withdraw,participant2_withdraw 各自需要提前多少 token
         participant1_signature,participant2_signature 双方对这次提现的签名
      */
-    /// @title withdraw tokens without closing channel
-    /// @
+    /// @notice function to withdraw tokens in this token network.
+    /// @param participant1
+    /// @param participant1_balance
+    /// @param participant1_withdraw
+    /// @param participant2
+    /// @param participant2_balance
+    /// @param participant2_withdraw
+    /// @param participant1_signature
+    /// @param participant2_signature
     function withDraw(
         address participant1,
         uint256 participant1_balance,
@@ -710,9 +704,7 @@ contract TokenNetwork is Utils {
         bytes32 channel_identifier;
         channel_identifier = getChannelIdentifier(partner, participant);
         Channel storage channel = channels[channel_identifier];
-        /*
-            验证授权签名有效
-        */
+
         // verify that valid signature entrusted.
         message_hash = keccak256(abi.encodePacked(
                 msg.sender,
@@ -723,9 +715,7 @@ contract TokenNetwork is Utils {
                 channel.open_block_number,
                 chain_id));
         require(participant == ECVerify.ecverify(message_hash, participant_signature));
-        /*
-            真正的去 unlock
-        */
+
         // actual process of unlock.
         unlockInternal(partner, participant, transferred_amount, expiration, amount, secret_hash, merkle_proof);
     }
@@ -739,7 +729,13 @@ contract TokenNetwork is Utils {
         expiration,amount,secret_hash: 交易中未彻底完成的锁
         merkle_proof: 证明此锁包含在 locksroot 中
     */
-    ///
+    /// @notice function to unlock the time hash lock within a transfer.
+    /// @param partner
+    /// @param transferred_amount
+    /// @param expiration
+    /// @param amount
+    /// @param secret_hash
+    /// @param merkle_proof
     function unlock(
         address partner,
         uint256 transferred_amount,
