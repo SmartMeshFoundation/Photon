@@ -30,8 +30,8 @@ contract TokenNetworkRegistry is Utils {
     }
 
     /// @notice function to create a ERC20 token network.
-    /// @param  _token_address          the place that tokens are from.
-    /// @return token_network_address   the address of a token network.
+    /// @param  _token_address          the address of a token contract
+    /// @return token_network_address   the address of a token network contract.
     function createERC20TokenNetwork(address _token_address)
         external
         returns (address token_network_address)
