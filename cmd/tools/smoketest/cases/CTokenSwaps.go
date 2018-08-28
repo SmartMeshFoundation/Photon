@@ -141,7 +141,7 @@ func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 
 			FullURL: node1.Host + "/api/1/token_swaps/" + node2.AccountAddress + "/" + strconv.FormatInt(id, 10),
 			Method:  http.MethodPut,
 			Payload: string(p),
-			Timeout: time.Second * 180,
+			Timeout: time.Second * 240,
 		},
 		TargetStatusCode: 201,
 	}
