@@ -1,7 +1,0 @@
-2018/07/31 16:09:13 TestEnv.go:86: Start to prepare env for CrashCaseRecv01...
-2018/07/31 16:09:22 TestEnv.go:117: New RegistryAddress : 0xA4de611a1B2DA3d9483A1Ee186Df13464e6172f4
-2018/07/31 16:09:22 TestEnv.go:121: Load RegistryAddress SUCCESS
-2018/07/31 16:09:22 TestEnv.go:201: Load Nodes SUCCESS
-2018/07/31 16:09:38 TestEnv.go:212: New TokenAddress T0 : token=0xF6325B2d57e67Bae1D253f215C77BF2AdE4eF6de
- token_network=0x298923D43F09DBd7eeE05588361339CCAc5F2c38
-2018/07/31 16:09:38 TestEnv.go:227: Load Tokens SUCCESS

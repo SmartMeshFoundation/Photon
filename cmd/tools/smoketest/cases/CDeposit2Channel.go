@@ -27,7 +27,7 @@ func testDepositToNotExistChannel(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: " Deposit2Channel",
-			FullURL: env.RandomNode().Host + "/api/1/channels/0xffffffffffffffffffffffffffffffffffffffff",
+			FullURL: env.RandomNode().Host + "/api/1/channels/0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107",
 			Method:  http.MethodPatch,
 			Payload: "{\"balance\":5}",
 			Timeout: time.Second * 180,

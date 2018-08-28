@@ -20,9 +20,9 @@ type OpenChannelPayload struct {
 func OpenChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 	// prepare data
 	var newchannel OpenChannelPayload
-	newchannel.PartnerAddress = "0xFFFFFFF"
+	newchannel.PartnerAddress = "0x000000000000000000000000000000000FfffFfF"
 	newchannel.TokenAddress = env.RandomToken().Address
-	newchannel.Balance = 50
+	//newchannel.Balance = 50
 	newchannel.SettleTimeout = 35
 	payload, err := json.Marshal(newchannel)
 	if err != nil {

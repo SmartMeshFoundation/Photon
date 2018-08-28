@@ -103,6 +103,7 @@ func StartRaidenNode(RegistryAddress string) {
 		pstr2 = append(pstr2, "smartraiden*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
+		pstr2 = append(pstr2, "-s INT")
 		pstr2 = append(pstr2, "smartraiden")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}

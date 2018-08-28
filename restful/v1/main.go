@@ -38,7 +38,7 @@ func Start() {
 		/*
 			transfer
 		*/
-		rest.Put("/api/1/token_swaps/:target/:id", TokenSwap),
+		rest.Put("/api/1/token_swaps/:target/:locksecrethash", TokenSwap),
 		rest.Post("/api/1/transfers/:token/:target", Transfers),
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),

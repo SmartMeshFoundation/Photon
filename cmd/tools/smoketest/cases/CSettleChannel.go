@@ -27,7 +27,7 @@ func SettleChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 		Logger.Printf("Case [%-40s] FAILED because no suitable env !!!", caseName)
 		if !allowFail {
 			Logger.Println("allowFail = false,exit")
-			panic("allowFail = false,exit")
+			panic("no suitable env")
 		}
 		return
 	}

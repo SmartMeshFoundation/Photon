@@ -21,13 +21,13 @@ import (
 
 // RegisteringTokenTest : test case for register token
 func RegisteringTokenTest(env *models.RaidenEnvReader, allowFail bool) {
-	// 1. register a registered token
+	// 1. register a not-exist token
 	case1 := &APITestCase{
-		CaseName:  "Register a registered token",
+		CaseName:  "Register a not-exist token",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "RegisteringOneToken",
-			FullURL: env.RandomNode().Host + "/api/1/tokens/" + env.RandomToken().Address,
+			FullURL: env.RandomNode().Host + "/api/1/tokens/0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
 			Method:  http.MethodPut,
 			Payload: "",
 			Timeout: time.Second * 120,
@@ -35,23 +35,9 @@ func RegisteringTokenTest(env *models.RaidenEnvReader, allowFail bool) {
 		TargetStatusCode: 409,
 	}
 	case1.Run()
-	// 2. register a not-exist token
-	case2 := &APITestCase{
-		CaseName:  "Register a not-exist token",
-		AllowFail: allowFail,
-		Req: &models.Req{
-			APIName: "RegisteringOneToken",
-			FullURL: env.RandomNode().Host + "/api/1/tokens/0xffffffffffffffffffffffffffffffffffffffff",
-			Method:  http.MethodPut,
-			Payload: "",
-			Timeout: time.Second * 120,
-		},
-		TargetStatusCode: 409,
-	}
-	case2.Run()
-	// 3. register a new token
+	// 2. register a new token
 	newTokenAddress := deployNewToken()
-	case3 := &APITestCase{
+	case2 := &APITestCase{
 		CaseName:  "Register a new token",
 		AllowFail: allowFail,
 		Req: &models.Req{
@@ -63,7 +49,7 @@ func RegisteringTokenTest(env *models.RaidenEnvReader, allowFail bool) {
 		},
 		TargetStatusCode: 200,
 	}
-	case3.Run()
+	case2.Run()
 }
 
 func deployNewToken() (newTokenAddress string) {
