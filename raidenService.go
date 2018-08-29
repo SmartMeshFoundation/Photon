@@ -793,7 +793,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash) (result *utils.AsyncResult) {
 	lockSecretHash := utils.EmptyHash
 	if secret != utils.EmptyHash {
-		lockSecretHash = utils.Sha3(secret.Bytes())
+		lockSecretHash = utils.ShaSecret(secret.Bytes())
 		/*用户使用指定的密码来进行交易,那么:
 		1. 注册SecretRequestPredictor,防止在用户允许之前发送密码出去
 		2. 保证用户在提供密码之后,能移除掉这个predictor

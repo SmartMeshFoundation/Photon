@@ -402,6 +402,30 @@ func (r *RaidenAPI) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress c
 	return
 }
 
+// RegisterSecret :
+func (r *RaidenAPI) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
+	lockSecretHash := utils.ShaSecret(secret.Bytes())
+	//在channel 中注册密码
+	r.Raiden.registerSecret(secret)
+
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := r.Raiden.Transfer2StateManager[key]
+	if manager == nil {
+		return rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
+	if !ok {
+		return rerr.InvalidState("wrong state")
+	}
+	if lockSecretHash != state.FromTransfer.LockSecretHash {
+		return rerr.InvalidState("wrong secret")
+	}
+	// 在state manager中注册密码
+	state.FromTransfer.Secret = secret
+	state.Secret = secret
+	return
+}
+
 // TransferDataResponse :
 type TransferDataResponse struct {
 	Initiator      string   `json:"initiator_address"`

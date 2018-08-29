@@ -127,6 +127,32 @@ func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 	}
 }
 
+// RegisterSecret :
+// 当从其他渠道知道一笔交易的密码时,可以注册密码到state manger中
+func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
+	type RegisterSecretPayload struct {
+		Secret       string `json:"secret"`
+		TokenAddress string `json:"token_address"`
+	}
+	var payload RegisterSecretPayload
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	secret := common.HexToHash(payload.Secret)
+	tokenAddress, err := utils.HexToAddress(payload.TokenAddress)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = RaidenAPI.RegisterSecret(secret, tokenAddress)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 /*
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
