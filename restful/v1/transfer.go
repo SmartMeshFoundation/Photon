@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"net/http"
 
+	"strings"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -14,13 +16,13 @@ import (
 
 //TransferData post for transfers
 type TransferData struct {
-	Initiator      string   `json:"initiator_address"`
-	Target         string   `json:"target_address"`
-	Token          string   `json:"token_address"`
-	Amount         *big.Int `json:"amount"`
-	LockSecretHash string   `json:"lock_secret_hash"`
-	Fee            *big.Int `json:"fee"`
-	IsDirect       bool     `json:"is_direct"`
+	Initiator string   `json:"initiator_address"`
+	Target    string   `json:"target_address"`
+	Token     string   `json:"token_address"`
+	Amount    *big.Int `json:"amount"`
+	Secret    string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用
+	Fee       *big.Int `json:"fee"`
+	IsDirect  bool     `json:"is_direct"`
 }
 
 /*
@@ -49,17 +51,21 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Amount.Cmp(utils.BigInt0) <= 0 {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		rest.Error(w, "Invalid amount", http.StatusBadRequest)
 		return
 	}
 	if req.Fee == nil {
 		req.Fee = utils.BigInt0
 	}
 	if req.Fee.Cmp(utils.BigInt0) < 0 {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		rest.Error(w, "Invalid fee", http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.LockSecretHash), params.MaxRequestTimeout, req.IsDirect)
+	if len(req.Secret) != 0 && len(req.Secret) != 64 && (strings.HasPrefix(req.Secret, "0x") && len(req.Secret) != 66) {
+		rest.Error(w, "Invalid secret", http.StatusBadRequest)
+		return
+	}
+	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -68,6 +74,54 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Target = target
 	req.Token = token
 	err = w.WriteJson(req)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// AllowRevealSecret :
+// 当用户发出了一笔指定密码的交易时使用,这种交易在调用本接口解锁之前,是不会接收方发来的SecretRequest的
+func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
+	type AllowRevealSecretPayload struct {
+		LockSecretHash string `json:"lock_secret_hash"`
+		TokenAddress   string `json:"token_address"`
+	}
+	var payload AllowRevealSecretPayload
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	lockSecretHash := common.HexToHash(payload.LockSecretHash)
+	tokenAddress, err := utils.HexToAddress(payload.TokenAddress)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = RaidenAPI.AllowRevealSecret(lockSecretHash, tokenAddress)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// GetUnfinishedReceivedTransfer :根据lockSecretHash查询未完成的交易
+func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
+	tokenAddressStr := r.PathParam("tokenaddress")
+	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	lockSecretHashStr := r.PathParam("locksecrethash")
+	lockSecretHash := common.HexToHash(lockSecretHashStr)
+	if lockSecretHash == utils.EmptyHash {
+		rest.Error(w, "Invalid lockSecretHash", http.StatusBadRequest)
+		return
+	}
+	transferData := RaidenAPI.GetUnfinishedReceivedTransfer(lockSecretHash, tokenAddress)
+	err = w.WriteJson(transferData)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

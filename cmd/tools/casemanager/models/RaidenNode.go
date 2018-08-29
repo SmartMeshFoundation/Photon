@@ -28,7 +28,7 @@ type RaidenNode struct {
 // Start start a raiden node
 func (node *RaidenNode) Start(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
+	go ExecShell(env.Main, node.getParamStr(env), logfile, false)
 
 	count := 0
 	t := time.Now()

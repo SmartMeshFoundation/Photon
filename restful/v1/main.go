@@ -48,6 +48,11 @@ func Start() {
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
 		/*
+			transfer with specified secret
+		*/
+		rest.Post("/api/1/transfer/allowrevealsecret", AllowRevealSecret),
+		rest.Get("/api/1/getunfinishedreceivedtransfer/:tokenaddress/:locksecrethash", GetUnfinishedReceivedTransfer),
+		/*
 			test
 		*/
 		rest.Get("/api/1/stop", Stop),

@@ -1,19 +1,26 @@
 package v1
 
 import (
+	"fmt"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 )
 
+// GetRandomSecret : create a secret and lockSecretHash with sha3
 func GetRandomSecret(w rest.ResponseWriter, r *rest.Request) {
 
 	type SecretPair struct {
-		LockSecretHash string
-		Secret         string
+		LockSecretHash string `json:"lock_secret_hash"`
+		Secret         string `json:"secret"`
 	}
 	pair := new(SecretPair)
 	seed := utils.Sha3(utils.NewRandomHash().Bytes())
 	pair.Secret = seed.String()
 	pair.LockSecretHash = utils.Sha3(seed.Bytes()).String()
-	w.WriteJson(pair)
+	err := w.WriteJson(pair)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }

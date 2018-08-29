@@ -21,6 +21,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -320,8 +321,8 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, timeout time.Duration, isDirectTransfer bool) (err error) {
-	result, err := r.transferAsync(token, amount, fee, target, lockSecretHash, isDirectTransfer)
+func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (err error) {
+	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
 	if err != nil {
 		return err
 	}
@@ -339,12 +340,12 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 }
 
 //Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, timeout time.Duration, isDirectTransfer bool) error {
-	return r.TransferAndWait(token, amount, fee, target, lockSecretHash, timeout, isDirectTransfer)
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) error {
+	return r.TransferAndWait(token, amount, fee, target, secret, timeout, isDirectTransfer)
 }
 
 //transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, lockSecretHash common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -373,9 +374,71 @@ func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, 
 		err = rerr.ErrInvalidAmount
 		return
 	}
-	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d lockSecretHash=%s",
-		r.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, lockSecretHash.String()))
-	result = r.Raiden.transferAsyncClient(tokenAddress, amount, fee, target, lockSecretHash, isDirectTransfer)
+	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s",
+		r.Raiden.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String()))
+	result = r.Raiden.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer)
+	return
+}
+
+// AllowRevealSecret :
+// 1. find state manager by lockSecretHash and tokenAddress
+// 2. check secret matches lockSecretHash or not
+// 3. remove the predictor
+func (r *RaidenAPI) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.Address) (err error) {
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := r.Raiden.Transfer2StateManager[key]
+	if manager == nil {
+		return rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.InitiatorState)
+	if !ok {
+		return rerr.InvalidState("wrong state")
+	}
+	if lockSecretHash != state.LockSecretHash || lockSecretHash != utils.Sha3(state.Secret.Bytes()) {
+		return rerr.InvalidState("wrong lock_secret_hash")
+	}
+	delete(r.Raiden.SecretRequestPredictorMap, lockSecretHash)
+	log.Trace(fmt.Sprintf("Remove SecretRequestPredictor for lockSecretHash="))
+	return
+}
+
+// TransferDataResponse :
+type TransferDataResponse struct {
+	Initiator      string   `json:"initiator_address"`
+	Target         string   `json:"target_address"`
+	Token          string   `json:"token_address"`
+	Amount         *big.Int `json:"amount"`
+	Secret         string   `json:"secret"`
+	LockSecretHash string   `json:"lock_secret_hash"`
+	Expiration     int64    `json:"expiration"`
+	Fee            *big.Int `json:"fee"`
+	IsDirect       bool     `json:"is_direct"`
+}
+
+// GetUnfinishedReceivedTransfer :
+func (r *RaidenAPI) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAddress common.Address) (resp *TransferDataResponse) {
+
+	if r.Raiden.SecretRequestPredictorMap[lockSecretHash] != nil {
+		return
+	}
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := r.Raiden.Transfer2StateManager[key]
+	if manager == nil {
+		log.Warn(fmt.Sprintf("can not find transfer by lock_secret_hash[%s] and token_address[%s]", lockSecretHash.String(), tokenAddress.String()))
+		return
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
+	if !ok {
+		// 接收人不是自己
+		return
+	}
+	resp = new(TransferDataResponse)
+	resp.Initiator = state.FromTransfer.Initiator.String()
+	resp.Target = state.FromTransfer.Target.String()
+	resp.Token = tokenAddress.String()
+	resp.Amount = state.FromTransfer.Amount
+	resp.LockSecretHash = state.FromTransfer.LockSecretHash.String()
+	resp.Expiration = state.BlockNumber
 	return
 }
 

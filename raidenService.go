@@ -710,21 +710,19 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 }
 
 /*
-mediated transfer for token swap
-we must make sure that taker use the maker's secret.
-and taker's lock expiration should be short than maker's todo(fix this)
-*/
-func (rs *RaidenService) startTakerMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, lockSecretHash common.Hash, hashlock common.Hash, expiration int64) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
-	return rs.startMediatedTransferInternal(tokenAddress, target, amount, utils.BigInt0, lockSecretHash, hashlock, expiration, utils.EmptyHash)
-}
-
-/*
 lauch a new mediated trasfer
 Args:
  hashlock: caller can specify a hashlock or use empty ,when empty, will generate a random secret.
  expiration: caller can specify a valid blocknumber or 0, when 0 ,will calculate based on settle timeout of channel.
+
+Calls:
+	//1. mediaedTransfer
+	//	 1.1 带lockSecretHash和Secret,则为指定密码的交易
+	//	 1.2 不带lockSecretHash和Secret则为普通交易,需生成随机密码
+	//2. token swap taker 带lockSecretHash,不带secret
+	//3. token swap maker 带lockSecretHash,带secret
 */
-func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, hashlock common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
 	result = utils.NewAsyncResult()
@@ -736,9 +734,12 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 		result.Result <- errors.New("no mediated transfer on mesh only network")
 		return
 	}
-	if lockSecretHash == utils.EmptyHash {
+	if secret == utils.EmptyHash {
 		secret = utils.NewRandomHash()
 		lockSecretHash = utils.Sha3(secret[:])
+	} else if utils.Sha3(secret.Bytes()) != lockSecretHash {
+		result.Result <- errors.New("secret and lockSecretHash not match")
+		return
 	}
 	/*
 		when user specified fee, for test or other purpose.
@@ -787,10 +788,23 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 
 /*
 1. user start a mediated transfer
-2. user start a maker mediated transfer
+2. user start a mediated transfer with secret
 */
-func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, secret common.Hash) (result *utils.AsyncResult) {
-	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, utils.EmptyHash, 0, secret)
+func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash) (result *utils.AsyncResult) {
+	lockSecretHash := utils.EmptyHash
+	if secret != utils.EmptyHash {
+		lockSecretHash = utils.Sha3(secret.Bytes())
+		/*用户使用指定的密码来进行交易,那么:
+		1. 注册SecretRequestPredictor,防止在用户允许之前发送密码出去
+		2. 保证用户在提供密码之后,能移除掉这个predictor
+		*/
+		var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
+			return true
+		}
+		rs.SecretRequestPredictorMap[lockSecretHash] = secretRequestHook
+		log.Trace(fmt.Sprintf("Register SecretRequestPredictor for secret=[%s] lockSecretHash=[%s]\n", secret.String(), lockSecretHash.String()))
+	}
+	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
 	return
 }
 
@@ -1145,7 +1159,7 @@ process user's token swap maker request
 save and restore todo?
 */
 func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResult) {
-	var hashlock common.Hash
+	var lockSecretHash common.Hash
 	var hasReceiveTakerMediatedTransfer bool
 	var sentMtrHook SentMediatedTransferListener
 	var receiveMtrHook ReceivedMediatedTrasnferListener
@@ -1159,17 +1173,17 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.Asy
 			*/
 			return true
 		}
-		delete(rs.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
+		delete(rs.SecretRequestPredictorMap, lockSecretHash) //old hashlock is invalid,just  remove
 		return false
 	}
 	sentMtrHook = func(mtr *encoding.MediatedTransfer) (remove bool) {
 		if mtr.LockSecretHash == tokenswap.LockSecretHash && rs.getTokenForChannelIdentifier(mtr.ChannelIdentifier) == tokenswap.FromToken && mtr.Target == tokenswap.ToNodeAddress && mtr.PaymentAmount.Cmp(tokenswap.FromAmount) == 0 {
-			if hashlock != utils.EmptyHash {
+			if lockSecretHash != utils.EmptyHash {
 				log.Info(fmt.Sprintf("tokenswap maker select new path ,because of different hash lock"))
-				delete(rs.SecretRequestPredictorMap, hashlock) //old hashlock is invalid,just  remove
+				delete(rs.SecretRequestPredictorMap, lockSecretHash) //old hashlock is invalid,just  remove
 			}
-			hashlock = mtr.LockSecretHash //hashlock may change when select new route path
-			rs.SecretRequestPredictorMap[hashlock] = secretRequestHook
+			lockSecretHash = mtr.LockSecretHash //hashlock may change when select new route path
+			rs.SecretRequestPredictorMap[lockSecretHash] = secretRequestHook
 		}
 		return false
 	}
@@ -1177,7 +1191,7 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.Asy
 		/*
 			recevive taker's mediated transfer , the transfer must use argument of tokenswap and have the same hashlock
 		*/
-		if mtr.LockSecretHash == tokenswap.LockSecretHash && hashlock == mtr.LockSecretHash && rs.getTokenForChannelIdentifier(mtr.ChannelIdentifier) == tokenswap.ToToken && mtr.Target == tokenswap.FromNodeAddress && mtr.PaymentAmount.Cmp(tokenswap.ToAmount) == 0 {
+		if mtr.LockSecretHash == tokenswap.LockSecretHash && lockSecretHash == mtr.LockSecretHash && rs.getTokenForChannelIdentifier(mtr.ChannelIdentifier) == tokenswap.ToToken && mtr.Target == tokenswap.FromNodeAddress && mtr.PaymentAmount.Cmp(tokenswap.ToAmount) == 0 {
 			hasReceiveTakerMediatedTransfer = true
 			delete(rs.SentMediatedTransferListenerMap, &sentMtrHook)
 			return true
@@ -1186,7 +1200,7 @@ func (rs *RaidenService) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.Asy
 	}
 	rs.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	rs.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result = rs.startMediatedTransfer(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, tokenswap.Secret)
+	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret)
 	return
 }
 
@@ -1240,7 +1254,7 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		taker and maker may have direct channels on these two tokens.
 	*/
 	takerExpiration := msg.Expiration - params.DefaultRevealTimeout
-	result, stateManager := rs.startTakerMediatedTransfer(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.LockSecretHash, msg.LockSecretHash, takerExpiration)
+	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return false
@@ -1340,7 +1354,7 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 		if r.IsDirectTransfer {
 			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.LockSecretHash, utils.EmptyHash)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
