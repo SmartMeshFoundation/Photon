@@ -312,7 +312,7 @@ this message may be sent out from this node or received from partner
 */
 func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error) {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(unlock)
-	lockSecretHash := utils.Sha3(unlock.LockSecret[:])
+	lockSecretHash := utils.ShaSecret(unlock.LockSecret[:])
 	lock := node.getLockByHashlock(lockSecretHash)
 	if lock == nil {
 		err = fmt.Errorf(" receive unlock message,but has no related lockSecretHash,msg=%s", utils.StringInterface(unlock, 3))
@@ -407,7 +407,7 @@ RegisterSecret register a secret(not secret message) so that it can be used in a
             This methods needs to be called once a `Secret` message is received
 */
 func (node *EndState) RegisterSecret(secret common.Hash) error {
-	hashlock := utils.Sha3(secret[:])
+	hashlock := utils.ShaSecret(secret[:])
 	if !node.IsKnown(hashlock) {
 		return errors.New("secret does not correspond to any hashlock")
 	}

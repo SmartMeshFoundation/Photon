@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -20,20 +19,26 @@ func TestBigIntTo32Bytes(t *testing.T) {
 	}
 }
 
-func TestNewRandomAddress(t *testing.T) {
-	addr := NewRandomAddress()
-	//fmt.Println(addr)
-	//fmt.Printf("addrs=%s\n", addr)
-	fmt.Printf("addrs=%s", addr.String())
-	//spew.Dump(addr)
-	//t.Logf("addrs=%s\n", addr)
-	//t.Logf("addrv=%v\n", addr)
-}
-
 func TestSha3(t *testing.T) {
 	data := []byte("abc")
 	hashsha3 := Sha3(data)
 	hash256 := sha256.Sum256(data)
+	hashsecret := ShaSecret(data)
 	t.Logf("sha3=%s", hashsha3.String())
 	t.Logf("sha256=%s", common.Bytes2Hex(hash256[:]))
+	t.Logf("hashsecret=%s", common.Bytes2Hex(hashsecret[:]))
+}
+
+func TestShaSecret(t *testing.T) {
+	cases := map[string]string{
+		"b4e12862b4433c3eab351e07ccedd64cdd16273c057ca81ab2c4c7b93cdba2ce": "9aa5bea8995976cb7ee6adeeafa51445b23ef199a22785c12ca968cd13774d7f",
+	}
+	for k, v := range cases {
+		secret, _ := hex.DecodeString(k)
+		secrethash, _ := hex.DecodeString(v)
+		calchash := ShaSecret(secret[:])
+		if !bytes.Equal(secrethash[:], calchash[:]) {
+			t.Error("not equal")
+		}
+	}
 }

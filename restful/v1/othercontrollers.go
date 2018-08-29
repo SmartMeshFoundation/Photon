@@ -16,9 +16,9 @@ func GetRandomSecret(w rest.ResponseWriter, r *rest.Request) {
 		Secret         string `json:"secret"`
 	}
 	pair := new(SecretPair)
-	seed := utils.Sha3(utils.NewRandomHash().Bytes())
+	seed := utils.ShaSecret(utils.NewRandomHash().Bytes())
 	pair.Secret = seed.String()
-	pair.LockSecretHash = utils.Sha3(seed.Bytes()).String()
+	pair.LockSecretHash = utils.ShaSecret(seed.Bytes()).String()
 	err := w.WriteJson(pair)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))

@@ -20,12 +20,12 @@ func TestSecretRegistryRight(t *testing.T) {
 	// get blockNo
 	blockNoWhenRegister := getLatestBlockNumber()
 	// register right
-	secret := utils.Sha3([]byte(utils.RandomString(9)))
+	secret := utils.ShaSecret([]byte(utils.RandomString(9)))
 	tx, err := env.SecretRegistry.RegisterSecret(a1.Auth, secret)
 	assertTxSuccess(t, &count, tx, err)
 
 	// get block height by secret hash
-	secretHash := utils.Sha3(secret[:])
+	secretHash := utils.ShaSecret(secret[:])
 	blockNo, err := env.SecretRegistry.GetSecretRevealBlockHeight(nil, secretHash)
 	assertSuccess(t, &count, err)
 	assertEqual(t, &count, true, blockNo.Cmp(blockNoWhenRegister.Number) >= 0)

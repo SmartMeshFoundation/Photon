@@ -30,7 +30,7 @@ var errTimeout = errors.New("wait timeout")
 var errExpired = errors.New("message expired")
 
 /*
-	MessageToRaiden message and it's echo hash
+MessageToRaiden message and it's echo hash
 */
 type MessageToRaiden struct {
 	Msg      encoding.SignedMessager
@@ -56,7 +56,7 @@ type PingSender interface {
 }
 
 /*
-	BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
+BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
 	for example :
 		A send B a mediated transfer, but B is offline
 		when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
@@ -93,8 +93,8 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 }
 
 /*
-	RaidenProtocol is a UDP protocol,
-	every message needs a ack to make sure sent success.
+RaidenProtocol is a UDP protocol,
+every message needs a ack to make sure sent success.
 */
 type RaidenProtocol struct {
 	Transport           Transporter

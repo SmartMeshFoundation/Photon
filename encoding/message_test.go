@@ -173,7 +173,7 @@ func TestMediatedTransfer(t *testing.T) {
 	lock := &mtree.Lock{
 		Amount:         big.NewInt(34),
 		Expiration:     4589895, //expiration block number
-		LockSecretHash: utils.Sha3([]byte("hashlock")),
+		LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 	}
 	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
 	m1.Sign(GetTestPrivKey(), m1)
@@ -196,7 +196,7 @@ func TestNewAnnounceDisposedTransfer(t *testing.T) {
 		Lock: &mtree.Lock{
 			Amount:         big.NewInt(34),
 			Expiration:     4589895, //expiration block number
-			LockSecretHash: utils.Sha3([]byte("hashlock")),
+			LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 		},
 	}
 	m1 := NewAnnounceDisposed(bp)
@@ -227,7 +227,7 @@ func TestNewSecret(t *testing.T) {
 		OpenBlockNumber:   3,
 		Locksroot:         utils.EmptyHash,
 	}
-	s1 := NewUnlock(bp, utils.Sha3([]byte("xxx")))
+	s1 := NewUnlock(bp, utils.ShaSecret([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(UnLock)
@@ -242,7 +242,7 @@ func TestNewSecret(t *testing.T) {
 }
 
 func TestNewRevealSecret(t *testing.T) {
-	s1 := NewRevealSecret(utils.Sha3([]byte("xxx")))
+	s1 := NewRevealSecret(utils.ShaSecret([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(RevealSecret)
@@ -257,7 +257,7 @@ func TestNewRevealSecret(t *testing.T) {
 }
 
 func TestNewSecretRequest(t *testing.T) {
-	s1 := NewSecretRequest(utils.Sha3([]byte("xxx")), big.NewInt(506))
+	s1 := NewSecretRequest(utils.ShaSecret([]byte("xxx")), big.NewInt(506))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(SecretRequest)
@@ -278,7 +278,7 @@ func TestNewRemoveExpiredHashlockTransfer(t *testing.T) {
 		OpenBlockNumber:   3,
 		Locksroot:         utils.EmptyHash,
 	}
-	s1 := NewRemoveExpiredHashlockTransfer(bp, utils.Sha3([]byte("xxx")))
+	s1 := NewRemoveExpiredHashlockTransfer(bp, utils.ShaSecret([]byte("xxx")))
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(RemoveExpiredHashlockTransfer)
@@ -295,7 +295,7 @@ func TestLock_AsBytes(t *testing.T) {
 	lock := &mtree.Lock{
 		Amount:         big.NewInt(34),
 		Expiration:     4589895, //expiration block number
-		LockSecretHash: utils.Sha3([]byte("hashlock")),
+		LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 	}
 	t.Log("\n", hex.Dump(lock.AsBytes()))
 	lock2 := new(mtree.Lock)

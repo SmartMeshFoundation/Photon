@@ -90,7 +90,7 @@ func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 }
 
-// SendTrans send a transfer
+//SendTransWithSecret send a transfer
 func (node *RaidenNode) SendTransWithSecret(tokenAddress string, amount int32, targetAddress string, secretSeed string) {
 	p, _ := json.Marshal(TransferPayload{
 		Amount:   amount,

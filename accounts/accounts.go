@@ -23,7 +23,7 @@ import (
 var errNoSuchAddress = errors.New("can not found this address")
 
 /*
-	AccountManager List All Accounts in directory KeyPath
+AccountManager List All Accounts in directory KeyPath
 */
 type AccountManager struct {
 	KeyPath  string
@@ -52,7 +52,7 @@ func (am *AccountManager) AddressInKeyStore(addr common.Address) bool {
 }
 
 /*
-	GetPrivateKey Find the keystore file for an account, unlock it and get the private key
+GetPrivateKey Find the keystore file for an account, unlock it and get the private key
    	addr: The Ethereum address for which to find the keyfile in the system
 	password: Mostly for testing purposes. A password can be provided
 			  as the function argument here. If it's not then the

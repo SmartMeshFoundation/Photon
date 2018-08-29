@@ -178,7 +178,7 @@ type SecretGenerator func() (secret, hashlock common.Hash)
 //RandomSecretGenerator generate a random secret
 func RandomSecretGenerator() (secret, hashlock common.Hash) {
 	secret = common.BytesToHash(Random(32))
-	hashlock = Sha3(secret[:])
+	hashlock = ShaSecret(secret[:])
 	return
 }
 

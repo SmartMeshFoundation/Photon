@@ -30,7 +30,7 @@ var UnitIdentifier = utils.Sha3([]byte("3"))
 var UnitSecret = common.StringToHash("secretsecretsecretsecretsecretse")
 
 //UnitHashLock for test
-var UnitHashLock = utils.Sha3(UnitSecret[:])
+var UnitHashLock = utils.ShaSecret(UnitSecret[:])
 
 //UnitTokenAddress for test
 var UnitTokenAddress = utils.NewRandomAddress()
@@ -95,7 +95,7 @@ func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTime
 //MakeTransfer create test transfer
 func MakeTransfer(amount *big.Int, initiator, target common.Address, expiration int64, secret common.Hash, hashlock common.Hash, token /*UnitTokenAddress*/ common.Address) *mediatedtransfer.LockedTransferState {
 	if secret != utils.EmptyHash {
-		if utils.Sha3(secret[:]) != hashlock {
+		if utils.ShaSecret(secret[:]) != hashlock {
 			log.Error("sha3(secret) != hashlock")
 		}
 	}

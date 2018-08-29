@@ -154,7 +154,7 @@ func TestWithdraw(t *testing.T) {
 		model.CloseDB()
 	}()
 	channel := utils.NewRandomHash()
-	secret := utils.Sha3(channel[:])
+	secret := utils.ShaSecret(channel[:])
 	r := model.IsThisLockHasUnlocked(channel, secret)
 	if r == true {
 		t.Error("should be false")
@@ -179,7 +179,7 @@ func TestModelDB_IsThisLockRemoved(t *testing.T) {
 		model.CloseDB()
 	}()
 	channel := utils.NewRandomHash()
-	secret := utils.Sha3(channel[:])
+	secret := utils.ShaSecret(channel[:])
 	sender := utils.NewRandomAddress()
 	r := model.IsThisLockRemoved(channel, sender, secret)
 	if r {

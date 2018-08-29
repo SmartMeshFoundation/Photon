@@ -332,7 +332,7 @@ RegisterSecret Register a secret to this channel
             secret: The secret that releases a locked transfer.
 */
 func (c *Channel) RegisterSecret(secret common.Hash) error {
-	hashlock := utils.Sha3(secret[:])
+	hashlock := utils.ShaSecret(secret[:])
 	ourKnown := c.OurState.IsKnown(hashlock)
 	partenerKnown := c.PartnerState.IsKnown(hashlock)
 	if !ourKnown && !partenerKnown {

@@ -214,7 +214,7 @@ func TestUpdateBalanceProofDelegate(t *testing.T) {
 	tx, err := env.TokenNetwork.CloseChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
 	assertTxSuccess(t, nil, tx, err)
 	// create balance proof
-	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(10), utils.EmptyHash, utils.Sha3([]byte("123")), 3)
+	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(10), utils.EmptyHash, utils.ShaSecret([]byte("123")), 3)
 	bpPartnerSelf := &BalanceProofUpdateForContracts{
 		BalanceProofForContract: *bpPartner,
 	}
@@ -245,7 +245,7 @@ func TestUpdateBalanceProofDelegate(t *testing.T) {
 	assertTxSuccess(t, nil, tx, err)
 
 	// update after settle
-	bpPartner = createPartnerBalanceProof(self, partner, big.NewInt(11), utils.EmptyHash, utils.Sha3([]byte("123")), 4)
+	bpPartner = createPartnerBalanceProof(self, partner, big.NewInt(11), utils.EmptyHash, utils.ShaSecret([]byte("123")), 4)
 	bpPartnerSelf = &BalanceProofUpdateForContracts{
 		BalanceProofForContract: *bpPartner,
 	}

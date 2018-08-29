@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"crypto/sha256"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -56,6 +58,12 @@ func Sha3(data ...[]byte) common.Hash {
 //Pex short string stands for data
 func Pex(data []byte) string {
 	return common.Bytes2Hex(data[:4])
+}
+
+//ShaSecret is short for sha256
+func ShaSecret(data []byte) common.Hash {
+	//	return crypto.Keccak256Hash(data...)
+	return sha256.Sum256(data)
 }
 
 //HPex pex for hash

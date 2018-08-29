@@ -150,7 +150,7 @@ func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 
 
 func getRandomSecret() (string, string) {
 	t := utils.RandomString(5)
-	secret := utils.Sha3([]byte(t))
-	lockSecretHash := utils.Sha3(secret.Bytes())
+	secret := utils.ShaSecret([]byte(t))
+	lockSecretHash := utils.ShaSecret(secret.Bytes())
 	return secret.String(), lockSecretHash.String()
 }

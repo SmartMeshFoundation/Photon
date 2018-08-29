@@ -98,7 +98,7 @@ func handleSecretRegisteredOnChain(state *mediatedtransfer.TargetState, st *medi
 
 // Validate and handle a ReceiveSecretReveal state change.
 func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveSecretRevealStateChange) (it *transfer.TransitionResult) {
-	validSecret := utils.Sha3(st.Secret[:]) == state.FromTransfer.LockSecretHash
+	validSecret := utils.ShaSecret(st.Secret[:]) == state.FromTransfer.LockSecretHash
 	var events []transfer.Event
 	if validSecret {
 		tr := state.FromTransfer

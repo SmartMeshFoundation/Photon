@@ -133,7 +133,7 @@ func (s *Serialization) PartnerLock2UnclaimedLocks() map[common.Hash]UnlockParti
 func (s *Serialization) getSecretHashMap(secrets []common.Hash) map[common.Hash]common.Hash {
 	m := make(map[common.Hash]common.Hash)
 	for _, s := range secrets {
-		m[utils.Sha3(s[:])] = s
+		m[utils.ShaSecret(s[:])] = s
 	}
 	return m
 }

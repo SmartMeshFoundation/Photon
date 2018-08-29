@@ -25,7 +25,7 @@ const LayerLeaves = 0
 const LayerMerkleRoot = -1
 
 /*
-	Merkletree is hash tree
+Merkletree is hash tree
 */
 type Merkletree struct {
 	Layers [][]common.Hash
@@ -36,11 +36,11 @@ type Merkletree struct {
 var EmptyTree = NewMerkleTree(nil)
 
 /*
-	The Lock structure for Hashed TimeLock Contract.
-	In our messenger
-	在消息中 expiration 用的是 int64编码
-	而在合约中用的是 big.Int
-	todo 要不要统一?
+Lock is 	The Lock structure for Hashed TimeLock Contract.
+In our messenger
+在消息中 expiration 用的是 int64编码
+而在合约中用的是 big.Int
+todo 要不要统一?
 */
 type Lock struct {
 	Expiration     int64 // expiration block number

@@ -464,7 +464,7 @@ func CloneRevealSecret(rs *RevealSecret) *RevealSecret {
 //LockSecretHash return hash of secret
 func (rs *RevealSecret) LockSecretHash() common.Hash {
 	if rs.lockSecretHash == utils.EmptyHash {
-		rs.lockSecretHash = utils.Sha3(rs.LockSecret[:])
+		rs.lockSecretHash = utils.ShaSecret(rs.LockSecret[:])
 	}
 	return rs.lockSecretHash
 }
@@ -666,7 +666,7 @@ type UnLock struct {
 
 //LockSecretHash is Hash of secret
 func (s *UnLock) LockSecretHash() common.Hash {
-	return utils.Sha3(s.LockSecret[:])
+	return utils.ShaSecret(s.LockSecret[:])
 }
 
 //NewUnlock create Secret message

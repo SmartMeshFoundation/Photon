@@ -70,7 +70,7 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	p2.Start()
-	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
+	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
 		m := <-p2.ReceivedMessageChan
@@ -112,7 +112,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 	p2 := MakeTestRaidenProtocol("p2")
 	p1.Start()
 	p2.Start()
-	revealSecretMsg := encoding.NewRevealSecret(utils.Sha3([]byte{12}))
+	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
 		m := <-p2.ReceivedMessageChan
@@ -158,7 +158,7 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	lock := mtree.Lock{
 		Expiration:     int64(expiration),
 		Amount:         big.NewInt(10),
-		LockSecretHash: utils.Sha3([]byte("test")),
+		LockSecretHash: utils.ShaSecret([]byte("test")),
 	}
 	reciever := utils.NewRandomAddress()
 	bp := encoding.NewBalanceProof(1, utils.BigInt0, utils.EmptyHash, &contracts.ChannelUniqueID{

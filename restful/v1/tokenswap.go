@@ -71,7 +71,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	}
 	if req.Role == "maker" {
 		// 校验secret和lockSecretHash是否匹配
-		if req.Secret == "" || utils.Sha3(common.HexToHash(req.Secret).Bytes()) != common.HexToHash(lockSecretHash) {
+		if req.Secret == "" || utils.ShaSecret(common.HexToHash(req.Secret).Bytes()) != common.HexToHash(lockSecretHash) {
 			rest.Error(w, "must provide a matching pair of secret and lockSecretHash", http.StatusBadRequest)
 			return
 		}

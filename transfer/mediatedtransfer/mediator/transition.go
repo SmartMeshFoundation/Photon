@@ -747,7 +747,7 @@ Validate and handle a ReceiveSecretReveal state change.
 */
 func handleSecretReveal(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveSecretRevealStateChange) *transfer.TransitionResult {
 	secret := st.Secret
-	if utils.Sha3(secret[:]) != state.Hashlock {
+	if utils.ShaSecret(secret[:]) != state.Hashlock {
 		panic("must a implementation error")
 	}
 	return secretLearned(state, secret, st.Sender, mediatedtransfer.StatePayeeSecretRevealed)

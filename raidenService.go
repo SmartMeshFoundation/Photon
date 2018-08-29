@@ -512,7 +512,7 @@ Register the secret with any channel that has a hashlock on it.
        and ignoring the tokens.
 */
 func (rs *RaidenService) registerSecret(secret common.Hash) {
-	hashlock := utils.Sha3(secret[:])
+	hashlock := utils.ShaSecret(secret[:])
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
@@ -736,8 +736,8 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	}
 	if secret == utils.EmptyHash {
 		secret = utils.NewRandomHash()
-		lockSecretHash = utils.Sha3(secret[:])
-	} else if utils.Sha3(secret.Bytes()) != lockSecretHash {
+		lockSecretHash = utils.ShaSecret(secret[:])
+	} else if utils.ShaSecret(secret.Bytes()) != lockSecretHash {
 		result.Result <- errors.New("secret and lockSecretHash not match")
 		return
 	}

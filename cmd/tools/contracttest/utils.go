@@ -402,12 +402,12 @@ func createPartnerBalanceProof(self *Account, partner *Account, transferAmount *
 
 func createLock(expiredBlock int64, amounts ...*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
 	for i := 0; i < len(amounts); i++ {
-		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secret := utils.ShaSecret([]byte(utils.RandomString(10)))
 		secrets = append(secrets, secret)
 		l := &mtree.Lock{
 			Expiration:     expiredBlock,
 			Amount:         amounts[i],
-			LockSecretHash: utils.Sha3(secret[:]),
+			LockSecretHash: utils.ShaSecret(secret[:]),
 		}
 		locks = append(locks, l)
 	}
@@ -416,12 +416,12 @@ func createLock(expiredBlock int64, amounts ...*big.Int) (locks []*mtree.Lock, s
 
 func createLockByArray(expiredBlock int64, amounts []*big.Int) (locks []*mtree.Lock, secrets []common.Hash) {
 	for i := 0; i < len(amounts); i++ {
-		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secret := utils.ShaSecret([]byte(utils.RandomString(10)))
 		secrets = append(secrets, secret)
 		l := &mtree.Lock{
 			Expiration:     expiredBlock,
 			Amount:         amounts[i],
-			LockSecretHash: utils.Sha3(secret[:]),
+			LockSecretHash: utils.ShaSecret(secret[:]),
 		}
 		locks = append(locks, l)
 	}

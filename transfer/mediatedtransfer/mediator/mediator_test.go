@@ -51,8 +51,8 @@ func makeTransferPair(payer, payee, initiator, target common.Address, amount *bi
 	return mediatedtransfer.NewMediationPairState(
 		utest.MakeRoute(payer, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utest.CHANNEL),
 		utest.MakeRoute(payee, amount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utest.CHANNEL),
-		utest.MakeTransfer(amount, initiator, target, payerExpiration, secret, utils.Sha3(secret[:]), utest.UnitTokenAddress),
-		utest.MakeTransfer(amount, initiator, target, payeeExpiration, secret, utils.Sha3(secret[:]), utest.UnitTokenAddress),
+		utest.MakeTransfer(amount, initiator, target, payerExpiration, secret, utils.ShaSecret(secret[:]), utest.UnitTokenAddress),
+		utest.MakeTransfer(amount, initiator, target, payeeExpiration, secret, utils.ShaSecret(secret[:]), utest.UnitTokenAddress),
 	)
 }
 func makeTransfersPair(initiator common.Address, hops []common.Address, target common.Address, amount int64, secret common.Hash, initialExpiration int64, revealTimeout int) []*mediatedtransfer.MediationPairState {
@@ -743,7 +743,7 @@ func TestInitMediator(t *testing.T) {
 	fromRoute, FromTransfer := utest.MakeFrom(utest.UnitTransferAmount, utest.HOP2, int64(utest.Hop1Timeout), utils.NewRandomAddress(), utils.EmptyHash)
 	var routes = []*route.State{utest.MakeRoute(utest.HOP2, utest.UnitTransferAmount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := transfer.NewStateManager(StateTransition, nil, "mediator", utils.Sha3([]byte("3")), utils.NewRandomAddress())
+	sm := transfer.NewStateManager(StateTransition, nil, "mediator", utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	mstate := sm.CurrentState.(*mediatedtransfer.MediatorState)
@@ -774,7 +774,7 @@ func TestNoValidRoutes(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, big.NewInt(1), utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash()),
 	}
 	initStateChange := makeInitStateChange(FromTransfer, fromRoute, routes, utest.ADDR)
-	sm := transfer.NewStateManager(StateTransition, nil, "mediator", utils.Sha3([]byte("3")), utils.NewRandomAddress())
+	sm := transfer.NewStateManager(StateTransition, nil, "mediator", utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	//assert(t, sm.CurrentState, nil)
