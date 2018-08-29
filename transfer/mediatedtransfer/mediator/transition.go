@@ -152,10 +152,10 @@ func sanityCheck(state *mediatedtransfer.MediatorState) {
 	//if a transfer is paid we must know the secret
 	for _, pair := range state.TransfersPair {
 		if stateTransferPaidMaps[pair.PayerState] && state.Secret == utils.EmptyHash {
-			panic("payer:a transfer is paid but we don't know the secret")
+			panic(fmt.Sprintf("payer:a transfer is paid but we don't know the secret, payerstate=%s,payeestate=%s", pair.PayerState, pair.PayeeState))
 		}
 		if stateTransferPaidMaps[pair.PayeeState] && state.Secret == utils.EmptyHash {
-			panic("payee:a transfer is paid but we don't know the secret")
+			panic(fmt.Sprintf("payee:a transfer is paid but we don't know the secret,payerstate=%s,payeestate=%s", pair.PayerState, pair.PayeeState))
 		}
 	}
 	//the "transitivity" for these values is checked below as part of
