@@ -394,7 +394,7 @@ func (r *RaidenAPI) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress c
 	if !ok {
 		return rerr.InvalidState("wrong state")
 	}
-	if lockSecretHash != state.LockSecretHash || lockSecretHash != utils.Sha3(state.Secret.Bytes()) {
+	if lockSecretHash != state.LockSecretHash || lockSecretHash != utils.ShaSecret(state.Secret.Bytes()) {
 		return rerr.InvalidState("wrong lock_secret_hash")
 	}
 	delete(r.Raiden.SecretRequestPredictorMap, lockSecretHash)
