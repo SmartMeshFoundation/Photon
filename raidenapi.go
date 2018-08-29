@@ -438,7 +438,7 @@ func (r *RaidenAPI) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, to
 	resp.Token = tokenAddress.String()
 	resp.Amount = state.FromTransfer.Amount
 	resp.LockSecretHash = state.FromTransfer.LockSecretHash.String()
-	resp.Expiration = state.BlockNumber
+	resp.Expiration = state.BlockNumber - state.FromTransfer.Expiration
 	return
 }
 
