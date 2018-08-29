@@ -5,7 +5,7 @@ import "./Token.sol";
 import "./TokenNetwork.sol";
 
 /// @title contract to register a TokenNetwork.
-/// @notice
+/// @notice arg
 contract TokenNetworkRegistry is Utils {
 
     string constant public contract_version = "0.3._";
@@ -19,7 +19,7 @@ contract TokenNetworkRegistry is Utils {
 
     /// @notice constructor for this contract.
     /// @dev    _chain_id must be greater than 0, and _secret_registry_address must exist.
-    /// @param  _secrect_registry_address    an address of contract for secret registry.
+    /// @param  _secret_registry_address    an address of contract for secret registry.
     /// @param  _chain_id                    a 256-bit unsigned integer
     constructor(address _secret_registry_address, uint256 _chain_id) public {
         require(_chain_id > 0);

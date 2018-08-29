@@ -77,7 +77,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	ChainID, err = tokenNetwork.Chain_id(nil)
+	ChainID, err = tokenNetwork.ChainId(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +90,7 @@ func setup() {
 		panic(err)
 	}
 	log.Info(fmt.Sprintf("tokenAddr=%s,tokenNetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
-	punishBlockNumber, err = tokenNetwork.Punish_block_number(nil)
+	punishBlockNumber, err = tokenNetwork.PunishBlockNumber(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -379,12 +379,12 @@ func createPartnerBalanceProof(key *ecdsa.PrivateKey, channelID contracts.Channe
 
 func createPartnerBalanceProofWithLocks(key *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofForContract, locks []*mtree.Lock, secrets []common.Hash) {
 	for i := 0; i < lockNumber; i++ {
-		secret := utils.Sha3([]byte(utils.RandomString(10)))
+		secret := utils.ShaSecret([]byte(utils.RandomString(10)))
 		secrets = append(secrets, secret)
 		l := &mtree.Lock{
 			Expiration:     expiredBlock,
 			Amount:         big.NewInt(1),
-			LockSecretHash: utils.Sha3(secret[:]),
+			LockSecretHash: utils.ShaSecret(secret[:]),
 		}
 		locks = append(locks, l)
 	}
@@ -780,7 +780,7 @@ func TestCooperateSettleChannel(t *testing.T) {
 	log.Info(fmt.Sprintf("CooperativeSettle gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
 func TestRegisterSecret(t *testing.T) {
-	secretRegistryAddress, err := tokenNetwork.Secret_registry(nil)
+	secretRegistryAddress, err := tokenNetwork.SecretRegistry(nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -790,7 +790,7 @@ func TestRegisterSecret(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	secret := utils.Sha3([]byte("123"))
+	secret := utils.ShaSecret(utils.Random(10))
 	t.Logf("secret=%s", secret.String())
 	tx, err := secretRegistry.RegisterSecret(auth, secret)
 	if err != nil {
@@ -806,7 +806,7 @@ func TestRegisterSecret(t *testing.T) {
 		t.Errorf("receipient err ,r=%s", r)
 		return
 	}
-	block, err := secretRegistry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
+	block, err := secretRegistry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err != nil {
 		t.Error(err)
 		return
@@ -832,7 +832,7 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("before settle partner balance=%s", partnerBalance))
-	secretRegistAddress, err := tokenNetwork.Secret_registry(nil)
+	secretRegistAddress, err := tokenNetwork.SecretRegistry(nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1228,7 +1228,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	log.Info(fmt.Sprintf("before settle partner balance=%s", partnerBalance))
-	secretRegistAddress, err := tokenNetwork.Secret_registry(nil)
+	secretRegistAddress, err := tokenNetwork.SecretRegistry(nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1402,7 +1402,7 @@ func TestTokenFallback(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ChainID, err = tokenNetwork.Chain_id(nil)
+	ChainID, err = tokenNetwork.ChainId(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -1415,7 +1415,7 @@ func TestTokenFallback(t *testing.T) {
 		panic(err)
 	}
 	log.Info(fmt.Sprintf("tokenAddr=%s,tokenNetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
-	punishBlockNumber, err = tokenNetwork.Punish_block_number(nil)
+	punishBlockNumber, err = tokenNetwork.PunishBlockNumber(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -1483,7 +1483,7 @@ func TestApproveAndCall(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ChainID, err = tokenNetwork.Chain_id(nil)
+	ChainID, err = tokenNetwork.ChainId(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -1496,7 +1496,7 @@ func TestApproveAndCall(t *testing.T) {
 		panic(err)
 	}
 	log.Info(fmt.Sprintf("tokenAddr=%s,tokenNetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
-	punishBlockNumber, err = tokenNetwork.Punish_block_number(nil)
+	punishBlockNumber, err = tokenNetwork.PunishBlockNumber(nil)
 	if err != nil {
 		panic(err)
 	}

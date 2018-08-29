@@ -44,7 +44,7 @@ contract TokenNetwork is Utils {
         //
         bytes24 balance_hash;
 
-        // nounce is used as the transaction serial number.
+        // nonce is used as the transaction serial number.
         // It will increase when a transaction occurs.
         uint64 nonce;
 
@@ -341,7 +341,7 @@ contract TokenNetwork is Utils {
     /// @dev
     /// @param from     default to 0x0.
     /// @param value    the amount of tokens to be refund.
-    /// @param data
+    /// @param data for callback
     function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
         require(msg.sender == address(token));
         fallback(0,value, data, false);
@@ -351,24 +351,24 @@ contract TokenNetwork is Utils {
     /*
         常用的 approve and call
      */
-    /// @notice
-    /// @dev
-    /// @param from
-    /// @param value
-    /// @param token_
-    /// @param data
-    /// @return success
+    /// @notice receiveApproval
+    /// @dev receiveApproval
+    /// @param from arg
+    /// @param value arg
+    /// @param token_ arg
+    /// @param data arg
+    /// @return success arg
     function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
         require(token_ == address(token));
         fallback(from,value, data, true);
         return true;
     }
 
-    /// @notice
-    /// @dev
-    /// @param from
+    /// @notice arg
+    /// @dev arg
+    /// @param from  arg
     /// @param value            the amount of tokens to be send back to original address.
-    /// @param data
+    /// @param data arg
     /// @param need_transfer    a boolean value that will be used in internal call under some conditions.
     function fallback(address from, uint256 value, bytes data, bool need_transfer) internal {
         uint256 func;
@@ -402,14 +402,14 @@ contract TokenNetwork is Utils {
         participant1_signature,participant2_signature 双方对这次提现的签名
      */
     /// @notice function to withdraw tokens in this token network.
-    /// @param participant1
-    /// @param participant1_balance
-    /// @param participant1_withdraw
-    /// @param participant2
-    /// @param participant2_balance
-    /// @param participant2_withdraw
-    /// @param participant1_signature
-    /// @param participant2_signature
+    /// @param participant1 arg
+    /// @param participant1_balance arg
+    /// @param participant1_withdraw arg
+    /// @param participant2 arg
+    /// @param participant2_balance arg
+    /// @param participant2_withdraw arg
+    /// @param participant1_signature arg
+    /// @param participant2_signature arg
     function withDraw(
         address participant1,
         uint256 participant1_balance,
@@ -503,7 +503,7 @@ contract TokenNetwork is Utils {
     /// @param partner              participant at the other side of this channel.
     /// @param transferred_amount   the amount of tokens partner has transferred.
     /// @param locksroot            transaction set of partner that has been completed.
-    /// @param nounce               transaction serial numbers from partner
+    /// @param nonce               transaction serial numbers from partner
     /// @param additional_hash      auxiliary hash for implementation.
     /// @param signature            signature from partner
     function closeChannel(
@@ -567,7 +567,7 @@ contract TokenNetwork is Utils {
     /// @param participant              one that delegate another node to update partner's BalanceProof.
     /// @param transferred_amount       the amount of tokens transferred directly.
     /// @param locksroot                transaction set that partner has not completed yet.
-    /// @param nounce                   transaction serial number of partner.
+    /// @param nonce                   transaction serial number of partner.
     /// @param additional_hash          auxiliary information
     /// @param partner_signature        signature from partner
     /// @param participant_signature    signature from participant
@@ -640,7 +640,7 @@ contract TokenNetwork is Utils {
     /// @param partner              one whose BalanceProof needs to be updated.
     /// @param transferred_amount   the amount of tokens transferred directly.
     /// @param locksroot            the set of incomplete transactions of partner.
-    /// @param nounce               transaction serial number given by partner.
+    /// @param nonce               transaction serial number given by partner.
     /// @param additional_hash      auxiliary information
     /// @param partner_signature    signature of partner
     function updateBalanceProof(
@@ -694,9 +694,9 @@ contract TokenNetwork is Utils {
     /// @param  partner                 one that corresponds to participant in this channel, whose transaction has not completed yet.
     /// @param  participant             one that delegate services in the channel.
     /// @param  transferred_amount      the amount of tokens transferred directly from partner.
-    /// @param  expiration
-    /// @param  amount
-    /// @param  secret_hash
+    /// @param  expiration arg
+    /// @param  amount arg
+    /// @param  secret_hash arg
     /// @param  merkle_proof            verify that this lock is contained in locksroot.
     /// @param  participant_signature   signature from delegation service.
     function unlockDelegate(
@@ -739,12 +739,12 @@ contract TokenNetwork is Utils {
         merkle_proof: 证明此锁包含在 locksroot 中
     */
     /// @notice function to unlock the time hash lock within a transfer.
-    /// @param partner
-    /// @param transferred_amount
-    /// @param expiration
-    /// @param amount
-    /// @param secret_hash
-    /// @param merkle_proof
+    /// @param partner arg
+    /// @param transferred_amount arg
+    /// @param expiration arg
+    /// @param amount arg
+    /// @param secret_hash arg
+    /// @param merkle_proof arg
     function unlock(
         address partner,
         uint256 transferred_amount,

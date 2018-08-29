@@ -34,10 +34,10 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	sp.Lock()
 	defer sp.Unlock()
 	log.Trace(fmt.Sprintf("RegisterSecret %s on chain", secret.String()))
-	block, err := s.registry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
+	block, err := s.registry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err == nil && block.Uint64() > 0 {
 		//已经注册过了,直接报错
-		err = fmt.Errorf("secret %s,secret hash=%s  already registered", secret.String(), utils.Sha3(secret[:]).String())
+		err = fmt.Errorf("secret %s,secret hash=%s  already registered", secret.String(), utils.ShaSecret(secret[:]).String())
 		return
 	}
 	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
@@ -69,7 +69,7 @@ func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *u
 
 //IsSecretRegistered 密码是否在合约上注册过,注册地址对不对
 func (s *SecretRegistryProxy) IsSecretRegistered(secret common.Hash) (bool, error) {
-	blockNumber, err := s.registry.GetSecretRevealBlockHeight(nil, utils.Sha3(secret[:]))
+	blockNumber, err := s.registry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err != nil {
 		return false, err
 	}
