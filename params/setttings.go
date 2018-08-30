@@ -69,6 +69,9 @@ const DefaultXMPPServer = "193.112.248.133:5222"
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 
+const DefaultMatrixServerUrl  = "http://192.168.124.14:8008"
+const DeFaultMatrixServerName  = "cy"
+
 func init() {
 	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
 }

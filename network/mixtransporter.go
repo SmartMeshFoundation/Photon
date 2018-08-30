@@ -13,6 +13,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
 /*
@@ -23,6 +24,7 @@ if I cannot reach the node, try XMPP
 type MixTransporter struct {
 	udp      *UDPTransport
 	xmpp     *XMPPTransport
+	matirx	 *MatrixTransport
 	name     string
 	protocol ProtocolReceiver
 }
@@ -38,6 +40,9 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 		return
 	}
 	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
+	t.RegisterProtocol(protocol)
+
+	t.matirx, err = InitMatrixTransport(name, params.DefaultMatrixServerUrl, key, deviceType)
 	t.RegisterProtocol(protocol)
 	return
 }
@@ -67,8 +72,10 @@ func (t *MixTransporter) Start() {
 	if t.xmpp != nil {
 		t.xmpp.Start()
 	}
+	if t.matirx != nil {
+		t.matirx.Start()
+	}
 }
-
 //Stop the two transporter
 func (t *MixTransporter) Stop() {
 	if t.xmpp != nil {
@@ -76,6 +83,9 @@ func (t *MixTransporter) Stop() {
 	}
 	if t.udp != nil {
 		t.udp.Stop()
+	}
+	if t.matirx != nil {
+		t.matirx.Stop()
 	}
 }
 
@@ -97,7 +107,9 @@ func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 	if t.udp != nil {
 		t.udp.RegisterProtocol(protcol)
 	}
-
+	if t.matirx != nil {
+		t.matirx.RegisterProtocol(protcol)
+	}
 }
 
 //NodeStatus get node's status and is online right now
