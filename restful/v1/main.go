@@ -50,7 +50,7 @@ func Start() {
 		/*
 			transfer with specified secret
 		*/
-		rest.Post("/api/1/transfer/allowrevealsecret", AllowRevealSecret),
+		rest.Post("/api/1/transfers/allowrevealsecret", AllowRevealSecret),
 		rest.Get("/api/1/getunfinishedreceivedtransfer/:tokenaddress/:locksecrethash", GetUnfinishedReceivedTransfer),
 		rest.Post("/api/1/registersecret", RegisterSecret),
 		/*
