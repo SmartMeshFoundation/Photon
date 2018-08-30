@@ -284,8 +284,9 @@ func EventChannelUnlocked2StateChange(ev *contracts.TokenNetworkChannelUnlocked)
 //EventSecretRevealed2StateChange to statechange
 func EventSecretRevealed2StateChange(ev *contracts.SecretRegistrySecretRevealed) *mediatedtransfer.ContractSecretRevealOnChainStateChange {
 	return &mediatedtransfer.ContractSecretRevealOnChainStateChange{
-		LockSecretHash: ev.Secrethash,
+		Secret:         ev.Secret,
 		BlockNumber:    int64(ev.Raw.BlockNumber),
+		LockSecretHash: utils.ShaSecret(ev.Secret[:]),
 	}
 }
 func (be *Events) startListenEvent() {
