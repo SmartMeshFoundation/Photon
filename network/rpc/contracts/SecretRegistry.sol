@@ -10,8 +10,8 @@ contract SecretRegistry {
     mapping(bytes32 => uint256) public secrethash_to_block;
 
 
-    /** */
-    event SecretRevealed(bytes32 indexed secrethash);
+    /** a secret is registered */
+    event SecretRevealed(bytes32 indexed secret);
 
     /// @notice Registers a hash time lock secret and saves the block number.
     /// This allows the lock to be unlocked after the expiration block.
@@ -19,12 +19,12 @@ contract SecretRegistry {
     /// @return true if secret was registered, false if the secret was already registered.
     function registerSecret(bytes32 secret) public returns (bool) {
         bytes32 secrethash = sha256(abi.encodePacked(secret));
-        //
+        //secret already registered
         if (secret == 0x0 || secrethash_to_block[secrethash] > 0) {
             revert();
         }
         secrethash_to_block[secrethash] = block.number;
-        emit SecretRevealed(secrethash);
+        emit SecretRevealed(secret);
         return true;
     }
 

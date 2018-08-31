@@ -86,6 +86,8 @@ func handleSecretRegisteredOnChain(state *mediatedtransfer.TargetState, st *medi
 			Key: utils.Sha3(st.LockSecretHash[:], state.FromTransfer.Token[:]),
 		}
 		events = append(events, ev)
+		state.Secret = st.Secret
+		state.FromTransfer.Secret = st.Secret
 	} else {
 		panic("should not here")
 	}

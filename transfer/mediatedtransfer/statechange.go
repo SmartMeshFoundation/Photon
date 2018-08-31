@@ -139,6 +139,7 @@ ContractSecretRevealOnChainStateChange 密码在链上注册了
 2.自己应该把密码保存在本地,然后在需要的时候链上兑现
 */
 type ContractSecretRevealOnChainStateChange struct {
+	Secret         common.Hash
 	LockSecretHash common.Hash
 	BlockNumber    int64
 }

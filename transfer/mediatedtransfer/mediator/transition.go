@@ -769,6 +769,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 	if state.LockSecretHash != st.LockSecretHash {
 		panic("impementation error")
 	}
+	state.SetSecret(st.Secret)
 	for _, pair := range state.TransfersPair {
 		tr := pair.PayeeTransfer
 		route := pair.PayeeRoute
