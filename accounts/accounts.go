@@ -11,13 +11,15 @@ import (
 
 	"errors"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/slonzok/getpass"
+	"github.com/howeyc/gopass"
 )
 
 var errNoSuchAddress = errors.New("can not found this address")
@@ -134,8 +136,13 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 		}
 	} else {
 		for i := 0; i < 3; i++ {
+			var pb []byte
 			//retries three times
-			password := getpass.Prompt("Enter the password to unlock:")
+			pb, err = gopass.GetPasswdPrompt("Enter the password to unlock:", false, os.Stdin, os.Stdout)
+			if err != nil {
+				return
+			}
+			password := string(pb) // getpass.Prompt("Enter the password to unlock:")
 			keybin, err = am.GetPrivateKey(addr, password)
 			if err != nil && i == 3 {
 				log.Error(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
