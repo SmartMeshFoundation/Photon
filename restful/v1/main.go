@@ -31,22 +31,13 @@ func Start() {
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
 	router, err := rest.MakeRouter(
-		rest.Get("/api/1/address", Address),
-		rest.Get("/api/1/tokens", Tokens),
-		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
-		rest.Put("/api/1/tokens/:token", RegisterToken),
 
 		/*
-			api to provide random secret and lockSecretHash pair
+			transfers
 		*/
-		rest.Get("/api/1/secret", GetRandomSecret),
-		/*
-			transfer
-		*/
-		rest.Put("/api/1/token_swaps/:target/:locksecrethash", TokenSwap),
-		rest.Post("/api/1/transfers/:token/:target", Transfers),
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
+		rest.Post("/api/1/transfers/:token/:target", Transfers),
 		/*
 			transfer with specified secret
 		*/
@@ -54,11 +45,14 @@ func Start() {
 		rest.Get("/api/1/getunfinishedreceivedtransfer/:tokenaddress/:locksecrethash", GetUnfinishedReceivedTransfer),
 		rest.Post("/api/1/registersecret", RegisterSecret),
 		/*
-			test
+			token swap
 		*/
-		rest.Get("/api/1/stop", Stop),
-		rest.Get("/api/1/switch/:mesh", SwitchNetwork),
-		rest.Post("/api/1/updatenodes", UpdateMeshNetworkNodes),
+		rest.Put("/api/1/token_swaps/:target/:locksecrethash", TokenSwap),
+		/*
+			accounts
+		*/
+		rest.Get("/api/1/address", Address),
+		//rest.Get("/api/1/account", GetAccountInfo),
 		/*
 			channels
 		*/
@@ -67,6 +61,27 @@ func Start() {
 		rest.Put("/api/1/channels", OpenChannel),
 		rest.Patch("/api/1/channels/:channel", CloseSettleDepositChannel),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
+		/*
+			tokens
+		*/
+		rest.Get("/api/1/tokens", Tokens),
+		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
+		rest.Put("/api/1/tokens/:token", RegisterToken),
+		/*
+			utils
+		*/
+		rest.Get("/api/1/secret", GetRandomSecret), // api to provide random secret and lockSecretHash pair
+
+		/*
+			test
+		*/
+		rest.Get("/api/1/stop", Stop),
+		rest.Get("/api/1/switch/:mesh", SwitchNetwork),
+		rest.Post("/api/1/updatenodes", UpdateMeshNetworkNodes),
+
+		/*
+			others TODO
+		*/
 		/*
 			1. withdraw
 			{ "amount":3333,}
@@ -103,4 +118,17 @@ func Start() {
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
 	log.Crit(fmt.Sprintf("http listen and serve :%s", http.ListenAndServe(listen, api.MakeHandler())))
+}
+
+/*
+Stop for app user, call this api before quit.
+*/
+func Stop(w rest.ResponseWriter, r *rest.Request) {
+	//test only
+	RaidenAPI.Stop()
+	w.Header().Set("Content-Type", "text/plain")
+	_, err := w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 }
