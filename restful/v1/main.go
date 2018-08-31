@@ -52,7 +52,9 @@ func Start() {
 			accounts
 		*/
 		rest.Get("/api/1/address", Address),
-		//rest.Get("/api/1/account", GetAccountInfo),
+		rest.Get("/api/1/balance", GetBalanceByTokenAddress),
+		rest.Get("/api/1/balance/", GetBalanceByTokenAddress),
+		rest.Get("/api/1/balance/:tokenaddress", GetBalanceByTokenAddress),
 		/*
 			channels
 		*/
