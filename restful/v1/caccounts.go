@@ -37,6 +37,7 @@ func GetBalanceByTokenAddress(w rest.ResponseWriter, r *rest.Request) {
 	resp, err := RaidenAPI.GetBalanceByTokenAddress(tokenAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	err = w.WriteJson(resp)
 	if err != nil {
