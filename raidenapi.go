@@ -945,8 +945,39 @@ type AccountTokenBalanceVo struct {
 	LockedAmount *big.Int `json:"locked_amount"`
 }
 
-// GetBalance : get account's balance and locked account on each token
-func (r *RaidenAPI) GetBalance() (balances []*AccountTokenBalanceVo, err error) {
+// GetBalanceByTokenAddress : get account's balance and locked account on token
+func (r *RaidenAPI) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []*AccountTokenBalanceVo, err error) {
+	if tokenAddress == utils.EmptyAddress {
+		return r.getBalance()
+	}
+	tokens := r.GetTokenList()
+	hasRegistered := false
+	for _, token := range tokens {
+		if token == tokenAddress {
+			hasRegistered = true
+		}
+	}
+	if !hasRegistered {
+		err = errors.New("token not registered")
+		return
+	}
+	channels, err := r.GetChannelList(tokenAddress, utils.EmptyAddress)
+	if err != nil {
+		return
+	}
+	balance := new(AccountTokenBalanceVo)
+	balance.TokenAddress = tokenAddress.String()
+	balance.Balance = big.NewInt(0)
+	balance.LockedAmount = big.NewInt(0)
+	for _, channel := range channels {
+		balance.Balance.Add(balance.Balance, channel.OurBalance())
+		balance.LockedAmount.Add(balance.LockedAmount, channel.OurAmountLocked())
+	}
+	return []*AccountTokenBalanceVo{balance}, err
+}
+
+// getBalance : get account's balance and locked account on each token
+func (r *RaidenAPI) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 	channels, err := r.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return

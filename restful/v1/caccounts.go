@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -22,10 +24,17 @@ func Address(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
-GetBalance : get account's balance and locked account on each token
+GetBalanceByTokenAddress : get account's balance and locked account on token
 */
-func GetBalance(w rest.ResponseWriter, r *rest.Request) {
-	resp, err := RaidenAPI.GetBalance()
+func GetBalanceByTokenAddress(w rest.ResponseWriter, r *rest.Request) {
+	tokenAddressStr := r.PathParam("tokenaddress")
+	var tokenAddress common.Address
+	if tokenAddressStr == "" {
+		tokenAddress = utils.EmptyAddress
+	} else {
+		tokenAddress = common.HexToAddress(tokenAddressStr)
+	}
+	resp, err := RaidenAPI.GetBalanceByTokenAddress(tokenAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 	}
