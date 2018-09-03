@@ -38,6 +38,8 @@ func (r *RegistryProxy) GetContract() *contracts.TokenNetworkRegistry {
 
 //AddToken register a new token,this token must be a valid erc20
 func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
+	fmt.Println("gaslimit", r.bcs.Auth.GasLimit)
+	r.bcs.Auth.GasLimit = 4500000
 	tx, err := r.registry.CreateERC20TokenNetwork(r.bcs.Auth, tokenAddress)
 	if err != nil {
 		return
