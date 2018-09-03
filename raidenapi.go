@@ -140,7 +140,11 @@ func (r *RaidenAPI) Open(tokenAddress, partnerAddress common.Address, settleTime
 	ch, err = r.Raiden.db.GetChannel(tokenAddress, partnerAddress)
 	if err == nil {
 		//must be success, no need to wait event and register a callback
-		ch.OurContractBalance = deposit
+		if deposit != nil {
+			ch.OurContractBalance = deposit
+		} else {
+			ch.OurContractBalance = big.NewInt(0)
+		}
 	}
 	return
 }
@@ -520,6 +524,7 @@ func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (c *chan
 		return
 	}
 	wg.Wait()
+	time.Sleep(30 * time.Second)
 	//reload data from database, this channel has been removed.
 	return r.Raiden.db.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
 }
