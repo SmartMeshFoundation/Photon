@@ -716,7 +716,7 @@ Args:
  expiration: caller can specify a valid blocknumber or 0, when 0 ,will calculate based on settle timeout of channel.
 
 Calls:
-	//1. mediaedTransfer
+	//1. mediatedTransfer
 	//	 1.1 带lockSecretHash和Secret,则为指定密码的交易
 	//	 1.2 不带lockSecretHash和Secret则为普通交易,需生成随机密码
 	//2. token swap taker 带lockSecretHash,不带secret
@@ -732,13 +732,6 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	}
 	if rs.Config.IsMeshNetwork {
 		result.Result <- errors.New("no mediated transfer on mesh only network")
-		return
-	}
-	if secret == utils.EmptyHash {
-		secret = utils.NewRandomHash()
-		lockSecretHash = utils.ShaSecret(secret[:])
-	} else if utils.ShaSecret(secret.Bytes()) != lockSecretHash {
-		result.Result <- errors.New("secret and lockSecretHash not match")
 		return
 	}
 	/*
@@ -803,6 +796,12 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		}
 		rs.SecretRequestPredictorMap[lockSecretHash] = secretRequestHook
 		log.Trace(fmt.Sprintf("Register SecretRequestPredictor for secret=[%s] lockSecretHash=[%s]\n", secret.String(), lockSecretHash.String()))
+	} else {
+		/*
+			普通交易，随机生成密码
+		*/
+		secret = utils.NewRandomHash()
+		lockSecretHash = utils.ShaSecret(secret[:])
 	}
 	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
 	return
