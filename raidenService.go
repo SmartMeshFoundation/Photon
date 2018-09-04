@@ -325,7 +325,7 @@ func (rs *RaidenService) loop() {
 					if !rs.ethInited {
 						log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
 						rs.ethInited = true
-						err := rs.AlarmTask.Start()
+						err = rs.AlarmTask.Start()
 						if err != nil {
 							log.Error(fmt.Sprintf("alarm task start err %s", err))
 							n := rs.db.GetLatestBlockNumber()
