@@ -541,10 +541,10 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 /*
 链上这个锁对应的密码注册了,
 */
-func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash common.Hash, blockNumber int64) {
+func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) {
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {
-			err := ch.RegisterRevealedSecretHash(lockSecretHash, blockNumber)
+			err := ch.RegisterRevealedSecretHash(lockSecretHash, secret, blockNumber)
 			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
