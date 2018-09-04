@@ -524,7 +524,6 @@ func (r *RaidenAPI) Settle(tokenAddress, partnerAddress common.Address) (c *chan
 		return
 	}
 	wg.Wait()
-	time.Sleep(30 * time.Second)
 	//reload data from database, this channel has been removed.
 	return r.Raiden.db.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
 }

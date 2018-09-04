@@ -416,6 +416,7 @@ func (env *TestEnv) KillAllRaidenNodes() {
 		pstr2 = append(pstr2, "smartraiden*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
+		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "smartraiden")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
