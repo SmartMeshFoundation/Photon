@@ -322,6 +322,19 @@ func (rs *RaidenService) loop() {
 				if ok {
 					rs.ChanStartupComplete <- struct{}{}
 					log.Info("raiden startup complete")
+					if !rs.ethInited {
+						log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
+						rs.ethInited = true
+						err := rs.AlarmTask.Start()
+						if err != nil {
+							log.Error(fmt.Sprintf("alarm task start err %s", err))
+							n := rs.db.GetLatestBlockNumber()
+							rs.BlockNumber.Store(n)
+						} else {
+							//must have a valid blocknumber before any transfer operation
+							rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+						}
+					}
 				} else {
 					err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
 					if err != nil {
@@ -1321,19 +1334,19 @@ func (rs *RaidenService) GetDb() *models.ModelDB {
 }
 
 func (rs *RaidenService) handleEthRRCConnectionOK() {
-	if !rs.ethInited {
-		log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
-		rs.ethInited = true
-		err := rs.AlarmTask.Start()
-		if err != nil {
-			log.Error(fmt.Sprintf("alarm task start err %s", err))
-			n := rs.db.GetLatestBlockNumber()
-			rs.BlockNumber.Store(n)
-		} else {
-			//must have a valid blocknumber before any transfer operation
-			rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-		}
-	}
+	//if !rs.ethInited {
+	//	log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
+	//	rs.ethInited = true
+	//	err := rs.AlarmTask.Start()
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("alarm task start err %s", err))
+	//		n := rs.db.GetLatestBlockNumber()
+	//		rs.BlockNumber.Store(n)
+	//	} else {
+	//		//must have a valid blocknumber before any transfer operation
+	//		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+	//	}
+	//}
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
