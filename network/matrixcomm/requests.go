@@ -1,9 +1,9 @@
 package matrixcomm
 
-import (
-	"github.com/matrix-org/dendrite/clientapi/auth/authtypes"
-	"github.com/matrix-org/gomatrixserverlib"
-)
+type ReqAccountData struct {
+	Addresshex string
+	Roomid string
+}
 
 type ReqPresenceUser struct {
 	Presence	string 		`json:"presence"`
@@ -27,9 +27,9 @@ type ReqRegister struct {
 }
 
 type AuthDict struct {
-	Type    authtypes.LoginType         `json:"type"`
+	Type    string         				`json:"type"`
 	Session string                      `json:"session"`
-	Mac     gomatrixserverlib.HexString `json:"mac"`
+	Mac     []byte 						`json:"mac"`
 	Response string 					`json:"response"`
 }
 

@@ -1,5 +1,9 @@
 package matrixcomm
 
+type RespAccountData struct {
+	Events []Event `json:"events"`
+}
+
 type RespError struct {
 	ErrCode string `json:"errcode"`
 	Err     string `json:"error"`
@@ -8,8 +12,6 @@ type RespError struct {
 func (e RespError) Error() string {
 	return e.ErrCode + ": " + e.Err
 }
-
-
 
 type RespCreateFilter struct {
 	FilterID string `json:"filter_id"`

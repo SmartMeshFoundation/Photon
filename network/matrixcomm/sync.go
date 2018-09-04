@@ -19,7 +19,8 @@ type DefaultSyncer struct {
 	listeners map[string][]OnEventListener
 }
 
-type OnEventListener func(*Event)
+type OnEventListener func(x *Event)
+
 
 func NewDefaultSyncer(userID string, store Storer) *DefaultSyncer {
 	return &DefaultSyncer{
@@ -39,7 +40,6 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ProcessResponse panicked! userID=%s since=%s panic=%s\n%s", s.UserID, since, r, debug.Stack())
 		}
-		fmt.Println("receive 2")
 	}()
 	for roomID, roomData := range res.Rooms.Join {
 		room := s.getOrCreateRoom(roomID)
@@ -127,6 +127,7 @@ func (s *DefaultSyncer) notifyListeners(event *Event) {
 	}
 	for _, fn := range listeners {
 		fn(event)
+		//fmt.Println("--------------------------------",event)
 	}
 }
 

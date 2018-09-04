@@ -14,9 +14,6 @@ import (
 	"path"
 	"strings"
 	"net"
-	"encoding/base64"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -27,7 +24,7 @@ const (
 var MatrixHttpClient = &http.Client{
 	Transport: &http.Transport{
 		Dial: func(netw, addr string) (net.Conn, error) {
-			c, err := net.DialTimeout(netw, addr, time.Second*1)
+			c, err := net.DialTimeout(netw, addr, time.Second*2)
 			if err != nil {
 				fmt.Println("dail timeout", err)
 				return nil, err
@@ -45,15 +42,11 @@ type MatrixClient struct {
 	UserID           string
 	AccessToken      string
 	Client           *http.Client
-	Syncer            Syncer
-	Store            Storer
+	Store            Storer //store rooms/tokens/ids
+	Syncer           Syncer //process /sync responses
 	AppServiceUserID string
 	syncingMutex     sync.Mutex
 	syncingID        uint32
-	dataHandler    DataHandler
-}
-type DataHandler interface {
-	DataHandler(from common.Address, data []byte)
 }
 
 //get user's track info
@@ -118,11 +111,7 @@ func (mcli *MatrixClient) Sync() error {
 		mcli.Store.SaveFilterID(mcli.UserID, filterID)
 	}
 	for {
-		resSync, err := mcli.SyncRequest(2, nextBatch, filterID, false, "online")
-		if resSync != nil {
-			fmt.Println(resSync)
-		}
-		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "  nextBatch:", nextBatch, "filterID:", filterID)
+		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
 		if err != nil {
 			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)
 			if err2 != nil {
@@ -146,20 +135,6 @@ func (mcli *MatrixClient) Sync() error {
 		if errpu != nil {
 			return errpu
 		}
-
-		syncer := mcli.Syncer.(*DefaultSyncer)
-		syncer.OnEventType("m.room.message", func(xevent *Event) {
-			dataSender := common.HexToAddress(xevent.Sender)
-			xdata, ok := xevent.Body()
-			if ok {
-				dataContent, err := base64.StdEncoding.DecodeString(xdata)
-				if err != nil {
-					fmt.Println("receive unkown message %s", utils.StringInterface(dataContent, 3))
-				} else {
-					mcli.dataHandler.DataHandler(dataSender, dataContent)
-				}
-			}
-		})
 	}
 }
 
@@ -182,35 +157,41 @@ func (mcli *MatrixClient) StopSync() {
 	mcli.incrementSyncingID()
 }
 
-//Presence/list/{userId} 设置list版本user状态（invite和remove必须和前状态不一样）
+//Presence/list/{userId} invite!=remove）
 func (mcli *MatrixClient) PostPresenceList(req *ReqPresenceList)(err error) {
 	urlPath := mcli.BuildURL( "presence", "list", mcli.UserID)
 	_, err = mcli.MakeRequest("POST", urlPath, req, nil)
 	return
 }
 
-//Presence/list/{userId} 获取list版本user状态
+//Presence/list/{userId}
 func (mcli *MatrixClient) GetPresenceList(userid string)(resp[] *RespPresenceList,err error) {
 	urlPath := mcli.BuildURL( "presence", "list", mcli.UserID)
 	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
 	return
 }
 
-//Presence/{userId}/status 设置状态
+//Presence/{userId}/status
 func (mcli *MatrixClient) SetPresenceState(req *ReqPresenceUser)(err error) {
 	urlPath := mcli.BuildURL( "presence", mcli.UserID, "status")
 	_, err = mcli.MakeRequest("PUT", urlPath, req, nil)
 	return
 }
 
-//Presence/{userId}/status 读取状态
+//Presence/{userId}/status
 func (cli *MatrixClient) GetPresenceState(userid string)(resp *RespPresenceUser,err error) {
 	urlPath := cli.BuildURL( "presence", userid, "status")
 	_, err = cli.MakeRequest("GET", urlPath, nil, &resp)
 	return
 }
 
-//创建一个（已经定义homserver/prefix/access_token客户端）URL
+//user/{userId}/account_data/{type}
+func (mcli *MatrixClient) SetAccountData(userid,xtype string,req *ReqAccountData)(err error) {
+	urlPath := mcli.BuildURL("user", userid, "account_data", xtype) //"network0.smatrraiden.rooms"
+	_, err = mcli.MakeRequest("PUT", urlPath, req, nil)
+	return
+}
+
 func (mcli *MatrixClient) BuildURL(urlPath ...string) string {
 	ps := []string{mcli.Prefix}
 	for _, p := range urlPath {
@@ -219,7 +200,6 @@ func (mcli *MatrixClient) BuildURL(urlPath ...string) string {
 	return mcli.BuildBaseURL(ps...)
 }
 
-//用homeserver/access_token创建URL,路径中要提供前缀
 func (mcli *MatrixClient) BuildBaseURL(urlPath ...string) string {
 	hsURL, _ := url.Parse(mcli.HomeserverURL.String())
 	parts := []string{hsURL.Path}
@@ -236,7 +216,6 @@ func (mcli *MatrixClient) BuildBaseURL(urlPath ...string) string {
 	return hsURL.String()
 }
 
-//BuildURLWithQuery 构建带查询参数的
 func (mcli *MatrixClient) BuildURLWithQuery(urlPath []string, urlQuery map[string]string) string {
 	u, _ := url.Parse(mcli.BuildURL(urlPath...))
 	q := u.Query()
@@ -247,13 +226,11 @@ func (mcli *MatrixClient) BuildURLWithQuery(urlPath []string, urlQuery map[strin
 	return u.String()
 }
 
-//在客户端实例上设置user ID和access_token（所有的访问均要用到）
 func (mcli *MatrixClient) SetCredentials(userID, accessToken string) {
 	mcli.UserID = userID
 	mcli.AccessToken = accessToken
 }
 
-//注销客户端实例的user ID和access_token为空
 func (mcli *MatrixClient) ClearCredentials() {
 	mcli.AccessToken = ""
 	mcli.UserID = ""
@@ -315,14 +292,12 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 	return contents, nil
 }
 
-//创建需要的filter
 func (mcli *MatrixClient) CreateFilter(filter json.RawMessage) (resp *RespCreateFilter, err error) {
 	urlPath := mcli.BuildURL("user", mcli.UserID, "filter")
 	_, err = mcli.MakeRequest("POST", urlPath, &filter, &resp)
 	return
 }
 
-//单项的Sync-http请求
 func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullState bool, setPresence string) (resp *RespSync, err error) {
 	query := map[string]string{
 		"timeout": strconv.Itoa(timeout),
@@ -344,13 +319,12 @@ func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullS
 	return
 }
 
-//用户注册
 func (mcli *MatrixClient) register(u string, req *ReqRegister) (resp *RespRegister, uiaResp *RespUserInteractive, err error) {
 	var bodyBytes []byte
 	bodyBytes, err = mcli.MakeRequest("POST", u, req, nil)
 	if err != nil {
 		httpErr, ok := err.(HTTPError)
-		if !ok { //网络出错
+		if !ok {
 			return
 		}
 		if httpErr.Code == 401 {
@@ -363,13 +337,11 @@ func (mcli *MatrixClient) register(u string, req *ReqRegister) (resp *RespRegist
 	return
 }
 
-//自定义各种注册方式
 func (mcli *MatrixClient) Register(req *ReqRegister) (*RespRegister, *RespUserInteractive, error) {
 	u := mcli.BuildURL("register")
 	return mcli.register(u, req)
 }
 
-//guest临时的账户，返回1/2/3/4
 func (mcli *MatrixClient) RegisterGuest(req *ReqRegister) (*RespRegister, *RespUserInteractive, error) {
 	query := map[string]string{
 		"kind": "guest",
@@ -378,35 +350,30 @@ func (mcli *MatrixClient) RegisterGuest(req *ReqRegister) (*RespRegister, *RespU
 	return mcli.register(u, req)
 }
 
-//登录
 func (mcli *MatrixClient) Login(req *ReqLogin) (resp *RespLogin, err error) {
 	urlPath := mcli.BuildURL("login")
 	_, err = mcli.MakeRequest("POST", urlPath, req, &resp)
 	return
 }
 
-//退出
 func (mcli *MatrixClient) Logout() (resp *RespLogout, err error) {
 	urlPath := mcli.BuildURL("logout")
 	_, err = mcli.MakeRequest("POST", urlPath, nil, &resp)
 	return
 }
 
-//通过userID查询displayname（查自己或其他人，包括在其他服务器上的）
 func (mcli *MatrixClient) GetDisplayName(mxid string) (resp *RespUserDisplayName, err error) {
 	urlPath := mcli.BuildURL("profile", mxid, "displayname")
 	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
 	return
 }
 
-//查询user公开显示的名称
 func (mcli *MatrixClient) GetOwnDisplayName() (resp *RespUserDisplayName, err error) {
 	urlPath := mcli.BuildURL("profile", mcli.UserID, "displayname")
 	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
 	return
 }
 
-//设置user公开显示的名称
 func (mcli *MatrixClient) SetDisplayName(displayName string) (err error) {
 	urlPath := mcli.BuildURL("profile", mcli.UserID, "displayname")
 	s := struct {
@@ -416,7 +383,6 @@ func (mcli *MatrixClient) SetDisplayName(displayName string) (err error) {
 	return
 }
 
-//获取用户的avatar URL
 func (mcli *MatrixClient) GetAvatarURL() (url string, err error) {
 	urlPath := mcli.BuildURL("profile", mcli.UserID, "avatar_url")
 	s := struct {
@@ -431,7 +397,6 @@ func (mcli *MatrixClient) GetAvatarURL() (url string, err error) {
 	return s.AvatarURL, nil
 }
 
-//设置用户的avatar URL
 func (mcli *MatrixClient) SetAvatarURL(url string) (err error) {
 	urlPath := mcli.BuildURL("profile", mcli.UserID, "avatar_url")
 	s := struct {
@@ -445,14 +410,12 @@ func (mcli *MatrixClient) SetAvatarURL(url string) (err error) {
 	return nil
 }
 
-//创建room
 func (mcli *MatrixClient) CreateRoom(req *ReqCreateRoom) (resp *RespCreateRoom, err error) {
 	urlPath := mcli.BuildURL("createRoom")
 	_, err = mcli.MakeRequest("POST", urlPath, req, &resp)
 	return
 }
 
-//加入room
 func (mcli *MatrixClient) JoinRoom(roomIDorAlias, serverName string, content interface{}) (resp *RespJoinRoom, err error) {
 	var urlPath string
 	if serverName != "" {
@@ -466,14 +429,12 @@ func (mcli *MatrixClient) JoinRoom(roomIDorAlias, serverName string, content int
 	return
 }
 
-//退出room
 func (mcli *MatrixClient) LeaveRoom(roomID string) (resp *RespLeaveRoom, err error) {
 	u := mcli.BuildURL("rooms", roomID, "leave")
 	_, err = mcli.MakeRequest("POST", u, struct{}{}, &resp)
 	return
 }
 
-//消息发送事务（对象是roomID），contentJSON为x.Marshal格式
 func (mcli *MatrixClient) SendMessageEvent(roomID string, eventType string, contentJSON interface{}) (resp *RespSendEvent, err error) {
 	txnID := txnID()
 	urlPath := mcli.BuildURL("rooms", roomID, "send", eventType, txnID)
@@ -482,20 +443,17 @@ func (mcli *MatrixClient) SendMessageEvent(roomID string, eventType string, cont
 	return
 }
 
-//状态提交事务（对象是roomID），contentJSON格式同消息发送
 func (mcli *MatrixClient) SendStateEvent(roomID, eventType, stateKey string, contentJSON interface{}) (resp *RespSendEvent, err error) {
 	urlPath := mcli.BuildURL("rooms", roomID, "state", eventType, stateKey)
 	_, err = mcli.MakeRequest("PUT", urlPath, contentJSON, &resp)
 	return
 }
 
-//向room发送text
 func (mcli *MatrixClient) SendText(roomID, text string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		TextMessage{"m.text", text})
 }
 
-//向room发送Image
 func (mcli *MatrixClient) SendImage(roomID, body, url string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		ImageMessage{
@@ -505,7 +463,6 @@ func (mcli *MatrixClient) SendImage(roomID, body, url string) (*RespSendEvent, e
 		})
 }
 
-//向room发送Video
 func (mcli *MatrixClient) SendVideo(roomID, body, url string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		VideoMessage{
@@ -515,13 +472,11 @@ func (mcli *MatrixClient) SendVideo(roomID, body, url string) (*RespSendEvent, e
 		})
 }
 
-//向room发送Notice
 func (mcli *MatrixClient) SendNotice(roomID, text string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		TextMessage{"m.notice", text})
 }
 
-//删某个event
 func (mcli *MatrixClient) RedactEvent(roomID, eventID string, req *ReqRedact) (resp *RespSendEvent, err error) {
 	txnID := txnID()
 	urlPath := mcli.BuildURL("rooms", roomID, "redact", eventID, txnID)
@@ -529,28 +484,24 @@ func (mcli *MatrixClient) RedactEvent(roomID, eventID string, req *ReqRedact) (r
 	return
 }
 
-//不在关注room，无法继续访问room内的历史记录，所有人均forget，该room讲从homeserver删除
 func (mcli *MatrixClient) ForgetRoom(roomID string) (resp *RespForgetRoom, err error) {
 	u := mcli.BuildURL("rooms", roomID, "forget")
 	_, err = mcli.MakeRequest("POST", u, struct{}{}, &resp)
 	return
 }
 
-//邀请用户到room
 func (mcli *MatrixClient) InviteUser(roomID string, req *ReqInviteUser) (resp *RespInviteUser, err error) {
 	u := mcli.BuildURL("rooms", roomID, "invite")
 	_, err = mcli.MakeRequest("POST", u, req, &resp)
 	return
 }
 
-//邀请第三方认证的用户
 func (mcli *MatrixClient) InviteUserByThirdParty(roomID string, req *ReqInvite3PID) (resp *RespInviteUser, err error) {
 	u := mcli.BuildURL("rooms", roomID, "invite")
 	_, err = mcli.MakeRequest("POST", u, req, &resp)
 	return
 }
 
-//须具备创建者权限
 func (mcli *MatrixClient) KickUser(roomID string, req *ReqKickUser) (resp *RespKickUser, err error) {
 	u := mcli.BuildURL("rooms", roomID, "kick")
 	_, err = mcli.MakeRequest("POST", u, req, &resp)
@@ -576,7 +527,6 @@ func (mcli *MatrixClient) UserTyping(roomID string, typing bool, timeout int64) 
 	return
 }
 
-//获取room中的单个状态历史
 func (mcli *MatrixClient) StateEvent(roomID, eventType, stateKey string, outContent interface{}) (err error) {
 	u := mcli.BuildURL("rooms", roomID, "state", eventType, stateKey)
 	_, err = mcli.MakeRequest("GET", u, nil, outContent)
@@ -628,21 +578,19 @@ func (mcli *MatrixClient) UploadToContentRepo(content io.Reader, contentType str
 	return &m, nil
 }
 
-//查询room内的人，返回map列表
 func (mcli *MatrixClient) JoinedMembers(roomID string) (resp *RespJoinedMembers, err error) {
 	u := mcli.BuildURL("rooms", roomID, "joined_members")
 	_, err = mcli.MakeRequest("GET", u, nil, &resp)
 	return
 }
 
-//client 加入的room列表
 func (mcli *MatrixClient) JoinedRooms() (resp *RespJoinedRooms, err error) {
 	u := mcli.BuildURL("joined_rooms")
 	_, err = mcli.MakeRequest("GET", u, nil, &resp)
 	return
 }
 
-//分页查询room的历史记录
+//room's history-info-page
 func (mcli *MatrixClient) Messages(roomID, from, to string, dir rune, limit int) (resp *RespMessages, err error) {
 	query := map[string]string{
 		"from": from,
@@ -678,16 +626,13 @@ func NewClient(homeserverURL, userID, accessToken,pathPrefix string) (*MatrixCli
 	if err != nil {
 		return nil, err
 	}
-	store := NewInMemoryStore()
 	cli := MatrixClient{
-		AccessToken:   	accessToken,
-		HomeserverURL: 	hsURL,
-		UserID:        	userID,
-		Prefix:        	pathPrefix,
-		Syncer:        	NewDefaultSyncer(userID, store),
-		Store:         	store,
+		AccessToken:   accessToken,
+		HomeserverURL: hsURL,
+		UserID:        userID,
+		Prefix:        pathPrefix,
 	}
-	cli.Client=MatrixHttpClient
+	cli.Client = MatrixHttpClient
 	return &cli, nil
 }
 
