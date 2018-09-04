@@ -38,7 +38,7 @@ func (r *RegistryProxy) GetContract() *contracts.TokenNetworkRegistry {
 
 //AddToken register a new token,this token must be a valid erc20
 func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
-	tx, err := r.registry.CreateERC20TokenNetwork(bind.NewKeyedTransactor(r.bcs.PrivKey), tokenAddress)
+	tx, err := r.registry.CreateERC20TokenNetwork(r.bcs.Auth, tokenAddress)
 	if err != nil {
 		return
 	}
@@ -51,6 +51,6 @@ func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddre
 		err = errors.New("AddToken tx execution failed")
 		return
 	}
-	log.Info(fmt.Sprintf("AddToken success %s,token=%s", utils.APex(r.Address), tokenAddress.String()))
+	log.Info(fmt.Sprintf("AddToken success %s,token=%s, gasused=%d\n", utils.APex(r.Address), tokenAddress.String(), receipt.GasUsed))
 	return r.registry.TokenToTokenNetworks(r.bcs.getQueryOpts(), tokenAddress)
 }

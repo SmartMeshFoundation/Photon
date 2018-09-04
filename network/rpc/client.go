@@ -76,8 +76,8 @@ func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Addr
 		From:    bcs.NodeAddress,
 		Context: GetQueryConext(),
 	}
-	//It needs to be set up, otherwise, even the contract revert will not report wrong.
-	bcs.Auth.GasLimit = uint64(params.GasLimit)
+	// remove gas limit config and let it calculate automatically
+	//bcs.Auth.GasLimit = uint64(params.GasLimit)
 	bcs.Auth.GasPrice = big.NewInt(params.GasPrice)
 	return bcs
 }
