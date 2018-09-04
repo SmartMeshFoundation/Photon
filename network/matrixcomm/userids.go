@@ -77,7 +77,7 @@ func isValidEscapedChar(b byte) bool {
 	return b == '_' || (b >= 'a' && b <= 'z')
 }
 
-//将给定的字符串编码为符合matrix的userID格式
+
 func EncodeUserLocalpart(str string) string {
 	strBytes := []byte(str)
 	var outputBuffer bytes.Buffer
@@ -93,7 +93,7 @@ func EncodeUserLocalpart(str string) string {
 	return outputBuffer.String()
 }
 
-//将给定字符串解码回原始输入字符串。_alph=40_bet=5f50up  =>  Alph@Bet_50up
+//_alph=40_bet=5f50up  =>  Alph@Bet_50up
 func DecodeUserLocalpart(str string) (string, error) {
 	strBytes := []byte(str)
 	var outputBuffer bytes.Buffer

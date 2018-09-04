@@ -114,7 +114,7 @@ func (s *DefaultSyncer) shouldProcessResponse(resp *RespSync, since string) bool
 func (s *DefaultSyncer) getOrCreateRoom(roomID string) *Room {
 	room := s.Store.LoadRoom(roomID)
 	if room == nil {
-		room = NewRoom(roomID)//new Room
+		room = NewRoom(roomID)
 		s.Store.SaveRoom(room)
 	}
 	return room
@@ -127,7 +127,6 @@ func (s *DefaultSyncer) notifyListeners(event *Event) {
 	}
 	for _, fn := range listeners {
 		fn(event)
-		//fmt.Println("--------------------------------",event)
 	}
 }
 
@@ -136,5 +135,5 @@ func (s *DefaultSyncer) OnFailedSync(res *RespSync, err error) (time.Duration, e
 }
 
 func (s *DefaultSyncer) GetFilterJSON(userID string) json.RawMessage {
-	return json.RawMessage(`{"room":{"timeline":{"limit":50}}}`)
+	return json.RawMessage(`{"room":{"timeline":{"limit":100}}}`)
 }
