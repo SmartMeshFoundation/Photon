@@ -239,7 +239,7 @@ func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRe
 		//无论是不是 token swap, 都应该知道 locksecrethash,否则肯定是实现有问题
 		panic(fmt.Sprintf("my locksecrethash=%s,received=%s", state.LockSecretHash.String(), st.LockSecretHash.String()))
 	}
-	log.Trace("Check lock's expiration, state.Transfer.Expiration=%d, st.BlockNumber=%d\n", state.Transfer.Expiration, st.BlockNumber)
+	log.Trace(fmt.Sprintf("Check lock's expiration, state.Transfer.Expiration=%d, st.BlockNumber=%d\n", state.Transfer.Expiration, st.BlockNumber))
 	if state.Transfer.Expiration < st.BlockNumber {
 		//对于我来说这笔交易已经超期了. 应该发出 移除此锁消息.
 		events := expiredHashLockEvents(state)
