@@ -46,8 +46,8 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 
 var gasLimitHex string
 
-//RopstenRegistryAddress Registry contract address
-var RopstenRegistryAddress = common.HexToAddress("0xFAFB55c642f8907bB5D0915AeDA8Cc5A79F6a523")
+//SpectrumTestNetRegistryAddress Registry contract address
+var SpectrumTestNetRegistryAddress = common.HexToAddress("0x52d7167FAD53835a2356C7A872BfbC17C03aD758")
 
 //ChannelSettleTimeoutMin min settle timeout
 const ChannelSettleTimeoutMin = 6
