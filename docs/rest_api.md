@@ -292,10 +292,8 @@
 }
 ```
 
-### /api/1/token_swaps/<target_address>/<lock_secret_hash>
-
+### /api/1/token_swaps/<target_address>/<lock_secret_hash> 
 Token Swap 可以用来进行两种token的交换，在保证有效路由的情况下，先调用`taker`再调用`maker`，可通过接口`/api/1/secret/`获取一对`lock_secret_hash`和`secret`    
-
 `PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD**
