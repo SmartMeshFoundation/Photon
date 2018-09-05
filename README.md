@@ -9,7 +9,7 @@
   go install
 ```
 ## Listing API
-  SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the Raiden API](http://raiden-network.readthedocs.io/en/stable/api_walkthrough.html) and [Raiden’s API Documentation ](http://raiden-network.readthedocs.io/en/stable/rest_api.html) in the official documentation of Raiden Network. The primary API list and description are as follows：
+  SmartRaiden API has the main functions of Raiden Network API. Detailed function description please refer to[ Getting started with the SmartRaiden API](https://smartraiden.readthedocs.io/en/stable/api_walkthrough/) and [SmartRaiden’s API Documentation ](https://smartraiden.readthedocs.io/en/stable/rest_api/) in the official documentation of SmartRaiden. The primary API list and description are as follows：
 
 * QueryingNodeAddress 　　　　　　 　Query a node address 
 * QueryingNodeAllChannels　　　　　　Query all channels of a node
