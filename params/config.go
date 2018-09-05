@@ -83,7 +83,7 @@ var DefaultConfig = Config{
 	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
 	XMPPServer:        DefaultXMPPServer,
-	MatrixServerUrl:   DefaultMatrixServerUrl,
+	MatrixServerUrl:   DefaultMatrixServer,
 	MatrixServerName:  DeFaultMatrixServerName,
 }
 

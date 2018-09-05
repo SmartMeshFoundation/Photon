@@ -42,7 +42,7 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
 	t.RegisterProtocol(protocol)
 
-	t.matirx, err = InitMatrixTransport(name, params.DefaultMatrixServerUrl, key, deviceType)
+	t.matirx, err = InitMatrixTransport(name, params.DefaultMatrixServer, key, deviceType)
 	t.RegisterProtocol(protocol)
 	return
 }
@@ -96,6 +96,9 @@ func (t *MixTransporter) StopAccepting() {
 	}
 	if t.udp != nil {
 		t.udp.StopAccepting()
+	}
+	if t.matirx!=nil{
+		t.matirx.StopAccepting()
 	}
 }
 

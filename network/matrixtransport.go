@@ -38,6 +38,8 @@ type MatrixTransport struct {
 	AddressToPresence  map[common.Address]bool //cache user's real-time presence by node's address("userID{presence}")
 	UserId             string                  //the current user's ID(@kitty:thisserver)
 	UseDeviceType      string
+	log                log.Logger
+	nodeHeart          map[string]bool
 }
 /*
 ------------------------------------------------------------------------------------------------------------------------
@@ -57,14 +59,11 @@ func (mtr *MatrixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 }
 
 func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) {
-	if !mtr.running {
+	if !mtr.running || len(data) == 0 {
 		return
 	}
 	roomID := mtr.get_room_id_for_address(receiverAddr)
 	if roomID == "" {
-		return
-	}
-	if len(data) == 0 {
 		return
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
@@ -115,18 +114,19 @@ func (mtr *MatrixTransport) Start() {
 		if _, err := hexutil.Decode(addrlocal); err != nil {
 			return
 		}
-		msgData, ok := evt.Body() //text msgSender="0xc67f23ce04ca5e8dd9f2e1b5ed4fad877f79267a"
+		msgData, ok := evt.Body()
+		log.Info(mtr.UserId)
+		//log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", msgData,msgSender))
 		if ok {
 			dataContent, err := base64.StdEncoding.DecodeString(msgData)
 			if err != nil {
 				log.Error(fmt.Sprintf("[Matrix]Receive unkown message %s", utils.StringInterface(evt, 0)))
 			} else {
-				//log.Info(fmt.Sprintf("[Matrix]Receive message=%s,from=%s",msgData,msgSender))
-				mtr.HandleMessage(common.HexToAddress(msgSender), dataContent)
+				mtr.HandleMessage(common.HexToAddress(addrlocal), dataContent)
 			}
 		}
 	})
-	//(gorountime)run type with no blocking
+
 	go func() {
 		for {
 			if err := mtr.matrixcli.Sync(); err != nil {
@@ -159,12 +159,12 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 	if mtr.matrixcli == nil {
 		return "", false
 	}
+	deviceType=mtr.UseDeviceType
 	ret, ok := mtr.AddressToPresence[addr]
 	if !ok{
 		isOnline=false
 		return
 	}
-	deviceType=mtr.UseDeviceType
 	isOnline=ret
 	return
 }
@@ -299,10 +299,9 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 }
 
 func (mtr *MatrixTransport) inventory_rooms() (err error) {
-	for _, room := range mtr.matrixcli.Store.LoadRoomOfAll() {
-		if _, ok := mtr.Users[mtr.discoveryroomalias]; ok {
-			//room.
-			fmt.Println("room:", room)
+	for range mtr.matrixcli.Store.LoadRoomOfAll() {
+		if mtr.matrixcli.Store.LoadRoom(mtr.discoveryroomid)!=nil{
+			continue
 		}
 	}
 	return nil
@@ -319,61 +318,72 @@ func (mtr *MatrixTransport) _sign(data []byte)(signature []byte) {
 }
 
 func (mtr *MatrixTransport) join_discovery_room() (err error) {
-	discovery_room_alias := mtr.make_room_alias(ALIASFRAGMENT)
-	//e.g:"#smartraiden_mainnet_discovery:transport01.smartraiden.network"
-	discovery_room_alias_full := "#" + discovery_room_alias + ":" + DISCOVERYROOMSERVER
-	respj, err := mtr.matrixcli.JoinRoom(discovery_room_alias_full, mtr.servername, nil)
-	httpErr, _ := err.(matrixcomm.HTTPError)
-	if httpErr.Code == 404 {
-		//Room doesn't exist and create the room(this is the node's resposibility)
-		if mtr.servername != DISCOVERYROOMSERVER {
-			log.Error(fmt.Sprintf("discovery room {%s} not found and can't be created on a federated homeserver {%s}", discovery_room_alias_full, mtr.servername))
-			err = fmt.Errorf("can't find or create a discovery room,config error?")
-			return
+	discoveryRoomList := params.MatrixDiscoveryRoomConfig
+	for _, value := range discoveryRoomList {
+		itemname := value[0]
+		itemvalue := value[1]
+		if(itemname)=="aliassegment"{
+			ALIASFRAGMENT=itemvalue
 		}
-		respc, errc := mtr.matrixcli.CreateRoom(&matrixcomm.ReqCreateRoom{
-			RoomAliasName: discovery_room_alias,
-			Preset:        CHATPRESET,
-		}) //after create room but you were in there(server bug?)
-		if errc != nil {
-			err = errc
-			log.Error("can't create a discovery room")
-			return
-		}
-		mtr.discoveryroomid = respc.RoomID
-	} else {
-		if err != nil {
-			mtr.discoveryroomid = ""
-		} else {
-			mtr.discoveryroomid = respj.RoomID
+		if(itemname)=="server"{
+			DISCOVERYROOMSERVER=itemvalue
 		}
 	}
+
+	discovery_room_alias := mtr.make_room_alias(ALIASFRAGMENT)
+	discovery_room_alias_full := "#" + discovery_room_alias + ":" + DISCOVERYROOMSERVER
+	mtr.discoveryroomid = ""
+	for i := 0; i < 5; i++ {
+		respj, err := mtr.matrixcli.JoinRoom(discovery_room_alias_full, mtr.servername, nil)
+		if err != nil {
+			//if Room doesn't exist and then create the room(this is the node's resposibility)
+			if mtr.servername != DISCOVERYROOMSERVER {
+				log.Error(fmt.Sprintf("discovery room {%s} not found and can't be created on a federated homeserver {%s}", discovery_room_alias_full, mtr.servername))
+				break
+			}
+			respc, errc := mtr.matrixcli.CreateRoom(&matrixcomm.ReqCreateRoom{
+				RoomAliasName: discovery_room_alias,
+				Preset:        CHATPRESET,
+			})
+			if errc != nil {
+				log.Error("can't create a discovery room,try again")
+				continue
+			}
+			mtr.discoveryroomid = respc.RoomID
+			continue
+		} else {
+			mtr.discoveryroomid = respj.RoomID
+			break
+		}
+	}
+
 	if mtr.discoveryroomid == "" {
 		errinfo := "an error about discovery room occurred"
 		err = fmt.Errorf(errinfo)
 		log.Error(errinfo)
 		return
 	}
-	//mtr.discoveryroomalias
-	mtr.discoveryroomalias = discovery_room_alias
-	//mtr.discoveryroomid
-	//mtr.discoveryroomid=respj.RoomID||respc.RoomID
 
-	//mtr.matrixcli.Store.Rooms
+	mtr.discoveryroomalias = discovery_room_alias
+
 	theroom := &matrixcomm.Room{
 		ID: mtr.discoveryroomid,
 		//State:nil,
 	}
 	mtr.matrixcli.Store.SaveRoom(theroom)
+	//repeat room o.p
+	userAddr := crypto.PubkeyToAddress(mtr.key.PublicKey)
+	mtr.set_room_id_for_address(userAddr,mtr.discoveryroomid)
 
 	respin, err := mtr.matrixcli.JoinedMembers(mtr.discoveryroomid)
 	if err != nil {
 		log.Error("The node can't join room ", mtr.discoveryroomalias)
 		return
 	}
-	for userid, userdata := range respin.Joined { //cache known users
+	for userid, userdata := range respin.Joined {
+		//cache known users
 		mtr.get_user(userid, *userdata.DisplayName)
-		//invite to room
+		//invite users
 		usr := User{
 			user_id:      userid,
 			display_name: *userdata.DisplayName,
@@ -387,11 +397,11 @@ func (mtr *MatrixTransport) join_discovery_room() (err error) {
 func (mtr *MatrixTransport) maybe_invite_user(user User) (err error) {
 	address, err := validate_userid_signature(user)
 	if err != nil {
-		return fmt.Errorf("validate user info failed")
+		return fmt.Errorf("validate user-info failed")
 	}
 	roomid := mtr.get_room_id_for_address(common.BytesToAddress(address))
-	if roomid == "" {
-		_, _ = mtr.matrixcli.InviteUser("!DRmVhWXqYqetqiihpY:cy", &matrixcomm.ReqInviteUser{
+	if roomid != "" {
+		_, _ = mtr.matrixcli.InviteUser(roomid, &matrixcomm.ReqInviteUser{
 			UserID: user.user_id,
 		})
 	}
@@ -419,14 +429,16 @@ func (mtr *MatrixTransport) get_user(userid,displayname string) (user *User,err 
 
 func (mtr *MatrixTransport) set_room_id_for_address(address common.Address,roomid string) (err error) {
 	addressHex := ChecksumAddress(hexutil.Encode(address[:]))
-	//address_to_room_id := mtr.OfficialRooms
 	if _, ok := mtr.AddressToRoomid[addressHex]; !ok {
-		if roomid != "" {
-			mtr.AddressToRoomid[addressHex] = roomid
-		} else {
+		if roomid == "" {
 			delete(mtr.AddressToRoomid, addressHex)
+		} else {
+			mtr.AddressToRoomid[addressHex] = roomid
 		}
+	}else {
+		mtr.AddressToRoomid[addressHex] = roomid
 	}
+
 	//report user's rooms
 	mtr.matrixcli.SetAccountData(mtr.UserId, "network0.smatrraiden.rooms", &matrixcomm.ReqAccountData{
 		Addresshex: addressHex,
@@ -481,16 +493,7 @@ func (mtr *MatrixTransport) get_use_devicetype() (rtn string) {
 /*
 ------------------------------------------------------------------------------------------------------------------------
 */
-/*"discovery_room": {
-	"alias_fragment": "discovery",
-	"server": "transport01.smartraiden.network",
-},
-servername ==matrix.local.raiden
-"available_servers": [
-	"https://transport01.smartraiden.network",
-	"https://transport02.smartraiden.network",
-	"https://transport03.smartraiden.network"
-],*/
+
 type User struct {
 	user_id string
 	display_name string
@@ -505,44 +508,57 @@ const(
 	ROOMSEP		= "_"
 	PATHPREFIX0	= "/_matrix/client/r0"
 	AUTHTYPE    = "m.login.dummy"
-	nameSuffix	= "@smartraiden"
 	LOGINTYPE 	= "m.login.password"
-	ALIASFRAGMENT="discovery"
-	DISCOVERYROOMALIASFULL	= "#matrix.local.smartraiden0:cy"
-	//DISCOVERYROOMSERVER		= "transport01.smartraiden.network"
-	DISCOVERYROOMSERVER		= "cy"//test
-	CHATPRESET				= "public_chat"
+	CHATPRESET	= "public_chat"
 )
 
 var(
 	ValidUserIDRegex = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`)//(`^[0-9a-z_\-./]+$`)
-	NETWORKNAME="mainnet"
-	SERVERNAME	= params.DeFaultMatrixServerName
+	NETWORKNAME = "mainnet"
+	ALIASFRAGMENT = ""
+	DISCOVERYROOMSERVER = ""
 )
 
 var mobilefeature=[]string{}
 
-func InitMatrixTransport(name,matrixHomeServerURL string,key *ecdsa.PrivateKey,devicetype string)(*MatrixTransport,error) {
+func InitMatrixTransport(logname,matrixHomeServerURL string,key *ecdsa.PrivateKey,devicetype string)(*MatrixTransport,error) {
+	serverList := params.MatrixServerConfig
+	var homeserver_valid= ""
+	var matrixclie_valid= &matrixcomm.MatrixClient{}
+	for _, value := range serverList {
+		homeserverurl := value[0]
+		homeservername := value[1]
+		mcli, err := matrixcomm.NewClient(homeserverurl, "", "", PATHPREFIX0)
+		if err != nil {
+			continue
+		}
+		_, errchk := mcli.Versions()
+		if errchk != nil {
+			log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying", homeserverurl))
+			continue
+		}
+		homeserver_valid = homeservername
+		matrixclie_valid = mcli
+		break
+	}
+	if homeserver_valid == "" {
+		errinfo := "Unable to find any reachable Matrix server"
+		log.Error(errinfo)
+		return nil, fmt.Errorf(errinfo)
+	}
 	mtr := &MatrixTransport{
-		servername:        SERVERNAME,
+		servername:        homeserver_valid,
 		running:           false,
 		stopreceiving:     false,
 		key:               key,
 		Users:             make(map[string]*User),
+		AddressToRoomid:   make(map[string]string),
 		UseridToPresence:  make(map[string]string),
 		AddressToPresence: make(map[common.Address]bool),
 		UseDeviceType:     devicetype,
+		log:               log.New("name", logname),
 	}
-	mcli, err := matrixcomm.NewClient(matrixHomeServerURL, "", "", PATHPREFIX0)
-	if err != nil {
-		return nil, err
-	}
-	_, errchk := mcli.Versions()
-	if errchk != nil {
-		log.Error(fmt.Sprintf("matrix communication failed,cannot connect to server %s", SERVERNAME))
-		return nil, nil
-	}
-	mtr.matrixcli = mcli
+	mtr.matrixcli = matrixclie_valid
 	return mtr, nil
 }
 

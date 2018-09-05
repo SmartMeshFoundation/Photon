@@ -111,7 +111,7 @@ func (mcli *MatrixClient) Sync() error {
 		mcli.Store.SaveFilterID(mcli.UserID, filterID)
 	}
 	for {
-		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
+		resSync, err := mcli.SyncRequest(2000, nextBatch, filterID, false, "online")
 		if err != nil {
 			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)
 			if err2 != nil {
@@ -120,7 +120,7 @@ func (mcli *MatrixClient) Sync() error {
 			time.Sleep(duration)
 			continue
 		}
-
+		//fmt.Println(syncingID,"\t",filterID)
 		if mcli.getSyncingID() != syncingID {
 			return nil
 		}
@@ -129,12 +129,12 @@ func (mcli *MatrixClient) Sync() error {
 			return err
 		}
 		nextBatch = resSync.NextBatch
-		errpu := mcli.SetPresenceState(&ReqPresenceUser{
+		/*errpu := mcli.SetPresenceState(&ReqPresenceUser{
 			Presence: ONLINE,
 		})
 		if errpu != nil {
 			return errpu
-		}
+		}*/
 	}
 }
 
