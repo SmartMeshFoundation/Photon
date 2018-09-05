@@ -593,7 +593,8 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 	return err
 }
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
-	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.BlockNumber)
+	// 这里需要注册密码,否则unlock消息无法正常发送
+	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.Secret, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
 	eh.dispatchBySecretHash(st.LockSecretHash, st)
 	return nil

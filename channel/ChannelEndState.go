@@ -426,7 +426,7 @@ func (node *EndState) RegisterSecret(secret common.Hash) error {
 /*
 RegisterRevealedSecretHash a SecretReveal event on chain
 */
-func (node *EndState) RegisterRevealedSecretHash(lockSecretHash common.Hash, blockNumber int64) error {
+func (node *EndState) RegisterRevealedSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) error {
 	if !node.IsKnown(lockSecretHash) {
 		return errors.New("secret does not correspond to any lockSecretHash")
 	}
@@ -439,7 +439,7 @@ func (node *EndState) RegisterRevealedSecretHash(lockSecretHash common.Hash, blo
 		node.Lock2UnclaimedLocks[lockSecretHash] = channeltype.UnlockPartialProof{
 			Lock:     pendingLock.Lock,
 			LockHash: pendingLock.LockHash,
-			Secret:   utils.EmptyHash,
+			Secret:   secret,
 		}
 	}
 	return nil

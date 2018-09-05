@@ -83,7 +83,7 @@ func TestToken(t *testing.T) {
 }
 
 func TestGob(t *testing.T) {
-	s1 := params.RopstenRegistryAddress
+	s1 := params.SpectrumTestNetRegistryAddress
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(s1)

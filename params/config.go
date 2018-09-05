@@ -76,7 +76,7 @@ var DefaultConfig = Config{
 	},
 	UseRPC:            true,
 	UseConsole:        false,
-	RegistryAddress:   RopstenRegistryAddress,
+	RegistryAddress:   SpectrumTestNetRegistryAddress,
 	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
 	XMPPServer:        DefaultXMPPServer,
