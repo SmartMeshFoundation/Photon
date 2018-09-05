@@ -629,6 +629,12 @@
 			"revisionTime": "2018-02-23T17:02:51Z"
 		},
 		{
+			"checksumSHA1": "K6exl2ouL7d8cR2i378EzZOdRVI=",
+			"path": "github.com/howeyc/gopass",
+			"revision": "bf9dde6d0d2c004a008c27aaee91170c786f6db8",
+			"revisionTime": "2017-01-09T16:22:49Z"
+		},
+		{
 			"checksumSHA1": "LR0yE1x1w18UjpBumy5Wr7t1wsg=",
 			"path": "github.com/huamou/config",
 			"revision": "63d00afdcb394209da926c4d489c62b1ee37a0c6",
@@ -991,6 +997,12 @@
 			"path": "golang.org/x/crypto/scrypt",
 			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
 			"revisionTime": "2018-02-23T17:02:51Z"
+		},
+		{
+			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "56440b844dfe139a8ac053f4ecac0b20b79058f4",
+			"revisionTime": "2018-08-02T22:11:18Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",

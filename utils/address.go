@@ -17,3 +17,8 @@ func HexToAddress(addr string) (address common.Address, err error) {
 	}
 	return
 }
+
+//HexToAddressWithoutValidation disable EIP55 validation
+func HexToAddressWithoutValidation(addr string) (address common.Address, err error) {
+	return common.HexToAddress(addr), nil
+}

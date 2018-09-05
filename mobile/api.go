@@ -110,11 +110,11 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
 		))
 	}()
-	partnerAddr, err := utils.HexToAddress(partnerAddress)
+	partnerAddr, err := utils.HexToAddressWithoutValidation(partnerAddress)
 	if err != nil {
 		return
 	}
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -264,7 +264,7 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 
 //TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
 func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
-	token, err := utils.HexToAddress(tokenAddress)
+	token, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -310,7 +310,7 @@ type partnersData struct {
 
 //TokenPartners GET /api/1/tokens/0x61bb630d3b2e8eda0fc1d50f9f958ec02e3969f6/partners
 func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -338,7 +338,7 @@ func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err err
 			tokenAddress, managerAddress, err,
 		))
 	}()
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -361,11 +361,11 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, transfer, err,
 		))
 	}()
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
-	targetAddr, err := utils.HexToAddress(targetAddress)
+	targetAddr, err := utils.HexToAddressWithoutValidation(targetAddress)
 	if err != nil {
 		return
 	}
@@ -409,7 +409,7 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	}
 
 	var target common.Address
-	target, err = utils.HexToAddress(TargetAddress)
+	target, err = utils.HexToAddressWithoutValidation(TargetAddress)
 	if err != nil {
 		return
 	}
@@ -419,11 +419,11 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	}
 	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
 	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
-	makerToken, err := utils.HexToAddress(SendingToken)
+	makerToken, err := utils.HexToAddressWithoutValidation(SendingToken)
 	if err != nil {
 		return
 	}
-	takerToken, err := utils.HexToAddress(ReceivingToken)
+	takerToken, err := utils.HexToAddressWithoutValidation(ReceivingToken)
 	if err != nil {
 		return
 	}
@@ -452,7 +452,7 @@ for update transfer and withdraw.
 */
 func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
 	channelAddr := common.HexToHash(channelAddress)
-	thirdPartyAddr, err := utils.HexToAddress(thirdPartyAddress)
+	thirdPartyAddr, err := utils.HexToAddressWithoutValidation(thirdPartyAddress)
 	if err != nil {
 		return
 	}
