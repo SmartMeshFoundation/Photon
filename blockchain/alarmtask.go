@@ -44,21 +44,15 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 }
 
 func (at *AlarmTask) run() {
-	log.Debug(fmt.Sprintf("starting block number blocknubmer=%d", at.LastBlockNumber))
 	defer rpanic.PanicRecover("alarm task")
-	for {
-		if at.stopped {
-			log.Info(fmt.Sprintf("alarm task quit complete"))
-			return
-		}
-		err := at.waitNewBlock()
-		if err != nil {
-			time.Sleep(at.waitTime)
-		}
+	err := at.waitNewBlock()
+	if err != nil {
+		log.Error("alarm task stopped with err %s", err)
 	}
 }
 
 func (at *AlarmTask) waitNewBlock() error {
+	log.Debug(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", at.LastBlockNumber))
 	currentBlock := at.LastBlockNumber
 	headerCh := make(chan *types.Header, 1)
 	//get the lastest number imediatelly
@@ -77,6 +71,7 @@ func (at *AlarmTask) waitNewBlock() error {
 		select {
 		case h, ok := <-headerCh:
 			if at.stopped {
+				log.Info(fmt.Sprintf("alarm task quit complete"))
 				return nil
 			}
 			if !ok {
@@ -108,7 +103,6 @@ func (at *AlarmTask) waitNewBlock() error {
 				return errors.New("broken connection")
 			}
 		}
-
 	}
 }
 

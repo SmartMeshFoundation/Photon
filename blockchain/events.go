@@ -32,7 +32,7 @@ type Events struct {
 	SecretRegistryAddress common.Address //get from db or from blockchain
 	Subscribes            map[string]ethereum.Subscription
 	StateChangeChannel    chan transfer.StateChange
-	//启动过程中先把收到事件暂存在这个通道中,等启动完毕以后在保存到StateChangeChannel,保证事件被顺序处理.
+	//启动/重连过程中先把收到事件暂存在这个通道中,等启动完毕以后在保存到StateChangeChannel,保证事件被顺序处理.
 	startupStateChangeChannel chan mediatedtransfer.ContractStateChange
 	stopped                   bool // has stopped?
 	quitChan                  chan struct{}
@@ -447,6 +447,7 @@ func (be *Events) startListenEvent() {
 				case <-be.quitChan:
 					return
 				}
+				log.Trace(fmt.Sprintf("eventlistener %s begin", name))
 			}
 		}(name)
 	}
@@ -827,7 +828,8 @@ Start listening events send to  channel can duplicate but cannot lose.
 */
 func (be *Events) Start(LastBlockNumber int64) error {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
-	firstStartup := false
+	// 第一时间开启监听,暂存到临时通道startupStateChangeChannel
+	be.historyEventsGot = false
 	err := be.installEventListener()
 	if err != nil {
 		return err
@@ -837,12 +839,9 @@ func (be *Events) Start(LastBlockNumber int64) error {
 		return err
 	}
 	log.Info(fmt.Sprintf("get state change since %d complete", LastBlockNumber))
-	if !be.historyEventsGot {
-		//程序第一次启动,需要等初始化数据完成以后,通知上层
-		firstStartup = true
-	}
+	// 历史事件收集完毕,开始处理,事件监听接收到的事件切换到正式通道StateChangeChannel
+	// 这里存在风险, 历史事件处理过程中, 历史事件和事件监听接受到的事件在抢同一个通道,顺序有乱的可能,解决办法???
 	be.historyEventsGot = true
-
 	go func() {
 		var subScribeStateChanges []mediatedtransfer.ContractStateChange
 		var hasStateChanges = true
@@ -864,9 +863,9 @@ func (be *Events) Start(LastBlockNumber int64) error {
 		for _, st := range oldstateChanges {
 			be.sendStateChange(st)
 		}
-		if firstStartup {
-			be.sendStateChange(new(mediatedtransfer.FakeContractInfoCompleteStateChange))
-		}
+		// 历史事件处理完成,发送通知给上层
+		log.Info("history events deal done")
+		be.sendStateChange(new(mediatedtransfer.FakeLastHistoryContractStateChange))
 	}()
 	return nil
 }
