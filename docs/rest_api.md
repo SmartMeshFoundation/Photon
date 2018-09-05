@@ -1,24 +1,32 @@
 # SmartRaiden REST API Reference
-欢迎使用`SmartRaiden` REST API Reference,这是一份`v1`版本的粗略api参考文档，供开发者尝鲜使用（后续会不断更新完善)
+欢迎使用SmartRaiden REST API Reference,这是一份`v1`版本的粗略api参考文档，供开发者尝鲜使用（后续会不断更新完善)
+
 文档主要介绍几个大类：
+
 - Token 
+  
 - Channel
+  
 - Transfer
 
 
 ## /api/1/tokens  
-`GET /api/1/tokens`  
-查询已经注册的token  
-
+### `GET /api/1/tokens`  
+查询已经注册的token ,没有请求参数
 **Example Response:**  
 ```json
 [
     "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 ]
 ```
-`PUT /api/1/tokens/<token_address>`  
-`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`  
-注册新的token   
+### `PUT /api/1/tokens/<token_address>`  
+注册新的token  
+
+**Example Request:**
+
+`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`
+
+
 
 **Example Response:**  
 ```json
@@ -27,7 +35,7 @@
 }
 ```
 ## /api/1/address    
-`GET /api/1/address`     
+### `GET /api/1/address`     
 查询你的smartraiden地址
 
 **Example Response:**  
@@ -38,7 +46,7 @@
 ```
 
 ## /api/1/channels  
-`GET /api/1/channels`  
+### `GET /api/1/channels`  
 查询节点所有未结算的通道   
  
 **Example Response:**  
@@ -61,8 +69,9 @@
 ]
 ```
 
-`POST /api/1/channels`  
+### `POST /api/1/channels`  
 开启一个通道  
+
 **PAYLOAD:**
 ```json
 {
@@ -91,9 +100,12 @@
     "reveal_timeout": 0
 }
 ```
-## /api/1/channels/<channel_address>  
-`GET /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`  
+### `GET/api/1/channels/<channel_address> ` 
 查询特定的通道 ,可以看到通道的详细信息
+**Example Request:**
+
+`GET /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`  
+
 **Example Response:**
 ```json
 {
@@ -149,7 +161,9 @@
 }
 ```
 
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
+### `PATCH /api/1/channels/<channel_address>`  
+
+`PATCH /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`
 向一个通道里面存钱
 **PAYLOAD:**   
 ```json
@@ -174,7 +188,8 @@
     "reveal_timeout": 5
 }
 ```
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1` 
+
 关闭一个通道,参数`force`默认为`false`，表示合作结算通道。  
 **PAYLOAD:**  
 ```json
@@ -224,6 +239,7 @@
     "reveal_timeout": 5
 }
 ```
+
 `PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`   
 结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道  
 **PAYLOAD:**  
@@ -251,7 +267,7 @@
 }
 ```
 
-## /api/1/transfer/<token_address>/<target_address>
+### /api/1/transfer/<token_address>/<target_address>
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`  
 当通道是`open`状态且资金充足的情况下，可以进行转账
 **PAYLOAD**
@@ -276,8 +292,10 @@
 }
 ```
 
-## /api/1/token_swaps/<target_address>/<lock_secret_hash>
+### /api/1/token_swaps/<target_address>/<lock_secret_hash>
+
 Token Swap 可以用来进行两种token的交换，在保证有效路由的情况下，先调用`taker`再调用`maker`，可通过接口`/api/1/secret/`获取一对`lock_secret_hash`和`secret`    
+
 `PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD**
