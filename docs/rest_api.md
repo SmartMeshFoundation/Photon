@@ -8,7 +8,7 @@
 
 ## /api/1/tokens  
 `GET /api/1/tokens`  
-查询已经注册的token  
+查询已经注册的token  
 
 **Example Response:**  
 ```json
@@ -175,7 +175,8 @@
 }
 ```
 `PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
-关闭一个通道,参数`force`默认为`false`，表示合作结算通道。  
+关闭一个通道,参数`force`默认为`false`，表示合作结算通道。  
+
 **PAYLOAD:**  
 ```json
 {"state":"closed"，
@@ -225,7 +226,8 @@
 }
 ```
 `PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`   
-结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道  
+结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道  
+
 **PAYLOAD:**  
 ```json
 {
@@ -254,6 +256,7 @@
 ## /api/1/transfer/<token_address>/<target_address>
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`  
 当通道是`open`状态且资金充足的情况下，可以进行转账
+
 **PAYLOAD**
 ```json
 {
