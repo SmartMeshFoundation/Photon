@@ -10,8 +10,8 @@
 - Transfer
 
 
-## /api/1/tokens  
-### GET /api/1/tokens  
+## Token  
+### `GET /api/1/tokens`
 查询已经注册的token ,没有请求参数  
 
 **Example Response:**  
@@ -20,7 +20,7 @@
     "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 ]
 ```
-### PUT /api/1/tokens/<token_address>  
+### `PUT /api/1/tokens/<token_address>`  
 注册新的token  
 
 **Example Request:**
@@ -35,8 +35,8 @@
     "channel_manager_address": "0xBb1e95363b0181De7bBf394f18eaC7D4230e391A"
 }
 ```
-## /api/1/address    
-### GET /api/1/address     
+   
+### `GET /api/1/address`     
 查询你的smartraiden地址
 
 **Example Response:**  
@@ -46,8 +46,8 @@
 }
 ```
 
-## /api/1/channels  
-### GET /api/1/channels  
+## Channel  
+### `GET /api/1/channels` 
 查询节点所有未结算的通道   
  
 **Example Response:**  
@@ -70,7 +70,7 @@
 ]
 ```
 
-### POST /api/1/channels  
+### `POST /api/1/channels`  
 开启一个通道  
 
 **PAYLOAD:**
@@ -101,7 +101,7 @@
     "reveal_timeout": 0
 }
 ```
-### GET/api/1/channels/<channel_address>  
+### `GET/api/1/channels/<channel_address>`  
 查询特定的通道 ,可以看到通道的详细信息
 
 **Example Request:**
@@ -163,7 +163,7 @@
 }
 ```
 
-### PATCH /api/1/channels/<channel_address> 
+### `PATCH /api/1/channels/<channel_address>` 
 
 `PATCH /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`
 
@@ -274,7 +274,8 @@
 }
 ```
 
-## /api/1/transfer/<token_address>/<target_address>
+## Transfer
+### `transfer/<token_address>/<target_address>`
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`  
 
 当通道是`open`状态且资金充足的情况下，可以进行转账
@@ -300,10 +301,10 @@
     "is_direct": false
 }
 ```
-
-## /api/1/token_swaps/<target_address>/<lock_secret_hash> 
+## Token Swap
+### `/api/1/token_swaps/<target_address>/<lock_secret_hash>` 
 Token Swap 可以用来进行两种token的交换，在保证有效路由的情况下，先调用`taker`再调用`maker`，可通过接口`/api/1/secret/`获取一对`lock_secret_hash`和`secret` 
-   
+
 `PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD**
