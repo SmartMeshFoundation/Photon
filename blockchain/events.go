@@ -447,9 +447,9 @@ func (be *Events) startListenEvent() {
 				case <-be.quitChan:
 					return
 				}
-				log.Trace(fmt.Sprintf("eventlistener %s begin", name))
 			}
 		}(name)
+		log.Trace(fmt.Sprintf("eventlistener %s begin", name))
 	}
 }
 
