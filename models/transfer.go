@@ -21,7 +21,7 @@ type SentTransfer struct {
 	ChannelIdentifier common.Hash    `json:"channel_address"`
 	ToAddress         common.Address `json:"to_address"`
 	TokenAddress      common.Address `json:"token_address"`
-	Nonce             int64          `json:"nonce"`
+	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 }
 
@@ -33,14 +33,14 @@ type ReceivedTransfer struct {
 	ChannelIdentifier common.Hash    `json:"channel_address"`
 	TokenAddress      common.Address `json:"token_address"`
 	FromAddress       common.Address `json:"from_address"`
-	Nonce             int64          `json:"nonce"`
+	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 }
 
 /*
 NewSentTransfer save a new sent transfer to db,this trqnsfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce int64, amount *big.Int) {
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &SentTransfer{
 		Key:               key,
@@ -68,7 +68,7 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce int64, amount *big.Int) {
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &ReceivedTransfer{
 		Key:               key,

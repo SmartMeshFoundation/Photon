@@ -836,7 +836,7 @@ func (r *RaidenAPI) Stop() {
 }
 */
 type updateTransfer struct {
-	Nonce               int64    `json:"nonce"`
+	Nonce               uint64   `json:"nonce"`
 	TransferAmount      *big.Int `json:"transfer_amount"`
 	Locksroot           string   `json:"locksroot"`
 	ExtraHash           string   `json:"extra_hash"`

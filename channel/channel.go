@@ -631,7 +631,7 @@ func (c *Channel) isChannelIdentifierValid(id *contracts.ChannelUniqueID) bool {
 }
 
 //GetNextNonce change nonce  means banlance proof state changed
-func (c *Channel) GetNextNonce() int64 {
+func (c *Channel) GetNextNonce() uint64 {
 	if c.OurState.nonce() != 0 {
 		return c.OurState.nonce() + 1
 	}

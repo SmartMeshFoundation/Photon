@@ -512,7 +512,7 @@ func (rs *RevealSecret) String() string {
 
 //BalanceProof in the message ,not the same as data need by the contract
 type BalanceProof struct {
-	Nonce             int64
+	Nonce             uint64
 	ChannelIdentifier common.Hash
 	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识
 	TransferAmount    *big.Int //The number has been transferred to the other party
@@ -520,7 +520,7 @@ type BalanceProof struct {
 }
 
 //NewBalanceProof create a balance proof
-func NewBalanceProof(nonce int64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
+func NewBalanceProof(nonce uint64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
 	return &BalanceProof{
 		Nonce:             nonce,
 		TransferAmount:    transferredAmount,

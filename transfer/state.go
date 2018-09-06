@@ -17,7 +17,7 @@ import (
 
 //BalanceProofState is   proof need by contract
 type BalanceProofState struct {
-	Nonce             int64
+	Nonce             uint64
 	TransferAmount    *big.Int
 	LocksRoot         common.Hash
 	ChannelIdentifier contracts.ChannelUniqueID
@@ -30,7 +30,7 @@ type BalanceProofState struct {
 		而用户 unlock 的时候会改变对方的 TransferAmount, 虽然说这个没有对方的签名,但是必须凭此在合约上settle 以及 unlock
 	*/
 	ContractTransferAmount *big.Int
-	ContractNonce          int64
+	ContractNonce          uint64
 	ContractLocksRoot      common.Hash
 }
 
@@ -43,7 +43,7 @@ func NewEmptyBalanceProofState() *BalanceProofState {
 }
 
 //NewBalanceProofState create BalanceProofState
-func NewBalanceProofState(nonce int64, transferAmount *big.Int, locksRoot common.Hash,
+func NewBalanceProofState(nonce uint64, transferAmount *big.Int, locksRoot common.Hash,
 	channelIdentifier contracts.ChannelUniqueID, messageHash common.Hash, signature []byte) *BalanceProofState {
 	s := &BalanceProofState{
 		Nonce:                  nonce,

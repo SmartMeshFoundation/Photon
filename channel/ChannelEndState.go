@@ -97,7 +97,7 @@ func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
 }
 
 //SetContractNonce update node's nonce by contract event
-func (node *EndState) SetContractNonce(nonce int64) {
+func (node *EndState) SetContractNonce(nonce uint64) {
 	node.BalanceProofState.Nonce = nonce
 }
 
@@ -114,7 +114,7 @@ func (node *EndState) amountLocked() *big.Int {
 }
 
 //nonce returns next nonce of this node.
-func (node *EndState) nonce() int64 {
+func (node *EndState) nonce() uint64 {
 	return node.BalanceProofState.Nonce
 }
 

@@ -49,10 +49,10 @@ func TestModelDB_NewSentEnvelopMessager3(t *testing.T) {
 	m := setupDb(t)
 	var msgs []*encoding.DirectTransfer
 	total := 10
-	var min int64 = math.MaxInt64
+	var min uint64 = math.MaxUint64
 	for i := 0; i < total; i++ {
 		bp := &encoding.BalanceProof{
-			Nonce:             int64(rand.Int63()),
+			Nonce:             uint64(rand.Int63()),
 			ChannelIdentifier: utils.Sha3([]byte("123")),
 			TransferAmount:    big.NewInt(12),
 			OpenBlockNumber:   3,

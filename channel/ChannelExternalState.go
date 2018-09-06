@@ -86,7 +86,7 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result 
 		return
 	}
 	//start tx close and wait.
-	var Nonce int64
+	var Nonce uint64
 	TransferAmount := utils.BigInt0
 	var LocksRoot = utils.EmptyHash
 	//var ChannelIdentifier common.Address = utils.EmptyAddress

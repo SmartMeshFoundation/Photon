@@ -155,7 +155,7 @@ func (t *TokenNetworkProxy) GetContract() *contracts.TokenNetwork {
 }
 
 //CloseChannel close channel
-func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (err error) {
+func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
 	tx, err := t.GetContract().CloseChannel(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
 	if err != nil {
 		return
@@ -174,7 +174,7 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 }
 
 //CloseChannelAsync close channel async
-func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
 		err := t.CloseChannel(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
@@ -184,8 +184,8 @@ func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transf
 }
 
 //UpdateBalanceProof update balance proof of partner
-func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (err error) {
-	tx, err := t.GetContract().UpdateBalanceProof(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
+func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
+	tx, err := t.GetContract().UpdateBalanceProof(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
 	if err != nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 }
 
 //UpdateBalanceProofAsync update balance proof async
-func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
 		err := t.UpdateBalanceProof(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
