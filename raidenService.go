@@ -1349,6 +1349,10 @@ func (rs *RaidenService) handleEthRPCConnectionOK() {
 		err = fmt.Errorf("events listener error %v", err)
 		return
 	}
+	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
+	if rs.Registry == nil {
+		rs.Registry = rs.Chain.Registry(rs.Chain.RegistryAddress)
+	}
 }
 
 //all user's request

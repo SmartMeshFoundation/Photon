@@ -26,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+var errEthConnectionNotReady = errors.New("eth connection not ready")
+
 //RaidenAPI raiden for user
 type RaidenAPI struct {
 	Raiden *RaidenService
@@ -82,6 +84,10 @@ TokenAddressIfTokenRegistered return the channel manager address,If the token is
 Also make sure that the channel manager is registered with the node.
 */
 func (r *RaidenAPI) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+	if r.Raiden.Registry == nil {
+		err = errEthConnectionNotReady
+		return
+	}
 	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err != nil {
 		return
@@ -94,6 +100,10 @@ RegisterToken Will register the token at `token_address` with raiden. If it's al
     registered, will throw an exception.
 */
 func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+	if r.Raiden.Registry == nil {
+		err = errEthConnectionNotReady
+		return
+	}
 	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err == nil && mgrAddr != utils.EmptyAddress {
 		err = errors.New("TokenNetworkAddres already registered")
