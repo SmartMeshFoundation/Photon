@@ -259,10 +259,13 @@ func (rs *RaidenService) Start() (err error) {
 	}
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-	err = rs.startSubscribeNeighborStatus()
-	if err != nil {
-		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-		return
+	// 只有在
+	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.XMPPOnly {
+		err = rs.startSubscribeNeighborStatus()
+		if err != nil {
+			err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
+			return
+		}
 	}
 	return nil
 }
