@@ -124,12 +124,12 @@ type ContractStateChange interface {
 	GetBlockNumber() int64
 }
 
-//FakeContractInfoCompleteStateChange 主要用来通知上层,第一次启动获取历史事件完毕
-type FakeContractInfoCompleteStateChange struct {
+//FakeLastHistoryContractStateChange 主要用来通知上层,历史合约事件处理完毕
+type FakeLastHistoryContractStateChange struct {
 }
 
 //GetBlockNumber 返回一个不可能存在的块数,
-func (e *FakeContractInfoCompleteStateChange) GetBlockNumber() int64 {
+func (e *FakeLastHistoryContractStateChange) GetBlockNumber() int64 {
 	return math.MaxInt64
 }
 

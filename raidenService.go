@@ -118,13 +118,13 @@ type RaidenService struct {
 		important!:
 			we must valid the mediated transfer is valid or not first, then to test  if this mediated transfer matchs any token swap.
 	*/
-	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
-	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
-	HealthCheckMap                      map[common.Address]bool
-	quitChan                            chan struct{} //for quit notification
-	ethInited                           bool
-	EthConnectionStatus                 chan netshare.Status
-	ChanStartupComplete                 chan struct{}
+	ReceivedMediatedTrasnferListenerMap   map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
+	SentMediatedTransferListenerMap       map[*SentMediatedTransferListener]bool     //for tokenswap
+	HealthCheckMap                        map[common.Address]bool
+	quitChan                              chan struct{} //for quit notification
+	isStarting                            bool
+	EthConnectionStatus                   chan netshare.Status
+	ChanHistoryContractEventsDealComplete chan struct{}
 }
 
 //NewRaidenService create raiden service
@@ -135,33 +135,34 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		return
 	}
 	rs = &RaidenService{
-		Chain:                               chain,
-		Registry:                            chain.Registry(chain.RegistryAddress),
-		RegistryAddress:                     chain.RegistryAddress,
-		PrivateKey:                          privateKey,
-		Config:                              config,
-		Transport:                           transport,
-		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:                  make(map[common.Address]*graph.ChannelGraph),
-		TokenNetwork2Token:                  make(map[common.Address]common.Address),
-		Token2TokenNetwork:                  make(map[common.Address]common.Address),
-		Transfer2StateManager:               make(map[common.Hash]*transfer.StateManager),
-		Transfer2Result:                     make(map[common.Hash]*utils.AsyncResult),
-		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
-		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
-		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
-		UserReqChan:                         make(chan *apiReq, 10),
-		BlockNumber:                         new(atomic.Value),
-		ProtocolMessageSendComplete:         make(chan *protocolMessage, 10),
-		SecretRequestPredictorMap:           make(map[common.Hash]SecretRequestPredictor),
-		RevealSecretListenerMap:             make(map[common.Hash]RevealSecretListener),
-		ReceivedMediatedTrasnferListenerMap: make(map[*ReceivedMediatedTrasnferListener]bool),
-		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
-		FeePolicy:                           &ConstantFeePolicy{},
-		HealthCheckMap:                      make(map[common.Address]bool),
-		quitChan:                            make(chan struct{}),
-		EthConnectionStatus:                 make(chan netshare.Status, 10),
-		ChanStartupComplete:                 make(chan struct{}),
+		Chain:                                 chain,
+		Registry:                              chain.Registry(chain.RegistryAddress),
+		RegistryAddress:                       chain.RegistryAddress,
+		PrivateKey:                            privateKey,
+		Config:                                config,
+		Transport:                             transport,
+		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
+		TokenNetwork2Token:                    make(map[common.Address]common.Address),
+		Token2TokenNetwork:                    make(map[common.Address]common.Address),
+		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
+		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
+		Token2Hashlock2Channels:               make(map[common.Address]map[common.Hash][]*channel.Channel),
+		SwapKey2TokenSwap:                     make(map[swapKey]*TokenSwap),
+		AlarmTask:                             blockchain.NewAlarmTask(chain.Client),
+		UserReqChan:                           make(chan *apiReq, 10),
+		BlockNumber:                           new(atomic.Value),
+		ProtocolMessageSendComplete:           make(chan *protocolMessage, 10),
+		SecretRequestPredictorMap:             make(map[common.Hash]SecretRequestPredictor),
+		RevealSecretListenerMap:               make(map[common.Hash]RevealSecretListener),
+		ReceivedMediatedTrasnferListenerMap:   make(map[*ReceivedMediatedTrasnferListener]bool),
+		SentMediatedTransferListenerMap:       make(map[*SentMediatedTransferListener]bool),
+		FeePolicy:                             &ConstantFeePolicy{},
+		HealthCheckMap:                        make(map[common.Address]bool),
+		quitChan:                              make(chan struct{}),
+		isStarting:                            true,
+		EthConnectionStatus:                   make(chan netshare.Status, 10),
+		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newRaidenMessageHandler(rs)
@@ -254,14 +255,17 @@ func (rs *RaidenService) Start() (err error) {
 	// 1. 积压事件处理完毕之前,用户/其他节点通过api/消息对本地数据作出修改,是否会给后续的链上事件同步工作带来问题???
 	if rs.Chain.Client.Status == netshare.Connected {
 		//wait for start up complete.
-		<-rs.ChanStartupComplete
+		<-rs.ChanHistoryContractEventsDealComplete
 	}
-	log.Info(fmt.Sprintf("raide"))
+	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-	err = rs.startSubscribeNeighborStatus()
-	if err != nil {
-		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-		return
+	// 只有在
+	if rs.Config.NetworkMode == params.MixUDPXMPP {
+		err = rs.startSubscribeNeighborStatus()
+		if err != nil {
+			err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
+			return
+		}
 	}
 	return nil
 }
@@ -318,22 +322,22 @@ func (rs *RaidenService) loop() {
 			// contract events from block chain
 		case st, ok = <-rs.BlockChainEvents.StateChangeChannel:
 			if ok {
-				_, ok = st.(*mediatedtransfer.FakeContractInfoCompleteStateChange)
+				_, ok = st.(*mediatedtransfer.FakeLastHistoryContractStateChange)
 				if ok {
-					rs.ChanStartupComplete <- struct{}{}
-					log.Info("raiden startup complete")
-					if !rs.ethInited {
-						log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
-						rs.ethInited = true
-						err = rs.AlarmTask.Start()
-						if err != nil {
-							log.Error(fmt.Sprintf("alarm task start err %s", err))
-							n := rs.db.GetLatestBlockNumber()
-							rs.BlockNumber.Store(n)
-						} else {
-							//must have a valid blocknumber before any transfer operation
-							rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-						}
+					// 历史合约事件处理完成
+					// 启动时,通知上层
+					if rs.isStarting {
+						rs.ChanHistoryContractEventsDealComplete <- struct{}{}
+					}
+					// 启动AlarmTask
+					err = rs.AlarmTask.Start()
+					if err != nil {
+						log.Error(fmt.Sprintf("alarm task start err %s", err))
+						n := rs.db.GetLatestBlockNumber()
+						rs.BlockNumber.Store(n)
+					} else {
+						//must have a valid blocknumber before any transfer operation
+						rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
 					}
 				} else {
 					err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
@@ -376,7 +380,7 @@ func (rs *RaidenService) loop() {
 				//never block
 			}
 			if s == netshare.Connected {
-				rs.handleEthRRCConnectionOK()
+				rs.handleEthRPCConnectionOK()
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -1333,20 +1337,10 @@ func (rs *RaidenService) GetDb() *models.ModelDB {
 	return rs.db
 }
 
-func (rs *RaidenService) handleEthRRCConnectionOK() {
-	//if !rs.ethInited {
-	//	log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
-	//	rs.ethInited = true
-	//	err := rs.AlarmTask.Start()
-	//	if err != nil {
-	//		log.Error(fmt.Sprintf("alarm task start err %s", err))
-	//		n := rs.db.GetLatestBlockNumber()
-	//		rs.BlockNumber.Store(n)
-	//	} else {
-	//		//must have a valid blocknumber before any transfer operation
-	//		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-	//	}
-	//}
+/*
+things to do when smartraiden connect to eth
+*/
+func (rs *RaidenService) handleEthRPCConnectionOK() {
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
