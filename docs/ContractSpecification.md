@@ -602,7 +602,7 @@ function getSecretRevealBlockHeight(bytes32 secrethash) public view returns (uin
 
 >场景描述：在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。如果在secret快要过期之前，Bob拿到secret向Alice请求交换unlock报文，没有得到Alice响应，为了自身的资金安全，Bob可以选择到链上注册这个secret（调用registerSecret函数）,并得到注册时的区块数（调用getSecretRevealBlockHeight函数）。
 
-# 流程描述
+# 5. 流程描述
 
 ## 5.1 打开通道流程图
 
