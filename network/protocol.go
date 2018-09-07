@@ -524,6 +524,12 @@ func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 		}
 		nodesmap[addr] = ua
 	}
-	p.Transport.(*MixTransporter).udp.setHostPort(nodesmap)
+	if transport, ok := p.Transport.(*MixTransporter); ok {
+		transport.udp.setHostPort(nodesmap)
+	} else if transport, ok := p.Transport.(*UDPTransport); ok {
+		transport.setHostPort(nodesmap)
+	} else {
+		return errors.New("no need to register nodes while udp doesn't work")
+	}
 	return nil
 }
