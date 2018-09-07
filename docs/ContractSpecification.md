@@ -45,10 +45,13 @@ smartraiden提供快速转账，节点可以通过smartraiden在在token网络�
 ## 3.1 余额证明
 智能合约更新支付通道时要求的数据，参与者对余额证明进行签名。签名定义如下：
 
+
 ```solodity
 ecdsa_recoverable(privkey, keccak256(channel_identifier||transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || token_network_address || chain_id)
 ```
+
 字段：
+
 字段名|字段类型|描述
 --|--|--
 channel_identifier|bytes32|通道的ID
@@ -74,8 +77,11 @@ locksroot|bytes32|所有的等待锁的哈希值的默克树根
 
 智能合约允许用户从一个通道中取钱不用关闭它。签名必须有效(以接收方为例)，定义如下：
 
-`ecdsa_recoverable(privkey, sha3_keccak(participant1|| participant1_balance || participant1_withdraw || participant2|| participant2_balance || participant2_withdraw|| channel_identifier || channel.open_block_number || token_network_address || chain_id)
-`
+
+```solodity
+ecdsa_recoverable(privkey, sha3_keccak(participant1|| participant1_balance || participant1_withdraw || participant2|| participant2_balance || participant2_withdraw|| channel_identifier || channel.open_block_number || token_network_address || chain_id)
+````
+
 字段名|字段类型|描述
 --|--|--
 participant1|address|通道参与者一的地址
@@ -92,8 +98,11 @@ signature|bytes|对上述所有数据的签名
 
 ## 3.4 合作结算证明
 智能合约允许两个通道立即关闭和结算通道。签名定义如下：
-`ecdsa_recoverable(privkey, sha3_keccak(participant1 || participant1_balance || participant2 || participant2_balance || channel_identifier || open_blocknumber|| token_network_address || chain_id)
-`
+
+```solodity
+ecdsa_recoverable(privkey, sha3_keccak(participant1 || participant1_balance || participant2 || participant2_balance || channel_identifier || open_blocknumber|| token_network_address || chain_id)
+```
+
 字段名|字段类型|描述
 --|--|--
 participant1|address|通道参与者一的地址
