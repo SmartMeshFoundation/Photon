@@ -45,10 +45,7 @@ smartraiden提供快速转账，节点可以通过smartraiden在在token网络�
 ## 3.1 余额证明
 智能合约更新支付通道时要求的数据，参与者对余额证明进行签名。签名定义如下：
 
-
-```solodity
-ecdsa_recoverable(privkey, keccak256(channel_identifier||transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || token_network_address || chain_id)
-```
+`ecdsa_recoverable(privkey, keccak256(channel_identifier||transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || token_network_address || chain_id)`
 
 字段：
 
@@ -79,7 +76,7 @@ locksroot|bytes32|所有的等待锁的哈希值的默克树根
 
 ```solodity
 ecdsa_recoverable(privkey, sha3_keccak(participant1|| participant1_balance || participant1_withdraw || participant2|| participant2_balance || participant2_withdraw|| channel_identifier || channel.open_block_number || token_network_address || chain_id)
-````
+```
 
 字段名|字段类型|描述
 --|--|--
