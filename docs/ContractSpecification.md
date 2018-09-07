@@ -77,7 +77,6 @@ locksroot|bytes32|所有的等待锁的哈希值的默克树根
 
 智能合约允许用户从一个通道中取钱不用关闭它。签名必须有效(以接收方为例)，定义如下：
 
-
 ```solodity
 ecdsa_recoverable(privkey, sha3_keccak(participant1|| participant1_balance || participant1_withdraw || participant2|| participant2_balance || participant2_withdraw|| channel_identifier || channel.open_block_number || token_network_address || chain_id)
 ````
@@ -96,7 +95,9 @@ token_network_address|address|TokenNetwork合约地址
 chain_id|uint256|EIP155定义的Chain 标识
 signature|bytes|对上述所有数据的签名
 
+
 ## 3.4 合作结算证明
+
 智能合约允许两个通道立即关闭和结算通道。签名定义如下：
 
 ```solodity
