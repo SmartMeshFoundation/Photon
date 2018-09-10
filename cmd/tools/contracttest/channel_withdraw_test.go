@@ -25,17 +25,15 @@ func TestChannelWithdrawRight(t *testing.T) {
 
 	// self withdraw
 	withdrawSelf, withdrawPartner := big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err := env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxSuccess(t, &count, tx, err)
 	// check state
@@ -43,17 +41,15 @@ func TestChannelWithdrawRight(t *testing.T) {
 
 	// partner withdraw
 	withdrawSelf, withdrawPartner = big.NewInt(0), big.NewInt(1)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, big.NewInt(0), partner, depositPartner, big.NewInt(1))
+	wpSelf = createWithdrawParam(self, depositSelf, big.NewInt(0), partner, depositPartner, big.NewInt(1))
 	tx, err = env.TokenNetwork.WithDraw(
 		partner.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxSuccess(t, &count, tx, err)
 	// check state
@@ -61,17 +57,15 @@ func TestChannelWithdrawRight(t *testing.T) {
 
 	// third withdraw
 	withdrawSelf, withdrawPartner = big.NewInt(2), big.NewInt(2)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		third.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxSuccess(t, &count, tx, err)
 	// check state
@@ -97,17 +91,15 @@ func TestChannelWithdrawException(t *testing.T) {
 	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
 	assertTxSuccess(t, nil, tx, err)
 	withdrawSelf, withdrawPartner := big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
@@ -116,17 +108,15 @@ func TestChannelWithdrawException(t *testing.T) {
 	tx, err = env.TokenNetwork.SettleChannel(self.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, big.NewInt(0), utils.EmptyHash)
 	assertTxSuccess(t, nil, tx, err)
 	withdrawSelf, withdrawPartner = big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
@@ -149,141 +139,119 @@ func TestChannelWithdrawEdge(t *testing.T) {
 	openChannelAndDeposit(self, partner, depositSelf, depositPartner, testSettleTimeout)
 	// create param
 	withdrawSelf, withdrawPartner := big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 
 	// withdraw with data changed
 	tx, err := env.TokenNetwork.WithDraw(
 		self.Auth,
 		EmptyAccountAddress,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
+		wpSelf.Participant1,
 		FakeAccountAddress,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
 		big.NewInt(0),
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		big.NewInt(2),
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
 		big.NewInt(0),
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		big.NewInt(2),
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
 	// withdraw with wrong sig
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		nil,
-		wpPartner.sign(partner.Key),
-	)
-	assertTxFail(t, &count, tx, err)
-	tx, err = env.TokenNetwork.WithDraw(
-		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
-		wpSelf.sign(self.Key),
-		nil,
-	)
-	assertTxFail(t, &count, tx, err)
-	tx, err = env.TokenNetwork.WithDraw(
-		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
 		wpSelf.sign(partner.Key),
-		wpPartner.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(self.Key),
+		nil,
 	)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
+		wpSelf.sign(partner.Key),
+		wpSelf.sign(partner.Key),
+	)
+	assertTxFail(t, &count, tx, err)
+	tx, err = env.TokenNetwork.WithDraw(
+		self.Auth,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
+		wpSelf.sign(self.Key),
+		wpSelf.sign(self.Key),
+	)
+	assertTxFail(t, &count, tx, err)
+	tx, err = env.TokenNetwork.WithDraw(
+		self.Auth,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(third.Key),
-		wpPartner.sign(third.Key),
+		wpSelf.sign(third.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
@@ -305,93 +273,81 @@ func TestChannelWithdrawAttack(t *testing.T) {
 
 	// withdraw when one's withdraw > deposit
 	withdrawSelf, withdrawPartner := big.NewInt(26), big.NewInt(0)
-	wpSelf, wpPartner := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf := createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err := env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
 	// withdraw when one's deposit > true deposit
 	withdrawSelf, withdrawPartner = big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner = createWithdrawParam(self, big.NewInt(depositSelf.Int64()+1), withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf = createWithdrawParam(self, big.NewInt(depositSelf.Int64()+1), withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, withdrawSelf, partner, big.NewInt(depositPartner.Int64()+1), withdrawPartner)
+	wpSelf = createWithdrawParam(self, depositSelf, withdrawSelf, partner, big.NewInt(depositPartner.Int64()+1), withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
 	// withdraw when depositA1 + depositA2 != total deposit
 	withdrawSelf, withdrawPartner = big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner = createWithdrawParam(self, big.NewInt(depositSelf.Int64()-1), withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf = createWithdrawParam(self, big.NewInt(depositSelf.Int64()-1), withdrawSelf, partner, depositPartner, withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, withdrawSelf, partner, big.NewInt(depositPartner.Int64()-1), withdrawPartner)
+	wpSelf = createWithdrawParam(self, depositSelf, withdrawSelf, partner, big.NewInt(depositPartner.Int64()-1), withdrawPartner)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
 	// withdraw on reopen channel with old param
 	withdrawSelf, withdrawPartner = big.NewInt(1), big.NewInt(0)
-	wpSelf, wpPartner = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
+	wpSelf = createWithdrawParam(self, depositSelf, withdrawSelf, partner, depositPartner, withdrawPartner)
 	cooperativeSettleChannelIfExists(self, partner)
 	openChannelAndDeposit(self, partner, depositSelf, depositPartner, testSettleTimeout)
 	tx, err = env.TokenNetwork.WithDraw(
 		self.Auth,
-		wpPartner.Participant1,
-		wpPartner.Participant1Deposit,
-		wpPartner.Participant1Withdraw,
-		wpPartner.Participant2,
-		wpPartner.Participant2Deposit,
-		wpPartner.Participant2Withdraw,
+		wpSelf.Participant1,
+		wpSelf.Participant2,
+		wpSelf.Participant1Deposit,
+		wpSelf.Participant1Withdraw,
 		wpSelf.sign(self.Key),
-		wpPartner.sign(partner.Key),
+		wpSelf.sign(partner.Key),
 	)
 	assertTxFail(t, &count, tx, err)
 
