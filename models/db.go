@@ -101,6 +101,16 @@ func OpenDb(dbPath string) (model *ModelDB, err error) {
 	return
 }
 
+//StartTx start a new tx of db
+func (model *ModelDB) StartTx() (tx storm.Node) {
+	var err error
+	tx, err = model.db.Begin(true)
+	if err != nil {
+		panic(fmt.Sprintf("start transaction error %s", err))
+	}
+	return
+}
+
 /*
 MarkDbOpenedStatus First step   open the database
 Second step detection for normal closure IsDbCrashedLastTime

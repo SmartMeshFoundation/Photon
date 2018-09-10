@@ -56,7 +56,6 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 		err = mh.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
-		mh.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
 		f := mh.raiden.RevealSecretListenerMap[m2.LockSecretHash()]
 		if f != nil {
 			remove := (f)(m2)

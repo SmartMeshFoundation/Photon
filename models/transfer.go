@@ -1,11 +1,10 @@
 package models
 
 import (
+	"math"
 	"math/big"
 
 	"fmt"
-
-	"math"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -38,7 +37,7 @@ type ReceivedTransfer struct {
 }
 
 /*
-NewSentTransfer save a new sent transfer to db,this trqnsfer must be success
+NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
 func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
@@ -63,7 +62,7 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash
 	select {
 	case model.SentTransferChan <- st:
 	default:
-		//nerver block
+		//never block
 	}
 }
 
