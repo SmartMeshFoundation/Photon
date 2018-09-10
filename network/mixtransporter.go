@@ -1,17 +1,12 @@
 package network
 
 import (
-	"fmt"
-
 	"crypto/ecdsa"
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
@@ -39,8 +34,8 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	if err != nil {
 		return
 	}
-	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
-	t.RegisterProtocol(protocol)
+	/*t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
+	t.RegisterProtocol(protocol)*/
 
 	t.matirx, err = InitMatrixTransport(name, params.DefaultMatrixServer, key, deviceType)
 	t.RegisterProtocol(protocol)
@@ -52,7 +47,7 @@ Send message
 优先选择局域网,在局域网走不通的情况下,才会考虑 xmpp
 */
 func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
-	_, isOnline := t.udp.NodeStatus(receiver)
+/*	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {
 		return t.udp.Send(receiver, data)
 	} else if t.xmpp != nil {
@@ -61,7 +56,15 @@ func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
 		err := fmt.Errorf("no valid %s send to %s , message=%s,response hash=%s", t.name, utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:])))
 		log.Error(err.Error())
 		return err
+	}*/
+		_, isOnline := t.udp.NodeStatus(receiver)
+	if isOnline {
+		t.udp.Send(receiver, data)
+	} else if t.matirx != nil {
+		//t.xmpp.Send(receiver, data)
+		t.matirx.Send(receiver, data)
 	}
+	return nil
 }
 
 //Start the two transporter
@@ -69,18 +72,18 @@ func (t *MixTransporter) Start() {
 	if t.udp != nil {
 		t.udp.Start()
 	}
-	if t.xmpp != nil {
+/*	if t.xmpp != nil {
 		t.xmpp.Start()
-	}
+	}*/
 	if t.matirx != nil {
 		t.matirx.Start()
 	}
 }
 //Stop the two transporter
 func (t *MixTransporter) Stop() {
-	if t.xmpp != nil {
+/*	if t.xmpp != nil {
 		t.xmpp.Stop()
-	}
+	}*/
 	if t.udp != nil {
 		t.udp.Stop()
 	}
@@ -91,9 +94,9 @@ func (t *MixTransporter) Stop() {
 
 //StopAccepting stops receiving for the two transporter
 func (t *MixTransporter) StopAccepting() {
-	if t.xmpp != nil {
+/*	if t.xmpp != nil {
 		t.xmpp.StopAccepting()
-	}
+	}*/
 	if t.udp != nil {
 		t.udp.StopAccepting()
 	}
@@ -104,9 +107,9 @@ func (t *MixTransporter) StopAccepting() {
 
 //RegisterProtocol register receiver for the two transporter
 func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
-	if t.xmpp != nil {
+/*	if t.xmpp != nil {
 		t.xmpp.RegisterProtocol(protcol)
-	}
+	}*/
 	if t.udp != nil {
 		t.udp.RegisterProtocol(protcol)
 	}
@@ -121,7 +124,8 @@ func (t *MixTransporter) NodeStatus(addr common.Address) (deviceType string, isO
 	if isOnline {
 		return
 	}
-	return t.xmpp.NodeStatus(addr)
+	/*return t.xmpp.NodeStatus(addr)*/
+	return t.matirx.NodeStatus(addr)
 }
 
 //GetNotify notification of connection status change
@@ -134,8 +138,9 @@ func (t *MixTransporter) GetNotify() (notify <-chan netshare.Status, err error) 
 
 //SubscribeNeighbor get the status change notification of partner node
 func (t *MixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
-	if t.xmpp.conn == nil {
+	/*if t.xmpp.conn == nil {
 		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
 	}
-	return t.xmpp.conn.CollectNeighbors(db)
+	return t.xmpp.conn.CollectNeighbors(db)*/
+	return nil
 }

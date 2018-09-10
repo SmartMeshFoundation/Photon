@@ -31,7 +31,7 @@ var MatrixHttpClient = &http.Client{
 			}
 			return c, nil
 		},
-		MaxIdleConnsPerHost:   2,
+		MaxIdleConnsPerHost:   100,
 		ResponseHeaderTimeout: time.Second * 5,
 	},
 }
@@ -120,7 +120,6 @@ func (mcli *MatrixClient) Sync() error {
 			time.Sleep(duration)
 			continue
 		}
-		//fmt.Println(syncingID,"\t",filterID)
 		if mcli.getSyncingID() != syncingID {
 			return nil
 		}
@@ -138,7 +137,6 @@ func (mcli *MatrixClient) Sync() error {
 	}
 }
 
-//as allDoneMRE=gcnew ManualResetEvent(false);allDoneMRE->Reset();allDoneMRE->WaitOne();allDoneMRE->Set();
 func (mcli *MatrixClient) incrementSyncingID() uint32 {
 	mcli.syncingMutex.Lock()
 	defer mcli.syncingMutex.Unlock()
@@ -255,7 +253,8 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-
+	// 完成后断开连接
+	req.Header.Set("Connection", "close")
 	res, err := mcli.Client.Do(req)
 	if res != nil {
 		defer res.Body.Close()
@@ -264,8 +263,8 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		return nil, err
 	}
 	contents, err := ioutil.ReadAll(res.Body)
-	if res.StatusCode!=http.StatusOK{
-	//if res.StatusCode/100 != 2 { // not 2xx
+	//if res.StatusCode!=http.StatusOK{
+	if res.StatusCode/100 != 2 {
 		var wrap error
 		var respErr RespError
 		if _ = json.Unmarshal(contents, &respErr); respErr.ErrCode != "" {

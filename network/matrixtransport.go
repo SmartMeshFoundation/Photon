@@ -21,6 +21,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"encoding/base64"
+	"os"
 )
 
 type MatrixTransport struct {
@@ -40,12 +41,12 @@ type MatrixTransport struct {
 	UseDeviceType      string
 	log                log.Logger
 	nodeHeart          map[string]bool
+	ChargeRegulation   string
 }
 /*
 ------------------------------------------------------------------------------------------------------------------------
 */
 func (mtr *MatrixTransport) HandleMessage(from common.Address, data []byte) {
-	log.Trace(fmt.Sprintf("received from %s, message=%s", utils.APex2(from), encoding.MessageType(data[0])))
 	if !mtr.running || mtr.stopreceiving {
 		return
 	}
@@ -58,25 +59,29 @@ func (mtr *MatrixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	mtr.protocol = protcol
 }
 
-func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) {
+func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error{
 	if !mtr.running || len(data) == 0 {
-		return
+		return fmt.Errorf("[Matrix]Send failed,matrix not running or the data is null")
 	}
 	roomID := mtr.get_room_id_for_address(receiverAddr)
 	if roomID == "" {
-		return
+		return fmt.Errorf("[Matrix]Send failed,cann't find the obj addr")
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
 	_, err := mtr.matrixcli.SendText(roomID, _data)
 	if err != nil {
-		log.Trace(fmt.Sprintf("[matrix]send to %s, message=%s [error]", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		log.Trace(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	} else {
-		log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s [succeed]", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		log.Info(fmt.Sprintf("[Matrix]Send success to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	}
+	return nil
 }
 
 func (mtr *MatrixTransport) Start() {
-	mtr.running = true
+	if mtr.running{
+		return
+	}
+
 	if err := mtr.login_or_register(); err != nil {
 		return
 	}
@@ -115,14 +120,13 @@ func (mtr *MatrixTransport) Start() {
 			return
 		}
 		msgData, ok := evt.Body()
-		log.Info(mtr.UserId)
-		//log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", msgData,msgSender))
 		if ok {
 			dataContent, err := base64.StdEncoding.DecodeString(msgData)
 			if err != nil {
 				log.Error(fmt.Sprintf("[Matrix]Receive unkown message %s", utils.StringInterface(evt, 0)))
 			} else {
 				mtr.HandleMessage(common.HexToAddress(addrlocal), dataContent)
+				log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]),msgSender))
 			}
 		}
 	})
@@ -130,9 +134,20 @@ func (mtr *MatrixTransport) Start() {
 	go func() {
 		for {
 			if err := mtr.matrixcli.Sync(); err != nil {
-				fmt.Println("Sync() returned ", err)
+				log.Error("[Matrix] transport failed")
 			}
 			time.Sleep(time.Second * 5)
+		}
+	}()
+	mtr.running = true
+	log.Trace("[Matrix] transport started")
+
+	//test code
+	go func() {
+		for {
+			sdata,_:=base64.StdEncoding.DecodeString("EQAAAIIUOo4Q4ck63CN6xdsHD0yAGoxPQ65Z0QMujNykGqzlAAAAAAAAAB4FhbWJbOJl3FIhxt+EWLjGZ2htMhTgi4XAflrhlNJvXAAAAAAAMJuDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGJYT+hStqK3NAnZFgqukPTzxFNy1+CbYtR014/+6sGnfoxumX8Eer2XqlwxRx2pwF02ItKOL3koK3k22hmZJrQb")
+			mtr.Send(common.HexToAddress("0xc67f23ce04ca5e8dd9f2e1b5ed4fad877f79267a"), sdata)
+			time.Sleep(time.Second * 10)
 		}
 	}()
 }
@@ -147,7 +162,7 @@ func (mtr *MatrixTransport) Stop() {
 	})
 	mtr.matrixcli.StopSync()
 	if _,err:=mtr.matrixcli.Logout();err!=nil{
-		fmt.Println(err)
+		log.Error("[Matrix] i-node logout failed")
 	}
 }
 
@@ -160,12 +175,11 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 		return "", false
 	}
 	deviceType=mtr.UseDeviceType
-	ret, ok := mtr.AddressToPresence[addr]
+	_, ok := mtr.AddressToPresence[addr]
 	if !ok{
 		isOnline=false
-		return
 	}
-	isOnline=ret
+	isOnline=true
 	return
 }
 /*
@@ -269,7 +283,7 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 						continue
 					}
 				}
-				log.Trace(fmt.Sprintf("register ok,Username=%s,Password=", username,password))
+				//log.Trace(fmt.Sprintf("register ok,Username=%s,Password=%s", username,password))
 				regok = true;
 				mtr.matrixcli.UserID = username
 				continue
@@ -456,6 +470,7 @@ func (mtr *MatrixTransport) set_room_id_for_address(address common.Address,roomi
 func (mtr *MatrixTransport) get_room_id_for_address(address common.Address) (roomid string) {
 	addressHex := ChecksumAddress(hexutil.Encode(address[:]))
 	roomid = mtr.AddressToRoomid[addressHex]
+	roomid="!wuTYeHDxnOaWVxlrDE:transport01.smartraiden.network"
 	if mtr.matrixcli.Store.LoadRoom(roomid) == nil { //Store-Rooms is null
 		mtr.set_room_id_for_address(address, roomid)
 		roomid = ""
@@ -489,6 +504,45 @@ func (mtr *MatrixTransport) get_use_devicetype() (rtn string) {
 		rtn = deviceType[0]
 	}
 	return
+}
+
+func (mtr *MatrixTransport) make_or_get_charge_regulation(formuladata string) error{
+	if len(formuladata)>1024/2{
+		return fmt.Errorf("len excess of 512")
+	}
+	regularFile,err:=os.OpenFile("./chargeregulation.dat",os.O_RDWR|os.O_CREATE, 0766)
+	defer regularFile.Close()
+	if err!=nil{
+		fmt.Println(err)
+	}
+	fmt.Println(regularFile)
+	buf := make([]byte, 1024)
+	xdeviation:=0
+	for{
+		len,_:=regularFile.ReadAt(buf,int64(xdeviation))
+		xdeviation=xdeviation+len
+		if len==0{
+			break
+		}
+	}
+	/*
+	/BOOL
+	CopyMemory(&(pS->RcReq) , pRc, sizeof(pS->RcReq));
+	(RealTs[nTs].ChangeCount + 1) & 0x1fffp = RecPtr[i];	//RecPtr为接收指针
+	for (j = 0; j < l; j++)
+	{
+		RecBuf[i][p] = Buf[j];
+		p++;
+		p &= (REC_BUF_LEN - 1);
+	}
+	RecPtr[i] = p;
+	unsigned __int64 tt1 = *(unsigned __int64 *)t1;
+	xIndex:=rege*/
+
+		for i:=0;i<4;i++{
+			regularFile.WriteAt([]byte("formula_description:"+formuladata),int64(i*64))
+		}
+	return nil
 }
 /*
 ------------------------------------------------------------------------------------------------------------------------
@@ -618,7 +672,6 @@ func _recover(data ,signature []byte)(address []byte,err error) {
 	if err != nil {
 		return
 	}
-	//address = crypto.Keccak256(recoverPub)[1:][12:]
 	address = utils.PubkeyToAddress(recoverPub).Bytes()
 
 	return
