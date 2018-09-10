@@ -153,12 +153,25 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 make sure not call this when transfer already finished , state is nil means finished.
 */
 func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
+	var events []transfer.Event
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
+	} else {
+		// 超时
+		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
+		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,发送remove expired,然后移除state manager
+		events = append(events, &mt.EventUnlockFailed{
+			LockSecretHash:    state.Transfer.LockSecretHash,
+			ChannelIdentifier: state.Route.ChannelIdentifier,
+			Reason:            "lock expired",
+		})
+		events = append(events, &mt.EventRemoveStateManager{
+			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
+		})
 	}
 	return &transfer.TransitionResult{
 		NewState: state,
-		Events:   expiredHashLockEvents(state),
+		Events:   events,
 	}
 }
 
