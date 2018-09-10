@@ -211,6 +211,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 			TokenAddress:        c.TokenAddress().String(),
 			LockedAmount:        c.OurAmountLocked(),
 			PartnerLockedAmount: c.PartnerAmountLocked(),
+			RevealTimeout:       c.RevealTimeout,
 		}
 		err = w.WriteJson(d)
 		if err != nil {
