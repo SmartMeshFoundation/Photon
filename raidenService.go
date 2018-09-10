@@ -259,7 +259,7 @@ func (rs *RaidenService) Start() (err error) {
 	}
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-	// 只有在
+	// 只有在混合模式下启动时,才订阅其他节点的在线状态
 	if rs.Config.NetworkMode == params.MixUDPXMPP {
 		err = rs.startSubscribeNeighborStatus()
 		if err != nil {
