@@ -115,7 +115,7 @@ State|StateString|Description
 - `404 Not Found` -   
 
 ## POST /api/1/channels
-开启一个通道  
+开启一个通道并想通道里存钱，`balance`参数不是必须的，若不设置，则是开启一个通道，`balance`默认为`0`
 **PAYLOAD:**  
 ```json
 {
@@ -209,7 +209,7 @@ State|StateString|Description
 - `200 OK` - 成功查询  
 - `404 Not Found` -   
 ## PUT /api/1/withdraw/*(channel_address)*
-当通道双方都在线的情况下，可以合作取钱  
+当通道双方都在线的情况下，可以合作取钱。
 **PAYLOAD:**
 ```json
 {
