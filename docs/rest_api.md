@@ -73,7 +73,7 @@ State|StateString|Description
 - `404 Not Found` -   
 ## PUT /api/1/tokens/*(token_address)*
 注册新的token   
-**Example Request:**
+**Example Request:**  
 `PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`  
 
 **Example Response:**  
@@ -274,9 +274,9 @@ State|StateString|Description
 - `200 OK` - 成功存储  
 - `400 Bad Request` - 无效的请求参数  
 
-
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`      
-关闭一个通道,参数`force`默认为`false`，表示合作结算通道。    
+关闭一个通道,参数`force`默认为`false`，表示合作结算通道。  
+**Example  Request:**   
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`           
 **PAYLOAD:**    
 ```json
 {"state":"closed"，
@@ -324,8 +324,10 @@ State|StateString|Description
     "reveal_timeout": 5
 }
 ```
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`     
-结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道    
+结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道  
+**Example  Request:**    
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`       
+   
 **PAYLOAD:**    
 ```json
 {
