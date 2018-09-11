@@ -8,7 +8,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
 )
 
 /*
@@ -37,7 +36,7 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	/*t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
 	t.RegisterProtocol(protocol)*/
 
-	t.matirx, err = InitMatrixTransport(name, params.DefaultMatrixServer, key, deviceType)
+	t.matirx, err = InitMatrixTransport(name, key, deviceType)
 	t.RegisterProtocol(protocol)
 	return
 }

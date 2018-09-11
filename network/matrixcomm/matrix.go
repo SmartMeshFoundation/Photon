@@ -453,24 +453,6 @@ func (mcli *MatrixClient) SendText(roomID, text string) (*RespSendEvent, error) 
 		TextMessage{"m.text", text})
 }
 
-func (mcli *MatrixClient) SendImage(roomID, body, url string) (*RespSendEvent, error) {
-	return mcli.SendMessageEvent(roomID, "m.room.message",
-		ImageMessage{
-			MsgType: "m.image",
-			Body:    body,
-			URL:     url,
-		})
-}
-
-func (mcli *MatrixClient) SendVideo(roomID, body, url string) (*RespSendEvent, error) {
-	return mcli.SendMessageEvent(roomID, "m.room.message",
-		VideoMessage{
-			MsgType: "m.video",
-			Body:    body,
-			URL:     url,
-		})
-}
-
 func (mcli *MatrixClient) SendNotice(roomID, text string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		TextMessage{"m.notice", text})

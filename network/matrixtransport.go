@@ -35,12 +35,14 @@ type MatrixTransport struct {
 	discoveryroomid    string                  //the room's ID of sys pre-configured ("![RoomIdData]:[ServerName]")
 	Users              map[string]*User        //cache user's base-infos("userID{userID,displayname}")
 	AddressToRoomid    map[string]string       //all rooms with we knows this service
+	AddressToUserids   map[common.Address][]string
+	AddressToPresence  map[common.Address]string //cache user's real-time presence by node's address("userID{presence}")
 	UseridToPresence   map[string]string       //cache user's real-time presence by userID("userID{presence}")
-	AddressToPresence  map[common.Address]bool //cache user's real-time presence by node's address("userID{presence}")
 	UserId             string                  //the current user's ID(@kitty:thisserver)
 	UseDeviceType      string
 	log                log.Logger
 	nodeHeart          map[string]bool
+
 	ChargeRegulation   string
 }
 /*
@@ -72,7 +74,7 @@ func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error
 	if err != nil {
 		log.Trace(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	} else {
-		log.Info(fmt.Sprintf("[Matrix]Send success to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	}
 	return nil
 }
@@ -81,7 +83,7 @@ func (mtr *MatrixTransport) Start() {
 	if mtr.running{
 		return
 	}
-
+	//login
 	if err := mtr.login_or_register(); err != nil {
 		return
 	}
@@ -110,6 +112,9 @@ func (mtr *MatrixTransport) Start() {
 	syncer := mtr.matrixcli.Syncer.(*matrixcomm.DefaultSyncer)
 	syncer.OnEventType("m.room.message", func(evt *matrixcomm.Event) {
 		_msgSender := evt.Sender
+		if _msgSender==mtr.UserId{
+			return
+		}
 		msgSender, _ := matrixcomm.ExtractUserLocalpart(_msgSender)
 		var addrmuti = regexp.MustCompile(`^(0x[0-9a-f]{40})`)
 		addrlocal := addrmuti.FindString(msgSender)
@@ -126,7 +131,7 @@ func (mtr *MatrixTransport) Start() {
 				log.Error(fmt.Sprintf("[Matrix]Receive unkown message %s", utils.StringInterface(evt, 0)))
 			} else {
 				mtr.HandleMessage(common.HexToAddress(addrlocal), dataContent)
-				log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]),msgSender))
+				log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]),utils.APex2(common.HexToAddress(addrlocal))))
 			}
 		}
 	})
@@ -143,13 +148,13 @@ func (mtr *MatrixTransport) Start() {
 	log.Trace("[Matrix] transport started")
 
 	//test code
-	go func() {
+	/*go func() {
 		for {
 			sdata,_:=base64.StdEncoding.DecodeString("EQAAAIIUOo4Q4ck63CN6xdsHD0yAGoxPQ65Z0QMujNykGqzlAAAAAAAAAB4FhbWJbOJl3FIhxt+EWLjGZ2htMhTgi4XAflrhlNJvXAAAAAAAMJuDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGJYT+hStqK3NAnZFgqukPTzxFNy1+CbYtR014/+6sGnfoxumX8Eer2XqlwxRx2pwF02ItKOL3koK3k22hmZJrQb")
 			mtr.Send(common.HexToAddress("0xc67f23ce04ca5e8dd9f2e1b5ed4fad877f79267a"), sdata)
 			time.Sleep(time.Second * 10)
 		}
-	}()
+	}()*/
 }
 
 func (mtr *MatrixTransport) Stop() {
@@ -190,7 +195,7 @@ func (mtr *MatrixTransport) get_user_presence(userid string) string {
 	if _, ok := mtr.UseridToPresence[userid]; !ok {
 		resp, err := mtr.matrixcli.GetPresenceState(userid)
 		if err != nil {
-			presence = UNAVAILABLE
+			presence = UNKNOWN
 		}else {
 			presence = resp.Presence
 			mtr.UseridToPresence[userid] = presence
@@ -199,7 +204,28 @@ func (mtr *MatrixTransport) get_user_presence(userid string) string {
 	return mtr.UseridToPresence[userid]
 }
 
-func (mtr *MatrixTransport) update_address_presence(address []byte) {
+func (mtr *MatrixTransport) update_address_presence(address common.Address) {
+	compositePresence := []string{}
+	for _, value := range mtr.AddressToUserids[address] {
+		compositePresence = append(compositePresence, value)
+	}
+	newState := UNKNOWN
+	for _, x := range compositePresence {
+		if x == ONLINE {
+			newState = x
+			break
+		} else if x == UNAVAILABLE {
+			newState = x
+			break
+		} else if x == OFFLINE {
+			newState = x
+			break
+		}
+	}
+	if newState == mtr.AddressToPresence[address] {
+		return
+	}
+	mtr.AddressToPresence[address] = newState
 
 }
 
@@ -235,7 +261,8 @@ func (mtr *MatrixTransport) handle_presence_change(event matrixcomm.Event){
 	}
 	//change status
 	mtr.UseridToPresence[userid]=newstate
-	mtr.update_address_presence(adderss)
+	mtr.update_address_presence(utils.PubkeyToAddress(adderss))
+	//fmt.Println(adderss)
 }
 
 func (mtr *MatrixTransport) login_or_register() (_err error) {
@@ -249,7 +276,6 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 			rand.Seed(time.Now().UnixNano())
 			rnd := Int32ToBytes(rand.Int31n(math.MaxInt32))
 			username = baseUsername + "." + hex.EncodeToString(rnd)
-			//username="0xc67f23ce04ca5e8dd9f2e1b5ed4fad877f79267a.59a2bb27"//test data
 		}
 		mtr.matrixcli.AccessToken = ""
 		resplogin, err := mtr.matrixcli.Login(&matrixcomm.ReqLogin{
@@ -264,7 +290,7 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 				continue
 			}
 			if httpErr.Code == 403 { //Invalid username or password
-				log.Trace(fmt.Sprintf("couldn't sign in for matrix,trying register %s", username))
+				//log.Trace(fmt.Sprintf("couldn't sign in for matrix,trying register %s", username))
 				authDict := &matrixcomm.AuthDict{
 					Type: AUTHTYPE,
 				}
@@ -279,11 +305,10 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 				if err != nil && uia == nil {
 					rhttpErr, _ := err.(matrixcomm.HTTPError)
 					if rhttpErr.Code == 400 { //M_USER_IN_USE,M_INVALID_USERNAME,M_EXCLUSIVE
-						log.Trace("username taken,continuing")
+						log.Trace("username is in use or invalid,continuing")
 						continue
 					}
 				}
-				//log.Trace(fmt.Sprintf("register ok,Username=%s,Password=%s", username,password))
 				regok = true;
 				mtr.matrixcli.UserID = username
 				continue
@@ -300,7 +325,7 @@ func (mtr *MatrixTransport) login_or_register() (_err error) {
 		_err=fmt.Errorf("could not register or login")
 		return
 	}
-	//set displayname as publicly visible(=0x......)
+	//set displayname as publicly visible
 	dispname:=hexutil.Encode(mtr._sign([]byte(mtr.matrixcli.UserID)))
 	if err:=mtr.matrixcli.SetDisplayName(dispname);err!=nil{
 		_err=fmt.Errorf("could set the node's displayname and quit as well")
@@ -470,11 +495,12 @@ func (mtr *MatrixTransport) set_room_id_for_address(address common.Address,roomi
 func (mtr *MatrixTransport) get_room_id_for_address(address common.Address) (roomid string) {
 	addressHex := ChecksumAddress(hexutil.Encode(address[:]))
 	roomid = mtr.AddressToRoomid[addressHex]
-	roomid="!wuTYeHDxnOaWVxlrDE:transport01.smartraiden.network"
+
 	if mtr.matrixcli.Store.LoadRoom(roomid) == nil { //Store-Rooms is null
 		mtr.set_room_id_for_address(address, roomid)
 		roomid = ""
 	}
+	roomid="!OOMYBnlndieRuzkXtt:transport01.smartraiden.network"
 	return
 }
 
@@ -575,7 +601,7 @@ var(
 
 var mobilefeature=[]string{}
 
-func InitMatrixTransport(logname,matrixHomeServerURL string,key *ecdsa.PrivateKey,devicetype string)(*MatrixTransport,error) {
+func InitMatrixTransport(logname string,key *ecdsa.PrivateKey,devicetype string)(*MatrixTransport,error) {
 	serverList := params.MatrixServerConfig
 	var homeserver_valid= ""
 	var matrixclie_valid= &matrixcomm.MatrixClient{}
@@ -608,7 +634,8 @@ func InitMatrixTransport(logname,matrixHomeServerURL string,key *ecdsa.PrivateKe
 		Users:             make(map[string]*User),
 		AddressToRoomid:   make(map[string]string),
 		UseridToPresence:  make(map[string]string),
-		AddressToPresence: make(map[common.Address]bool),
+		AddressToPresence: make(map[common.Address]string),
+		AddressToUserids:  make(map[common.Address][]string),
 		UseDeviceType:     devicetype,
 		log:               log.New("name", logname),
 	}
