@@ -1,10 +1,10 @@
 # System Requirements and Installation Guide
 ## Introduction
-SmartRaiden is a standard compliant implementation of the Raiden Network protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc. In order to better fit for the mobile network, SmartRaiden also has some special functions, including P2P communication under ICE framework, crash recovery and channel charging function.
+SmartRaiden is a standard compliant implementation of the Raiden Network protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc. In order to better fit for the mobile network, SmartRaiden also has some special functions, the internet message communication based on XMPP , crash recovery and channel charging function.
 ## Installation
 The preferred way to install SmartRaiden is downloading a self contained application bundle from the [GitHub release page](https://github.com/SmartMeshFoundation/SmartRaiden/releases)
 ### Linux
-Download the latest smartraiden-<version>-linux.tar.gz, and extract it:
+Download the latest smartraiden-<version>-[linux.tar.gz](https://github.com/SmartMeshFoundation/SmartRaiden/releases), and extract it:
 
 ```
 tar -xvzf smartraiden-<version>-linux.tar.gz
@@ -12,7 +12,7 @@ tar -xvzf smartraiden-<version>-linux.tar.gz
 
 The SmartRaiden binary should work on most 64bit GNU/Linux distributions without any specific system dependencies, other than an Ethereum client installed in your system (see below). The Raiden binary takes the same command line arguments as the raiden script.
 ### macOS
-Download the latest smartraiden-<version>-macOS.zip, and extract it:
+Download the latest smartraiden-<version>-[macOS.zip](https://github.com/SmartMeshFoundation/SmartRaiden/releases), and extract it:
 ```
 unzip smartraiden-<version>-macOS.zip
 ```
