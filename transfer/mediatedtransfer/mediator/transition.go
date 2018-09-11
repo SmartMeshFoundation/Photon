@@ -219,9 +219,12 @@ func clearIfFinalized(result *transfer.TransitionResult) *transfer.TransitionRes
 		}
 	}
 	if isAllFinalized {
+		// 此处可以移除state manager了
 		return &transfer.TransitionResult{
 			NewState: nil,
-			Events:   result.Events,
+			Events: append(result.Events, &mediatedtransfer.EventRemoveStateManager{
+				Key: utils.Sha3(state.LockSecretHash[:], state.Token[:]),
+			}),
 		}
 	}
 	return result
