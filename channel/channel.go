@@ -1015,6 +1015,11 @@ func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) 
 		如果我是交易的中间节点,就相当于收到了对方的 annouce disposed 一样处理.
 		这需要我保存 settle request,如果 cooperative settle 失败怎么处理呢?!!
 	*/
+	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
+		len(c.PartnerState.Lock2PendingLocks) > 0 ||
+		len(c.OurState.Lock2UnclaimedLocks) > 0 {
+		return errors.New("cannot cooperative settle when has unlock")
+	}
 	c.State = channeltype.StateCooprativeSettle
 	return nil
 }
