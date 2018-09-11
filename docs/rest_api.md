@@ -1,69 +1,37 @@
 # SmartRaiden REST API Reference
-欢迎使用SmartRaiden REST API Reference,这是一份`v1`版本的粗略api参考文档，供开发者尝鲜使用（后续会不断更新完善)
+欢迎使用`SmartRaiden` REST API Reference,这是一份`v1`版本的api参考文档，新增了不少新的功能，例如合作取钱，合作关闭通道，发送指定`secret`的交易等。正在持续更新中，若有疑问欢迎提交[Issues](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
 
-文档主要介绍几个大类：
-
-- Token 
-  
-- Channel
-  
-- Transfer
-
-
-## Token  
-### `GET /api/1/tokens`
-查询已经注册的token ,没有请求参数  
-
-**Example Response:**  
+## 通道信息
 ```json
-[
-    "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
-]
+    {
+        "channel_address": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
+        "open_block_number": 3158573,
+        "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
+        "balance": 100,
+        "partner_balance": 100,
+        "locked_amount": 0,
+        "partner_locked_amount": 0,
+        "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
+        "state": 1,
+        "StateString": "opened",
+        "settle_timeout": 150,
+        "reveal_timeout": 5
+    }
 ```
-### `PUT /api/1/tokens/<token_address>`  
-注册新的token  
+详细通道参数解释：  
+- `channel_address`:通道地址
+- `open_block_number`:打开通道时的块数
+- `partner_address`:通道伙伴的地址
+- `balance`:余额
+- `partner_balance`:伙伴的余额
+- `locked_amount`:自己锁定的token
+- `partner_locked_amount`:伙伴锁定的token
+- `token_address`:token地址
+- `state`:状态数(详见下表)
+- `StateString`:通道状态(详见下表)
+- `settle_timeout`:结算时间
+- `reveal_timeout`:节点注册`secret`时间
 
-**Example Request:**
-
-`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`
-
-
-
-**Example Response:**  
-```json
-{
-    "channel_manager_address": "0xBb1e95363b0181De7bBf394f18eaC7D4230e391A"
-}
-```
-   
-### `GET /api/1/address`     
-查询你的smartraiden地址
-
-**Example Response:**  
-```json
-{
-    "our_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5"
-}
-```
-
-## Channel  
-### Channel Object
-```json
-{
-    "channel_address": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
-    "open_block_number": 2996350,
-    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-    "balance": 500,
-    "partner_balance": 100,
-    "locked_amount": 0,
-    "partner_locked_amount": 0,
-    "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
-    "state": 1,
-    "StateString": "opened",
-    "settle_timeout": 150,
-    "reveal_timeout": 5
-}
-```
 
 State|StateString|Description
 --|--|--
@@ -81,7 +49,46 @@ State|StateString|Description
 11|Error|StateError 比如收到了明显错误的消息,又是对方签名的,如何处理?比如自己未发送 withdrawRequest,但是收到了 withdrawResponse。todo 这种情况应该的实现是关闭通道.这样真的合理吗?
 
 
-### `GET /api/1/channels` 
+## GET /api/1/address
+查询节点信息，会返回Smartraiden节点的地址  
+**Example Response:**   
+```json
+{
+    "our_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92"
+}
+```
+**Status Codes:**
+- `200 OK` - 成功查询
+- `404 Not Found` - 
+## GET /api/1/tokens
+查询已经注册的token  
+**Example Response:**
+```json
+[
+    "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
+]
+```
+**Status Codes:**
+- `200 OK` - 成功查询
+- `404 Not Found` - 
+## PUT /api/1/tokens/*(token_address)*
+注册新的token   
+**Example Request:**
+`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`  
+
+**Example Response:**  
+```json
+{
+    "channel_manager_address": "0xBb1e95363b0181De7bBf394f18eaC7D4230e391A"
+}
+```
+**Status Codes:**
+- `200 OK` - 注册成功
+- `400 Bad Request` - 无效的token地址
+- `409 Conflict` - token已经被注册过
+
+
+## /api/1/channels  
 查询节点所有未结算的通道   
  
 **Example Response:**  
@@ -103,11 +110,13 @@ State|StateString|Description
     }
 ]
 ```
+**Status Codes:**
+- `200 OK` - 成功查询
+- `404 Not Found` - 
 
-### `POST /api/1/channels`  
+## POST /api/1/channels
 开启一个通道  
-
-**PAYLOAD:**
+**PAYLOAD:**  
 ```json
 {
     "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
@@ -116,9 +125,7 @@ State|StateString|Description
     "settle_timeout": 150
 }
 ```
-
 **Example Response:**  
-
 ```json 
 {
     "channel_address": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
@@ -135,13 +142,15 @@ State|StateString|Description
     "reveal_timeout": 0
 }
 ```
-### `GET/api/1/channels/<channel_address>`  
-查询特定的通道 ,可以看到通道的详细信息
+**Status Codes:**
+- `200 OK` - 打开通道成功
+- `400 Bad Request` - 无效的请求参数
+- `409 Conflict` - 通道已经存在
 
-**Example Request:**
-
+## GET /api/1/channels/*(channel_address)* 
+查询特定的通道 ,可以看到通道的详细信息  
+**Example Request**
 `GET /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`  
-
 **Example Response:**
 ```json
 {
@@ -196,13 +205,48 @@ State|StateString|Description
     "Signature": null
 }
 ```
+**Status Codes:**
+- `200 OK` - 成功查询
+- `404 Not Found` - 
+## PUT /api/1/withdraw/*(channel_address)*
+当通道双方都在线的情况下，可以合作取钱  
+**PAYLOAD:**
+```json
+{
+	"amount":0,
+	"op":"preparewithdraw"
+}
+```
+**Request JSON Object:**
+- `op` - 切换通道状态(可选)
+  - `preparewithdraw` - 把通道状态切换到`prepareForWithdraw`,详见通道状态表
+  - `cancelprepare` - 取消准备/通道状态切换到`open`
+ 
+**Example Response:** 
+```json
+{
+    "channel_address": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
+    "open_block_number": 3613578,
+    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
+    "balance": 190,
+    "partner_balance": 100,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
+    "state": 7,
+    "StateString": "withdrawing",
+    "settle_timeout": 150,
+    "reveal_timeout": 5
+}
+```
+**Status Codes:**
+- `200 OK ` - 成功取钱
+- `400 Bad Request` - 错误参数请求/token余额不够
 
-### `PATCH /api/1/channels/<channel_address>` 
-
-`PATCH /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`
-
+## PATCH /api/1/channels/*(channel_address)*
 向一个通道里面存钱  
-
+**Example  Request:**
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
 **PAYLOAD:**   
 ```json
 {
@@ -226,15 +270,17 @@ State|StateString|Description
     "reveal_timeout": 5
 }
 ```
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1` 
+**Status Codes:**
+- `200 OK` - 成功存储
+- `400 Bad Request` - 无效的请求参数
 
+
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
 关闭一个通道,参数`force`默认为`false`，表示合作结算通道。  
-
 **PAYLOAD:**  
 ```json
 {"state":"closed"，
-  "force":false
-	
+  "force":false	
 }
 ```
 **Example Response:**   
@@ -254,8 +300,7 @@ State|StateString|Description
     "reveal_timeout": 5
 }
 ```
-当通道对方不在线时，或者不想合作结算通道，可将`force`设置为`true`,等待`settle_timeout`后再结算 
-
+当通道对方不在线时，或者不想合作结算通道，可将`force`设置为`true`,等待`settle_timeout`后再结算  
 **PAYLOAD：**  
 ```json
 {"state":"closed",
@@ -279,10 +324,8 @@ State|StateString|Description
     "reveal_timeout": 5
 }
 ```
-
 `PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`   
 结算通道，当通道已经关闭且`settle_timeout`已过，可结算通道  
-
 **PAYLOAD:**  
 ```json
 {
@@ -307,13 +350,16 @@ State|StateString|Description
     "reveal_timeout": 5
 }
 ```
+**Status Codes:**
+- `200 OK` - 成功关闭/结算
+- `400 Bad Request` - 无效的请求参数
+- `409 Conflict` - 状态不满足等
 
-## Transfer
-### `transfer/<token_address>/<target_address>`
+
+## POST /api/1/transfer/*(token_address)*/*(target_address)*
+当通道是`open`状态且资金充足的情况下，可以进行转账  
+**Example Request:**
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`  
-
-当通道是`open`状态且资金充足的情况下，可以进行转账
-
 **PAYLOAD**
 ```json
 {
@@ -335,10 +381,53 @@ State|StateString|Description
     "is_direct": false
 }
 ```
-## Token Swap
-### `/api/1/token_swaps/<target_address>/<lock_secret_hash>` 
-Token Swap 可以用来进行两种token的交换，在保证有效路由的情况下，先调用`taker`再调用`maker`，可通过接口`/api/1/secret/`获取一对`lock_secret_hash`和`secret` 
+也可以发送带有指定`secret`的转账
+**Example Request**
+`http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`
+```json
+{
+    "amount":20,
+    "fee":0,
+    "is_direct":false,
+    "secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1"
+}
+```
+## GET /api/1/getunfinishedreceivedtransfer/*(token_address)*/*(locksecrethash)*
+查询未完成的转账交易  
+**Example Request:**
+`/api/1/getunfinishedreceivedtransfer/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0x992a8b9751180ef5363184bd4af54b7d5bc66f99e4239250c6ef23840ee5464c`
 
+**Example Response:**
+```json
+{
+    "initiator_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
+    "target_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
+    "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
+    "amount": 20,
+    "secret": "",
+    "lock_secret_hash": "0x992a8b9751180ef5363184bd4af54b7d5bc66f99e4239250c6ef23840ee5464c",
+    "expiration": 132,
+    "fee": null,
+    "is_direct": false
+}
+```
+## POST /api/1/registersecret
+注册`secret`,注册后可以成功解锁`MediatedTransfer`  
+**PAYLOAD:**
+```json
+{
+	"secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1",
+	"token_address":"0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5"
+}
+```
+**Status Codes:**
+- `200 OK` - 成功转账
+- `400 Bad Request` - 无效的请求参数
+- `409 Conflict` - 没有有效的路由
+
+## PUT /api/1/token_swaps/*(target_address)*/*(lock_secret_hash)*
+Token Swap 可以用来进行两种token的交换，在保证有效路由的情况下，先调用`taker`再调用`maker`，可通过接口`/api/1/secret/`获取一对`lock_secret_hash`和`secret`    
+**Example Request:**
 `PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD**
@@ -351,11 +440,6 @@ Token Swap 可以用来进行两种token的交换，在保证有效路由的情�
     "receiving_token": "0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a"
 }
 ```
-
-**Example Response:** 
-
-`201 Created`
-
 `PUT /api/1/token_swaps/0x69C5621db8093ee9a26cc2e253f929316E6E5b92/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD** 
@@ -369,18 +453,10 @@ Token Swap 可以用来进行两种token的交换，在保证有效路由的情�
     "secret": "0x40a6994181d0b98efcf80431ff38f9bae6fefda303f483e7cf5b7de7e341502a"
 }
 ```
-
-**Example Response:** 
-
-`201 Created`
-
-查看对应通道的token余额，会发现token swap 成功
-
-获取一组`lock_secret_hash`和`secret`  
-
-`GET /api/1/secret`
-
-
+- `201 Created` - 成功
+- `400 Bad Request` - 无效的请求参数 
+## GET /api/1/secret
+获取一组`lock_secret_hash`和`secret`   
 **Example Response:** 
 ```json
 {
