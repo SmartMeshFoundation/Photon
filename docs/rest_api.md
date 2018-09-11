@@ -1,5 +1,5 @@
 # SmartRaiden REST API Reference
-欢迎使用`SmartRaiden` REST API Reference,这是一份`v1`版本的api参考文档，新增了不少新的功能，例如合作取钱，合作关闭通道，发送指定`secret`的交易等。正在持续更新中，若有疑问欢迎提交[Issues](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
+欢迎使用`SmartRaiden` REST API Reference,这是一份`v1`版本的api参考文档，新增了不少新的功能，例如合作取钱，合作关闭通道，发送指定`secret`的交易等。正在持续更新中，若有疑问欢迎提交[Issues](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
 
 ## 通道信息
 ```json
@@ -19,18 +19,18 @@
     }
 ```
 详细通道参数解释：  
-- `channel_address`:通道地址
-- `open_block_number`:打开通道时的块数
-- `partner_address`:通道伙伴的地址
-- `balance`:余额
-- `partner_balance`:伙伴的余额
-- `locked_amount`:自己锁定的token
-- `partner_locked_amount`:伙伴锁定的token
-- `token_address`:token地址
-- `state`:状态数(详见下表)
-- `StateString`:通道状态(详见下表)
-- `settle_timeout`:结算时间
-- `reveal_timeout`:节点注册`secret`时间
+- `channel_address`:通道地址  
+- `open_block_number`:打开通道时的块数  
+- `partner_address`:通道伙伴的地址  
+- `balance`:余额  
+- `partner_balance`:伙伴的余额  
+- `locked_amount`:自己锁定的token  
+- `partner_locked_amount`:伙伴锁定的token  
+- `token_address`:token地址  
+- `state`:状态数(详见下表)  
+- `StateString`:通道状态(详见下表)  
+- `settle_timeout`:结算时间  
+- `reveal_timeout`:节点注册`secret`时间  
 
 
 State|StateString|Description
