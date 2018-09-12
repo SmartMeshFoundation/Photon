@@ -38,8 +38,8 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 		QuitEvent: "EventSendSecretRequestAfter",
 	})
 	// 记录初始数据
-	cd23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
@@ -68,12 +68,12 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// cd23, 交易成功
-	if !cd23new.CheckPartnerBalance(cd23.PartnerBalance + transAmount) {
+	// cd23, 2锁20
+	if !cd23new.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
-	// cd36,交易成功
-	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+	// cd36, 2锁20
+	if !cd36new.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

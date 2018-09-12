@@ -79,14 +79,14 @@ func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 600,
+		Timeout: time.Second * 60,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
-		panic(err)
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
 	}
 	if statusCode != 200 {
-		panic(err)
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
 	}
 }
 
@@ -105,11 +105,10 @@ func (node *RaidenNode) SendTransWithSecret(tokenAddress string, amount int32, t
 		Timeout: time.Second * 20,
 	}
 	statusCode, _, err := req.Invoke()
-	//if err != nil {
-	//	panic(err)
-	//}
-	fmt.Println(statusCode, err)
-	//if statusCode != 200 {
-	//	panic(err)
-	//}
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err : http status=%d", statusCode))
+	}
 }

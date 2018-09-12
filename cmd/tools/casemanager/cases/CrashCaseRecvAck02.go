@@ -34,15 +34,15 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	// 启动节点3,6
 	N3.Start(env)
 	N6.Start(env)
-	// 启动节点2, SecretRecevieAck
+	// 启动节点2, ReceiveSecretRequestAck
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "SecretRecevieAck",
+		QuitEvent: "ReceiveRevealSecretAck",
 	})
 	// 初始数据记录
-	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N2.IsRunning() {
@@ -54,8 +54,8 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	models.Logger.Println("------------ Data After Crash ------------")
 	cd32middle := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
 	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
-	// 校验cd32，交易成功
-	if !cd32middle.CheckSelfBalance(cd32.Balance + transAmount) {
+	// 校验cd32，锁45
+	if !cd32middle.CheckLockPartner(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
 	}
 	// 校验cd36，交易成功
@@ -69,13 +69,21 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")
-	cd32new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
 	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
 	// 校验对等
 	models.Logger.Println("------------ Data After Fail ------------")
 	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
+	}
+	// 校验cd32，锁45
+	if !cd32new.CheckLockPartner(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
+	}
+	// 校验cd36，交易成功
+	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

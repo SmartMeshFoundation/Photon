@@ -39,19 +39,19 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	N6.Start(env)
 	// 启动节点2, ReceiveTransferRefundStateChange
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveTransferRefundStateChange",
+		QuitEvent: "ReceiveAnnounceDisposedStateChange",
 	})
 
 	// 2. 记录所有通道历史数据
-	cd12 := N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
-	cd42 := N4.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N4.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
-	cd45 := N4.GetChannelWith(N5, tokenAddress).PrintDataBeforeTransfer()
-	cd56 := N5.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	N4.GetChannelWith(N5, tokenAddress).PrintDataBeforeTransfer()
+	N5.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 
 	// 3. 节点1向节点6转账45token
-	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N2.IsRunning() {
@@ -71,8 +71,8 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	if !cd12middle.CheckLockSelf(transAmount) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd32，双锁定45
-	if !cd32middle.CheckLockBoth(transAmount) {
+	// 校验cd32，锁定对方45
+	if !cd32middle.CheckLockPartner(transAmount) {
 		return cm.caseFail(env.CaseName)
 	}
 	// 校验cd42，无锁定
@@ -92,9 +92,9 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 
-	// 6. 重启节点2，交易自动继续
+	// 6. 重启节点2，交易失败
 	N2.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 10)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")
@@ -112,8 +112,8 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		!cd45new.CheckEqualByPartnerNode(env) || !cd56new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd12, 交易成功
-	if !cd12new.CheckPartnerBalance(cd12.PartnerBalance + transAmount) {
+	// 校验cd12, 锁定45
+	if !cd12new.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd12new.Name)
 	}
 	// 校验cd32,解锁
@@ -121,7 +121,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
 	// 校验cd42,交易成功
-	if !cd42new.CheckSelfBalance(cd42.Balance + transAmount) {
+	if !cd42new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd42new.Name)
 	}
 	// 校验cd36,解锁
@@ -129,11 +129,11 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	// 校验cd45, 交易成功
-	if !cd45new.CheckPartnerBalance(cd45.PartnerBalance + transAmount) {
+	if !cd45new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd45new.Name)
 	}
 	// 校验cd56, 交易成功
-	if !cd56new.CheckPartnerBalance(cd56.PartnerBalance + transAmount) {
+	if !cd56new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd56new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
