@@ -41,9 +41,9 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 		QuitEvent: "EventSendRevealSecretBefore",
 	})
 	// 初始数据记录
-	cd21 := N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
-	cd23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点1向节点6转账20token
 	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
@@ -62,12 +62,12 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	if !cd21middle.CheckLockPartner(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd21middle.Name)
 	}
-	// 校验cd23，交易成功
-	if !cd23middle.CheckPartnerBalance(cd23.PartnerBalance + transAmount) {
+	// 校验cd23，锁定20
+	if !cd23middle.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
-	// 校验cd36，交易成功
-	if !cd36middle.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+	// 校验cd36，锁定20
+	if !cd36middle.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
 	}
 
@@ -85,10 +85,6 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	models.Logger.Println("------------ Data After Fail ------------")
 	if !cd21new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
-	}
-	// 校验cd21, 交易成功
-	if !cd21new.CheckSelfBalance(cd21.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd21new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
