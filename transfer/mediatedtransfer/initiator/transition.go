@@ -98,7 +98,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			Events:   events,
 		}
 	}
-	state.Route = tryRoute
 	/*
 				  The initiator doesn't need to learn the secret, so there is no need
 		         to decrement reveal_timeout from the lock timeout.
@@ -126,6 +125,13 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		Fee:            tryRoute.TotalFee,
 	}
 	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
+	if len(state.Routes.CanceledRoutes) > 0 {
+		/*
+			保存上次尝试的路由信息,否则当发起方收到AnnounceDisposed的时候,尝试新路由时,会出现异常
+		*/
+		msg.FromChannel = state.Routes.CanceledRoutes[len(state.Routes.CanceledRoutes)-1].ChannelIdentifier
+	}
+	state.Route = tryRoute
 	state.Transfer = tr
 	state.Message = msg
 	log.Trace(fmt.Sprintf("send mediated transfer id=%s,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
@@ -210,8 +216,8 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.LockSecretHash == state.Transfer.LockSecretHash &&
 		stateChange.Amount.Cmp(state.Transfer.TargetAmount) == 0
-	isInvalid := stateChange.Sender == state.Transfer.Target &&
-		stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
+	//isInvalid := stateChange.Sender == state.Transfer.Target &&
+	//	stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
 	if isValid {
 		/*
 		   Reveal the secret to the target node and wait for its confirmation,
@@ -234,13 +240,16 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 			NewState: state,
 			Events:   []transfer.Event{revealSecret},
 		}
-	} else if isInvalid {
-		return cancelCurrentRoute(state)
-	} else {
-		return &transfer.TransitionResult{
-			NewState: state,
-			Events:   nil,
-		}
+	}
+	/*
+		BUG : 每次交易密码不会发生变化,如果尝试其他路径,可能会被恶意利用
+	*/
+	//if isInvalid {
+	//	return cancelCurrentRoute(state)
+	//}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
