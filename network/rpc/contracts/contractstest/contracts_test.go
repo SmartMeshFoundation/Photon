@@ -20,7 +20,6 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
@@ -409,7 +408,7 @@ func createPartnerBalanceProofWithLocks(key *ecdsa.PrivateKey, channelID contrac
 }
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
@@ -484,16 +483,14 @@ func NewBalanceProofUpdateForContractsWithLocks(closingKey, nonClosingKey *ecdsa
 }
 func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
-	buf.Write(b.AdditionalHash[:])
 	buf.Write(b.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
 	buf.Write(utils.BigIntTo32Bytes(b.ChainID))
-	buf.Write(b.Signature)
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -501,17 +498,25 @@ func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
 	b.NonClosingSignature = sig
 }
 func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
-	channelID, partnerAddr, partnerKey, err := getTestOpenChannel(t)
+	_, partnerAddr, partnerKey, err := getTestOpenChannel(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
-	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d",
+	log.Info(fmt.Sprintf("openblocknumber=%d,tokennetwork=%s", bp.OpenBlockNumber, bp.TokenNetworkAddress.String()))
+	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d,addhash=%s,signature=%s",
 		partnerAddr.String(),
 		bp.TransferAmount,
-		bp.LocksRoot,
+		bp.LocksRoot.String(),
 		bp.Nonce,
+		bp.AdditionalHash.String(),
+		hex.EncodeToString(bp.Signature),
 	))
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
@@ -645,7 +650,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
 	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d",
 		partnerAddr.String(),
-		bp.TransferAmount,
+		bp.TransferAmount.String(),
 		bp.LocksRoot,
 		bp.Nonce,
 	))
@@ -753,7 +758,7 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(c.Particiant1[:])
 	buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
 	buf.Write(c.Participant2[:])
@@ -1050,7 +1055,7 @@ type WithDrawForContract struct {
 
 func (w *WithDrawForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(w.Participant1[:])
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
@@ -1149,7 +1154,7 @@ type unlockDelegateForContract struct {
 
 func (u *unlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(u.Agent[:])
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
 	buf.Write(utils.BigIntTo32Bytes(u.Amount))
@@ -1180,7 +1185,7 @@ type ObseleteUnlockForContract struct {
 
 func (w *ObseleteUnlockForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	buf.Write(params.ContractSignaturePrefix)
+	//buf.Write(params.ContractSignaturePrefix)
 	buf.Write(w.LockHash[:])
 	buf.Write(w.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
