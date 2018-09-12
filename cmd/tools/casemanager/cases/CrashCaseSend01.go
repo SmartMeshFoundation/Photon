@@ -36,9 +36,9 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	// 2. 启动节点2
 	N2.Start(env)
 	// 3. 初始数据记录
-	cd21 := N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	// 4. 从节点0发起到节点1的转账
-	N1.SendTrans(tokenAddress, transAmount, N2.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N2.Address, false)
 	time.Sleep(time.Second * 3)
 	// 5. 崩溃判断
 	if N1.IsRunning() {
@@ -49,6 +49,7 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	// 6. 中间数据记录
 	models.Logger.Println("------------ Data After Crash ------------")
 	N2.GetChannelWith(N1, tokenAddress).PrintDataAfterCrash()
+
 	// 6. 重启节点1，自动发送之前中断的交易
 	N1.ReStartWithoutConditionquit(env)
 	time.Sleep(time.Second * 30)
@@ -60,11 +61,6 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	models.Logger.Println("------------ Data After Fail ------------")
 	if !cd21new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
-	}
-	models.Logger.Println("------------ Data After Restart ------------")
-	// cd21,交易成功
-	if !cd21new.CheckSelfBalance(cd21.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd21new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

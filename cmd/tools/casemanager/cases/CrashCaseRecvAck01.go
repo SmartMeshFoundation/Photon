@@ -36,13 +36,13 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	N3.Start(env)
 	// 启动节点6, SecretRequestRecevieAck
 	N6.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "SecretRequestRecevieAck",
+		QuitEvent: "ReceiveSecretRequestAck",
 	})
 	// 初始数据记录
-	cd23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账20token
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N6.IsRunning() {
@@ -54,12 +54,12 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	models.Logger.Println("------------ Data After Crash ------------")
 	cd23middle := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
 	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
-	// 校验cd23，交易成功
-	if !cd23middle.CheckPartnerBalance(cd23.PartnerBalance + transAmount) {
+	// 校验cd23，锁定20
+	if !cd23middle.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
-	// 校验cd36，交易成功
-	if !cd36middle.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+	// 校验cd36，锁定20
+	if !cd36middle.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
 	}
 
@@ -76,6 +76,14 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	models.Logger.Println("------------ Data After Fail ------------")
 	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
+	}
+	// 校验cd23，锁定20
+	if !cd23new.CheckLockSelf(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
+	}
+	// 校验cd36，锁定20
+	if !cd36new.CheckLockSelf(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

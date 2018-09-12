@@ -31,7 +31,7 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2, EventSendRevealSecretAfter
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendBalanceProofAfter",
+		QuitEvent: "EventSendUnlockAfter",
 	})
 	// 启动节点3，6
 	N3.Start(env)

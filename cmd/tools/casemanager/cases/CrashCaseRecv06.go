@@ -38,7 +38,7 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	N6.Start(env)
 	// 启动节点1, BeforeSendRevealSecret
 	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "BeforeSendRevealSecret",
+		QuitEvent: "EventSendRevealSecretBefore",
 	})
 	// 初始数据记录
 	cd21 := N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()

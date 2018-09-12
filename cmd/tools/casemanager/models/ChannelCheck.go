@@ -35,7 +35,7 @@ func (c1 *Channel) CheckLockPartner(lockAmt int32) bool {
 
 // CheckLockBoth :
 func (c1 *Channel) CheckLockBoth(lockAmt int32) bool {
-	if c1.PartnerLockedAmount != lockAmt && c1.LockedAmount != lockAmt {
+	if c1.PartnerLockedAmount != lockAmt || c1.LockedAmount != lockAmt {
 		Logger.Printf("Check failed because channel %s LockedAmount=%d,PartnerLockedAmount=%d but expect LockedAmount,PartnerLockedAmount=%d !!!\n",
 			c1.Name, c1.LockedAmount, c1.PartnerLockedAmount, lockAmt)
 		return false

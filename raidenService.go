@@ -466,7 +466,7 @@ func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*c
 			return ch, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown channel %s", channelIdentifier)
+	return nil, fmt.Errorf("unknown channel %s", utils.HPex(channelIdentifier))
 }
 
 /*
@@ -1304,6 +1304,7 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	if ok2 {
 		rs.db.DeleteEnvelopMessager(echohash)
 	}
+	rs.conditionQuitWhenReceiveAck(sentMessage.Message)
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }
 
@@ -1423,5 +1424,32 @@ func (rs *RaidenService) updateChannelAndSaveAck(c *channel.Channel, tag interfa
 	err := rs.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
+	}
+}
+
+func (rs *RaidenService) conditionQuitWhenReceiveAck(msg encoding.Messager) {
+	var quitName string
+	switch msg.(type) {
+	case *encoding.SecretRequest:
+		quitName = "ReceiveSecretRequestAck"
+	case *encoding.RevealSecret:
+		quitName = "ReceiveRevealSecretAck"
+	case *encoding.UnLock:
+	case *encoding.DirectTransfer:
+	case *encoding.MediatedTransfer:
+		quitName = "ReceiveMediatedTransferAck"
+	case *encoding.AnnounceDisposed:
+		quitName = "ReceiveAnnounceDisposedAck"
+	case *encoding.AnnounceDisposedResponse:
+	case *encoding.RemoveExpiredHashlockTransfer:
+	case *encoding.SettleRequest:
+	case *encoding.SettleResponse:
+	case *encoding.WithdrawRequest:
+	case *encoding.WithdrawResponse:
+	default:
+
+	}
+	if len(quitName) > 0 {
+		rs.conditionQuit(quitName)
 	}
 }

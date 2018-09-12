@@ -38,11 +38,11 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 	N7.Start(env)
 	// 启动节点2, ReceiveTransferRefundStateChange
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveTransferRefundStateChange",
+		QuitEvent: "ReceiveAnnounceDisposedStateChange",
 	})
 
 	// 3. 节点1向节点6转账45token
-	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N2.IsRunning() {
@@ -61,8 +61,8 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 	if !cd12middle.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd12middle.Name)
 	}
-	// 校验cd32，双锁定45
-	if !cd32middle.CheckLockBoth(transAmount) {
+	// 校验cd32，2锁定45
+	if !cd32middle.CheckLockPartner(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
 	}
 	// 校验cd36，无锁定
@@ -78,7 +78,7 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd73middle.Name)
 	}
 
-	// 6. 重启节点2，交易自动继续
+	// 6. 重启节点2
 	N2.ReStartWithoutConditionquit(env)
 	time.Sleep(time.Second * 30)
 
@@ -101,20 +101,20 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 	if !cd12new.CheckLockSelf(transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd12new.Name)
 	}
-	// 校验cd32, 双锁定
-	if !cd32new.CheckLockBoth(transAmount) {
+	// 校验cd32, 无锁定
+	if !cd32new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
 	// 校验cd36，无锁定
 	if !cd36new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
-	// 校验cd72,2锁定
-	if !cd72new.CheckLockPartner(transAmount) {
+	// 校验cd72,无锁定
+	if !cd72new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd72new.Name)
 	}
-	// 校验cd73,7锁定45
-	if !cd73new.CheckLockSelf(transAmount) {
+	// 校验cd73,无锁定
+	if !cd73new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd73new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

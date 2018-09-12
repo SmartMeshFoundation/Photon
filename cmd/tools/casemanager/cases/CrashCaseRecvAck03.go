@@ -35,13 +35,13 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 	N6.Start(env)
 	// 启动节点2, MediatedTransferRecevieAck
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "MediatedTransferRecevieAck",
+		QuitEvent: "ReceiveMediatedTransferAck",
 	})
 	// 初始数据记录
-	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
-	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N2.IsRunning() {
@@ -76,13 +76,13 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd32，交易成功
-	if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
+	// 校验cd32，2锁定45
+	if !cd32new.CheckLockPartner(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
 	}
-	// 校验cd36，交易成功
-	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
+	// 校验cd36，3锁定45
+	if !cd36new.CheckLockSelf(transAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

@@ -37,8 +37,8 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 	N6.Start(env)
 
 	// 初始数据记录
-	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
-	cd63 := N6.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N6.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 
 	// 节点2向节点6转账20token
 	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
@@ -66,14 +66,6 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 	models.Logger.Println("------------ Data After Fail ------------")
 	if !cd32new.CheckEqualByPartnerNode(env) || !cd63new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
-	}
-	// cd32, 交易成功
-	if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
-	}
-	// cd63, 交易成功
-	if !cd63new.CheckSelfBalance(cd63.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd63new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
