@@ -462,7 +462,8 @@ contract TokenNetwork is Utils {
         require(total_deposit >= participant_balance);
         require(total_deposit >= partner_balance);
 
-        participant_state.deposit = participant_balance - participant_withdraw;
+        participant_balance -= participant_withdraw;
+        participant_state.deposit = participant_balance;
         partner_state.deposit = partner_balance;
 
         // 相当于 通道 settle 又新开了.老的签名都作废了.
@@ -1282,7 +1283,7 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
-         Channel storage channel = channels[channel_identifier];
+        Channel storage channel = channels[channel_identifier];
         //20+32+32+32+32+8+32
         string memory message_length = "188";
         bytes32 message_hash = keccak256(abi.encodePacked(
