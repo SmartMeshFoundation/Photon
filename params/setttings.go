@@ -69,7 +69,7 @@ const DefaultXMPPServer = "193.112.248.133:5222"
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 //ContractSignaturePrefix for EIP191 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-191.md
-var ContractSignaturePrefix = []byte("\x19SmartRaiden Signed Message:\n")
+var ContractSignaturePrefix = []byte("\x19Ethereum Signed Message:\n")
 
 func init() {
 	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
