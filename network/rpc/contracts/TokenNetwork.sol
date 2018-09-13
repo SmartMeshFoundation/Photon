@@ -11,8 +11,8 @@ import "./SecretRegistry.sol";
 /// @notice into one single contract, instead of dividing them into every single channel.
 contract TokenNetwork is Utils {
 
-    string constant public contract_version = "0.3._";
-
+    string constant public contract_version = "0.4._";
+    string public constant signature_prefix = '\x19Ethereum Signed Message:\n';
     // Instance of the token used as digital currency by the channels
     Token public token;
 
@@ -228,7 +228,7 @@ contract TokenNetwork is Utils {
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
     external
     {
-        openChannelWithDepositInternal(participant, partner, settle_timeout, deposit,msg.sender, true);
+        openChannelWithDepositInternal(participant, partner, settle_timeout, deposit, msg.sender, true);
     }
 
     /*
@@ -245,7 +245,7 @@ contract TokenNetwork is Utils {
     function deposit(address participant, address partner, uint256 amount)
     external
     {
-        depositInternal(participant, partner, amount, msg.sender,true);
+        depositInternal(participant, partner, amount, msg.sender, true);
     }
 
     /*
@@ -271,7 +271,7 @@ contract TokenNetwork is Utils {
         require(participant != 0x0);
         require(partner != 0x0);
         require(participant != partner);
-        require(amount>0);
+        require(amount > 0);
         channel_identifier = getChannelIdentifier(participant, partner);
         Channel storage channel = channels[channel_identifier];
         Participant storage participant_state = channel.participants[participant];
@@ -342,9 +342,9 @@ contract TokenNetwork is Utils {
     /// @param from     default to 0x0.
     /// @param value    the amount of tokens to be refund.
     /// @param data for callback
-    function tokenFallback(address /*from*/, uint value, bytes data) external  returns(bool success){
+    function tokenFallback(address /*from*/, uint value, bytes data) external returns (bool success){
         require(msg.sender == address(token));
-        fallback(0,value, data, false);
+        fallback(0, value, data, false);
         return true;
     }
 
@@ -358,9 +358,9 @@ contract TokenNetwork is Utils {
     /// @param token_ arg
     /// @param data arg
     /// @return success arg
-    function receiveApproval(address from, uint256 value, address token_, bytes data) external  returns (bool success) {
+    function receiveApproval(address from, uint256 value, address token_, bytes data) external returns (bool success) {
         require(token_ == address(token));
-        fallback(from,value, data, true);
+        fallback(from, value, data, true);
         return true;
     }
 
@@ -381,10 +381,10 @@ contract TokenNetwork is Utils {
 
         if (func == 1) {
             (participant, partner, settle_timeout) = getOpenWithDepositArg(data);
-            openChannelWithDepositInternal(participant, partner, settle_timeout, value,from, need_transfer);
+            openChannelWithDepositInternal(participant, partner, settle_timeout, value, from, need_transfer);
         } else if (func == 2) {
             (participant, partner) = getDepositArg(data);
-            depositInternal(participant, partner, value, from,need_transfer);
+            depositInternal(participant, partner, value, from, need_transfer);
         } else {
             revert();
         }
@@ -695,21 +695,18 @@ contract TokenNetwork is Utils {
         bytes merkle_proof,
         bytes participant_signature
     ) public {
-        bytes32 message_hash;
         bytes32 channel_identifier;
         channel_identifier = getChannelIdentifier(partner, participant);
-        Channel storage channel = channels[channel_identifier];
 
-        // verify that valid signature entrusted.
-        message_hash = keccak256(abi.encodePacked(
-                msg.sender,
-                expiration,
-                amount,
-                secret_hash,
-                channel_identifier,
-                channel.open_block_number,
-                chain_id));
-        require(participant == ECVerify.ecverify(message_hash, participant_signature));
+        // verify that this unlock is delegate by participant .
+        require(participant == recoverAddressFromUnlockDelegateProof(
+            channel_identifier,
+            msg.sender,
+            expiration,
+            amount,
+            secret_hash,
+            participant_signature
+        ));
 
         // actual process of unlock.
         unlockInternal(partner, participant, transferred_amount, expiration, amount, secret_hash, merkle_proof);
@@ -1105,7 +1102,8 @@ contract TokenNetwork is Utils {
         participant_state.nonce
         );
     }
-    function queryUnlockedLocks(address participant, address partner,bytes32 lockhash)
+
+    function queryUnlockedLocks(address participant, address partner, bytes32 lockhash)
     view
     external
     returns (bool)
@@ -1137,7 +1135,11 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
+        //32+32+8+32+32+8+32
+        string memory message_length = "176";
         bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
                 transferred_amount,
                 locksroot,
                 nonce,
@@ -1164,7 +1166,11 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
+        //32+32+8+32+8+32
+        string memory message_length = "144";
         bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
                 transferred_amount,
                 locksroot,
                 nonce,
@@ -1190,7 +1196,11 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
+        //20+32+20+32+32+8+32
+        string memory message_length = "176";
         bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
                 participant1,
                 participant1_balance,
                 participant2,
@@ -1216,7 +1226,11 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
+        //32+32+8+32+32
+        string memory message_length = "136";
         bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
                 lockhash,
                 channel_identifier,
                 open_blocknumber,
@@ -1240,12 +1254,46 @@ contract TokenNetwork is Utils {
     internal
     returns (address signature_address)
     {
+        //20+32+32+32+8+32
+        string memory message_length = "156";
         bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
                 participant,
                 participant_balance,
                 participant_withdraw,
                 channel_identifier,
                 open_block_number,
+                chain_id
+            ));
+        signature_address = ECVerify.ecverify(message_hash, signature);
+    }
+
+    ///
+    function recoverAddressFromUnlockDelegateProof(
+        bytes32 channel_identifier,
+        address delegatee,
+        uint256 expiration,
+        uint256 amount,
+        bytes32 secret_hash,
+        bytes signature
+    )
+    view
+    internal
+    returns (address signature_address)
+    {
+         Channel storage channel = channels[channel_identifier];
+        //20+32+32+32+32+8+32
+        string memory message_length = "188";
+        bytes32 message_hash = keccak256(abi.encodePacked(
+                signature_prefix,
+                message_length,
+                delegatee,
+                expiration,
+                amount,
+                secret_hash,
+                channel_identifier,
+                channel.open_block_number,
                 chain_id
             ));
         signature_address = ECVerify.ecverify(message_hash, signature);
