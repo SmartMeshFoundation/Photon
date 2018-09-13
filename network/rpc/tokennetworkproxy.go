@@ -345,8 +345,8 @@ func (t *TokenNetworkProxy) DepositAsync(participant, partner common.Address, am
 }
 
 //Withdraw  to  a channel
-func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int,
-	p1Withdraw, p2Withdraw *big.Int, p1Signature, p2Signature []byte) (err error) {
+func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance,
+	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (err error) {
 	tx, err := t.GetContract().WithDraw(t.bcs.Auth, p1Addr, p2Addr, p1Balance, p1Withdraw,
 		p1Signature, p2Signature,
 	)
@@ -367,11 +367,11 @@ func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance, p
 }
 
 //WithdrawAsync   a channel async
-func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int,
-	p1Withdraw, p2Withdraw *big.Int, p1Signature, p2Signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balance,
+	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
-		err := t.Withdraw(p1Addr, p2Addr, p1Balance, p2Balance, p1Withdraw, p2Withdraw, p1Signature, p2Signature)
+		err := t.Withdraw(p1Addr, p2Addr, p1Balance, p1Withdraw, p1Signature, p2Signature)
 		result.Result <- err
 	}()
 	return

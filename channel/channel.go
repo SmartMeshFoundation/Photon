@@ -830,9 +830,8 @@ func (c *Channel) CreateWithdrawRequest(withdrawAmount *big.Int) (w *encoding.Wi
 	d.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	d.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 	d.Participant1 = c.OurState.Address
-	d.Participant1Balance = c.OurState.Balance(c.PartnerState)
 	d.Participant2 = c.PartnerState.Address
-	d.Participant2Balance = c.PartnerState.Balance(c.OurState)
+	d.Participant1Balance = c.OurState.Balance(c.PartnerState)
 	d.Participant1Withdraw = withdrawAmount
 	if withdrawAmount.Cmp(d.Participant1Balance) > 0 {
 		err = fmt.Errorf("withdraw amount too large,current=%s,withdraw=%s", w.Participant1Balance, withdrawAmount)
@@ -895,9 +894,15 @@ func (c *Channel) hasAnyLock() bool {
 2. 通道状态要切换到StateWithdraw
 */
 func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err error) {
-	err = c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
-	if err != nil {
-		return
+	if c.ChannelIdentifier.ChannelIdentifier != tr.ChannelIdentifier ||
+		c.ChannelIdentifier.OpenBlockNumber != tr.OpenBlockNumber {
+		return errInvalidChannelIdentifier
+	}
+	if tr.GetSender() != c.PartnerState.Address {
+		return errInvalidSender
+	}
+	if c.PartnerState.Balance(c.OurState).Cmp(tr.Participant1Balance) != 0 {
+		return errBalance
 	}
 	/*
 		有可能在我收到 request 的前一刻,我正在发出一笔交易,
@@ -926,7 +931,7 @@ CreateWithdrawResponse :
 当然这笔交易会失败,因为对方肯定不会接受.,就算对方接受了,也没有任何意义.不可能拿到此笔钱
 所以 withdraw 和 cooperative settle都会影响到现在正在进行的交易,这些 statemanager 也需要处理.
 */
-func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdrawAmount *big.Int) (w *encoding.WithdrawResponse, err error) {
+func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *encoding.WithdrawResponse, err error) {
 	if len(c.OurState.Lock2PendingLocks) > 0 ||
 		len(c.OurState.Lock2PendingLocks) > 0 {
 		log.Warn(fmt.Sprintf("CreateWithdrawResponse ,but i'm sending transfer on road,these transfer should canceled immediately"))
@@ -938,22 +943,15 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdraw
 	wd := new(encoding.WithdrawReponseData)
 	wd.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	wd.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	wd.Participant2 = c.OurState.Address
 	wd.Participant1 = c.PartnerState.Address
-	wd.Participant2Balance = c.OurState.Balance(c.PartnerState)
+	wd.Participant2 = c.OurState.Address
 	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
 	wd.Participant1Withdraw = req.Participant1Withdraw
-	wd.Participant2Withdraw = withdrawAmount
-	if withdrawAmount.Cmp(wd.Participant2Balance) > 0 {
-		err = fmt.Errorf("withdraw amount too large,current=%s,withdraw=%s", w.Participant2Balance, withdrawAmount)
-		return
-	}
 	w = encoding.NewWithdrawResponse(wd)
 	/*
 		再次验证信息正确性,
 	*/
-	if req.Participant1Balance.Cmp(w.Participant1Balance) != 0 ||
-		req.Participant2Balance.Cmp(w.Participant2Balance) != 0 {
+	if req.Participant1Balance.Cmp(w.Participant1Balance) != 0 {
 		panic(fmt.Sprintf("withdrawequest=%s,\nwithdrawresponse=%s", req, w))
 	}
 	return
@@ -962,9 +960,15 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest, withdraw
 //RegisterWithdrawResponse check withdraw response
 //外部应该验证响应与请求是一致的
 func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error {
-	err := c.preCheckSettleDataInMessage(tr, &tr.SettleDataInMessage)
-	if err != nil {
-		return err
+	if c.ChannelIdentifier.ChannelIdentifier != tr.ChannelIdentifier ||
+		c.ChannelIdentifier.OpenBlockNumber != tr.OpenBlockNumber {
+		return errInvalidChannelIdentifier
+	}
+	if tr.GetSender() != c.PartnerState.Address {
+		return errInvalidSender
+	}
+	if c.PartnerState.Balance(c.OurState).Cmp(tr.Participant1Balance) != 0 {
+		return errBalance
 	}
 	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
 		len(c.PartnerState.Lock2PendingLocks) > 0 ||
@@ -1223,19 +1227,8 @@ func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncR
 	}
 	return c.ExternState.TokenNetwork.WithdrawAsync(
 		res.Participant1, res.Participant2,
-		res.Participant1Balance, res.Participant2Balance,
-		res.Participant1Withdraw, res.Participant2Withdraw,
+		res.Participant1Balance, res.Participant1Withdraw,
 		w.Participant1Signature, res.Participant2Signature,
-	)
-}
-
-//WithdrawOnRequest 收到对方的 withdraw 请求,因为某些原因,需要我自己关闭通道
-func (c *Channel) WithdrawOnRequest(partnerSignature []byte, res *encoding.WithdrawResponse) (result *utils.AsyncResult) {
-	//没有保存,需要重新签名.
-	return c.ExternState.TokenNetwork.WithdrawAsync(res.Participant1, res.Participant2,
-		res.Participant1Balance, res.Participant2Balance,
-		res.Participant1Withdraw, res.Participant2Withdraw,
-		partnerSignature, res.Participant2Signature,
 	)
 }
 
