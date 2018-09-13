@@ -109,9 +109,9 @@ func TestChannelOpenAndDepositEdge(t *testing.T) {
 	tx, err = env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, utils.MaxBigUInt256)
 	assertTxFail(t, &count, tx, err)
 
-	// run with deposit amount 0, MUST SUCCESS
+	// run with deposit amount 0, MUST FAIL
 	tx, err = env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, big.NewInt(0))
-	assertTxSuccess(t, &count, tx, err)
+	assertTxFail(t, &count, tx, err)
 	t.Log(endMsg("ChannelOpenAndDeposit 边界测试", count))
 }
 

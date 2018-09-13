@@ -342,7 +342,6 @@ func TestWithdrawRequest(t *testing.T) {
 	bp.Participant1Balance = big.NewInt(10)
 	bp.Participant1Withdraw = big.NewInt(3)
 	bp.Participant2 = p2addr
-	bp.Participant2Balance = big.NewInt(30)
 	m := NewWithdrawRequest(bp)
 	err := m.Sign(p1key, m)
 	if err != nil {
@@ -371,8 +370,6 @@ func TestWithdrawResponse(t *testing.T) {
 	bp.Participant1Balance = big.NewInt(10)
 	bp.Participant1Withdraw = big.NewInt(3)
 	bp.Participant2 = p2addr
-	bp.Participant2Balance = big.NewInt(30)
-	bp.Participant2Withdraw = big.NewInt(2)
 
 	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
 	m := NewWithdrawResponse(bp)

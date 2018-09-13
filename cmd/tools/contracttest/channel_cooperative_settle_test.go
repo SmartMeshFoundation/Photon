@@ -60,11 +60,10 @@ func TestCooperativeSettleRight(t *testing.T) {
 	depositA1 = big.NewInt(20)
 	depositA2 = big.NewInt(10)
 	withdrawA1 := big.NewInt(10)
-	withdrawA2 := big.NewInt(5)
 	balanceA1 = big.NewInt(2)
-	balanceA2 = big.NewInt(13)
+	balanceA2 = big.NewInt(18)
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, TestSettleTimeoutMin+10)
-	withdraw(a1, depositA1, withdrawA1, a2, depositA2, withdrawA2)
+	withdraw(a1, depositA1, withdrawA1, a2)
 	cs = getCooperativeSettleParams(a1, a2, balanceA1, balanceA2)
 	cs.Participant1Balance = balanceA1
 	cs.Participant2Balance = balanceA2

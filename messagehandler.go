@@ -490,27 +490,30 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 		log.Error(fmt.Sprintf("RegisterWithdrawRequest error %s\n", err))
 		return err
 	}
-	//这里需要询问用户我想取现多少,现在默认用0来替代.
-	withdrawResponse, err := ch.CreateWithdrawResponse(msg, utils.BigInt0)
+	// 现在只允许一方取现,直接构造response
+	withdrawResponse, err := ch.CreateWithdrawResponse(msg)
 	if err != nil {
 		//if err, channel can only be closed /settled
 		log.Error(fmt.Sprintf("CreateWithdrawResponse err %s", err))
 		return err
 	}
-	if ch.HasAnyUnkonwnSecretTransferOnRoad() {
-		//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
-		result := ch.WithdrawOnRequest(msg.Participant1Signature, withdrawResponse)
-		go func() {
-			var err2 error
-			err2 = <-result.Result
-			if err2 != nil {
-				log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
-			} else {
-				log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier.String()))
-			}
-		}()
-		return nil
-	}
+
+	// 如果这里有我发出的未解的锁,那么说明对方在老的balance_proof上withdraw,
+	// 此时同意对我并没有坏处,所以正常返回response
+	//if ch.HasAnyUnkonwnSecretTransferOnRoad() {
+	//	//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
+	//	result := ch.WithdrawOnRequest(msg.Participant1Signature, withdrawResponse)
+	//	go func() {
+	//		var err2 error
+	//		err2 = <-result.Result
+	//		if err2 != nil {
+	//			log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
+	//		} else {
+	//			log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier.String()))
+	//		}
+	//	}()
+	//	return nil
+	//}
 	err = withdrawResponse.Sign(mh.raiden.PrivateKey, withdrawResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for withdraw response err %s", err))

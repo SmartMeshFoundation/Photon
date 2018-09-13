@@ -79,6 +79,14 @@ func (c1 *Channel) CheckEqualByPartnerNode(env *TestEnv) bool {
 	return true
 }
 
+// CheckState :
+func (c1 *Channel) CheckState(state int) bool {
+	if state == c1.State {
+		return true
+	}
+	return false
+}
+
 // isEqualChannelData compare two channel
 func (c1 *Channel) isEqualChannelData(c2 *Channel) bool {
 	if c1.TokenAddress != c2.TokenAddress {
