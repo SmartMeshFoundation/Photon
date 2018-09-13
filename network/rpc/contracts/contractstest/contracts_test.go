@@ -20,6 +20,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
@@ -408,7 +409,8 @@ func createPartnerBalanceProofWithLocks(key *ecdsa.PrivateKey, channelID contrac
 }
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("176"))
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
@@ -460,30 +462,31 @@ func TestCloseChannel2(t *testing.T) {
 	log.Info(fmt.Sprintf("CloseChannel with evidence gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
 
-type BalanceProofUpdateForContracts struct {
+type BalanceProofDelegateForContracts struct {
 	BalanceProofForContract
 	NonClosingSignature []byte
 }
 
-func NewBalanceProofUpdateForContracts(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier) *BalanceProofUpdateForContracts {
+func NewBalanceProofDelegateForContracts(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier) *BalanceProofDelegateForContracts {
 	bp1 := createPartnerBalanceProof(closingKey, channelID)
-	bp2 := &BalanceProofUpdateForContracts{
+	bp2 := &BalanceProofDelegateForContracts{
 		BalanceProofForContract: *bp1,
 	}
 	bp2.sign(nonClosingKey)
 	return bp2
 }
-func NewBalanceProofUpdateForContractsWithLocks(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofUpdateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
+func NewBalanceProofUpdateForContractsWithLocks(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofDelegateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
 	bp1, locks, secrets := createPartnerBalanceProofWithLocks(closingKey, channelID, lockNumber, expiredBlock)
-	bp = &BalanceProofUpdateForContracts{
+	bp = &BalanceProofDelegateForContracts{
 		BalanceProofForContract: *bp1,
 	}
 	bp.sign(nonClosingKey)
 	return
 }
-func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
+func (b *BalanceProofDelegateForContracts) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("144"))
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
@@ -557,7 +560,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
+	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
 	fmt.Printf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
 		auth.From.String(),
 		partnerAddr.String(),
@@ -669,7 +672,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	log.Trace(fmt.Sprintf("bp=\n%s", utils.StringInterface(bp, 3)))
-	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
+	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
 	log.Info(fmt.Sprintf("UpdateBalanceProof closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\n,balance_hash=%s",
 		auth.From.String(),
 		bp2.TransferAmount.String(),
@@ -758,7 +761,8 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("176"))
 	buf.Write(c.Particiant1[:])
 	buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
 	buf.Write(c.Participant2[:])
@@ -1055,7 +1059,8 @@ type WithDrawForContract struct {
 
 func (w *WithDrawForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("156"))
 	buf.Write(w.Participant1[:])
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
@@ -1154,7 +1159,8 @@ type unlockDelegateForContract struct {
 
 func (u *unlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("188"))
 	buf.Write(u.Agent[:])
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
 	buf.Write(utils.BigIntTo32Bytes(u.Amount))
@@ -1185,7 +1191,8 @@ type ObseleteUnlockForContract struct {
 
 func (w *ObseleteUnlockForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	//buf.Write(params.ContractSignaturePrefix)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("136"))
 	buf.Write(w.LockHash[:])
 	buf.Write(w.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
