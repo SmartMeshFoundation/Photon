@@ -206,19 +206,13 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 }
 
 /*
-	message mediatedTransfer  can safely be discarded when channel not open only more
+	message mediatedTransfer  can safely be discarded when channel not exist only more
 	当channel被移除后,可以安全的移除待发送的消息,否则会导致新channel无法使用
 	(之前的实现是交易中的锁过期后移除,但这可能会导致通道双方状态不同步)
 */
 func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
 	if channelIdentifier != utils.EmptyHash {
-		status := channeltype.StateOpened
-		switch msg.(type) {
-		case *encoding.DirectTransfer, *encoding.MediatedTransfer,
-			*encoding.RemoveExpiredHashlockTransfer, *encoding.UnLock, *encoding.AnnounceDisposedResponse,
-			*encoding.SettleRequest, *encoding.WithdrawRequest:
-			status = p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
-		}
+		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
 		if status == channeltype.StateInValid {
 			p.log.Info(fmt.Sprintf("message cannot be send because of channel status =%d", status))
 			return false
