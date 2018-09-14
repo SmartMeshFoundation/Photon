@@ -459,6 +459,15 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
+// GetChannelStatus return status of channel
+func (rs *RaidenService) GetChannelStatus(channelIdentifier common.Hash) int {
+	c := rs.getChannelWithAddr(channelIdentifier)
+	if c == nil {
+		return channeltype.StateInValid
+	}
+	return int(c.State)
+}
+
 func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
 		ch := g.GetChannelAddress2Channel(channelIdentifier)

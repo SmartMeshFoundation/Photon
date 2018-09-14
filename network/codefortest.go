@@ -9,6 +9,7 @@ import (
 
 	"encoding/hex"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -61,10 +62,10 @@ func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
 	return t
 }
 
-type testBlockNumberGetter struct{}
+type testChannelStatusGetter struct{}
 
-func (t *testBlockNumberGetter) GetBlockNumber() int64 {
-	return 0
+func (t *testChannelStatusGetter) GetChannelStatus(channelIdentifier common.Hash) int {
+	return channeltype.StateOpened
 }
 
 type timeBlockNumberGetter struct {
@@ -88,7 +89,7 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 	////#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testBlockNumberGetter{})
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 
@@ -96,7 +97,7 @@ func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
 	//#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 
