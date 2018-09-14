@@ -508,6 +508,11 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 		payeePayed := stateTransferPaidMaps[pair.PayeeState]
 		payeeChannelOpen := pair.PayeeRoute.State() == channeltype.StateOpened
 		/*
+			如果上家通道已经关闭,不主动发送unlock,尽量让下家去注册密码,避免自己上链注册密码
+		*/
+		payerChannelOpen := pair.PayerRoute.State() == channeltype.StateOpened
+
+		/*
 			如果我收到密码的时候已经临近上家密码的 reveal timeout,那么安全的做法就是什么都不做.
 				强迫这个交易失败,或者强迫下家去注册密码,对方就不应该在临近过期的时候才告诉我密码,应该提早告诉.
 		*/
@@ -520,7 +525,7 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 			         define the unsafe region, since that is a local configuration)
 		*/
 		lockValid := isLockValid(pair.PayeeTransfer, blockNumber)
-		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid && !payerTransferInDanger {
+		if payerChannelOpen && payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid && !payerTransferInDanger {
 			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			tr := pair.PayeeTransfer
 			balanceProof := &mediatedtransfer.EventSendBalanceProof{
@@ -636,6 +641,25 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 }
 
 /*
+
+ */
+func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.TransitionResult {
+	var it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
+	l := len(state.TransfersPair)
+	if l <= 0 {
+		log.Error(fmt.Sprintf("recevie refund ,but has no transfer pair ,must be a attack!!"))
+		return it
+	}
+	transferPair := state.TransfersPair[l-1]
+	state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+	it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+	return it
+}
+
+/*
 又收到了一个 mediatedtransfer
 */
 func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.MediatorReReceiveStateChange) *transfer.TransitionResult {
@@ -728,8 +752,7 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 				todo 如何保存相关通道呢?
 			todo 长时间崩溃恢复以后会收到这个消息么?
 		*/
-		state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
-		it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+		it = cancelCurrentRoute(state)
 		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
 			Token:          state.Token,
 			LockSecretHash: st.Lock.LockSecretHash,
@@ -797,6 +820,23 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveUnlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
 	for _, pair := range state.TransfersPair {
+		if pair.PayeeState != mediatedtransfer.StatePayeeBalanceProof {
+			/*
+				如果收到unlock的时候,还没有给下家发送unlock,补发
+			*/
+			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
+			tr := pair.PayeeTransfer
+			balanceProof := &mediatedtransfer.EventSendBalanceProof{
+				LockSecretHash:    tr.LockSecretHash,
+				ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+				Token:             tr.Token,
+				Receiver:          pair.PayeeRoute.HopNode(),
+			}
+			unlockSuccess := &mediatedtransfer.EventUnlockSuccess{
+				LockSecretHash: pair.PayerTransfer.LockSecretHash,
+			}
+			events = append(events, balanceProof, unlockSuccess)
+		}
 		if pair.PayerRoute.HopNode() == st.NodeAddress {
 			withdraw := &mediatedtransfer.EventWithdrawSuccess{
 				LockSecretHash: pair.PayeeTransfer.LockSecretHash,
@@ -870,6 +910,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			} else {
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
+		case *mediatedtransfer.ContractCooperativeSettledStateChange:
+			it = cancelCurrentRoute(state)
+		case *mediatedtransfer.ContractChannelWithdrawStateChange:
+			it = cancelCurrentRoute(state)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}

@@ -420,6 +420,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			} else {
 				panic(fmt.Sprintf("secret already revealed,transfer cannot canceled"))
 			}
+		case *mt.ContractCooperativeSettledStateChange:
+			it = cancelCurrentRoute(state)
+		case *mt.ContractChannelWithdrawStateChange:
+			it = cancelCurrentRoute(state)
 		default:
 			log.Error(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
 		}
