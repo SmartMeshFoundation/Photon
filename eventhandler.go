@@ -51,6 +51,12 @@ func (eh *stateMachineEventHandler) dispatchBySecretHash(lockSecretHash common.H
 	}
 }
 
+func (eh *stateMachineEventHandler) dispatchByPendingLocksInChannel(channel *channel.Channel, st transfer.StateChange) {
+	for lockSecretHash := range channel.OurState.Lock2PendingLocks {
+		eh.dispatchBySecretHash(lockSecretHash, st)
+	}
+}
+
 func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
 	eh.updateStateManagerFromStateChange(stateManager, stateChange)
 	events = stateManager.Dispatch(stateChange)
@@ -522,7 +528,10 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 		return err
 	}
-	return eh.removeSettledChannel(ch)
+	err = eh.removeSettledChannel(ch)
+	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	eh.dispatchByPendingLocksInChannel(ch, st)
+	return err
 }
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
@@ -536,6 +545,8 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 		return err
 	}
 	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	eh.dispatchByPendingLocksInChannel(ch, st)
 	return err
 }
 

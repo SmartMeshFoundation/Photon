@@ -636,6 +636,25 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 }
 
 /*
+
+ */
+func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.TransitionResult {
+	var it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
+	l := len(state.TransfersPair)
+	if l <= 0 {
+		log.Error(fmt.Sprintf("recevie refund ,but has no transfer pair ,must be a attack!!"))
+		return it
+	}
+	transferPair := state.TransfersPair[l-1]
+	state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+	it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+	return it
+}
+
+/*
 又收到了一个 mediatedtransfer
 */
 func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.MediatorReReceiveStateChange) *transfer.TransitionResult {
@@ -728,8 +747,7 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 				todo 如何保存相关通道呢?
 			todo 长时间崩溃恢复以后会收到这个消息么?
 		*/
-		state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
-		it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+		it = cancelCurrentRoute(state)
 		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
 			Token:          state.Token,
 			LockSecretHash: st.Lock.LockSecretHash,
@@ -870,6 +888,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			} else {
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
+		case *mediatedtransfer.ContractCooperativeSettledStateChange:
+			it = cancelCurrentRoute(state)
+		case *mediatedtransfer.ContractChannelWithdrawStateChange:
+			it = cancelCurrentRoute(state)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
