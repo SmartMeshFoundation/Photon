@@ -17,6 +17,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -56,16 +57,29 @@ type PingSender interface {
 }
 
 /*
+ChannelStatusGetter get the status of channel address, so sender can remove msg based on channel status
+	for example :
+		A send B a mediated transfer, but B is offline
+		when B is online ,this transfer is invalid, so A will never receive ack
+		if A  remove this msg, this channel can not be used only more.
+		but if A does't remove, when A settle/withdraw/reopen channel with B,this msg will make the new channel unusable too.
+		So A need to remove channel when channel status change.
+*/
+type ChannelStatusGetter interface {
+	GetChannelStatus(channelIdentifier common.Hash) int
+}
+
+/*
 BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
 	for example :
 		A send B a mediated transfer, but B is offline
 		when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
 		message secret,secretRequest,revealSecret won't allow error
 */
-type BlockNumberGetter interface {
-	// GetBlockNumber return latest block number
-	GetBlockNumber() int64
-}
+//type BlockNumberGetter interface {
+//	// GetBlockNumber return latest block number
+//	GetBlockNumber() int64
+//}
 
 type timeoutGenerator func() time.Duration
 
@@ -115,7 +129,7 @@ type RaidenProtocol struct {
 	ReceivedMessageResultChan chan error
 	sendingQueueMap           map[string]chan *SentMessageState //write to this channel to send a message
 	receivedMessageSaver      ReceivedMessageSaver
-	BlockNumberGetter         BlockNumberGetter
+	ChannelStatusGetter       ChannelStatusGetter
 	onStop                    bool //flag for stop
 	//notify quit
 	quitChan chan struct{}
@@ -125,7 +139,7 @@ type RaidenProtocol struct {
 }
 
 // NewRaidenProtocol create RaidenProtocol
-func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
+func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
 		Transport:                 transport,
 		privKey:                   privKey,
@@ -135,7 +149,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNu
 		ReceivedMessageChan:       make(chan *MessageToRaiden),
 		ReceivedMessageResultChan: make(chan error),
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
-		BlockNumberGetter:         blockNumberGetter,
+		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
 		receiveChan:               make(chan []byte, 20),
 	}
@@ -192,17 +206,17 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 }
 
 /*
-	message mediatedTransfer  can safely be discarded when expired.
-	如果丢弃,意味着通道状态将不再同步,通道只能关闭,无法起作用了.
+	message mediatedTransfer  can safely be discarded when channel not exist only more
+	当channel被移除后,可以安全的移除待发送的消息,否则会导致新channel无法使用
+	(之前的实现是交易中的锁过期后移除,但这可能会导致通道双方状态不同步)
 */
-func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
-	var expired int64
-	switch msg2 := msg.(type) {
-	case *encoding.MediatedTransfer:
-		expired = msg2.Expiration
-	}
-	if expired > 0 && expired <= p.BlockNumberGetter.GetBlockNumber() {
-		return false
+func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
+	if channelIdentifier != utils.EmptyHash {
+		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
+		if status == channeltype.StateInValid {
+			p.log.Info(fmt.Sprintf("message cannot be send because of channel status =%d", status))
+			return false
+		}
 	}
 	return true
 }
@@ -256,8 +270,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 				utils.APex2(msgState.ReceiverAddress), msgState.Message,
 				utils.HPex(msgState.EchoHash)))
 			for {
-				if !p.messageCanBeSent(msgState.Message) {
-					p.log.Info(fmt.Sprintf("message cannot be send because of expired msg=%s", msgState.Message))
+				if !p.messageCanBeSent(msgState.Message, channelAddr) {
 					msgState.AsyncResult.Result <- errExpired
 					break
 				}
