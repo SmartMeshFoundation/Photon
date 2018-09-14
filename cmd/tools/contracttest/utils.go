@@ -309,7 +309,7 @@ type BalanceProofUpdateForContracts struct {
 func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
 	_, err := buf.Write(params.ContractSignaturePrefix)
-	buf.Write([]byte("144"))
+	_, err = buf.Write([]byte("144"))
 	_, err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	_, err = buf.Write(b.LocksRoot[:])
 	err = binary.Write(buf, binary.BigEndian, b.Nonce)
