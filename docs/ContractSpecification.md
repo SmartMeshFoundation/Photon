@@ -8,7 +8,7 @@
 - `双方不能共谋侵占 tokenNetwork 中的 token`
 
 
-和smartraiden0.3版相比,这一版本合约设计时，从节约成本的角度考虑，没有采取一个通道建立一个合约的方式，即新建立的通道的 token 并没有抵押在一个单独的合约中, 而是特定token相关的所有通道会将所有的token都抵押在tokennetwork一个合约中。所以，可以认为tokennetwork存储着这个token所有通道的钱。因此，合约必须保证任意一个通道的双方不能通过合谋的方式花费超出他们共有存款总和的钱，因为超出的钱可能来自其他通道，对于安全方面要求必须满足此底线。
+和smartraiden0.3版相比,这一版本合约设计时，从节约成本的角度考虑，没有采取一个通道建立一个合约的方式，即新建立的通道的 token 并没有抵押在一个单独的合约中, 而是特定token相关的所有通道会将所有的token都抵押在tokennetwork一个合约中。所以，可以认为tokennetwork存储着这个token所有通道的钱。因此，合约必须保证任意一个通道的双方不能通过合谋的方式花费超出他们共有存款总和的token，即双方的余额之和不能大于整个通道存款，因为超出的钱可能来自其他通道，对于安全方面要求必须满足此底线。
 
 - `通道双方无论谁提供了错误的,虚假的数据不能给对方造成损害`
 
@@ -36,16 +36,18 @@ smartraiden提供快速转账，节点可以通过smartraiden在在token网络�
 
 ## 2.4 其它要求
 
-- 合约可以在多个流行的token标准下工作，目前支持ERC20和ERC223  
-- 合约托管通道双方的存款，任一方可以在结算后取得他在通道里的存款  
-- 不能让通道的一方有偷钱的机会，证实偷钱将受到惩罚  
-- 合约支持第三方委托服务，在没有任何以太坊保证节点资金安全  
+- 合约可以在多个流行的token标准下工作，目前支持ERC20和ERC223    
+- 合约托管通道双方的存款，任一方可以在结算后取得他在通道里的存款    
+- 合约必须支持smart locks    
+- 签名报文必须是非延展性的    
+- 合约支持第三方委托服务，在节点下线时保证节点资金安全      
 
 # 3.数据结构
+新版本合约增加了对EIP191规范的支持，在所有签名数据中均包含EIP191字符串及长度，具体为："\x19Ethereum Signed Message:\n" + len(message).以下签名数据未特别说明均默认包含。  
 ## 3.1 余额证明
-智能合约更新支付通道时要求的数据，参与者对余额证明进行签名。签名定义如下：
+智能合约更新支付通道时要求的数据，参与者对余额证明进行签名。签名定义如下：  
 
-`ecdsa_recoverable(privkey, keccak256(channel_identifier||transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || token_network_address || chain_id)`
+`ecdsa_recoverable(privkey, keccak256(channel_identifier||transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || chain_id)`  
 
 字段：
 
@@ -57,7 +59,6 @@ locksroot|bytes32|所有的等待锁的哈希值的默克树根
 nonce|Uint64|单增的值用来排序转账，开始值为1
 additional_hash|bytes32|应用层额外的哈希数据，如：支付元数据
 channel.open_block_number|uint64|通道打开的区块数
-token_network_address|address|TokenNetwork合约地址
 chain_id|uint256|EIP155定义的Chain 标识
 signature|bytes|对上述所有数据的签名
 
@@ -154,9 +155,9 @@ ERC223 token标准在现有的ERC20标准基础引入了一些新功能，防止
 ### 4.2.1 `TokenNetworkRegistry Contract` 
 
 
-TokenNetworkRegistry合约是构建TokenNetwork的前提。主要功能就是对某种token部署新TokenNetwork合约便于smartraiden进一步的调用。其主要属性包括：
-- `address public secret_registry_address` 提供 `SecretRegistry` 合约地址给 `TokenNetwork` 构建使用   
-- ` uint256 public chain_id`区块链ID用于防止重放攻击   
+TokenNetworkRegistry合约是构建TokenNetwork的前提。主要功能就是对某种token部署新TokenNetwork合约便于smartraiden进一步的调用。其主要属性包括：  
+- `address public secret_registry_address` 提供 `SecretRegistry` 合约地址给 `TokenNetwork` 构建使用     
+- ` uint256 public chain_id`区块链ID用于防止重放攻击     
 
 **注册一个token:**
 部署一个新的TokenNetwork合约并对地址进行注册
@@ -164,19 +165,20 @@ TokenNetworkRegistry合约是构建TokenNetwork的前提。主要功能就是对
 `function createERC20TokenNetwork(address token_address) external
 event TokenNetworkCreated(address indexed  token_address, address indexed token_network_address)`
 
-1. `token_address`:  Token合约地址   
-2. `token_network_address`: 新部署的TokenNetwork合约地址  
+1. `token_address`:  Token合约地址     
+2. `token_network_address`: 新部署的TokenNetwork合约地址    
 
-> 场景描述：假定一个用户拥有一些ERC20 token或ERC223token,但是该token没有被smartraiden注册。因此，在使用这个token进行链下支付之前需要对这个token进行注册建立一个TokenNetwork。smartraiden对每一个注册的token有一个相应的token network. 当该token network注册后，拥有token的用户就可以连接该网络并调用`TokenNetwork` 合约中的相关函数进行操作.
+**场景描述：**  
+*假定一个用户拥有一些ERC20 token或ERC223token,但是该token没有被smartraiden注册。因此，在使用这个token进行链下支付之前需要对这个token进行注册建立一个TokenNetwork。smartraiden对每一个注册的token有一个相应的token network. 当该token network注册后，拥有token的用户就可以连接该网络并调用`TokenNetwork` 合约中的相关函数进行操作.*
 
 ### 4.2.2  TokenNetwork Contract
 
 TokenNetwork合约主要提供与支付通道交互的接口。通道只能对这个合约中通过 `token_address`定义的token进行转账。合约集中了通道生命周期中与合约交互的大部分函数，包括打开、资金/使用、关闭、结算等。除此之外，合约内还保存了通道函数所需的全局参数（属性），供函数调用时引用。其中，主要属性如下：
 
-- `Token public token`  : 通道使用的token 实例   
-- `SecretRegistry public secret_registry`:  secretregistry实例，中转转账中用于存储披露的secret   
-- `Uint64 constant public punish_block_number=5`: 留给惩罚对手的时间,这个时间专门开辟出来,在settle timeout 之后,可以提交证据而不用担心对手是在临近 settle 之时提交 updatetransfer 和进行 unlock,从而导致自己没有机会提交惩罚证据   
-- `uint256 public chain_idChainID` 被用于余额证明签名中以防止重放攻击  
+- `Token public token`  : 通道使用的token 实例     
+- `SecretRegistry public secret_registry`:  secretregistry实例，中转转账中用于存储披露的secret     
+- `Uint64 constant public punish_block_number=5`: 留给惩罚对手的时间,这个时间专门开辟出来,在settle timeout 之后,可以提交证据而不用担心对手是在临近 settle 之时提交 updatetransfer 和进行 unlock,从而导致自己没有机会提交惩罚证据     
+- `uint256 public chain_idChainID` 被用于余额证明签名中以防止重放攻击    
 
 新版本合约中，Channel Identifier 定义为bytes32, 是通道参与双方与tokenNetworkAddress的哈希值。我们当前限制两个参与者之间只能创建一条通道。因此，一对地址至多一个通道ID。合约提供了getChannelIdentifier函数、getChannelInfo 函数和getChannelParticipantInfo函数，用户可以调用他们查询当前通道信息和通道另一方的信息
 
@@ -194,11 +196,11 @@ function getChannelInfo(
     returns (bytes32 channel_identifier,  uint64 settle_block_number, uint64 open_block_number,uint8  state,  uint64  settle_timeout )
 
 ```
-- `channel_identifier`: 当前合约计算的Channel identifier   
-- `participant1`: 一个通道参与者的以太坊地址    
-- `participant2`: 另一个通道参与者的以太坊地址    
-- `state`:通道状态。可以是` NonExistent - 0`, `Opened - 1`, `Closed - 2,` `Settled – 0`    
-- `settle_timeout`：通道结算等待时间     
+- `channel_identifier`: 当前合约计算的Channel identifier     
+- `participant1`: 一个通道参与者的以太坊地址      
+- `participant2`: 另一个通道参与者的以太坊地址      
+- `state`:通道状态。可以是` NonExistent - 0`, `Opened - 1`, `Closed - 2,` `Settled – 0`      
+- `settle_timeout`：通道结算等待时间       
 
 
 ```solidity
@@ -215,14 +217,15 @@ function getChannelParticipantInfo(
     )
 
 ```
-- `participant`: 一个通道参与者的以太坊地址   
-- `partner`: 另一个通道参与者的以太坊地址   
-- `deposit`:通道打开后可能>=0   
-- `balance_hash`: 对方locksroot和transferred_amount的哈希  
-- `nonce`:对方最新交易的序号  
+- `participant`: 一个通道参与者的以太坊地址     
+- `partner`: 另一个通道参与者的以太坊地址     
+- `deposit`:通道打开后可能>=0     
+- `balance_hash`: 对方locksroot和transferred_amount的哈希    
+- `nonce`:对方最新交易的序号    
 
 
-> 场景描述： 假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。为了能够安全的完成转账，Alice需要知道她和Bob之前有没有通道（调用getChannelIdentifier函数）；如果有通道，当前通道是处于什么状态（调用getChannelInfo函数）；如果通道可以使用，那么通道对方的信息与Alice本地保存的数据是否一致（数据一致才能进行安全转账，调用getChannelParticipantInfo函数）
+**场景描述：**  
+  *假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。为了能够安全的完成转账，Alice需要知道她和Bob之前有没有通道（调用getChannelIdentifier函数）；如果有通道，当前通道是处于什么状态（调用getChannelInfo函数）；如果通道可以使用，那么通道对方的信息与Alice本地保存的数据是否一致（数据一致才能进行安全转账，调用getChannelParticipantInfo函数）*
 
 #### 4.2.2.1打开一个通道
 
@@ -246,7 +249,8 @@ event ChannelOpened(
 
 `participant1`:和`participant2`都必须是有效地址，且不能相同，打开通道允许任何人调用，且可以调用多次，允许任意两个不同有效地址之间创建唯一的通道。通道创建后记录通道打开事件后方可进行转账交易。
 
->场景描述： 假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。如果Alice和Bob是第一次使用smartraiden进行转账交易，他们之前没有直接通道相连。那么对于交易发起者Alice来说，她需要先调用合约的openChannel函数，将自己和Bob的地址代入函数，在两者之间建立唯一的一条通道。此时，双方建立的通道内没有token，Alice和Bob可以在通道建立后，单独进行存款操作。
+**场景描述：**  
+ *假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。如果Alice和Bob是第一次使用smartraiden进行转账交易，他们之前没有直接通道相连。那么对于交易发起者Alice来说，她需要先调用合约的openChannel函数，将自己和Bob的地址代入函数，在两者之间建立唯一的一条通道。此时，双方建立的通道内没有token，Alice和Bob可以在通道建立后，单独进行存款操作。*
 
 #### 4.2.2.2 打开通道同时存款
 主要功能：在participant1 和participant2 之间打开一个通道，打开通道方同时存一定数量的token, 这个函数为用户多提供一个选项,创建通道和存钱合在一起,可以更好的节省gas.
@@ -263,7 +267,8 @@ uint256 participant1_deposit
 ```
 主要参数与打开通道相同，participant1:和participant2都必须是有效地址，且不能相同，participant1_deposit 表示打开同时需要存进通道内的token数量。openChannelWithDeposit允许任何人调用，其内部函数openChannelWithDepositInternal有三种调用方式：用户可以直接调用openChannelWithDeposit来间接调用；符合ERC223 token 也可以通过 tokenFallback 调用；ERC20token 提供了 ApproveAndCall, 用户可以通过receiveApproval调用.
 
->场景描述： 假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。如果Alice和Bob是第一次使用smartraiden进行转账交易，他们之前没有直接通道相连。那么对于交易发起者Alice来说，她需要先建立通道，在通道内存了一定数量的token以后才能进行转账交易。Alice可以调用合约的openChannelWithDeposit函数，在建立通道的同时，存一部分token进通道内。完成了打开通道并存款的操作后，就可以使用这条通道进行转账。
+**场景描述：**  
+  *假定一个用户想使用smartraiden进行链下转账，以Alice发给Bob为例：Alice打算转账30个token给Bob。如果Alice和Bob是第一次使用smartraiden进行转账交易，他们之前没有直接通道相连。那么对于交易发起者Alice来说，她需要先建立通道，在通道内存了一定数量的token以后才能进行转账交易。Alice可以调用合约的openChannelWithDeposit函数，在建立通道的同时，存一部分token进通道内。完成了打开通道并存款的操作后，就可以使用这条通道进行转账*
 
 #### 4.2.2.3存钱进通道
 
@@ -282,13 +287,14 @@ event ChannelNewDeposit(
     uint256 total_deposit
 );
 ```
-- `participant`: 存款将增加的参与者地址   
-- `total_deposit`:  `participant` 向通道存款的token数量   
-- `partner`: 另一个通道参与者地址，用于计算channel_identifier  
-- `channel_identifier`: 当前合约计算的Channel identifier  
-- `deposit`: 参与者当前向通道存款的token数量  
+- `participant`: 存款将增加的参与者地址     
+- `total_deposit`:  `participant` 向通道存款的token数量     
+- `partner`: 另一个通道参与者地址，用于计算channel_identifier    
+- `channel_identifier`: 当前合约计算的Channel identifier    
+- `deposit`: 参与者当前向通道存款的token数量    
 
->场景描述：以Alice向Bob转账为例。如果Alice在通道创建时没有进行存款，为了能够给Bob进行转账，则Alice需要调用deposit函数进行存款。deposit可以重复调用多次, Alice和Bob都可以调用。假定现在Alice存了100 token进通道，则目前通道总容量为100 token，其中Alice为100 token，Bob为0 token。
+**场景描述：**  
+*以Alice向Bob转账为例。如果Alice在通道创建时没有进行存款，为了能够给Bob进行转账，则Alice需要调用deposit函数进行存款。deposit可以重复调用多次, Alice和Bob都可以调用。假定现在Alice存了100 token进通道，则目前通道总容量为100 token，其中Alice为100 token，Bob为0 token。*
 
 #### 4.2.2.4从通道取钱
 
@@ -296,38 +302,33 @@ event ChannelNewDeposit(
 
 ```solidity
 function withDraw (
-   address participant1，
-   uint256 participant1_balance,
-   uint256 participant1_withdraw,
-   address participant2,
-uint256 participant2_balance,
-   uint256  participant2_withdraw,
-    bytes participant1_signature,
-    bytes participant2_signature
-)
+  address participant,
+        address partner,
+        uint256 participant_balance,
+        uint256 participant_withdraw,
+        bytes participant_signature,
+        bytes partner_signature)
     public
 event ChannelWithdraw(
     bytes32 indexed channel_identifier,
-    address participant1,
-uint256 participant1_balance
-address  participant2,
-uint256 participant2_balance
+    address participant,
+uint256 participant_balance
+address  partner,
+uint256 partner_balance 
 );
-
 ```
 - `channel_identifier`: 当前合约计算的Channel identifier  
-- `participant1`:通道参与者之一的地址  
-- `participant1_balance`:参与者一提交的当前余额证明  
-- `participant1_withdraw`: 参与者一提交的取钱金额  
-- `Participant2`: 参与者二地址  
-- `Participant2_balance`:参与者二提交的当前余额证明  
-- `Participant2_withdraw`: 参与者二提交的取钱金额  
-- `Participant1_signature`:  参与者一的对提交数据的签名  
-- `Participant2_signature`: 参与者二的对提交数据的签名   
+- `participant`:通道参与者之一的地址  
+- `participant_balance`:参与者一提交的当前余额证明  
+- `participant_withdraw`: 参与者一提交的取钱金额  
+- `partner`: 参与者二地址  
+- `partner_balance`:参与者二提交的当前余额证明  
+- `Participant_signature`:  参与者一的对提交数据的签名  
+- `partner_signature`: 参与者二的对提交数据的签名   
 
 参与者通过协商的方式签名交换当前自己的余额证明以及打算取钱的金额，这个过程相当于通道结算后又重开，出于双方资金安全以及取现成功考虑，要求双方不持有任何锁（只要双方没有争议，就会在一定时间内清空持有的任何锁）
-> 场景描述：Alice给Bob发送MediatedTransfer 进行转账（30token）。转账完成后，Alice的存款为70token,Bob的存款为30token，此时，因为交易成功发送，没有锁定token。Alice和Bob现在通道里都有了token，如果此时，双方想把一部分钱取出来该如何操作呢？假定Alice想取20token, Bob想取10token,因为此时双方都没有锁定token，则Alice可以调用合约中的withdraw函数，通过协商，将自己目前通道内存款(70token)、自己想取的钱(20token)、Bob通道内存款(30token)、Bob想取的钱(10token)与Bob达成一致后进行取钱操作。取钱操作完成后，双方的存款变为Alice 50token, Bob 20token，随后可以继续进行转账交易。
-
+**场景描述：**  
+*Alice给Bob发送MediatedTransfer 进行转账（30token）。转账完成后，Alice的存款为70token,Bob的存款为30token，此时，因为交易成功发送，没有锁定token。Alice和Bob现在通道里都有了token，如果此时，其中一方想把一部分钱取出来该如何操作呢？假定Alice想取20token,因为此时双方都没有锁定token，则Alice可以调用合约中的withdraw函数，通过协商，将自己目前通道内存款(70token)、自己想取的钱(20token)与Bob达成一致后进行取钱操作。取钱操作完成后，双方的存款变为Alice 50token, Bob 30token，随后可以继续进行转账交易。*
 #### 4.2.2.5关闭通道
 
 主要功能：参与者一方不想继续使用该通道，单方关闭通道，更新对方的余额证明。在挑战期没有结束前，通道不能结算。
@@ -355,7 +356,8 @@ event ChannelClosed(uint256 indexed channel_identifier, address closing_particip
 
 closeChannel函数只能是通道参与方调用,只能调用一次,必须是在通道打开状态调用
 
->场景描述：Alice在与Bob进行一段时间交易后，不想再继续使用她们之间的这条通道。因此，Alice决定单方面调用closeChannel函数来关闭这条通道。Alice为了不损失钱，需要提交最新的余额证明（BOb给自己的钱），在合约里进行更新和记录。
+**场景描述：**  
+*Alice在与Bob进行一段时间交易后，不想再继续使用她们之间的这条通道。因此，Alice决定单方面调用closeChannel函数来关闭这条通道。Alice为了不损失钱，需要提交最新的余额证明（BOb给自己的钱），在合约里进行更新和记录。*
 
 #### 4.2.2.6更新非关闭方的余额证明
 
@@ -386,7 +388,8 @@ uint256 transferred_amount
 - `additional_hash`: 从报文中计算所得，用于报文认证  
 - `partner_signature`: partner 一方对于给出证据的签名  
 
->场景描述：Bob得知Alice打算关闭他们之间的通道，为了防止自己受损失，Bob也需要提交余额证明（Alice给自己的钱）,Bob调用updateBalanceProof函数自己提交证明，在合约里进行更新和记录。
+**场景描述：**  
+*Bob得知Alice打算关闭他们之间的通道，为了防止自己受损失，Bob也需要提交余额证明（Alice给自己的钱）,Bob调用updateBalanceProof函数自己提交证明，在合约里进行更新和记录。*
 
 #### 4.2.2.7代理更新非关闭方的余额证明
 
@@ -421,7 +424,8 @@ uint256 transferred_amount
 - `partner_signature`: partner 一方对于给出证据的签名  
 - `participant_signature`: 委托人对于委托的签名  
 
->场景描述： Alice打算关闭与Bob之间的通道，为了防止受损失，Bob也需要提交余额证明（Alice给自己的钱）.假设Bob在关闭通道之前委托第三方代理提交余额证明。如果Alice关闭通道后，Bob由于特殊原因没有在线，第三方服务调用updateBalanceProofDelegate函数帮助Bob提交余额证明，在合约里进行更新和记录。
+**场景描述：**    
+ *Alice打算关闭与Bob之间的通道，为了防止受损失，Bob也需要提交余额证明（Alice给自己的钱）.假设Bob在关闭通道之前委托第三方代理提交余额证明。如果Alice关闭通道后，Bob由于特殊原因没有在线，第三方服务调用updateBalanceProofDelegate函数帮助Bob提交余额证明，在合约里进行更新和记录。*
 
 #### 4.2.2.8解锁 lock
 
@@ -451,7 +455,8 @@ event ChannelUnlocked(
 - `expiration,amount,secret_hash`: 交易中未彻底完成的锁  
 - `merkle_proof`: 证明此锁包含在 locksroot 中  
 
->场景描述：在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。Alice关闭通道之后，如果此时这个锁的secret已经在链上注册了，那么Bob就可以调用unlock函数将这10个token加到Alice给Bob的钱总数上。如果此时Bob不诚实，又拿上次放弃的锁的信息（30token）去解锁，将这个30个token也加到Alice给Bob的钱总数上，那么他将受到惩罚。
+**场景描述：**  
+*在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。Alice关闭通道之后，如果此时这个锁的secret已经在链上注册了，那么Bob就可以调用unlock函数将这10个token加到Alice给Bob的钱总数上。如果此时Bob不诚实，又拿上次放弃的锁的信息（30token）去解锁，将这个30个token也加到Alice给Bob的钱总数上，那么他将受到惩罚。*
 
 #### 4.2.2.9代理解锁 lock
 
@@ -485,7 +490,8 @@ event ChannelUnlocked(
 - `merkle_proof`: 证明此锁包含在 locksroot 中  
 - `participant_signature`: 委托第三方的签名  
 
->场景描述：在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。假定Bob有事需要下线，在Bob下线前委托第三方代理解锁。在Alice关闭通道后，如果Bob不在线，第三方会查看这个锁的secret是否已经在链上注册，如果secret已注册,第三方调用unlockDelegate函数将这10个token加到Alice给Bob的钱总数上。
+**场景描述：**  
+*在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。假定Bob有事需要下线，在Bob下线前委托第三方代理解锁。在Alice关闭通道后，如果Bob不在线，第三方会查看这个锁的secret是否已经在链上注册，如果secret已注册,第三方调用unlockDelegate函数将这10个token加到Alice给Bob的钱总数上。*
 
 
 #### 4.2.2.10惩罚孤立锁
@@ -513,7 +519,8 @@ event ChannelPunished (
 - `additional_hash`: 实现辅助信息  
 - `cheater_signature`: 不诚实一方对于放弃此锁的签名  
 
->场景描述：Alice在结算窗口期后，为了防止Bob  unlock已放弃的锁，在惩罚窗口期内她要调用punishObsoleteUnlock函数检查这个放弃的锁有没有被unlock。（假设Alice和Bob的关闭通道前存款分别为50(10)token,20token。）Alice从存储中取出Bob已放弃的锁的信息与BOb链上解锁情况进行对比，证明Bob确实unlock了已放弃的锁，那么根据惩罚机制，Alice得到Bob所有的存款，即Alice 70token, Bob 0token。
+**场景描述：**   
+*Alice在结算窗口期后，为了防止Bob  unlock已放弃的锁，在惩罚窗口期内她要调用punishObsoleteUnlock函数检查这个放弃的锁有没有被unlock。（假设Alice和Bob的关闭通道前存款分别为50(10)token,20token。）Alice从存储中取出Bob已放弃的锁的信息与BOb链上解锁情况进行对比，证明Bob确实unlock了已放弃的锁，那么根据惩罚机制，Alice得到Bob所有的存款，即Alice 70token, Bob 0token。*
 
 #### 4.2.2.11结算通道
 
@@ -547,7 +554,8 @@ event ChannelSettled(
 
 在通道结算窗口期以及惩罚窗口期之后可以被任何人调用。通道状态Settled 意味着通道被结算并且通道数据被移除。
 
->场景描述：假如在惩罚窗口期中Alice没有发现Bob  unlock放弃的锁，则Alice在结算窗口期和惩罚窗口期后，就可以调用settle函数，根据双方提交的参数，计算分别向通道双方转账的token数量并进行转账结算。如Alice 40token ,Bob 30token。结算完成后，Alice将这条通道销毁。
+**场景描述：**  
+*假如在惩罚窗口期中Alice没有发现Bob  unlock放弃的锁，则Alice在结算窗口期和惩罚窗口期后，就可以调用settle函数，根据双方提交的参数，计算分别向通道双方转账的token数量并进行转账结算。如Alice 40token ,Bob 30token。结算完成后，Alice将这条通道销毁。*
 
 #### 4.2.2.12合作关闭与结算通道
 
@@ -581,7 +589,8 @@ uint256 participant2_amount
 
 *只要通道双方提供他们的签名，这个函数也可以被第三方调用*
 
->场景描述：如果Alice和Bob在链下达成共识，比如Alice 35token, Bob 35token, Alice和Bob也可以在通道打开的状态下，调用coopertiveSettle函数来合作结算这条通道。根据双方协商的金额（Alice 35token, Bob 35token）向双方转账，然后将这条通道销毁。
+**场景描述：**  
+*如果Alice和Bob在链下达成共识，比如Alice 35token, Bob 35token, Alice和Bob也可以在通道打开的状态下，调用coopertiveSettle函数来合作结算这条通道。根据双方协商的金额（Alice 35token, Bob 35token）向双方转账，然后将这条通道销毁。*
 
 
 ### 4.2.3 SecretRegistry Contract
@@ -597,7 +606,8 @@ function getSecretRevealBlockHeight(bytes32 secrethash) public view returns (uin
 - `secret`:用于得到secrethash的原像  
 - `secrethash`: keccak256(secret). Secret的哈希值，用于中转交易
 
->场景描述：在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。如果在secret快要过期之前，Bob拿到secret向Alice请求交换unlock报文，没有得到Alice响应，为了自身的资金安全，Bob可以选择到链上注册这个secret（调用registerSecret函数）,并得到注册时的区块数（调用getSecretRevealBlockHeight函数）。
+**场景描述：**  
+*在Alice和Bob进行转账的过程中，有可能有部分交易未完成，假定Alice和Bob的存款分别为50(10)token,20token,其中括号内10 token为锁定的，是Alice给Bob的。如果在secret快要过期之前，Bob拿到secret向Alice请求交换unlock报文，没有得到Alice响应，为了自身的资金安全，Bob可以选择到链上注册这个secret（调用registerSecret函数）,并得到注册时的区块数（调用getSecretRevealBlockHeight函数）。*
 
 # 5. 流程描述
 
