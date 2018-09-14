@@ -3,7 +3,7 @@ pages:
     
 -  System Requirements and Installation Guide: installation_guide.md
 -  Smartraiden Overview: overview.md
--  SmartRaiden’s API Documentation: rest_api.md
+-  SmartRaiden’s API Documentation: en_rest_api.md
 -  SmartRaiden Smart Contracts Specification: ContractSpecification.md
 -  SmartRaiden Glossary: glossary.md
 
