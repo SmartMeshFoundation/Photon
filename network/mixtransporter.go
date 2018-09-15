@@ -58,10 +58,16 @@ func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
 	}*/
 		_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {
-		t.udp.Send(receiver, data)
+		err:=t.udp.Send(receiver, data)
+		if err!=nil{
+			return err
+		}
 	} else if t.matirx != nil {
 		//t.xmpp.Send(receiver, data)
-		t.matirx.Send(receiver, data)
+		err:=t.matirx.Send(receiver, data)
+		if err!=nil{
+			return err
+		}
 	}
 	return nil
 }

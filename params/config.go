@@ -59,8 +59,8 @@ type Config struct {
 	IgnoreMediatedNodeRequest bool // true: this node will ignore any mediated transfer who's target is not me.
 	EnableHealthCheck         bool //send ping periodically?
 	XMPPServer                string
-	MatrixServerUrl			  string
-	MatrixServerName		  string
+	//MatrixServerUrl		  string
+	//MatrixServerName		  string
 	IsMeshNetwork             bool //is mesh now?
 
 }
@@ -83,8 +83,8 @@ var DefaultConfig = Config{
 	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
 	XMPPServer:        DefaultXMPPServer,
-	MatrixServerUrl:   DefaultMatrixServer,
-	MatrixServerName:  DeFaultMatrixServerName,
+	//MatrixServerUrl:   DefaultMatrixServer,
+	//MatrixServerName:  DeFaultMatrixServerName,
 }
 
 //ConditionQuit is for test

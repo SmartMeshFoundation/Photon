@@ -5,6 +5,7 @@ import (
 	"regexp"
 )
 
+// Event represents a single Matrix event.
 type Event struct {
 	StateKey  *string                `json:"state_key,omitempty"`
 	Sender    string                 `json:"sender"`
@@ -16,6 +17,7 @@ type Event struct {
 	Redacts   string                 `json:"redacts,omitempty"`
 }
 
+// ViewContent returns the value of the "msgtype" key in the event.
 func (event *Event) ViewContent(tip string) (body string, ok bool) {
 	value, exists := event.Content[tip]
 	if !exists {
@@ -25,6 +27,8 @@ func (event *Event) ViewContent(tip string) (body string, ok bool) {
 	return
 }
 
+// Body returns the value of the "body" key in the event content if it is
+// present and is a string.
 func (event *Event) Body() (body string, ok bool) {
 	value, exists := event.Content["body"]
 	if !exists {
@@ -34,6 +38,8 @@ func (event *Event) Body() (body string, ok bool) {
 	return
 }
 
+// MessageType returns the value of the "msgtype" key in the event content if
+// it is present and is a string.
 func (event *Event) MessageType() (msgtype string, ok bool) {
 	value, exists := event.Content["msgtype"]
 	if !exists {
@@ -43,11 +49,13 @@ func (event *Event) MessageType() (msgtype string, ok bool) {
 	return
 }
 
+// TextMessage is the contents of a Matrix formated message event.
 type TextMessage struct {
 	MsgType string `json:"msgtype"`
 	Body    string `json:"body"`
 }
 
+// ImageInfo contains info about an image
 type ImageInfo struct {
 	Height   uint   `json:"h,omitempty"`
 	Width    uint   `json:"w,omitempty"`
@@ -55,6 +63,7 @@ type ImageInfo struct {
 	Size     uint   `json:"size,omitempty"`
 }
 
+// VideoInfo contains info about a video
 type VideoInfo struct {
 	Mimetype      string    `json:"mimetype,omitempty"`
 	ThumbnailInfo ImageInfo `json:"thumbnail_info"`
@@ -65,6 +74,7 @@ type VideoInfo struct {
 	Size          uint      `json:"size,omitempty"`
 }
 
+// VideoMessage is an m.video
 type VideoMessage struct {
 	MsgType string    `json:"msgtype"`
 	Body    string    `json:"body"`
@@ -72,6 +82,7 @@ type VideoMessage struct {
 	Info    VideoInfo `json:"info"`
 }
 
+// ImageMessage is an m.image event
 type ImageMessage struct {
 	MsgType string    `json:"msgtype"`
 	Body    string    `json:"body"`
@@ -79,6 +90,7 @@ type ImageMessage struct {
 	Info    ImageInfo `json:"info"`
 }
 
+// HTMLMessage is the contents of a Matrix HTML formated message event.
 type HTMLMessage struct {
 	Body          string `json:"body"`
 	MsgType       string `json:"msgtype"`
@@ -88,6 +100,8 @@ type HTMLMessage struct {
 
 var htmlRegex = regexp.MustCompile("<[^<]+?>")
 
+// GetHTMLMessage returns an HTMLMessage with the body set to a stripped version of the provided HTML, in addition
+// to the provided HTML.
 func GetHTMLMessage(msgtype, htmlText string) HTMLMessage {
 	return HTMLMessage{
 		Body:          html.UnescapeString(htmlRegex.ReplaceAllLiteralString(htmlText, "")),

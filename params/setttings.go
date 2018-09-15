@@ -69,16 +69,24 @@ const DefaultXMPPServer = "193.112.248.133:5222"
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 
-const DefaultMatrixServer  = "http://192.168.124.13:8008"
-const DeFaultMatrixServerName  = "cy"
-var MatrixServerConfig=[][]string{
+/*const DefaultMatrixServer  = "http://192.168.124.13:8008"
+const DeFaultMatrixServerName  = "cy"*/
+/*var MatrixServerConfig=[][]string{
 	{"http://192.168.124.13:8008", "transport01.smartraiden.network"},
 	{"http://192.168.124.14:8008", "transport02.smartraiden.network"},
 	{"http://192.168.124.14:8008", "cy"},
+}*/
+
+//MatrixServerConfig matrix server config
+var MatrixServerConfig=[][]string{
+	{"https://transport01.raiden.network", "transport01.raiden.network"},
+	{"https://transport02.raiden.network", "transport02.raiden.network"},
 }
+
+//MatrixDiscoveryRoomConfig a defalut matrix room config
 var MatrixDiscoveryRoomConfig=[][]string{
 	{"aliassegment"	, "discovery"},
-	{"server"		, "transport01.smartraiden.network"},
+	{"server"		, "transport01.raiden.network"},
 }
 
 func init() {
