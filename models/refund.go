@@ -3,6 +3,8 @@ package models
 import (
 	"encoding/gob"
 
+	"github.com/asdine/storm"
+
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -26,7 +28,7 @@ ReceivedAnnounceDisposed 收到对方的 disposed, 主要是用来对方unlock �
 type ReceivedAnnounceDisposed struct {
 	Key               []byte `storm:"id"`
 	LockHash          []byte `storm:"index"` //hash(expiration,locksecrethash,amount)
-	ChannelIdentifier common.Hash
+	ChannelIdentifier []byte `storm:"index"`
 	OpenBlockNumber   int64
 	AdditionalHash    common.Hash
 	Signature         []byte
@@ -77,7 +79,7 @@ func NewReceivedAnnounceDisposed(LockHash, ChannelIdentifier, additionalHash com
 	return &ReceivedAnnounceDisposed{
 		Key:               key[:],
 		LockHash:          LockHash[:],
-		ChannelIdentifier: ChannelIdentifier,
+		ChannelIdentifier: ChannelIdentifier[:],
 		OpenBlockNumber:   openBlockNumber,
 		AdditionalHash:    additionalHash,
 		Signature:         signature,
@@ -111,4 +113,20 @@ func (model *ModelDB) GetReceiviedAnnounceDisposed(lockHash, channelIdentifier c
 	}
 	//log.Trace(fmt.Sprintf("Find ReceivedAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
 	return sad
+}
+
+/*
+GetChannelAnnounceDisposed 获取指定 channel中对方声明放弃的锁,
+*/
+func (model *ModelDB) GetChannelAnnounceDisposed(channelIdentifier common.Hash) []*ReceivedAnnounceDisposed {
+	var anns []*ReceivedAnnounceDisposed
+	err := model.db.Find("ChannelIdentifier", channelIdentifier[:], &anns)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			return nil
+		}
+		log.Error(fmt.Sprintf("GetChannelAnnounceDisposed for %s ,err %s", channelIdentifier.String(), err))
+		return nil
+	}
+	return anns
 }
