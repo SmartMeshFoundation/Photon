@@ -39,7 +39,7 @@ type MatrixTransport struct {
 	UserID             string                                          //the current user's ID(@kitty:thisserver)
 	UseDeviceType      string
 	avatarurl          string
-	Address2Room       map[string]map[string]string //all rooms with we knows,just
+	Address2Room       map[string]string //all rooms with we knows,just
 	log                log.Logger
 	ChargeRegulation   string
 }
@@ -113,7 +113,7 @@ func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error
 	}
 	room, err:= mtr.getRoom2Address(receiverAddr)
 	if err !=nil || room==nil {
-		return fmt.Errorf("[Matrix]Send failed,cann't find the object address")
+		return fmt.Errorf("[Matrix]Send failed,cann't find the peer address")
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
 	resp,err := mtr.matrixcli.SendText(room.ID, _data)
@@ -132,7 +132,6 @@ func (mtr *MatrixTransport) Start() {
 	if mtr.running {
 		return
 	}
-	mtr.running = true
 
 	//登录
 	if err := mtr.loginOrRegister(); err != nil {
@@ -714,14 +713,14 @@ func (mtr *MatrixTransport) maybeInviteUser(user matrixcomm.UserInfo) {
 		return
 	}
 	room :=mtr.matrixcli.Store.LoadRoom(roomid)
-	if room!=nil{
-		return
-	}
-	if room.ID==""{
-		return
+	if room==nil{
+		theroom := &matrixcomm.Room{
+			ID:    roomid,
+		}
+		mtr.matrixcli.Store.SaveRoom(theroom)
 	}
 	//room already found the invite the user
-	resp, err := mtr.matrixcli.JoinedMembers(room.ID)
+	resp, err := mtr.matrixcli.JoinedMembers(roomid)
 	if err!=nil{
 		return
 	}
@@ -834,7 +833,7 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 		inviteesUids = append(inviteesUids, xuser.UserID)
 	}
 	unlistedRoomid := ""
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 6; i++ {
 		respj, err := mtr.matrixcli.JoinRoom(roomNameFull, mtr.servername, nil)
 		if err != nil {
 			fmt.Println(err)
@@ -878,60 +877,33 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 // setRoomIDForAddress,更新addresses->rooms设置AccountData的内容，具体是map["mark"]map[address][roomids]
 func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid string) (err error) {
 	addressHex := address.String()
-	//address2Room := make(map[string]string)
-	xmap1:=make(map[string]interface{})
-	_, ok := mtr.Address2Room["network.raiden.rooms"]
-	if !ok {
-		//return fmt.Errorf("can't find account_data in memory")
-		//mtr.Address2Room["network.raiden.rooms"] = nil
-		//xmap := make(map[string]interface{})
-		//mtr.Address2Room["network.raiden.rooms"] = xmap
-	}
-	if roomid != "" {
-		//xmap[addressHex] = roomid
-	} else {
-		//delete(xmap, addressHex)
-
-		xmap1[addressHex] = roomid
-		//report to server my nodes's rooms(addressehexs->rooms) and the Address2Room is latest
-		/*	var reqdata interface{}
-	reqdata = new(matrixcomm.ReqAccountData)
-	xvalue := reflect.ValueOf(reqdata)
-	if xvalue.Kind() == reflect.Ptr {
-		elem := xvalue.Elem()
-		accountdata := elem.FieldByName("account_data")
-		if accountdata.Kind() == reflect.Map {
-			*(*map[string]interface{})(unsafe.Pointer(accountdata.Addr().Pointer())) = map[string]interface{}{"addressHex":roomid,}}*/
-		/*err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.raiden.rooms", &matrixcomm.ReqAccountData{
-			xmap1,
-		})*/
-	}
-
+	/*if _, ok := mtr.Address2Room[addressHex]; !ok {
+		return
+	}*/
+	//if roomid!=mtr.Address2Room[addressHex]{
+		if roomid!=""{
+			mtr.Address2Room[addressHex]=roomid
+		}else {
+			delete(mtr.Address2Room, addressHex)
+		}
+	//}
+	err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.raiden.rooms", mtr.Address2Room)
 	return
 }
 
 // getRoomID2Address 从cache中获取节点所在room的room id
 func (mtr *MatrixTransport) getRoomID2Address(address common.Address) (roomid string) {
 	addressHex := address.String()
-	value, exist := mtr.Address2Room["network.raiden.rooms"]
-	if !exist {
-		return ""
-	}
-	address2Room := make(map[string]string)
-	address2Room = value
-	if _, ok := address2Room[addressHex]; !ok {
-		return ""
-	}
-	roomid = address2Room[addressHex]
-	//check RoomID2Address 本节刷新此addressHex的信息
-	//TODO: 不在监听对象中就没有任何意义
-	if roomid != "" && mtr.matrixcli.Store.LoadRoom(roomid) == nil { //(cache)Store-Rooms is null
+	if _, ok := mtr.Address2Room[addressHex]; !ok {
 		err := mtr.setRoomID2Address(address, "")
-		if err != nil {
-		}
+		if err!=nil{}
 		return ""
 	}
-	//roomid="!OOMYBnlndieRuzkXtt:transport01.smartraiden.network"
+	roomid= mtr.Address2Room[addressHex]
+	if roomid!=""{
+		mtr.setRoomID2Address(address,roomid)
+	}
+	//roomid="!OOMYBnlndieRuzkXtt:transport01.smartraiden.network"//test
 	return
 }
 
@@ -1052,7 +1024,7 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 		NodeAddress:       crypto.PubkeyToAddress(key.PublicKey),
 		key:               key,
 		Users:             make(map[string]*matrixcomm.UserInfo),
-		Address2Room:      make(map[string]map[string]string),
+		Address2Room:      make(map[string]string),
 		Userid2Presence:   make(map[string]*matrixcomm.RespPresenceUser),
 		AddressToPresence: make(map[common.Address]*matrixcomm.RespPresenceUser),
 		Address2User:      make(map[common.Address][]*matrixcomm.UserInfo),
