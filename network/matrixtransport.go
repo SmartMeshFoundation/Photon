@@ -83,13 +83,13 @@ func (mtr *MatrixTransport) StopAccepting() {
 func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	//matrix服务未启动不允许使用此接口
 	if mtr.matrixcli == nil {
-		return "", false
+		//return "", false
 	}
 	deviceType = mtr.UseDeviceType
 	_, isexist := mtr.AddressToPresence[addr]
 	if !isexist {
 		isOnline = false
-		return
+		//return
 	}
 	if mtr.AddressToPresence[addr].Presence!=ONLINE{
 		isOnline=false
@@ -102,7 +102,6 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 	//在invite被查询节点到presence list的前提下可查询任何联盟服务器上的user presence
 	//以上代码不能获取deviceType,通过/presence/list来处理（如果节点在线，会多返回一个status_msg（装载有deviceType）,
 	//通过{userid}/presence也能查阅,可扩展（/presence/list）同时查多个节点的状态
-
 
 	return
 }
@@ -222,7 +221,7 @@ func (mtr *MatrixTransport) onHandleAccountData(event *matrixcomm.Event) {
 	if exist && value != "" {
 
 	}
-	fmt.Println("+++",event)
+	//fmt.Println("+++",event)
 }
 // onHandleReceiveMessage handle text messages sent to listening rooms
 func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
@@ -270,14 +269,14 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 	}
 
 	//message :=[]byte{}
-	if data[0:len(data)-2] == "0x" {
+	/*if data[0:len(data)-2] == "0x" {
 		_, err = hexutil.Decode(data)
 		if err != nil {
 			log.Warn(fmt.Sprintf("Receive message binary data is not a valid message,message_data=%s,peer_address=%s", data, peerAddress.String()))
 			return
 		}
 
-	} else {
+	} else {*/
 
 		/*//解析json数据
 		message,err=hexutil.Decode(data)
@@ -313,7 +312,7 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 			log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]), utils.APex2(common.HexToAddress(msgSender))))
 
 		}
-	}
+	//}
 	/*msgSender, err := extractUserLocalpart(senderID)
 	if err != nil {
 		return
