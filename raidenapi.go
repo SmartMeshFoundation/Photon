@@ -878,16 +878,18 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash,
 		result = c3
 		return
 	}
-	c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
-	c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
-	c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
-	c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
-	c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
-	sig, err = signBalanceProofFor3rd(c, r.Raiden.PrivateKey)
-	if err != nil {
-		return
+	if c.PartnerBalanceProof.Nonce > 0 {
+		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
+		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
+		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
+		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
+		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
+		sig, err = signBalanceProofFor3rd(c, r.Raiden.PrivateKey)
+		if err != nil {
+			return
+		}
+		c3.UpdateTransfer.NonClosingSignature = sig
 	}
-	c3.UpdateTransfer.NonClosingSignature = sig
 
 	tree := mtree.NewMerkleTree(c.PartnerLeaves)
 	var ws []*unlock
