@@ -82,7 +82,7 @@ func (mtr *MatrixTransport) StopAccepting() {
 // NodeStatus 获取节点网络状态，如果查询自身节点，isOnline状态根据服务器握手信号来判断而非一直是true(可作为一个维护点)
 func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	//matrix服务未启动不允许使用此接口
-	if mtr.matrixcli == nil {
+	/*if mtr.matrixcli == nil {
 		//return "", false
 	}
 	deviceType = mtr.UseDeviceType
@@ -96,8 +96,8 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 	}else {
 		isOnline=true//只有online的时候才会返回staus_msg(deviceType)
 		deviceType=mtr.AddressToPresence[addr].StatusMsg
-	}
-	deviceType=mtr.UseDeviceType
+	}*/
+	deviceType=mtr.UseDeviceType//just test
 	isOnline=true
 	//在invite被查询节点到presence list的前提下可查询任何联盟服务器上的user presence
 	//以上代码不能获取deviceType,通过/presence/list来处理（如果节点在线，会多返回一个status_msg（装载有deviceType）,
@@ -1056,7 +1056,7 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 		Userid2Presence:   make(map[string]*matrixcomm.RespPresenceUser),
 		AddressToPresence: make(map[common.Address]*matrixcomm.RespPresenceUser),
 		Address2User:      make(map[common.Address][]*matrixcomm.UserInfo),
-		UseDeviceType:     "user_device_type",
+		UseDeviceType:     devicetype,
 		log:               log.New("name", logname),
 		avatarurl:         "", //收费规则
 	}
