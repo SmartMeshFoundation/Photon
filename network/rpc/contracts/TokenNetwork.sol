@@ -195,9 +195,11 @@ contract TokenNetwork is Utils {
         participant1,participant2 通道参与双方,都必须是有效地址,且不能相同
         settle_timeout 通道结算等待时间
     */
-    /// @notice Function to create channels between two distinct valid addresses. Permitted to any user and multiple invocation.
-    /// @dev    these two addresses can't hold multiple channels, only one.
-    /// @param  participant1 & participant2 denote these two distinct addresses; settle_timeout time that channel enforcing settle process.
+    /// @notice function to open a payment channel.
+    /// @dev It can be invoked by anyone, any times. Any pair of distinct addresses can create a channel, but cannot create multiple channels within the pair.
+    /// @param participant1     An address for a channel participant
+    /// @param participant2     The address for another other channel participant, cannot be the same as participant1.
+    /// @param settle_timeout   Waited time between channel close and channel settle.
     function openChannel(address participant1, address participant2, uint64 settle_timeout)
     settleTimeoutValid(settle_timeout)
     public
@@ -220,11 +222,12 @@ contract TokenNetwork is Utils {
         emit ChannelOpened(channel_identifier, participant1, participant2, settle_timeout);
     }
 
-    /// @notice Function to create channels with some amount of deposits.
-    /// @dev    this function combines features of openChannel & deposit together, as a facilitate function.
-    /// @param  participant & partner  two parties that this channel connects with.
-    /// @param  settle_timeout time period during which channel enforces settle process.
-    /// @param  deposit 256 bits unsigned int digits representing deposit.
+    /// @notice function to create a channel with some amount of token deposit.
+    /// @dev It combines functionalities of open and deposit, to minimize the gas. It is an auxiliary function.
+    /// @param participant      The address for channel creator
+    /// @param partner          The address for the counterpart of channel participant.
+    /// @param settle_timeout   Waited time between channel close and channel settle.
+    /// @param deposit          The amount of tokens deposited in the channel participant account.
     function openChannelWithDeposit(address participant, address partner, uint64 settle_timeout, uint256 deposit)
     external
     {
@@ -238,10 +241,10 @@ contract TokenNetwork is Utils {
         partner 通道另一方
         amount 存多少 token
     */
-    /// @notice Function to deposit valuable tokens into this channel.
-    /// @dev    this function enable to be invoked after anyone have already opened the channel.
-    /// @param  participant the recipient of deposited tokens.
-    /// @param  partner     the counterpart corresponding to participant.
+    /// @notice function to deposit some amount of tokens into a payment channel.
+    /// @dev It must be invoked once the channel state is open. It can be invoked any times and by anyone.
+    /// @param participant  The address where tokens to be deposited into.
+    /// @param partner      The address for the counterpart of participant.
     function deposit(address participant, address partner, uint256 amount)
     external
     {
@@ -337,11 +340,10 @@ contract TokenNetwork is Utils {
         erc223 tokenFallback
         允许用户
     */
-    /// @notice function to refund tokens to which account they originally belong to.
-    /// @dev
-    /// @param from     default to 0x0.
-    /// @param value    the amount of tokens to be refund.
-    /// @param data for callback
+    /// @notice the function for tokens to fallback.
+    /// @param value    the amount of token to fallback.
+    /// @param data     some extra metadata
+    /// @return a boolean value denoting that tokens have been successfully fallback.
     function tokenFallback(address /*from*/, uint value, bytes data) external returns (bool success){
         require(msg.sender == address(token));
         fallback(0, value, data, false);
@@ -351,25 +353,18 @@ contract TokenNetwork is Utils {
     /*
         常用的 approve and call
      */
-    /// @notice receiveApproval
-    /// @dev receiveApproval
-    /// @param from arg
-    /// @param value arg
-    /// @param token_ arg
-    /// @param data arg
-    /// @return success arg
+    /// @notice function to receive Approval message.
+    /// @param from     The address where tokens are from.
+    /// @param value    The amount of tokens to be transferred.
+    /// @param token_   The address where tokens are from.
+    /// @return success  A boolean value representing that this function has been successfully operated.
     function receiveApproval(address from, uint256 value, address token_, bytes data) external returns (bool success) {
         require(token_ == address(token));
         fallback(from, value, data, true);
         return true;
     }
 
-    /// @notice arg
-    /// @dev arg
-    /// @param from  arg
-    /// @param value            the amount of tokens to be send back to original address.
-    /// @param data arg
-    /// @param need_transfer    a boolean value that will be used in internal call under some conditions.
+
     function fallback(address from, uint256 value, bytes data, bool need_transfer) internal {
         uint256 func;
         address participant;
@@ -401,13 +396,15 @@ contract TokenNetwork is Utils {
        participant_withdraw:取款方需要取多少钱
        participant_signature,partner_signature 双方对这次提现的签名
     */
-    /// @notice function to withdraw tokens in this token network.
-    /// @param participant arg
-    /// @param participant_balance arg
-    /// @param participant_withdraw arg
-    /// @param partner arg
-    /// @param participant_signature arg
-    /// @param partner_signature arg
+    /// @notice function to withdraw tokens while channel state is open. Anyone can invoke it.
+    /// @dev Once a participant proposes to withdraw, which has the same effect as cooperative settle, that is, any transfer are forbidden.
+    /// @dev After withdraw completes, transfers are able to resume.
+    /// @param participant              The address for a channel participant
+    /// @param partner                  The address for the counterparts of participate
+    /// @param participant_balance      The token balance of participant
+    /// @param participant_withdraw     The amount of tokens that participant needs to withdraw
+    /// @param participant_signature    The signature of participant
+    /// @param partner_signature        The signature of partner
     function withDraw(
         address participant,
         address partner,
@@ -487,14 +484,14 @@ contract TokenNetwork is Utils {
         additional_hash 为了辅助实现用
         signature partner 的签名
     */
-    /// @notice  function to close currently-opened payment channel.
-    /// @dev     It has to be invoked only once, and operator must be channel participants.
-    /// @param partner              participant at the other side of this channel.
-    /// @param transferred_amount   the amount of tokens partner has transferred.
-    /// @param locksroot            transaction set of partner that has been completed.
-    /// @param nonce               transaction serial numbers from partner
-    /// @param additional_hash      auxiliary hash for implementation.
-    /// @param signature            signature from partner
+    /// @notice function to close a payment channel with balance proof from his channel counterpart.
+    /// @dev It can be invoked merely when channel state is open, and only by channel participants and only once.
+    /// @param partner              The address of channel partner.
+    /// @param transferred_amount   The amount of tokens that partner has been transferred till now.
+    /// @param locksroot            The set of incomplete transfers that have been hash locked in partner's balanceproof.
+    /// @param nonce                The newest serial number for partner's transfer.
+    /// @param additional_hash      A hash value for auxiliary usage.
+    /// @param signature            Partner's signature.
     function closeChannel(
         address partner,
         uint256 transferred_amount,
@@ -549,17 +546,17 @@ contract TokenNetwork is Utils {
         partner_signature partner 一方对于给出证据的签名
         participant_signature 委托人对于委托的签名
     */
-    /// @notice function to offer delegation service to update BalanceProof of partner onto the chain.
-    /// @dev    This is a delegation function so that anyone in this network
-    /// @dev    including not not limited to channel participants can invoke it, even multiple times.
-    /// @param partner                  one whose BalanceProof needs to be updated.
-    /// @param participant              one that delegate another node to update partner's BalanceProof.
-    /// @param transferred_amount       the amount of tokens transferred directly.
-    /// @param locksroot                transaction set that partner has not completed yet.
-    /// @param nonce                   transaction serial number of partner.
-    /// @param additional_hash          auxiliary information
-    /// @param partner_signature        signature from partner
-    /// @param participant_signature    signature from participant
+    /// @notice function to delegate update BalanceProof.
+    /// @dev Anyone can invoke it with multiple times only if it is within channel lifecycle.
+    /// @dev It is mainly used to update balance proof of the channel partner.
+    /// @param partner                  The address for whose balance proof is about to get updated.
+    /// @param participant              The address for who delegates to update his partner's balance proof.
+    /// @param transferred_amount       The amount of tokens from partner that he has been transferred.
+    /// @param locksroot                The set of incomplete transfers from partner that have been hash locked.
+    /// @param nonce                    The serial number of transfer from partner till now.
+    /// @param additional_hash          A hash value mainly used as an auxiliary feature.
+    /// @param partner_signature        The signature of partner
+    /// @param participant_signature    The signature of participant
     function updateBalanceProofDelegate(
         address partner,
         address participant,
@@ -621,15 +618,14 @@ contract TokenNetwork is Utils {
         additional_hash 实现辅助信息
         partner_signature partner 一方对于给出证据的签名
    */
-    /// @notice function to update BalanceProof of the other channel participant.
-    /// @dev    only channel participants can invoke this function,
-    /// @dev    and within valid period, it can be invoked multiple times.
-    /// @param partner              one whose BalanceProof needs to be updated.
-    /// @param transferred_amount   the amount of tokens transferred directly.
-    /// @param locksroot            the set of incomplete transactions of partner.
-    /// @param nonce               transaction serial number given by partner.
-    /// @param additional_hash      auxiliary information
-    /// @param partner_signature    signature of partner
+    /// @notice function to update channel partner's balance proof.
+    /// @dev It can be invoked merely by channel participants with multiples times if in channel lifecycle.
+    /// @param partner              The address whose balance proof is about to get updated.
+    /// @param transferred_amount   The amount of tokens that has been transferred from partner.
+    /// @param locksroot            The set of transfers that has been hash locked.
+    /// @param nonce                The serial number of transfers that partner has sent out.
+    /// @param additional_hash      The hash value used for auxiliary usage.
+    /// @param partner_signature    The signature of channel partner.
     function updateBalanceProof(
         address partner,
         uint256 transferred_amount,
@@ -675,17 +671,17 @@ contract TokenNetwork is Utils {
         merkle_proof: 证明此锁包含在 locksroot 中
         participant_signature: 委托第三方的签名
     */
-    /// @notice function to unlock delegation service.
-    /// @dev    Anyone in this network has ability to invoke it, with possibility that node receiving delegate
-    /// @dev    and participant collude to steal tokens in it.
-    /// @param  partner                 one that corresponds to participant in this channel, whose transaction has not completed yet.
-    /// @param  participant             one that delegate services in the channel.
-    /// @param  transferred_amount      the amount of tokens transferred directly from partner.
-    /// @param  expiration arg
-    /// @param  amount arg
-    /// @param  secret_hash arg
-    /// @param  merkle_proof            verify that this lock is contained in locksroot.
-    /// @param  participant_signature   signature from delegation service.
+    /// @notice function to delegate unlock service.
+    /// @dev Anyone can invoke it with multiple times. For the reason that possibilities exists for collusion between any third-party and channel partner
+    /// @dev which leads to token loss of channel participant, so we need signature of participant.
+    /// @param  partner                 The address whose transfer has not been completed.
+    /// @param  participant             The address of delegation initiator.
+    /// @param  transferred_amount      The amount of tokens that partner has been sent out.
+    /// @param  expiration              The block number at which this transfer gets expired.
+    /// @param  amount                  The amount of tokens this transfer plans to send.
+    /// @param  secret_hash             The hash value of
+    /// @param  merkle_proof            A proof to validate that transfer locks are contained in locksroot.
+    /// @param  participant_signature   The signature of participant.
     function unlockDelegate(
         address partner,
         address participant,
@@ -722,13 +718,14 @@ contract TokenNetwork is Utils {
         expiration,amount,secret_hash: 交易中未彻底完成的锁
         merkle_proof: 证明此锁包含在 locksroot 中
     */
-    /// @notice function to unlock the time hash lock within a transfer.
-    /// @param partner arg
-    /// @param transferred_amount arg
-    /// @param expiration arg
-    /// @param amount arg
-    /// @param secret_hash arg
-    /// @param merkle_proof arg
+    /// @notice function to unlock transfers in payment channels.
+    /// @dev It can be invoked merely by channel participants and prior to channel settle, and the channel state must be closed.
+    /// @param partner                  The address of a channel participant whose some transfers have not been finished.
+    /// @param transferred_amount       The amount of tokens that partner has been sent out.
+    /// @param expiration               The block number at which this transfer gets expired.
+    /// @param amount                   The amount of tokens that this transfer plans to send.
+    /// @param secret_hash              The hash value for the secret
+    /// @param merkle_proof             A proof to validate that this transfer has been contained in locksroot.
     function unlock(
         address partner,
         uint256 transferred_amount,
@@ -741,7 +738,7 @@ contract TokenNetwork is Utils {
         unlockInternal(partner, msg.sender, transferred_amount, expiration, amount, secret_hash, merkle_proof);
     }
 
-    ///
+
     function unlockInternal(
         address partner,
         address participant,
@@ -812,7 +809,13 @@ contract TokenNetwork is Utils {
         additional_hash 实现辅助信息
         cheater_signature 不诚实一方对于放弃此锁的签名
     */
-    ///
+    /// @notice function to punish fraudulent behaviors of updating obsolete unlock.
+    /// @dev It leaves a certain amount of block time at which ones can submit fraud proof to request for punishment.
+    /// @param beneficiary          The address of the channel participate who will receive punishment reward.
+    /// @param cheater              The address of who submits obsolete unlock message on-chain.
+    /// @param lockhash             A hash lock denoting that specific fraudulent transfer.
+    /// @param additional_hash      A hash value mainly as an auxiliary usage.
+    /// @param cheater_signature    The signature of cheater.
     function punishObsoleteUnlock(
         address beneficiary,
         address cheater,
@@ -870,7 +873,14 @@ contract TokenNetwork is Utils {
         participant1_transferred_amount,participant2_transferred_amount: 双方给出的直接转账金额
         participant1_locksroot,participant2_locksroot 双方的未彻底完成交易集合
     */
-    ///
+    /// @notice function to process channel settle.
+    /// @dev Anyone can invoke it, but only once, the purpose of which is to refund channel balance into accounts.
+    /// @param participant1                     The address of one of the channel participant
+    /// @param participant1_transferred_amount  The amount of tokens transferred by participant1 till now.
+    /// @param participant1_locksroot           The set of incomplete transfers that have been hash locked from participant1.
+    /// @param participant2                     The address of the other channel participant
+    /// @param participant2_transferred_amount  The amount of tokens transferred by participant2 till now.
+    /// @param participant2_locksroot           The set of incomplete transfers that have been hash locked from participant2.
     function settleChannel(
         address participant1,
         uint256 participant1_transferred_amount,
@@ -966,7 +976,14 @@ contract TokenNetwork is Utils {
         participant1_balance,participant2_balance:双方关于金额的分配方案
         participant1_signature,participant2_signature 双方对于分配方案的签名
     */
-    ///
+    /// @notice function to process cooperative settle, that is, to refund tokens into accounts of both parties.
+    /// @dev Anyone can invoke it but merely once.
+    /// @param participant1             The address of one of the channel participant
+    /// @param participant1_balance     The amount of tokens that remained in channel for participant1
+    /// @param participant2             The address of the other channel participant
+    /// @param participant2_balance     The amount of tokens that remained in channel for participant2
+    /// @param participant1_signature   The signature of participant1
+    /// @param participant2_signature   The signature of participant2
     function cooperativeSettle(
         address participant1,
         uint256 participant1_balance,
@@ -1032,7 +1049,10 @@ contract TokenNetwork is Utils {
         emit ChannelCooperativeSettled(channel_identifier, participant1_balance, participant2_balance);
     }
 
-    /// @notice create a 32-byte channel identifier.
+    /// @notice internal function to get channel_identifier
+    /// @param participant1 The address of one of the channel participant
+    /// @param participant2 The address of the other channel participant
+    /// @return a 32-byte long channel identifier
     function getChannelIdentifier(address participant1, address participant2) view internal returns (bytes32){
         if (participant1 < participant2) {
             return keccak256(abi.encodePacked(participant1, participant2, address(this)));
@@ -1041,7 +1061,10 @@ contract TokenNetwork is Utils {
         }
     }
 
-    ///
+    /// @notice internal function to calculate balance hash.
+    /// @param transferred_amount   The amount of tokens for a channel participant that he has sent out.
+    /// @param locksroot            The set of incomplete transfers for a channel participant that has been hash locked.
+    /// @return a 24-byte long value of balance hash.
     function calceBalanceHash(uint256 transferred_amount, bytes32 locksroot) pure internal returns (bytes24){
         if (locksroot == 0 && transferred_amount == 0) {
             return 0;
@@ -1049,7 +1072,10 @@ contract TokenNetwork is Utils {
         return bytes24(keccak256(abi.encodePacked(locksroot, transferred_amount)));
     }
 
-    ///
+    /// @notice function to get this channel's information.
+    /// @param participant1     The address of one of the channel participant
+    /// @param participant2     The address of the other channel participant
+    /// @return a set of five values respectively denoting channel_identifier, settle_block_number, open_block_number, channel_state, settle_timeout.
     function getChannelInfo(address participant1, address participant2)
     view
     external
@@ -1069,7 +1095,9 @@ contract TokenNetwork is Utils {
         );
     }
 
-    ///
+    /// @notice alternative function to get channel information via channel_identifier
+    /// @param channel_identifier   a 32-byte long value passed as a channel_identifier
+    /// @return a set of five values respectively denoting channel_identifier, settle_block_number, open_block_number, channel_state and settle_timeout.
     function getChannelInfoByChannelIdentifier(bytes32 channel_identifier)
     view
     external
@@ -1086,7 +1114,10 @@ contract TokenNetwork is Utils {
         );
     }
 
-    ///
+    /// @notice function to get participant information of this channel.
+    /// @param participant  The address for one whose information will be returned.
+    /// @param partner      The address of the counterpart of participant.
+    /// @return a triple set respectively denoting deposit, balance_hash, and nonce for participant.
     function getChannelParticipantInfo(address participant, address partner)
     view
     external
@@ -1104,6 +1135,11 @@ contract TokenNetwork is Utils {
         );
     }
 
+    /// @notice an auxiliary funtion to query an unlocked transfer.
+    /// @param participant  The address of one of the channel participant.
+    /// @param partner      The address of the other channel participant.
+    /// @param lockhash     The 32-byte long hash for this transfer.
+    /// @return a boolean value denoting the state for that unlocked transfer.
     function queryUnlockedLocks(address participant, address partner, bytes32 lockhash)
     view
     external
