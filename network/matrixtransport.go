@@ -170,7 +170,7 @@ func (mtr *MatrixTransport) Start() {
 	mtr.matrixcli.Syncer = matrixcomm.NewDefaultSyncer(mtr.UserID, store)
 	syncer := mtr.matrixcli.Syncer.(*matrixcomm.DefaultSyncer)
 
-	syncer.OnEventType("network.raiden.rooms", mtr.onHandleAccountData)
+	syncer.OnEventType("network.smartraiden.rooms", mtr.onHandleAccountData)
 
 	syncer.OnEventType("m.room.message", mtr.onHandleReceiveMessage)
 
@@ -209,7 +209,7 @@ func (mtr *MatrixTransport) Start() {
 */
 //onHandleReceiveMessage push the message of some one send "account_data"
 func (mtr *MatrixTransport) onHandleAccountData(event *matrixcomm.Event) {
-	if mtr.stopreceiving|| event.Type != "network.raiden.rooms"{
+	if mtr.stopreceiving|| event.Type != "network.smartraiden.rooms"{
 		return
 	}
 	userid := event.Sender
@@ -887,7 +887,7 @@ func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid str
 			delete(mtr.Address2Room, addressHex)
 		}
 	//}
-	err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.raiden.rooms", mtr.Address2Room)
+	err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.smartraiden.rooms", mtr.Address2Room)
 	return
 }
 
@@ -967,7 +967,7 @@ const (
 	// UNKNOWN or other state -unknown
 	UNKNOWN     = "unknown"
 	// ROOMPREFIX room prefix
-	ROOMPREFIX  = "raiden"
+	ROOMPREFIX  = "smartraiden"
 	// ROOMSEP with ',' to separate room name's part
 	ROOMSEP     = "_"
 	// PATHPREFIX0 the lastest matrix client api version
