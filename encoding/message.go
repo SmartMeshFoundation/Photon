@@ -545,7 +545,7 @@ func (m *EnvelopMessage) signData(datahash common.Hash) []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("144"))
+	_, err = buf.Write([]byte(params.ContractBalanceProofMessageLength))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.TransferAmount))
 	_, err = buf.Write(m.Locksroot[:])
 	err = binary.Write(buf, binary.BigEndian, m.Nonce)
@@ -1043,7 +1043,7 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	buf := new(bytes.Buffer)
 	lockhash := m.Lock.Hash()
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("136"))
+	_, err = buf.Write([]byte(params.ContractDisposedProofMessageLength))
 	_, err = buf.Write(lockhash[:])
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
@@ -1276,7 +1276,7 @@ func (m *WithdrawRequest) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("156"))
+	_, err = buf.Write([]byte(params.ContractWithdrawProofMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
@@ -1411,7 +1411,7 @@ func (m *WithdrawResponse) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("156"))
+	_, err = buf.Write([]byte(params.ContractWithdrawProofMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
@@ -1544,7 +1544,7 @@ func (m *SettleRequest) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("176"))
+	_, err = buf.Write([]byte(params.ContractCooperativeSettleMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(m.Participant2[:])
@@ -1681,7 +1681,7 @@ func (m *SettleResponse) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte("176"))
+	_, err = buf.Write([]byte(params.ContractCooperativeSettleMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(m.Participant2[:])
