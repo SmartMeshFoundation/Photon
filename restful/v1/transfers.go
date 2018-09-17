@@ -62,6 +62,11 @@ func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 Transfers is the api of /transfer/:token/:partner
 */
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
+	// 用户调用了prepare-update,暂停接收新交易
+	if RaidenAPI.Raiden.StopCreateNewTransfers {
+		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
+		return
+	}
 	token := r.PathParam("token")
 	tokenAddr, err := utils.HexToAddress(token)
 	if err != nil {

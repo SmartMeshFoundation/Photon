@@ -123,6 +123,7 @@ type RaidenService struct {
 	HealthCheckMap                        map[common.Address]bool
 	quitChan                              chan struct{} //for quit notification
 	isStarting                            bool
+	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 }
@@ -161,6 +162,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		HealthCheckMap:                        make(map[common.Address]bool),
 		quitChan:                              make(chan struct{}),
 		isStarting:                            true,
+		StopCreateNewTransfers:                false,
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 	}

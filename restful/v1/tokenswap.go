@@ -25,6 +25,11 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	       "receiving_token": "0x2a65aca4d5fc5b5c859090a6c34d164135398226"
 	   }
 	*/
+	// 用户调用了prepare-update,暂停接收新交易
+	if RaidenAPI.Raiden.StopCreateNewTransfers {
+		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
+		return
+	}
 	type Req struct {
 		Role            string   `json:"role"`
 		SendingAmount   *big.Int `json:"sending_amount"`
