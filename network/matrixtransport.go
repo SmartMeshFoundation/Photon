@@ -261,12 +261,12 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 	err = mtr.setRoomID2Address(peerAddress, roomID)
 
 	if _, ok = mtr.Address2User[peerAddress]; !ok {
-		return
+		//return
 	}
 
 	data, ok := event.Body()
 	if !ok || len(data) < 2 {
-		return
+		//return
 	}
 
 	//message :=[]byte{}
