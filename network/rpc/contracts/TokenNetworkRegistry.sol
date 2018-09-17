@@ -4,8 +4,8 @@ import "./Utils.sol";
 import "./Token.sol";
 import "./TokenNetwork.sol";
 
-/// @title contract to register a TokenNetwork.
-/// @notice arg
+/// @title TokenNetworkRegistry
+/// @notice the contract to register the TokenNetwork.
 contract TokenNetworkRegistry is Utils {
 
     string constant public contract_version = "0.4._";
