@@ -4,6 +4,8 @@ import "./Utils.sol";
 import "./Token.sol";
 import "./TokenNetwork.sol";
 
+/// @title TokenNetworkRegistry
+/// @notice the contract to register the TokenNetwork.
 contract TokenNetworkRegistry is Utils {
 
     /*
@@ -26,6 +28,7 @@ contract TokenNetworkRegistry is Utils {
     /*
      *  Constructor
      */
+
 
     constructor(address _secret_registry_address, uint256 _chain_id) public {
         require(_chain_id > 0);

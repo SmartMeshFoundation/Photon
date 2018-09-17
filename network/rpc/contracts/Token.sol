@@ -35,6 +35,10 @@ interface Token {
     /*
     ERC20 扩展
     */
+    /// @notice an ERC20-compatible interface.
+    /// @param _spender The address of the account able to transfer the tokens.
+    /// @param _amount  The amount of tokens to be transferred.
+    /// @return success a boolean value denoting that this function operates successfully.
     function approveAndCall(address _spender, uint256 _amount, bytes _extraData) public returns (bool success);
     /*
     ERC223 非标准
