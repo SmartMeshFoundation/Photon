@@ -399,14 +399,12 @@ contract TokenNetwork is Utils {
     /// @notice function to withdraw tokens while channel state is open. Anyone can invoke it.
     /// @dev Once a participant proposes to withdraw, which has the same effect as cooperative settle, that is, any transfer are forbidden.
     /// @dev After withdraw completes, transfers are able to resume.
-    /// @param participant1             The address for a channel participant
-    /// @param participant1_balance     The token balance of participant1
-    /// @param participant1_withdraw    The amount of tokens that participant1 needs to withdraw
-    /// @param participant2             The address for the counterparts of participate1
-    /// @param participant2_balance     The token balance of participant2
-    /// @param participant2_withdraw    The amount of tokens that participant2 needs to withdraw
-    /// @param participant1_signature   The signature of participant1
-    /// @param participant2_signature   The signature of participant2
+    /// @param participant              The address for a channel participant
+    /// @param partner                  The address for the counterparts of participate
+    /// @param participant_balance      The token balance of participant
+    /// @param participant_withdraw     The amount of tokens that participant needs to withdraw
+    /// @param participant_signature    The signature of participant
+    /// @param partner_signature        The signature of partner
     function withDraw(
         address participant,
         address partner,
