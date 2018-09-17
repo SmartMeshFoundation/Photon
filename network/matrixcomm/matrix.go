@@ -207,6 +207,33 @@ func (mcli *MatrixClient) GetPresenceState(userid string) (resp *RespPresenceUse
 
 // SetAccountData user/{userId}/account_data/{type}
 func (mcli *MatrixClient) SetAccountData(userid, xtype string, req *ReqAccountData) (err error) {
+	/*
+	func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullState bool, setPresence string) (resp *RespSync, err error) {
+	query := map[string]string{
+		"timeout": strconv.Itoa(timeout),
+	}
+	if since != "" {
+		query["since"] = since
+	}
+	if filterID != "" {
+		query["filter"] = filterID
+	}
+	if setPresence != "" {
+		query["set_presence"] = setPresence
+	}
+	if fullState {
+		query["full_state"] = "true"
+	}
+	urlPath := mcli.BuildURLWithQuery([]string{"sync"}, query)
+	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
+	return
+}
+	*/
+/*	query:=map[string]string{
+
+	}
+
+	urlPath:=mcli.BuildURLWithQuery()*/
 	urlPath := mcli.BuildURL("user", userid, "account_data", xtype) //"network0.smatrraiden.rooms"
 	_, err = mcli.MakeRequest("PUT", urlPath, req, nil)
 	return
