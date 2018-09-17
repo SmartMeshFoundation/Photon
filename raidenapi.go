@@ -852,7 +852,7 @@ type punish struct {
 //ChannelFor3rd is for 3rd party to call update transfer
 type ChannelFor3rd struct {
 	ChannelIdentifier  common.Hash    `json:"channel_identifier"`
-	OpenBlockNumer     int64          `json:"open_block_number"`
+	OpenBlockNumber    int64          `json:"open_block_number"`
 	TokenNetworkAddrss common.Address `json:"token_network_address"`
 	PartnerAddress     common.Address `json:"partner_address"`
 	UpdateTransfer     updateTransfer `json:"update_transfer"`
@@ -871,7 +871,7 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash,
 	}
 	c3 := new(ChannelFor3rd)
 	c3.ChannelIdentifier = ChannelIdentifier
-	c3.OpenBlockNumer = c.ChannelIdentifier.OpenBlockNumber
+	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 	c3.TokenNetworkAddrss = r.Raiden.Token2TokenNetwork[c.TokenAddress()]
 	c3.PartnerAddress = c.PartnerAddress()
 	if c.PartnerBalanceProof == nil {
