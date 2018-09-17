@@ -113,7 +113,7 @@ func (mcli *MatrixClient) Sync() error {
 	}
 
 	for {
-		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
+		resSync, err := mcli.SyncRequest(2000, nextBatch, filterID, false, "online")
 		//fmt.Println(time.Now().Format("2006/1/2 15:04:05"),filterID,  "\t",nextBatch)
 		if err != nil {
 			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)

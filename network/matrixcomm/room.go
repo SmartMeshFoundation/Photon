@@ -1,9 +1,5 @@
 package matrixcomm
 
-import (
-	"fmt"
-)
-
 // Room represents a single Matrix room.
 type Room struct {
 	ID    string
@@ -41,9 +37,6 @@ func (room Room) GetMembershipState(userID string) string {
 				state = mState
 			}
 		}
-	}
-	if state !="leave"{
-		fmt.Println(userID,":")
 	}
 	return state
 }

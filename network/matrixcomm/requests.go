@@ -8,8 +8,9 @@ type ReqUserSearch struct {
 
 //ReqAccountData is the JSON request for AccountData
 type ReqAccountData struct {
-	Addresshex string
-	Roomid     []string
+	//Addresshex string
+	//Roomid     []string
+	AccountData map[string]interface{} `json:"account_data"`
 }
 
 //ReqPresenceUser is the JSON request for PresenceUser

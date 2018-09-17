@@ -32,7 +32,8 @@ func NewDefaultSyncer(userID string, store Storer) *DefaultSyncer {
 
 // notifyListeners as a callback and notify listener
 func (s *DefaultSyncer) notifyListeners(event *Event) {
-	listeners, exists := s.listeners[event.Type]
+	tmpEventType:=event.Type
+	listeners, exists := s.listeners[tmpEventType]
 	if !exists {
 		return
 	}
@@ -152,7 +153,7 @@ func (s *DefaultSyncer) getOrCreateRoom(roomID string) *Room {
 
 // OnFailedSync always returns a 5 second wait period between failed /syncs, never a fatal error.
 func (s *DefaultSyncer) OnFailedSync(res *RespSync, err error) (time.Duration, error) {
-	return 5 * time.Second, nil
+	return 2 * time.Second, nil
 }
 
 // GetFilterJSON returns a filter with a timeline limit of 50.
