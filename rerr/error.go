@@ -159,3 +159,6 @@ func TransactionThrew(txName string, receipt *types.Receipt) error {
 
 //ErrTransferTimeout  timeout error
 var ErrTransferTimeout = errors.New("TransferTimeout")
+
+// ErrStopCreateNewTransfer reject new transactions
+var ErrStopCreateNewTransfer = errors.New("new transactions are not allowed")

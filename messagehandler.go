@@ -286,6 +286,10 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 没有相关的 StateManager, 直接更新通道并保持 ack
 */
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
+	// 用户调用了prepare-update,暂停接收新交易
+	if mh.raiden.StopCreateNewTransfers {
+		return rerr.ErrStopCreateNewTransfer
+	}
 	//mh.balanceProof(msg)
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
@@ -331,6 +335,10 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 todo 需要设计如何保存 token swap 相关数据,并在崩溃恢复以后保证原子性.
 */
 func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
+	// 用户调用了prepare-update,暂停接收新交易
+	if mh.raiden.StopCreateNewTransfers {
+		return rerr.ErrStopCreateNewTransfer
+	}
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
 		//todo what about return a AnnounceDisposed Message ?

@@ -33,6 +33,10 @@ func Start() {
 	router, err := rest.MakeRouter(
 
 		/*
+			prepare update
+		*/
+		rest.Post("/api/1/prepare-update", PrepareUpdate),
+		/*
 			transfers
 		*/
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
