@@ -23,6 +23,8 @@ type SecretRegistryProxy struct {
 }
 
 //RegisterSecret register secret on chain 有可能被重复调用,但是保证不会并发注册同一个密码
+// RegisterSecret : function to register a secret on-chain.
+// This function can be repeatedly invoked, and ensure that there is no case that the same secret can be registered concurrently.
 func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	s.lock.Lock()
 	sp := s.RegisteredSecret[secret]
@@ -58,6 +60,7 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 }
 
 //RegisterSecretAsync 异步注册一个密码
+// RegisterSecretAsync : function to register a secret asynchronously.
 func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
@@ -68,6 +71,7 @@ func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *u
 }
 
 //IsSecretRegistered 密码是否在合约上注册过,注册地址对不对
+// IsSecretRegistered : function to check whether this secret has been registered on chain, and whether the address is correct
 func (s *SecretRegistryProxy) IsSecretRegistered(secret common.Hash) (bool, error) {
 	blockNumber, err := s.registry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err != nil {

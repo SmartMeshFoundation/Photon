@@ -46,6 +46,12 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 Send message
 优先选择局域网,在局域网走不通的情况下,才会考虑 xmpp
 */
+/*
+ *	Send : function to send out messages.
+ *
+ *	Note that this function prefers to choose local network, once local network does not work,
+ * 	then it chooses xmpp.
+ */
 func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
 	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {

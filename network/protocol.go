@@ -210,6 +210,12 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 	当channel被移除后,可以安全的移除待发送的消息,否则会导致新channel无法使用
 	(之前的实现是交易中的锁过期后移除,但这可能会导致通道双方状态不同步)
 */
+/*
+ *	messageCanBeSent : function to check MediatedTransfer can be discarded securely when channel no long exists.
+ *
+ *	Note that once this channel gets removed, those pending message should also be securely removed,
+ *	or new channel can't be created.
+ */
 func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
 	if channelIdentifier != utils.EmptyHash {
 		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)

@@ -16,6 +16,11 @@ import (
 3. 收到 RevealSecretOnChain 要判断是否需要发送 Unlock 消息
 4. 收到 unlock 消息,移除响应的锁.
 */
+// This piece of code only process two things
+// 1. all locks sent by me should send `RemoveExpiredLock` after expired.
+// 2. Every transfer I receive from my partner, if secret is known, I should register this secret before expiration.
+// 3. Once received RevealSecretOnChain, we need to check whether we should send Unlock.
+// 4. Once received unlock message, we should remove relevant lock.
 
 //NameCrashNodeTransition name for state manager
 const NameCrashNodeTransition = "CrashTransition"
@@ -31,6 +36,9 @@ make sure not call this when transfer already finished , state is nil means fini
 1. 如果过期,直接忽略,标记为已经处理
 2. 如果我知道密码,并且快要过期,那么应该去链上注册密码
 */
+/*
+ *	handleBlock : function to handle
+ */
 func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
 	var removedSentIndex []int
