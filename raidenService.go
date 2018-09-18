@@ -18,6 +18,8 @@ import (
 
 	"runtime/debug"
 
+	"context"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -193,10 +195,24 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 			return
 		}
 		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
+		// 获取ChainID并保存在数据库
+		var chainID *big.Int
+		chainID, err = rs.Chain.Client.NetworkID(context.Background())
+		if err != nil {
+			return
+		}
+		params.ChainID = chainID
+		rs.db.SaveChainID(chainID.Int64())
 	} else {
 		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
 		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
 		if rs.SecretRegistryAddress == utils.EmptyAddress {
+			err = fmt.Errorf("first startup without ethereum rpc connection")
+			return
+		}
+		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
+		params.ChainID = big.NewInt(rs.db.GetChainID())
+		if params.ChainID == big.NewInt(0) {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}
