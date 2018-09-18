@@ -480,6 +480,10 @@ func (a *API) SwitchNetwork(isMesh bool) {
 /*
 UpdateMeshNetworkNodes 同一个局域网内优先
 */
+/*
+ *	UpdateMeshNetworkNodes : function to update all nodes in MeshNetwork.
+ *	Nodes within the same local network have higher priority.
+ */
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api UpdateMeshNetworkNodes nodesstr=%s,out err=%v", nodesstr, err))
@@ -564,13 +568,19 @@ type NotifyHandler interface {
 }
 
 /*
-关于状态汇报,为了脱耦,单独放到一个包中,使用 channel 通信,
+Subscribe : 关于状态汇报,为了脱耦,单独放到一个包中,使用 channel 通信,
 为了防止写阻塞,可以通过 select 写入.
 向 panic一样,每次重新初始化
 尽量避免 启动 go routine
 如果要新创建Raiden 实例,必须调用 sub.Unsubscribe, 否则肯定会发生内存泄漏
 */
-
+/*
+ *	Subscribe : As to Status Notification, we put these codebase into an individual package
+ *	and use channel to communication.
+ * 	To avoid write block, we can write data through select.
+ *	We should make effort to avoid start go routine.
+ *  If there's need to create a new Raiden instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
+ */
 // Subscribe notifications about the current blockchain head
 // on the given channel.
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
