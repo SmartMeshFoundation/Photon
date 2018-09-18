@@ -76,8 +76,8 @@ func (node *EndState) locksRoot() common.Hash {
 //SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
 	// amount 为0,只有一种情况就是发生了 punish 事件
-	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
-		panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
+	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) < 0 {
+		log.Error(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
 			amount,
 			node.BalanceProofState.TransferAmount,
 		))
