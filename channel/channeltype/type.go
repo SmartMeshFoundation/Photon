@@ -189,6 +189,11 @@ func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
 
 //MinExpiration 返回对方所有锁中,
 // 知道密码过期时间最小的那个,如果已经超过了 expiration,忽略就可.
+/*
+ *	MinExpiration : return the block number of all locks in channel partner
+ * 		which is closest to `expiration` of knownsecrets
+ *		if none, return 0.
+ */
 func (s *Serialization) MinExpiration(blockNumber int64) int64 {
 	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
 	var min int64
