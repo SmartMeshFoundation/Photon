@@ -8,8 +8,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/matrixcomm"
@@ -18,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"sort"
 )
 
 // MatrixTransport represents a matrix transport Instantiation
@@ -97,8 +98,8 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 		isOnline=true//只有online的时候才会返回staus_msg(deviceType)
 		deviceType=mtr.AddressToPresence[addr].StatusMsg
 	}*/
-	deviceType=mtr.UseDeviceType//just test
-	isOnline=true
+	deviceType = mtr.UseDeviceType //just test
+	isOnline = true
 	//在invite被查询节点到presence list的前提下可查询任何联盟服务器上的user presence
 	//以上代码不能获取deviceType,通过/presence/list来处理（如果节点在线，会多返回一个status_msg（装载有deviceType）,
 	//通过{userid}/presence也能查阅,可扩展（/presence/list）同时查多个节点的状态
@@ -111,12 +112,12 @@ func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error
 	if !mtr.running || len(data) == 0 {
 		return fmt.Errorf("[Matrix]Send failed,matrix not running or send data is null")
 	}
-	room, err:= mtr.getRoom2Address(receiverAddr)
-	if err !=nil || room==nil {
+	room, err := mtr.getRoom2Address(receiverAddr)
+	if err != nil || room == nil {
 		return fmt.Errorf("[Matrix]Send failed,cann't find the peer address")
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
-	resp,err := mtr.matrixcli.SendText(room.ID, _data)
+	resp, err := mtr.matrixcli.SendText(room.ID, _data)
 	if err != nil {
 		log.Trace(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 		fmt.Println(resp)
@@ -138,10 +139,10 @@ func (mtr *MatrixTransport) Start() {
 		return
 	}
 	mtr.running = true
-	mtr.stopreceiving=false
+	mtr.stopreceiving = false
 	//health-check,功能之一即是寻找本节点曾经加入的room（非公开room的流程?）
-	err:=mtr.nodeHealthCheck(mtr.NodeAddress)
-	if err!=nil{
+	err := mtr.nodeHealthCheck(mtr.NodeAddress)
+	if err != nil {
 		return
 	}
 
@@ -176,7 +177,7 @@ func (mtr *MatrixTransport) Start() {
 
 	syncer.OnEventType("m.presence", mtr.onHandlePresenceChange)
 
-	syncer.OnEventType("m.room.member",mtr.onHandleMemberShipChange)
+	syncer.OnEventType("m.room.member", mtr.onHandleMemberShipChange)
 
 	go func() {
 		/*for {*/
@@ -184,7 +185,7 @@ func (mtr *MatrixTransport) Start() {
 			log.Error("[Matrix] transport failed")
 		}
 		/*	time.Sleep(time.Second * 5)
-		}*/
+			}*/
 	}()
 
 	log.Trace("[Matrix] transport started")
@@ -209,19 +210,20 @@ func (mtr *MatrixTransport) Start() {
 */
 //onHandleReceiveMessage push the message of some one send "account_data"
 func (mtr *MatrixTransport) onHandleAccountData(event *matrixcomm.Event) {
-	if mtr.stopreceiving|| event.Type != "network.smartraiden.rooms"{
+	if mtr.stopreceiving || event.Type != "network.smartraiden.rooms" {
 		return
 	}
 	userid := event.Sender
 	if userid == mtr.UserID {
 		return
 	}
-	value, exist:= event.ViewContent("account_data")
+	value, exist := event.ViewContent("account_data")
 	if exist && value != "" {
 
 	}
 	//fmt.Println("+++",event)
 }
+
 // onHandleReceiveMessage handle text messages sent to listening rooms
 func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 	if mtr.stopreceiving || event.Type != "m.room.message" {
@@ -241,7 +243,7 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 	tmpuser := &matrixcomm.UserInfo{
 		UserID: senderID,
 	}
-	user, err := mtr.standardizedUser(tmpuser)
+	user, err := mtr.verifyAndUpdateUserCache(tmpuser)
 	if err != nil {
 		return
 	}
@@ -277,40 +279,40 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 
 	} else {*/
 
-		/*//解析json数据
-		message,err=hexutil.Decode(data)
-		if err!=nil{}
-		if !json.Valid(message){
-			log.Warn(fmt.Sprintf("Message data JSON are not a valid message,message_data=%s,peer_address=%s",data,peerAddress.String()))
-			return
-		}
+	/*//解析json数据
+	message,err=hexutil.Decode(data)
+	if err!=nil{}
+	if !json.Valid(message){
+		log.Warn(fmt.Sprintf("Message data JSON are not a valid message,message_data=%s,peer_address=%s",data,peerAddress.String()))
+		return
+	}
 
-		//ping
-		bytesHead:=encoding.MessageType(message[0])
-		if bytesHead==1{
-			if senderID!=hexutil.Encode(peerAddress.Bytes()){
-				log.Warn(fmt.Sprintf("Not required Ping received,message=%s",data))
-				return
-			}
-		}
-		//or signedmessage
+	//ping
+	bytesHead:=encoding.MessageType(message[0])
+	if bytesHead==1{
 		if senderID!=hexutil.Encode(peerAddress.Bytes()){
-			log.Warn(fmt.Sprintf("Receive message from a user without legala displayName signature,peer_user=%s,room=%s",user.UserID,roomID))
-			return
-		}*/
-
-		msgSender, err := extractUserLocalpart(senderID)
-		if err != nil {
+			log.Warn(fmt.Sprintf("Not required Ping received,message=%s",data))
 			return
 		}
-		dataContent, err := base64.StdEncoding.DecodeString(data)
-		if err != nil {
-			log.Error(fmt.Sprintf("[Matrix]Receive unkown message %s", utils.StringInterface(event, 5)))
-		} else {
-			mtr.HandleMessage(common.HexToAddress(msgSender), dataContent)
-			log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]), utils.APex2(common.HexToAddress(msgSender))))
+	}
+	//or signedmessage
+	if senderID!=hexutil.Encode(peerAddress.Bytes()){
+		log.Warn(fmt.Sprintf("Receive message from a user without legala displayName signature,peer_user=%s,room=%s",user.UserID,roomID))
+		return
+	}*/
 
-		}
+	msgSender, err := extractUserLocalpart(senderID)
+	if err != nil {
+		return
+	}
+	dataContent, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		log.Error(fmt.Sprintf("[Matrix]Receive unkown message %s", utils.StringInterface(event, 5)))
+	} else {
+		mtr.HandleMessage(common.HexToAddress(msgSender), dataContent)
+		log.Info(fmt.Sprintf("[Matrix]Receive message %s from %s", encoding.MessageType(dataContent[0]), utils.APex2(common.HexToAddress(msgSender))))
+
+	}
 	//}
 	/*msgSender, err := extractUserLocalpart(senderID)
 	if err != nil {
@@ -337,6 +339,7 @@ func (mtr *MatrixTransport) onHandleReceiveMessage(event *matrixcomm.Event) {
 		}
 	}*/
 }
+
 // onHandleMemberShipChange Handle message when eventType==m.room.member and join all invited rooms
 func (mtr *MatrixTransport) onHandleMemberShipChange(event *matrixcomm.Event) {
 	if mtr.stopreceiving || event.Type != "m.room.member" {
@@ -350,7 +353,7 @@ func (mtr *MatrixTransport) onHandleMemberShipChange(event *matrixcomm.Event) {
 	tmpuser := &matrixcomm.UserInfo{
 		UserID: userid,
 	}
-	user, err := mtr.standardizedUser(tmpuser)
+	user, err := mtr.verifyAndUpdateUserCache(tmpuser)
 	peerAddress, err := validateUseridSignature(*user)
 	if err != nil {
 		log.Info("Got invited to a room by invalid signed user - ignoring")
@@ -384,12 +387,12 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if event.Type != "m.presence" || userid == mtr.UserID {
 		return
 	}
-	var userDisplayname= ""
+	var userDisplayname = ""
 	//从Users（cache）中读取sender的sender's displayname
-	tmpuser:=&matrixcomm.UserInfo{
-		UserID:userid,
+	tmpuser := &matrixcomm.UserInfo{
+		UserID: userid,
 	}
-	user, err := mtr.standardizedUser(tmpuser)
+	user, err := mtr.verifyAndUpdateUserCache(tmpuser)
 	if err == nil {
 		userDisplayname = user.DisplayName
 	}
@@ -424,10 +427,10 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	}
 	newstate := vValue
 	//presence status unchanged
-	if _,ok:=mtr.Userid2Presence[userid];!ok{
+	if _, ok := mtr.Userid2Presence[userid]; !ok {
 		return
 	}
-	oldstate:=mtr.Userid2Presence[userid].Presence
+	oldstate := mtr.Userid2Presence[userid].Presence
 	if newstate == oldstate {
 		return
 	}
@@ -437,7 +440,7 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 }
 
 // getUserPresence get the presence state from Userid2Presence
-func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm.RespPresenceUser,err error) {
+func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm.RespPresenceUser, err error) {
 	//如果user id 不存在与cache的UseridToPresence，则临时向服务器请求
 	if _, ok := mtr.Userid2Presence[userid]; !ok {
 		resp, err := mtr.matrixcli.GetPresenceState(userid)
@@ -446,7 +449,7 @@ func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm
 		} else { //此处获取StatusMsg(deveceType)
 			//presence.Presence = resp.Presence
 			//presence.StatusMsg = resp.StatusMsg
-			presence=resp
+			presence = resp
 
 			//更新此user id 的presence->UseridToPresence
 			mtr.Userid2Presence[userid] = presence
@@ -461,11 +464,11 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address) {
 	//一个address可能对应多个userid即多个presence
 	compositepresence := []string{}
 	tmpUserInfos := []*matrixcomm.UserInfo{}
-	if _,ok:=mtr.Address2User[address];!ok{
+	if _, ok := mtr.Address2User[address]; !ok {
 		return
 	}
-	tmpUserInfos=mtr.Address2User[address]
-	for _,v:=range tmpUserInfos{
+	tmpUserInfos = mtr.Address2User[address]
+	for _, v := range tmpUserInfos {
 		resp, err := mtr.getUserPresence(v.UserID)
 		if err != nil {
 			continue
@@ -488,11 +491,11 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address) {
 	if _, ok := mtr.AddressToPresence[address]; !ok {
 		return
 	}
-	tmpuserp:=&matrixcomm.RespPresenceUser{
-		Presence:newState,
-		UserID:tmpUserInfos[0].UserID,
+	tmpuserp := &matrixcomm.RespPresenceUser{
+		Presence: newState,
+		UserID:   tmpUserInfos[0].UserID,
 	}
-	mtr.AddressToPresence[address]=tmpuserp
+	mtr.AddressToPresence[address] = tmpuserp
 }
 
 // loginOrRegister 节点登录（如果不成功，新注册再尝试登录），节点的displayname为user ID的签名
@@ -500,25 +503,27 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 	//TODO:考虑被恶意注册的风险
 	regok := false
 	loginok := false
-	baseAddress:=crypto.PubkeyToAddress(mtr.key.PublicKey)
+	baseAddress := crypto.PubkeyToAddress(mtr.key.PublicKey)
 	baseUsername := strings.ToLower(baseAddress.String())
 
 	username := baseUsername
 	password := hexutil.Encode(mtr.dataSign([]byte(mtr.servername)))
+	//password := "12345678"
 	for i := 0; i < 5; i++ {
+		var resplogin *matrixcomm.RespLogin
 		if regok == false {
 			//rand.Seed(time.Now().UnixNano())
 			//rnd := Int32ToBytes(rand.Int31n(math.MaxInt32))
 			//username = baseUsername + "." + hex.EncodeToString(rnd)
 		}
 		mtr.matrixcli.AccessToken = ""
-		resplogin, lerr := mtr.matrixcli.Login(&matrixcomm.ReqLogin{
+		resplogin, err = mtr.matrixcli.Login(&matrixcomm.ReqLogin{
 			Type:     LOGINTYPE,
 			User:     username,
 			Password: password,
 			DeviceID: "",
 		})
-		if lerr != nil {
+		if err != nil {
 			httpErr, ok := err.(matrixcomm.HTTPError)
 			if !ok { // network error,try again
 				continue
@@ -553,7 +558,7 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 			//cache the node's and report the UserID and AccessToken to matrix
 			mtr.matrixcli.SetCredentials(resplogin.UserID, resplogin.AccessToken)
 			mtr.UserID = resplogin.UserID
-			mtr.NodeAddress=baseAddress
+			mtr.NodeAddress = baseAddress
 			loginok = true
 			break
 		}
@@ -575,7 +580,7 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		DisplayName: dispname,
 		AvatarURL:   mtr.avatarurl,
 	}
-	_, err = mtr.standardizedUser(thisUser)
+	_, err = mtr.verifyAndUpdateUserCache(thisUser)
 
 	return err
 }
@@ -605,7 +610,7 @@ func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 	hash := crypto.Keccak256(data)
 	signature, err := crypto.Sign(hash[:], mtr.key)
-	if err!=nil{
+	if err != nil {
 		return nil
 	}
 	return
@@ -693,7 +698,7 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 			DisplayName: *userdata.DisplayName,
 		}
 		//cache known users to Users
-		_, xerr := mtr.standardizedUser(&usr)
+		_, xerr := mtr.verifyAndUpdateUserCache(&usr)
 		if xerr != nil {
 		}
 		//invite them to the discovery room
@@ -709,23 +714,23 @@ func (mtr *MatrixTransport) maybeInviteUser(user matrixcomm.UserInfo) {
 		return
 	}
 	roomid := mtr.getRoomID2Address(address)
-	if roomid==""{
+	if roomid == "" {
 		return
 	}
-	room :=mtr.matrixcli.Store.LoadRoom(roomid)
-	if room==nil{
+	room := mtr.matrixcli.Store.LoadRoom(roomid)
+	if room == nil {
 		theroom := &matrixcomm.Room{
-			ID:    roomid,
+			ID: roomid,
 		}
 		mtr.matrixcli.Store.SaveRoom(theroom)
 	}
 	//room already found the invite the user
 	resp, err := mtr.matrixcli.JoinedMembers(roomid)
-	if err!=nil{
+	if err != nil {
 		return
 	}
 	//invite the user when it not in Address2Room
-	if _,exist:=resp.Joined[user.UserID];!exist{
+	if _, exist := resp.Joined[user.UserID]; !exist {
 		_, err = mtr.matrixcli.InviteUser(roomid, &matrixcomm.ReqInviteUser{
 			UserID: user.UserID,
 		})
@@ -733,20 +738,20 @@ func (mtr *MatrixTransport) maybeInviteUser(user matrixcomm.UserInfo) {
 	return
 }
 
-// getUser 把user的元素转换成UserInfo格式，先从cache的User读取 Standardized
-func (mtr *MatrixTransport) standardizedUser(user0 *matrixcomm.UserInfo) (user1 *matrixcomm.UserInfo,err error) {
+// verifyAndUpdateUserCache 把user的元素转换成UserInfo格式，先从cache的User读取 Standardized
+func (mtr *MatrixTransport) verifyAndUpdateUserCache(user0 *matrixcomm.UserInfo) (user1 *matrixcomm.UserInfo, err error) {
 	//检查user ID是否合法
 	_match := ValidUserIDRegex.MatchString(user0.UserID)
 	if _match == false {
 		user1 = nil
-		err=fmt.Errorf("user id is illegal")
+		err = fmt.Errorf("user id is illegal")
 		return
 	}
 	if _, ok := mtr.Users[user0.UserID]; !ok {
 		mtr.Users[user0.UserID] = user0
 	}
 	user1 = mtr.Users[user0.UserID]
-	err=nil
+	err = nil
 	return
 }
 
@@ -819,7 +824,7 @@ func (mtr *MatrixTransport) getRoom2Address(address common.Address) (room *matri
 	}
 	log.Info(fmt.Sprintf("channel room,peer_address=%s room=%s", addressHex, room.ID))
 	//fmt.Println(addressOfPairs)
-	if _,ok:=mtr.Address2User[address];!ok{
+	if _, ok := mtr.Address2User[address]; !ok {
 		log.Info(fmt.Sprintf("address not health checked:me=%s peer_address=%s", mtr.UserID, addressHex))
 	}
 	return
@@ -881,11 +886,11 @@ func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid str
 		return
 	}*/
 	//if roomid!=mtr.Address2Room[addressHex]{
-		if roomid!=""{
-			mtr.Address2Room[addressHex]=roomid
-		}else {
-			delete(mtr.Address2Room, addressHex)
-		}
+	if roomid != "" {
+		mtr.Address2Room[addressHex] = roomid
+	} else {
+		delete(mtr.Address2Room, addressHex)
+	}
 	//}
 	err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.smartraiden.rooms", mtr.Address2Room)
 	return
@@ -896,12 +901,16 @@ func (mtr *MatrixTransport) getRoomID2Address(address common.Address) (roomid st
 	addressHex := address.String()
 	if _, ok := mtr.Address2Room[addressHex]; !ok {
 		err := mtr.setRoomID2Address(address, "")
-		if err!=nil{}
+		if err != nil {
+		}
 		return ""
 	}
-	roomid= mtr.Address2Room[addressHex]
-	if roomid!=""{
-		mtr.setRoomID2Address(address,roomid)
+	roomid = mtr.Address2Room[addressHex]
+	if roomid != "" {
+		err := mtr.setRoomID2Address(address, roomid)
+		if err != nil {
+			log.Error(fmt.Sprintf("setRoomID2Address err %s", err))
+		}
 	}
 	//roomid="!OOMYBnlndieRuzkXtt:transport01.smartraiden.network"//test
 	return
@@ -942,7 +951,7 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 		_,xerr:=mtr.getUser(&resultx)
 		if xerr!=nil{}*/
 		tmpUserInfos = append(tmpUserInfos, &resultx)
-		mtr.standardizedUser(&resultx)
+		mtr.verifyAndUpdateUserCache(&resultx)
 	}
 
 	//刷新map(address->userids)AddressToUserids
@@ -959,34 +968,34 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 
 const (
 	// ONLINE network state -online
-	ONLINE      = "online"
+	ONLINE = "online"
 	// UNAVAILABLE state -unavailable
 	UNAVAILABLE = "unavailable"
 	// OFFLINE state -offline
-	OFFLINE     = "offline"
+	OFFLINE = "offline"
 	// UNKNOWN or other state -unknown
-	UNKNOWN     = "unknown"
+	UNKNOWN = "unknown"
 	// ROOMPREFIX room prefix
-	ROOMPREFIX  = "smartraiden"
+	ROOMPREFIX = "smartraiden"
 	// ROOMSEP with ',' to separate room name's part
-	ROOMSEP     = "_"
+	ROOMSEP = "_"
 	// PATHPREFIX0 the lastest matrix client api version
 	PATHPREFIX0 = "/_matrix/client/r0"
 	// AUTHTYPE login identity as dummy
-	AUTHTYPE    = "m.login.dummy"
+	AUTHTYPE = "m.login.dummy"
 	// LOGINTYPE login type we used
-	LOGINTYPE   = "m.login.password"
+	LOGINTYPE = "m.login.password"
 	// CHATPRESET the type of chat=public
-	CHATPRESET  = "public_chat"
+	CHATPRESET = "public_chat"
 )
 
 var (
 	// ValidUserIDRegex user ID 's format
-	ValidUserIDRegex    = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
+	ValidUserIDRegex = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
 	//NETWORKNAME which network is used
-	NETWORKNAME         = "ropsten"
+	NETWORKNAME = "ropsten"
 	//ALIASFRAGMENT the terminal part of alias
-	ALIASFRAGMENT       = ""
+	ALIASFRAGMENT = ""
 	//DISCOVERYROOMSERVER discovery room server name
 	DISCOVERYROOMSERVER = ""
 )
@@ -994,8 +1003,8 @@ var (
 // InitMatrixTransport init matrix
 func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string) (*MatrixTransport, error) {
 	serverList := params.MatrixServerConfig
-	var homeserverValid= ""
-	var matrixclieValid= &matrixcomm.MatrixClient{}
+	var homeserverValid = ""
+	var matrixclieValid = &matrixcomm.MatrixClient{}
 	for _, value := range serverList {
 		homeserverurl := value[0]
 		homeservername := value[1]
@@ -1039,7 +1048,7 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 // validate_userid_signature
 func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, err error) {
 	//displayname should be an address in the self._userid_re format
-	err = fmt.Errorf("validate user info failed");
+	err = fmt.Errorf("validate user info failed")
 	_match := ValidUserIDRegex.MatchString(user.UserID)
 	if _match == false {
 		return
@@ -1048,7 +1057,7 @@ func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, 
 	if err != nil {
 		return
 	}
-	var addrmuti= regexp.MustCompile(`^(0x[0-9a-f]{40})`)
+	var addrmuti = regexp.MustCompile(`^(0x[0-9a-f]{40})`)
 	addrlocal := addrmuti.FindString(_address)
 	if addrlocal == "" {
 		return
@@ -1118,7 +1127,7 @@ func ChecksumAddress(address string) string {
 	checksumAddress := "0x"
 	for i := 0; i < len(address); i++ {
 		l, err := strconv.ParseInt(string(addressHash[i]), 16, 16)
-		if err!=nil{
+		if err != nil {
 			return ""
 		}
 		if l > 7 {

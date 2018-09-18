@@ -14,13 +14,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 // MatrixHTTPClient is a custom http client
 var MatrixHTTPClient = &http.Client{
 	Transport: &http.Transport{
 		Dial: func(netw, addr string) (net.Conn, error) {
-			c, err := net.DialTimeout(netw, addr, time.Second*2)
+			c, err := net.DialTimeout(netw, addr, time.Second*30)
 			if err != nil {
 				//fmt.Println("dail timeout", err)
 				return nil, err
@@ -28,7 +30,7 @@ var MatrixHTTPClient = &http.Client{
 			return c, nil
 		},
 		MaxIdleConnsPerHost:   100,
-		ResponseHeaderTimeout: time.Second * 5,
+		ResponseHeaderTimeout: time.Second * 30,
 	},
 }
 
@@ -113,7 +115,7 @@ func (mcli *MatrixClient) Sync() error {
 	}
 
 	for {
-		resSync, err := mcli.SyncRequest(2000, nextBatch, filterID, false, "online")
+		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
 		//fmt.Println(time.Now().Format("2006/1/2 15:04:05"),filterID,  "\t",nextBatch)
 		if err != nil {
 			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)
@@ -208,34 +210,34 @@ func (mcli *MatrixClient) GetPresenceState(userid string) (resp *RespPresenceUse
 // SetAccountData user/{userId}/account_data/{type}
 func (mcli *MatrixClient) SetAccountData(userid, xtype string, addr2room map[string]string) (err error) {
 	/*
-	func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullState bool, setPresence string) (resp *RespSync, err error) {
-	query := map[string]string{
-		"timeout": strconv.Itoa(timeout),
-	}
-	if since != "" {
-		query["since"] = since
-	}
-	if filterID != "" {
-		query["filter"] = filterID
-	}
-	if setPresence != "" {
-		query["set_presence"] = setPresence
-	}
-	if fullState {
-		query["full_state"] = "true"
-	}
-	urlPath := mcli.BuildURLWithQuery([]string{"sync"}, query)
-	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
-	return
-}
+			func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullState bool, setPresence string) (resp *RespSync, err error) {
+			query := map[string]string{
+				"timeout": strconv.Itoa(timeout),
+			}
+			if since != "" {
+				query["since"] = since
+			}
+			if filterID != "" {
+				query["filter"] = filterID
+			}
+			if setPresence != "" {
+				query["set_presence"] = setPresence
+			}
+			if fullState {
+				query["full_state"] = "true"
+			}
+			urlPath := mcli.BuildURLWithQuery([]string{"sync"}, query)
+			_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
+			return
+		}
 	*/
-/*	query:=map[string]string{
+	/*	query:=map[string]string{
 
-	}
+		}
 
-	urlPath:=mcli.BuildURLWithQuery()*/
+		urlPath:=mcli.BuildURLWithQuery()*/
 
-	urlaccountdata:= mcli.BuildURLWithQuery([]string{"user",userid,"account_data,xtype"}, addr2room)
+	urlaccountdata := mcli.BuildURLWithQuery([]string{"user", userid, "account_data,xtype"}, addr2room)
 	_, err = mcli.MakeRequest("PUT", urlaccountdata, nil, nil)
 
 	/*urlPath := mcli.BuildURL("user", userid, "account_data", xtype) //"network0.smatrraiden.rooms"
@@ -255,7 +257,7 @@ func (mcli *MatrixClient) BuildURL(urlPath ...string) string {
 // BuildBaseURL builds a URL with the Client's homeserver/access_token set already. You must supply the prefix in the path.
 func (mcli *MatrixClient) BuildBaseURL(urlPath ...string) string {
 	hsURL, err := url.Parse(mcli.HomeserverURL.String())
-	if err!=nil{
+	if err != nil {
 		return ""
 	}
 	parts := []string{hsURL.Path}
@@ -275,7 +277,7 @@ func (mcli *MatrixClient) BuildBaseURL(urlPath ...string) string {
 // BuildURLWithQuery builds a URL with query parameters in addition
 func (mcli *MatrixClient) BuildURLWithQuery(urlPath []string, urlQuery map[string]string) string {
 	u, err := url.Parse(mcli.BuildURL(urlPath...))
-	if err!=nil{
+	if err != nil {
 		return ""
 	}
 	q := u.Query()
@@ -312,7 +314,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 	} else {
 		req, err = http.NewRequest(method, httpURL, nil)
 	}
-
+	log.Trace(fmt.Sprintf("matrix url:%s,req:%s", httpURL, reqBody))
 	if err != nil {
 		return nil, err
 	}
@@ -327,6 +329,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		return nil, err
 	}
 	contents, err := ioutil.ReadAll(res.Body)
+	log.Trace(fmt.Sprintf("matrix response err=%s,contents=%s", err, string(contents)))
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +337,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		var wrap error
 		var respErr RespError
 		err = json.Unmarshal(contents, &respErr)
-		if err!=nil{
+		if err != nil {
 			return nil, err
 		}
 		if respErr.ErrCode != "" {
@@ -527,6 +530,7 @@ func (mcli *MatrixClient) SendMessageEvent(roomID string, eventType string, cont
 	//
 	return
 }
+
 // SendStateEvent sends a state event into a room
 func (mcli *MatrixClient) SendStateEvent(roomID, eventType, stateKey string, contentJSON interface{}) (resp *RespSendEvent, err error) {
 	urlPath := mcli.BuildURL("rooms", roomID, "state", eventType, stateKey)
@@ -545,6 +549,7 @@ func (mcli *MatrixClient) SendNotice(roomID, text string) (*RespSendEvent, error
 	return mcli.SendMessageEvent(roomID, "m.room.message",
 		TextMessage{"m.notice", text})
 }
+
 // SendImage sends an m.room.message event into the given room with a msgtype of m.image
 func (mcli *MatrixClient) SendImage(roomID, body, url string) (*RespSendEvent, error) {
 	return mcli.SendMessageEvent(roomID, "m.room.message",

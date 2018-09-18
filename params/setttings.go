@@ -78,16 +78,17 @@ const DeFaultMatrixServerName  = "cy"*/
 }*/
 
 //MatrixServerConfig matrix server config
-var MatrixServerConfig=[][]string{
-	/*{"https://transport01.raiden.network", "transport01.raiden.network"},
-	{"https://transport02.raiden.network", "transport02.raiden.network"},*/
-	{"http://192.168.124.13:8008", "transport01.smartraiden.network"},
+var MatrixServerConfig = [][]string{
+	//{"https://transport01.raiden.network", "transport01.raiden.network"},
+	//{"https://transport02.raiden.network", "transport02.raiden.network"},
+	//{"http://transport01.smartraiden.network:8008", "transport01.smartraiden.network"},
+	{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
 }
 
 //MatrixDiscoveryRoomConfig a defalut matrix room config
-var MatrixDiscoveryRoomConfig=[][]string{
-	{"aliassegment"	, "discovery"},
-	{"server"		, "transport01.smartraiden.network"},
+var MatrixDiscoveryRoomConfig = [][]string{
+	{"aliassegment", "discovery"},
+	{"server", "transport01.smartmesh.cn"},
 }
 
 func init() {
