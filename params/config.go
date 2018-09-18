@@ -32,6 +32,8 @@ const (
 	XMPPOnly
 	//MixUDPXMPP 适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
 	MixUDPXMPP
+	//MixUDPMatrix Matrix and UDP at the same time
+	MixUDPMatrix
 )
 
 //Config is configuration for Raiden,
