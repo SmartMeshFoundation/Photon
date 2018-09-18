@@ -33,6 +33,8 @@ type Events struct {
 	Subscribes            map[string]ethereum.Subscription
 	StateChangeChannel    chan transfer.StateChange
 	//启动/重连过程中先把收到事件暂存在这个通道中,等启动完毕以后在保存到StateChangeChannel,保证事件被顺序处理.
+	// In the process of start-up and reconnect, we first cache received events into this channel,
+	// after start-up, those events will be stored in StateChangeChannel to make sure the process order.
 	startupStateChangeChannel chan mediatedtransfer.ContractStateChange
 	stopped                   bool // has stopped?
 	quitChan                  chan struct{}
@@ -87,6 +89,12 @@ var eventAbiMap = map[string]string{
 必须 get 才行.
 要保证事件不遗漏,可以重复
 */
+/*
+ * Currently, all messages of payment channels are received through events,
+ * and events occurred in the process of disconnection can not be monitored,
+ * which must be obtained via get.
+ * Events must be contained and repetitive.
+ */
 func (be *Events) installEventListener() (err error) {
 	var sub ethereum.Subscription
 	defer func() {
@@ -503,6 +511,12 @@ if tokenNetworkAddress is empty, return all events have this sigature
 如果 channel 特别多,比如十万个,怎么办,
 为了防止出现这样的情况,应该一个一个 tokennetwork 获取事件,而不要是一起获取.
 */
+/*
+ *	GetChannelNew returns a channel of TokenNetwork since `fromBlock` on tokenNetworkAddress
+ *  If TokenNetworkAddres is empty, return all events have this signature.
+ *  What if channels are numerous, like 100 thousand, how to fix that?
+ *  To avoid that, we should let each TokenNetwork grabs events one by one, not all together.
+ */
 func (be *Events) GetChannelNew(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelOpened, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelOpened, eventAbiMap[params.NameChannelOpened], be.client)
@@ -527,6 +541,12 @@ if tokenNetworkAddress is empty, return all events have this sigature
 如果 channel 特别多,比如十万个,怎么办,
 为了防止出现这样的情况,应该一个一个 tokennetwork 获取事件,而不要是一起获取.
 */
+/*
+ *  GetChannelNewAndDeposit returns a token network's channel since `fromBlock` on tokenNetworkAddress
+ *  If tokenNetworkAddress is empty, return all events have this signature
+ * 	If channels are numerous, like 100 thousand, then how to deal with that ?
+ * 	To avoid that, we should let each TokenNetwork grabs events one by one, not all together.
+ */
 func (be *Events) GetChannelNewAndDeposit(fromBlock int64, tokenNetworkAddress common.Address) (events []*contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
 	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), tokenNetworkAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameChannelOpenedAndDeposit, eventAbiMap[params.NameChannelOpenedAndDeposit], be.client)
@@ -720,6 +740,10 @@ func (be *Events) GetAllSecretRevealed(fromBlock int64) (events []*contracts.Sec
 GetAllStateChangeSince returns all the statechanges that raiden should know when it's offline
 tokennetwork合约上发生的所有事情我们都应该按顺序通知使用者
 */
+/*
+ * GetAllStateChangeSince returns all the statechanges that raiden should know when it's offline
+ * and all events occurred in TokenNetwork should be ordered.
+ */
 func (be *Events) GetAllStateChangeSince(lastBlockNumber int64) (stateChangs []mediatedtransfer.ContractStateChange, err error) {
 	events0, err := be.GetAllTokenNetworks(lastBlockNumber)
 	if err != nil {
@@ -826,9 +850,21 @@ Start listening events send to  channel can duplicate but cannot lose.
 2. 保证事件不丢失
 3. 事件是可以重复的
 */
+/*
+ *  Start listening events send to channel can duplicate but cannot lose.
+ *  1. first resend events may lost (duplicate is ok)
+ *  2. listen new events on blockchain
+ *
+ *  It is possible that there is no internet connection when start-up, and it has to be processed
+ *  after those events starts.
+ * 	1. Make sure events sending out with order
+ *  2. Make sure events does not get lost.
+ *  3. Make sure events are repeatable.
+ */
 func (be *Events) Start(LastBlockNumber int64) error {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
 	// 第一时间开启监听,暂存到临时通道startupStateChangeChannel
+	// start monitoring service and cache startupStateChannel into temporary channel
 	be.historyEventsGot = false
 	err := be.installEventListener()
 	if err != nil {
@@ -841,6 +877,7 @@ func (be *Events) Start(LastBlockNumber int64) error {
 	log.Info(fmt.Sprintf("get state change since %d complete", LastBlockNumber))
 	// 历史事件收集完毕,开始处理,事件监听接收到的事件切换到正式通道StateChangeChannel
 	// 这里存在风险, 历史事件处理过程中, 历史事件和事件监听接受到的事件在抢同一个通道,顺序有乱的可能,解决办法???
+	// Complete collecting history events, and start to process, all these events switch to formal channel StateChangeChannel
 	be.historyEventsGot = true
 	go func() {
 		var subScribeStateChanges []mediatedtransfer.ContractStateChange
@@ -859,6 +896,7 @@ func (be *Events) Start(LastBlockNumber int64) error {
 		}
 		oldstateChanges = append(oldstateChanges, subScribeStateChanges...)
 		//保证按序通知
+		// Make sure notify in order
 		sortContractStateChange(oldstateChanges)
 		for _, st := range oldstateChanges {
 			be.sendStateChange(st)

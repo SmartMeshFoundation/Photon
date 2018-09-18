@@ -160,6 +160,10 @@ func (c *Channel) GetSettleExpiration(blocknumer int64) int64 {
 /*
 HandleBalanceProofUpdated 有可能对方使用了旧的信息,这样的话将会导致我无法 settle 通道
 */
+/*
+ *	HandleBalanceProofUpdated : It handles events that channel partners submitting used BalanceProof,
+ * 		which leads to inability to settle channel.
+ */
 func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, transferAmount *big.Int, locksRoot common.Hash) {
 	endStateContractUpdated := c.OurState
 	if updatedParticipant == c.PartnerState.Address {
@@ -172,6 +176,10 @@ func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, t
 /*
 HandleChannelPunished 发生了 Punish 事件,意味着受益方合约上的信息发生了变化.
 */
+/*
+ *	HandleChannelPunished : Punish event occurs,
+ * 		which means that information on contract of beneficiary has been changed.
+ */
 func (c *Channel) HandleChannelPunished(beneficiaries common.Address) {
 	var beneficiaryState, cheaterState *EndState
 	if beneficiaries == c.OurState.Address {
@@ -202,6 +210,14 @@ HandleClosed handles this channel was closed on blockchain
 3. 如果我不是关闭方,那么需要更新对方的 BalanceProof
 4. 我持有的知道密码的锁,需要解锁.
 */
+/*
+ *	HandleClosed : It handles events of closing channel.
+ *
+ *		1. Update ContractTransferAmount & LocksRoot of the non-closing participant.
+ *		2. That participant may submit used BalanceProof, in which TransferAmount & LocksRoot are not consistent with mine.
+ *		3. If I am not the non-closing participant, then update the BalanceProof of my channel partner.
+ *		4. All locks I am holding that have known secrets must be unlocked.
+ */
 func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount *big.Int, locksRoot common.Hash) {
 	endStateUpdatedOnContract := c.PartnerState
 	balanceProof := c.PartnerState.BalanceProofState
@@ -395,6 +411,10 @@ func (c *Channel) RegisterRevealedSecretHash(lockSecretHash, secret common.Hash,
 
 //RegisterTransfer register a signed transfer, updating the channel's state accordingly.
 //这些消息会改变 channel 的balance Proof
+/*
+ *	RegisterTransfer : register a signed transfer, updating the channel's state accordingly.
+ *		This transfer will change BalanceProof of this channel.
+ */
 func (c *Channel) RegisterTransfer(blocknumber int64, tr encoding.EnvelopMessager) error {
 	var err error
 	switch msg := tr.(type) {
@@ -470,6 +490,14 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
 3. transferAmount 要想等
 4. locksroot 要对,只是去掉了一个锁
 */
+/*
+ *	registerUnlock : function to receive unlock message.
+ *
+ *		1. value of nonce and channel should be correct.
+ *		2. verify there are related locks with secret.
+ *		3. transferAmount should be equal to the one in BalanceProof.
+ *		4. locksroot should be correct, with a lock removed.
+ */
 func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err error) {
 	fromState, _, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
@@ -486,6 +514,9 @@ func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err er
 3. 金额要增长,相等都是错的.
 4. 账户要有这么多钱转
 */
+/*
+ *	registerDirectTransfer : function to
+ */
 func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumber int64) (err error) {
 	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
