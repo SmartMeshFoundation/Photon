@@ -212,7 +212,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		}
 		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
 		params.ChainID = big.NewInt(rs.db.GetChainID())
-		if params.ChainID == big.NewInt(0) {
+		if params.ChainID.Cmp(big.NewInt(0)) == 0 {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}
