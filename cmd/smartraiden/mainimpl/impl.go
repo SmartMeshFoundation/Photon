@@ -118,6 +118,15 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "enable-health-check",
 			Usage: "enable health check ",
 		},
+		cli.StringFlag{
+			Name:  "matrix-server",
+			Usage: "use another matrix server",
+			Value: "",
+		},
+		cli.BoolFlag{
+			Name:  "matrix",
+			Usage: "use matrix as transport",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -215,6 +224,14 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 			deviceType = network.DeviceTypeMobile
 		}
 		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+	case params.MixUDPMatrix:
+		log.Trace(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
+		policy := network.NewTokenBucket(10, 1, time.Now)
+		deviceType := network.DeviceTypeOther
+		if params.MobileMode {
+			deviceType = network.DeviceTypeMobile
+		}
+		transport, err = network.NewMatrixMixTransporter(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }
@@ -303,6 +320,8 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
 	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
+	} else if ctx.Bool("matrix") {
+		config.NetworkMode = params.MixUDPMatrix
 	} else {
 		config.NetworkMode = params.MixUDPXMPP
 	}
@@ -313,5 +332,12 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		config.EnableHealthCheck = true
 	}
 	config.XMPPServer = ctx.String("xmpp-server")
+	if len(ctx.String("matrix-server")) > 0 {
+		s := ctx.String("matrix-server")
+		log.Info(fmt.Sprintf("use matrix server %s", s))
+		params.MatrixServerConfig = [][]string{
+			{fmt.Sprintf("http://%s:8008", s), s},
+		}
+	}
 	return
 }
