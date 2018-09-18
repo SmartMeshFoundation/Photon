@@ -44,7 +44,11 @@ make sure not call this when transfer already finished , state is nil means fini
  *	Or there may be conflicts and error occurs.
  *	How to handle locks that I have sent out :
  *		1. If locks expired, send RemoveDExpiredLock
- * 			It is unreasonable settle that t
+ * 			- It is unreasonable case that we first send RemovedExpiredLock, then send Unlock, once node restarts, and secret has been registered on chain,
+ *			but I send RemovedExpiredLock without handling those messages.
+ *	How to handle locks that I have received :
+ *		1. If locks expired, just miss them, tag them with message of handled.
+ *		2. If I know the secret and it is close to expiration, then I should register the secret on chain.
  */
 func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
@@ -102,6 +106,9 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 /*
 从一个 slice 中移除一组 slice, 带移除的元素通过下标指定.
 */
+/*
+ *	removeSliceFromSlice : remove one slice denoted by among a set of slices,
+ */
 func removeSliceFromSlice(src []*mt.LockAndChannel, removedIndex []int) (dest []*mt.LockAndChannel) {
 	for i, l := range src {
 		found := false
@@ -121,6 +128,12 @@ func removeSliceFromSlice(src []*mt.LockAndChannel, removedIndex []int) (dest []
 /*
 密码在链上注册了,只要在有效期范围内,就相当于收到了对方的 reveal secret, 主动给对方发送 unlock 消息.
 */
+/*
+ *	handleSecretRevealOnChain : function to handle events of reveal secret on chain.
+ *
+ *	Note that once secret has been registered on chain, and before expiration, we assume that all other nodes in this payment channel
+ *	have received this secret and they will send unlock to their partner.
+ */
 func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretRevealOnChainStateChange) (it *transfer.TransitionResult) {
 	it = &transfer.TransitionResult{
 		NewState: state,
@@ -184,6 +197,13 @@ func transferSuccessEvents(l *mt.LockAndChannel) (events []transfer.Event) {
 发送的锁都移动到 ProcessedSentLock,因为过期或者发送了 Unlock消息
 收到的锁都移动到了 ProcessedReceviedLock, 因为链上注册了密码.
 */
+/*
+ *	checkFinish : function to check whether statemanager has been finished.
+ *
+ *	Note that if locks that are sent or received have been handled,
+ * 	then locks that this participant sent moves to ProcessedSentLock, because they are expired or unlocked.
+ *	And locks that this participant received moves to ProcessedReceivedLock, because secret has been registered on chain.
+ */
 func checkFinish(state *mt.CrashState) (events []transfer.Event) {
 	if len(state.SentLocks) == 0 && len(state.ReceivedLocks) == 0 {
 		events = append(events, &mt.EventRemoveStateManager{
@@ -196,6 +216,11 @@ func checkFinish(state *mt.CrashState) (events []transfer.Event) {
 /*
 我收到了对方的 unlock 消息以后,就算是彻底结束了.
 */
+/*
+ *	handleBalanceProof : function to handle event of BalanceProof.
+ *
+ *	Note that once this participant receives unlock message from his channel partner, the function ends.
+ */
 func handleBalanceProof(state *mt.CrashState, st *mt.ReceiveUnlockStateChange) (it *transfer.TransitionResult) {
 	it = &transfer.TransitionResult{
 		NewState: state,
@@ -213,6 +238,12 @@ func handleBalanceProof(state *mt.CrashState, st *mt.ReceiveUnlockStateChange) (
 /*
 我可能在重启以后收到来自对方的 AnnounceDisposed 消息,如果一切正确,我应该发送AnnounceDisposedResponse
 */
+/*
+ *	handleAnnounceDisposed : function to handle event of AnnounceDisposed
+ *
+ *	Note that this participant is probable to receive AnnounceDisposed from his partner after he reconnects,
+ *	if everything is correct, then he should send AnnounceDisposedResponse
+ */
 func handleAnnounceDisposed(state *mt.CrashState, st *mt.ReceiveAnnounceDisposedStateChange) (it *transfer.TransitionResult) {
 	for i, l := range state.SentLocks {
 		if l.Lock.Equal(st.Lock) && st.Token == l.Channel.TokenAddress && st.Sender == l.Channel.PartnerState.Address {

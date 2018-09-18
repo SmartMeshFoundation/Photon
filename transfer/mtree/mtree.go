@@ -98,6 +98,11 @@ func (l *Lock) Equal(l2 *Lock) bool {
 NewMerkleTree create merkle tree from locks
 保证不要包含重复的锁,否则会panic
 */
+/*
+ *	NewMerkleTree : function to create merkle tree from locks.
+ *
+ *	Note that do not contain repeated locks, otherwise panic will occur.
+ */
 func NewMerkleTree(leaves []*Lock) (m *Merkletree) {
 	var err error
 	elements := make([]common.Hash, len(leaves))
@@ -223,6 +228,11 @@ func (m *Merkletree) Leaves2Byets() []byte {
 ComputeMerkleRootWith 创建包含新 lock 的 merkleTree
 保证 include 不在原来的锁里
 */
+/*
+ *	ComputeMerkleRootWith : function to create a merkleTree with a new lock contained in.
+ *
+ *	Note that make sure `include` is not contained original locksroot.
+ */
 func (m *Merkletree) ComputeMerkleRootWith(include *Lock) (newm *Merkletree) {
 	//我们并不会更改锁的内容,只会进行不同的排列组合.
 	leaves := make([]*Lock, len(m.Leaves))
@@ -235,6 +245,11 @@ func (m *Merkletree) ComputeMerkleRootWith(include *Lock) (newm *Merkletree) {
 /*
 返回移除without 的数组,如果不包含 without 直接返回本身
 */
+/*
+ *	removeHash : function to remove array of locks that have removed `without`.
+ *
+ *	Note that if `without` does not include in array, then return the array.
+ */
 func removeHash(leaves []*Lock, without *Lock) ([]*Lock, bool) {
 	var r bool
 	i := -1

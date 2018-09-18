@@ -18,6 +18,13 @@ import (
 1. 未发送成功的 EnvelopMessage 继续发送
 2. 持有的锁,建立对应的 StateManager, 对这些未完成的交易进行简单维护处理
 */
+/*
+ *	restore : function to restore data.
+ *
+ *	Note that
+ *		1. unsuccessful EnvelopMessages resume to be sent.
+ *		2. to create related StateManager as to those locks withholden by a particpant.
+ */
 func (rs *RaidenService) restore() {
 	//1. 处理未完成的锁
 	rs.restoreLocks()
