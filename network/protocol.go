@@ -214,7 +214,7 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
  *	messageCanBeSent : function to check MediatedTransfer can be discarded securely when channel no long exists.
  *
  *	Note that once this channel gets removed, those pending message should also be securely removed,
- *	or new channel can't be created.
+ *	otherwise new channel can't be created.
  */
 func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
 	if channelIdentifier != utils.EmptyHash {

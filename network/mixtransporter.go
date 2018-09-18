@@ -49,7 +49,7 @@ Send message
 /*
  *	Send : function to send out messages.
  *
- *	Note that this function prefers to choose local network, once local network does not work,
+ *	Note that this function prefers to choose LAN, ifor new c local network does not work,
  * 	then it chooses xmpp.
  */
 func (t *MixTransporter) Send(receiver common.Address, data []byte) error {

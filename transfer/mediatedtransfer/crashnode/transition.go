@@ -37,7 +37,14 @@ make sure not call this when transfer already finished , state is nil means fini
 2. 如果我知道密码,并且快要过期,那么应该去链上注册密码
 */
 /*
- *	handleBlock : function to handle
+ *	handleBlock : function to handle crash case.
+ *
+ *	Note that we should make sure not call this when transfer already finished, state is nil means finished.
+ *	And we should make sure we need to first handle pending events, such as SettleChannel, SecretRegisterOnChain, etc, then handle events of new block events.
+ *	Or there may be conflicts and error occurs.
+ *	How to handle locks that I have sent out :
+ *		1. If locks expired, send RemoveDExpiredLock
+ * 			It is unreasonable settle that t
  */
 func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
