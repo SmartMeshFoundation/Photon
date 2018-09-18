@@ -105,4 +105,4 @@ InTest are we test now?
 var InTest = true
 
 //ChainID of this tokenNetwork
-var ChainID = big.NewInt(8888)
+var ChainID = big.NewInt(1)
