@@ -115,6 +115,7 @@ func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 /*
  todo 收到密码,可能会影响到好多StateManager, 这些 StateManager 我如何做到原子保存呢?
 */
+// todo receive secret may impact manay StateManager, how should I do atomic store for these StateManager?
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender
@@ -322,6 +323,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	/*
 		必须验证我确实发送过这个Dispose
 	*/
+	// must check that I actually send this Dispose
 	b := mh.raiden.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
 	if !b {
 		return fmt.Errorf("maybe a attack, receive a announce disposed response,but i never send announce disposed,msg=%s", msg)
@@ -331,6 +333,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		return
 	}
 	//保存通道状态即可.
+	// Just store channel state.
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
@@ -347,6 +350,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
  */
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	// 用户调用了prepare-update,暂停接收新交易
+	// halt new transfer because clients invoke prepare-update
 	if mh.raiden.StopCreateNewTransfers {
 		return rerr.ErrStopCreateNewTransfer
 	}
@@ -394,8 +398,22 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 3. 如果是 token swap
 todo 需要设计如何保存 token swap 相关数据,并在崩溃恢复以后保证原子性.
 */
+/*
+ *	received MediatedTransfer. If verification fails, which means node states are not synchronous, and channel has to be closed.
+ *
+ *	Verification succeed :
+ *		1. I am transfer initiator : Create TargetStateManager, send SecretRequest, and should update channel state in EventSendSecretRequest, and Store ACK.
+ *		2. I am mediated node :
+ *				2.1 First time receiving this LockSecretHash : Create a MediatedStateManager, if we can continue our transfer, then send MediatedTransfer,
+ *				otherwise sending AnnounceDisposed, should update channel state and store ACK in relevant send event.
+ *				2.2 n-th time receiving this LockSecretHash : if transfer can continue, then sending MediatedTransfer, otherwise, sending AnnounceDisposed,
+ *				participants should update channel states and store ACK in relevant send event.
+ *		3. if we use token swap.
+ *		todo we should design how to store related data of token swap, and ensure atomicity after node crashes.
+ */
 func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
 	// 用户调用了prepare-update,暂停接收新交易
+	// Clients inovke prepare-update, stop receiving new transfers.
 	if mh.raiden.StopCreateNewTransfers {
 		return rerr.ErrStopCreateNewTransfer
 	}
@@ -405,6 +423,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		/*
 			需要考虑恶意攻击的情况,比如发送一个我已经知道密码,但是尚未 unlock 的锁
 		*/
+		// We need to consider cases with potential attack risks, such as sending a lock that I know the secret but not yet unlock.
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
 	if mh.raiden.Config.IsMeshNetwork {
@@ -557,6 +576,12 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 			极小概率可能出现,如果出现,就退回到原始的 close/settle 模式
 		也要防止另一方主动发出 settle response, 而我并没有发出 settle request 请求这种情况.
 	*/
+	/*
+	 *	Is there any possibility that both participants send settle request?
+	 *	Like one of them send settle, but the other send withdraw.
+	 *	Not possible, if so, then revert to orignal close/settle mode.
+	 *	Also, we need to prevent the other participant proactively send settle response, but I do not send settle request.
+	 */
 	if ch.State != channeltype.StateCooprativeSettle {
 		return fmt.Errorf("receive settle response but channel state is %s", ch.State)
 	}
@@ -594,6 +619,7 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 		return err
 	}
 	// 现在只允许一方取现,直接构造response
+	// Now we only allow one partcipant to withdraw, directly create response.
 	withdrawResponse, err := ch.CreateWithdrawResponse(msg)
 	if err != nil {
 		//if err, channel can only be closed /settled
@@ -644,6 +670,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	/*
 		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册
 	*/
+	// We need to verify withdraw request that is send and tokenAmount is correct, then register this request.
 	err := ch.RegisterWithdrawResponse(msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
@@ -651,6 +678,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
+	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)
 	go func() {
 		err = <-result.Result

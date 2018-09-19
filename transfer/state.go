@@ -29,6 +29,8 @@ type BalanceProofState struct {
 		由于合约上并没有存储transferamount 和 locksroot,
 		而用户 unlock 的时候会改变对方的 TransferAmount, 虽然说这个没有对方的签名,但是必须凭此在合约上settle 以及 unlock
 	*/
+	// Because contract does not cache transferAmount and locksroot
+	// and my partner's transferAmount will be changed, even I have no signature of my partner, but we should settle and unlock via it.
 	ContractTransferAmount *big.Int
 	ContractNonce          uint64
 	ContractLocksRoot      common.Hash

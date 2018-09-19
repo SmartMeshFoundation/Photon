@@ -14,6 +14,8 @@ var (
 
 func init() {
 	//必须提供一个缺省的有效的 log 输出,否则启动没有任何输出,错误无法发现.
+	// must be a default valid log output, otherwise no output when start,
+	// fault can not be found.
 	root.SetHandler(StdoutHandler)
 }
 

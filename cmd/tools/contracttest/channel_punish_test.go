@@ -15,6 +15,7 @@ import (
 )
 
 // TestChannelPunishRight : 正确调用测试
+// TestChannelPunishRight : normal function call
 func TestChannelPunishRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0

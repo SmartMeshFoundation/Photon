@@ -176,6 +176,8 @@ func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
 type ContractChannelWithdrawStateChange struct {
 	ChannelIdentifier *contracts.ChannelUniqueID
 	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
+	//remnant balance has meaning?
+	// Currently Event has no idea about the identity of Participant1, so no use.
 	Participant1        common.Address
 	Participant1Balance *big.Int
 	Participant2        common.Address

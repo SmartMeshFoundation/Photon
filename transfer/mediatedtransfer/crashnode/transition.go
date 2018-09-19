@@ -67,6 +67,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 	for i, l := range state.ReceivedLocks {
 		if !l.Channel.PartnerState.IsKnown(l.Lock.LockSecretHash) {
 			//有可能有些锁因为收到对方的 AnnounceDisposedResponse, 对方的 unlock 消息直接解锁了,移除即可.
+
 			removedReceviedIndex = append(removedReceviedIndex, i)
 			continue
 		}
@@ -76,6 +77,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 			/*
 				有可能在我启动以后才收到相应的密码
 			*/
+			// Maybe I received related code after start up
 			secret, found := l.Channel.PartnerState.GetSecret(state.LockSecretHash)
 			if found && l.Lock.Expiration > stateChange.BlockNumber-int64(l.Channel.RevealTimeout) && l.Lock.Expiration < stateChange.BlockNumber {
 				//临近过期了,需要通知链上注册
@@ -141,6 +143,7 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 	}
 	if st.LockSecretHash != state.LockSecretHash {
 		//无论是不是 token swap, 都应该知道 locksecrethash,否则肯定是实现有问题
+		// we should know locksecrethash otherwise implementation error.
 		panic(fmt.Sprintf("my locksecrethash=%s,received=%s", state.LockSecretHash.String(), st.LockSecretHash.String()))
 	}
 	var removedIndex []int
@@ -169,6 +172,13 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 		2. 如果过期了,我移除就可以了
 			todo 如果做到这点,我们就必须保证,如果重启以后,所有的事件处理完了,然后再去处理新块事件,如何做到呢?
 	*/
+	/*
+	 *	As to locks I received, if secret registered, then do nothing.
+	 *	1. If partner sends me unlock, then just remove that.
+	 *	2. If he does not send me unlock, then register secret on-chain.
+	 *	3. If expired, then remove.
+	 *	todo If we do that, we should ensure if we resume, and all events finished, then to deal with new block event, how ?
+	 */
 	return
 }
 
@@ -176,6 +186,10 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
  todo 是否会发生 RevealSecretOnChain 针对的是旧的 channel 的 Lock?
 比如我关掉了很长一段时间,然后重新启动,这时候收到了 RevealSecretOnChain, 但是我持有的锁完全是过去的某个锁呢?
 */
+/*
+ *	todo Is there case that RevealSecretOnChain aims to channel's Lock?
+ *	For example, if I disconnect for a long time, then restarts, then received RevealSecretOnChain, but the lock I hold is one that belongs to past block?
+ */
 func transferSuccessEvents(l *mt.LockAndChannel) (events []transfer.Event) {
 	unlockLock := &mt.EventSendBalanceProof{
 		LockSecretHash:    l.Lock.LockSecretHash,
@@ -299,6 +313,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
 		*/
 		//todo fix, find a way to remove this identifier from raiden.Transfer2StateManager
+		/*
+		 *	As transfer initiator, after sending Unlock, and my partner confirms that, then we should assums this transfer complete.
+		 *	todo fix, find a way to remove this identifier from raiden. Transfer2StateManager
+		 */
 		log.Error(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 			utils.StringInterface1(originalState), utils.StringInterface1(st)))
 	} else {
@@ -311,9 +329,11 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = handleBalanceProof(state, st2)
 		case *mt.ReceiveAnnounceDisposedStateChange:
 			//有可能重启以后收到对方的 AnnounceDisposed 消息,我也需要正常处理,移除锁.
+			// Maybe that I received partner's AnnounceDisposed message when I reconnect, normal procedure, remove it.
 			it = handleAnnounceDisposed(state, st2)
 		default:
 			//我重启了,应该会收到来自对方的消息,但是我都不会处理.
+			// After I resume, I should receive messages from partner, but I just neglect them.
 			log.Warn(fmt.Sprintf("crash state manager received unkown state change %s", utils.StringInterface(st, 3)))
 		}
 	}

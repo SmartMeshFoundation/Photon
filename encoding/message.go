@@ -28,6 +28,7 @@ import (
 type MessageType int
 
 //消息设计原则: 只要引起balanceproof 变化,那么 nonce 就应该加1
+// MessageDesign : as long as balanceproof changes, nonce should plus 1.
 const (
 	//AckCmdID id of Ack message
 	AckCmdID = 0
@@ -50,6 +51,7 @@ const (
 	/*
 		发起合作关闭通道请求
 	*/
+	// send CooperativeRequest
 	SettleRequestCmdID
 	/*
 		合作关闭通道响应.
@@ -58,14 +60,17 @@ const (
 	/*
 		发起提现请求
 	*/
+	// Send Withdraw Request
 	WithdrawRequestCmdID
 	/*
 		提现响应
 	*/
+	// Respond Withdraw Request
 	WithdrawResponseCmdID
 	/*
 		refund 响应,
 	*/
+	// Respond Refund
 	AnnounceDisposedTransferResponseCmdID
 )
 

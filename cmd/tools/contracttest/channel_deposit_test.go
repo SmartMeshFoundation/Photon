@@ -8,6 +8,7 @@ import (
 )
 
 // TestChannelDepositRight : 正确调用测试
+// TestChannelDepositRight : normal function call
 func TestChannelDepositRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -18,6 +19,7 @@ func TestChannelDepositRight(t *testing.T) {
 	depositA1 := big.NewInt(200)
 	depositA2 := big.NewInt(300)
 	// 创建
+	// create
 	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
 	assertTxSuccess(t, nil, tx, err)
 	balanceA1, _, _, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
@@ -54,6 +56,7 @@ func TestChannelDepositRight(t *testing.T) {
 }
 
 // TestChannelDepositException : 异常调用测试
+// TestChannelDepositException : abnormal function call
 func TestChannelDepositException(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -62,6 +65,7 @@ func TestChannelDepositException(t *testing.T) {
 }
 
 // TestChannelDepositEdge : 边界测试
+// TestChannelDepositEdge : edge test
 func TestChannelDepositEdge(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -70,10 +74,12 @@ func TestChannelDepositEdge(t *testing.T) {
 	testSettleTimeout := TestSettleTimeoutMin + 10
 	depositA1 := big.NewInt(200)
 	// 创建
+	// create
 	tx, err := env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, testSettleTimeout)
 	assertTxSuccess(t, nil, tx, err)
 	// cases
 	// self地址错误
+	// self address fault.
 	tx, err = env.TokenNetwork.Deposit(a1.Auth, common.HexToAddress("-1"), a2.Address, depositA1)
 	assertTxFail(t, &count, tx, err)
 	tx, err = env.TokenNetwork.Deposit(a1.Auth, common.HexToAddress(""), a2.Address, depositA1)
@@ -111,6 +117,7 @@ func TestChannelDepositEdge(t *testing.T) {
 }
 
 // TestChannelDepositAttack : 恶意调用测试
+// TestChannelDepositAttack : test for potential attack.
 func TestChannelDepositAttack(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
