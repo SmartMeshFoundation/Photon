@@ -117,6 +117,11 @@ func (t *MatrixMixTransporter) GetNotify() (notify <-chan netshare.Status, err e
 }
 
 //SubscribeNeighbor get the status change notification of partner node
+//func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
+	/*if t.matirx == nil {
+		return fmt.Errorf("Try to subscribe neighbor,but matrix connection is disconnected")
+	}
+	return t.matirx.CollectNeighbors(db)*/
 	return nil
 }
