@@ -22,6 +22,7 @@ import (
 )
 
 //EmptyExlude 为了调用 GetBestRoutes 方便一点
+// EmptyExclude : to make GetBestRoutes easy to invoke.
 var EmptyExlude map[common.Address]bool
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 }
 
 //MakeExclude 为了调用 GetBestRoutes 方便一点
+// MakeExclude : to make GetBestRoutes easy to invoke.
 func MakeExclude(addrs ...common.Address) map[common.Address]bool {
 	m := make(map[common.Address]bool)
 	for _, addr := range addrs {
@@ -45,6 +47,7 @@ type NodesStatusGetter interface {
 
 //ChannelGraph is a Graph based on the channels and can find path between participants.
 //整个 ChannelGraph 只能单线程访问
+// The whole ChannelGraph can only be accessed by a single process.
 type ChannelGraph struct {
 	g                       *dijkstra.Graph
 	OurAddress              common.Address
@@ -305,6 +308,12 @@ GetBestRoutes returns all neighbor nodes order by weight from it to target.
 我们现在的路由算法应该是有历史记忆的最短路径/最小费用算法.
 跳过所有已经走过的路径.
 */
+/*
+ *	GetBestRoutes :function to return all neighbor nodes order by weight from it to target.
+ *
+ *	Note that the routing algorithm we currently use should be the shortest-path/minimized-fee algorithm with history record,
+ *	which circumvents all routes that have been iterated.
+ */
 func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
 	targetAdress common.Address, amount *big.Int, excludeAddresses map[common.Address]bool, feeCharger fee.Charger) (onlineNodes []*route.State) {
 	/*

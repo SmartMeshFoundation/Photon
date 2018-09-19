@@ -76,6 +76,15 @@ func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager
  比如 A-B-C A-D-C ,AC进行 token swap,A 是 maker,C 是 taker,A 给 C 的 expiration 是1000,C 给 A 的 expiration 是500,
 那么 C 完全可以不理 A 发出的 secret request,然后在500块以后把 A 给 C 的 token 取走.
 */
+/*
+ *	eventSendRevealSecret : function to send RevealSecret to all channel participants.
+ *
+ *	Note that all channel participants in this payment network should refer this secret to their partner once they received the secret.
+ *	1. If one participant is sender, repeatedly register the secret has no impact.
+ *	2. If he participates in tokenswap, then he must register the secret in responding channel at the time he sends out secret to his partner.
+ *		for example, A-B-C A-D-C, AC undergoes token swap, A is the maker, C is the taker, expiration block A sets to C is 1000, expiration block C sets to A is 500.
+ *		then C can neglect secret request sent from A then steal those tokens C deposited after 500 block number.
+ */
 func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfer.EventSendRevealSecret, stateManager *transfer.StateManager) (err error) {
 	eh.raiden.conditionQuit("EventSendRevealSecretBefore")
 	eh.raiden.registerSecret(event.Secret)
@@ -551,6 +560,12 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 }
 
 //如果是对方 unlock 我的锁,那么有可能需要 punish 对方,即使不需要 punish 对方,settle 的时候也需要用到新的 locksroot 和 transferamount
+/*
+ *	handleUnlockOnChain : function to handle unlock event.
+ *
+ *	Note that if case is that my partner unlocks locks of mine, then maybe I need to punish my partner,
+ *	even if that's not the case, when channel settle, I still need to use the the locksroot and transferAmount on chain
+ */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)

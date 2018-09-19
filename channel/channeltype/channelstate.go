@@ -42,7 +42,7 @@ const (
 	/*StatePrepareForCooperativeSettle 收到了用户 cooperative 请求,但是有正在处理的交易,这时候不再接受新的交易了,可以等待一段时间,然后settle
 	已开始交易,可以继续
 	*/
-	// StatePrepareForCooperativeSettle : `CooperativeSettle` has been received.
+	// StatePrepareForCooperativeSettle : `CooperativeSettle` of a client has been received.
 	// Ongoing transfers can continue, but no more new transfer. Wait for a while then settle.
 	StatePrepareForCooperativeSettle
 	/*StatePrepareForWithdraw 收到用户请求,要发起 withdraw, 但是目前还持有锁,不再发起或者接受任何交易,可以等待一段时间进行 withdraw

@@ -83,6 +83,12 @@ must be stable
 对于 ChannelOpenedAndDeposit 事件,会产生两个 stateChange,
 严格要求有先后顺序
 */
+/*
+ *	sortEnvelopMessager : function to sort arrays of sent messenger.
+ *
+ *	Note that for event of ChannelOpenedAndDeposit, two stateChange will be generated.
+ *	And they must be in order.
+ */
 func sortEnvelopMessager(msgs []*SentEnvelopMessager) {
 	sort.Stable(envelopMessageSorter(msgs))
 }

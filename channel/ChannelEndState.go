@@ -274,6 +274,14 @@ nonce,channel 由前置检查保证
 transferAmount 必须增大,
 locksroot 必须相等.
 */
+/*
+ *	registerDirectTransfer : function to register message of direct transfer.
+ *
+ *	Security Check :
+ *		1. nonce, channel must be ensured by pre-set check.
+ *		2. transferAmount must increase.
+ *		3. locksroot must not get changed.
+ */
 func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTransfer) error {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(directTransfer)
 	if balanceProof.LocksRoot != node.Tree.MerkleRoot() {
@@ -310,6 +318,14 @@ this message may be sent out from this node or received from partner
 2.locksroot 要恰好等于去掉这个锁
 3.transferAmount 要恰好等于这个锁的金额加上历史 transferAmount
 */
+/*
+ *	registerSecretMessage : function to register message of secret.
+ *
+ *	Note that this message may be sent out from this node or received from his partner.
+ *		1. this transfer lock exists.
+ *		2. locksroot must remove lock of this transfer.
+ *		3. transferAmount must equal to the value of previous transferAmount plus the amount of this transfer.
+ */
 func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error) {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(unlock)
 	lockSecretHash := utils.ShaSecret(unlock.LockSecret[:])
@@ -351,6 +367,14 @@ this message may be sent out from this node or received from partner
 2.transferAmount 必须不变
 3.locksroot 要恰好等于旧 locksroot 加上新锁
 */
+/*
+ *	registerMediatedMessage : function to register messages of MediatedTransfer.
+ *
+ *	Note that this message may be sent out from this node or received by his partner.
+ *		1. the lock must not be existent.
+ *		2. transferAmount must not have any change.
+ * 		3. locksroot must be equal to value of previous locksroot plus the amount of this new amount.
+ */
 func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (err error) {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(mtr)
 	mtranfer := encoding.GetMtrFromLockedTransfer(mtr)

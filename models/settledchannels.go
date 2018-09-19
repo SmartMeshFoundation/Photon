@@ -18,6 +18,7 @@ import (
 保留 settle 的通道信息,
 供查询需要
 */
+// buffer information of settled channel for future query.
 const bucketSettledChannel = "settled_channel"
 
 func unmarshal(b []byte, v interface{}) error {
@@ -58,6 +59,7 @@ func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 }
 
 //GetSettledChannel 返回某个指定的已经 settle 的 channel
+// GetSettledChannel : function to return a specific settled channel.
 func (model *ModelDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumber int64) (c *channeltype.Serialization, err error) {
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)

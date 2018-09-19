@@ -128,6 +128,11 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 /*
 我收到了对方的 unlock 消息以后,就算是彻底结束了.
 */
+/*
+ *	handleBalanceProof : function to handle event of BalanceProof.
+ *
+ *	Note that once this participant receives unlock message from his channel partner, the function ends.
+ */
 func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveUnlockStateChange) (it *transfer.TransitionResult) {
 	var events []transfer.Event
 	//TODO: byzantine behavior event when the sender doesn't match
