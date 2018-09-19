@@ -997,10 +997,10 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	if !ok {
 		mt2, ok := rs.Transport.(*network.MatrixMixTransporter)
 		if ok {
-			mt2.SubscribeNeighbor(rs.db)
-		} else {
-			return fmt.Errorf("transport is not mix transpoter")
+			return mt2.SubscribeNeighbor(rs.db)
 		}
+		return fmt.Errorf("transport is not mix transpoter")
+
 	}
 
 	return mt.SubscribeNeighbor(rs.db)
