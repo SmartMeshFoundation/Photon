@@ -23,6 +23,9 @@ type EventSendMediatedTransfer struct {
 		因为哪个 channel 收到了 MediatedTransfer, 导致我需要发送新的 Transfer.
 		如果是我主动发起的 MediatedTransfer, 那么 FromChannel 应该为空
 	*/
+	// no matter which channel received a mediated transfer, I have to send another mediated transfer,
+	// because which channel receives MediatedTransfer and leads me to send a new Transfer
+	// If I am the transfer initiator, then FromChannel should be null.
 	FromChannel common.Hash
 }
 

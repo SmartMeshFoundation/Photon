@@ -98,7 +98,8 @@ func (mtr *MatrixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	mtr.protocol = protcol
 }
 
-// Stop Is it necessary to destroy all memory converning matrix?
+// Stop 是否需要销毁即matrix资源？
+// Does Stop need to destroy matrix resource ?
 func (mtr *MatrixTransport) Stop() {
 	if mtr.running == false {
 		return
@@ -124,6 +125,7 @@ func (mtr *MatrixTransport) StopAccepting() {
 }*/
 
 // NodeStatus 获取节点网络状态，如果查询自身节点，isOnline状态根据服务器握手信号来判断而非一直是true(可作为一个维护点)
+// NodeStatus gets Node states of network, if check self node, `isOnline` is not always be true instead it switches according to server handshake signal.
 func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	if mtr.matrixcli == nil {
 		return "", false
@@ -146,6 +148,10 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 	//在invite被查询节点到presence list的前提下可查询任何联盟服务器上的user presence
 	//可以通过/presence/list来处理（如果节点在线，会多返回一个status_msg（装载有deviceType）,
 	//通过{userid}/presence也能查阅,可扩展（/presence/list）同时查多个节点的状态
+
+	// we can check user presence on any partner servers when invite node is in the presence list.
+	// code above can't get devideType, which handles via /presence/list (if nodes online, it returns one more status_msg(with devideType)
+	// via {userid}/presence we can check and expand states of multiple nodes.
 	return
 }
 
@@ -176,13 +182,15 @@ func (mtr *MatrixTransport) Start() {
 		return
 	}
 
-	//login
+	//登录
+	// log in
 	if err := mtr.loginOrRegister(); err != nil {
 		return
 	}
 	mtr.running = true
 	mtr.stopreceiving = false
-	//health-check,it purpose is to "SearchUserDirectory"
+	//health-check,功能之一即是寻找本节点曾经加入的room（非公开room的流程?）
+	// health-check, used to find history rooms this node ever joined.
 	err := mtr.nodeHealthCheck(mtr.NodeAddress)
 	if err != nil {
 		return
@@ -390,17 +398,20 @@ func (mtr *MatrixTransport) onHandleMemberShipChange(event *matrixcomm.Event) {
 }
 
 // onHandlePresenceChange 处理消息内的事件中(Content)关于节点状态的改变，刷新AddressToPresence
+// onHandlePresenceChange handle events in this message, about changes of nodes and update AddressToPresence
 func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if mtr.stopreceiving == true {
 		return
 	}
 	//此条消息的发送者
+	// message sender
 	userid := event.Sender
 	if event.Type != "m.presence" || userid == mtr.UserID {
 		return
 	}
 	var userDisplayname = ""
 	//从Users（cache）中读取sender的sender's displayname
+	// read sender's displayname from user cache.
 	tmpuser := &matrixcomm.UserInfo{
 		UserID: userid,
 	}
@@ -409,17 +420,20 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 		userDisplayname = user.DisplayName
 	}
 	//从消息来源中获取sender's displayname
+	// get sender's displayname from message
 	value, exists := event.ViewContent("displayname") //no displayname return form event sometimes
 	if exists && value != "" {
 		userDisplayname = value
 	}
 	//从上述两种来源均可
+	// both sources above are ok
 	if userDisplayname == "" {
 		return
 	}
 	user.DisplayName = userDisplayname
 
 	//解出消息发出者的address
+	// parse address of message sender
 	peerAdderss, err := validateUseridSignature(*user)
 	if err != nil {
 		return
@@ -483,6 +497,7 @@ func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm
 // updateAddressPresence Update synthesized address presence state from user presence state
 func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgstatus string) {
 	//一个address可能对应多个userid即多个presence
+	// an address can match multiple userid / presence
 	compositepresence := []string{}
 	var tmpUserInfos []*matrixcomm.UserInfo
 	if _, ok := mtr.Address2User[address]; !ok {
@@ -498,6 +513,7 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 	}
 
 	//按照online、unavailable、offline、unknown顺序核对presence state
+	// check presence state by the order of online, unavailable, offlien, unknown
 	//存在一个地址对应多个userid,按此规则计算状态
 	presencestates := []string{ONLINE, UNAVAILABLE, OFFLINE, UNKNOWN}
 	newState := UNKNOWN
@@ -522,6 +538,8 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 }
 
 // loginOrRegister 节点登录（如果不成功，新注册再尝试登录），节点的displayname为user ID的签名
+// loginOrRegister : node login, if failed, register again then try login,
+// displayname of nodes as the signature of userID
 func (mtr *MatrixTransport) loginOrRegister() (err error) {
 	//TODO:考虑被恶意注册的风险
 	regok := false
@@ -598,6 +616,7 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		return
 	}
 	//把本节点的信息加入Users
+	// Add nodes info into Users
 	thisUser := &matrixcomm.UserInfo{
 		UserID:      mtr.UserID,
 		DisplayName: dispname,
@@ -609,7 +628,7 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 }
 
 // inventoryRooms 整理被侦听的room，discovery room 不放入listening object（暂时的，维护时可用于不同room类别的处理）
-// TODO:debug only
+// inventoryRooms : collect monitored room, discovery room are not put inside listening object.
 func (mtr *MatrixTransport) inventoryRooms() (err error) {
 	for _, value := range mtr.matrixcli.Store.LoadRoomOfAll() {
 		if value.Alias == mtr.discoveryroomalias {
@@ -630,6 +649,7 @@ func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 }
 
 // dataSign 签名数据
+// dataSign signature data
 func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 	hash := crypto.Keccak256(data)
 	signature, err := crypto.Sign(hash[:], mtr.key)
@@ -640,6 +660,8 @@ func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 }
 
 // joinDiscoveryRoom 检查deicoveryroom(不存在则新建)，客户端暂存此room内的成员，再次invite从此room内检索出来的节点（如果已存在的话）
+// joinDiscoveryRoom : check discoveryroom if not exist, then create a new one.
+// client caches all memebers of this room, and invite nodes checked from this room again.
 func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 	//从配置文件中读取discovery room的名字和名字的结束标识
 	discoveryRoomList := params.MatrixDiscoveryRoomConfig
@@ -654,10 +676,12 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 		}
 	}
 	//合成discovery room's alias
+	// combine discovery room's alias
 	discoveryRoomAlias := mtr.makeRoomAlias(ALIASFRAGMENT)
 	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + DISCOVERYROOMSERVER
 	mtr.discoveryroomid = ""
 	//本节点加入此discovery room（不存在则创建）
+	// this node join the discovery room, if not exist, then create.
 	for i := 0; i < 5; i++ {
 		respj, errj := mtr.matrixcli.JoinRoom(discoveryRoomAliasFull, mtr.servername, nil)
 		if errj != nil {
@@ -731,7 +755,8 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 	return
 }
 
-// maybeInviteUser invite the user in the room which by search "Address2Room"
+// maybeInviteUser 邀请节点到其所在的room(通过Address2Room搜索)
+// maybeInviteUser : invite nodes to their rooms via Address2Room.
 func (mtr *MatrixTransport) maybeInviteUser(user matrixcomm.UserInfo) {
 	address, err := validateUseridSignature(user)
 	if err != nil {
@@ -914,6 +939,7 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 }
 
 // setRoomIDForAddress,更新addresses->rooms设置AccountData的内容，具体是map["mark"]map[address][roomids]
+// setRoomIDForAddress : update addresses->rooms, which is map["mark"]map[address][roomids]
 func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid string) (err error) {
 	addressHex := address.String()
 	if roomid != "" {
@@ -927,6 +953,7 @@ func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid str
 }
 
 // getRoomID2Address 从cache中获取节点所在room的room id
+// getRoomID2Address : get room id of nodes from cache.
 func (mtr *MatrixTransport) getRoomID2Address(address common.Address) (roomid string) {
 	addressHex := address.String()
 	if _, ok := mtr.Address2Room[addressHex]; !ok {
@@ -959,6 +986,8 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 
 	//从服务器（include the other participating servers）检索包含节点addressHex的UserInfo
 	//模糊查询,通过对方的地址查询user info
+	// check UserInfo of addressHex from server
+	// fuzz check user info via partner's address.
 	var tmpUserInfos []*matrixcomm.UserInfo
 	respusers, err := mtr.matrixcli.SearchUserDirectory(&matrixcomm.ReqUserSearch{
 		SearchTerm: nodeAddrHex,
@@ -1072,7 +1101,7 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 		NodeDeviceType:    devicetype,
 		UserDeviceType:    make(map[common.Address]string),
 		log:               log.New("name", logname),
-		avatarurl:         "", //收费规则
+		avatarurl:         "", //收费规则		// charge rule
 	}
 	mtr.matrixcli = matrixclieValid
 	return mtr, nil

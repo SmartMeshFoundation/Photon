@@ -19,7 +19,7 @@ type TransferData struct {
 	Target    string   `json:"target_address"`
 	Token     string   `json:"token_address"`
 	Amount    *big.Int `json:"amount"`
-	Secret    string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用
+	Secret    string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
 	Fee       *big.Int `json:"fee"`
 	IsDirect  bool     `json:"is_direct"`
 }
@@ -63,6 +63,7 @@ Transfers is the api of /transfer/:token/:partner
 */
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	// 用户调用了prepare-update,暂停接收新交易
+	// client invokes prepare-update, halts receiving new transfers.
 	if RaidenAPI.Raiden.StopCreateNewTransfers {
 		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
 		return

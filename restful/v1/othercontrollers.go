@@ -50,12 +50,14 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 }
 
 // PrepareUpdate : 停止创建新的交易,返回当前是否可以升级
+// PrepareUpdate : stop sending new transfers, return boolean that if we can update now?
 func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
 	// 这里没并发问题,直接操作即可
+	// no concurrent issue, just do it.
 	RaidenAPI.Raiden.StopCreateNewTransfers = true
 	num := len(RaidenAPI.Raiden.Transfer2StateManager)
 	if num > 0 {
-		rest.Error(w, "%d transactions are still in progress. Please wait until all transactions are over", num)
+		rest.Error(w, fmt.Sprintf("%d transactions are still in progress. Please wait until all transactions are over", num), http.StatusBadRequest)
 		return
 	}
 	_, err := w.(http.ResponseWriter).Write([]byte("ok"))

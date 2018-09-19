@@ -149,6 +149,8 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 				/*
 					一旦 unlock 成功,那么 transferAmount 就会发生变化,下次必须用新的 transferAmount
 				*/
+				// Once unlock succeed, then transferAmount is going to change
+				// next time we must use a new transferAmount.
 				transferAmount = transferAmount.Add(transferAmount, proof.Lock.Amount)
 			}
 		}

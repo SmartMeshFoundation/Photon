@@ -125,7 +125,7 @@ type RaidenService struct {
 	HealthCheckMap                        map[common.Address]bool
 	quitChan                              chan struct{} //for quit notification
 	isStarting                            bool
-	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启
+	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 }
@@ -190,12 +190,14 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
 	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
+		// I have connected all Ethereum nodes
 		rs.SecretRegistryAddress, err = rs.Registry.GetContract().SecretRegistryAddress(nil)
 		if err != nil {
 			return
 		}
 		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
 		// 获取ChainID并保存在数据库
+		// get ChainID and store it into database
 		var chainID *big.Int
 		chainID, err = rs.Chain.Client.NetworkID(context.Background())
 		if err != nil {
@@ -205,12 +207,14 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		rs.db.SaveChainID(chainID.Int64())
 	} else {
 		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
+		// Read SecretRegistryAddress stored in local database. If none, which means system does not initialize it, just exit.
 		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
 		if rs.SecretRegistryAddress == utils.EmptyAddress {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}
 		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
+		// Read ChainID stored in database, if none, which means system does not initialize it, just exit.
 		params.ChainID = big.NewInt(rs.db.GetChainID())
 		if params.ChainID.Cmp(big.NewInt(0)) == 0 {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
@@ -271,6 +275,7 @@ func (rs *RaidenService) Start() (err error) {
 	// 这里如果状态为connected,则等待积压的block events处理完毕后再启动api以及订阅其他节点的消息
 	// 如果状态不为connected,则直接启动api以及订阅其他节点的消息,这样做可能带来的风险:
 	// 1. 积压事件处理完毕之前,用户/其他节点通过api/消息对本地数据作出修改,是否会给后续的链上事件同步工作带来问题???
+	// Here if status is connected, then after block events completes, we should restart api and subscribe messages from other nodes.
 	if rs.Chain.Client.Status == netshare.Connected {
 		//wait for start up complete.
 		<-rs.ChanHistoryContractEventsDealComplete
@@ -278,6 +283,7 @@ func (rs *RaidenService) Start() (err error) {
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
+	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
 	if rs.Config.NetworkMode == params.MixUDPXMPP {
 		err = rs.startSubscribeNeighborStatus()
 		if err != nil {
@@ -344,10 +350,13 @@ func (rs *RaidenService) loop() {
 				if ok {
 					// 历史合约事件处理完成
 					// 启动时,通知上层
+					// Complete handling history contract events.
+					// When we start, notify it to uppercase.
 					if rs.isStarting {
 						rs.ChanHistoryContractEventsDealComplete <- struct{}{}
 					}
 					// 启动AlarmTask
+					// Start AlarmTask
 					err = rs.AlarmTask.Start()
 					if err != nil {
 						log.Error(fmt.Sprintf("alarm task start err %s", err))
@@ -408,6 +417,8 @@ func (rs *RaidenService) loop() {
 }
 
 //for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
+// for init, read db history,
+// all on-chain events I have not handled should wait in queue.
 func (rs *RaidenService) registerRegistry() {
 	dbRegistry := rs.db.GetRegistryAddress()
 	if dbRegistry != rs.RegistryAddress && dbRegistry != utils.EmptyAddress {
@@ -445,7 +456,8 @@ func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy
 		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
 		但是保证后续的事件会继续收到,所以应该按照新通道处理.
 	*/
-
+	// Because it is possible that I receive a bunch of events when disconnected, so channel states may not be the same as those when first created.
+	// But we ensure that following events will be got by me 100%, so we should handle them as creating a new channel.
 	ourState := channel.NewChannelEndState(rs.NodeAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 	partenerState := channel.NewChannelEndState(partnerAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 
@@ -782,6 +794,20 @@ Calls:
 	//2. token swap taker 带lockSecretHash,不带secret
 	//3. token swap maker 带lockSecretHash,带secret
 */
+/*
+ *	launch a new mediated transfer
+ *
+ *	Args :
+ *		hashlock : caller can specify a hashlock or use empty, when empty, will generate a random secret.
+ *		expiration : caller can specify a valid blocknumber or 0, when 0, will calculate based on settle timeout of channel.
+ *	Calls :
+ *		1. mediatedTransfer
+ *			1.1 if it has lockSecretHash and Secret, then it is a transfer with specific secret.
+ *			1.2 If it has no lockSecretHash or Secret, then it is a normal transfer, and we need generate a random secret for it.
+ *		2. token swap
+ *			2.1 taker should contain lockSecretHash, but no secret.
+ *			2.2 maker should contain lockSecretHash and secret.
+ */
 func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
@@ -817,6 +843,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	/*
 		发起方每次切换路径不再切换密码,不切换依然可以保证安全
 	*/
+	// Initiator has no need to switch secret, every time he switches the route, and security can be ensured.
 	initInitiator := &mediatedtransfer.ActionInitInitiatorStateChange{
 		OurAddress:     rs.NodeAddress,
 		Tranfer:        transferState,
@@ -851,6 +878,11 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		1. 注册SecretRequestPredictor,防止在用户允许之前发送密码出去
 		2. 保证用户在提供密码之后,能移除掉这个predictor
 		*/
+		/*
+		 *	Participants use specified secret to send a transfer, then
+		 *		1. Register SecretRequestPredictor, preventing secret is sent out before participants permit.
+		 *		2. Ensure that this predictor can be removed once participants provide secret.
+		 */
 		var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
 			return true
 		}
@@ -860,6 +892,7 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		/*
 			普通交易，随机生成密码
 		*/
+		// Normal transfer, generate random secret.
 		secret = utils.NewRandomHash()
 		lockSecretHash = utils.ShaSecret(secret[:])
 	}
@@ -877,9 +910,15 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 			锁是有可能重复的,比如 token swap 中.
 	*/
+	/*
+	 *	First time receiving this secret.
+	 *	We need to check if I have ever abandoned this secret, if so, handle it carefully.
+	 *	Locks can be duplicated, like in token swap.
+	 */
 	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
+		// do nothing.
 		return
 	}
 	amount := msg.PaymentAmount
@@ -931,9 +970,15 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 		锁是有可能重复的,比如 token swap 中.
 	*/
+	/*
+	 *	First time receiving this secret.
+	 *	todo We need to check if I have ever abandoned this secret, if so, handle it carefully.
+	 * 	Locks might be duplicate, like in toke swap.
+	 */
 	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
+		// do nothing
 		return
 	}
 	if stateManager != nil {
@@ -1400,6 +1445,8 @@ func (rs *RaidenService) handleEthRPCConnectionOK() {
 		return
 	}
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
+	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
+	// otherwise we can do things like token registry.
 	if rs.Registry == nil {
 		rs.Registry = rs.Chain.Registry(rs.Chain.RegistryAddress)
 	}

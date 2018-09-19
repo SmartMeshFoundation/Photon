@@ -1,10 +1,10 @@
 package matrixcomm
 
 import (
-"encoding/json"
-"fmt"
-"runtime/debug"
-"time"
+	"encoding/json"
+	"fmt"
+	"runtime/debug"
+	"time"
 )
 
 // Syncer represents an interface that must be satisfied in order to do /sync requests on a client.
@@ -32,7 +32,7 @@ func NewDefaultSyncer(userID string, store Storer) *DefaultSyncer {
 
 // notifyListeners as a callback and notify listener
 func (s *DefaultSyncer) notifyListeners(event *Event) {
-	tmpEventType:=event.Type
+	tmpEventType := event.Type
 	listeners, exists := s.listeners[tmpEventType]
 	if !exists {
 		return
@@ -57,14 +57,17 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 		}
 	}()
 	//消息中presence,获取presence
-	for _,presenceUpdate:=range res.Presence.Events{
+	// presence in message, get presence
+	for _, presenceUpdate := range res.Presence.Events {
 		s.notifyListeners(&presenceUpdate)
 	}
 	//消息中的AccountData，返回的是map address-roomid
-	for _,event:=range res.AccountData.Events{
+	// AccountData in message, return map address-roomid
+	for _, event := range res.AccountData.Events {
 		s.notifyListeners(&event)
 	}
 	//消息中的room内发生的join事件
+	// in message room, join event occurs.
 	for roomID, roomData := range res.Rooms.Join {
 		room := s.getOrCreateRoom(roomID)
 		for _, event := range roomData.State.Events {
@@ -78,6 +81,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 		}
 	}
 	//消息中的room内发生的invite事件
+	// in messsage room, invite event occurs.
 	for roomID, roomData := range res.Rooms.Invite {
 		room := s.getOrCreateRoom(roomID)
 		for _, event := range roomData.State.Events {
@@ -87,6 +91,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 		}
 	}
 	//消息中的room内发生的leave事件
+	// in message room, leave event occurs.
 	for roomID, roomData := range res.Rooms.Leave {
 		room := s.getOrCreateRoom(roomID)
 		for _, event := range roomData.Timeline.Events {

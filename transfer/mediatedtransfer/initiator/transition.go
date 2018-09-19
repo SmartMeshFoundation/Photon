@@ -129,6 +129,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		/*
 			保存上次尝试的路由信息,否则当发起方收到AnnounceDisposed的时候,尝试新路由时,会出现异常
 		*/
+		// Store route info of previous one, or when receiving AnnounceDisposed message and try a new route, error occurs.
 		msg.FromChannel = state.Routes.CanceledRoutes[len(state.Routes.CanceledRoutes)-1].ChannelIdentifier
 	}
 	state.Route = tryRoute
@@ -162,10 +163,14 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 	var events []transfer.Event
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
-	} else {
+	}
+	if state.BlockNumber > state.Transfer.Expiration {
 		// 超时
 		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
 		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,发送remove expired,然后移除state manager
+		// timeout
+		// If I have not sent secret, then just send removeExpiredLock, and remove stateManager.
+		// If I have already sent secret, then assume transfer timeout failure, send remove expired, and remove state manager.
 		events = append(events, &mt.EventUnlockFailed{
 			LockSecretHash:    state.Transfer.LockSecretHash,
 			ChannelIdentifier: state.Route.ChannelIdentifier,
@@ -265,11 +270,13 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
 	if st.LockSecretHash != state.LockSecretHash {
 		//无论是不是 token swap, 都应该知道 locksecrethash,否则肯定是实现有问题
+		// we should know locksecrethash no matter whether it is token swap, otherwise implementation has problem.
 		panic(fmt.Sprintf("my locksecrethash=%s,received=%s", state.LockSecretHash.String(), st.LockSecretHash.String()))
 	}
 	log.Trace(fmt.Sprintf("Check lock's expiration, state.Transfer.Expiration=%d, st.BlockNumber=%d\n", state.Transfer.Expiration, st.BlockNumber))
 	if state.Transfer.Expiration < st.BlockNumber {
 		//对于我来说这笔交易已经超期了. 应该发出 移除此锁消息.
+		// As to me this transfer expired, should send RemoveExpiredLock message.
 		events := expiredHashLockEvents(state)
 		events = append(events, &mt.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
@@ -280,6 +287,7 @@ func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRe
 		}
 	}
 	//认为交易成功了
+	// assume transfer succeed.
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   transferSuccessEvents(state),
@@ -319,6 +327,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 	/*
 		考虑到崩溃恢复情形,可能崩溃了很久. 如果这时候交易还继续进行,显然不合理.
 	*/
+	// Consider that crash happened for a long time, if transfer still goes on, that's not reasonable.
 	if state.BlockNumber >= state.Transfer.Expiration {
 		return &transfer.TransitionResult{
 			NewState: state,
@@ -382,6 +391,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		/*
 			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
 		*/
+		// As transfer initiator, we assume that this transfer completes once we send unlock and my partner receive it.
 		//todo fix, find a way to remove this identifier from raiden.Transfer2StateManager
 		log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 			utils.StringInterface1(originalState), utils.StringInterface1(st)))
@@ -398,6 +408,17 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				因为有可能对方是恶意的,一个恶意的实现就是, maker 发出的secret request 对方根本不响应,造成自己有一个 state manager 不知道密码,
 				从而造成损失.
 			*/
+			/*
+			 *	As long as secret correct, then we should send secret. There might be problematic about this procedure but result is correct.
+			 *	Because according to protocol layer, same message won't send repeatedly, which leads to maker can't send reveal secret in tokenswap.
+			 *
+			 *	As to token swap, maybe redundency occurs because both participants send / receive revealsecret twice.
+			 *
+			 *	maker :
+			 *		1. when maker sends reveal secret to his partner, two statemanager of a lock should know the secret.
+			 *			Because maybe partner is fraudulent node, and he never responds to secret request, which leads to one stateManager without secret.
+			 *
+			 */
 		case *mt.ReceiveSecretRevealStateChange:
 			it = handleSecretReveal(state, st2)
 		case *mt.ContractSecretRevealOnChainStateChange:

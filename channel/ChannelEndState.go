@@ -76,6 +76,7 @@ func (node *EndState) locksRoot() common.Hash {
 //SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
 	// amount 为0,只有一种情况就是发生了 punish 事件
+	// amount is 0, which means punish event occurs.
 	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) < 0 {
 		log.Error(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
 			amount,
@@ -346,6 +347,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	/*
 		金额只能是当前金额加上本次锁的金额,多了少了都是错的
 	*/
+	// transferAmount = previous transferAmount + token amount in this lock
 	if unlock.TransferAmount.Cmp(transferAmount) != 0 {
 		return fmt.Errorf("invalid transferred_amount, expected: %s got: %s",
 			transferAmount, unlock.TransferAmount)
@@ -355,6 +357,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	/*
 		确保所有的信息都是正确的,才能更新状态
 	*/
+	// Verify messages are correct then update channel state.
 	node.Tree = newtree
 	node.BalanceProofState = balanceProof
 	return nil
