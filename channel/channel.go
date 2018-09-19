@@ -615,7 +615,7 @@ func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNu
 		为什么我接收超过 settle timeout 的交易不安全?
 		交易: A-B-C-D
 		AB: settle timeout 1000
-		BC settle timeout 1000
+		BC settle timeout 10
 		CD settle timeout 1000
 		假设 当前块为20000,B 收到了来自 A 超时区块为超时时间为21000
 		B给 C 超时时间21000,C给 D 超时时间21000
@@ -628,13 +628,13 @@ func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNu
 	 *
 	 *	Transfer : A-B-C-D
 	 *	AB : settle_timeout 1000
-	 *	BC : settle_timeout 1000
+	 *	BC : settle_timeout 10
 	 *	CD : settle_timeout	1000
 	 *
-	 *	Assume that current block height is 20000, and BH that B received A is 21000.
-	 *	BC settle_timeout 21000, CD settle_timeout 21000
-	 * 	then BC can collude and reveal B secret, after B close/settle channel, D can register the secret on-chain
-	 *	and take tokens away.
+	 *	Assume that current block height is 20000, and transfer expiration that B received A is 21000.
+	 *	transfer expiration in BC 21000, transfer expiration in CD 21000
+	 * 	then BC can collude and D reveal secret to B, after B close/settle channel, D can register the secret on-chain
+	 *	and steal tokens in BC.
 	 */
 	if expiresAfterSettle { //After receiving this lock, the party can close or updatetransfer on the chain, so that if the party does not have a password, he still can't get the money.
 		log.Error(fmt.Sprintf("Lock expires after the settlement period. node=%s,from=%s,to=%s,lockexpiration=%d,currentblock=%d,end_settle_period=%d",
