@@ -38,7 +38,7 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 		waitTime:            time.Second,
 		LastBlockNumber:     -1,
 		quitChan:            make(chan struct{}), //sync channel
-		LastBlockNumberChan: make(chan int64),
+		LastBlockNumberChan: make(chan int64, 10),
 	}
 	return t
 }
