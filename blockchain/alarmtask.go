@@ -86,10 +86,7 @@ func (at *AlarmTask) waitNewBlock() error {
 			if currentBlock%10 == 0 {
 				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
 			}
-			select {
-			case at.LastBlockNumberChan <- currentBlock:
-			default:
-			}
+			at.LastBlockNumberChan <- currentBlock
 		case <-at.quitChan:
 			sub.Unsubscribe()
 			return nil
