@@ -581,7 +581,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
  *	handleUnlockOnChain : function to handle unlock event.
  *
  *	Note that if case is that my partner unlocks locks of mine, then maybe I need to punish my partner,
- *	even if that's not the case, when channel settle, I still need to use the most recent locksroot and transferAmount.
+ *	even if that's not the case, when channel settle, I still need to use the the locksroot and transferAmount on chain
  */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))

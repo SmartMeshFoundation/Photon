@@ -7,6 +7,8 @@ import (
 
 	"errors"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
@@ -445,6 +447,29 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if err != nil {
 		return err
 	}
+	// only for test
+	dataForDebug := &struct {
+		SearchKey           string
+		TokenNetworkAddress string
+		PartnerAddress      string
+		TransferAmount      int64
+		Expiration          int64
+		Amount              int64
+		SecretHash          string
+		MerkleProof         []common.Hash
+	}{
+		SearchKey:           "dataForDebug",
+		TokenNetworkAddress: mh.raiden.Config.RegistryAddress.String(),
+		PartnerAddress:      msg.Sender.String(),
+		TransferAmount:      msg.TransferAmount.Int64(),
+		Expiration:          msg.Expiration,
+		Amount:              msg.PaymentAmount.Int64(),
+		SecretHash:          msg.LockSecretHash.String(),
+		MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
+	}
+
+	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
+	log.Trace(string(buf))
 	//mh.updateChannelAndSaveAck(ch, msg.Tag())
 	if msg.Target == mh.raiden.NodeAddress {
 		mh.raiden.targetMediatedTransfer(msg, ch)
