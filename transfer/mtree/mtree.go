@@ -231,7 +231,7 @@ ComputeMerkleRootWith 创建包含新 lock 的 merkleTree
 /*
  *	ComputeMerkleRootWith : function to create a merkleTree with a new lock contained in.
  *
- *	Note that make sure `include` is not contained original locksroot.
+ *	Note that make sure `include` is not contained original by the merkle tree.
  */
 func (m *Merkletree) ComputeMerkleRootWith(include *Lock) (newm *Merkletree) {
 	//我们并不会更改锁的内容,只会进行不同的排列组合.
