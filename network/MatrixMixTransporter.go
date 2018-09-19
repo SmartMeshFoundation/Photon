@@ -41,6 +41,10 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 Send message
 优先选择局域网,在局域网走不通的情况下,才会考虑 matrix
 */
+/*
+ *	Send message prefers to choose LAN,
+ *	after LAN does not work, then try matrix.
+ */
 func (t *MatrixMixTransporter) Send(receiver common.Address, data []byte) error {
 	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {

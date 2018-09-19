@@ -48,6 +48,7 @@ func (model *ModelDB) DeleteEnvelopMessager(echohash common.Hash) {
 	err := model.db.DeleteStruct(sss)
 	if err != nil {
 		//可能这个消息完全不存在
+		// this messsage might not exist.
 		log.Warn(fmt.Sprintf("try to remove envelop message %s,but err= %s", utils.HPex(echohash), err))
 	}
 }

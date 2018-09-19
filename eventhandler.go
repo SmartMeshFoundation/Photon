@@ -145,6 +145,8 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
+			// database cache fault, impossible to happen.
+			// If occurs, then throw this to upper layer.
 			//err=tx.Rollback()
 			panic(fmt.Sprintf("update channel err %s", err))
 		}
@@ -196,6 +198,8 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		//有可能同一个消息会引发两个 event send, 比如收到 中间节点EventAnnouceDisposed
 		// 会触发EventSendAnnounceDisposedResponse 和EventSendMediatedTransfer
+		// Maybe a message triggers two event send, when receiving Medaited node's EventAnnounceDisposed
+		// which triggers EventSendAnnounceDisposedResponse, and EventSendMediatedTransfer
 		stateManager.LastReceivedMessage = nil
 	}
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedBefore")
@@ -461,6 +465,7 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
 	if err != nil {
 		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
+		// todo handle this event, when routing we should consider the weight between nodes, weight = sum of deposits between a participant pair.
 		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelAddress=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
@@ -496,6 +501,14 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 3. 数据库中 non participant 信息
 4. todo statemanager 中有关该 channel 的信息, 是否有?
 */
+/*
+ *	Remove this channel infor from local memory.
+ *
+ *	1. channel information in channel graph
+ *	2. channel info in database.
+ *	3. non participant info in database
+ *	4. todo is there any channel info in statemanager,?
+ */
 func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) error {
 	g := eh.raiden.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
 	g.RemoveChannel(ch)
@@ -526,6 +539,8 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 }
 
 //大部分与 settle 相同,是否可以合并呢?或者合约上干脆合并了?
+// Most part of this is same as settle
+// can we just combine them?
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
@@ -539,6 +554,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 	}
 	err = eh.removeSettledChannel(ch)
 	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	// notify all statemanager with pending locks, then we can send announcedisposed and try another route.
 	eh.dispatchByPendingLocksInChannel(ch, st)
 	return err
 }
@@ -555,6 +571,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 	}
 	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
 	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	// nofity all statemanager with pending locks, and send announce disposed or try new route.
 	eh.dispatchByPendingLocksInChannel(ch, st)
 	return err
 }
@@ -578,6 +595,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 		return err
 	}
 	//对方解锁我发出去的交易,考虑可否惩罚
+	// my partner unlock transfer I sent, consider punish him?
 	if eh.raiden.NodeAddress == st.Participant {
 		ad := eh.raiden.db.GetReceiviedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
 		if ad != nil {
@@ -620,8 +638,10 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 }
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	// 这里需要注册密码,否则unlock消息无法正常发送
+	// we need register secret here, otherwise we can not send unlock.
 	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.Secret, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
+	// we need dispatch it to relevant statemanager, and let them handle incomplete transfers.
 	eh.dispatchBySecretHash(st.LockSecretHash, st)
 	return nil
 }

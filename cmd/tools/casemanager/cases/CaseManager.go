@@ -38,6 +38,7 @@ func NewCaseManager() (caseManager *CaseManager) {
 func (c *CaseManager) RunAll(skip string) {
 	fmt.Println("Run all cases...")
 	// 排序
+	// sort
 	var keys []string
 	for k := range c.Cases {
 		keys = append(keys, k)

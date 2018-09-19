@@ -425,6 +425,7 @@ func (r *RaidenAPI) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress c
 func (r *RaidenAPI) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
 	lockSecretHash := utils.ShaSecret(secret.Bytes())
 	//在channel 中注册密码
+	// register secret in channel
 	r.Raiden.registerSecret(secret)
 
 	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
@@ -440,6 +441,7 @@ func (r *RaidenAPI) RegisterSecret(secret common.Hash, tokenAddress common.Addre
 		return rerr.InvalidState("wrong secret")
 	}
 	// 在state manager中注册密码
+	// register secret in state manager
 	state.FromTransfer.Secret = secret
 	state.Secret = secret
 	return
@@ -473,6 +475,7 @@ func (r *RaidenAPI) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, to
 	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
 	if !ok {
 		// 接收人不是自己
+		// I'm not the recipient
 		return
 	}
 	resp = new(TransferDataResponse)
@@ -835,6 +838,7 @@ type updateTransfer struct {
 }
 
 //todo 需要第三方服务帮忙注册密码么?如果不需要,是否应该自己注册密码?
+// todo do we need delegation service to help us register secret? If not, should we register secret in person?
 type unlock struct {
 	Lock        *mtree.Lock `json:"lock"`
 	MerkleProof []byte      `json:"merkle_proof"`
@@ -843,6 +847,7 @@ type unlock struct {
 }
 
 //需要委托给第三方的 punish证据
+// punish proof that is delegated to third-party.
 type punish struct {
 	LockHash       common.Hash `json:"lock_hash"` //the whole lock's hash,not lock secret hash
 	AdditionalHash common.Hash `json:"additional_hash"`
@@ -908,6 +913,7 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash,
 	var ps []*punish
 	for _, annouceDisposed := range r.Raiden.db.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
 		//跳过历史 channel
+		// omit history channel
 		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
 			continue
 		}

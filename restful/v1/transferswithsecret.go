@@ -12,6 +12,8 @@ import (
 
 // AllowRevealSecret :
 // 当用户发出了一笔指定密码的交易时使用,这种交易在调用本接口解锁之前,是不会接收方发来的SecretRequest的
+// AllowRevealSecret : used when clients send a transfer with specific secrets.
+// that secret will not receive SecretRequest before invoking this function to unlock.
 func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
 	type AllowRevealSecretPayload struct {
 		LockSecretHash string `json:"lock_secret_hash"`
@@ -37,6 +39,7 @@ func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
 }
 
 // GetUnfinishedReceivedTransfer :根据lockSecretHash查询未完成的交易
+// GetUnfinishedReceivedTransfer : check incomplete transfers according to lockSecretHash
 func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 	tokenAddressStr := r.PathParam("tokenaddress")
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
@@ -60,6 +63,8 @@ func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 
 // RegisterSecret :
 // 当从其他渠道知道一笔交易的密码时,可以注册密码到state manger中
+// RegisterSecret : when knowing the secret of a transfer from other sources,
+// we can register secret in statemanager
 func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
 	type RegisterSecretPayload struct {
 		Secret       string `json:"secret"`
