@@ -1,7 +1,6 @@
 package smartraiden
 
 import (
-	"context"
 	"encoding/binary"
 	"time"
 
@@ -29,9 +28,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 var errEthConnectionNotReady = errors.New("eth connection not ready")
@@ -1053,36 +1050,53 @@ func (r *RaidenAPI) getBalance() (balances []*AccountTokenBalanceVo, err error) 
 }
 
 // ForceUnlock : only for debug
-func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secretHash common.Hash) (err error) {
+func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secret common.Hash) (err error) {
 	channel := r.Raiden.getChannelWithAddr(channelIdentifier)
-	tokenNetwork, err := r.Raiden.Chain.TokenNetwork(channel.TokenAddress)
+	if channel == nil {
+		return fmt.Errorf("can not find channel %s", channelIdentifier.String())
+	}
+	tokenNetwork, err := r.Raiden.Chain.TokenNetwork(r.Raiden.Token2TokenNetwork[channel.TokenAddress])
 	if err != nil {
 		return
 	}
-	auth := bind.NewKeyedTransactor(r.Raiden.PrivateKey)
-	partnerAddress := channel.PartnerState.Address
-	tr, err := channel.CreateUnlock(lockSecretHash)
-	if err != nil {
-		return
-	}
+	// 获取数据
 	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
-	expiration := big.NewInt(lock.Lock.Expiration)
+	if lock.Lock == nil {
+		return fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
+	}
+	partnerAddress := channel.PartnerState.Address
+	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
+	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
+	nonce := channel.PartnerState.BalanceProofState.Nonce
+	signature := channel.PartnerState.BalanceProofState.Signature
+	addtionalHash := channel.PartnerState.BalanceProofState.MessageHash
 	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
 
-	// unlock
-	tx, err := tokenNetwork.GetContract().Unlock(auth, partnerAddress, tr.TransferAmount,
-		expiration, lock.Lock.Amount, secretHash, mtree.Proof2Bytes(proof))
+	if channel.State == channeltype.StateOpened {
+		// 自己close
+		fmt.Printf("ForceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
+			partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature))
+		err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
+		if err != nil {
+			fmt.Printf("ForceUnlock : close channel fail %s\n", err.Error())
+			return
+		}
+	}
+	// register
+	err = r.Raiden.Chain.SecretRegistryProxy.RegisterSecret(secret)
 	if err != nil {
+		fmt.Printf("ForceUnlock : register secret fail %s\n", err.Error())
 		return
 	}
-	log.Info(fmt.Sprintf("ForceUnlock  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(context.Background(), r.Raiden.Chain.Client, tx)
+	// unlock
+	fmt.Printf("ForceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
+		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
+		lock.LockHash.String())
+
+	err = tokenNetwork.Unlock(partnerAddress, transferAmount, lock.Lock, mtree.Proof2Bytes(proof))
 	if err != nil {
-		return err
-	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("ForceUnlock failed %s", receipt))
-		return errors.New("ForceUnlock tx execution failed")
+		fmt.Printf("ForceUnlock : unlock failed %s\n", err.Error())
+		return
 	}
 	log.Info(fmt.Sprintf("ForceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
 	return nil

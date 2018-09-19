@@ -55,7 +55,7 @@ func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
 	RaidenAPI.Raiden.StopCreateNewTransfers = true
 	num := len(RaidenAPI.Raiden.Transfer2StateManager)
 	if num > 0 {
-		rest.Error(w, "%d transactions are still in progress. Please wait until all transactions are over", num)
+		rest.Error(w, fmt.Sprintf("%d transactions are still in progress. Please wait until all transactions are over", num), http.StatusBadRequest)
 		return
 	}
 	_, err := w.(http.ResponseWriter).Write([]byte("ok"))
