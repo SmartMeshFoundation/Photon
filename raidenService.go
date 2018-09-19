@@ -752,11 +752,20 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
 		Token:             tokenAddress,
 	}
-	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
+	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	/*
+		Transfer is success
+		whenever partner receive this transfer  or not
+	*/
 	err = rs.StateMachineEventHandler.OnEvent(transferSuccess, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("dispatch transferSuccess err %s", err))
 	}
+	result.Result <- err
 	return
 }
 
