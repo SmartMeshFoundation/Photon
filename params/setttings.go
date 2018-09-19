@@ -121,6 +121,8 @@ var MatrixServerConfig = [][]string{
 	//{"https://transport02.raiden.network", "transport02.raiden.network"},
 	//{"http://transport01.smartraiden.network:8008", "transport01.smartraiden.network"},
 	{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
+	{"http://transport02.smartmesh.cn:8008", "transport02.smartmesh.cn"},
+	{"http://transport03.smartmesh.cn:8008", "transport03.smartmesh.cn"},
 }
 
 //MatrixDiscoveryRoomConfig a defalut matrix room config
