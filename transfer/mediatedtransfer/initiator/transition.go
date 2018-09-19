@@ -256,6 +256,12 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 /*
 密码在链上注册了,只要在有效期范围内,就相当于收到了对方的 reveal secret, 主动给对方发送 unlock 消息.
 */
+/*
+ *	handleSecretRevealOnChain : function to handle event of RevealSecretOnChain.
+ *
+ *	Note : Once the secret has been registered on chain, all nodes act like they receives reveal secret from their partner,
+ *	then send unlock to their partner.
+ */
 func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
 	if st.LockSecretHash != state.LockSecretHash {
 		//无论是不是 token swap, 都应该知道 locksecrethash,否则肯定是实现有问题

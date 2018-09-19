@@ -121,6 +121,11 @@ func (e *ExternalState) UpdateTransfer(bp *transfer.BalanceProofState) (result *
 Unlock call withdraw function of contract
 调用者要确保不包含自己声明放弃过的锁
 */
+/*
+ *	Unlock : function to unlock.
+ *
+ *	Note that caller has to ensure that there aren't locks that claimed abandoned by him contained.
+ */
 func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTransferdAmount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	transferAmount := new(big.Int).Set(argTransferdAmount)
@@ -183,6 +188,9 @@ func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (r
 /*
 PunishObsoleteUnlock 惩罚对手 unlock 一个声明放弃了的锁.
 */
+/*
+ *	PunishObsoleteUnlock : function to punishment channel participant who unlocks a transfer lock that has been claimed abandoned.
+ */
 func (e *ExternalState) PunishObsoleteUnlock(lockhash, additionalHash common.Hash, cheaterSignature []byte) (result *utils.AsyncResult) {
 	log.Info(fmt.Sprintf("PunishObsoleteUnlock called %s", e.ChannelIdentifier.String()))
 	result = e.TokenNetwork.PunishObsoleteUnlockAsync(e.MyAddress, e.PartnerAddress, lockhash, additionalHash, cheaterSignature)

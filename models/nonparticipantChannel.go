@@ -17,6 +17,10 @@ import (
 NonParticipantChannel 所有的通道信息在本地的存储
 因为合约不提供直接查询通道信息,只能通过事件获取,所以需要在本地保存一份,以便查询
 */
+/*
+ *	NonParticipantChannel : structure for back up of channel information at local storage.
+ *	Because contract does not provide direct check for channel information, so we need to backup at local storage.
+ */
 type NonParticipantChannel struct {
 	Participant1        common.Address
 	Participant2        common.Address

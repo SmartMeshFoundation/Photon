@@ -133,6 +133,13 @@ EventSendAnnounceDisposedResponse 收到对方AnnounceDisposed,需要给以应�
 一条是 Reponse, 另一条是 MediatedTransfer.
 我极可能是中间节点,也可能是交易发起人,但是不会是接收方.
 */
+/*
+ *	EventSendAnnounceDisposedResponse : after received AnnounceDisposed message from his partner,
+ * 	he needs to respond and there are two messages :
+ *	1. Response
+ *	2. MediatedTransfer
+ *	This participant has strong possibility to be a mediated node, or transfer initiator, but never be recipient.
+ */
 type EventSendAnnounceDisposedResponse struct {
 	LockSecretHash common.Hash
 	Token          common.Address
@@ -155,6 +162,14 @@ EventContractSendWithdraw emitted when the lock must be withdrawn on-chain.
 channel 自己会关注是否要提现，但是如果是在关闭以后才获取到密码的呢？
 目前完全无用,如果 unlock 放在 settle 之后,还有可能有用.
 */
+/*
+ *	EventContractSendWithdraw : emmited when the lock must be withdrwan on-chain.
+ *
+ *	Note that because this participant has no idea why the node ahead of him plans to close the channel,
+ *	so once he has the secret, he should immediately register it on-chain.
+ * 	Channel also checks whether there is withdraw occurred, but what if this participant receives secret after channel closed.
+ *	Currently we have no need to consider that. If unlock is sent after settle, the secret might have any use.
+ */
 type EventContractSendWithdraw struct {
 	Transfer          *LockedTransferState
 	ChannelIdentifier common.Hash
@@ -183,11 +198,13 @@ type EventWithdrawSuccess struct {
 }
 
 /*
-上家没有在expiration之内给我balanceproof，我也没有在链上兑现（因为没有密码）。
+EventWithdrawFailed : 上家没有在expiration之内给我balanceproof，我也没有在链上兑现（因为没有密码）。
 必须等待上家的 RemoveExpiredHashlockTransfer, 然后移除.
 */
 
-//EventWithdrawFailed emitted when a lock withdraw failed.
+// EventWithdrawFailed : cases that previous node does not transfer BalanceProof to him within expiration block, and
+// 	this participant also does not register secret on-chain (because he does not have secret).
+// 	So this participant must wait for RemoveExpiredHashlock from his previous node, then remove this lock.
 type EventWithdrawFailed struct {
 	LockSecretHash    common.Hash
 	ChannelIdentifier common.Hash

@@ -434,6 +434,12 @@ i'm one of the channel participants
 收到来自链上的事件,新创建了 channel
 但是事件有可能重复
 */
+/*
+ *	newChannelFromEvent : function to handle channel query event.
+ *
+ *	Note that this node is also one of the channle participant, and he receives messages on-chain, to create a new channel.
+ *	But those events could be repeated.
+ */
 func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, tokenAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) (ch *channel.Channel, err error) {
 	/*
 		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
@@ -572,6 +578,7 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 /*
 链上这个锁对应的密码注册了,
 */
+// The secret of this lock has been registered on-chain.
 func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) {
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {

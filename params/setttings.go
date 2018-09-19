@@ -97,6 +97,14 @@ MobileMode works on mobile device, 移动设备模式,这时候 smartraiden 并�
 2. 对于网络通信的处理要更谨慎
 3. 对于资源的消耗如何控制?
 */
+/*
+ *	MobileMode : a boolean value to adapt with mobile modes.
+ *
+ *	Note : if true, then smartraiden is not an individual process, work mode is about to change.
+ *		1. not support exit arbitrarily.
+ *		2. handle internet communication more prudent.
+ *		3. How to control amount of resource consumption.
+ */
 var MobileMode bool
 
 /*

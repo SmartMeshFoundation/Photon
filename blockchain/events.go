@@ -91,9 +91,8 @@ var eventAbiMap = map[string]string{
 */
 /*
  * Currently, all messages of payment channels are received through events,
- * and events occurred in the process of disconnection can not be monitored,
- * which must be obtained via get.
- * Events must be contained and repetitive.
+ * because events occurred after disconnection can not be monitored,
+ * after node gets reconnected, those missed event must be queried again and repeated events are allowed in this phase.
  */
 func (be *Events) installEventListener() (err error) {
 	var sub ethereum.Subscription
@@ -855,11 +854,11 @@ Start listening events send to  channel can duplicate but cannot lose.
  *  1. first resend events may lost (duplicate is ok)
  *  2. listen new events on blockchain
  *
- *  It is possible that there is no internet connection when start-up, and it has to be processed
+ *  It is possible that there is no internet connection when start-up, and missed events have to be regained
  *  after those events starts.
  * 	1. Make sure events sending out with order
  *  2. Make sure events does not get lost.
- *  3. Make sure events are repeatable.
+ *  3. Make sure repeated events are allowed.
  */
 func (be *Events) Start(LastBlockNumber int64) error {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))

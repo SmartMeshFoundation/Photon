@@ -13,10 +13,17 @@ rpanic 是为了设计给手机用户使用
 
 发生错误,处理,然后创建新的 RaidenService使用.
 */
+/*
+ *	repository rpanic is designed for mobile users, which implements resource reallocation while processes are executing.
+ *	If faults occurs, handle them and create a new RaidenService to continue.
+ */
 
 /*
 errChan should never be closed, 否则有可能会引起崩溃
 */
+/*
+ *	errChan should never be closed, or mobile app might crash.
+ */
 var errChan chan error
 var notifier []string
 
@@ -34,6 +41,10 @@ func InitRaidenPanic() {
 PanicRecover 用于所有 go routine 错误通知,但是不一定都会被处理,
 只会处理第一个错误.
 */
+/*
+ *	PanicRecover : function to feed fault notifications for all go routine,
+ *	but those might not be processed, only the first one will be processed.
+ */
 func PanicRecover(ctx string) {
 	if err := recover(); err != nil {
 		err2 := fmt.Errorf("%s occured err %s", ctx, err)

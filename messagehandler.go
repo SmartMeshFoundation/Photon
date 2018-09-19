@@ -128,6 +128,14 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 2. 找到了对应的 StateManager, 但是消息内容不对,比如 Amount 不对,忽略即可
 3. 找到了对应的 StateManager, 并且消息内容正确,则肯定回发送 RevealSecret,这时保存消息收到并且更新状态
 */
+/*
+ *	messageSecretRequest : function to handle SecretRequest
+ *
+ *	Note that channel states should be triggered by stateManager to keep the record of these states.
+ *	1. If there is no relevant StateManager, then do nothing.
+ *	2. If we find relevant StateManager, but message content has faults, just neglect it.
+ *	3. If we find relevant StateManager, and message is correct, then send RevealSecret, and store this message and switch channel state.
+ */
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
 	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
 		Amount:         new(big.Int).Set(msg.PaymentAmount),
@@ -149,6 +157,17 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 3. CrashStateManager 更新 State, 移除此锁
 因此,适宜直接在此函数更新通道状态并保存ack
 */
+/*
+ *	messageUnlock : function to handle unlock.
+ *
+ *	Note that if received unlock message, first we need to verify if it is correct. If not, which means channel states are not synchronized, then close the channel.
+ *	If correct, then just check relevant StateManager, there are four possible StateManager.
+ *	1. InitiatorStateManager : assumed fault, neglect.
+ *	2. MediatedStateManager : update channel state, may assume that this transfer completes (only one TransferPair), or this transfer goes on (multiple TransferPair).
+ *	3. TargetStateManager : update channel state, assume this transfer completes.
+ *	4. CrashStateManager : update channel state and remove the lock.
+ *	So, it is reasonable that we update channel state and store ACK just in this function.
+ */
 func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	lockSecretHash := msg.LockSecretHash()
 	secret := msg.LockSecret
@@ -179,6 +198,13 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 相关的 StateManager 自己根据超时判断是否结束
 适宜直接更新通道并保存 ack
 */
+/*
+ * messageRemoveExpiredHashlockTransfer : function to handle RemoveExpiredHashlock event.
+ *
+ *	Note that if message is faulty, which means channel states are not synchronized, this channel should be closed.
+ *	Relevant StateManager should check this by settle_timeout
+ *	Reasonable to update channel and store ACK.
+ */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
 	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
 	if err != nil {
@@ -209,6 +235,21 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 1. 作为 InitiatorStateManager, 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
 2. 作为MediatedStateManager 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
 */
+/*
+ * messageAnnounceDisposed : function to handle AnnounceDisposed message.
+ *
+ *	Note that when receiving AnnounceDisposed, if any fault occurs, which means channel states are not synchronized, this channel should be closed.
+ *	When receiving normal AnnounceDisposed :
+ *	1. InitiatorStateManager : Choose another node to route, and it may fail, but certainly it sends out AnnounceDisposedResponse.
+ *	2. MediatedStateManager : Choose another node to route, may send AnnounceDisposed denoting that this transfer can't be furthered, but it must send AnnounceDisposedResponse.
+ *	3. TargetStateManager : faulty channel state, impossible to occur.
+ * 	4. CrashStateManager : immediately send AnnounceDisposedResponse
+ *
+ *	Hence, once channel states and stored messages are received, they can be put in EventSendAnnounceDisposedResponse.
+ *	But there are cases of non-atomic update :
+ *	1. As to InitiatorStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
+ *	2. As to MediatedStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
+ */
 func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -252,6 +293,17 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 4. CrashStateManager 无需处理,等锁自动过期即可,因为这种情况,我是不会知道密码的.
 因此适宜直接更新通道,并保存ack
 */
+/*
+ *	messageAnnounceDisposedResponse : function to handle AnnounceDisposedResponse event.
+ *
+ *	Note that when receiving AnnounceDisposed, if any fault occurs, which means channel states are not synchronized, this channel should be closed.
+ *	When receiving normal AnnounceDisposedResponse :
+ *	1. InitiatorStateManager : Cannot receive this event, faults occur.
+ *	2. MediatedStateManager : No need to handle.
+ *	3. TargetStateManager : impossible to receive this event.
+ * 	4. CrashStateManager : No need to handle, just wait for expiration.
+ *	Reasonable to update payment channel and store ACK.
+ */
 func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -285,6 +337,12 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 如果验证错误,说明节点状态不同步,只能关闭通道
 没有相关的 StateManager, 直接更新通道并保持 ack
 */
+/*
+ * messageDirectTransfer : function to handle directTransfer event.
+ *
+ *	Note that if verification is faulty, which means channel states are not synchronized, then we have to close this channel.
+ *	There is no relevant StateManager, just update channel states and store ACK.
+ */
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	// 用户调用了prepare-update,暂停接收新交易
 	if mh.raiden.StopCreateNewTransfers {
@@ -397,6 +455,14 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 无论那种情况,这个通道在对方看来都不能再继续使用,只能强制关闭.
 直接更新通道状态并保存 ack 即可
 */
+/*
+ *	messageSettleRequest : function to handle SettleRequest event.
+ *
+ *	Note that if verification does not pass, the reason might be channel states are not synchronous,
+ *	or maybe there are another on-chain asynchronous event.
+ *  No matter which is our case, this channel are assumed to be not able to use, then enforce channel close.
+ * 	Directly update channel states and store ACK.
+ */
 func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
