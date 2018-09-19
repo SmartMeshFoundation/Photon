@@ -117,6 +117,7 @@ func Start() {
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
+		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))
