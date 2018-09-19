@@ -18,6 +18,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/matrixcomm"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -48,6 +49,17 @@ type MatrixTransport struct {
 	Address2Room       map[string]string //all rooms with we knows,just
 	log                log.Logger
 	ChargeRegulation   string
+	statusChan         chan netshare.Status
+	status             netshare.Status
+}
+
+func (mtr *MatrixTransport) changeStatus(newStatus netshare.Status) {
+	log.Info(fmt.Sprintf("changeStatus from %d to %d", mtr.status, newStatus))
+	mtr.status = newStatus
+	select {
+	case mtr.statusChan <- newStatus:
+	default:
+	}
 }
 
 // CollectNeighbors subscribe status change
@@ -98,13 +110,13 @@ func (mtr *MatrixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	mtr.protocol = protcol
 }
 
-// Stop 是否需要销毁即matrix资源？
-// Does Stop need to destroy matrix resource ?
+// Stop Does Stop need to destroy matrix resource ?
 func (mtr *MatrixTransport) Stop() {
 	if mtr.running == false {
 		return
 	}
 	mtr.running = false
+	mtr.changeStatus(netshare.Closed)
 	mtr.matrixcli.SetPresenceState(&matrixcomm.ReqPresenceUser{
 		Presence: OFFLINE,
 	})
@@ -119,12 +131,6 @@ func (mtr *MatrixTransport) StopAccepting() {
 	mtr.stopreceiving = true
 }
 
-/*func (mtr *MatrixTransport) SubscribeNeighbor(addr common.Address) error {
-
-	return nil
-}*/
-
-// NodeStatus 获取节点网络状态，如果查询自身节点，isOnline状态根据服务器握手信号来判断而非一直是true(可作为一个维护点)
 // NodeStatus gets Node states of network, if check self node, `isOnline` is not always be true instead it switches according to server handshake signal.
 func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	if mtr.matrixcli == nil {
@@ -140,15 +146,11 @@ func (mtr *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, 
 		isOnline = false
 		return "", isOnline
 	}
-	isOnline = true //只有online的时候才会返回staus_msg(deviceType)
+	isOnline = true //unless node is online cann't get status_msg
 	deviceType = mtr.AddressToPresence[addr].StatusMsg
 
 	/*deviceType = mtr.NodeDeviceType //just test
 	isOnline = true*/
-	//在invite被查询节点到presence list的前提下可查询任何联盟服务器上的user presence
-	//可以通过/presence/list来处理（如果节点在线，会多返回一个status_msg（装载有deviceType）,
-	//通过{userid}/presence也能查阅,可扩展（/presence/list）同时查多个节点的状态
-
 	// we can check user presence on any partner servers when invite node is in the presence list.
 	// code above can't get devideType, which handles via /presence/list (if nodes online, it returns one more status_msg(with devideType)
 	// via {userid}/presence we can check and expand states of multiple nodes.
@@ -165,13 +167,12 @@ func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error
 		return fmt.Errorf("[Matrix]Send failed,cann't find the peer address")
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
-	resp, err := mtr.matrixcli.SendText(room.ID, _data)
+	_, err = mtr.matrixcli.SendText(room.ID, _data)
 	if err != nil {
 		log.Trace(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
-		fmt.Println(resp)
+		//fmt.Println(resp)
 	} else {
-		//log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
-		log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), _data))
+		log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	}
 	return nil
 }
@@ -182,14 +183,14 @@ func (mtr *MatrixTransport) Start() {
 		return
 	}
 
-	//登录
 	// log in
 	if err := mtr.loginOrRegister(); err != nil {
 		return
 	}
 	mtr.running = true
 	mtr.stopreceiving = false
-	//health-check,功能之一即是寻找本节点曾经加入的room（非公开room的流程?）
+	mtr.changeStatus(netshare.Connected)
+
 	// health-check, used to find history rooms this node ever joined.
 	err := mtr.nodeHealthCheck(mtr.NodeAddress)
 	if err != nil {
@@ -229,12 +230,14 @@ func (mtr *MatrixTransport) Start() {
 	syncer.OnEventType("m.room.member", mtr.onHandleMemberShipChange)
 
 	go func() {
-		/*for {*/
-		if err := mtr.matrixcli.Sync(); err != nil {
-			log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
+		for {
+			if err := mtr.matrixcli.Sync(); err != nil {
+				log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
+				mtr.changeStatus(netshare.Reconnecting)
+			}
+			time.Sleep(time.Second * 5)
+			mtr.changeStatus(netshare.Connected)
 		}
-		time.Sleep(time.Second * 5)
-
 	}()
 
 	log.Trace("[Matrix] transport started")
@@ -397,7 +400,6 @@ func (mtr *MatrixTransport) onHandleMemberShipChange(event *matrixcomm.Event) {
 	}
 }
 
-// onHandlePresenceChange 处理消息内的事件中(Content)关于节点状态的改变，刷新AddressToPresence
 // onHandlePresenceChange handle events in this message, about changes of nodes and update AddressToPresence
 func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if mtr.stopreceiving == true {
@@ -484,7 +486,6 @@ func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm
 			presence.Presence = UNKNOWN
 		} else {
 			presence = resp
-
 			//更新此user id 的presence->UseridToPresence
 			mtr.Userid2Presence[userid] = presence
 		}
@@ -537,8 +538,7 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 	mtr.AddressToPresence[address] = tmpuserp
 }
 
-// loginOrRegister 节点登录（如果不成功，新注册再尝试登录），节点的displayname为user ID的签名
-// loginOrRegister : node login, if failed, register again then try login,
+// loginOrRegister node login, if failed, register again then try login,
 // displayname of nodes as the signature of userID
 func (mtr *MatrixTransport) loginOrRegister() (err error) {
 	//TODO:考虑被恶意注册的风险
@@ -755,8 +755,7 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 	return
 }
 
-// maybeInviteUser 邀请节点到其所在的room(通过Address2Room搜索)
-// maybeInviteUser : invite nodes to their rooms via Address2Room.
+// maybeInviteUser invite nodes to their rooms via Address2Room(search by "Address2Room").
 func (mtr *MatrixTransport) maybeInviteUser(user matrixcomm.UserInfo) {
 	address, err := validateUseridSignature(user)
 	if err != nil {
@@ -938,8 +937,7 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 	return
 }
 
-// setRoomIDForAddress,更新addresses->rooms设置AccountData的内容，具体是map["mark"]map[address][roomids]
-// setRoomIDForAddress : update addresses->rooms, which is map["mark"]map[address][roomids]
+// setRoomIDForAddress update addresses->rooms, which is map["mark"]map[address][roomids]
 func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid string) (err error) {
 	addressHex := address.String()
 	if roomid != "" {
@@ -952,7 +950,6 @@ func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid str
 	return
 }
 
-// getRoomID2Address 从cache中获取节点所在room的room id
 // getRoomID2Address : get room id of nodes from cache.
 func (mtr *MatrixTransport) getRoomID2Address(address common.Address) (roomid string) {
 	addressHex := address.String()
@@ -1101,7 +1098,9 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 		NodeDeviceType:    devicetype,
 		UserDeviceType:    make(map[common.Address]string),
 		log:               log.New("name", logname),
-		avatarurl:         "", //收费规则		// charge rule
+		avatarurl:         "", // charge rule
+		statusChan:        make(chan netshare.Status, 10),
+		status:            netshare.Disconnected,
 	}
 	mtr.matrixcli = matrixclieValid
 	return mtr, nil

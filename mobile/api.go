@@ -591,7 +591,27 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 		XMPPStatus: netshare.Disconnected,
 		EthStatus:  netshare.Disconnected,
 	}
+
+	var xn <-chan netshare.Status
 	mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
+	if !ok {
+		mt2, ok := a.api.Raiden.Transport.(*network.MatrixMixTransporter)
+		if ok {
+			xn, err = mt2.GetNotify()
+			if err != nil {
+				log.Error(fmt.Sprintf("matrix transport err %s", err))
+				xn = make(chan netshare.Status)
+			}
+		}
+		err = fmt.Errorf("not MixTransporter %s", utils.StringInterface(a.api.Raiden.Transport, 3))
+		return
+	}
+	xn, err = mt.GetNotify()
+	if err != nil {
+		log.Error(fmt.Sprintf("xmpp transport err %s", err))
+		xn = make(chan netshare.Status)
+	}
+	/*mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
 	if !ok {
 		err = fmt.Errorf("not MixTransporter %s", utils.StringInterface(a.api.Raiden.Transport, 3))
 		return
@@ -600,7 +620,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	if err != nil {
 		log.Error(fmt.Sprintf("xmpp transport err %s", err))
 		xn = make(chan netshare.Status)
-	}
+	}*/
 	go func() {
 		rpanic.RegisterErrorNotifier("API SubscribeNeighbour")
 		for {

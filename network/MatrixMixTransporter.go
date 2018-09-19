@@ -119,6 +119,9 @@ func (t *MatrixMixTransporter) NodeStatus(addr common.Address) (deviceType strin
 
 //GetNotify notification of connection status change
 func (t *MatrixMixTransporter) GetNotify() (notify <-chan netshare.Status, err error) {
+	if t.matirx != nil {
+		return t.matirx.statusChan, nil
+	}
 	return nil, errors.New("connection not established")
 }
 
