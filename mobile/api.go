@@ -595,7 +595,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	var xn <-chan netshare.Status
 	mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
 	if !ok {
-		mt2, ok := a.api.Raiden.Transport.(*network.MixTransporter)
+		mt2, ok := a.api.Raiden.Transport.(*network.MatrixMixTransporter)
 		if ok {
 			xn, err = mt2.GetNotify()
 			if err != nil {
