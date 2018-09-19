@@ -436,8 +436,9 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		TransferAmount      int64
 		Expiration          int64
 		Amount              int64
-		SecretHash          string
+		LockSecretHash      string
 		MerkleProof         []common.Hash
+		Signature           string
 	}{
 		SearchKey:           "dataForDebug",
 		TokenNetworkAddress: mh.raiden.Config.RegistryAddress.String(),
@@ -445,8 +446,9 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		TransferAmount:      msg.TransferAmount.Int64(),
 		Expiration:          msg.Expiration,
 		Amount:              msg.PaymentAmount.Int64(),
-		SecretHash:          msg.LockSecretHash.String(),
+		LockSecretHash:      msg.LockSecretHash.String(),
 		MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
+		Signature:           common.Bytes2Hex(msg.Signature),
 	}
 
 	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
