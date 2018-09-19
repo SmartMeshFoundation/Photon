@@ -1,6 +1,7 @@
 package smartraiden
 
 import (
+	"context"
 	"encoding/binary"
 	"time"
 
@@ -28,7 +29,9 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 var errEthConnectionNotReady = errors.New("eth connection not ready")
@@ -1047,4 +1050,40 @@ func (r *RaidenAPI) getBalance() (balances []*AccountTokenBalanceVo, err error) 
 		balances = append(balances, balance)
 	}
 	return
+}
+
+// ForceUnlock : only for debug
+func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secretHash common.Hash) (err error) {
+	channel := r.Raiden.getChannelWithAddr(channelIdentifier)
+	tokenNetwork, err := r.Raiden.Chain.TokenNetwork(channel.TokenAddress)
+	if err != nil {
+		return
+	}
+	auth := bind.NewKeyedTransactor(r.Raiden.PrivateKey)
+	partnerAddress := channel.PartnerState.Address
+	tr, err := channel.CreateUnlock(lockSecretHash)
+	if err != nil {
+		return
+	}
+	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
+	expiration := big.NewInt(lock.Lock.Expiration)
+	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
+
+	// unlock
+	tx, err := tokenNetwork.GetContract().Unlock(auth, partnerAddress, tr.TransferAmount,
+		expiration, lock.Lock.Amount, secretHash, mtree.Proof2Bytes(proof))
+	if err != nil {
+		return
+	}
+	log.Info(fmt.Sprintf("ForceUnlock  txhash=%s", tx.Hash().String()))
+	receipt, err := bind.WaitMined(context.Background(), r.Raiden.Chain.Client, tx)
+	if err != nil {
+		return err
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Info(fmt.Sprintf("ForceUnlock failed %s", receipt))
+		return errors.New("ForceUnlock tx execution failed")
+	}
+	log.Info(fmt.Sprintf("ForceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
+	return nil
 }
