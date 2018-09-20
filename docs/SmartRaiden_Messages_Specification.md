@@ -1,5 +1,4 @@
 # SmartRaiden Messages Specification
-***
 ## Overview 
 This page primarily introduces SmartRaiden Messages, which is a bunch of data structures used in communication among our off-chain payment channels. Users or Clients can send and receive these messages to claim what they plan to do and present their intention to their transaction partners. 
 
