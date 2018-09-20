@@ -593,22 +593,20 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	}
 
 	var xn <-chan netshare.Status
-	mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
-	if !ok {
-		mt2, ok := a.api.Raiden.Transport.(*network.MatrixMixTransporter)
-		if ok {
-			xn, err = mt2.GetNotify()
-			if err != nil {
-				log.Error(fmt.Sprintf("matrix transport err %s", err))
-				xn = make(chan netshare.Status)
-			}
+	switch t := a.api.Raiden.Transport.(type) {
+	case *network.MatrixMixTransporter:
+		xn, err = t.GetNotify()
+		if err != nil {
+			log.Error(fmt.Sprintf("matrix transport get nofity err %s", err))
+			return
 		}
-		err = fmt.Errorf("not MixTransporter %s", utils.StringInterface(a.api.Raiden.Transport, 3))
-		return
-	}
-	xn, err = mt.GetNotify()
-	if err != nil {
-		log.Error(fmt.Sprintf("xmpp transport err %s", err))
+	case *network.MixTransporter:
+		xn, err = t.GetNotify()
+		if err != nil {
+			log.Error(fmt.Sprintf("mix transport get notify err %s", err))
+			return
+		}
+	default:
 		xn = make(chan netshare.Status)
 	}
 	/*mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
