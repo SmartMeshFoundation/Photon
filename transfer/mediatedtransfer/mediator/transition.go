@@ -709,7 +709,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 /*
 
  */
-func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.TransitionResult {
+func cancelCurrentRoute(state *mediatedtransfer.MediatorState, refundChannelIdentify common.Hash) *transfer.TransitionResult {
 	var it = &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -721,6 +721,12 @@ func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.Transit
 	}
 	transferPair := state.TransfersPair[l-1]
 	state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+	/*
+		if refund msg came from payer, panic, something must wrong!
+	*/
+	if refundChannelIdentify == transferPair.PayerRoute.ChannelIdentifier {
+		panic("receive refund/withdraw/cooperateSettle from payer,that should happen")
+	}
 	/*
 		这里需要判断下payer通道的状态,如果该通道的状态已经不为open了,就不应该继续尝试新路由.
 		因为我已经在通道close时提交过balance proof,如果继续这笔交易,并且最终交易成功的话,我需要自己注册密码并且上链unlock
@@ -847,7 +853,7 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 		 *	todo How to store relevant channel
 		 *	todo Do we receive this message after crashed for a long time ?
 		 */
-		it = cancelCurrentRoute(state)
+		it = cancelCurrentRoute(state, st.Message.ChannelIdentifier)
 		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
 			Token:          state.Token,
 			LockSecretHash: st.Lock.LockSecretHash,
@@ -1016,13 +1022,13 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
 		/*
-			only receive from payee,
-			never receive from payer
+			only receive from channel with payee,
+			never receive from channel with payer
 		*/
 		case *mediatedtransfer.ContractCooperativeSettledStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier)
 		case *mediatedtransfer.ContractChannelWithdrawStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier.ChannelIdentifier)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
