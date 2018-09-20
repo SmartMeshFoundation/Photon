@@ -90,7 +90,7 @@ Because in this case we only have two participants : transfer initiator and tran
 ![](./images/DirectTransfer.png)
 
 ### MediatedTransfer
-MediatedTransfer is the message and it is adopted mostly in cases that a participant has no direct route linking to his transfer recipient. But, in direct transfer, participants can also use `MediatedTransfer`. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient.  
+MediatedTransfer is a message that is adopted **mostly** in cases that a participant has no direct route linking to his transfer recipient. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient. Please NOTE, in direct transfer, participants **can** also use `MediatedTransfer`.
 
 
 **Data Field** : 
