@@ -689,7 +689,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		Reveal_timeout is used directly as a threshold value temporarily.
 	*/
 	payerChannel := transferPair.PayerRoute.Channel()
-	if len(payerChannel.PartnerState.Lock2PendingLocks) > payerChannel.RevealTimeout {
+	if len(payerChannel.PartnerState.Lock2PendingLocks)+len(payerChannel.PartnerState.Lock2UnclaimedLocks) > payerChannel.RevealTimeout {
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   eventsForRefund(payerRoute, payerTransfer),
@@ -1015,6 +1015,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			} else {
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
+		/*
+			only receive from payee,
+			never receive from payer
+		*/
 		case *mediatedtransfer.ContractCooperativeSettledStateChange:
 			it = cancelCurrentRoute(state)
 		case *mediatedtransfer.ContractChannelWithdrawStateChange:

@@ -183,6 +183,21 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 		return err
 	}
 	log.Trace(fmt.Sprintf("lockSecretHash=%s,nettingchannel=%s", utils.HPex(lockSecretHash), ch))
+	/*
+		收到unlock时,需要判断下通道的状态,如果该通道的状态已经不为open了,就不应该处理这笔unlock,否则有可能会损失钱.
+		因为我已经提交过balance proof,如果不提交新的,我会损失钱,如果提交新的,那么之前在链上unlock过的锁,需要再unlock一遍,同样会损失gas
+		所以应该拒绝该笔unlock,什么都不做
+	*/
+	/*
+		When receive an unlock, I need to determine the state of the next channel.
+		If the state of the channel is no longer open, I shouldn't process the unlock, otherwise I may lose money.
+		Because I've already submitted balance proof, if I don't submit a new one, I'll lose money.
+		If I submit a new one, then unlocked locks on the chain that were previously unlocked need to be unlocked again, and gas will also be lost.
+		So we should abandon the unlock msg and do nothing.
+	*/
+	if !channeltype.CanDealUnlock[ch.State] {
+		return errors.New("received unlock msg,but channel cannot deal unlock, do nothing")
+	}
 	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("messageUnlock RegisterTransfer err=%s", err))

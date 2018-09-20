@@ -129,7 +129,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 		},
 		cli.IntFlag{
 			Name:  "reveal_timeout",
-			Usage: "channels' reveal timeout, default 5",
+			Usage: "channels' reveal timeout, default 50",
 			Value: params.DefaultRevealTimeout,
 		},
 	}
