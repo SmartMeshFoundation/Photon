@@ -14,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 )
 
 // MatrixHTTPClient is a custom http client
@@ -283,7 +281,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 	} else {
 		req, err = http.NewRequest(method, httpURL, nil)
 	}
-	log.Trace(fmt.Sprintf("matrix url:%s,req:%s", httpURL, reqBody))
+	//log.Trace(fmt.Sprintf("matrix url:%s,req:%s", httpURL, reqBody))
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +296,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		return nil, err
 	}
 	contents, err := ioutil.ReadAll(res.Body)
-	log.Trace(fmt.Sprintf("matrix response err=%s,contents=%s", err, string(contents)))
+	//log.Trace(fmt.Sprintf("matrix response err=%s,contents=%s", err, string(contents)))
 	if err != nil {
 		return nil, err
 	}

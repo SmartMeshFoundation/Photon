@@ -1040,8 +1040,14 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	mt, ok := rs.Transport.(*network.MixTransporter)
 	if !ok {
+		mt2, ok := rs.Transport.(*network.MatrixMixTransporter)
+		if ok {
+			return mt2.SubscribeNeighbor(rs.db)
+		}
 		return fmt.Errorf("transport is not mix transpoter")
+
 	}
+
 	return mt.SubscribeNeighbor(rs.db)
 }
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {

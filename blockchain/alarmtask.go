@@ -38,7 +38,7 @@ func NewAlarmTask(client *helper.SafeEthClient) *AlarmTask {
 		waitTime:            time.Second,
 		LastBlockNumber:     -1,
 		quitChan:            make(chan struct{}), //sync channel
-		LastBlockNumberChan: make(chan int64),
+		LastBlockNumberChan: make(chan int64, 10),
 	}
 	return t
 }
@@ -86,10 +86,7 @@ func (at *AlarmTask) waitNewBlock() error {
 			if currentBlock%10 == 0 {
 				log.Trace(fmt.Sprintf("new block :%d", currentBlock))
 			}
-			select {
-			case at.LastBlockNumberChan <- currentBlock:
-			default:
-			}
+			at.LastBlockNumberChan <- currentBlock
 		case <-at.quitChan:
 			sub.Unsubscribe()
 			return nil

@@ -5,6 +5,8 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
@@ -117,10 +119,17 @@ func (t *MatrixMixTransporter) NodeStatus(addr common.Address) (deviceType strin
 
 //GetNotify notification of connection status change
 func (t *MatrixMixTransporter) GetNotify() (notify <-chan netshare.Status, err error) {
+	if t.matirx != nil {
+		return t.matirx.statusChan, nil
+	}
 	return nil, errors.New("connection not established")
 }
 
 //SubscribeNeighbor get the status change notification of partner node
+//func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
-	return nil
+	if t.matirx == nil {
+		return fmt.Errorf("Try to subscribe neighbor,but matrix connection is disconnected")
+	}
+	return t.matirx.CollectNeighbors(db)
 }
