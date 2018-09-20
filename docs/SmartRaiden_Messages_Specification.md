@@ -9,34 +9,34 @@ BalanceProof is a basic data structure contained in every message that sent or r
 **Data Field** : 
 ![](./images/BalanceProof.png)
 
-###ACK 
+### ACK 
 ACK is a data structure that our smartraiden messages uses to confirm certain message has been received. It just echoes hash value of that received message. 
 
 **Data Field** : 
 
 ![](./images/ACK.png)
-###Ping
+### Ping
 Ping is a data structure used to test the reachablity of a channel. In which, we just contain a nonce. 
 
 **Data Field** : 
 
 ![](./images/Ping.png)
 
-###SecretRequest
+### SecretRequest
 SecretRequest is a data structure primarily used when one of participants in a payment channel want to get the secret of a transfer. In this case, he should send a `SecretRequest` to his channel counterpart and make his partner understand that he wishes to get the secret. 
 
 **Data Field** : 
 
 ![](./images/SecretRequest.png)
 
-###RevealSecret
+### RevealSecret
 RevealSecret is used at the situation that one of participants in a payment channel, once he has received `SecretRequest` from his channel partner, reveals the secret of this transfer to his channel partner. 
 
 **Data Field** : 
 
 ![](./images/RevealSecret.png)
 
-###Unlock
+### Unlock
 Unlock is a data structure we adopt to deal with situations that a participant of a transfer plans to **unlock** the hash lock of this transfer. 
 
 There are two cases for `Unlock` message :
@@ -68,7 +68,7 @@ As we can view in this MediatedTransfer. We have three participants in this chan
 
 ![](./images/Unlock.png)
 
-###RemoveExpiredHashlockTransfer
+### RemoveExpiredHashlockTransfer
 RemoveExpiredHashlockTransfer is a kind of message and transfer participants primarily adopt it when ongoing transfers get expired for some reason, such as there are one or several mediated nodes disconnect from our token network, or some nodes intentionally stop furthering this transfer to next hop, and causes transfer expiration, etc. 
 
 
@@ -76,7 +76,7 @@ RemoveExpiredHashlockTransfer is a kind of message and transfer participants pri
 
 ![](./images/RemoveExpiredHashlockTransfer.png)
 
-###DirectTransfer
+### DirectTransfer
 DirectChannel is the message that mostly used in cases that a direct path exists to link two channel participants. Both just make their transfers sent to their channel counterparts via `DirectTransfer`. `DirectTransfer` can be sent by anyone in this direct payment channel in any times only if this direct channel is still open.
 
 Because in this case we only have two participants : transfer initiator and transfer recipient, so there is no need to lock transfers. 
@@ -85,47 +85,47 @@ Because in this case we only have two participants : transfer initiator and tran
 
 ![](./images/DirectTransfer.png)
 
-###MediatedTransfer
+### MediatedTransfer
 MediatedTransfer is the message structure and it is adopted only in cases that a participant has no direct route linking to his transfer recipient. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient.  
 
 **Data Field** : 
 
 ![](./images/MediatedTransfer.png)
 
-###AnnounceDisposed
+### AnnounceDisposed
 AnnounceDisposed is the message that we used in mediate transfer to notify that there are some issues which causes a mediated node has no way to further this transfer.
 
 **Data Field** : 
 
 ![](./images/AnnounceDiposed.png)
 
-###AnnounceDisposedResponse
+### AnnounceDisposedResponse
 AnnounceDisposedResponse is the message we used when a participant replies to his partner after he/she has received `AnnounceDisposedResponse`. 
 
 **Data Field** : 
 ![](./images/AnnounceDisposedResponse.png)
 
-###WithdrawRequest
+### WithdrawRequest
 WithdrawRequest is the message that mainly used in cases that a participant wishes to withdraw fund from his channel deposit. But first he needs to notify his partner about his intention and this intention needs to be confirmed by his partner.
 
 **Data Field** : 
 ![](./images/WithdrawRequest.png)
 
-###WithdrawResponse
+### WithdrawResponse
 WithdrawResponse is the message that recipient of `WithdrawRequest` has confirmed this message and he assigns his signature within and returns `WithdrawResponse`. 
 
 **Data Field** : 
 
 ![](./images/WithdrawResponse.png)
 
-###SettleRequest
+### SettleRequest
 SettleRequest is the message that channel participants adopt when they need CooperativeSettle that payment channel between them. Sender of this `SettleRequest` requests to cooperatively settle the channel. 
 
 **Data Field** : 
 
 ![](./images/SettleRequest.png)
 
-###SettleResponse
+### SettleResponse
 SettleResponse is the message that channel participants adopt when they just need to confirm the intention and agree with it. When recipient of `SettleRequest` wishes to present that he agrees to cooperatively settle this payment channel, then he just need to reply to his channel pal with this `SettleResponse`. 
 
 **Data Field** : 
