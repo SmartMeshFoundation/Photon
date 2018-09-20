@@ -158,7 +158,7 @@ func (s *DefaultSyncer) getOrCreateRoom(roomID string) *Room {
 
 // OnFailedSync always returns a 5 second wait period between failed /syncs, never a fatal error.
 func (s *DefaultSyncer) OnFailedSync(res *RespSync, err error) (time.Duration, error) {
-	return 2 * time.Second, nil
+	return 10 * time.Second, nil
 }
 
 // GetFilterJSON returns a filter with a timeline limit of 50.

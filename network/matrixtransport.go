@@ -27,6 +27,29 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+const (
+	// ONLINE network state -online
+	ONLINE = "online"
+	// UNAVAILABLE state -unavailable
+	UNAVAILABLE = "unavailable"
+	// OFFLINE state -offline
+	OFFLINE = "offline"
+	// UNKNOWN or other state -unknown
+	UNKNOWN = "unknown"
+	// ROOMPREFIX room prefix
+	ROOMPREFIX = "smartraiden"
+	// ROOMSEP with ',' to separate room name's part
+	ROOMSEP = "_"
+	// PATHPREFIX0 the lastest matrix client api version
+	PATHPREFIX0 = "/_matrix/client/r0"
+	// AUTHTYPE login identity as dummy
+	AUTHTYPE = "m.login.dummy"
+	// LOGINTYPE login type we used
+	LOGINTYPE = "m.login.password"
+	// CHATPRESET the type of chat=public
+	CHATPRESET = "public_chat"
+)
+
 // MatrixTransport represents a matrix transport Instantiation
 type MatrixTransport struct {
 	matrixcli          *matrixcomm.MatrixClient //the instantiated matrix
@@ -53,6 +76,17 @@ type MatrixTransport struct {
 	status             netshare.Status
 }
 
+var (
+	// ValidUserIDRegex user ID 's format
+	ValidUserIDRegex = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
+	//NETWORKNAME which network is used
+	NETWORKNAME = params.NETWORKNAME
+	//ALIASFRAGMENT the terminal part of alias
+	ALIASFRAGMENT = ""
+	//DISCOVERYROOMSERVER discovery room server name
+	DISCOVERYROOMSERVER = ""
+)
+
 func (mtr *MatrixTransport) changeStatus(newStatus netshare.Status) {
 	log.Info(fmt.Sprintf("changeStatus from %d to %d", mtr.status, newStatus))
 	mtr.status = newStatus
@@ -64,7 +98,6 @@ func (mtr *MatrixTransport) changeStatus(newStatus netshare.Status) {
 
 // CollectNeighbors subscribe status change
 func (mtr *MatrixTransport) CollectNeighbors(db xmpptransport.XMPPDb) error {
-	//mtr.db = db
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
@@ -117,9 +150,11 @@ func (mtr *MatrixTransport) Stop() {
 	}
 	mtr.running = false
 	mtr.changeStatus(netshare.Closed)
-	mtr.matrixcli.SetPresenceState(&matrixcomm.ReqPresenceUser{
-		Presence: OFFLINE,
-	})
+	go func() {
+		mtr.matrixcli.SetPresenceState(&matrixcomm.ReqPresenceUser{
+			Presence: OFFLINE,
+		})
+	}()
 	mtr.matrixcli.StopSync()
 	if _, err := mtr.matrixcli.Logout(); err != nil {
 		log.Error("[Matrix] Logout failed")
@@ -169,11 +204,10 @@ func (mtr *MatrixTransport) Send(receiverAddr common.Address, data []byte) error
 	_data := base64.StdEncoding.EncodeToString(data)
 	_, err = mtr.matrixcli.SendText(room.ID, _data)
 	if err != nil {
-		log.Trace(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
-		//fmt.Println(resp)
-	} else {
-		log.Info(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		return err
 	}
+	log.Trace(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
 	return nil
 }
 
@@ -379,7 +413,7 @@ func (mtr *MatrixTransport) onHandleMemberShipChange(event *matrixcomm.Event) {
 	user, err := mtr.verifyAndUpdateUserCache(tmpuser)
 	peerAddress, err := validateUseridSignature(*user)
 	if err != nil {
-		log.Info("Got invited to a room by invalid signed user - ignoring")
+		log.Warn("Got invited to a room by invalid signed user - ignoring")
 		return
 	}
 	//one must join to be able to get room alias
@@ -473,7 +507,7 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	}
 	//presence status hava changed
 	mtr.Userid2Presence[userid].Presence = newstate
-	mtr.Userid2Presence[userid].Presence = dValue
+	mtr.Userid2Presence[userid].StatusMsg = dValue
 	mtr.updateAddressPresence(peerAdderss, dValue)
 }
 
@@ -527,8 +561,10 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 		}
 	}
 	//update AddressToPresence
-	if _, ok := mtr.AddressToPresence[address]; !ok {
-		return
+	if _, ok := mtr.AddressToPresence[address]; ok {
+		if mtr.AddressToPresence[address].Presence == newState {
+			return
+		}
 	}
 	tmpuserp := &matrixcomm.RespPresenceUser{
 		Presence:  newState,
@@ -899,14 +935,12 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 	for i := 0; i < 6; i++ {
 		respj, err := mtr.matrixcli.JoinRoom(roomNameFull, mtr.servername, nil)
 		if err != nil {
-			fmt.Println(err)
 			_, errc := mtr.matrixcli.CreateRoom(&matrixcomm.ReqCreateRoom{
 				RoomAliasName: roomname,
 				Preset:        CHATPRESET,
 				Invite:        inviteesUids,
 			})
 			if errc != nil {
-				fmt.Println(err)
 				log.Info(fmt.Sprintf("Room %s not found,trying to create it.", roomname))
 
 				continue
@@ -940,13 +974,14 @@ func (mtr *MatrixTransport) getUnlistedRoom(roomname string, invitees []*matrixc
 // setRoomIDForAddress update addresses->rooms, which is map["mark"]map[address][roomids]
 func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid string) (err error) {
 	addressHex := address.String()
-	if roomid != "" {
-		mtr.Address2Room[addressHex] = roomid
-	} else {
-		delete(mtr.Address2Room, addressHex)
+	if roomid != mtr.Address2Room[addressHex] {
+		if roomid != "" {
+			mtr.Address2Room[addressHex] = roomid
+		} else {
+			delete(mtr.Address2Room, addressHex)
+		}
+		err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.smartraiden.rooms", mtr.Address2Room)
 	}
-
-	err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.smartraiden.rooms", mtr.Address2Room)
 	return
 }
 
@@ -963,7 +998,7 @@ func (mtr *MatrixTransport) getRoomID2Address(address common.Address) (roomid st
 	if roomid != "" {
 		err := mtr.setRoomID2Address(address, roomid)
 		if err != nil {
-			log.Error(fmt.Sprintf("setRoomID2Address err %s", err))
+			log.Error(fmt.Sprintf("set room id to address err %s", err))
 		}
 	}
 	//roomid="!OOMYBnlndieRuzkXtt:transport01.smartraiden.network"//test
@@ -1023,40 +1058,6 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 /*
 ------------------------------------------------------------------------------------------------------------------------
 */
-
-const (
-	// ONLINE network state -online
-	ONLINE = "online"
-	// UNAVAILABLE state -unavailable
-	UNAVAILABLE = "unavailable"
-	// OFFLINE state -offline
-	OFFLINE = "offline"
-	// UNKNOWN or other state -unknown
-	UNKNOWN = "unknown"
-	// ROOMPREFIX room prefix
-	ROOMPREFIX = "smartraiden"
-	// ROOMSEP with ',' to separate room name's part
-	ROOMSEP = "_"
-	// PATHPREFIX0 the lastest matrix client api version
-	PATHPREFIX0 = "/_matrix/client/r0"
-	// AUTHTYPE login identity as dummy
-	AUTHTYPE = "m.login.dummy"
-	// LOGINTYPE login type we used
-	LOGINTYPE = "m.login.password"
-	// CHATPRESET the type of chat=public
-	CHATPRESET = "public_chat"
-)
-
-var (
-	// ValidUserIDRegex user ID 's format
-	ValidUserIDRegex = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
-	//NETWORKNAME which network is used
-	NETWORKNAME = "ropsten"
-	//ALIASFRAGMENT the terminal part of alias
-	ALIASFRAGMENT = ""
-	//DISCOVERYROOMSERVER discovery room server name
-	DISCOVERYROOMSERVER = ""
-)
 
 // InitMatrixTransport init matrix
 func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string) (*MatrixTransport, error) {

@@ -130,3 +130,6 @@ var MatrixDiscoveryRoomConfig = [][]string{
 	{"aliassegment", "discovery"},
 	{"server", "transport01.smartmesh.cn"},
 }
+
+//NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on
+var NETWORKNAME = "ropsten"

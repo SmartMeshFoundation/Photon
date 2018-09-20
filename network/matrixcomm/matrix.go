@@ -114,7 +114,6 @@ func (mcli *MatrixClient) Sync() error {
 
 	for {
 		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
-		//fmt.Println(time.Now().Format("2006/1/2 15:04:05"),filterID,  "\t",nextBatch)
 		if err != nil {
 			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)
 			if err2 != nil {
@@ -139,10 +138,9 @@ func (mcli *MatrixClient) Sync() error {
 			return err
 		}
 		nextBatch = resSync.NextBatch
-
 		/*//send heartbeat to homeserver and the other participating servers
 		errpu := mcli.SetPresenceState(&ReqPresenceUser{
-			Presence: ONLINE,
+			Presence: "online",
 		})
 		if errpu != nil {
 			return errpu

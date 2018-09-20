@@ -284,13 +284,14 @@ func (rs *RaidenService) Start() (err error) {
 	rs.startNeighboursHealthCheck()
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
 	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
-	if rs.Config.NetworkMode == params.MixUDPXMPP {
+	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
 		err = rs.startSubscribeNeighborStatus()
 		if err != nil {
 			err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
 			return
 		}
 	}
+
 	return nil
 }
 
@@ -1038,17 +1039,24 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 	}
 }
 func (rs *RaidenService) startSubscribeNeighborStatus() error {
-	mt, ok := rs.Transport.(*network.MixTransporter)
-	if !ok {
-		mt2, ok := rs.Transport.(*network.MatrixMixTransporter)
-		if ok {
-			return mt2.SubscribeNeighbor(rs.db)
-		}
-		return fmt.Errorf("transport is not mix transpoter")
-
+	switch t := rs.Transport.(type) {
+	case *network.MixTransporter:
+		return t.SubscribeNeighbor(rs.db)
+	case *network.MatrixMixTransporter:
+		return t.SubscribeNeighbor(rs.db)
+	default:
+		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
+	/*	mt, ok := rs.Transport.(*network.MixTransporter)
+		if !ok {
+			mt2, ok := rs.Transport.(*network.MatrixMixTransporter)
+			if ok {
+				return mt2.SubscribeNeighbor(rs.db)
+			}
+			return fmt.Errorf("transport is not mix transpoter")
 
-	return mt.SubscribeNeighbor(rs.db)
+		}
+		return mt.SubscribeNeighbor(rs.db)*/
 }
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
