@@ -9,6 +9,7 @@ BalanceProof is a basic data structure contained in every message that sent or r
 **Data Field** : 
 ![](./images/BalanceProof.png)
 
+
 ### SignedMessage
 SignedMessage is an underlying data structure almost contained in every message that sent or received by a channel participant. In this structure, we mainly put address of message sender and the signature of sender.
 
@@ -20,6 +21,7 @@ EnvelopMessage is an underlying data structure that contained in almost every me
 ![](./images/EnvelopMessage.png)
 
 ## Messages
+
 ### ACK 
 ACK is a data structure that our smartraiden messages uses to confirm certain message has been received. It just echoes hash value of that received message. 
 
@@ -27,6 +29,7 @@ ACK is a data structure that our smartraiden messages uses to confirm certain me
 
 ![](./images/ACK.png)
 ### Ping
+
 Ping is a message used to test the reachablity of a channel. In which, we just contain a nonce. 
 
 **Data Field** : 
@@ -36,12 +39,14 @@ Ping is a message used to test the reachablity of a channel. In which, we just c
 ### SecretRequest
 SecretRequest is a message primarily used when a transfer recipient in a payment channel want to get the secret of a transfer. In this case, he should send a `SecretRequest` to the initiator of this transfer and make transfer initiator understand that he wishes to get the secret. 
 
+
 **Data Field** : 
 
 ![](./images/SecretRequest.png)
 
 ### RevealSecret
 RevealSecret is a message used at the situation that transfer initiator in a payment channel, once he has received `SecretRequest` from his assigned recipient of transfer, reveals the secret of this transfer to his transfer recipient. 
+
 
 **Data Field** : 
 
@@ -86,6 +91,7 @@ Because in this case we only have two participants : transfer initiator and tran
 
 ### MediatedTransfer
 MediatedTransfer is the message and it is adopted mostly in cases that a participant has no direct route linking to his transfer recipient. But, in direct transfer, participants can also use `MediatedTransfer`. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient.  
+
 
 **Data Field** : 
 
