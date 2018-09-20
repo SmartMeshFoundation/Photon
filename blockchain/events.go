@@ -281,6 +281,7 @@ func EventChannelUnlocked2StateChange(ev *contracts.TokenNetworkChannelUnlocked)
 		BlockNumber:         int64(ev.Raw.BlockNumber),
 		TransferAmount:      ev.TransferredAmount,
 		Participant:         ev.PayerParticipant,
+		LockHash:            ev.Lockhash,
 	}
 	if c.TransferAmount == nil {
 		c.TransferAmount = new(big.Int)
