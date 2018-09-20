@@ -73,6 +73,7 @@ func init() {
 	TransferCannotBeContinuedMap = make(map[State]bool)
 	CanTransferMap = make(map[State]bool)
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately = make(map[State]bool)
+	CanDealUnlock = make(map[State]bool)
 	CanTransferMap[StateOpened] = true
 
 	TransferCannotBeContinuedMap[StateSettling] = true
