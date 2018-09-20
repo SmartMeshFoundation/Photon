@@ -519,7 +519,7 @@ func (rs *RevealSecret) String() string {
 type BalanceProof struct {
 	Nonce             uint64
 	ChannelIdentifier common.Hash
-	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识
+	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识	// the only tag for a channel = OpenBlockNumber + ChannelIdentifier
 	TransferAmount    *big.Int //The number has been transferred to the other party
 	Locksroot         common.Hash
 }
