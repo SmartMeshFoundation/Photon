@@ -56,7 +56,7 @@ As we can see in DirectTransfer, there is a direct payment channel connecting Al
 
 ![](./images/Unlock_Mediate.png)
 
-As we can view in this MediatedTransfer. We have three participants in this channel, Alice, Bob and Charles. The entire workflow is 
+As we can view in this MediatedTransfer. We have three participants in this channel, Alice, Bob and Charles. The entire workflow is 
 
 - After Charles has received the transfer from Alice, he wishes to get the secret via `SecretRequest` to Alice.
 - Once Alice receives this `SecretRequest`, if there is no problem, then without doubt, Alice will feed this secret to Charles, via `RevealSecret`. 
