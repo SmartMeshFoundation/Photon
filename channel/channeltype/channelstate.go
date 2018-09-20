@@ -11,9 +11,6 @@ const (
 	//StateClosed 不能再发起交易了,还可以接受交易.
 	// StateClosed : cannot send out transfer, but able to receive.
 	StateClosed
-	//StateBalanceProofUpdated 已经提交过证据,未完成的交易不再继续,不能接收 unlock 消息
-	// StateBalanceProofUpdated : BalanceProofs have been submitted, stop incomplete transfers, and unable to receive unlock message.
-	StateBalanceProofUpdated
 	//StateSettled 通道已经彻底结算,和 invalid 状态意义相同
 	// StateSettled : Channel has been settled, which has the same meaning as invalid.
 	StateSettled
@@ -69,6 +66,9 @@ var CanTransferMap map[State]bool
 //CannotReceiveAnyTransferAndAnnounceDisposedImmediately these states cannot receive transfer,and need send annouce disposed immediately
 var CannotReceiveAnyTransferAndAnnounceDisposedImmediately map[State]bool
 
+// CanDealUnlock these states can receive unlock and deal
+var CanDealUnlock map[State]bool
+
 func init() {
 	TransferCannotBeContinuedMap = make(map[State]bool)
 	CanTransferMap = make(map[State]bool)
@@ -83,6 +83,10 @@ func init() {
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StatePrepareForCooperativeSettle] = true
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StateWithdraw] = true
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StateCooprativeSettle] = true
+
+	CanDealUnlock[StateOpened] = true
+	CanDealUnlock[StatePrepareForCooperativeSettle] = true
+	CanDealUnlock[StatePrepareForWithdraw] = true
 }
 
 func (s State) String() string {
@@ -93,8 +97,6 @@ func (s State) String() string {
 		return "opened"
 	case StateClosed:
 		return "closed"
-	case StateBalanceProofUpdated:
-		return "balanceProofUpdated"
 	case StateSettled:
 		return "settled"
 	case StateClosing:

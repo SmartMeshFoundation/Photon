@@ -1072,6 +1072,7 @@ func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash co
 	}
 	partnerAddress := channel.PartnerState.Address
 	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
+	contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
 	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
 	nonce := channel.PartnerState.BalanceProofState.Nonce
 	signature := channel.PartnerState.BalanceProofState.Signature
@@ -1099,7 +1100,7 @@ func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash co
 		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
 		lock.LockHash.String())
 
-	err = tokenNetwork.Unlock(partnerAddress, transferAmount, lock.Lock, mtree.Proof2Bytes(proof))
+	err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock.Lock, mtree.Proof2Bytes(proof))
 	if err != nil {
 		fmt.Printf("ForceUnlock : unlock failed %s\n", err.Error())
 		return

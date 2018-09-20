@@ -251,7 +251,7 @@ func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount 
 	}
 	unlockProofs := c.PartnerState.GetKnownUnlocks()
 	if len(unlockProofs) > 0 {
-		result := c.ExternState.Unlock(unlockProofs, c.PartnerState.TransferAmount())
+		result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
 		go func() {
 			err := <-result.Result
 			if err != nil {

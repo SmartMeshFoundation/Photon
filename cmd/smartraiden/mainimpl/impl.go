@@ -127,6 +127,11 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "matrix",
 			Usage: "use matrix as transport",
 		},
+		cli.IntFlag{
+			Name:  "reveal_timeout",
+			Usage: "channels' reveal timeout, default 50",
+			Value: params.DefaultRevealTimeout,
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -341,5 +346,6 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 			{fmt.Sprintf("http://%s:8008", s), s},
 		}
 	}
+	config.RevealTimeout = ctx.Int("reveal_timeout")
 	return
 }

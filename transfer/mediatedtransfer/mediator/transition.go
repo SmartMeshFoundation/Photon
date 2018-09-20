@@ -675,6 +675,27 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		}
 	}
 	/*
+		这里根据reveal_timeout限制持有锁的数量,如果同时持有对方的锁大于某个值,说明对方很有可能不是诚信节点,此时不再接收对方发来的交易,
+		这是为了避免上下家合作利用时间差来攻击我,造成我损失钱的情况
+		在这里做可以直接通过announce disposed拒绝该笔交易,既达到拒绝的目的,也不至于让交易卡住
+		暂时直接使用通道的reveal_timeout作为阈值
+	*/
+	/*
+		Here, the number of locks held is limited according to reveal_timeout. If the locks held at the same time are more than a certain value,
+		the other party may not be a trustworthy node and no longer receive transactions from the other party.
+		This is to avoid the cooperation between the payer and payee in using time difference to attack me, causing me to lose money.
+
+		It is possible to reject the transaction directly through announcement disposed, so that the purpose of rejection is achieved and the transaction is not stuck.
+		Reveal_timeout is used directly as a threshold value temporarily.
+	*/
+	payerChannel := transferPair.PayerRoute.Channel()
+	if len(payerChannel.PartnerState.Lock2PendingLocks)+len(payerChannel.PartnerState.Lock2UnclaimedLocks) > payerChannel.RevealTimeout {
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   eventsForRefund(payerRoute, payerTransfer),
+		}
+	}
+	/*
 				   the list must be ordered from high to low expiration, expiration
 		         handling depends on it
 	*/
@@ -688,7 +709,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 /*
 
  */
-func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.TransitionResult {
+func cancelCurrentRoute(state *mediatedtransfer.MediatorState, refundChannelIdentify common.Hash) *transfer.TransitionResult {
 	var it = &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -700,6 +721,29 @@ func cancelCurrentRoute(state *mediatedtransfer.MediatorState) *transfer.Transit
 	}
 	transferPair := state.TransfersPair[l-1]
 	state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+	/*
+		if refund msg came from payer, panic, something must wrong!
+	*/
+	if refundChannelIdentify == transferPair.PayerRoute.ChannelIdentifier {
+		panic("receive refund/withdraw/cooperateSettle from payer,that should happen")
+	}
+	/*
+		这里需要判断下payer通道的状态,如果该通道的状态已经不为open了,就不应该继续尝试新路由.
+		因为我已经在通道close时提交过balance proof,如果继续这笔交易,并且最终交易成功的话,我需要自己注册密码并且上链unlock
+		这不仅需要花费gas,而且存在没来得及unlock以至于丢钱的风险,所以没有必要继续,直接拒绝
+	*/
+	/*
+		Here I need to determine the state of the payer channel, and if the state of the channel is no longer open, you should not continue to try new routing.
+		Because I've already submitted balance proof at channel close, and if this transaction continues and eventually succeeds,
+		I need to register secret and unlock it.
+		Not only does it cost gas, but there's a risk of losing money by not unlocking it in time, so there's no need to go on.
+		Refuse by announce disposed.
+	*/
+	if transferPair.PayerRoute.ClosedBlock() != 0 {
+		log.Warn("channel already closed, stop trying new route")
+		it.Events = eventsForRefund(transferPair.PayerRoute, transferPair.PayerTransfer)
+		return it
+	}
 	it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
 	return it
 }
@@ -809,7 +853,7 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 		 *	todo How to store relevant channel
 		 *	todo Do we receive this message after crashed for a long time ?
 		 */
-		it = cancelCurrentRoute(state)
+		it = cancelCurrentRoute(state, st.Message.ChannelIdentifier)
 		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
 			Token:          state.Token,
 			LockSecretHash: st.Lock.LockSecretHash,
@@ -977,10 +1021,14 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			} else {
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
+		/*
+			only receive from channel with payee,
+			never receive from channel with payer
+		*/
 		case *mediatedtransfer.ContractCooperativeSettledStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier)
 		case *mediatedtransfer.ContractChannelWithdrawStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier.ChannelIdentifier)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}
