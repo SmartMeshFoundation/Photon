@@ -4,7 +4,7 @@ This page primarily introduces SmartRaiden Messages, which is a bunch of data st
 
 ## Data Structure
 ### BalanceProof 
-BalanceProof is a basic data structure contained in every message that sent or received by a channel participant. Our design principle is once BalanceProof in a message has changed, nonce in that BalanceProof should increase by 1.
+BalanceProof is a basic data structure contained in most of messages below that sent or received by a channel participant. Our design principle is once BalanceProof in a message has changed, nonce in that BalanceProof should increase by 1.
 
 **Data Field** : 
 ![](./images/BalanceProof.png)
@@ -45,7 +45,7 @@ SecretRequest is a message primarily used when a transfer recipient in a payment
 ![](./images/SecretRequest.png)
 
 ### RevealSecret
-RevealSecret is a message used at the situation that transfer initiator in a payment channel, once he has received `SecretRequest` from his assigned recipient of transfer, reveals the secret of this transfer to his transfer recipient. 
+RevealSecret is a message used at the situation that transfer initiator in a payment channel, once he has received `SecretRequest` from that participant who needs the secret, reveals the secret of that participant.
 
 
 **Data Field** : 
@@ -90,7 +90,7 @@ Because in this case we only have two participants : transfer initiator and tran
 ![](./images/DirectTransfer.png)
 
 ### MediatedTransfer
-MediatedTransfer is a message that is adopted **mostly** in cases that a participant has no direct route linking to his transfer recipient. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient. Please NOTE, in direct transfer, participants **can** also use `MediatedTransfer`.
+MediatedTransfer is a message that is adopted **mostly** in cases that a participant has no direct route linking to his transfer recipient. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient. Please NOTE, in direct payment channel, participants **can** also use `MediatedTransfer`.
 
 
 **Data Field** : 
