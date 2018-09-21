@@ -117,9 +117,6 @@ var ChainID = big.NewInt(1)
 
 //MatrixServerConfig matrix server config
 var MatrixServerConfig = [][]string{
-	//{"https://transport01.raiden.network", "transport01.raiden.network"},
-	//{"https://transport02.raiden.network", "transport02.raiden.network"},
-	//{"http://transport01.smartraiden.network:8008", "transport01.smartraiden.network"},
 	{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
 	{"http://transport02.smartmesh.cn:8008", "transport02.smartmesh.cn"},
 	{"http://transport03.smartmesh.cn:8008", "transport03.smartmesh.cn"},
