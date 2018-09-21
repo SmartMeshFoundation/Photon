@@ -645,12 +645,13 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		return
 	}
 	//set displayname as publicly visible
-	dispname := hexutil.Encode(mtr.dataSign([]byte(mtr.matrixcli.UserID)))
+	dispname := mtr.getUserDisplayName(mtr.matrixcli.UserID)
 	if err = mtr.matrixcli.SetDisplayName(dispname); err != nil {
 		err = fmt.Errorf("could set the node's displayname and quit as well")
 		mtr.matrixcli.ClearCredentials()
 		return
 	}
+	log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
 	//把本节点的信息加入Users
 	// Add nodes info into Users
 	thisUser := &matrixcomm.UserInfo{
@@ -682,6 +683,11 @@ func (mtr *MatrixTransport) inventoryRooms() (err error) {
 // makeRoomAlias
 func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 	return ROOMPREFIX + ROOMSEP + NETWORKNAME + ROOMSEP + thepart
+}
+
+func (mtr *MatrixTransport) getUserDisplayName(userID string) string {
+	sig := mtr.dataSign([]byte(userID))
+	return fmt.Sprintf("%s-%s", utils.APex2(mtr.NodeAddress), hex.EncodeToString(sig))
 }
 
 // dataSign 签名数据
@@ -1106,6 +1112,18 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 	mtr.matrixcli = matrixclieValid
 	return mtr, nil
 }
+func getSignatureFromDisplayName(displayName string) (signature []byte, err error) {
+	ss := strings.Split(displayName, "-")
+	if len(ss) != 2 {
+		err = fmt.Errorf("display name format error %s", displayName)
+		return
+	}
+	if len(ss[1]) != 130 {
+		err = fmt.Errorf("signature error")
+	}
+	signature, err = hex.DecodeString(ss[1])
+	return
+}
 
 // validate_userid_signature
 func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, err error) {
@@ -1130,13 +1148,13 @@ func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, 
 	if _, err0 := hexutil.Decode(addrlocal); err0 != nil {
 		return
 	}
-	if _, err0 := hexutil.Decode(user.DisplayName); err0 != nil {
+	signature, err := getSignatureFromDisplayName(user.DisplayName)
+	if err != nil {
 		return
 	}
 	addressBytes := hexutil.MustDecode(addrlocal)
-	useridtmp := utils.Sha3([]byte(user.UserID))                //userID's 格式:  @0x....:xx
-	displaynametmp := hexutil.MustDecode(user.DisplayName)      //去掉0x转byte[]
-	recovered, err := recoverData(useridtmp[:], displaynametmp) //或者临时读取服务器上的GetDisplayName（）
+	useridtmp := utils.Sha3([]byte(user.UserID))           //userID's 格式:  @0x....:xx
+	recovered, err := recoverData(useridtmp[:], signature) //或者临时读取服务器上的GetDisplayName（）
 	if err != nil {
 		return
 	}
