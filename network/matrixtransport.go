@@ -1028,6 +1028,9 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 	if err != nil {
 		return
 	}
+	if len(respusers.Results) == 0 {
+		return fmt.Errorf("%s cannot found", nodeAddress.String())
+	}
 	for _, resultx := range respusers.Results {
 		xaddr, xerr := validateUseridSignature(resultx)
 		//validate failed
@@ -1038,9 +1041,6 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 		if xaddr != nodeAddress {
 			continue
 		}
-		/*//update Users //Todo: cache all user?(it might be exaggerated but there were a loads of users.)
-		_,xerr:=mtr.getUser(&resultx)
-		if xerr!=nil{}*/
 		tmpUserInfos = append(tmpUserInfos, &resultx)
 		_, verr := mtr.verifyAndUpdateUserCache(&resultx)
 		if verr != nil {
