@@ -88,6 +88,9 @@ func (env *RaidenEnvReader) RefreshTokens() {
 	if err != nil {
 		panic(err)
 	}
+	if len(tokenAddrs) == 0 {
+		panic("no token")
+	}
 	env.Tokens = []*Token{}
 	for _, addr := range tokenAddrs {
 		if env.HasToken(addr) {
