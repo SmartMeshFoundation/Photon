@@ -879,6 +879,7 @@ func (mtr *MatrixTransport) getRoom2Address(address common.Address) (room *matri
 	for _, resultx := range respusers.Results {
 		xaddr, xerr := validateUseridSignature(resultx)
 		if xerr != nil {
+			log.Warn(fmt.Sprintf("validateUseridSignature %s", err))
 			continue
 		}
 		if xaddr != address {
@@ -886,6 +887,7 @@ func (mtr *MatrixTransport) getRoom2Address(address common.Address) (room *matri
 		}
 		_, cerr := mtr.verifyAndUpdateUserCache(&resultx)
 		if cerr != nil {
+			log.Warn(fmt.Sprintf("verifyAndUpdateUserCache %s", err))
 		}
 		tmpUserInfos = append(tmpUserInfos, &resultx)
 	}
