@@ -279,6 +279,7 @@ func (rs *RaidenService) Start() (err error) {
 	if rs.Chain.Client.Status == netshare.Connected {
 		//wait for start up complete.
 		<-rs.ChanHistoryContractEventsDealComplete
+		log.Info(fmt.Sprintf("SmartRaiden Startup complete and history events process complete."))
 	}
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
