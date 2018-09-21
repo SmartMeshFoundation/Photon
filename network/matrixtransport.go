@@ -646,12 +646,14 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		return
 	}
 	//set displayname as publicly visible
-	dispname := hexutil.Encode(mtr.dataSign([]byte(mtr.matrixcli.UserID)))
+	dispname := mtr.getUserDisplayName(mtr.matrixcli.UserID)
 	if err = mtr.matrixcli.SetDisplayName(dispname); err != nil {
 		err = fmt.Errorf("could set the node's displayname and quit as well")
 		mtr.matrixcli.ClearCredentials()
 		return
 	}
+	log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
+	//把本节点的信息加入Users
 	// Add nodes info into Users
 	thisUser := &matrixcomm.UserInfo{
 		UserID:      mtr.UserID,
@@ -683,6 +685,12 @@ func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 	return ROOMPREFIX + ROOMSEP + NETWORKNAME + ROOMSEP + thepart
 }
 
+func (mtr *MatrixTransport) getUserDisplayName(userID string) string {
+	sig := mtr.dataSign([]byte(userID))
+	return fmt.Sprintf("%s-%s", utils.APex2(mtr.NodeAddress), hex.EncodeToString(sig))
+}
+
+// dataSign 签名数据
 // dataSign signature data
 func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 	hash := crypto.Keccak256(data)
@@ -1100,6 +1108,20 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 	log.Warn(fmt.Sprintf("-->%s", homeserverValid))
 	return mtr, nil
 }
+func getSignatureFromDisplayName(displayName string) (signature []byte, err error) {
+	ss := strings.Split(displayName, "-")
+	//userAddr-Signature
+	if len(ss) != 2 {
+		err = fmt.Errorf("display name format error %s", displayName)
+		return
+	}
+	//signature length is 130
+	if len(ss[1]) != 130 {
+		err = fmt.Errorf("signature error")
+	}
+	signature, err = hex.DecodeString(ss[1])
+	return
+}
 
 // validate_userid_signature
 func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, err error) {
@@ -1124,18 +1146,16 @@ func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, 
 	if _, err0 := hexutil.Decode(addrlocal); err0 != nil {
 		return
 	}
-	if _, err0 := hexutil.Decode(user.DisplayName); err0 != nil {
-		return
-	}
-	addressBytes := hexutil.MustDecode(addrlocal)
-	useridtmp := utils.Sha3([]byte(user.UserID))                //userID's formart:  @0x....:xx
-	displaynametmp := hexutil.MustDecode(user.DisplayName)      //delete "0x",to byte[]
-	recovered, err := recoverData(useridtmp[:], displaynametmp) //or GetDisplayName() from server
+	signature, err := getSignatureFromDisplayName(user.DisplayName)
 	if err != nil {
 		return
 	}
-	if !bytes.Equal(recovered, addressBytes) {
-		addressBytes = nil
+	addressBytes := hexutil.MustDecode(addrlocal)
+	recovered, err := utils.Ecrecover(utils.Sha3([]byte(user.UserID)), signature)
+	if err != nil {
+		return
+	}
+	if !bytes.Equal(recovered[:], addressBytes) {
 		err = fmt.Errorf("validate %s failed", user.UserID)
 		return
 	}
