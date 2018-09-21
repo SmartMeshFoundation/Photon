@@ -37,7 +37,7 @@ const (
 	// UNKNOWN or other state -unknown
 	UNKNOWN = "unknown"
 	// ROOMPREFIX room prefix
-	ROOMPREFIX = "smartraiden"
+	ROOMPREFIX = "raiden"
 	// ROOMSEP with ',' to separate room name's part
 	ROOMSEP = "_"
 	// PATHPREFIX0 the lastest matrix client api version
@@ -255,7 +255,7 @@ func (mtr *MatrixTransport) Start() {
 	mtr.matrixcli.Syncer = matrixcomm.NewDefaultSyncer(mtr.UserID, store)
 	syncer := mtr.matrixcli.Syncer.(*matrixcomm.DefaultSyncer)
 
-	syncer.OnEventType("network.smartraiden.rooms", mtr.onHandleAccountData)
+	syncer.OnEventType("network.raiden.rooms", mtr.onHandleAccountData)
 
 	syncer.OnEventType("m.room.message", mtr.onHandleReceiveMessage)
 
@@ -296,7 +296,7 @@ func (mtr *MatrixTransport) Start() {
 */
 //onHandleReceiveMessage push the message of some one send "account_data"
 func (mtr *MatrixTransport) onHandleAccountData(event *matrixcomm.Event) {
-	if mtr.stopreceiving || event.Type != "network.smartraiden.rooms" {
+	if mtr.stopreceiving || event.Type != "network.raiden.rooms" {
 		return
 	}
 	userid := event.Sender
@@ -439,14 +439,12 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if mtr.stopreceiving == true {
 		return
 	}
-	//此条消息的发送者
 	// message sender
 	userid := event.Sender
 	if event.Type != "m.presence" || userid == mtr.UserID {
 		return
 	}
 	var userDisplayname = ""
-	//从Users（cache）中读取sender的sender's displayname
 	// read sender's displayname from user cache.
 	tmpuser := &matrixcomm.UserInfo{
 		UserID: userid,
@@ -455,20 +453,18 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if err == nil {
 		userDisplayname = user.DisplayName
 	}
-	//从消息来源中获取sender's displayname
 	// get sender's displayname from message
 	value, exists := event.ViewContent("displayname") //no displayname return form event sometimes
 	if exists && value != "" {
 		userDisplayname = value
 	}
-	//从上述两种来源均可
+
 	// both sources above are ok
 	if userDisplayname == "" {
 		return
 	}
 	user.DisplayName = userDisplayname
 
-	//解出消息发出者的address
 	// parse address of message sender
 	peerAdderss, err := validateUseridSignature(*user)
 	if err != nil {
@@ -496,7 +492,7 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 	if newstate == oldstate {
 		return
 	}
-	//设备类型
+	//device type
 	dValue, exists := event.ViewContent("status_msg") //newest network status
 	if !exists {
 
@@ -513,25 +509,31 @@ func (mtr *MatrixTransport) onHandlePresenceChange(event *matrixcomm.Event) {
 
 // getUserPresence get the presence state from Userid2Presence
 func (mtr *MatrixTransport) getUserPresence(userid string) (presence *matrixcomm.RespPresenceUser, err error) {
-	//如果user id 不存在与cache的UseridToPresence，则临时向服务器请求
+	//if this user does not exist on cache of UseridToPresence，then request the server temporarily
+	pUser := &matrixcomm.RespPresenceUser{
+		UserID:    userid,
+		Presence:  "",
+		StatusMsg: "",
+	}
 	if _, ok := mtr.Userid2Presence[userid]; !ok {
-		resp, err := mtr.matrixcli.GetPresenceState(userid) //非邀请不给查
+		resp, err := mtr.matrixcli.GetPresenceState(userid)
 		if err != nil {
-			presence.Presence = UNKNOWN
+			pUser.Presence = UNKNOWN
+			mtr.Userid2Presence[userid] = pUser
 		} else {
-			presence = resp
-			//更新此user id 的presence->UseridToPresence
-			mtr.Userid2Presence[userid] = presence
+			pUser = resp
+			//update userID's presence->UseridToPresence
+			mtr.Userid2Presence[userid] = pUser
 		}
 	}
 
-	presence = mtr.Userid2Presence[userid]
+	pUser = mtr.Userid2Presence[userid]
+	presence = pUser
 	return
 }
 
 // updateAddressPresence Update synthesized address presence state from user presence state
 func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgstatus string) {
-	//一个address可能对应多个userid即多个presence
 	// an address can match multiple userid / presence
 	compositepresence := []string{}
 	var tmpUserInfos []*matrixcomm.UserInfo
@@ -547,9 +549,8 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 		compositepresence = append(compositepresence, resp.Presence)
 	}
 
-	//按照online、unavailable、offline、unknown顺序核对presence state
 	// check presence state by the order of online, unavailable, offlien, unknown
-	//存在一个地址对应多个userid,按此规则计算状态
+	// if it's not just a userid,calculate netstaus according to this rule
 	presencestates := []string{ONLINE, UNAVAILABLE, OFFLINE, UNKNOWN}
 	newState := UNKNOWN
 	for _, xstate := range presencestates {
@@ -577,7 +578,7 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 // loginOrRegister node login, if failed, register again then try login,
 // displayname of nodes as the signature of userID
 func (mtr *MatrixTransport) loginOrRegister() (err error) {
-	//TODO:考虑被恶意注册的风险
+	//TODO:Consider the risk of being registered maliciously
 	regok := false
 	loginok := false
 	baseAddress := crypto.PubkeyToAddress(mtr.key.PublicKey)
@@ -651,7 +652,6 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		mtr.matrixcli.ClearCredentials()
 		return
 	}
-	//把本节点的信息加入Users
 	// Add nodes info into Users
 	thisUser := &matrixcomm.UserInfo{
 		UserID:      mtr.UserID,
@@ -663,7 +663,6 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 	return err
 }
 
-// inventoryRooms 整理被侦听的room，discovery room 不放入listening object（暂时的，维护时可用于不同room类别的处理）
 // inventoryRooms : collect monitored room, discovery room are not put inside listening object.
 func (mtr *MatrixTransport) inventoryRooms() (err error) {
 	for _, value := range mtr.matrixcli.Store.LoadRoomOfAll() {
@@ -679,12 +678,11 @@ func (mtr *MatrixTransport) inventoryRooms() (err error) {
 	return nil
 }
 
-// makeRoomAlias
+// makeRoomAlias name room's alias
 func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 	return ROOMPREFIX + ROOMSEP + NETWORKNAME + ROOMSEP + thepart
 }
 
-// dataSign 签名数据
 // dataSign signature data
 func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 	hash := crypto.Keccak256(data)
@@ -695,11 +693,10 @@ func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
 	return
 }
 
-// joinDiscoveryRoom 检查deicoveryroom(不存在则新建)，客户端暂存此room内的成员，再次invite从此room内检索出来的节点（如果已存在的话）
 // joinDiscoveryRoom : check discoveryroom if not exist, then create a new one.
 // client caches all memebers of this room, and invite nodes checked from this room again.
 func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
-	//从配置文件中读取discovery room的名字和名字的结束标识
+	//read discovery room'name and fragment from "params-settings"
 	discoveryRoomList := params.MatrixDiscoveryRoomConfig
 	for _, value := range discoveryRoomList {
 		itemname := value[0]
@@ -711,21 +708,19 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 			DISCOVERYROOMSERVER = itemvalue
 		}
 	}
-	//合成discovery room's alias
 	// combine discovery room's alias
 	discoveryRoomAlias := mtr.makeRoomAlias(ALIASFRAGMENT)
 	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + DISCOVERYROOMSERVER
 	mtr.discoveryroomid = ""
-	//本节点加入此discovery room（不存在则创建）
 	// this node join the discovery room, if not exist, then create.
 	for i := 0; i < 5; i++ {
 		respj, errj := mtr.matrixcli.JoinRoom(discoveryRoomAliasFull, mtr.servername, nil)
 		if errj != nil {
 			//if Room doesn't exist and then create the room(this is the node's resposibility)
 			if mtr.servername != DISCOVERYROOMSERVER {
-				log.Error(fmt.Sprintf("discovery room {%s} not found and can't be created on a federated homeserver {%s}", discoveryRoomAliasFull, mtr.servername))
 				break
 			}
+			//try to create the discovery room
 			var _visibility = "private"
 			if CHATPRESET == "public_chat" {
 				_visibility = "public"
@@ -748,7 +743,7 @@ func (mtr *MatrixTransport) joinDiscoveryRoom() (err error) {
 	}
 	//exit if join room failed
 	if mtr.discoveryroomid == "" {
-		errinfo := "an error about discovery room occurred"
+		errinfo := fmt.Sprintf("Discovery room {%s} not found and can't be created on a federated homeserver {%s}", discoveryRoomAliasFull, mtr.servername)
 		err = fmt.Errorf(errinfo)
 		log.Error(errinfo)
 		return
@@ -980,7 +975,7 @@ func (mtr *MatrixTransport) setRoomID2Address(address common.Address, roomid str
 		} else {
 			delete(mtr.Address2Room, addressHex)
 		}
-		err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.smartraiden.rooms", mtr.Address2Room)
+		err = mtr.matrixcli.SetAccountData(mtr.UserID, "network.raiden.rooms", mtr.Address2Room)
 	}
 	return
 }
@@ -1016,8 +1011,6 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 	nodeAddrHex := hexutil.Encode(nodeAddress.Bytes())
 	log.Info(fmt.Sprintf("HealthCheck,peer_address=%s", nodeAddrHex))
 
-	//从服务器（include the other participating servers）检索包含节点addressHex的UserInfo
-	//模糊查询,通过对方的地址查询user info
 	// check UserInfo of addressHex from server
 	// fuzz check user info via partner's address.
 	var tmpUserInfos []*matrixcomm.UserInfo
@@ -1104,6 +1097,7 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 		status:            netshare.Disconnected,
 	}
 	mtr.matrixcli = matrixclieValid
+	log.Warn(fmt.Sprintf("-->%s", homeserverValid))
 	return mtr, nil
 }
 
@@ -1134,9 +1128,9 @@ func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, 
 		return
 	}
 	addressBytes := hexutil.MustDecode(addrlocal)
-	useridtmp := utils.Sha3([]byte(user.UserID))                //userID's 格式:  @0x....:xx
-	displaynametmp := hexutil.MustDecode(user.DisplayName)      //去掉0x转byte[]
-	recovered, err := recoverData(useridtmp[:], displaynametmp) //或者临时读取服务器上的GetDisplayName（）
+	useridtmp := utils.Sha3([]byte(user.UserID))                //userID's formart:  @0x....:xx
+	displaynametmp := hexutil.MustDecode(user.DisplayName)      //delete "0x",to byte[]
+	recovered, err := recoverData(useridtmp[:], displaynametmp) //or GetDisplayName() from server
 	if err != nil {
 		return
 	}

@@ -64,7 +64,7 @@ func newTestRaidenAPI() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
 	err := api.Raiden.Start()
 	if err != nil {
-		log.Error(fmt.Sprintf("raiden start err %s", err))
+		panic(fmt.Sprintf("raiden start err %s", err))
 	}
 	return api
 }
@@ -90,8 +90,8 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
-	privkey, _ := testGetnextValidAccount()
-	//	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
+	privkey, addr := testGetnextValidAccount()
+	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
