@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -91,6 +92,9 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	revealMessage := encoding.NewRevealSecret(event.Secret)
 	err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
 	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatus(revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+	}
 	return err
 }
 func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransfer.EventSendSecretRequest, stateManager *transfer.StateManager) (err error) {
@@ -154,6 +158,9 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatus(mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+	}
 	return
 }
 func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
@@ -172,6 +179,9 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	eh.raiden.conditionQuit("EventSendUnlockBefore")
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatusMessage(event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+	}
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtransfer.EventSendAnnounceDisposed, stateManager *transfer.StateManager) (err error) {

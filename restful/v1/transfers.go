@@ -15,13 +15,14 @@ import (
 
 //TransferData post for transfers
 type TransferData struct {
-	Initiator string   `json:"initiator_address"`
-	Target    string   `json:"target_address"`
-	Token     string   `json:"token_address"`
-	Amount    *big.Int `json:"amount"`
-	Secret    string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
-	Fee       *big.Int `json:"fee"`
-	IsDirect  bool     `json:"is_direct"`
+	Initiator      string   `json:"initiator_address"`
+	Target         string   `json:"target_address"`
+	Token          string   `json:"token_address"`
+	Amount         *big.Int `json:"amount"`
+	Secret         string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
+	LockSecretHash string   `json:"lockSecretHash"`
+	Fee            *big.Int `json:"fee"`
+	IsDirect       bool     `json:"is_direct"`
 }
 
 /*
@@ -104,7 +105,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Invalid secret", http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
+	lockSecretHash, err := RaidenAPI.TransferAndNotWait(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -112,7 +113,24 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
 	req.Target = target
 	req.Token = token
+	req.LockSecretHash = lockSecretHash.String()
 	err = w.WriteJson(req)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// GetTransferStatus : query transfer status by lockSecretHash
+func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
+	locksecrethashStr := r.PathParam("locksecrethash")
+	locksecrethash := common.HexToHash(locksecrethashStr)
+
+	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(locksecrethash)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	err = w.WriteJson(ts)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

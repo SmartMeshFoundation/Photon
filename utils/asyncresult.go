@@ -1,12 +1,15 @@
 package utils
 
+import "github.com/ethereum/go-ethereum/common"
+
 /*
 AsyncResult is designed for async notify
 and Tag can be save anything by user.
 */
 type AsyncResult struct {
-	Result chan error
-	Tag    interface{}
+	Result         chan error
+	Tag            interface{}
+	LockSecretHash common.Hash // only for /api/1/transfer use, return LockSecretHash to caller
 }
 
 //NewAsyncResult create a AsyncResult
