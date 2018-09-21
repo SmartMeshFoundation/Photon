@@ -42,6 +42,7 @@ func Start() {
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
 		rest.Post("/api/1/transfers/:token/:target", Transfers),
+		rest.Get("/api/1/transferstatus/:locksecrethash", GetTransferStatus),
 		/*
 			transfer with specified secret
 		*/

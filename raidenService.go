@@ -899,6 +899,7 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		lockSecretHash = utils.ShaSecret(secret[:])
 	}
 	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
+	result.LockSecretHash = lockSecretHash
 	return
 }
 
@@ -1406,6 +1407,14 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
 	if ok2 {
 		rs.db.DeleteEnvelopMessager(echohash)
+	}
+	switch msg := sentMessage.Message.(type) {
+	case *encoding.MediatedTransfer:
+		rs.db.UpdateTransferStatusMessage(msg.LockSecretHash, "MediatedTransfer 发送成功")
+	case *encoding.RevealSecret:
+		rs.db.UpdateTransferStatusMessage(msg.LockSecretHash(), "RevealSecret 发送成功")
+	case *encoding.UnLock:
+		rs.db.UpdateTransferStatus(msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	}
 	rs.conditionQuitWhenReceiveAck(sentMessage.Message)
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))

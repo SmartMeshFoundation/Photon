@@ -358,6 +358,15 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 	return
 }
 
+//TransferAndNotWait Do a transfer with `target` with the given `amount` of `token_address`.
+func (r *RaidenAPI) TransferAndNotWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
+	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
+	if err != nil {
+		return
+	}
+	return result.LockSecretHash, err
+}
+
 //Transfer transfer and wait
 func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) error {
 	return r.TransferAndWait(token, amount, fee, target, secret, timeout, isDirectTransfer)
