@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"time"
@@ -537,10 +535,10 @@ func (mtr *MatrixTransport) updateAddressPresence(address common.Address, msgsta
 	// an address can match multiple userid / presence
 	compositepresence := []string{}
 	var tmpUserInfos []*matrixcomm.UserInfo
-	if _, ok := mtr.Address2User[address]; !ok {
+	tmpUserInfos = mtr.Address2User[address]
+	if len(tmpUserInfos) == 0 {
 		return
 	}
-	tmpUserInfos = mtr.Address2User[address]
 	for _, v := range tmpUserInfos {
 		resp, err := mtr.getUserPresence(v.UserID)
 		if err != nil {
@@ -646,12 +644,14 @@ func (mtr *MatrixTransport) loginOrRegister() (err error) {
 		return
 	}
 	//set displayname as publicly visible
-	dispname := hexutil.Encode(mtr.dataSign([]byte(mtr.matrixcli.UserID)))
+	dispname := mtr.getUserDisplayName(mtr.matrixcli.UserID)
 	if err = mtr.matrixcli.SetDisplayName(dispname); err != nil {
 		err = fmt.Errorf("could set the node's displayname and quit as well")
 		mtr.matrixcli.ClearCredentials()
 		return
 	}
+	log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
+	//把本节点的信息加入Users
 	// Add nodes info into Users
 	thisUser := &matrixcomm.UserInfo{
 		UserID:      mtr.UserID,
@@ -683,11 +683,17 @@ func (mtr *MatrixTransport) makeRoomAlias(thepart string) string {
 	return ROOMPREFIX + ROOMSEP + NETWORKNAME + ROOMSEP + thepart
 }
 
+func (mtr *MatrixTransport) getUserDisplayName(userID string) string {
+	sig := mtr.dataSign([]byte(userID))
+	return fmt.Sprintf("%s-%s", utils.APex2(mtr.NodeAddress), hex.EncodeToString(sig))
+}
+
+// dataSign 签名数据
 // dataSign signature data
 func (mtr *MatrixTransport) dataSign(data []byte) (signature []byte) {
-	hash := crypto.Keccak256(data)
-	signature, err := crypto.Sign(hash[:], mtr.key)
+	signature, err := utils.SignData(mtr.key, data)
 	if err != nil {
+		log.Error(fmt.Sprintf("SignData err %s", err))
 		return nil
 	}
 	return
@@ -873,6 +879,7 @@ func (mtr *MatrixTransport) getRoom2Address(address common.Address) (room *matri
 	for _, resultx := range respusers.Results {
 		xaddr, xerr := validateUseridSignature(resultx)
 		if xerr != nil {
+			log.Warn(fmt.Sprintf("validateUseridSignature %s", err))
 			continue
 		}
 		if xaddr != address {
@@ -880,6 +887,7 @@ func (mtr *MatrixTransport) getRoom2Address(address common.Address) (room *matri
 		}
 		_, cerr := mtr.verifyAndUpdateUserCache(&resultx)
 		if cerr != nil {
+			log.Warn(fmt.Sprintf("verifyAndUpdateUserCache %s", err))
 		}
 		tmpUserInfos = append(tmpUserInfos, &resultx)
 	}
@@ -1024,18 +1032,20 @@ func (mtr *MatrixTransport) nodeHealthCheck(nodeAddress common.Address) (err err
 	if len(respusers.Results) == 0 {
 		return fmt.Errorf("%s cannot found", nodeAddress.String())
 	}
-	for _, resultx := range respusers.Results {
-		xaddr, xerr := validateUseridSignature(resultx)
+	for _, user := range respusers.Results {
+		var xaddr common.Address
+		xaddr, err = validateUseridSignature(user)
 		//validate failed
-		if xerr != nil {
+		if err != nil {
+			log.Error(fmt.Sprintf("validateUseridSignature for %s err %s", user.UserID, err))
 			continue
 		}
 		//validate failed
 		if xaddr != nodeAddress {
 			continue
 		}
-		tmpUserInfos = append(tmpUserInfos, &resultx)
-		_, verr := mtr.verifyAndUpdateUserCache(&resultx)
+		tmpUserInfos = append(tmpUserInfos, &user)
+		_, verr := mtr.verifyAndUpdateUserCache(&user)
 		if verr != nil {
 		}
 	}
@@ -1100,6 +1110,20 @@ func InitMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype strin
 	log.Warn(fmt.Sprintf("-->%s", homeserverValid))
 	return mtr, nil
 }
+func getSignatureFromDisplayName(displayName string) (signature []byte, err error) {
+	ss := strings.Split(displayName, "-")
+	//userAddr-Signature
+	if len(ss) != 2 {
+		err = fmt.Errorf("display name format error %s", displayName)
+		return
+	}
+	//signature length is 130
+	if len(ss[1]) != 130 {
+		err = fmt.Errorf("signature error")
+	}
+	signature, err = hex.DecodeString(ss[1])
+	return
+}
 
 // validate_userid_signature
 func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, err error) {
@@ -1124,75 +1148,22 @@ func validateUseridSignature(user matrixcomm.UserInfo) (address common.Address, 
 	if _, err0 := hexutil.Decode(addrlocal); err0 != nil {
 		return
 	}
-	if _, err0 := hexutil.Decode(user.DisplayName); err0 != nil {
-		return
-	}
-	addressBytes := hexutil.MustDecode(addrlocal)
-	useridtmp := utils.Sha3([]byte(user.UserID))                //userID's formart:  @0x....:xx
-	displaynametmp := hexutil.MustDecode(user.DisplayName)      //delete "0x",to byte[]
-	recovered, err := recoverData(useridtmp[:], displaynametmp) //or GetDisplayName() from server
+	signature, err := getSignatureFromDisplayName(user.DisplayName)
 	if err != nil {
 		return
 	}
-	if !bytes.Equal(recovered, addressBytes) {
-		addressBytes = nil
+	addressBytes := hexutil.MustDecode(addrlocal)
+	recovered, err := utils.Ecrecover(utils.Sha3([]byte(user.UserID)), signature)
+	if err != nil {
+		return
+	}
+	if !bytes.Equal(recovered[:], addressBytes) {
 		err = fmt.Errorf("validate %s failed", user.UserID)
 		return
 	}
 	address = common.BytesToAddress(addressBytes)
 	err = nil
 	return
-}
-
-// Int32ToBytes int32 to bytes
-func Int32ToBytes(i int32) []byte {
-	var buf = make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, uint32(i))
-	return buf
-}
-
-// BytesToInt64 byte int64
-func BytesToInt64(buf []byte) int64 {
-	return int64(binary.BigEndian.Uint64(buf))
-}
-
-// BytesToInt32 bytes to int32
-func BytesToInt32(buf []byte) int32 {
-	return int32(binary.BigEndian.Uint32(buf))
-}
-
-// recover recover the node's address
-func recoverData(data, signature []byte) (address []byte, err error) {
-	recoverPub, err := crypto.Ecrecover(data, signature)
-	if err != nil {
-		return
-	}
-	address = utils.PubkeyToAddress(recoverPub).Bytes()
-	/*addr,err:=utils.Ecrecover(utils.Sha3(data),signature)
-	if err!=nil{
-		return
-	}
-	address=addr.Bytes()*/
-	return
-}
-
-// ChecksumAddress Use common.address.String() instead
-func ChecksumAddress(address string) string {
-	address = strings.Replace(strings.ToLower(address), "0x", "", 1)
-	addressHash := hex.EncodeToString(crypto.Keccak256([]byte(address)))
-	checksumAddress := "0x"
-	for i := 0; i < len(address); i++ {
-		l, err := strconv.ParseInt(string(addressHash[i]), 16, 16)
-		if err != nil {
-			return ""
-		}
-		if l > 7 {
-			checksumAddress += strings.ToUpper(string(address[i]))
-		} else {
-			checksumAddress += string(address[i])
-		}
-	}
-	return checksumAddress
 }
 
 // ExtractUserLocalpart Extract user name from user ID
