@@ -1371,7 +1371,7 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		taker's Expiration must be smaller than maker's ,
 		taker and maker may have direct channels on these two tokens.
 	*/
-	takerExpiration := msg.Expiration - params.DefaultRevealTimeout
+	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
 	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
