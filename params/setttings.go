@@ -117,9 +117,7 @@ var ChainID = big.NewInt(1)
 
 //MatrixServerConfig matrix server config
 var MatrixServerConfig = [][]string{
-	//{"https://transport01.raiden.network", "transport01.raiden.network"},
-	//{"https://transport02.raiden.network", "transport02.raiden.network"},
-	//{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
+	{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
 	{"http://transport02.smartmesh.cn:8008", "transport02.smartmesh.cn"},
 	{"http://transport03.smartmesh.cn:8008", "transport03.smartmesh.cn"},
 }
@@ -127,8 +125,7 @@ var MatrixServerConfig = [][]string{
 //MatrixDiscoveryRoomConfig a defalut matrix room config
 var MatrixDiscoveryRoomConfig = [][]string{
 	{"aliassegment", "discovery"},
-	{"server", "transport02.smartmesh.cn"},
-	//{"server", "transport01.raiden.network"},
+	{"server", "transport01.smartmesh.cn"},
 }
 
 //NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on

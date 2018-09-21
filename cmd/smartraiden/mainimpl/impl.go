@@ -337,9 +337,9 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if len(ctx.String("matrix-server")) > 0 {
 		s := ctx.String("matrix-server")
 		log.Info(fmt.Sprintf("use matrix server %s", s))
-		/*params.MatrixServerConfig = [][]string{
-			{fmt.Sprintf("http://%s", s), s},
-		}*/
+		params.MatrixServerConfig = [][]string{
+			{fmt.Sprintf("http://%s", s), strings.Split(s, ":")[0]},
+		}
 	}
 	return
 }
