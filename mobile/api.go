@@ -119,7 +119,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout, balance)
+	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, a.api.Raiden.Config.RevealTimeout, balance)
 	if err != nil {
 		log.Error(err.Error())
 		return

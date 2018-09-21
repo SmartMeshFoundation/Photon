@@ -343,7 +343,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		s := ctx.String("matrix-server")
 		log.Info(fmt.Sprintf("use matrix server %s", s))
 		params.MatrixServerConfig = [][]string{
-			{fmt.Sprintf("http://%s:8008", s), s},
+			{fmt.Sprintf("http://%s", s), strings.Split(s, ":")[0]},
 		}
 	}
 	config.RevealTimeout = ctx.Int("reveal_timeout")

@@ -169,6 +169,15 @@ func QueryChannelEventsTest(env *models.RaidenEnvReader, allowFail bool) {
 			panic("allowFail = false,exit")
 		}
 	}
+	if channels == nil || len(channels) == 0 {
+		log.Println("Case [QueryNodeSpecificChannel] FAILED because no suitable env !!!")
+		Logger.Println("Case [QueryNodeSpecificChannel] FAILED because no suitable env !!!")
+		if !allowFail {
+			Logger.Println("allowFail = false,exit")
+			panic("allowFail = false,exit")
+		}
+		return
+	}
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "QueryChannelEvents",
