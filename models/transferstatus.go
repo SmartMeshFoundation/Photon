@@ -23,6 +23,9 @@ const (
 
 	// TransferStatusSuccess transfer already success
 	TransferStatusSuccess
+
+	// TransferStatusCanceled transfer cancel by user request
+	TransferStatusCanceled
 )
 
 /*

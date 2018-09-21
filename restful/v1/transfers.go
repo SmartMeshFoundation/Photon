@@ -122,10 +122,10 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 
 // GetTransferStatus : query transfer status by lockSecretHash
 func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
-	locksecrethashStr := r.PathParam("locksecrethash")
-	locksecrethash := common.HexToHash(locksecrethashStr)
+	lockSecretHashStr := r.PathParam("locksecrethash")
+	lockSecretHash := common.HexToHash(lockSecretHashStr)
 
-	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(locksecrethash)
+	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(lockSecretHash)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -133,5 +133,23 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 	err = w.WriteJson(ts)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// CancelTransfer : cancel a transfer when haven't send secret
+func CancelTransfer(w rest.ResponseWriter, r *rest.Request) {
+	lockSecretHashStr := r.PathParam("locksecrethash")
+	lockSecretHash := common.HexToHash(lockSecretHashStr)
+	token := r.PathParam("token")
+	tokenAddr, err := utils.HexToAddress(token)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = RaidenAPI.CancelTransfer(lockSecretHash, tokenAddr)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusConflict)
+		return
 	}
 }

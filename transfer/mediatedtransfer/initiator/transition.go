@@ -41,9 +41,9 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
 	state.Transfer.Secret = utils.EmptyHash
-	state.Transfer.LockSecretHash = utils.EmptyHash
+	//state.Transfer.LockSecretHash = utils.EmptyHash // need by remove
 	state.Message = nil
-	state.Route = nil
+	//state.Route = nil // need by remove
 	state.SecretRequest = nil
 	state.RevealSecret = nil
 	cancel := &transfer.EventTransferSentFailed{
@@ -52,8 +52,11 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 		Target:         state.Transfer.Target,
 		Token:          state.Transfer.Token,
 	}
+	/*
+		need state exist to send remove msg after expired
+	*/
 	return &transfer.TransitionResult{
-		NewState: nil,
+		NewState: state,
 		Events:   []transfer.Event{cancel},
 	}
 }

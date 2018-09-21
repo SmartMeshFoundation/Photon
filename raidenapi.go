@@ -1117,3 +1117,9 @@ func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash co
 	log.Info(fmt.Sprintf("ForceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
 	return nil
 }
+
+// CancelTransfer : cancel a transfer when haven't send secret
+func (r *RaidenAPI) CancelTransfer(lockSecretHash common.Hash, tokenAddress common.Address) error {
+	result := r.Raiden.cancelTransferClient(lockSecretHash, tokenAddress)
+	return <-result.Result
+}
