@@ -193,7 +193,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.State == 0 { //open channel
-		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, params.DefaultRevealTimeout, req.Balance)
+		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, RaidenAPI.Raiden.Config.RevealTimeout, req.Balance)
 		if err != nil {
 			log.Error(err.Error())
 			rest.Error(w, err.Error(), http.StatusConflict)
