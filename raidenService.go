@@ -1400,6 +1400,41 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 	return
 }
 
+/*
+cancel a transfer before secret send
+only initiator can call
+*/
+func (rs *RaidenService) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	// get transfer info and check
+	smKey := utils.Sha3(req.LockSecretHash[:], req.TokenAddress[:])
+	manager := rs.Transfer2StateManager[smKey]
+	if manager == nil {
+		result.Result <- errors.New("can not found transfer")
+		return
+	}
+	if manager.Name != initiator.NameInitiatorTransition {
+		result.Result <- errors.New("you can only cancel transfers you send")
+		return
+	}
+	transferStatus, err := rs.db.GetTransferStatus(req.LockSecretHash)
+	if err != nil {
+		result.Result <- errors.New("can not found transfer status")
+		return
+	}
+	if transferStatus.Status != models.TransferStatusCanCancel {
+		result.Result <- errors.New("transfer already can not cancel now")
+		return
+	}
+	stateChange := &transfer.ActionCancelTransferStateChange{
+		LockSecretHash: req.LockSecretHash,
+	}
+	rs.StateMachineEventHandler.dispatch(manager, stateChange)
+	rs.db.UpdateTransferStatus(req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	result.Result <- nil
+	return
+}
+
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	data := sentMessage.Message.Pack()
@@ -1521,6 +1556,9 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 	case cancelPrepareWithdrawReqName:
 		r := req.Req.(*closeSettleChannelReq)
 		result = rs.cancelPrepareForCooperativeSettleChannelOrWithdraw(r.addr)
+	case cancelTransfer:
+		r := req.Req.(*cancelTransferReq)
+		result = rs.cancelTransfer(r)
 	default:
 		panic("unkown req")
 	}

@@ -43,6 +43,7 @@ const cancelPrepareWithdrawReqName = "cancel mark withdraw"
 const depositChannelReqName = "deposit"
 const tokenSwapMakerReqName = "tokenswapmaker"
 const tokenSwapTakerReqName = "tokenswaptaker"
+const cancelTransfer = "canceltransfer"
 
 /*
 transfer api
@@ -99,6 +100,14 @@ taker's token swap api
 */
 type tokenSwapTakerReq struct {
 	tokenSwap *TokenSwap
+}
+
+/*
+cancel transfer api
+*/
+type cancelTransferReq struct {
+	LockSecretHash common.Hash
+	TokenAddress   common.Address
 }
 
 /*
@@ -262,6 +271,17 @@ func (rs *RaidenService) tokenSwapTakerClient(tokenswap *TokenSwap) *utils.Async
 		ReqID: utils.RandomString(10),
 		Name:  tokenSwapTakerReqName,
 		Req:   &tokenSwapTakerReq{tokenswap},
+	}
+	return rs.sendReqClient(req)
+}
+func (rs *RaidenService) cancelTransferClient(lockSecretHash common.Hash, tokenAddress common.Address) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  cancelTransfer,
+		Req: &cancelTransferReq{
+			LockSecretHash: lockSecretHash,
+			TokenAddress:   tokenAddress,
+		},
 	}
 	return rs.sendReqClient(req)
 }
