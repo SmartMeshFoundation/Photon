@@ -565,6 +565,8 @@ type NotifyHandler interface {
 	OnReceivedTransfer(tr string)
 	//OnSentTransfer a transfer sent success
 	OnSentTransfer(tr string)
+	// OnNotify get some important message raiden want to notify upper application
+	OnNotify(level int, info string)
 }
 
 /*
@@ -643,6 +645,8 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			case t := <-a.api.Raiden.GetDb().ReceivedTransferChan:
 				d, err = json.Marshal(t)
 				handler.OnReceivedTransfer(string(d))
+			case n := <-a.api.Raiden.GetDb().NoticeChan:
+				handler.OnNotify(int(n.Level), n.Info)
 			case <-sub.quitChan:
 				return
 			}

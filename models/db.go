@@ -34,6 +34,8 @@ type ModelDB struct {
 	SentTransferChan chan *SentTransfer
 	//ReceivedTransferChan  ReceivedTransfer notify, should never close
 	ReceivedTransferChan chan *ReceivedTransfer
+	//NoticeChan should never close
+	NoticeChan chan *Notice
 }
 
 var bucketMeta = "meta"
@@ -49,6 +51,7 @@ func newModelDB() (db *ModelDB) {
 		channelSettledCallbacks: make(map[*cb.ChannelCb]bool),
 		SentTransferChan:        make(chan *SentTransfer, 10),
 		ReceivedTransferChan:    make(chan *ReceivedTransfer, 10),
+		NoticeChan:              make(chan *Notice, 10),
 	}
 
 }
