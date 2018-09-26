@@ -14,10 +14,6 @@ pages:
 
 theme:
     name: readthedocs
-    highlightjs: true
-    hljs_languages:
-        - yaml
-        - rust
 
 extra_javascript:
   - js/mermaid.min.js
