@@ -151,7 +151,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
-		receiveChan:               make(chan []byte, 20),
+		receiveChan:               make(chan []byte, 2000),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -543,7 +543,7 @@ func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 		}
 		nodesmap[addr] = ua
 	}
-	if transport, ok := p.Transport.(*MixTransporter); ok {
+	if transport, ok := p.Transport.(*MixTransport); ok {
 		transport.udp.setHostPort(nodesmap)
 	} else if transport, ok := p.Transport.(*UDPTransport); ok {
 		transport.setHostPort(nodesmap)

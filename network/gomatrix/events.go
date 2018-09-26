@@ -1,4 +1,4 @@
-package matrixcomm
+package gomatrix
 
 import (
 	"html"

@@ -45,12 +45,12 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 	p2 := MakeTestRaidenProtocol("p2")
 	p1 := MakeTestRaidenProtocol("p1")
 
-	//err := SubscribeNeighbor(p1, p2.nodeAddr)
+	//err := SetMatrixDB(p1, p2.nodeAddr)
 	//if err != nil {
 	//	t.Error(err)
 	//	return
 	//}
-	//err = SubscribeNeighbor(p2, p1.nodeAddr)
+	//err = SetMatrixDB(p2, p1.nodeAddr)
 	//if err != nil {
 	//	t.Error(err)
 	//	return

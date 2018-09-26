@@ -1,8 +1,8 @@
-package matrixcomm
+package gomatrix
 
 //ReqUserSearch is the JSON request for UserSearch
 type ReqUserSearch struct {
-	Limit      int    `json:"limit"`
+	Limit      int    `json:"limit,omitempty"`
 	SearchTerm string `json:"search_term"`
 }
 

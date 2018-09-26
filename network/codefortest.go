@@ -52,7 +52,7 @@ func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
 }
 
 //MakeTestMixTransport creat a test mix transport
-func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
+func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransport {
 	port := randomPort()
 	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
 	if err != nil {
