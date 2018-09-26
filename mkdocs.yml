@@ -23,16 +23,9 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/flowchart/1.6.5/flowchart.min.js
   - js/umlconvert.js
 
-
 markdown_extensions:
-  - markdown.extensions.admonition
-  - markdown.extensions.codehilite:
-      guess_lang: false
-  - markdown.extensions.def_list
-  - markdown.extensions.footnotes
-  - markdown.extensions.meta
-  - markdown.extensions.toc:
-      permalink: true
+  - toc
+  - smarty
   - pymdownx.arithmatex
   - pymdownx.betterem:
       smart_enable: all
@@ -40,11 +33,9 @@ markdown_extensions:
   - pymdownx.critic
   - pymdownx.details
   - pymdownx.inlinehilite
-  - pymdownx.keys
   - pymdownx.magiclink
   - pymdownx.mark
   - pymdownx.smartsymbols
-  - pymdownx.superfences
   - pymdownx.superfences:
       custom_fences: [
             {name: flow, class: uml-flowchart}
@@ -54,6 +45,5 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-
 plugins:
   - search
