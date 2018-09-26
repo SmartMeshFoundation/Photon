@@ -26,7 +26,7 @@ type MatrixMixTransport struct {
 	protocol ProtocolReceiver
 }
 
-//NewMatrixMixTransporter create a MixTransporter and discover
+//NewMatrixMixTransporter create a MixTransport and discover
 func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MatrixMixTransport, err error) {
 	t = &MatrixMixTransport{
 		name:     name,

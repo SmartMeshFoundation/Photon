@@ -543,7 +543,7 @@ func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 		}
 		nodesmap[addr] = ua
 	}
-	if transport, ok := p.Transport.(*MixTransporter); ok {
+	if transport, ok := p.Transport.(*MixTransport); ok {
 		transport.udp.setHostPort(nodesmap)
 	} else if transport, ok := p.Transport.(*UDPTransport); ok {
 		transport.setHostPort(nodesmap)

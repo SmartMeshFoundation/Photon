@@ -1052,14 +1052,14 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 }
 func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	switch t := rs.Transport.(type) {
-	case *network.MixTransporter:
+	case *network.MixTransport:
 		return t.SubscribeNeighbor(rs.db)
 	case *network.MatrixMixTransport:
 		return t.SetMatrixDB(rs.db)
 	default:
 		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
-	/*	mt, ok := rs.Transport.(*network.MixTransporter)
+	/*	mt, ok := rs.Transport.(*network.MixTransport)
 		if !ok {
 			mt2, ok := rs.Transport.(*network.MatrixMixTransport)
 			if ok {
