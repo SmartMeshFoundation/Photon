@@ -93,7 +93,7 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
 	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatus(revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+		eh.raiden.db.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
 	}
 	return err
 }
@@ -159,7 +159,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatus(mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+		eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -180,7 +180,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatusMessage(event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+		eh.raiden.db.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -346,9 +346,11 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
+		st := eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
+		eh.raiden.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
+		eh.raiden.db.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
 		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
@@ -360,7 +362,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
+		rt := eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
+		eh.raiden.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
 		log.Error(fmt.Sprintf("EventWithdrawFailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))

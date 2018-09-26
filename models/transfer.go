@@ -39,7 +39,7 @@ type ReceivedTransfer struct {
 /*
 NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) {
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) *SentTransfer {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &SentTransfer{
 		Key:               key,
@@ -53,21 +53,17 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash
 	if ost, err := model.GetSentTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
 			utils.StringInterface(ost, 2), utils.StringInterface(st, 2)))
-		return
+		return nil
 	}
 	err := model.db.Save(st)
 	if err != nil {
 		log.Error(fmt.Sprintf("save SentTransfer err %s", err))
 	}
-	select {
-	case model.SentTransferChan <- st:
-	default:
-		//never block
-	}
+	return st
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) {
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) *ReceivedTransfer {
 	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
 	st := &ReceivedTransfer{
 		Key:               key,
@@ -81,17 +77,13 @@ func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",
 			utils.StringInterface(ost, 2), utils.StringInterface(st, 2)))
-		return
+		return nil
 	}
 	err := model.db.Save(st)
 	if err != nil {
 		log.Error(fmt.Sprintf("save ReceivedTransfer err %s", err))
 	}
-	select {
-	case model.ReceivedTransferChan <- st:
-	default:
-		//never block
-	}
+	return st
 }
 
 //GetSentTransfer return the sent transfer by key

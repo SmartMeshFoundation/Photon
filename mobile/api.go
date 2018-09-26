@@ -380,12 +380,13 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = errors.New("amount should be positive")
 		return
 	}
-	err = a.api.Transfer(tokenAddr, amount, fee, targetAddr, secret, params.MaxRequestTimeout, isDirect)
+	lockScretHash, err := a.api.Transfer(tokenAddr, amount, fee, targetAddr, secret, params.MaxAsyncRequestTimeout, isDirect)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	req := &v1.TransferData{}
+	req.LockSecretHash = lockScretHash.String()
 	req.Initiator = a.api.Raiden.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
@@ -629,14 +630,20 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t := <-a.api.Raiden.GetDb().SentTransferChan:
-				d, err = json.Marshal(t)
-				handler.OnSentTransfer(string(d))
-			case t := <-a.api.Raiden.GetDb().ReceivedTransferChan:
-				d, err = json.Marshal(t)
-				handler.OnReceivedTransfer(string(d))
-			case n := <-a.api.Raiden.GetDb().NoticeChan:
-				handler.OnNotify(int(n.Level), n.Info)
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetSentTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnSentTransfer(string(d))
+				}
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetReceivedTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnReceivedTransfer(string(d))
+				}
+			case n, ok := <-a.api.Raiden.NotifyHandler.GetNoticeChan():
+				if ok {
+					handler.OnNotify(int(n.Level), n.Info)
+				}
 			case <-sub.quitChan:
 				return
 			}
