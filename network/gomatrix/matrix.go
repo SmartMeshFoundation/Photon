@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -34,7 +35,11 @@ var MatrixHTTPClient = &http.Client{
 			return c, nil
 		},
 		Proxy: func(_ *http.Request) (*url.URL, error) {
-			return url.Parse("http://127.0.0.1:8888")
+			proxyurl := os.Getenv("http_proxy")
+			if len(proxyurl) > 0 {
+				return url.Parse(proxyurl)
+			}
+			return nil, nil
 		},
 		MaxIdleConnsPerHost:   100,
 		ResponseHeaderTimeout: time.Second * 30,
@@ -394,7 +399,7 @@ func (mcli *MatrixClient) SyncRequest(timeout int, since, filterID string, fullS
 		query["set_presence"] = setPresence
 	}
 	if fullState {
-		query["full_state"] = "true"
+		query["full_state"] = "false"
 	}
 	urlPath := mcli.BuildURLWithQuery([]string{"sync"}, query)
 	_, err = mcli.MakeRequest("GET", urlPath, nil, &resp)
