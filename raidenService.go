@@ -1051,24 +1051,19 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 	}
 }
 func (rs *RaidenService) startSubscribeNeighborStatus() error {
+	var err error
 	switch t := rs.Transport.(type) {
 	case *network.MixTransport:
-		return t.SubscribeNeighbor(rs.db)
+		err = t.SubscribeNeighbor(rs.db)
 	case *network.MatrixMixTransport:
-		return t.SetMatrixDB(rs.db)
+		err = t.SetMatrixDB(rs.db)
 	default:
 		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
-	/*	mt, ok := rs.Transport.(*network.MixTransport)
-		if !ok {
-			mt2, ok := rs.Transport.(*network.MatrixMixTransport)
-			if ok {
-				return mt2.SubscribeNeighbor(rs.db)
-			}
-			return fmt.Errorf("transport is not mix transpoter")
-
-		}
-		return mt.SubscribeNeighbor(rs.db)*/
+	if err != nil {
+		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+	}
+	return err
 }
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
