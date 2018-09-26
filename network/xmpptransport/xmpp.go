@@ -481,7 +481,7 @@ type XMPPDb interface {
 	XMPPUnMarkAddr(addr common.Address)
 }
 
-//collectChannelInfos subscribe status change from database
+//CollectNeighbors subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 	x.db = db
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
