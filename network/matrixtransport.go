@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/gomatrix"
 
@@ -61,7 +62,6 @@ type MatrixTransport struct {
 	key                   *ecdsa.PrivateKey      //key
 	NodeAddress           common.Address
 	protocol              ProtocolReceiver
-	discoveryroomalias    string //the room's alias of sys pre-configured ("#[RoomNameLocalpart]:[ServerName]")
 	discoveryroomid       string //the room's ID of sys pre-configured ("![RoomIdData]:[ServerName]")
 	Peers                 map[common.Address]*MatrixPeer
 	temporaryAddress2Room map[common.Address]string     //temporary room to
@@ -73,8 +73,8 @@ type MatrixTransport struct {
 	statusChan            chan netshare.Status
 	removePeerChan        chan common.Address
 	status                netshare.Status
+	servers               map[string]string
 	db                    xmpptransport.XMPPDb
-	accountDataHasUpdated bool
 	hasDoneStartCheck     bool
 }
 
@@ -90,10 +90,10 @@ var (
 )
 
 // NewMatrixTransport init matrix
-func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) (*MatrixTransport, error) {
+func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
 	mtr := &MatrixTransport{
 		running:               false,
-		stopreceiving:         true,
+		stopreceiving:         false,
 		NodeAddress:           crypto.PubkeyToAddress(key.PublicKey),
 		key:                   key,
 		Peers:                 make(map[common.Address]*MatrixPeer),
@@ -103,35 +103,11 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		log:                   log.New("matrix", logname),
 		avatarurl:             "", // charge rule
 		statusChan:            make(chan netshare.Status, 10),
+		removePeerChan:        make(chan common.Address, 10),
 		status:                netshare.Disconnected,
+		servers:               servers,
 	}
-	var homeServerValid = ""
-	var matrixClientValid *gomatrix.MatrixClient
-	for name, url := range servers {
-		homeserverurl := url
-		homeservername := name
-		mcli, err := gomatrix.NewClient(homeserverurl, "", "", PATHPREFIX0, mtr.log)
-		if err != nil {
-			continue
-		}
-		_, err = mcli.Versions()
-		if err != nil {
-			mtr.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
-			continue
-		}
-		homeServerValid = homeservername
-		matrixClientValid = mcli
-		break
-	}
-	if homeServerValid == "" || matrixClientValid == nil {
-		errinfo := "unable to find any reachable Matrix server"
-		mtr.log.Error(errinfo)
-		return nil, fmt.Errorf(errinfo)
-	}
-	mtr.servername = homeServerValid
-	mtr.matrixcli = matrixClientValid
-	mtr.changeStatus(netshare.Connected)
-	return mtr, nil
+	return mtr
 }
 
 func (m *MatrixTransport) changeStatus(newStatus netshare.Status) {
@@ -304,78 +280,129 @@ func (m *MatrixTransport) Start() {
 	if m.running {
 		return
 	}
-	err := m.collectChannelInfo(m.db)
-	if err != nil {
-		log.Warn("err %s", err)
-	}
-	// log in
-	if err = m.loginOrRegister(); err != nil {
-		return
-	}
 	m.running = true
-	m.stopreceiving = false
-	m.changeStatus(netshare.Connected)
-
-	//initialize Filters/NextBatch/Rooms
-	store := gomatrix.NewInMemoryStore()
-	m.matrixcli.Store = store
-
-	//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
-	if err = m.joinDiscoveryRoom(); err != nil {
-		return
-	}
-	//notify to server i am online（include the other participating servers）
-	if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
-		Presence:  ONLINE,
-		StatusMsg: m.NodeDeviceType, //register device type to server
-	}); err != nil {
-		return
-	}
-	//register receive-datahandle or other message received
-	m.matrixcli.Store = store
-	m.matrixcli.Syncer = gomatrix.NewDefaultSyncer(m.UserID, store)
-	syncer := m.matrixcli.Syncer.(*gomatrix.DefaultSyncer)
-
-	syncer.OnEventType(EventAddressRoom, m.onHandleAccountData)
-
-	syncer.OnEventType("m.room.message", m.onHandleReceiveMessage)
-
-	syncer.OnEventType("m.presence", m.onHandlePresenceChange)
-
-	syncer.OnEventType("m.room.member", m.onHandleMemberShipChange)
-	firstSync := make(chan struct{}, 5)
-	isFirstSynced := false
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	firstStart := true
 	go func() {
 		for {
-			if err2 := m.matrixcli.Sync(firstSync); err2 != nil {
-				if !m.running {
-					return
+			var err error
+			var store gomatrix.Storer
+			var syncer *gomatrix.DefaultSyncer
+			var homeServerValid = ""
+			var matrixClientValid *gomatrix.MatrixClient
+			firstSync := make(chan struct{}, 5)
+			isFirstSynced := false
+			for name, url := range m.servers {
+				var mcli *gomatrix.MatrixClient
+				homeserverurl := url
+				homeservername := name
+				mcli, err = gomatrix.NewClient(homeserverurl, "", "", PATHPREFIX0, m.log)
+				if err != nil {
+					continue
 				}
-				m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
-				m.changeStatus(netshare.Reconnecting)
-				if !isFirstSynced {
-					isFirstSynced = true
-					firstSync <- struct{}{}
+				_, err = mcli.Versions()
+				if err != nil {
+					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
+					continue
 				}
-			} else {
-				m.changeStatus(netshare.Connected)
+				homeServerValid = homeservername
+				matrixClientValid = mcli
+				break
 			}
+			if homeServerValid == "" || matrixClientValid == nil {
+				errinfo := "unable to find any reachable Matrix server"
+				m.log.Error(errinfo)
+				goto tryNext
+			}
+			m.servername = homeServerValid
+			m.matrixcli = matrixClientValid
+			m.changeStatus(netshare.Connected)
+
+			err = m.collectChannelInfo(m.db)
+			if err != nil {
+				m.log.Warn("collectChannelInfo err %s", err)
+			}
+			// log in
+			if err = m.loginOrRegister(); err != nil {
+				m.log.Error(fmt.Sprintf("loginOrRegister err %s", err))
+				goto tryNext
+			}
+			//initialize Filters/NextBatch/Rooms
+			store = gomatrix.NewInMemoryStore()
+			m.matrixcli.Store = store
+
+			//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
+			if err = m.joinDiscoveryRoom(); err != nil {
+				m.log.Error(fmt.Sprintf("joinDiscoveryRoom err %s", err))
+				goto tryNext
+			}
+			//notify to server i am online（include the other participating servers）
+			if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+				Presence:  ONLINE,
+				StatusMsg: m.NodeDeviceType, //register device type to server
+			}); err != nil {
+				m.log.Error(fmt.Sprintf("SetPresenceState err %s", err))
+				goto tryNext
+			}
+			//register receive-datahandle or other message received
+			m.matrixcli.Store = store
+			m.matrixcli.Syncer = gomatrix.NewDefaultSyncer(m.UserID, store)
+			syncer = m.matrixcli.Syncer.(*gomatrix.DefaultSyncer)
+
+			syncer.OnEventType(EventAddressRoom, m.onHandleAccountData)
+
+			syncer.OnEventType("m.room.message", m.onHandleReceiveMessage)
+
+			syncer.OnEventType("m.presence", m.onHandlePresenceChange)
+
+			syncer.OnEventType("m.room.member", m.onHandleMemberShipChange)
+
+			go func() {
+				for {
+					if err2 := m.matrixcli.Sync(firstSync); err2 != nil {
+						if !m.running {
+							return
+						}
+						m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
+						m.changeStatus(netshare.Reconnecting)
+						if !isFirstSynced {
+							isFirstSynced = true
+							firstSync <- struct{}{}
+						}
+					} else {
+						m.changeStatus(netshare.Connected)
+					}
+					time.Sleep(time.Second * 5)
+				}
+			}()
+			//wait for first sync complete
+			<-firstSync
+			isFirstSynced = true
+			if m.status == netshare.Connected {
+				if !m.hasDoneStartCheck {
+					m.hasDoneStartCheck = true
+					err = m.startupCheckAllParticipants()
+					if err != nil {
+						m.log.Error(fmt.Sprintf("startupCheckAllParticipants error %s", err))
+					}
+				}
+			}
+			if firstStart {
+				firstStart = false
+				wg.Wait()
+			}
+			return
+		tryNext:
 			time.Sleep(time.Second * 5)
+			if firstStart {
+				firstStart = false
+				wg.Wait()
+			}
 		}
 	}()
-	//wait for first sync complete
-	<-firstSync
-	isFirstSynced = true
-	if m.status == netshare.Connected {
-		if !m.hasDoneStartCheck {
-			m.hasDoneStartCheck = true
-			err = m.startupCheckAllParticipants()
-			if err != nil {
-				m.log.Error(fmt.Sprintf("startupCheckAllParticipants error %s", err))
-			}
-		}
-	}
 	m.log.Trace("[Matrix] transport started")
+	wg.Done()
 }
 
 /*
@@ -387,8 +414,7 @@ func (m *MatrixTransport) onHandleAccountData(event *gomatrix.Event) {
 	if m.stopreceiving || event.Type != EventAddressRoom {
 		return
 	}
-	if !m.accountDataHasUpdated {
-		m.accountDataHasUpdated = true
+	if !m.hasDoneStartCheck {
 		//我关注的 peer 所在的聊天室
 		for addrHex, roomIDInterface := range event.Content {
 			roomID := roomIDInterface.(string)
@@ -407,11 +433,15 @@ onHandleReceiveMessage handle text messages sent to listening rooms
 必须保证对应的 UserID 是验证过的,否则就不能认定此 ID 的有效性.
 */
 func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
-	log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	m.log.Trace(fmt.Sprintf("discoveryroomid=%s", m.discoveryroomid))
 	if event.RoomID == m.discoveryroomid {
 		//ignore any message sent to discovery room.
 		return
 	}
+	if !m.hasDoneStartCheck {
+		return
+	}
+	log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	if m.stopreceiving || event.Type != "m.room.message" {
 		return
 	}
@@ -433,20 +463,14 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	}
 	peerAddress := m.userIDToAddress(senderID)
 	peer := m.Peers[peerAddress]
-	if peer != nil && !peer.isValidUserID(senderID) && m.isUserIDValidated(senderID) {
-		m.log.Trace(fmt.Sprintf("Receive message UserID %s,which is not in my default room,so invite him", senderID))
-		//invite this user
-		//invite this user to the default room
-		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-			UserID: senderID,
-		})
+	if peer == nil {
+		m.temporaryAddress2Room[peerAddress] = event.RoomID
+	} else {
+		err := m.inviteIfPossible(senderID, event.RoomID)
 		if err != nil {
-			m.log.Error(fmt.Sprintf("InviteUser perr=%s,room=%s err=%s",
-				utils.APex2(peerAddress), peer.defaultMessageRoomID, err))
-			return
+			m.log.Error(fmt.Sprintf("inviteIfPossible in handle message ,err %s", err))
 		}
 	}
-
 	data, ok := event.Body()
 	if !ok || len(data) < 2 {
 		m.log.Error(fmt.Sprintf("onHandleReceiveMessage data=%s,ok=%v", string(data), ok))
@@ -568,25 +592,14 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 				return
 			}
 			peerAddress := m.userIDToAddress(userid)
-			/*
-				if this address has channel with me ,it may be login with another UserID,
-				so I need update my info
-			*/
 			peer := m.Peers[peerAddress]
 			if peer == nil {
 				//maybe a peer want send secret request to me
 				m.temporaryAddress2Room[peerAddress] = event.RoomID
 			} else {
-				if !peer.isValidUserID(userid) {
-					//invite this user to the default room
-					_, err = m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-						UserID: userid,
-					})
-					if err != nil {
-						m.log.Error(fmt.Sprintf("InviteUser perr=%s,room=%s err=%s",
-							utils.APex2(peerAddress), peer.defaultMessageRoomID, err))
-						return
-					}
+				err = m.inviteIfPossible(userid, event.RoomID)
+				if err != nil {
+					m.log.Error(fmt.Sprintf("inviteIfPossible %s to default room err %s", userid, err))
 				}
 			}
 		}()
@@ -619,26 +632,9 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s", utils.StringInterface(event, 5)))
 			return
 		}
-		addr := m.userIDToAddress(userid)
-		/*
-			if this new user is  my channel's participant
-		*/
-		peer := m.Peers[addr]
-
-		if peer != nil && !peer.isValidUserID(userid) {
-			if peer.defaultMessageRoomID == event.RoomID {
-				peer.candidateUsers[user.UserID] = user
-			} else if peer.defaultMessageRoomID != "" {
-				//invite this user to the default room
-				_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-					UserID: userid,
-				})
-				if err != nil {
-					m.log.Error(fmt.Sprintf("InviteUser perr=%s,room=%s err=%s",
-						utils.APex2(peer.address), peer.defaultMessageRoomID, err))
-					return
-				}
-			}
+		err := m.inviteIfPossible(userid, event.RoomID)
+		if err != nil {
+			m.log.Error(fmt.Sprintf("inviteIfPossible %s to default room err %s", userid, err))
 		}
 	} else {
 		//todo fix me handle leave event
@@ -691,7 +687,10 @@ func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
 	if !exists {
 		return
 	}
-	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
+	if !peer.isValidUserID(userid) {
+		peer.updateUsers([]*gomatrix.UserInfo{m.validatedUsers[userid]})
+	}
+	if peer.setStatus(userid, presence) {
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType
@@ -813,14 +812,10 @@ func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
 				break
 			}
 			//try to create the discovery room
-			var _visibility = "private"
-			if CHATPRESET == "public_chat" {
-				_visibility = "public"
-			}
 			respCreateRoom, err = m.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
 				RoomAliasName: discoveryRoomAlias,
 				Preset:        CHATPRESET,
-				Visibility:    _visibility,
+				Visibility:    "public",
 			})
 			if err != nil {
 				m.log.Error("can't create a discovery room,try again")
@@ -1012,6 +1007,8 @@ func (m *MatrixTransport) startupCheckAllParticipants() error {
 	}
 	return nil
 }
+
+//startupCheckOneParticipant do a lot of things for a peer
 func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 	errBuf := new(bytes.Buffer)
 	//don't have room with the partner
@@ -1021,6 +1018,10 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 			fmt.Fprintf(errBuf, "handleNewPartner for %s,err=%s\n", utils.APex2(p.address), err)
 		}
 	}
+	/*
+		1.list default message room's member
+		2. save to the MatrixPeer
+	*/
 	respJoinedMembers, err := m.matrixcli.JoinedMembers(p.defaultMessageRoomID)
 	if err != nil {
 		fmt.Fprintf(errBuf, "JoinedMembers for peer:%s,room:%s,err=%s", utils.APex2(p.address), p.defaultMessageRoomID, err)
@@ -1048,25 +1049,44 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 		}
 		p.updateUsers(users)
 	}
-	//never check this node
-	if p.status == peerStatusUnkown {
-		users, err := m.searchNode(p.address)
-		if err != nil {
-			fmt.Fprintf(errBuf, "findValidUsersOnServer for %s,err=%s\n", utils.APex2(p.address), err)
-		} else {
-			p.updateUsers(users)
-			for _, u := range p.candidateUsers {
-				presenceResponse, err := m.matrixcli.GetPresenceState(u.UserID)
+	//update peer's presence status
+	if p.status != peerStatusOnline {
+		for _, u := range p.candidateUsers {
+			var presenceResponse *gomatrix.RespPresenceUser
+			presenceResponse, err = m.matrixcli.GetPresenceState(u.UserID)
+			if err != nil {
+				fmt.Fprintf(errBuf, "GetPresenceState for %s,err=%s\n", u.UserID, err)
+			} else {
+				if p.setStatus(u.UserID, presenceResponse.Presence) {
+					p.deviceType = presenceResponse.Presence
+				}
+				//stop check if one online userid found
+				if p.status == peerStatusOnline {
+					break
+				}
+			}
+		}
+	}
+	/*
+		there maybe Matrix Users should in the default message room,but I don't know yet.
+		for example.
+		1. alice login in server1 and join the default message room.
+		2. then alice log off and relogin to server2 using another userid
+		3. alice won't join my default message room only if she receives my invites
+	*/
+
+	users, err := m.searchNode(p.address)
+	if err != nil {
+		fmt.Fprintf(errBuf, "findValidUsersOnServer for %s,err=%s\n", utils.APex2(p.address), err)
+	} else {
+		for _, u := range users {
+			//it's a user should in the default message room,but it isn't in now.
+			if !p.isValidUserID(u.UserID) {
+				_, err = m.matrixcli.InviteUser(p.defaultMessageRoomID, &gomatrix.ReqInviteUser{
+					UserID: u.UserID,
+				})
 				if err != nil {
-					fmt.Fprintf(errBuf, "GetPresenceState for %s,err=%s\n", u.UserID, err)
-				} else {
-					if p.setStatus(u.UserID, presenceResponse.Presence) {
-						p.deviceType = presenceResponse.Presence
-					}
-					//stop check if one online userid found
-					if p.status == peerStatusOnline {
-						break
-					}
+					fmt.Fprintf(errBuf, "InviteUser %s to room %s err %s", u.UserID, p.defaultMessageRoomID, err)
 				}
 			}
 		}
@@ -1129,6 +1149,49 @@ func (m *MatrixTransport) validateUseridSignature(user *gomatrix.UserInfo) (addr
 	}
 	address = common.BytesToAddress(addressBytes)
 	return
+}
+func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) error {
+	peerAddress := m.userIDToAddress(userID)
+	/*
+		if this address has channel with me ,it may be login with another UserID,
+		so I need update my info
+	*/
+	peer := m.Peers[peerAddress]
+	if peer == nil {
+		return nil
+	}
+	/*
+			invite a user should meet the following pre requests:
+		1. it's valid userID, when   call this function, the userID is already verified
+		2.this user not in the default message room
+			isValidUserID checks userID not in the default message room right now.
+			hasDoneStartCheck: because of in startup ,I don't know who are in the default message room
+	*/
+	if peer.defaultMessageRoomID != eventRoom && !peer.isValidUserID(userID) && !m.hasDoneStartCheck {
+		//invite this user to the default room
+		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
+			UserID: userID,
+		})
+		if err != nil {
+			return fmt.Errorf("InviteUser perr=%s,room=%s err=%s",
+				utils.APex2(peerAddress), peer.defaultMessageRoomID, err)
+		}
+	}
+	if peer.defaultMessageRoomID == eventRoom {
+		//this user is joinning in the default message room, a new user
+		if !peer.isValidUserID(userID) {
+			//update presence if possible
+			peer.updateUsers([]*gomatrix.UserInfo{m.validatedUsers[userID]})
+			presence, err := m.matrixcli.GetPresenceState(userID)
+			if err == nil {
+				peer.setStatus(userID, presence.Presence)
+				peer.deviceType = presence.StatusMsg
+			} else {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ExtractUserLocalpart Extract user name from user ID
