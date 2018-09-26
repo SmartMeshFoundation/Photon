@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/gomatrix"
 
@@ -72,6 +73,7 @@ type MatrixTransport struct {
 	statusChan            chan netshare.Status
 	removePeerChan        chan common.Address
 	status                netshare.Status
+	servers               map[string]string
 	db                    xmpptransport.XMPPDb
 	hasDoneStartCheck     bool
 }
@@ -88,10 +90,10 @@ var (
 )
 
 // NewMatrixTransport init matrix
-func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) (*MatrixTransport, error) {
+func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
 	mtr := &MatrixTransport{
 		running:               false,
-		stopreceiving:         true,
+		stopreceiving:         false,
 		NodeAddress:           crypto.PubkeyToAddress(key.PublicKey),
 		key:                   key,
 		Peers:                 make(map[common.Address]*MatrixPeer),
@@ -103,34 +105,9 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		statusChan:            make(chan netshare.Status, 10),
 		removePeerChan:        make(chan common.Address, 10),
 		status:                netshare.Disconnected,
+		servers:               servers,
 	}
-	var homeServerValid = ""
-	var matrixClientValid *gomatrix.MatrixClient
-	for name, url := range servers {
-		homeserverurl := url
-		homeservername := name
-		mcli, err := gomatrix.NewClient(homeserverurl, "", "", PATHPREFIX0, mtr.log)
-		if err != nil {
-			continue
-		}
-		_, err = mcli.Versions()
-		if err != nil {
-			mtr.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
-			continue
-		}
-		homeServerValid = homeservername
-		matrixClientValid = mcli
-		break
-	}
-	if homeServerValid == "" || matrixClientValid == nil {
-		errinfo := "unable to find any reachable Matrix server"
-		mtr.log.Error(errinfo)
-		return nil, fmt.Errorf(errinfo)
-	}
-	mtr.servername = homeServerValid
-	mtr.matrixcli = matrixClientValid
-	mtr.changeStatus(netshare.Connected)
-	return mtr, nil
+	return mtr
 }
 
 func (m *MatrixTransport) changeStatus(newStatus netshare.Status) {
@@ -303,78 +280,129 @@ func (m *MatrixTransport) Start() {
 	if m.running {
 		return
 	}
-	err := m.collectChannelInfo(m.db)
-	if err != nil {
-		log.Warn("err %s", err)
-	}
-	// log in
-	if err = m.loginOrRegister(); err != nil {
-		return
-	}
 	m.running = true
-	m.stopreceiving = false
-	m.changeStatus(netshare.Connected)
-
-	//initialize Filters/NextBatch/Rooms
-	store := gomatrix.NewInMemoryStore()
-	m.matrixcli.Store = store
-
-	//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
-	if err = m.joinDiscoveryRoom(); err != nil {
-		return
-	}
-	//notify to server i am online（include the other participating servers）
-	if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
-		Presence:  ONLINE,
-		StatusMsg: m.NodeDeviceType, //register device type to server
-	}); err != nil {
-		return
-	}
-	//register receive-datahandle or other message received
-	m.matrixcli.Store = store
-	m.matrixcli.Syncer = gomatrix.NewDefaultSyncer(m.UserID, store)
-	syncer := m.matrixcli.Syncer.(*gomatrix.DefaultSyncer)
-
-	syncer.OnEventType(EventAddressRoom, m.onHandleAccountData)
-
-	syncer.OnEventType("m.room.message", m.onHandleReceiveMessage)
-
-	syncer.OnEventType("m.presence", m.onHandlePresenceChange)
-
-	syncer.OnEventType("m.room.member", m.onHandleMemberShipChange)
-	firstSync := make(chan struct{}, 5)
-	isFirstSynced := false
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	firstStart := true
 	go func() {
 		for {
-			if err2 := m.matrixcli.Sync(firstSync); err2 != nil {
-				if !m.running {
-					return
+			var err error
+			var store gomatrix.Storer
+			var syncer *gomatrix.DefaultSyncer
+			var homeServerValid = ""
+			var matrixClientValid *gomatrix.MatrixClient
+			firstSync := make(chan struct{}, 5)
+			isFirstSynced := false
+			for name, url := range m.servers {
+				var mcli *gomatrix.MatrixClient
+				homeserverurl := url
+				homeservername := name
+				mcli, err = gomatrix.NewClient(homeserverurl, "", "", PATHPREFIX0, m.log)
+				if err != nil {
+					continue
 				}
-				m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
-				m.changeStatus(netshare.Reconnecting)
-				if !isFirstSynced {
-					isFirstSynced = true
-					firstSync <- struct{}{}
+				_, err = mcli.Versions()
+				if err != nil {
+					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
+					continue
 				}
-			} else {
-				m.changeStatus(netshare.Connected)
+				homeServerValid = homeservername
+				matrixClientValid = mcli
+				break
 			}
+			if homeServerValid == "" || matrixClientValid == nil {
+				errinfo := "unable to find any reachable Matrix server"
+				m.log.Error(errinfo)
+				goto tryNext
+			}
+			m.servername = homeServerValid
+			m.matrixcli = matrixClientValid
+			m.changeStatus(netshare.Connected)
+
+			err = m.collectChannelInfo(m.db)
+			if err != nil {
+				m.log.Warn("collectChannelInfo err %s", err)
+			}
+			// log in
+			if err = m.loginOrRegister(); err != nil {
+				m.log.Error(fmt.Sprintf("loginOrRegister err %s", err))
+				goto tryNext
+			}
+			//initialize Filters/NextBatch/Rooms
+			store = gomatrix.NewInMemoryStore()
+			m.matrixcli.Store = store
+
+			//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
+			if err = m.joinDiscoveryRoom(); err != nil {
+				m.log.Error(fmt.Sprintf("joinDiscoveryRoom err %s", err))
+				goto tryNext
+			}
+			//notify to server i am online（include the other participating servers）
+			if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+				Presence:  ONLINE,
+				StatusMsg: m.NodeDeviceType, //register device type to server
+			}); err != nil {
+				m.log.Error(fmt.Sprintf("SetPresenceState err %s", err))
+				goto tryNext
+			}
+			//register receive-datahandle or other message received
+			m.matrixcli.Store = store
+			m.matrixcli.Syncer = gomatrix.NewDefaultSyncer(m.UserID, store)
+			syncer = m.matrixcli.Syncer.(*gomatrix.DefaultSyncer)
+
+			syncer.OnEventType(EventAddressRoom, m.onHandleAccountData)
+
+			syncer.OnEventType("m.room.message", m.onHandleReceiveMessage)
+
+			syncer.OnEventType("m.presence", m.onHandlePresenceChange)
+
+			syncer.OnEventType("m.room.member", m.onHandleMemberShipChange)
+
+			go func() {
+				for {
+					if err2 := m.matrixcli.Sync(firstSync); err2 != nil {
+						if !m.running {
+							return
+						}
+						m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
+						m.changeStatus(netshare.Reconnecting)
+						if !isFirstSynced {
+							isFirstSynced = true
+							firstSync <- struct{}{}
+						}
+					} else {
+						m.changeStatus(netshare.Connected)
+					}
+					time.Sleep(time.Second * 5)
+				}
+			}()
+			//wait for first sync complete
+			<-firstSync
+			isFirstSynced = true
+			if m.status == netshare.Connected {
+				if !m.hasDoneStartCheck {
+					m.hasDoneStartCheck = true
+					err = m.startupCheckAllParticipants()
+					if err != nil {
+						m.log.Error(fmt.Sprintf("startupCheckAllParticipants error %s", err))
+					}
+				}
+			}
+			if firstStart {
+				firstStart = false
+				wg.Wait()
+			}
+			return
+		tryNext:
 			time.Sleep(time.Second * 5)
+			if firstStart {
+				firstStart = false
+				wg.Wait()
+			}
 		}
 	}()
-	//wait for first sync complete
-	<-firstSync
-	isFirstSynced = true
-	if m.status == netshare.Connected {
-		if !m.hasDoneStartCheck {
-			m.hasDoneStartCheck = true
-			err = m.startupCheckAllParticipants()
-			if err != nil {
-				m.log.Error(fmt.Sprintf("startupCheckAllParticipants error %s", err))
-			}
-		}
-	}
 	m.log.Trace("[Matrix] transport started")
+	wg.Done()
 }
 
 /*
@@ -659,7 +687,10 @@ func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
 	if !exists {
 		return
 	}
-	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
+	if !peer.isValidUserID(userid) {
+		peer.updateUsers([]*gomatrix.UserInfo{m.validatedUsers[userid]})
+	}
+	if peer.setStatus(userid, presence) {
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType
