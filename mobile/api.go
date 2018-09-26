@@ -596,13 +596,13 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 
 	var xn <-chan netshare.Status
 	switch t := a.api.Raiden.Transport.(type) {
-	case *network.MatrixMixTransporter:
+	case *network.MatrixMixTransport:
 		xn, err = t.GetNotify()
 		if err != nil {
 			log.Error(fmt.Sprintf("matrix transport get nofity err %s", err))
 			return
 		}
-	case *network.MixTransporter:
+	case *network.MixTransport:
 		xn, err = t.GetNotify()
 		if err != nil {
 			log.Error(fmt.Sprintf("mix transport get notify err %s", err))
@@ -611,9 +611,9 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	default:
 		xn = make(chan netshare.Status)
 	}
-	/*mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
+	/*mt, ok := a.api.Raiden.Transport.(*network.MixTransport)
 	if !ok {
-		err = fmt.Errorf("not MixTransporter %s", utils.StringInterface(a.api.Raiden.Transport, 3))
+		err = fmt.Errorf("not MixTransport %s", utils.StringInterface(a.api.Raiden.Transport, 3))
 		return
 	}
 	xn, err := mt.GetNotify()
