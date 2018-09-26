@@ -114,9 +114,9 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		if err != nil {
 			continue
 		}
-		_, errchk := mcli.Versions()
-		if errchk != nil {
-			mtr.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying", homeserverurl))
+		_, err = mcli.Versions()
+		if err != nil {
+			mtr.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
 			continue
 		}
 		homeServerValid = homeservername
@@ -408,6 +408,10 @@ onHandleReceiveMessage handle text messages sent to listening rooms
 */
 func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	if event.RoomID == m.discoveryroomid {
+		//ignore any message sent to discovery room.
+		return
+	}
 	if m.stopreceiving || event.Type != "m.room.message" {
 		return
 	}
@@ -968,6 +972,8 @@ func (m *MatrixTransport) searchNode(address common.Address) (users []*gomatrix.
 		if xaddr != address {
 			continue
 		}
+		//save this validated user,
+		m.validatedUsers[user.UserID] = &user
 		users = append(users, &user)
 	}
 	return
@@ -1056,6 +1062,10 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 				} else {
 					if p.setStatus(u.UserID, presenceResponse.Presence) {
 						p.deviceType = presenceResponse.Presence
+					}
+					//stop check if one online userid found
+					if p.status == peerStatusOnline {
+						break
 					}
 				}
 			}
