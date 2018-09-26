@@ -1017,6 +1017,8 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 	//rs.db.AddStateManager(stateManager)
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
+	// notify upper
+	rs.db.NotifyReceiveMediatedTransfer(msg, ch)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {
