@@ -112,3 +112,7 @@ func (h handler) OnReceivedTransfer(tr string) {
 func (h handler) OnSentTransfer(tr string) {
 	log.Error(fmt.Sprintf("sent transfer %s", tr))
 }
+
+func (h handler) OnNotify(level int, info string) {
+	log.Info(fmt.Sprintf("Receive notice : level=%d info=%s\n", level, info))
+}
