@@ -25,7 +25,7 @@ type TransferData struct {
 	LockSecretHash string   `json:"lockSecretHash"`
 	Fee            *big.Int `json:"fee"`
 	IsDirect       bool     `json:"is_direct"`
-	Async          bool     `json:"async"` //是否异步
+	Sync           bool     `json:"sync"` //是否同步
 }
 
 /*
@@ -109,10 +109,10 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	var timeout time.Duration
-	if req.Async {
-		timeout = params.MaxAsyncRequestTimeout
-	} else {
+	if req.Sync {
 		timeout = params.MaxRequestTimeout
+	} else {
+		timeout = params.MaxAsyncRequestTimeout
 	}
 	lockSecretHash, err := RaidenAPI.TransferAndWait(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), timeout, req.IsDirect)
 	if err != nil {

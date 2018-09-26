@@ -349,7 +349,7 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			err = rerr.ErrTransferTimeout
+			return result.LockSecretHash, err
 		case err = <-result.Result:
 		}
 	} else {
