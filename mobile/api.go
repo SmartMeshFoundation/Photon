@@ -639,14 +639,20 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t := <-a.api.Raiden.NotifyHandler.GetSentTransferChan():
-				d, err = json.Marshal(t)
-				handler.OnSentTransfer(string(d))
-			case t := <-a.api.Raiden.NotifyHandler.GetReceivedTransferChan():
-				d, err = json.Marshal(t)
-				handler.OnReceivedTransfer(string(d))
-			case n := <-a.api.Raiden.NotifyHandler.GetNoticeChan():
-				handler.OnNotify(int(n.Level), n.Info)
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetSentTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnSentTransfer(string(d))
+				}
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetReceivedTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnReceivedTransfer(string(d))
+				}
+			case n, ok := <-a.api.Raiden.NotifyHandler.GetNoticeChan():
+				if ok {
+					handler.OnNotify(int(n.Level), n.Info)
+				}
 			case <-sub.quitChan:
 				return
 			}

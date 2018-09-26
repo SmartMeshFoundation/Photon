@@ -21,6 +21,9 @@ type Handler struct {
 	receivedTransferChan chan *models.ReceivedTransfer
 	//noticeChan should never close
 	noticeChan chan *Notice
+
+	// work status
+	stopped bool
 }
 
 // NewNotifyHandler :
@@ -29,7 +32,16 @@ func NewNotifyHandler() *Handler {
 		sentTransferChan:     make(chan *models.SentTransfer),
 		receivedTransferChan: make(chan *models.ReceivedTransfer),
 		noticeChan:           make(chan *Notice),
+		stopped:              false,
 	}
+}
+
+// Stop :
+func (h *Handler) Stop() {
+	h.stopped = true
+	close(h.sentTransferChan)
+	close(h.receivedTransferChan)
+	close(h.noticeChan)
 }
 
 // GetNoticeChan :
@@ -52,7 +64,7 @@ func (h *Handler) GetReceivedTransferChan() <-chan *models.ReceivedTransfer {
 
 // Notify : 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) Notify(level Level, info interface{}) {
-	if info == nil || info == "" {
+	if h.stopped || info == nil || info == "" {
 		return
 	}
 	select {
@@ -64,7 +76,7 @@ func (h *Handler) Notify(level Level, info interface{}) {
 
 // NotifyReceiveMediatedTransfer :
 func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
-	if msg == nil {
+	if h.stopped || msg == nil {
 		return
 	}
 	info := fmt.Sprintf("收到token=%s,amount=%d,locksecrethash=%s的交易",
@@ -78,22 +90,25 @@ func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, 
 
 // NotifySentTransfer :
 func (h *Handler) NotifySentTransfer(st *models.SentTransfer) {
-	if st != nil {
-		select {
-		case h.sentTransferChan <- st:
-		default:
-			// never block
-		}
+	if h.stopped || st == nil {
+		return
+	}
+	select {
+	case h.sentTransferChan <- st:
+	default:
+		// never block
 	}
 }
 
 // NotifyReceiveTransfer :
 func (h *Handler) NotifyReceiveTransfer(rt *models.ReceivedTransfer) {
-	if rt != nil {
-		select {
-		case h.receivedTransferChan <- rt:
-		default:
-			// never block
-		}
+
+	if h.stopped || rt == nil {
+		return
+	}
+	select {
+	case h.receivedTransferChan <- rt:
+	default:
+		// never block
 	}
 }

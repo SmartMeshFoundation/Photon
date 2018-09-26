@@ -320,6 +320,7 @@ func (rs *RaidenService) Stop() {
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.Chain.Client.Close()
+	rs.NotifyHandler.Stop()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
 	//anther instance cann run now
