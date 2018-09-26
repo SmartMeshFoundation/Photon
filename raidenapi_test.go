@@ -267,7 +267,7 @@ func TestTransfer(t *testing.T) {
 		go func(r *RaidenAPI, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
 			wgStart.Wait() //start at the same time
-			err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, utils.EmptyHash, time.Minute*2, false)
+			_, err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, utils.EmptyHash, time.Minute*2, false)
 			if err != nil {
 				t.Error()
 			}
@@ -310,7 +310,7 @@ func TestTransferWithPython(t *testing.T) {
 	wg.Add(cnt)
 	for i := 1; i < cnt+1; i++ {
 		go func(id int) {
-			err := ra.Transfer(c.TokenAddress(), big1, utils.BigInt0, c.PartnerAddress(), utils.EmptyHash, time.Second*10, false)
+			_, err := ra.Transfer(c.TokenAddress(), big1, utils.BigInt0, c.PartnerAddress(), utils.EmptyHash, time.Second*10, false)
 			if err != nil {
 				log.Error(fmt.Sprintf("err=%s", err))
 			}
@@ -345,14 +345,14 @@ func TestPairTransfer(t *testing.T) {
 	for i := 1; i <= cnt; i++ {
 		//wg.Add(2)
 		go func(index int) {
-			err := ra.Transfer(c.TokenAddress, big1, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
+			_, err := ra.Transfer(c.TokenAddress, big1, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
 			if err != nil {
 				t.Error(err)
 			}
 			wg.Done()
 		}(i)
 		go func(index int) {
-			err := rb.Transfer(c.TokenAddress, big1, utils.BigInt0, ra.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
+			_, err := rb.Transfer(c.TokenAddress, big1, utils.BigInt0, ra.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
 			if err != nil {
 				t.Error(err)
 			}

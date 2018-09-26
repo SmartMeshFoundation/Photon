@@ -111,7 +111,7 @@ func TestSmoke(t *testing.T) {
 	}
 
 	log.Info("step 2 transfer from A to B")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
+	_, err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -123,7 +123,7 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), x.Add(contractBalance, tAmount))
 
 	log.Info("step 3 transfer from A to C")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
+	_, err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -215,7 +215,7 @@ func TestFeeCharger(t *testing.T) {
 	}
 	log.Info("tokenAddr=%s,tokenaddr2=%s", tokenAddr.String(), tokenAddr2.String())
 	log.Info("transfer from A to C")
-	err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
+	_, err = ra.Transfer(tokenAddr, tAmount, utils.BigInt0, rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -231,7 +231,7 @@ func TestFeeCharger(t *testing.T) {
 	assert(t, rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), x.Add(contractBalance, bcAmount))
 
 	//specifed a  wrong fee,
-	err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
+	_, err = ra.Transfer(tokenAddr, tAmount, big.NewInt(1), rc.Raiden.NodeAddress, utils.EmptyHash, time.Minute, false)
 	if err == nil {
 		t.Errorf("should fail because of not engough fee.")
 		return

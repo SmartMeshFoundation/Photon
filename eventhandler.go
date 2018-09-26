@@ -93,7 +93,7 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
 	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatus(revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+		eh.raiden.db.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
 	}
 	return err
 }
@@ -159,7 +159,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatus(mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+		eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -180,7 +180,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
 	if err == nil {
-		eh.raiden.db.UpdateTransferStatusMessage(event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+		eh.raiden.db.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -350,6 +350,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.raiden.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
+		eh.raiden.db.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
 		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)

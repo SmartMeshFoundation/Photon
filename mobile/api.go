@@ -380,12 +380,13 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = errors.New("amount should be positive")
 		return
 	}
-	err = a.api.Transfer(tokenAddr, amount, fee, targetAddr, secret, params.MaxRequestTimeout, isDirect)
+	lockScretHash, err := a.api.Transfer(tokenAddr, amount, fee, targetAddr, secret, params.MaxAsyncRequestTimeout, isDirect)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	req := &v1.TransferData{}
+	req.LockSecretHash = lockScretHash.String()
 	req.Initiator = a.api.Raiden.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress

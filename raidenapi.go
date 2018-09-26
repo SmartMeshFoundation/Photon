@@ -340,10 +340,10 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (err error) {
+func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
 	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
 	if err != nil {
-		return err
+		return
 	}
 	if timeout > 0 {
 		timeoutCh := time.After(timeout)
@@ -355,20 +355,11 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 	} else {
 		err = <-result.Result
 	}
-	return
-}
-
-//TransferAndNotWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndNotWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
-	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
-	if err != nil {
-		return
-	}
 	return result.LockSecretHash, err
 }
 
 //Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) error {
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
 	return r.TransferAndWait(token, amount, fee, target, secret, timeout, isDirectTransfer)
 }
 

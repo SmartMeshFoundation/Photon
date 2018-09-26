@@ -1438,7 +1438,7 @@ func (rs *RaidenService) cancelTransfer(req *cancelTransferReq) (result *utils.A
 		result.Result <- errors.New("you can only cancel transfers you send")
 		return
 	}
-	transferStatus, err := rs.db.GetTransferStatus(req.LockSecretHash)
+	transferStatus, err := rs.db.GetTransferStatus(req.TokenAddress, req.LockSecretHash)
 	if err != nil {
 		result.Result <- errors.New("can not found transfer status")
 		return
@@ -1451,7 +1451,7 @@ func (rs *RaidenService) cancelTransfer(req *cancelTransferReq) (result *utils.A
 		LockSecretHash: req.LockSecretHash,
 	}
 	rs.StateMachineEventHandler.dispatch(manager, stateChange)
-	rs.db.UpdateTransferStatus(req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	rs.db.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
 	result.Result <- nil
 	return
 }
@@ -1466,11 +1466,29 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	}
 	switch msg := sentMessage.Message.(type) {
 	case *encoding.MediatedTransfer:
-		rs.db.UpdateTransferStatusMessage(msg.LockSecretHash, "MediatedTransfer 发送成功")
+		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "MediatedTransfer 发送成功")
 	case *encoding.RevealSecret:
-		rs.db.UpdateTransferStatusMessage(msg.LockSecretHash(), "RevealSecret 发送成功")
+		// save log to db
+		channels := rs.findAllChannelsByLockSecretHash(msg.LockSecretHash())
+		for _, c := range channels {
+			rs.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), "RevealSecret 发送成功")
+		}
 	case *encoding.UnLock:
-		rs.db.UpdateTransferStatus(msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+	case *encoding.AnnounceDisposedResponse:
+		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "AnnounceDisposedResponse 发送成功")
 	}
 	rs.conditionQuitWhenReceiveAck(sentMessage.Message)
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
@@ -1625,4 +1643,13 @@ func (rs *RaidenService) conditionQuitWhenReceiveAck(msg encoding.Messager) {
 	if len(quitName) > 0 {
 		rs.conditionQuit(quitName)
 	}
+}
+
+func (rs *RaidenService) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (channels []*channel.Channel) {
+	for _, lockSecretHash2Channels := range rs.Token2Hashlock2Channels {
+		for _, channelsTemp := range lockSecretHash2Channels {
+			channels = append(channels, channelsTemp...)
+		}
+	}
+	return
 }

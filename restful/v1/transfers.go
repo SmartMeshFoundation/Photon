@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -23,6 +25,7 @@ type TransferData struct {
 	LockSecretHash string   `json:"lockSecretHash"`
 	Fee            *big.Int `json:"fee"`
 	IsDirect       bool     `json:"is_direct"`
+	Async          bool     `json:"async"` //是否异步
 }
 
 /*
@@ -105,7 +108,13 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Invalid secret", http.StatusBadRequest)
 		return
 	}
-	lockSecretHash, err := RaidenAPI.TransferAndNotWait(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
+	var timeout time.Duration
+	if req.Async {
+		timeout = params.MaxAsyncRequestTimeout
+	} else {
+		timeout = params.MaxRequestTimeout
+	}
+	lockSecretHash, err := RaidenAPI.TransferAndWait(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), timeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -124,8 +133,15 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 	lockSecretHashStr := r.PathParam("locksecrethash")
 	lockSecretHash := common.HexToHash(lockSecretHashStr)
+	token := r.PathParam("token")
+	tokenAddr, err := utils.HexToAddress(token)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(lockSecretHash)
+	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(tokenAddr, lockSecretHash)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

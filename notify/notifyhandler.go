@@ -29,9 +29,9 @@ type Handler struct {
 // NewNotifyHandler :
 func NewNotifyHandler() *Handler {
 	return &Handler{
-		sentTransferChan:     make(chan *models.SentTransfer),
-		receivedTransferChan: make(chan *models.ReceivedTransfer),
-		noticeChan:           make(chan *Notice),
+		sentTransferChan:     make(chan *models.SentTransfer, 10),
+		receivedTransferChan: make(chan *models.ReceivedTransfer, 10),
+		noticeChan:           make(chan *Notice, 10),
 		stopped:              false,
 	}
 }
@@ -81,11 +81,7 @@ func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, 
 	}
 	info := fmt.Sprintf("收到token=%s,amount=%d,locksecrethash=%s的交易",
 		utils.APex2(ch.TokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash))
-	select {
-	case h.noticeChan <- newNotice(LevelInfo, info):
-	default:
-		// never block
-	}
+	h.Notify(LevelInfo, info)
 }
 
 // NotifySentTransfer :
