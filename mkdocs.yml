@@ -14,8 +14,8 @@ pages:
 
 theme:
     name: readthedocs
-     highlightjs: true
-     hljs_languages:
+    highlightjs: true
+    hljs_languages:
         - yaml
         - rust
 
@@ -26,7 +26,7 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/js-sequence-diagrams/1.0.6/sequence-diagram-min.js
   - https://cdnjs.cloudflare.com/ajax/libs/flowchart/1.6.5/flowchart.min.js
   - js/umlconvert.js
-  
+
 markdown_extensions:
   - toc:
     permalink: True
