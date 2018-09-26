@@ -75,7 +75,8 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress, "",
+	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress,
+		"", params.SpectrumTestNetRegistryAddress.String(),
 		otherArgs)
 	if err != nil {
 		log.Crit(fmt.Sprintf("start up err %s", err))

@@ -611,16 +611,6 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	default:
 		xn = make(chan netshare.Status)
 	}
-	/*mt, ok := a.api.Raiden.Transport.(*network.MixTransport)
-	if !ok {
-		err = fmt.Errorf("not MixTransport %s", utils.StringInterface(a.api.Raiden.Transport, 3))
-		return
-	}
-	xn, err := mt.GetNotify()
-	if err != nil {
-		log.Error(fmt.Sprintf("xmpp transport err %s", err))
-		xn = make(chan netshare.Status)
-	}*/
 	go func() {
 		rpanic.RegisterErrorNotifier("API SubscribeNeighbour")
 		for {
