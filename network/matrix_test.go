@@ -76,12 +76,8 @@ func getMatrixEnvConfig() (cfg1, cfg2, cfg3 map[string]string) {
 	return
 }
 func newTestMatrixTransport(name string, cfg map[string]string) (m1 *MatrixTransport) {
-	var err error
 	key, _ := utils.MakePrivateKeyAddress()
-	m1, err = NewMatrixTransport(name, key, "other", cfg)
-	if err != nil {
-		panic(err)
-	}
+	m1 = NewMatrixTransport(name, key, "other", cfg)
 	m1.setDB(&MockDb{})
 	return m1
 }
@@ -119,10 +115,7 @@ func TestRegisterAndJoinDiscoveryRoom(t *testing.T) {
 	time.Sleep(time.Minute * 10)
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
-	m1, err := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
-	if err != nil {
-		panic(err)
-	}
+	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
 	m1.setDB(&MockDb{})
 	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
 	defer m1.Stop()
@@ -131,12 +124,9 @@ func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 }
 
 func TestGetJoinedRoomAlias(t *testing.T) {
-	m1, err := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
-	if err != nil {
-		panic(err)
-	}
+	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
 	m1.setDB(&MockDb{})
-	err = m1.loginOrRegister()
+	err := m1.loginOrRegister()
 	if err != nil {
 		panic(err)
 	}
@@ -369,7 +359,7 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	time.Sleep(time.Second)
 	_, _, cfg3 := getMatrixEnvConfig()
 	//m2 relogin on transport03
-	m2Again, err := NewMatrixTransport("m2", m2.key, "other", cfg3)
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -625,10 +615,7 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 	time.Sleep(time.Second)
 	_, cfg2, _ := getMatrixEnvConfig()
 	//m2 relogin on transport03
-	m2Again, err := NewMatrixTransport("m2", m2.key, "other", cfg2)
-	if err != nil {
-		t.Error(err)
-	}
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2)
 	m2Again.setDB(new(MockDb))
 	m2Again.db.(*MockDb).addPartner(m1.NodeAddress)
 	m2Again.Start()
