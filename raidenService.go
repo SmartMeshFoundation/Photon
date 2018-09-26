@@ -33,6 +33,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -72,17 +73,29 @@ RaidenService is a raiden node
 most of raidenService's member is not thread safe, and should not visit outside the loop method.
 */
 type RaidenService struct {
-	Chain                 *rpc.BlockChainService
-	Registry              *rpc.RegistryProxy
+	/*
+		module
+	*/
+	Config                   *params.Config
+	Chain                    *rpc.BlockChainService
+	Registry                 *rpc.RegistryProxy
+	Transport                network.Transporter
+	Protocol                 *network.RaidenProtocol
+	MessageHandler           *raidenMessageHandler
+	StateMachineEventHandler *stateMachineEventHandler
+	BlockChainEvents         *blockchain.Events
+	AlarmTask                *blockchain.AlarmTask
+	db                       *models.ModelDB
+	FeePolicy                fee.Charger //Mediation fee
+	NotifyHandler            *notify.Handler
+
+	/*
+	 */
 	SecretRegistryAddress common.Address
 	RegistryAddress       common.Address
 	PrivateKey            *ecdsa.PrivateKey
-	Transport             network.Transporter
-	Config                *params.Config
-	Protocol              *network.RaidenProtocol
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
-
 	TokenNetwork2Token    map[common.Address]common.Address
 	Token2TokenNetwork    map[common.Address]common.Address
 	Transfer2StateManager map[common.Hash]*transfer.StateManager
@@ -95,20 +108,14 @@ type RaidenService struct {
 			         released/withdrawn but not when the secret is registered.
 		TODO remove this,this design is very weird
 	*/
-	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel
-	MessageHandler           *raidenMessageHandler
-	StateMachineEventHandler *stateMachineEventHandler
-	BlockChainEvents         *blockchain.Events
-	AlarmTask                *blockchain.AlarmTask
-	db                       *models.ModelDB
-	FileLocker               *flock.Flock
-	BlockNumber              *atomic.Value
+	Token2Hashlock2Channels map[common.Address]map[common.Hash][]*channel.Channel
+	FileLocker              *flock.Flock
+	BlockNumber             *atomic.Value
 	/*
 		chan for user request
 	*/
 	UserReqChan                 chan *apiReq
 	ProtocolMessageSendComplete chan *protocolMessage
-	FeePolicy                   fee.Charger //Mediation fee
 	/*
 		these four maps designed for token swap,but it can be extended for purpose usage.
 		for example:
@@ -131,13 +138,14 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (rs *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler) (rs *RaidenService, err error) {
 	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
 		return
 	}
 	rs = &RaidenService{
+		NotifyHandler:                         notifyHandler,
 		Chain:                                 chain,
 		Registry:                              chain.Registry(chain.RegistryAddress),
 		RegistryAddress:                       chain.RegistryAddress,
@@ -410,6 +418,8 @@ func (rs *RaidenService) loop() {
 			}
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
+			} else {
+				rs.NotifyHandler.Notify(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -1010,7 +1020,7 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
 	// notify upper
-	rs.db.NotifyReceiveMediatedTransfer(msg, ch)
+	rs.NotifyHandler.NotifyReceiveMediatedTransfer(msg, ch)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {

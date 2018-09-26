@@ -54,12 +54,12 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	models.Logger.Println("------------ Data After Crash ------------")
 	cd23middle := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterCrash()
 	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
-	// 校验cd23，锁定20
-	if !cd23middle.CheckLockSelf(transAmount) {
+	// 校验cd23，无锁
+	if !cd23middle.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
-	// 校验cd36，锁定20
-	if !cd36middle.CheckLockSelf(transAmount) {
+	// 校验cd36，无锁
+	if !cd36middle.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
 	}
 
@@ -77,12 +77,12 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd23，锁定20
-	if !cd23new.CheckLockSelf(transAmount) {
+	// 校验cd23，无锁
+	if !cd23new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
-	// 校验cd36，锁定20
-	if !cd36new.CheckLockSelf(transAmount) {
+	// 校验cd36，无锁
+	if !cd36new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
 	}
 

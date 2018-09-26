@@ -27,6 +27,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -159,6 +160,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	notifyHandler := notify.NewNotifyHandler()
 	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
@@ -178,7 +180,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler)
 	if err != nil {
 		transport.Stop()
 		return
