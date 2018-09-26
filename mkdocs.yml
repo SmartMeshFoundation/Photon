@@ -28,9 +28,9 @@ extra_javascript:
   - js/umlconvert.js
 
 markdown_extensions:
-  - toc:
+  - markdown_extensions.toc:
     permalink: True
-  - smarty
+  - markdown_extensions.smarty
   - pymdownx.arithmatex
   - pymdownx.betterem:
       smart_enable: all
