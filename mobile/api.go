@@ -594,7 +594,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 
 	var xn <-chan netshare.Status
 	switch t := a.api.Raiden.Transport.(type) {
-	case *network.MatrixMixTransporter:
+	case *network.MatrixMixTransport:
 		xn, err = t.GetNotify()
 		if err != nil {
 			log.Error(fmt.Sprintf("matrix transport get nofity err %s", err))

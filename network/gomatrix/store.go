@@ -1,4 +1,4 @@
-package matrixcomm
+package gomatrix
 
 // Storer is an interface which must be satisfied to store client data.
 type Storer interface {
@@ -58,7 +58,6 @@ func (s *InMemoryStore) LoadRoom(roomID string) *Room {
 }
 
 //LoadRoomOfAll get all rooms from cache memeory
-func (s *InMemoryStore) LoadRoomOfAll() map[string]*Room  {
+func (s *InMemoryStore) LoadRoomOfAll() map[string]*Room {
 	return s.Rooms
 }
-

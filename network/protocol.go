@@ -151,7 +151,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
-		receiveChan:               make(chan []byte, 20),
+		receiveChan:               make(chan []byte, 2000),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)

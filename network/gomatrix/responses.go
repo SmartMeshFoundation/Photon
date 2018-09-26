@@ -1,4 +1,4 @@
-package matrixcomm
+package gomatrix
 
 // RespAccountData is the JSON for AccountData
 type RespAccountData struct {
@@ -7,7 +7,7 @@ type RespAccountData struct {
 
 // RespUserSearch is the JSON for UserSearch
 type RespUserSearch struct {
-	Limited bool     `json:"limited"`
+	Limited bool       `json:"limited"`
 	Results []UserInfo `json:"results"`
 }
 

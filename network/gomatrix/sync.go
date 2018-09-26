@@ -1,10 +1,13 @@
-package matrixcomm
+package gomatrix
 
 import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 // Syncer represents an interface that must be satisfied in order to do /sync requests on a client.
@@ -47,25 +50,27 @@ type OnEventListener func(x *Event)
 
 // ProcessResponse 处理接收到的消息
 func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error) {
-	if !s.shouldProcessResponse(res, since) {
-		return
-	}
-
+	//log.Trace(fmt.Sprintf("responsexxx since=%s,res=%s", since, utils.StringInterface(res, 17)))
+	//if !s.shouldProcessResponse(res, since) {
+	//	return
+	//}
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ProcessResponse panicked! userID=%s since=%s panic=%s\n%s", s.UserID, since, r, debug.Stack())
 		}
 	}()
-	//消息中presence,获取presence
-	// presence in message, get presence
-	for _, presenceUpdate := range res.Presence.Events {
-		s.notifyListeners(&presenceUpdate)
-	}
+	/*
+		   evens process should be ordered
+			1. process account_data,get my channel participant's default room
+		   2. process room events,get and validate userID
+		   3. proces prensence for path finder.
+	*/
 	//消息中的AccountData，返回的是map address-roomid
 	// AccountData in message, return map address-roomid
 	for _, event := range res.AccountData.Events {
 		s.notifyListeners(&event)
 	}
+	//log.Trace(fmt.Sprintf("responsexx %s", utils.StringInterface(res, 17)))
 	//消息中的room内发生的join事件
 	// in message room, join event occurs.
 	for roomID, roomData := range res.Rooms.Join {
@@ -74,6 +79,20 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 			event.RoomID = roomID
 			room.UpdateState(&event)
 			s.notifyListeners(&event)
+			//handle room aliases
+			if event.Type == "m.room.aliases" {
+				log.Trace(fmt.Sprintf("eventxx %s", utils.StringInterface(event, 5)))
+				aliases, ok := event.Content["aliases"]
+				if ok {
+					//{
+					//	"aliases": ["#raiden_ropsten_discovery:transport01.smartmesh.cn"]
+					//}
+					arrayAliases, ok := aliases.([]interface{})
+					if ok && len(arrayAliases) > 0 {
+						room.Alias = arrayAliases[0].(string)
+					}
+				}
+			}
 		}
 		for _, event := range roomData.Timeline.Events {
 			event.RoomID = roomID
@@ -101,6 +120,11 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 				s.notifyListeners(&event)
 			}
 		}
+	}
+	//消息中presence,获取presence
+	// presence in message, get presence
+	for _, presenceUpdate := range res.Presence.Events {
+		s.notifyListeners(&presenceUpdate)
 	}
 	return
 }
@@ -158,7 +182,7 @@ func (s *DefaultSyncer) getOrCreateRoom(roomID string) *Room {
 
 // OnFailedSync always returns a 5 second wait period between failed /syncs, never a fatal error.
 func (s *DefaultSyncer) OnFailedSync(res *RespSync, err error) (time.Duration, error) {
-	return 10 * time.Second, nil
+	return time.Millisecond, err
 }
 
 // GetFilterJSON returns a filter with a timeline limit of 50.

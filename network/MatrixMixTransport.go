@@ -3,6 +3,8 @@ package network
 import (
 	"crypto/ecdsa"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
+
 	"errors"
 
 	"fmt"
@@ -13,11 +15,11 @@ import (
 )
 
 /*
-MatrixMixTransporter is a wrapper for two Transporter(UDP and Matrix)
+MatrixMixTransport is a wrapper for two Transporter(UDP and Matrix)
 if I can reach the node by UDP,then UDP,
 if I cannot reach the node, try Matrix
 */
-type MatrixMixTransporter struct {
+type MatrixMixTransport struct {
 	udp      *UDPTransport
 	matirx   *MatrixTransport
 	name     string
@@ -25,8 +27,8 @@ type MatrixMixTransporter struct {
 }
 
 //NewMatrixMixTransporter create a MixTransporter and discover
-func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MatrixMixTransporter, err error) {
-	t = &MatrixMixTransporter{
+func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MatrixMixTransport, err error) {
+	t = &MatrixMixTransport{
 		name:     name,
 		protocol: protocol,
 	}
@@ -34,7 +36,7 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	if err != nil {
 		return
 	}
-	t.matirx, err = InitMatrixTransport(name, key, deviceType)
+	t.matirx, err = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig)
 	t.RegisterProtocol(protocol)
 	return
 }
@@ -47,7 +49,7 @@ Send message
  *	Send message prefers to choose LAN,
  *	after LAN does not work, then try matrix.
  */
-func (t *MatrixMixTransporter) Send(receiver common.Address, data []byte) error {
+func (t *MatrixMixTransport) Send(receiver common.Address, data []byte) error {
 	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {
 		err := t.udp.Send(receiver, data)
@@ -64,7 +66,7 @@ func (t *MatrixMixTransporter) Send(receiver common.Address, data []byte) error 
 }
 
 //Start the two transporter
-func (t *MatrixMixTransporter) Start() {
+func (t *MatrixMixTransport) Start() {
 	if t.udp != nil {
 		t.udp.Start()
 	}
@@ -77,7 +79,7 @@ func (t *MatrixMixTransporter) Start() {
 }
 
 //Stop the two transporter
-func (t *MatrixMixTransporter) Stop() {
+func (t *MatrixMixTransport) Stop() {
 
 	if t.udp != nil {
 		t.udp.Stop()
@@ -88,7 +90,7 @@ func (t *MatrixMixTransporter) Stop() {
 }
 
 //StopAccepting stops receiving for the two transporter
-func (t *MatrixMixTransporter) StopAccepting() {
+func (t *MatrixMixTransport) StopAccepting() {
 	if t.udp != nil {
 		t.udp.StopAccepting()
 	}
@@ -98,7 +100,7 @@ func (t *MatrixMixTransporter) StopAccepting() {
 }
 
 //RegisterProtocol register receiver for the two transporter
-func (t *MatrixMixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
+func (t *MatrixMixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	if t.udp != nil {
 		t.udp.RegisterProtocol(protcol)
 	}
@@ -108,7 +110,7 @@ func (t *MatrixMixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 }
 
 //NodeStatus get node's status and is online right now
-func (t *MatrixMixTransporter) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+func (t *MatrixMixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	deviceType, isOnline = t.udp.NodeStatus(addr)
 	if isOnline {
 		return
@@ -118,18 +120,18 @@ func (t *MatrixMixTransporter) NodeStatus(addr common.Address) (deviceType strin
 }
 
 //GetNotify notification of connection status change
-func (t *MatrixMixTransporter) GetNotify() (notify <-chan netshare.Status, err error) {
+func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	if t.matirx != nil {
 		return t.matirx.statusChan, nil
 	}
 	return nil, errors.New("connection not established")
 }
 
-//SubscribeNeighbor get the status change notification of partner node
-//func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
-func (t *MatrixMixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
+//SetMatrixDB get the status change notification of partner node
+//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
+func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
 	if t.matirx == nil {
 		return fmt.Errorf("Try to subscribe neighbor,but matrix connection is disconnected")
 	}
-	return t.matirx.CollectNeighbors(db)
+	return t.matirx.setDB(db)
 }

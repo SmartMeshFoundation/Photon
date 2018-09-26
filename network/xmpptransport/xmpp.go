@@ -108,16 +108,16 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
 		options: xmpp.Options{
-			Host:                         ServerURL,
-			User:                         fmt.Sprintf("%s%s", strings.ToLower(User.String()), nameSuffix),
-			Password:                     passwordFn.GetPassWord(),
-			NoTLS:                        true,
+			Host:     ServerURL,
+			User:     fmt.Sprintf("%s%s", strings.ToLower(User.String()), nameSuffix),
+			Password: passwordFn.GetPassWord(),
+			NoTLS:    true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:                        false,
-			Session:                      false,
-			Status:                       "xa",
-			StatusMessage:                name,
-			Resource:                     deviceType,
+			Debug:         false,
+			Session:       false,
+			Status:        "xa",
+			StatusMessage: name,
+			Resource:      deviceType,
 		},
 		client:         nil,
 		waitersMutex:   sync.RWMutex{},
@@ -251,7 +251,7 @@ func (x *XMPPConnection) reConnect() {
 	if x.db != nil && !x.hasSubscribed {
 		err := x.CollectNeighbors(x.db)
 		if err != nil {
-			log.Error(fmt.Sprintf("CollectNeighbors err %s", err))
+			log.Error(fmt.Sprintf("collectChannelInfos err %s", err))
 		}
 	}
 	x.changeStatus(netshare.Connected)
@@ -481,7 +481,7 @@ type XMPPDb interface {
 	XMPPUnMarkAddr(addr common.Address)
 }
 
-//CollectNeighbors subscribe status change from database
+//collectChannelInfos subscribe status change from database
 func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 	x.db = db
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)

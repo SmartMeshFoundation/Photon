@@ -25,7 +25,7 @@ const defaultProtocolThrottleFillRate = 10.
 const defaultprotocolRetryInterval = 1.
 
 //DefaultRevealTimeout blocks needs to update transfer
-const DefaultRevealTimeout = 50
+const DefaultRevealTimeout = 10
 
 //DefaultSettleTimeout settle time of channel
 const DefaultSettleTimeout = 600
@@ -116,17 +116,17 @@ var InTest = true
 var ChainID = big.NewInt(1)
 
 //MatrixServerConfig matrix server config
-var MatrixServerConfig = [][]string{
-	{"http://transport01.smartmesh.cn:8008", "transport01.smartmesh.cn"},
-	{"http://transport02.smartmesh.cn:8008", "transport02.smartmesh.cn"},
-	{"http://transport03.smartmesh.cn:8008", "transport03.smartmesh.cn"},
+var MatrixServerConfig = map[string]string{
+	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
+	"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
+	"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
 }
 
-//MatrixDiscoveryRoomConfig a defalut matrix room config
-var MatrixDiscoveryRoomConfig = [][]string{
-	{"aliassegment", "discovery"},
-	{"server", "transport01.smartmesh.cn"},
-}
+//AliasFragment  is discovery AliasFragment
+const AliasFragment = "discovery"
+
+//DiscoveryServer is discovery server
+const DiscoveryServer = "transport01.smartmesh.cn"
 
 //NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on
 var NETWORKNAME = "ropsten"

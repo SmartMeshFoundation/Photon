@@ -177,6 +177,14 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		err = fmt.Errorf("open db error %s", err)
 		return
 	}
+	//todo fixme MatrixTransport should have a better contructor function
+	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
+	if ok {
+		err = mtransport.SetMatrixDB(rs.db)
+		if err != nil {
+			return
+		}
+	}
 	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.db))
 	/*
 		only one instance for one data directory
@@ -1044,14 +1052,14 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	switch t := rs.Transport.(type) {
 	case *network.MixTransporter:
 		return t.SubscribeNeighbor(rs.db)
-	case *network.MatrixMixTransporter:
-		return t.SubscribeNeighbor(rs.db)
+	case *network.MatrixMixTransport:
+		return t.SetMatrixDB(rs.db)
 	default:
 		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
 	/*	mt, ok := rs.Transport.(*network.MixTransporter)
 		if !ok {
-			mt2, ok := rs.Transport.(*network.MatrixMixTransporter)
+			mt2, ok := rs.Transport.(*network.MatrixMixTransport)
 			if ok {
 				return mt2.SubscribeNeighbor(rs.db)
 			}
