@@ -111,6 +111,9 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 }
 
 func (m *MatrixTransport) changeStatus(newStatus netshare.Status) {
+	if m.status == newStatus {
+		return
+	}
 	m.log.Info(fmt.Sprintf("changeStatus from %d to %d", m.status, newStatus))
 	m.status = newStatus
 	select {
@@ -148,10 +151,18 @@ func (m *MatrixTransport) validateAndUpdateUser(user *gomatrix.UserInfo) error {
 	//user display name is signature of user id
 	if oldUser != nil {
 		//exists user ,but it doesn't have display name or display name exactly match.
-		if len(oldUser.DisplayName) == 0 || oldUser.DisplayName == user.DisplayName {
+		if len(oldUser.DisplayName) == 0 {
+			oldUser.DisplayName = user.DisplayName
 			return nil
 		}
-		return fmt.Errorf("displayname already exists, old=%s,new=%s", oldUser.DisplayName, user.DisplayName)
+		if oldUser.DisplayName == user.DisplayName {
+			return nil
+		}
+		return fmt.Errorf("displayname already exists, old=%s,new=%s, validatedusers=%s",
+			oldUser.DisplayName,
+			user.DisplayName,
+			utils.StringInterface(m.validatedUsers, 3),
+		)
 	}
 	//a new user ,validate user id is valid or not
 	if len(user.DisplayName) == 0 {
@@ -217,11 +228,9 @@ func (m *MatrixTransport) Stop() {
 	}
 	m.running = false
 	m.changeStatus(netshare.Closed)
-	go func() {
-		m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
-			Presence: OFFLINE,
-		})
-	}()
+	m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+		Presence: OFFLINE,
+	})
 	m.matrixcli.StopSync()
 	if _, err := m.matrixcli.Logout(); err != nil {
 		m.log.Error("[Matrix] Logout failed")
@@ -444,13 +453,19 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	if !m.hasDoneStartCheck {
 		return
 	}
-	log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	msgTime := time.Unix(event.Timestamp/1000, 0)
+	//ignore any history message
+	if time.Now().Sub(msgTime) > time.Second*10 {
+		m.log.Trace(fmt.Sprintf("ignore message because of it's too early, now=%s,msgtime=%s", time.Now(), msgTime))
+		return
+	}
 	if m.stopreceiving || event.Type != "m.room.message" {
 		return
 	}
 	msgtype, ok := event.MessageType()
 	if ok == false || msgtype != "m.text" {
-		log.Error(fmt.Sprintf("onHandleReceiveMessage unkown msg type %s", utils.StringInterface(event, 3)))
+		m.log.Error(fmt.Sprintf("onHandleReceiveMessage unkown msg type %s", utils.StringInterface(event, 3)))
 		return
 	}
 	senderID := event.Sender
@@ -970,9 +985,10 @@ func (m *MatrixTransport) searchNode(address common.Address) (users []*gomatrix.
 		if xaddr != address {
 			continue
 		}
-		//save this validated user,
-		m.validatedUsers[user.UserID] = &user
-		users = append(users, &user)
+		//save this validated user, should copy of  `user`, otherwise `user` will be changed later
+		user2 := user
+		m.validatedUsers[user.UserID] = &user2
+		users = append(users, &user2)
 	}
 	return
 }
@@ -1132,12 +1148,13 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 			isValidUserID checks userID not in the default message room right now.
 			hasDoneStartCheck: because of in startup ,I don't know who are in the default message room
 	*/
-	if peer.defaultMessageRoomID != eventRoom && !peer.isValidUserID(userID) && !m.hasDoneStartCheck {
+	if peer.defaultMessageRoomID != eventRoom && !peer.isValidUserID(userID) {
 		//invite this user to the default room
 		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
 			UserID: userID,
 		})
-		if err != nil {
+		//if has already startup ,we should known all user status
+		if err != nil && m.hasDoneStartCheck {
 			return fmt.Errorf("InviteUser perr=%s,room=%s err=%s",
 				utils.APex2(peerAddress), peer.defaultMessageRoomID, err)
 		}
