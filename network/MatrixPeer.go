@@ -93,6 +93,9 @@ func (peer *MatrixPeer) isValidUserID(userID string) bool {
 	return false
 }
 
+/*
+make sure that `users` are already joined in the default message room
+*/
 func (peer *MatrixPeer) updateUsers(users []*gomatrix.UserInfo) {
 	for _, lu := range users {
 		peer.candidateUsers[lu.UserID] = lu
@@ -106,6 +109,12 @@ func (peer *MatrixPeer) addRoom(roomID string) {
 	}
 	peer.rooms[roomID] = true
 }
+
+/*
+if one of the `candidateUsers` is online, status is online
+if one of the `candidateUsers` is offline,status is offline
+if all of the `candidateUsers` is UNAVAILABLE,status is unkown
+*/
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	var status peerStatus
 	switch presence {
