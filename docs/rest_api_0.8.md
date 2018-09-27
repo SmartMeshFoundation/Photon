@@ -19,19 +19,19 @@ Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec fo
     }
 ```
 
-channel variables explanation :       
-- `channel_address` : address for a channel    
-- `open_block_number` : block height when a channel opens    
+channel variables explanation :  
+- `channel_address` : address for a channel  
+- `open_block_number` : block height when a channel opens  
 - `partner_address` : address for your channel partner  
 - `balance` : your token balance in this channel  
-- `partner_balance` : token balance for your channel partner   
+- `partner_balance` : token balance for your channel partner  
 - `locked_amount` : the amount of token you locked in this channel  
 - `partner_locked_amount` : the amount of token your partner locked in this channel  
 - `token_address` : address for tokens in this channel  
 - `state` : digits denoting transaction states  
 - `StateString` : String literal for Channel States  
 - `settle_timeout` : some amount of block denoting time period for transaction settlement  
-- `reveal_timeout` : block height at which nodes registering `secret`  
+- `reveal_timeout` : block height at which nodes registering `secret`    
 
 
 State|StateString|Description
@@ -57,9 +57,9 @@ Check Node's data, which returns the address of SmartRaiden node.
     "our_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92"
 }
 ```
-**Status Codes:**      
-- `200 OK` - Check Success      
-- `404 Not Found` - Check Failure    
+**Status Codes:**  
+- `200 OK` - Check Success  
+- `404 Not Found` - Check Failure      
 
 ## GET /api/1/tokens  
 Check registered token    
@@ -69,9 +69,9 @@ Check registered token
     "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 ]
 ```
-**Status Codes:**      
-- `200 OK` - Check Success   
-- `404 Not Found` - Check Failure  
+**Status Codes:**  
+- `200 OK` - Check Success  
+- `404 Not Found` - Check Failure    
 ## GET /api/1/tokens/*(token_address)*/partners  
 Get all the channel partners of this token.    
 **Example Request:**      
@@ -100,10 +100,10 @@ Register another token type
     "channel_manager_address": "0xBb1e95363b0181De7bBf394f18eaC7D4230e391A"
 }
 ```
-**Status Codes:**     
+**Status Codes:**  
 - `200 OK` - Register Success  
-- `400 Bad Request` - Invalid Token Address    
-- `409 Conflict` - Token has been registered   
+- `400 Bad Request` - Invalid Token Address  
+- `409 Conflict` - Token has been registered     
 
 
 ## GET /api/1/channels  
@@ -129,7 +129,7 @@ Check all unsettled channels of a node.
 ```
 **Status Codes:**  
 - `200 OK` - Check Success  
-- `404 Not Found` - Check Failure  
+- `404 Not Found` - Check Failure    
 
 ## POST /api/1/channels
 Open a new Channel    
@@ -160,9 +160,9 @@ Open a new Channel
 }
 ```
 **Status Codes:**  
-- `200 OK` - Open Channel Success     
-- `400 Bad Request` - Invalid Parameter   
-- `409 Conflict` - Channel Already Opened  
+- `200 OK` - Open Channel Success  
+- `400 Bad Request` - Invalid Parameter  
+- `409 Conflict` - Channel Already Opened    
 
 ## GET /api/1/channels/*(channel_address)* 
 Check specific channel, can get in-depth channel information    
@@ -222,9 +222,9 @@ Check specific channel, can get in-depth channel information
     "Signature": null
 }
 ```
-**Status Codes:**   
+**Status Codes:**  
 - `200 OK` - Check Success  
-- `404 Not Found` - Check Failure  
+- `404 Not Found` - Check Failure    
 ## PUT /api/1/withdraw/*(channel_address)*  
 CooperateWithdraw available when both channel participants online  
 **PAYLOAD:**    
@@ -234,10 +234,10 @@ CooperateWithdraw available when both channel participants online
 	"op":"preparewithdraw"
 }
 ```
-**Request JSON Object:**     
-- `op` - Alter Channel States(Optional)     
-  - `preparewithdraw` - Alter Channel State to `prepareForWithdraw`, detail in Channel State Chart   
-  - `cancelprepare` - cancel prepare/alter channel state to `open`  
+**Request JSON Object:**  
+- `op` - Alter Channel States(Optional)  
+  - `preparewithdraw` - Alter Channel State to `prepareForWithdraw`, detail in Channel State Chart  
+  - `cancelprepare` - cancel prepare/alter channel state to `open`    
  
 **Example Response:**     
 ```json
@@ -256,9 +256,9 @@ CooperateWithdraw available when both channel participants online
     "reveal_timeout": 5
 }
 ```
-**Status Codes:**      
-- `200 OK ` - Withdraw Success    
-- `400 Bad Request` - Invalid Parameter/Low Token Balance  
+**Status Codes:**  
+- `200 OK ` - Withdraw Success  
+- `400 Bad Request` - Invalid Parameter/Low Token Balance    
 
 ## PATCH /api/1/channels/*(channel_address)*
 Deposit in a channel    
@@ -287,9 +287,9 @@ Deposit in a channel
     "reveal_timeout": 5
 }
 ```
-**Status Codes:**      
-- `200 OK` - Deposit Success    
-- `400 Bad Request` - Invalid Requst Parameter    
+**Status Codes:**  
+- `200 OK` - Deposit Success  
+- `400 Bad Request` - Invalid Requst Parameter      
 
 Close a channel, set `force` default to `false`, meaning that channel participants cooperate settle channel.    
 
@@ -373,7 +373,7 @@ Settle Channel. Once channel is closed and `settle_timeout` block has passed, ch
 **Status Codes :**  
 - `200 OK` - Close/Settle Success  
 - `400 Bad Request` - Invalid Parameter  
-- `409 Conflict` - State Conflicts  
+- `409 Conflict` - State Conflicts    
 
 
 ## POST /api/1/transfer/*(token_address)*/*(target_address)*  
@@ -500,11 +500,11 @@ Query transaction status
 }
 ```
 **Response JSON Array of Objects :**  
-- `Status` - 
+- `Status`
   - 0 - Revocable transaction status(Before sending the secret)  
   - 1 - Irrevocable transaction status(After sending the secret)  
   - 2 - Transaction Successed  
-  - 3 - Transaction revocation  
+  -  3 - Transaction revocation    
 
 ## POST /api/1/registersecret  
 Register `secret`, after which `MediatedTransfer` can be successfully unlocked.    
@@ -517,8 +517,8 @@ Register `secret`, after which `MediatedTransfer` can be successfully unlocked.
 ```
 **Status Codes :**  
 - `200 OK` - Transfer Success  
-- `400 Bad Request` - Invalid Parameter   
-- `409 Conflict` - No Valid Router  
+- `400 Bad Request` - Invalid Parameter  
+- `409 Conflict` - No Valid Router    
 
 ## PUT /api/1/token_swaps/*(target_address)*/*(lock_secret_hash)*      
 Token Swap can be used to exchange within two types of tokens. Under the circumstances that valid routing strategies are existed, first invoke `taker` then `maker`, and with `/api/1/secret/` channel participants can receive a `lock_secret_hash` / `secret` pair.    
@@ -550,7 +550,7 @@ Token Swap can be used to exchange within two types of tokens. Under the circums
 ```
 **Status Codes :**  
 - `201 Created` - Success  
-- `400 Bad Request` - Invalid Parameter     
+- `400 Bad Request` - Invalid Parameter       
 ## GET /api/1/secret
 Receive `lock_secret_hash` / `secret` pair.    
 **Example Response :**   
@@ -569,10 +569,10 @@ To revoke a transaction according to token and locksecrethash, only the initiato
 **200 OK**    
 The transaction status can be querying through the`/api/1/transferstatus`  
 ## GET /api/1/switch/*(Boolean)*
-Switch to no net state      
+Switch to no net state  
 - Boolean  
-   - `true` - Switch to nonetwork   
-   - `false` - Switch to network  
+  - `true` - Switch to nonetwork  
+  - `false` - Switch to network  
 When switching to no net state, only direct transactions can be accepted.    
 
 ##  POST /api/1/updatenodes
