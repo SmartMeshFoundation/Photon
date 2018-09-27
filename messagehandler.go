@@ -121,7 +121,11 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	sender := msg.Sender
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
-	mh.raiden.db.UpdateTransferStatusMessage(msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+	// save log to db
+	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash())
+	for _, c := range channels {
+		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
@@ -147,7 +151,11 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 		Sender:         msg.Sender,
 		Message:        msg,
 	}
-	mh.raiden.db.UpdateTransferStatusMessage(stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+	// save log to db
+	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash)
+	for _, c := range channels {
+		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
 }
@@ -300,6 +308,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Message: msg,
 	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
+	mh.raiden.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 

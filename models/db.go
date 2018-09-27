@@ -30,12 +30,6 @@ type ModelDB struct {
 	channelSettledCallbacks map[*cb.ChannelCb]bool
 	mlock                   sync.Mutex
 	Name                    string
-	//SentTransferChan SentTransfer notify ,should never close
-	SentTransferChan chan *SentTransfer
-	//ReceivedTransferChan  ReceivedTransfer notify, should never close
-	ReceivedTransferChan chan *ReceivedTransfer
-	//NoticeChan should never close
-	NoticeChan chan *Notice
 }
 
 var bucketMeta = "meta"
@@ -49,9 +43,6 @@ func newModelDB() (db *ModelDB) {
 		channelDepositCallbacks: make(map[*cb.ChannelCb]bool),
 		channelStateCallbacks:   make(map[*cb.ChannelCb]bool),
 		channelSettledCallbacks: make(map[*cb.ChannelCb]bool),
-		SentTransferChan:        make(chan *SentTransfer, 10),
-		ReceivedTransferChan:    make(chan *ReceivedTransfer, 10),
-		NoticeChan:              make(chan *Notice, 10),
 	}
 
 }

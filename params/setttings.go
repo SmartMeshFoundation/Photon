@@ -43,6 +43,8 @@ const DefaultInitialChannelTarget = 3
 const DefaultTxTimeout = 5 * time.Minute //15seconds for one block,it may take sever minutes
 //MaxRequestTimeout args
 const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for example ,settle all channles?
+//MaxAsyncRequestTimeout args
+const MaxAsyncRequestTimeout = 500 * time.Millisecond //longest time for a async transfer call
 
 var gasLimitHex string
 

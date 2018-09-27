@@ -18,6 +18,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,7 @@ func newTestRaiden() *RaidenService {
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	bcs := newTestBlockChainService()
+	notifyHandler := notify.NewNotifyHandler()
 	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
@@ -53,7 +55,7 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 		log.Error(err.Error())
 	}
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler)
 	if err != nil {
 		log.Error(err.Error())
 	}
