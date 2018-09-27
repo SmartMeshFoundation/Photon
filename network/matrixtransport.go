@@ -705,10 +705,7 @@ func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
 	if !exists {
 		return
 	}
-	if !peer.isValidUserID(userid) {
-		peer.updateUsers([]*gomatrix.UserInfo{m.validatedUsers[userid]})
-	}
-	if peer.setStatus(userid, presence) {
+	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType
@@ -997,8 +994,13 @@ func (m *MatrixTransport) handleNewPartner(p *MatrixPeer) (err error) {
 	if err != nil {
 		return
 	}
+	for _, u := range users {
+		err = m.validateAndUpdateUser(u)
+		if err != nil {
+			return
+		}
+	}
 	p.defaultMessageRoomID = roomID
-	p.updateUsers(users)
 	address2Room := make(map[common.Address]string)
 	for addr, peer := range m.Peers {
 		address2Room[addr] = peer.defaultMessageRoomID
