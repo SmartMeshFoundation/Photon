@@ -54,6 +54,25 @@ const (
 	EventAddressRoom = "network.smartraiden.rooms"
 )
 
+type jobType int
+
+const (
+	jobSendMessage = iota
+	jobPresence
+	jobMessage
+	jobMemberShip
+	jobAccountData
+)
+
+/*
+move process of matrix event to one goroutine
+*/
+type matrixJob struct {
+	jobType jobType
+	Data1   interface{}
+	Data2   interface{}
+}
+
 // MatrixTransport represents a matrix transport Instantiation
 type MatrixTransport struct {
 	matrixcli             *gomatrix.MatrixClient //the instantiated matrix
@@ -65,7 +84,8 @@ type MatrixTransport struct {
 	protocol              ProtocolReceiver
 	discoveryroomid       string //the room's ID of sys pre-configured ("![RoomIdData]:[ServerName]")
 	Peers                 map[common.Address]*MatrixPeer
-	temporaryAddress2Room map[common.Address]string     //temporary room to
+	temporaryAddress2Room map[common.Address]string //temporary room to
+	temporaryPeers        *matrixTemporaryPeers
 	validatedUsers        map[string]*gomatrix.UserInfo //this userId and display name is validated
 	UserID                string                        //the current user's ID(@kitty:thisserver)
 	NodeDeviceType        string
@@ -77,6 +97,8 @@ type MatrixTransport struct {
 	servers               map[string]string
 	db                    xmpptransport.XMPPDb
 	hasDoneStartCheck     bool
+	quitChan              chan struct{}
+	jobChan               chan *matrixJob
 }
 
 var (
@@ -100,6 +122,7 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		Peers:                 make(map[common.Address]*MatrixPeer),
 		validatedUsers:        make(map[string]*gomatrix.UserInfo),
 		temporaryAddress2Room: make(map[common.Address]string),
+		temporaryPeers:        newMatrixTemporaryPeers(),
 		NodeDeviceType:        devicetype,
 		log:                   log.New("matrix", logname),
 		avatarurl:             "", // charge rule
@@ -107,6 +130,8 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		removePeerChan:        make(chan common.Address, 10),
 		status:                netshare.Disconnected,
 		servers:               servers,
+		quitChan:              make(chan struct{}),
+		jobChan:               make(chan *matrixJob, 10),
 	}
 	return mtr
 }
@@ -229,12 +254,15 @@ func (m *MatrixTransport) Stop() {
 	}
 	m.running = false
 	m.changeStatus(netshare.Closed)
-	m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
-		Presence: OFFLINE,
-	})
-	m.matrixcli.StopSync()
-	if _, err := m.matrixcli.Logout(); err != nil {
-		m.log.Error("[Matrix] Logout failed")
+	close(m.quitChan)
+	if m.matrixcli != nil {
+		m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+			Presence: OFFLINE,
+		})
+		m.matrixcli.StopSync()
+		if _, err := m.matrixcli.Logout(); err != nil {
+			m.log.Error("[Matrix] Logout failed")
+		}
 	}
 }
 
@@ -257,25 +285,44 @@ func (m *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, is
 
 // Send send message
 func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
-	var err error
 	if !m.running || len(data) == 0 {
 		return fmt.Errorf("[Matrix]Send failed,matrix not running or send data is null")
 	}
 	if m.matrixcli == nil {
 		return errors.New("no matrix connection")
 	}
+	if !m.hasDoneStartCheck {
+		return errors.New("ignore message when not startup complete")
+	}
 	m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
+	//send should not block
+	select {
+	case m.jobChan <- &matrixJob{
+		jobType: jobSendMessage,
+		Data1:   receiverAddr,
+		Data2:   data,
+	}:
+	default:
+	}
+
+	return nil
+
+}
+func (m *MatrixTransport) doSend(job *matrixJob) {
+	var err error
+	receiverAddr := job.Data1.(common.Address)
+	data := job.Data2.([]byte)
 	p := m.Peers[receiverAddr]
 	var roomID string
 	if p == nil {
-		roomID = m.temporaryAddress2Room[receiverAddr]
+		roomID = m.temporaryPeers.getRoomID(receiverAddr)
 		if roomID == "" {
 			var users []*gomatrix.UserInfo
 			roomID, users, err = m.findOrCreateRoomByAddress(receiverAddr, true)
 			if err != nil || roomID == "" {
-				return fmt.Errorf("[Matrix]Send failed,cann't find the peer address")
+				m.log.Error(fmt.Sprintf("[Matrix]Send failed,cann't find the peer address"))
 			}
-			m.temporaryAddress2Room[receiverAddr] = roomID
+			m.temporaryPeers.addPeer(receiverAddr, roomID)
 			//whether these users are in this room or not ,invite them. maybe dupclicate.
 			for _, u := range users {
 				_, err = m.matrixcli.InviteUser(roomID, &gomatrix.ReqInviteUser{
@@ -298,10 +345,10 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 	_, err = m.matrixcli.SendText(roomID, _data)
 	if err != nil {
 		m.log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
-		return err
+		return
 	}
 	m.log.Trace(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
-	return nil
+	return
 }
 
 // Start matrix
@@ -434,6 +481,29 @@ func (m *MatrixTransport) Start() {
 	}()
 	m.log.Trace(fmt.Sprintf("[Matrix] transport started peers=%s", utils.StringInterface(m.Peers, 7)))
 	wg.Wait()
+	go m.loop()
+}
+
+func (m *MatrixTransport) loop() {
+	for {
+		select {
+		case <-m.quitChan:
+			return
+		case j := <-m.jobChan:
+			switch j.jobType {
+			case jobSendMessage:
+				m.doSend(j)
+			case jobMessage:
+				m.doHandleReceiveMessage(j)
+			case jobPresence:
+				m.doHandlePresenceChange(j)
+			case jobMemberShip:
+				m.doHandleMemberShipChange(j)
+			case jobAccountData:
+				m.doHandleAccountData(j)
+			}
+		}
+	}
 }
 
 /*
@@ -445,15 +515,24 @@ func (m *MatrixTransport) onHandleAccountData(event *gomatrix.Event) {
 	if m.stopreceiving || event.Type != EventAddressRoom {
 		return
 	}
+	job := &matrixJob{
+		jobType: jobAccountData,
+		Data1:   event,
+	}
 	if !m.hasDoneStartCheck {
-		//我关注的 peer 所在的聊天室
-		for addrHex, roomIDInterface := range event.Content {
-			roomID := roomIDInterface.(string)
-			addr := common.HexToAddress(addrHex)
-			p := m.Peers[addr]
-			if p != nil {
-				p.defaultMessageRoomID = roomID
-			}
+		m.doHandleAccountData(job)
+	}
+}
+func (m *MatrixTransport) doHandleAccountData(job *matrixJob) {
+	event := job.Data1.(*gomatrix.Event)
+
+	//我关注的 peer 所在的聊天室
+	for addrHex, roomIDInterface := range event.Content {
+		roomID := roomIDInterface.(string)
+		addr := common.HexToAddress(addrHex)
+		p := m.Peers[addr]
+		if p != nil {
+			p.defaultMessageRoomID = roomID
 		}
 	}
 }
@@ -465,6 +544,9 @@ onHandleReceiveMessage handle text messages sent to listening rooms
 */
 func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	m.log.Trace(fmt.Sprintf("discoveryroomid=%s", m.discoveryroomid))
+	if m.stopreceiving {
+		return
+	}
 	if event.RoomID == m.discoveryroomid {
 		//ignore any message sent to discovery room.
 		return
@@ -472,6 +554,13 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	if !m.hasDoneStartCheck {
 		return
 	}
+	m.jobChan <- &matrixJob{
+		jobType: jobMessage,
+		Data1:   event,
+	}
+}
+func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
+	event := job.Data1.(*gomatrix.Event)
 	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	msgTime := time.Unix(event.Timestamp/1000, 0)
 	/*
@@ -509,7 +598,7 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	peerAddress := m.userIDToAddress(senderID)
 	peer := m.Peers[peerAddress]
 	if peer == nil {
-		m.temporaryAddress2Room[peerAddress] = event.RoomID
+		m.temporaryPeers.addPeer(peerAddress, event.RoomID)
 	} else {
 		err := m.inviteIfPossible(senderID, event.RoomID)
 		if err != nil {
@@ -594,6 +683,22 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 		m.log.Warn(fmt.Sprintf("receive m.room.member,but don't have mermberyship %s", utils.StringInterface(event, 10)))
 		return
 	}
+	job := &matrixJob{
+		jobType: jobMemberShip,
+		Data1:   event,
+		Data2:   membership,
+	}
+	//startup stage, do the job right now
+	if !m.hasDoneStartCheck {
+		m.doHandleMemberShipChange(job)
+	} else {
+		m.jobChan <- job
+	}
+}
+func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
+	event := job.Data1.(*gomatrix.Event)
+	membership := job.Data2.(string)
+	userid := event.Sender
 	/*
 		The following membership states are specified:
 
@@ -640,7 +745,7 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 			peer := m.Peers[peerAddress]
 			if peer == nil {
 				//maybe a peer want send secret request to me
-				m.temporaryAddress2Room[peerAddress] = event.RoomID
+				m.temporaryPeers.addPeer(peerAddress, event.RoomID)
 			} else {
 				err = m.inviteIfPossible(userid, event.RoomID)
 				if err != nil {
@@ -684,7 +789,6 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 	} else {
 		//todo fix me handle leave event
 	}
-
 }
 
 /*
@@ -707,29 +811,50 @@ func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
 	if m.stopreceiving == true {
 		return
 	}
-	// message sender
-	userid := event.Sender
 	if event.Type != "m.presence" {
 		m.log.Error(fmt.Sprintf("onHandlePresenceChange receive unkonw event %s", utils.StringInterface(event, 5)))
 		return
 	}
+	job := &matrixJob{
+		jobType: jobPresence,
+		Data1:   event,
+	}
+	//startup stage,do the job right now
+	if !m.hasDoneStartCheck {
+		m.doHandlePresenceChange(job)
+	} else {
+		m.jobChan <- job
+	}
+
+}
+func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
+	event := job.Data1.(*gomatrix.Event)
+	// parse address of message sender
+	presence, exists := event.ViewContent("presence") //newest network status
+	if !exists {
+		return
+	}
+	// message sender
+	userid := event.Sender
 	//my self status change
 	if userid == m.UserID {
+		if presence == OFFLINE {
+			//if i'm offline ,remove all temporary room records
+			m.temporaryAddress2Room = make(map[common.Address]string)
+		}
 		return
 	}
 	address := m.userIDToAddress(userid)
-	peer, ok := m.Peers[address]
-	if !ok {
-		m.log.Trace(fmt.Sprintf("receive presence,but peer is unkown %s", utils.StringInterface(event, 5)))
-		return
-	}
 	if !m.isUserIDValidated(userid) {
 		m.log.Info(fmt.Sprintf("receive presence %s", utils.StringInterface(event, 5)))
 		return
 	}
-	// parse address of message sender
-	presence, exists := event.ViewContent("presence") //newest network status
-	if !exists {
+	peer, ok := m.Peers[address]
+	if !ok {
+		//m.log.Trace(fmt.Sprintf("receive presence,but peer is unkown %s", utils.StringInterface(event, 5)))
+		if presence == OFFLINE {
+			m.temporaryPeers.removePeer(address)
+		}
 		return
 	}
 	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
