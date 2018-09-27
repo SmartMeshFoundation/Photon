@@ -112,11 +112,9 @@ func (mcli *MatrixClient) NodesStatus(address []string) (map[string]string, erro
 }
 
 // Sync starts syncing with the provided Homeserver.
-func (mcli *MatrixClient) Sync(firstSyncChan chan struct{}) error {
+func (mcli *MatrixClient) Sync() error {
 	// Mark the client as syncing.
 	// We will keep syncing until the syncing state changes. Either because
-	// Sync is called or StopSync is called.
-	syncingID := mcli.incrementSyncingID()
 	nextBatch := mcli.Store.LoadNextBatch(mcli.UserID)
 	filterID := mcli.Store.LoadFilterID(mcli.UserID)
 	if filterID == "" {
@@ -129,37 +127,19 @@ func (mcli *MatrixClient) Sync(firstSyncChan chan struct{}) error {
 		mcli.Store.SaveFilterID(mcli.UserID, filterID)
 	}
 
-	for {
-		resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
-		if err != nil {
-			duration, err2 := mcli.Syncer.OnFailedSync(resSync, err)
-			if err2 != nil {
-				return err2
-			}
-			time.Sleep(duration)
-			continue
-		}
-
-		// Check that the syncing state hasn't changed
-		// Either because we've stopped syncing or another sync has been started.
-		// We discard the response from our sync.
-		if mcli.getSyncingID() != syncingID {
-			return nil
-		}
-
-		// Save the token now *before* processing it. This means it's possible
-		// to not process some events, but it means that we won't get constantly stuck processing
-		// a malformed/buggy event which keeps making us panic.
-		mcli.Store.SaveNextBatch(mcli.UserID, resSync.NextBatch)
-		if err = mcli.Syncer.ProcessResponse(resSync, nextBatch); err != nil {
-			return err
-		}
-		nextBatch = resSync.NextBatch
-		if !mcli.hasSynced {
-			mcli.hasSynced = true
-			firstSyncChan <- struct{}{}
-		}
+	resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
+	if err != nil {
+		return err
 	}
+
+	// Save the token now *before* processing it. This means it's possible
+	// to not process some events, but it means that we won't get constantly stuck processing
+	// a malformed/buggy event which keeps making us panic.
+	mcli.Store.SaveNextBatch(mcli.UserID, resSync.NextBatch)
+	if err = mcli.Syncer.ProcessResponse(resSync, nextBatch); err != nil {
+		return err
+	}
+	return nil
 }
 
 //i ncrementSyncingID If Sync is called twice then the first sync will be stopped

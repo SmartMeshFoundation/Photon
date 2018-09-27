@@ -65,27 +65,27 @@ func NewMatrixPeer(address common.Address, hasChannel bool, removeChan chan<- co
 	}
 	return u
 }
-func (u *MatrixPeer) stop() {
-	close(u.quitChan)
+func (peer *MatrixPeer) stop() {
+	close(peer.quitChan)
 }
-func (u *MatrixPeer) loop() {
+func (peer *MatrixPeer) loop() {
 	for {
 		select {
-		case <-u.quitChan:
+		case <-peer.quitChan:
 			return
-		case <-u.receiveMessage:
+		case <-peer.receiveMessage:
 			continue
 		/*
 			dont receive any message in ten minutes,this peer should be removed.
 		*/
 		case <-time.After(time.Minute * 10):
-			u.removeChan <- u.address
+			peer.removeChan <- peer.address
 		}
 	}
 }
 
-func (u *MatrixPeer) isValidUserID(userID string) bool {
-	for _, u := range u.candidateUsers {
+func (peer *MatrixPeer) isValidUserID(userID string) bool {
+	for _, u := range peer.candidateUsers {
 		if u.UserID == userID {
 			return true
 		}
@@ -93,20 +93,20 @@ func (u *MatrixPeer) isValidUserID(userID string) bool {
 	return false
 }
 
-func (u *MatrixPeer) updateUsers(users []*gomatrix.UserInfo) {
+func (peer *MatrixPeer) updateUsers(users []*gomatrix.UserInfo) {
 	for _, lu := range users {
-		u.candidateUsers[lu.UserID] = lu
+		peer.candidateUsers[lu.UserID] = lu
 	}
 	return
 }
 
-func (u *MatrixPeer) addRoom(roomID string) {
-	if u.rooms[roomID] {
-		log.Warn(fmt.Sprintf("roomID %s already exists for %s", roomID, utils.APex(u.address)))
+func (peer *MatrixPeer) addRoom(roomID string) {
+	if peer.rooms[roomID] {
+		log.Warn(fmt.Sprintf("roomID %s already exists for %s", roomID, utils.APex(peer.address)))
 	}
-	u.rooms[roomID] = true
+	peer.rooms[roomID] = true
 }
-func (u *MatrixPeer) setStatus(userID string, presence string) bool {
+func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	var status peerStatus
 	switch presence {
 	case ONLINE:
@@ -116,18 +116,18 @@ func (u *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
-	user := u.candidateUsers[userID]
+	user := peer.candidateUsers[userID]
 	if user == nil {
-		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid",
-			utils.APex2(u.address), userID, status))
+		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",
+			utils.APex2(peer.address), userID, status, utils.StringInterface(peer, 7)))
 		return false
 	}
-	u.candidateUsersStatus[userID] = status
-	for _, s := range u.candidateUsersStatus {
+	peer.candidateUsersStatus[userID] = status
+	for _, s := range peer.candidateUsersStatus {
 		if s > status {
 			return false
 		}
 	}
-	u.status = status
+	peer.status = status
 	return true
 }

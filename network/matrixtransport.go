@@ -361,20 +361,22 @@ func (m *MatrixTransport) Start() {
 
 			go func() {
 				for {
-					if err2 := m.matrixcli.Sync(firstSync); err2 != nil {
-						if !m.running {
-							return
-						}
+					err2 := m.matrixcli.Sync()
+
+					if !isFirstSynced {
+						isFirstSynced = true
+						firstSync <- struct{}{}
+					}
+					if !m.running {
+						return
+					}
+					if err2 != nil {
 						m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
 						m.changeStatus(netshare.Reconnecting)
-						if !isFirstSynced {
-							isFirstSynced = true
-							firstSync <- struct{}{}
-						}
+						time.Sleep(time.Second * 5)
 					} else {
 						m.changeStatus(netshare.Connected)
 					}
-					time.Sleep(time.Second * 5)
 				}
 			}()
 			//wait for first sync complete
@@ -391,19 +393,19 @@ func (m *MatrixTransport) Start() {
 			}
 			if firstStart {
 				firstStart = false
-				wg.Wait()
+				wg.Done()
 			}
 			return
 		tryNext:
-			time.Sleep(time.Second * 5)
 			if firstStart {
 				firstStart = false
-				wg.Wait()
+				wg.Done()
 			}
+			time.Sleep(time.Second * 5)
 		}
 	}()
-	m.log.Trace("[Matrix] transport started")
-	wg.Done()
+	m.log.Trace(fmt.Sprintf("[Matrix] transport started peers=%s", utils.StringInterface(m.Peers, 7)))
+	wg.Wait()
 }
 
 /*
