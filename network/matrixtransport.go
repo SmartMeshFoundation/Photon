@@ -143,25 +143,26 @@ func (m *MatrixTransport) isThePeerIWantMessage(peer common.Address, userID stri
 func (m *MatrixTransport) isUserIDValidated(userID string) bool {
 	return m.validatedUsers[userID] != nil
 }
-func (m *MatrixTransport) validateAndUpdateUser(user *gomatrix.UserInfo) bool {
+func (m *MatrixTransport) validateAndUpdateUser(user *gomatrix.UserInfo) error {
 	oldUser := m.validatedUsers[user.UserID]
 	//user display name is signature of user id
 	if oldUser != nil {
-		if oldUser.DisplayName == user.DisplayName {
-			return true
+		//exists user ,but it doesn't have display name or display name exactly match.
+		if len(oldUser.DisplayName) == 0 || oldUser.DisplayName == user.DisplayName {
+			return nil
 		}
-		return false
+		return fmt.Errorf("displayname already exists, old=%s,new=%s", oldUser.DisplayName, user.DisplayName)
 	}
 	//a new user ,validate user id is valid or not
 	if len(user.DisplayName) == 0 {
-		return false
+		return fmt.Errorf("validateAndUpdateUser")
 	}
-	_, err := m.validateUseridSignature(user)
+	_, err := validateUseridSignature(user)
 	if err != nil {
-		return false
+		return err
 	}
 	m.validatedUsers[user.UserID] = user
-	return true
+	return nil
 }
 func (m *MatrixTransport) knownThisPeer(peer common.Address) bool {
 	_, ok := m.Peers[peer]
@@ -628,8 +629,8 @@ func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
 			AvatarURL:   avatar,
 		}
 		//user can not be verified
-		if !m.validateAndUpdateUser(user) {
-			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s", utils.StringInterface(event, 5)))
+		if err := m.validateAndUpdateUser(user); err != nil {
+			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s err %s", utils.StringInterface(event, 5), err))
 			return
 		}
 		err := m.inviteIfPossible(userid, event.RoomID)
@@ -957,7 +958,7 @@ func (m *MatrixTransport) searchNode(address common.Address) (users []*gomatrix.
 	}
 	for _, user := range respusers.Results {
 		var xaddr common.Address
-		xaddr, err = m.validateUseridSignature(&user)
+		xaddr, err = validateUseridSignature(&user)
 		//validate failed
 		if err != nil {
 			m.log.Error(fmt.Sprintf("validateUseridSignature for %s err %s", user.UserID, err))
@@ -1041,10 +1042,10 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 			if joined.AvatarURL != nil {
 				u.AvatarURL = *joined.AvatarURL
 			}
-			if m.validateAndUpdateUser(u) {
+			if err = m.validateAndUpdateUser(u); err == nil {
 				users = append(users, u)
 			} else {
-				fmt.Fprintf(errBuf, "JoinedMembers %s verify signature err,displayname=%s", u.UserID, u.DisplayName)
+				fmt.Fprintf(errBuf, "JoinedMembers %s verify signature err %s,displayname=%s", u.UserID, err, u.DisplayName)
 			}
 		}
 		p.updateUsers(users)
@@ -1112,44 +1113,6 @@ func getSignatureFromDisplayName(displayName string) (signature []byte, err erro
 	return
 }
 
-// validate_userid_signature
-func (m *MatrixTransport) validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, err error) {
-	//displayname should be an address in the self._userid_re format
-	_match := ValidUserIDRegex.MatchString(user.UserID)
-	if _match == false {
-		err = fmt.Errorf("validate user info failed")
-		return
-	}
-	_address, err := extractUserLocalpart(user.UserID) //"@myname:smartraiden.org:cy"->"myname"
-	if err != nil {
-		m.log.Error(fmt.Sprintf("extractUserLocalpart err %s", err))
-		return
-	}
-	var addrmuti = regexp.MustCompile(`^(0x[0-9a-f]{40})`)
-	addrlocal := addrmuti.FindString(_address)
-	if addrlocal == "" {
-		err = fmt.Errorf("%s not match our userid rule", user.UserID)
-		return
-	}
-	addressBytes, err := hexutil.Decode(addrlocal)
-	if err != nil {
-		return
-	}
-	signature, err := getSignatureFromDisplayName(user.DisplayName)
-	if err != nil {
-		return
-	}
-	recovered, err := utils.Ecrecover(utils.Sha3([]byte(user.UserID)), signature)
-	if err != nil {
-		return
-	}
-	if !bytes.Equal(recovered[:], addressBytes) {
-		err = fmt.Errorf("validate %s failed", user.UserID)
-		return
-	}
-	address = common.BytesToAddress(addressBytes)
-	return
-}
 func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) error {
 	peerAddress := m.userIDToAddress(userID)
 	/*
@@ -1200,4 +1163,42 @@ func extractUserLocalpart(userID string) (string, error) {
 		return "", fmt.Errorf("%s is not a valid user id", userID)
 	}
 	return strings.SplitN(userID[1:], ":", 2)[0], nil
+}
+
+// validate_userid_signature
+func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, err error) {
+	//displayname should be an address in the self._userid_re format
+	_match := ValidUserIDRegex.MatchString(user.UserID)
+	if _match == false {
+		err = fmt.Errorf("validate user info failed")
+		return
+	}
+	_address, err := extractUserLocalpart(user.UserID) //"@myname:smartraiden.org:cy"->"myname"
+	if err != nil {
+		return
+	}
+	var addrmuti = regexp.MustCompile(`^(0x[0-9a-f]{40})`)
+	addrlocal := addrmuti.FindString(_address)
+	if addrlocal == "" {
+		err = fmt.Errorf("%s not match our userid rule", user.UserID)
+		return
+	}
+	addressBytes, err := hexutil.Decode(addrlocal)
+	if err != nil {
+		return
+	}
+	signature, err := getSignatureFromDisplayName(user.DisplayName)
+	if err != nil {
+		return
+	}
+	recovered, err := utils.Ecrecover(utils.Sha3([]byte(user.UserID)), signature)
+	if err != nil {
+		return
+	}
+	if !bytes.Equal(recovered[:], addressBytes) {
+		err = fmt.Errorf("validate %s failed", user.UserID)
+		return
+	}
+	address = common.BytesToAddress(addressBytes)
+	return
 }

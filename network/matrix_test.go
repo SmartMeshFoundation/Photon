@@ -671,3 +671,24 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 		}
 	}
 }
+
+func TestVerifySignature(t *testing.T) {
+	users := []*gomatrix.UserInfo{
+		&gomatrix.UserInfo{
+			DisplayName: "10b2-4cdaa7fc3722665d4a9b80ec321b77b95b690a0f0cc91268d4ba5e8dc9a9088b6b69188dba2a3bed5a94ae42204595638eef18d2357653e15418096003e713dc1c",
+			UserID:      "@0x10b256b3c83904d524210958fa4e7f9caffb76c6:transport01.smartmesh.cn",
+		},
+		{
+			DisplayName: "10b2-15117d6774e2c98fcc2d09bc1489e74a613d657683f44d0a6b8df8f7fb6d9ee22bf75c4e1e1c09f93e076ecf70050055d0f91c8b13245d42671519ba27a7f13f1c",
+			UserID:      "@0x10b256b3c83904d524210958fa4e7f9caffb76c6:transport02.smartmesh.cn",
+		},
+	}
+	for _, u := range users {
+		_, err := validateUseridSignature(u)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
+
+}
