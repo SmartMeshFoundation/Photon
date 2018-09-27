@@ -65,8 +65,8 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
-	_, err = ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
-	assert(t, err, nil)
+	//_, err = ra.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	//assert(t, err, nil)
 	_, err = rb.Deposit(tokenAddr, ra.Raiden.NodeAddress, contractBalance, time.Minute)
 	assert(t, err, nil)
 
@@ -77,6 +77,8 @@ func testCreateChannel(t *testing.T, tokenAddr common.Address, contractBalance *
 		t.FailNow()
 		return
 	}
+	_, err = rc.Deposit(tokenAddr, rb.Raiden.NodeAddress, contractBalance, time.Minute)
+	assert(t, err, nil)
 }
 func newEnv(t *testing.T, ra, rb, rc, rd *RaidenAPI) (addr1, addr2 common.Address) {
 	var contractBalance = big.NewInt(100)
@@ -139,8 +141,8 @@ func TestSmoke(t *testing.T) {
 	log.Info(" step 5 make a token swap between A and B")
 	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
 	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
-	lockSecretHash := "0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107"
-	secret := "123"
+	lockSecretHash := "0x301ec010460c1b7973045d5d59b05c34b4edb1dd9882d003e60e4eabb994946a"
+	secret := "0xf3fc2351d38c479a9e662c35242b41802806d6d465f0aced691965a2296245c3"
 	err = rb.ExpectTokenSwap(lockSecretHash, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rb.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
@@ -163,6 +165,12 @@ func TestSmoke(t *testing.T) {
 	assert(t, rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance(), x.Sub(contractBalance, x.Mul(tAmount, big.NewInt(2))))
 
 	log.Info(" step 6 make a token swap between A and c through b")
+	lockSecretHash = "0x7a697dc61c7264dcc06f6c17d9c3d8cb8fdfa3c03f6086d7b31d5ccfd5598cf9"
+	secret = "0x7701f6beb43b0081bef4af9e85c4cd7e40d4a9e0e5f6700815389e78b71170bf"
+	log.Info(fmt.Sprintf("a:a-b token1=%d,token2=%d", ra.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), ra.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
+	log.Info(fmt.Sprintf("b:a-b token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, ra.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, ra.Raiden.NodeAddress).Balance()))
+	log.Info(fmt.Sprintf("b:b-c token1=%d,token2=%d", rb.Raiden.getChannel(tokenAddr, rc.Raiden.NodeAddress).Balance(), rb.Raiden.getChannel(tokenAddr2, rc.Raiden.NodeAddress).Balance()))
+	log.Info(fmt.Sprintf("c:b-c token1=%d,token2=%d", rc.Raiden.getChannel(tokenAddr, rb.Raiden.NodeAddress).Balance(), rc.Raiden.getChannel(tokenAddr2, rb.Raiden.NodeAddress).Balance()))
 	err = rc.ExpectTokenSwap(lockSecretHash, tokenAddr, tokenAddr2, ra.Raiden.NodeAddress, rc.Raiden.NodeAddress, tAmount, x.Add(tAmount, tAmount))
 	if err != nil {
 		t.Error(err)
