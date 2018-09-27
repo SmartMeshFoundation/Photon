@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -260,17 +261,35 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 	if !m.running || len(data) == 0 {
 		return fmt.Errorf("[Matrix]Send failed,matrix not running or send data is null")
 	}
+	if m.matrixcli == nil {
+		return errors.New("no matrix connection")
+	}
 	m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
 	p := m.Peers[receiverAddr]
 	var roomID string
 	if p == nil {
 		roomID = m.temporaryAddress2Room[receiverAddr]
 		if roomID == "" {
-			roomID, _, err = m.findOrCreateRoomByAddress(receiverAddr, true)
+			var users []*gomatrix.UserInfo
+			roomID, users, err = m.findOrCreateRoomByAddress(receiverAddr, true)
 			if err != nil || roomID == "" {
 				return fmt.Errorf("[Matrix]Send failed,cann't find the peer address")
 			}
 			m.temporaryAddress2Room[receiverAddr] = roomID
+			//whether these users are in this room or not ,invite them. maybe dupclicate.
+			for _, u := range users {
+				_, err = m.matrixcli.InviteUser(roomID, &gomatrix.ReqInviteUser{
+					UserID: u.UserID,
+				})
+				if err != nil {
+					httpErr, ok := err.(gomatrix.HTTPError)
+					//can ignore, it's possible duplicate
+					if ok && httpErr.Code == http.StatusForbidden {
+						continue
+					}
+					m.log.Error(fmt.Sprintf("InviteUser %s to room %s err %s", u.UserID, roomID, err))
+				}
+			}
 		}
 	} else {
 		roomID = p.defaultMessageRoomID
