@@ -1079,6 +1079,7 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	}
 	if err != nil {
 		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+		return nil
 	}
 	return err
 }
