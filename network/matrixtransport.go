@@ -455,7 +455,15 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	}
 	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	msgTime := time.Unix(event.Timestamp/1000, 0)
-	//ignore any history message
+	/*
+		ignore any history message
+		we assume that client's time and server's time are all correct.
+		there are three types of history message:
+		1. my first login
+		2. my new joined room
+		3. message during my disconnection
+		todo fixme use better message filter
+	*/
 	if time.Now().Sub(msgTime) > time.Second*10 {
 		m.log.Trace(fmt.Sprintf("ignore message because of it's too early, now=%s,msgtime=%s", time.Now(), msgTime))
 		return
