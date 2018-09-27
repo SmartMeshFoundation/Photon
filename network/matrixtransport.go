@@ -295,11 +295,16 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 		return errors.New("ignore message when not startup complete")
 	}
 	m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
-	m.jobChan <- &matrixJob{
+	//send should not block
+	select {
+	case m.jobChan <- &matrixJob{
 		jobType: jobSendMessage,
 		Data1:   receiverAddr,
 		Data2:   data,
+	}:
+	default:
 	}
+
 	return nil
 
 }
