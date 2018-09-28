@@ -20,18 +20,18 @@ Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec fo
 ```
 
 channel variables explanation :  
-- `channel_address` : address for a channel  
-- `open_block_number` : block height when a channel opens  
-- `partner_address` : address for your channel partner  
-- `balance` : your token balance in this channel  
-- `partner_balance` : token balance for your channel partner  
-- `locked_amount` : the amount of token you locked in this channel  
-- `partner_locked_amount` : the amount of token your partner locked in this channel  
-- `token_address` : address for tokens in this channel  
-- `state` : digits denoting transaction states  
-- `StateString` : String literal for Channel States  
-- `settle_timeout` : some amount of block denoting time period for transaction settlement  
-- `reveal_timeout` : block height at which nodes registering `secret`    
+* `channel_address` : address for a channel  
+* `open_block_number` : block height when a channel opens  
+* `partner_address` : address for your channel partner  
+* `balance` : your token balance in this channel  
+* `partner_balance` : token balance for your channel partner  
+* `locked_amount` : the amount of token you locked in this channel  
+* `partner_locked_amount` : the amount of token your partner locked in this channel  
+* `token_address` : address for tokens in this channel  
+* `state` : digits denoting transaction states  
+* `StateString` : String literal for Channel States  
+* `settle_timeout` : some amount of block denoting time period for transaction settlement  
+* `reveal_timeout` : block height at which nodes registering `secret`      
 
 
 State|StateString|Description
@@ -74,8 +74,9 @@ Check registered token
 - `404 Not Found` - Check Failure    
 ## GET /api/1/tokens/*(token_address)*/partners  
 Get all the channel partners of this token.    
-**Example Request:**      
-`GET /api/1/tokens/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/partners`  **Example Response :**    
+**Example Request:**        
+`GET /api/1/tokens/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/partners`     
+ **Example Response :**      
 ```json
 [
     {
