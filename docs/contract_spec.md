@@ -117,7 +117,8 @@ We add much more Third-party delegation serviecs in our new contract, so that ch
 - Delegate punishment to fraudulent nodes   
 - Delegate `CooperateChannelClose`  
 
-And we can also integrate supports like  
+And we can also integrate supports like 
+
 - Delegate `ChannelOpen`  
 - Delegate `Deposit`  
 - Delegate withdraw when channel is alive  
@@ -183,15 +184,15 @@ function getChannelInfo(address participant1, address participant2) view externa
 ```soldity
 function getChannelParticipantInfo(address participant, address partner) view external returns(uint256 deposit, bytes24 balance_hash, uint64 nonce)
 ```
+
 - `participant` : Address for a channel participan   
 - `partner` : The counterpart of `participant` in that channel  
 - `deposit` : Channel deposit of `participant` in that channel  
 - `balance_hash` : Balance_hash in `participant`, which combines locksroot and transferred_amount of `participant`.   
 - `nonce` : a most recent serial number of transfers for `participant`.  
 
-**Scenario Description**   
-
-Assume that a user wishes to make a off-chain payment via smartraiden, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
+Note!!!
+    Assume that a user wishes to make a off-chain payment via smartraiden, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
 
 ##### Open a Channel
 Before any transfer, channel participants has to open a channel between him and the one he wishes to make transfers with.    
@@ -221,9 +222,9 @@ event ChannelOpenedAndDeposit(byte32 indexed channel_identifier, address partici
 ```
 The major parameters are identical to `openChannel`, addresses for participant and partner must be valid, and have no resemblance. `participant1_deposit` means the amount of tokens deposited into channel while open this channel. `openChannelWithDeposit` allows for anyone to invoke it, and `openChannelWithDepositInternal` has three ways to be invoked :
 
-1. Indirect call by call `openChannelWithDeposit`     
-2. Indirect call by call `tokenFallback` for those ERC223-compatible tokens   
-3. Indirect call by call `receiveApproval` for some ERC20-compatible tokens   
+- Indirect call by call `openChannelWithDeposit`     
+- Indirect call by call `tokenFallback` for those ERC223-compatible tokens   
+- Indirect call by call `receiveApproval` for some ERC20-compatible tokens   
 
 **Scenario Decription**  
 Assume that a client has intention to use smartraiden to make the payment off the chain. This time Alice and Bob as our example. Alice wants to send to Bob 30 tokens. If Alice and Bob has no direct payment channel between them, and Alice is required to create a new direct payment channel to Bob and deposit certain amount of tokens in it. Via `openChannelWithDeposit`, Alice can achieve that. Once `openChannelWithDeposit` has done invoking, users can start to make transfers.  
@@ -250,6 +251,7 @@ To withdraw tokens in this channel while channel is still open. Anyone of channe
 function withDraw(address participant, address partner, uint256 participant_balance, uint256 participant_withdraw, bytes participant_signature, bytes prtner_signature) public 
 event ChannelWithdraw(bytes32 indexed channel_identifier, address participant, uint256 participant_balance, address partner, uint256 partner_balance);
 ```
+
 - `channel_identifier` : Channel identifier assigned by the current contract.  
 - `participant` : Address of the participant who requests to withdraw tokens.  
 - `participant_balance` : The amount of tokens currently available in `participant`'s BalanceProof.  
