@@ -26,12 +26,12 @@ The newly-released contract provides instant transfer. Nodes (channel participan
 ### Cost-Effective
 The design for gas optimization has been adopted in our new version, which are mainly aimed at cost reduction in fields as user-involved channel creation, channel closing, and proof updates. Compared with previously-released contract, our new version can slash a huge amount of cost of gas. 
 
-### Other Requirements   
-- Contract is able to be compatible with multiple token standards, like ERC20 and ERC223.     
-- Channel tokens are able to be entrusted to contract, any one of both participants has the ability to withdraw from contract after channels are settled.    
-- Contract must support smart locks.  
-- Signature messages must be non malleable.  
-- Contract should support SmartRaiden Monitoring Service, to ensure assets safety when nodes offline.   
+### Other Requirements  
+- Contract is able to be compatible with multiple token standards, like ERC20 and ERC223.  
+- Channel tokens are able to be entrusted to contract, any one of both participants has the ability to withdraw from contract after channels are settled.  
+- Contract must support smart locks.    
+- Signature messages must be non malleable.    
+- Contract should support SmartRaiden Monitoring Service, to ensure assets safety when nodes offline.     
 
 ## Data Structure
 This new contract adds support for EIP191 standard, in all signed data exists EIP191 string and its length, which is `"\x19Ethereum Signed Message:\n" + len(message)`. Proofs below are presumed to contain EIP191 string and length.   
@@ -40,7 +40,7 @@ This new contract adds support for EIP191 standard, in all signed data exists EI
 
 All the data requested by Smart Raiden contract when updating payment channels, channel participants should assign their signature to their Balance Proof. Signature defines as below :  
 ```soldity
-ecdsa_recoverable(privkey, keccak256(channel_identifier || transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || token_network_address || chain_id)
+ecdsa_recoverable(privkey, keccak256(channel_identifier || transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || chain_id)
 ```
 ####Fields    
 Field Names|Field Types   |Description
@@ -109,14 +109,15 @@ Under most circumstances, both channel participants are Cooperative. Hence, any 
  The participants of the channel can withdraw part of the funds from the channel to their accounts without closing the channel by consensus.  Due to the potential risk of replay attack, Field `open_block_number` has to be reset after withdraw, otherwise, channel participants have the chance to utilize used BalanceProofs to fraud and make an undeserved profit. 
 
 #### More perfect support for third-party delegation
-We add much more Third-party delegation serviecs in our new contract, so that channel participants can join our SmartRaiden network and secure their assets on the condition of no internet connection. Major feature supported in our new contract includes   
+We add much more Third-party delegation serviecs in our new contract, so that channel participants can join our SmartRaiden network and secure their assets on the condition of no internet connection. Major feature supported in our new contract includes
+
 - Delegate `updateBalanceProof`  
 - Delegate `unlock`  
 - Delegate `channelSettle`  
-- Delegate punishment to fraudulent nodes  
+- Delegate punishment to fraudulent nodes   
 - Delegate `CooperateChannelClose`  
 
-And we can also integrate supports like   
+And we can also integrate supports like  
 - Delegate `ChannelOpen`  
 - Delegate `Deposit`  
 - Delegate withdraw when channel is alive  
@@ -173,19 +174,20 @@ In our new contract, `channel_identifier` is defined as `bytes32`, which is a ha
 function getChannelIdentifier(address participant1, address participant2) view internal returns (bytes32 channel_identifier)
 function getChannelInfo(address participant1, address participant2) view external returns(bytes32 channel_identifier, uint64 settle_block_number, uint64 open_block_number, uint8, state, uint64, settle_timeout)
 ```
+
 - `channel_identifier` :Channel identifier assigned by the current contract.  
-- `participant1` : Address for a channel participant  
-- `participant2` : Address for the other channel participant  
-- `state` : Channel state, can be 0 ~ 2, which respectively means NonExistance/Settled, Opened, Closed.
+- `participant1` : Address for a channel participant
+- `participant2` : Address for the other channel participant    
+- `state` : Channel state, can be 0 ~ 2, which respectively means NonExistance/Settled, Opened, Closed.  
   
 ```soldity
 function getChannelParticipantInfo(address participant, address partner) view external returns(uint256 deposit, bytes24 balance_hash, uint64 nonce)
 ```
-- `participant` : Address for a channel participant  
-- `partner` : The counterpart of `participant` in that channel   
+- `participant` : Address for a channel participan   
+- `partner` : The counterpart of `participant` in that channel  
 - `deposit` : Channel deposit of `participant` in that channel  
-- `balance_hash` : Balance_hash in `participant`, which combines locksroot and transferred_amount of `participant`.  
-- `nonce` : a most recent serial number of transfers for `participant`.   
+- `balance_hash` : Balance_hash in `participant`, which combines locksroot and transferred_amount of `participant`.   
+- `nonce` : a most recent serial number of transfers for `participant`.  
 
 **Scenario Description**   
 
@@ -198,10 +200,11 @@ Before any transfer, channel participants has to open a channel between him and 
 function openChannel(address participant1, address participant2, uint64 settle_timeout) settleTimeoutValid(settle_timeout) 
 event ChannelOpened(byte32 indexed channel_identifier, adddress participant1, address participant2, uint64 settle_timeout);
 ```
+
 - `channel_identifier` : Channel identifier assigned by the current contract.  
 - `participant1` : The address for one channel participant  
-- `participant2` : The address for the other channel participant  
-- `settle_timeout` : The block number denoting period between `closeChannel` and `settleChannel`  
+- `participant2` : The address for the other channel participant    
+- `settle_timeout` : The block number denoting period between `closeChannel` and `settleChannel`    
 
 Note `participant1` and `participant2` must be valid addresses, and can not be identical. openChannel can be invoked by anyone with multiple times. This function allows two different valid addresses to construct a single one payment channel, after that they can make transfers to each other.
  

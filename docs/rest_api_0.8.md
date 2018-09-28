@@ -487,10 +487,10 @@ The receiver of the transaction inquires the transaction that has not yet been r
 }
 ```
 
-## GET /api/1/transferstatus/*(locksecrethash)*
+## GET /api/1/transferstatus/*(token_address)*/*(locksecrethash)*
 Query transaction status       
 **Example Request :**    
-`GET /api/1/transferstatus/0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82`  
+`GET /api/1/transferstatus/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82`  
 **Example Response :**     
 ```json
 {
