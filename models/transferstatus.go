@@ -56,7 +56,7 @@ func (model *ModelDB) NewTransferStatus(tokenAddress common.Address, lockSecretH
 		Status:         TransferStatusInit,
 		StatusMessage:  "",
 	}
-	err := model.db.Save(&ts)
+	err := model.db.Save(ts)
 	if err != nil {
 		log.Error(fmt.Sprintf("NewTransferStatus err %s", err))
 		return
