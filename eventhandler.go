@@ -312,6 +312,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	eh.raiden.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(ch.PartnerState.Address, tr)
+	eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	return
 }
 func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
