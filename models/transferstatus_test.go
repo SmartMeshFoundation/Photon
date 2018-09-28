@@ -13,6 +13,7 @@ func TestModelDB_TransferStatus(t *testing.T) {
 	m := setupDb(t)
 	lockSecretHash := utils.NewRandomHash()
 	tokenAddress := utils.NewRandomAddress()
+	m.NewTransferStatus(tokenAddress, lockSecretHash)
 	msg1 := "1111"
 	m.UpdateTransferStatus(tokenAddress, lockSecretHash, TransferStatusCanCancel, msg1)
 
