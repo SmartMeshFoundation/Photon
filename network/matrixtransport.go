@@ -99,6 +99,7 @@ type MatrixTransport struct {
 	hasDoneStartCheck     bool
 	quitChan              chan struct{}
 	jobChan               chan *matrixJob
+	lock                  sync.RWMutex
 }
 
 var (
@@ -155,19 +156,14 @@ func (m *MatrixTransport) setDB(db xmpptransport.XMPPDb) error {
 }
 
 func (m *MatrixTransport) addPeerIfNotExist(peer common.Address, hasChannel bool) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	_, ok := m.Peers[peer]
 	if ok {
 		return false
 	}
 	m.Peers[peer] = NewMatrixPeer(peer, hasChannel, m.removePeerChan)
 	return true
-}
-func (m *MatrixTransport) isThePeerIWantMessage(peer common.Address, userID string) bool {
-	u, ok := m.Peers[peer]
-	if !ok {
-		return false
-	}
-	return u.isValidUserID(userID)
 }
 func (m *MatrixTransport) isUserIDValidated(userID string) bool {
 	return m.validatedUsers[userID] != nil
@@ -201,10 +197,6 @@ func (m *MatrixTransport) validateAndUpdateUser(user *gomatrix.UserInfo) error {
 	m.validatedUsers[user.UserID] = user
 	return nil
 }
-func (m *MatrixTransport) knownThisPeer(peer common.Address) bool {
-	_, ok := m.Peers[peer]
-	return ok
-}
 
 // collectChannelInfo subscribe status change
 func (m *MatrixTransport) collectChannelInfo(db xmpptransport.XMPPDb) error {
@@ -217,7 +209,11 @@ func (m *MatrixTransport) collectChannelInfo(db xmpptransport.XMPPDb) error {
 	}
 	db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
 		if m.addPeerIfNotExist(c.PartnerAddress(), true) {
-			err := m.startupCheckOneParticipant(m.Peers[c.PartnerAddress()])
+			m.addPeerIfNotExist(c.PartnerAddress(), true)
+			m.lock.RLock()
+			p := m.Peers[c.PartnerAddress()]
+			m.lock.RUnlock()
+			err := m.startupCheckOneParticipant(p)
 			if err != nil {
 				log.Error(fmt.Sprintf("handleNewPartner for %s,err %s", utils.APex2(c.PartnerAddress()), err))
 			}
@@ -276,7 +272,9 @@ func (m *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, is
 	if m.matrixcli == nil {
 		return "", false
 	}
+	m.lock.RLock()
 	u, ok := m.Peers[addr]
+	m.lock.RUnlock()
 	if !ok {
 		return "", false
 	}
@@ -294,7 +292,7 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 	if !m.hasDoneStartCheck {
 		return errors.New("ignore message when not startup complete")
 	}
-	m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
+	//m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
 	//send should not block
 	select {
 	case m.jobChan <- &matrixJob{
@@ -312,7 +310,9 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 	var err error
 	receiverAddr := job.Data1.(common.Address)
 	data := job.Data2.([]byte)
+	m.lock.RLock()
 	p := m.Peers[receiverAddr]
+	m.lock.RUnlock()
 	var roomID string
 	if p == nil {
 		roomID = m.temporaryPeers.getRoomID(receiverAddr)
@@ -530,7 +530,9 @@ func (m *MatrixTransport) doHandleAccountData(job *matrixJob) {
 	for addrHex, roomIDInterface := range event.Content {
 		roomID := roomIDInterface.(string)
 		addr := common.HexToAddress(addrHex)
+		m.lock.RLock()
 		p := m.Peers[addr]
+		m.lock.RUnlock()
 		if p != nil {
 			p.defaultMessageRoomID = roomID
 		}
@@ -596,7 +598,9 @@ func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
 		//return
 	}
 	peerAddress := m.userIDToAddress(senderID)
+	m.lock.RLock()
 	peer := m.Peers[peerAddress]
+	m.lock.RUnlock()
 	if peer == nil {
 		m.temporaryPeers.addPeer(peerAddress, event.RoomID)
 	} else {
@@ -742,7 +746,9 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 				return
 			}
 			peerAddress := m.userIDToAddress(userid)
+			m.lock.RLock()
 			peer := m.Peers[peerAddress]
+			m.lock.RUnlock()
 			if peer == nil {
 				//maybe a peer want send secret request to me
 				m.temporaryPeers.addPeer(peerAddress, event.RoomID)
@@ -807,7 +813,7 @@ onHandlePresenceChange handle events in this message, about changes of nodes and
 */
 func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
 	m.log.Trace(fmt.Sprintf("onHandlePresenceChange %s", utils.StringInterface(event, 5)))
-	m.log.Trace(fmt.Sprintf("address i want to know: %s", utils.StringInterface(m.Peers, 3)))
+	//m.log.Trace(fmt.Sprintf("address i want to know: %s", utils.StringInterface(m.Peers, 3)))
 	if m.stopreceiving == true {
 		return
 	}
@@ -849,7 +855,9 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		m.log.Info(fmt.Sprintf("receive presence %s", utils.StringInterface(event, 5)))
 		return
 	}
+	m.lock.RLock()
 	peer, ok := m.Peers[address]
+	m.lock.RUnlock()
 	if !ok {
 		//m.log.Trace(fmt.Sprintf("receive presence,but peer is unkown %s", utils.StringInterface(event, 5)))
 		if presence == OFFLINE {
@@ -1103,13 +1111,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 	}
 	return unlistedRoomid, nil
 }
-func (m *MatrixTransport) getPeerRoomID(address common.Address) string {
-	u := m.Peers[address]
-	if u != nil {
-		return u.defaultMessageRoomID
-	}
-	return ""
-}
 
 func (m *MatrixTransport) searchNode(address common.Address) (users []*gomatrix.UserInfo, err error) {
 	respusers, err := m.matrixcli.SearchUserDirectory(&gomatrix.ReqUserSearch{
@@ -1154,9 +1155,11 @@ func (m *MatrixTransport) handleNewPartner(p *MatrixPeer) (err error) {
 	}
 	p.defaultMessageRoomID = roomID
 	address2Room := make(map[common.Address]string)
+	m.lock.RLock()
 	for addr, peer := range m.Peers {
 		address2Room[addr] = peer.defaultMessageRoomID
 	}
+	m.lock.RUnlock()
 	return m.matrixcli.SetAccountData(m.UserID, EventAddressRoom, address2Room)
 }
 
@@ -1291,7 +1294,9 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 		if this address has channel with me ,it may be login with another UserID,
 		so I need update my info
 	*/
+	m.lock.RLock()
 	peer := m.Peers[peerAddress]
+	m.lock.RUnlock()
 	if peer == nil {
 		return nil
 	}

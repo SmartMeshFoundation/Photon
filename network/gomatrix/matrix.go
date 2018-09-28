@@ -737,7 +737,7 @@ func NewClient(homeserverURL, userID, accessToken, pathPrefix string, log log.Lo
 		UserID:        userID,
 		Prefix:        pathPrefix,
 		log:           log,
-		debug:         true,
+		debug:         false,
 	}
 	cli.Client = MatrixHTTPClient
 	return &cli, nil
