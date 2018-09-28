@@ -151,6 +151,5 @@ func TestTimer(t *testing.T) {
 	fmt.Printf("t1 = %v\n", t1)
 	fmt.Printf("called stop %v\n", tm.Stop())
 	fmt.Printf("called stop2 %v\n", tm.Stop())
-	<-tm.C
 	fmt.Println("fired after stop")
 }

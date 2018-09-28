@@ -152,6 +152,11 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 			if l.Lock.LockSecretHash != st.LockSecretHash {
 				panic(fmt.Sprintf("receive SecretRevealOnChain for different lockseret mine=%s,statechange=%s", l.Lock.LockSecretHash.String(), st.LockSecretHash.String()))
 			}
+			err := l.Channel.RegisterSecret(st.Secret)
+			if err != nil {
+				// 这里注册失败一定是实现有问题
+				panic(err)
+			}
 			//send unlock event
 			it.Events = append(it.Events, transferSuccessEvents(l)...)
 			removedIndex = append(removedIndex, i)

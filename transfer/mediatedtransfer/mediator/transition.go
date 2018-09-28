@@ -658,6 +658,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
 	if transferPair == nil {
+		log.Warn("no usable route, reject")
 		/*
 				回退此交易,相当于没收到过一样处理
 			todo 如何保存相关通道状态?
@@ -690,6 +691,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	*/
 	payerChannel := transferPair.PayerRoute.Channel()
 	if len(payerChannel.PartnerState.Lock2PendingLocks)+len(payerChannel.PartnerState.Lock2UnclaimedLocks) > payerChannel.RevealTimeout {
+		log.Warn(fmt.Sprintf("holding too much lock of %s, reject new mediated transfer from him", utils.APex2(payerChannel.PartnerState.Address)))
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   eventsForRefund(payerRoute, payerTransfer),

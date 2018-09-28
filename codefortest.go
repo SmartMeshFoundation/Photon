@@ -55,6 +55,7 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 		log.Error(err.Error())
 	}
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
+	config.NetworkMode = params.MixUDPXMPP
 	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler)
 	if err != nil {
 		log.Error(err.Error())
@@ -118,10 +119,10 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 }
 func newTestRaidenAPIQuick() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
-	go func() {
-		/*#nosec*/
-		api.Raiden.Start()
-	}()
+	//go func() {
+	//	/*#nosec*/
+	//	api.Raiden.Start()
+	//}()
 	return api
 }
 
@@ -171,6 +172,7 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 			api.Raiden.Start()
 			wg.Done()
 		}()
+		apis = append(apis, api)
 	}
 	wg.Wait()
 	return
