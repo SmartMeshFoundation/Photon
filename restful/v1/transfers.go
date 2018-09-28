@@ -114,7 +114,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	} else {
 		timeout = params.MaxAsyncRequestTimeout
 	}
-	lockSecretHash, err := RaidenAPI.TransferAndWait(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), timeout, req.IsDirect)
+	result, err := RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), timeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -122,7 +122,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
 	req.Target = target
 	req.Token = token
-	req.LockSecretHash = lockSecretHash.String()
+	req.LockSecretHash = result.LockSecretHash.String()
 	err = w.WriteJson(req)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))

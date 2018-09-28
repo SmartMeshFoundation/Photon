@@ -339,9 +339,9 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 	return
 }
 
-//TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
-	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
+//Transfer transfer and wait
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferAsync(token, amount, fee, target, secret, isDirectTransfer)
 	if err != nil {
 		return
 	}
@@ -349,22 +349,17 @@ func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			return result.LockSecretHash, errors.New("timeout")
+			return result, err
 		case err = <-result.Result:
 		}
 	} else {
 		err = <-result.Result
 	}
-	return result.LockSecretHash, err
+	return result, err
 }
 
-//Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (lockSecretHash common.Hash, err error) {
-	return r.TransferAndWait(token, amount, fee, target, secret, timeout, isDirectTransfer)
-}
-
-//transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+//TransferAsync :
+func (r *RaidenAPI) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
