@@ -13,7 +13,7 @@ Smartraiden uses payment channel network technology with the same principles of 
 ## Primary Functionalities and Characteristics in SmartRaiden
 The primary goal for SmartRaiden aims to construct a structure to enforce an off-chain scalability solution for SmartRaiden Network, which improves usability, compatibility, and security. 
  
-Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api](./rest_api.md).
+Conventional functions include queries, registrations, channel dependencies, and transfers in different scenarios, as detailed in [rest_api](./rest_api_0.8.md).
 
 
 Additional functions include :
