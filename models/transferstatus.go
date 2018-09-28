@@ -76,7 +76,7 @@ func (model *ModelDB) UpdateTransferStatusMessage(tokenAddress common.Address, l
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:])
 	err := model.db.One("Key", key, &ts)
 	if err != nil {
-		log.Warn(fmt.Sprintf("UpdateTransferStatus err %s", err))
+		log.Trace("updateTransferStatus failed because can not find transfer status by token and lockSecretHash, maybe I'm not initiator")
 		return
 	}
 	ts.StatusMessage = fmt.Sprintf("%s%s\n", ts.StatusMessage, statusMessage)

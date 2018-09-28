@@ -690,6 +690,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	*/
 	payerChannel := transferPair.PayerRoute.Channel()
 	if len(payerChannel.PartnerState.Lock2PendingLocks)+len(payerChannel.PartnerState.Lock2UnclaimedLocks) > payerChannel.RevealTimeout {
+		log.Warn(fmt.Sprintf("holding too much lock of %s, reject new mediated transfer from him", utils.APex2(payerChannel.PartnerState.Address)))
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   eventsForRefund(payerRoute, payerTransfer),
