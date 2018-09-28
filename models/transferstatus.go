@@ -16,8 +16,11 @@ type TransferStatusCode int
 
 const (
 
+	// TransferStatusInit init
+	TransferStatusInit = iota
+
 	// TransferStatusCanCancel transfer can cancel right now
-	TransferStatusCanCancel = iota
+	TransferStatusCanCancel
 
 	// TransferStatusCanNotCancel transfer can not cancel
 	TransferStatusCanNotCancel
@@ -44,21 +47,32 @@ type TransferStatus struct {
 	StatusMessage  string
 }
 
+// NewTransferStatus :
+func (model *ModelDB) NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) {
+	ts := &TransferStatus{
+		Key:            utils.Sha3(tokenAddress[:], lockSecretHash[:]),
+		LockSecretHash: lockSecretHash,
+		TokenAddress:   tokenAddress,
+		Status:         TransferStatusInit,
+		StatusMessage:  "",
+	}
+	err := model.db.Save(&ts)
+	if err != nil {
+		log.Error(fmt.Sprintf("NewTransferStatus err %s", err))
+		return
+	}
+}
+
 // UpdateTransferStatus :
 func (model *ModelDB) UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string) {
 	var ts TransferStatus
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:])
 	err := model.db.One("Key", key, &ts)
 	if err == storm.ErrNotFound {
-		ts = TransferStatus{
-			Key:            key,
-			LockSecretHash: lockSecretHash,
-			TokenAddress:   tokenAddress,
-		}
-		err = nil
+		return
 	}
 	if err != nil {
-		log.Warn(fmt.Sprintf("UpdateTransferStatus err %s", err))
+		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
 		return
 	}
 	ts.Status = status
@@ -75,8 +89,11 @@ func (model *ModelDB) UpdateTransferStatusMessage(tokenAddress common.Address, l
 	var ts TransferStatus
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:])
 	err := model.db.One("Key", key, &ts)
+	if err == storm.ErrNotFound {
+		return
+	}
 	if err != nil {
-		log.Trace("updateTransferStatus failed because can not find transfer status by token and lockSecretHash, maybe I'm not initiator")
+		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
 		return
 	}
 	ts.StatusMessage = fmt.Sprintf("%s%s\n", ts.StatusMessage, statusMessage)
