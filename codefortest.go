@@ -119,10 +119,10 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 }
 func newTestRaidenAPIQuick() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
-	go func() {
-		/*#nosec*/
-		api.Raiden.Start()
-	}()
+	//go func() {
+	//	/*#nosec*/
+	//	api.Raiden.Start()
+	//}()
 	return api
 }
 
@@ -131,29 +131,29 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	rB = newTestRaidenAPIQuick()
 	rC = newTestRaidenAPIQuick()
 	rD = newTestRaidenAPIQuick()
-	//wg := sync.WaitGroup{}
-	//wg.Add(4)
-	//go func() {
-	//	/*#nosec*/
-	//	rA.Raiden.Start()
-	//	wg.Done()
-	//}()
-	//go func() {
-	//	/*#nosec*/
-	//	rB.Raiden.Start()
-	//	wg.Done()
-	//}()
-	//go func() {
-	//	/*#nosec*/
-	//	rC.Raiden.Start()
-	//	wg.Done()
-	//}()
-	//go func() {
-	//	/*#nosec*/
-	//	rD.Raiden.Start()
-	//	wg.Done()
-	//}()
-	//wg.Wait()
+	wg := sync.WaitGroup{}
+	wg.Add(4)
+	go func() {
+		/*#nosec*/
+		rA.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		/*#nosec*/
+		rB.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		/*#nosec*/
+		rC.Raiden.Start()
+		wg.Done()
+	}()
+	go func() {
+		/*#nosec*/
+		rD.Raiden.Start()
+		wg.Done()
+	}()
+	wg.Wait()
 	return
 }
 
@@ -172,6 +172,7 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 			api.Raiden.Start()
 			wg.Done()
 		}()
+		apis = append(apis, api)
 	}
 	wg.Wait()
 	return
