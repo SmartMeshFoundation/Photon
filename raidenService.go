@@ -251,6 +251,13 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
 
+	/*
+		事先从DB里面获取最后的blocknumber,以免重启后因为超时而拒绝掉之前的MediatedTransfer消息
+		Get the last block number from the DB beforehand to avoid rejecting the previous MeditatedTransfer message after restart because of timeout
+	*/
+	n := rs.db.GetLatestBlockNumber()
+	rs.BlockNumber.Store(n)
+
 	rs.registerRegistry()
 	rs.Protocol.Start()
 	rs.restore()
@@ -297,6 +304,7 @@ func (rs *RaidenService) Start() (err error) {
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("SmartRaiden Startup complete and history events process complete."))
 	}
+	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
@@ -379,8 +387,6 @@ func (rs *RaidenService) loop() {
 					err = rs.AlarmTask.Start()
 					if err != nil {
 						log.Error(fmt.Sprintf("alarm task start err %s", err))
-						n := rs.db.GetLatestBlockNumber()
-						rs.BlockNumber.Store(n)
 					} else {
 						//must have a valid blocknumber before any transfer operation
 						rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
@@ -1073,6 +1079,7 @@ func (rs *RaidenService) startSubscribeNeighborStatus() error {
 	}
 	if err != nil {
 		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+		return nil
 	}
 	return err
 }
