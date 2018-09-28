@@ -158,8 +158,7 @@ event TokenNetworkCreated(address indexed token_address, address indexed token_n
 - `token_network_address` : address of a newly-deployed TokenNetwork   
 
 **Scenario Description**   
-
-Suppose a user owns some amount of ERC20 or ERC223 tokens but that token haven't been registered on smartraiden. this user has to register his tokens into a TokenNetwork contract before he can use his tokens in off-chain payments. SmartRaiden provides individual TokenNetwork for each token type. Once a specific type of token has been registered, users of that token have ability to connect to this token network and invoke related functions of that TokenNetwork.
+>Suppose a user owns some amount of ERC20 or ERC223 tokens but that token haven't been registered on smartraiden. this user has to register his tokens into a TokenNetwork contract before he can use his tokens in off-chain payments. SmartRaiden provides individual TokenNetwork for each token type. Once a specific type of token has been registered, users of that token have ability to connect to this token network and invoke related functions of that TokenNetwork.
 
 #### TokenNetwork contract
 TokenNetwork is mainly a contract offering interfaces to interact with payment channels. Payment channels can only transfer tokens from `token_address` in this contract. TokenNetwork integrates most functions that payment channels interact with during their lifecycle, including ChannelOpen, Deposit/Withdraw, ChannelClose, ChannelSettle, etc. Apart from that, TokenNetwork contract maintains global variables for payment channels to use while certain functions are invoked. These variables includes 
@@ -189,10 +188,11 @@ function getChannelParticipantInfo(address participant, address partner) view ex
 - `partner` : The counterpart of `participant` in that channel  
 - `deposit` : Channel deposit of `participant` in that channel  
 - `balance_hash` : Balance_hash in `participant`, which combines locksroot and transferred_amount of `participant`.   
-- `nonce` : a most recent serial number of transfers for `participant`.  
+- `nonce` : a most recent serial number of transfers for `participant`. 
 
-Note!!!
-    Assume that a user wishes to make a off-chain payment via smartraiden, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
+
+**Scenario Description**  
+>Assume that a user wishes to make a off-chain payment via smartraiden, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
 
 ##### Open a Channel
 Before any transfer, channel participants has to open a channel between him and the one he wishes to make transfers with.    
@@ -210,7 +210,7 @@ event ChannelOpened(byte32 indexed channel_identifier, adddress participant1, ad
 Note `participant1` and `participant2` must be valid addresses, and can not be identical. openChannel can be invoked by anyone with multiple times. This function allows two different valid addresses to construct a single one payment channel, after that they can make transfers to each other.
  
 **Scenario Description**   
-Assume that a client has intention to use smartraiden to do payment off the chain. Let's take Alice and Bob as example. Alice plans to send 30 tokens to Bob. If this is the first time that Both Alice and Bob use smartraiden to undergo offline payment and there is no channel directly connection them. So, as a transfer initiator, Alice necessitates to invoke `openChannel` of the contract, and pass the address of hers and Bob's as function arguments. Once it returns without error, a direct channel connecting Alice and Bob has been created. Right at that time, there are no token deposited in this channel, Alice and Bob can make a deposit once a channel created. 
+>Assume that a client has intention to use smartraiden to do payment off the chain. Let's take Alice and Bob as example. Alice plans to send 30 tokens to Bob. If this is the first time that Both Alice and Bob use smartraiden to undergo offline payment and there is no channel directly connection them. So, as a transfer initiator, Alice necessitates to invoke `openChannel` of the contract, and pass the address of hers and Bob's as function arguments. Once it returns without error, a direct channel connecting Alice and Bob has been created. Right at that time, there are no token deposited in this channel, Alice and Bob can make a deposit once a channel created. 
 
 ##### Open a channel with deposit 
 To create a channel within `participant` and `partner`, while depositing some amount of tokens inside. It is an auxiliary function provided to client which combines `openChannel` with `deposit` to save gas cost. 
@@ -227,7 +227,7 @@ The major parameters are identical to `openChannel`, addresses for participant a
 - Indirect call by call `receiveApproval` for some ERC20-compatible tokens   
 
 **Scenario Decription**  
-Assume that a client has intention to use smartraiden to make the payment off the chain. This time Alice and Bob as our example. Alice wants to send to Bob 30 tokens. If Alice and Bob has no direct payment channel between them, and Alice is required to create a new direct payment channel to Bob and deposit certain amount of tokens in it. Via `openChannelWithDeposit`, Alice can achieve that. Once `openChannelWithDeposit` has done invoking, users can start to make transfers.  
+>Assume that a client has intention to use smartraiden to make the payment off the chain. This time Alice and Bob as our example. Alice wants to send to Bob 30 tokens. If Alice and Bob has no direct payment channel between them, and Alice is required to create a new direct payment channel to Bob and deposit certain amount of tokens in it. Via `openChannelWithDeposit`, Alice can achieve that. Once `openChannelWithDeposit` has done invoking, users can start to make transfers.  
 
 ##### Deposit tokens in a channel 
 To deposit certain amount of tokens into a payment channel while that channel stay open. It will increase the amount of deposit in that channel. This function can be invoked multiple times by anyone in that channel.   
@@ -235,14 +235,14 @@ To deposit certain amount of tokens into a payment channel while that channel st
 function deposit(address participant, address partner, uint256 amount) external 
 event ChannelNewDeposit(bytes32 indexed channel_identifier, address participant, uint256 total_deposit);
 ```
-- `participant` : Address of the participant who deposits tokens.  
-- `total_deposit` : The amount of tokens that `participant` deposited into this channel.  
-- `partner` : Address of the counterpart corresponding to `participant`, used to calculate the  `channel_identifier`.  
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `amount` : The amount of tokens that current `participant` want to deposit    
+* `participant` : Address of the participant who deposits tokens.  
+* `total_deposit` : The amount of tokens that `participant` deposited into this channel.  
+* `partner` : Address of the counterpart corresponding to `participant`, used to calculate the  `channel_identifier`.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `amount` : The amount of tokens that current `participant` want to deposit    
 
 **Scenario Description**  
-If Alice forgets to deposit her tokens while opening a payment channel, in order to do normal transfer, she needs to invoke `deposit` function to make certain amount of deposit. `deposit` can be invoked multiple times and both Alice and Bob can call it. Assume that Alice has made a deposit with 100 tokens, then currently there are 100 tokens in this channel(Alice does not deposit at the beginning), in which Alice accounts for 100 tokens of them, Bob, 0 token.  
+>If Alice forgets to deposit her tokens while opening a payment channel, in order to do normal transfer, she needs to invoke `deposit` function to make certain amount of deposit. `deposit` can be invoked multiple times and both Alice and Bob can call it. Assume that Alice has made a deposit with 100 tokens, then currently there are 100 tokens in this channel(Alice does not deposit at the beginning), in which Alice accounts for 100 tokens of them, Bob, 0 token.  
 
 ##### Withdraw tokens from a channel
 To withdraw tokens in this channel while channel is still open. Anyone of channel participants can invoke this function, and each signed message can only invoke it once. After a participant requests for withdraw, which has the same effect to `CooperativeSettle`, both participants cannot further any transfer till withdraw completes and transfer data has been reset, transferes between these two participants is able to resume.
@@ -264,7 +264,7 @@ event ChannelWithdraw(bytes32 indexed channel_identifier, address participant, u
 These channel participants both sign their signatures and exchange their BalanceProof and withdraw amount in cooperative way, which is equivalent to cases that channel settle and reopen. In terms of assets security and successful rate, both channel participants are required to withold no locked transfer, which means as long as there is no dispute, every lock  in the locksroot will be removed within a specific period. 
 
 **Scenario Description**  
-Alice plans to send Bob a transfer with 30 tokens. Once this transfer completes successfully, the amount of deposit of Alice is 70, and the amount of Bob is 30. At that time, there is no token has been locked in this channel. If now, one of them wants to withdraw part of their tokens deposited, how to do that? Assume that Alice wishes to withdraw 20 tokens from this channel, she can directly call `withdraw` due to the truth that there is currently no token has been locked. Via an interactive way, Alice makes an agreement with Bob about her current balance (70 tokens) and withdraw amount (20 tokens). After withdraw completes, channel balances of Alice and Bob turns to 50 tokens of Alice and 30 tokens of Bob. Then transfers can continue.
+>Alice plans to send Bob a transfer with 30 tokens. Once this transfer completes successfully, the amount of deposit of Alice is 70, and the amount of Bob is 30. At that time, there is no token has been locked in this channel. If now, one of them wants to withdraw part of their tokens deposited, how to do that? Assume that Alice wishes to withdraw 20 tokens from this channel, she can directly call `withdraw` due to the truth that there is currently no token has been locked. Via an interactive way, Alice makes an agreement with Bob about her current balance (70 tokens) and withdraw amount (20 tokens). After withdraw completes, channel balances of Alice and Bob turns to 50 tokens of Alice and 30 tokens of Bob. Then transfers can continue.
 
 ##### Close the payment channel 
 If one of the channel participants would not want to continue using this channel, then he can ask for closing this channel and update BalanceProof of their participant. Before the challenge period timeout, this channel cannot be settled.
@@ -274,19 +274,19 @@ function closeChannel(address partner, uint256 transferred_amount, bytes32 locks
 
 event ChannelClosed(uint256 indexed channel_identifier, address closing_participant, bytes32 locksroot, uint256 transferred_amount);
 ```
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `partner` : Channel partner of the participant who calls the function.  
-- `transferred_amount` : The amount of tokens that `partner` has transferred to his counterpart.  
-- `locksroot` : Root of the merkle tree of all pending lock lockhashes for the partner.  
-- `nonce` : Strictly monotonic value used to order transfers   
-- `additional_hash` : Computed from the message. Used for message authentication.  
-- `signature` : Elliptic Curve 256k1 signature of the channel partner on the balance proof data.  
-- `closing_participant` : Address of the channel participant who calls this function.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `partner` : Channel partner of the participant who calls the function.  
+* `transferred_amount` : The amount of tokens that `partner` has transferred to his counterpart.  
+* `locksroot` : Root of the merkle tree of all pending lock lockhashes for the partner.  
+* `nonce` : Strictly monotonic value used to order transfers   
+* `additional_hash` : Computed from the message. Used for message authentication.  
+* `signature` : Elliptic Curve 256k1 signature of the channel partner on the balance proof data.  
+* `closing_participant` : Address of the channel participant who calls this function.  
 
 `closeChannel` can only be invoked via channel participants, just once, and while this channel is open.
 
 **Scenario Description**  
-After Alice and Bob have done quite a lot of transfers, Alice wishes to stop transfers and plans to close the channel. So, Alice determines to call `closeChannel` to this channel. In order to avoid losing tokens, Alice must update the newest BalanceProof from Bob upto the main chain to keep a record.  
+>After Alice and Bob have done quite a lot of transfers, Alice wishes to stop transfers and plans to close the channel. So, Alice determines to call `closeChannel` to this channel. In order to avoid losing tokens, Alice must update the newest BalanceProof from Bob upto the main chain to keep a record.  
 
 #### Update non-closing participant balance proof
 To update BalanceProof from Non-Closing Participant, and this function can be called only after channel is closed. Only channel participants can invoke this function, and within settletimeout window it can be invoked multiple times. The aim is to update balance proof of non-closing  participant without SmartRaiden Monitoring Service.
@@ -296,16 +296,16 @@ function updateBalanceProof(address partner, uint256 transferred_amount, bytes32
 
 event BalanceProofUpdated(bytes32 indexed channel_identifier, address participant, bytes32 locksroot, uint256 transferred_amount);
 ```
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `partner` : The channel participant who is updating the balance proof data.  
-- `locksroot` :Root of the merkle tree of all pending lock lockhashes for the partner.  
-- `transferred_amount` : The amount of tokens that `closing_participant` has transferred to `partner`.  
-- `nonce` : Strictly monotonic value used to order transfers  
-- `additional_hash` : Computed from the message. Used for message authentication.  
-- `partner_signature` :Elliptic Curve 256k1 signature of the `partner` on the balance proof data.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `partner` : The channel participant who is updating the balance proof data.  
+* `locksroot` :Root of the merkle tree of all pending lock lockhashes for the partner.  
+* `transferred_amount` : The amount of tokens that `closing_participant` has transferred to `partner`.  
+* `nonce` : Strictly monotonic value used to order transfers  
+* `additional_hash` : Computed from the message. Used for message authentication.  
+* `partner_signature` :Elliptic Curve 256k1 signature of the `partner` on the balance proof data.  
 
 **Scenario Description**   
-Bob receives messages that Alice plans to close payment channel between them, in order to avoid losing tokens, Bob also has to submit the most recent BalanceProof that Alice has sent. Then Bob is able to call `updateBalanceProof` to update that proof upto the main chain and keept a record.  
+>Bob receives messages that Alice plans to close payment channel between them, in order to avoid losing tokens, Bob also has to submit the most recent BalanceProof that Alice has sent. Then Bob is able to call `updateBalanceProof` to update that proof upto the main chain and keept a record.  
 
 #### Delegate Update Balance Proof of Non-Closing Participant
 We provide some new function in our released version, which we call it SmartRaiden Monitoring Service. This function aims at situations when one of channel participants plans to delegate relevant services to a trustworthy third-party for some reasons. Only after channel is closed, this function can be invoked by anyone among both channel participants and the third-party, with multiple times. The purpose of this function is to update balance proof of `partner` via delegation.
@@ -315,14 +315,14 @@ We provide some new function in our released version, which we call it SmartRaid
 
  event BalanceProofUpdated(bytes32 indexed channel_identifier, address participant, bytes32 locksroot, uint256 transferred_amount);
 ```
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `partner` : Address of channel participant who does not ask for closing channel.  
-- `participant` : Address of channel participant who requests for closing channel.  
-- `locksroot` :Root of the merkle tree of all pending lock lockhashes for the partner.  
-- `nonce` : Strictly monotonic value used to order transfers  
-- `additional_hash` : Computed from the message. Used for message authentication.  
-- `partner_signature` : Elliptic Curve 256k1 signature of the `partner` .  
-- `participant_signature` : Elliptic Curve 256k1 signature of the `participant`.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `partner` : Address of channel participant who does not ask for closing channel.  
+* `participant` : Address of channel participant who requests for closing channel.  
+* `locksroot` :Root of the merkle tree of all pending lock lockhashes for the partner.  
+* `nonce` : Strictly monotonic value used to order transfers  
+* `additional_hash` : Computed from the message. Used for message authentication.  
+* `partner_signature` : Elliptic Curve 256k1 signature of the `partner` .  
+* `participant_signature` : Elliptic Curve 256k1 signature of the `participant`.  
 
 **Scenario Description**  
 Alice prepares to close payment channel with Bob. In order to minimize the risk of losing tokens, Bob also has to update BalanceProof which he has got from Alice. Assume that Bob has delegated update BalanceProof of Alice before this channel closes. After Alice closes this channel, and Bob disconnects from this network, there is a third-party node facilitating Bob to call `updateBalanceProofDelegate` and update BalanceProof. 
@@ -335,16 +335,16 @@ function unlock(address partner, uint256 transferred_amount, uint256 expiration,
 
 event ChannelUnlocked(bytes32 indexed channel_identifier, address payer_participant, bytes32 lockhash, uint256 transferred_amount);
 ```
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `partner` : Address of the channel participant who will receive the unlocked tokens that correspond to the pending transfers that have a revealed secret.  
-- `transferred_amount` : The amount of tokens that `partner` has been sent.  
-- `expiration` : The absolute block number at which the lock expires  
-- `amount` : The amount of unlocked tokens that the partner owes to the channel participant    
-- `secret_hash` : Hash value of the secret of  the unlocked transfer  
-- `merkel_proof` : Used to authenticate that this transfer haven't been unlocked.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `partner` : Address of the channel participant who will receive the unlocked tokens that correspond to the pending transfers that have a revealed secret.  
+* `transferred_amount` : The amount of tokens that `partner` has been sent.  
+* `expiration` : The absolute block number at which the lock expires  
+* `amount` : The amount of unlocked tokens that the partner owes to the channel participant    
+* `secret_hash` : Hash value of the secret of  the unlocked transfer  
+* `merkel_proof` : Used to authenticate that this transfer haven't been unlocked.  
 
 **Scenario Description**   
-During the process that Alice makes transfers with Bob, there might be some part of transfers haven't finished. Assume that the token amount in channels of Alice and Bob are 50 and 20 respectively. At the part of Alice, there is 10 token locked which Alice plans to send to Bob. After Alice closes the payment channel, if the secret of this locked transfer has been registered on chain, then Bob can invoke `unlock` to take these 10 tokens. If Bob is a potentially fraudulent actor, and he plans to unlock this transfer via a previous BalanceProof, then upper layer can verify Bob's fraudulent intention and take corresponding actions. 
+>During the process that Alice makes transfers with Bob, there might be some part of transfers haven't finished. Assume that the token amount in channels of Alice and Bob are 50 and 20 respectively. At the part of Alice, there is 10 token locked which Alice plans to send to Bob. After Alice closes the payment channel, if the secret of this locked transfer has been registered on chain, then Bob can invoke `unlock` to take these 10 tokens. If Bob is a potentially fraudulent actor, and he plans to unlock this transfer via a previous BalanceProof, then upper layer can verify Bob's fraudulent intention and take corresponding actions. 
 
 ####  Delegate Unlock
 This function we provide is to unlock transfers whose secrets have been registered on chain, but via another trustworthy node. To unlock pending transfers, we need `merkel_proof` of those transfers. Anyone among channel participants and that trustworthy node can invoke this function with multiple times. For the reason that there might be potential risks that third-party node collude with channel partner and steal tokens of that channel participant. Hence we need the signature of channel participant. 
@@ -354,15 +354,15 @@ function unlockDelegate(address partner, address participant, uint256 transferre
 
 event ChannelUnlocked(bytes32 indexed channel_identifier, address payer_participant, bytes32 lockhash, uint256 transferred_amount);
 ```
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `partner` : Address of the channel participant that pays the amount of tokens that correspond to the pending transfers that have a revealed secret.   
-- `participant` : Address of the channel participant who will receive the unlocked tokens that correspond to the pending transfers that have a revealed secret.  
-- `transferred_amount` : The amount of tokens that `partner` has been sent.  
-- `expiration` : The absolute block number at which the lock expires  
-- `amount` : The number of tokens being transferred from partner to participant in a pending transfer.  
-- `secret_hash` : Hash value of the secret of this transfer  
-- `merkel_proof` : Used to authenticate that this transfer haven't been unlocked.  
-- `participant_signature` : Elliptic Curve 256k1 signature of the participant.  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `partner` : Address of the channel participant that pays the amount of tokens that correspond to the pending transfers that have a revealed secret.   
+* `participant` : Address of the channel participant who will receive the unlocked tokens that correspond to the pending transfers that have a revealed secret.  
+* `transferred_amount` : The amount of tokens that `partner` has been sent.  
+* `expiration` : The absolute block number at which the lock expires  
+* `amount` : The number of tokens being transferred from partner to participant in a pending transfer.  
+* `secret_hash` : Hash value of the secret of this transfer  
+* `merkel_proof` : Used to authenticate that this transfer haven't been unlocked.  
+* `participant_signature` : Elliptic Curve 256k1 signature of the participant.  
 
 **Scenario Description**   
 >During the process that Alice makes transfers with Bob, there might be some part of transfers haven't finished. Assume that the token amount in channels of Alice and Bob are 50 and 20 respectively. At the part of Alice, there is 10 tokens locked which Alice plans to send to Bob. Assume that Bob has delegated his business to a trustworthy third-party node before he disconnects from the network. After Alice closes this payment channel, and Bob is offline, then the third-party node would check whether the secret of this pending transfer  has been registered on-chain. If so, then that third-party node would invoke `unlockDelegate` to unlock the pending transfer and add that 10 tokens into `transferred_amount` in BalanceProof from Alice to Bob. 
@@ -375,11 +375,11 @@ This function we provide is mainly to punish mediator's fraudulent unlock behavi
 
  event ChannelPunished(bytes32 indexed channel_identifier, address beneficiary);
 ```
-- `beneficiary` : Address of the presenting the punishment  
-- `cheater`: Dishonest participant  
-- `lockhash`: The hash of the abandoned lock  
-- `additional_hash`: The auxiliary information used to authenticate messages   
-- `cheater_signature`: The dishonest Party's signature to give up the lock  
+* `beneficiary` : Address of the presenting the punishment  
+* `cheater`: Dishonest participant  
+* `lockhash`: The hash of the abandoned lock  
+* `additional_hash`: The auxiliary information used to authenticate messages   
+* `cheater_signature`: The dishonest Party's signature to give up the lock  
 
 **Scenario Description**   
 >After the settling window, Alice calls the punishObsoleteUnlock function to check if the discarded lock is unlocked by Bob. Assuming that Alice’s channel state is 50 (10) token before channle closure and Bob’s channel state is 20 token. Alice retrieves information about Bob's abandoned lock from the store and compares it with the unlock results on chain. If the discarded lock has been unlock by Bob, according to the punishment mechanism, Alice gets all the Bob's token, that is , Alice 70token, Bob 0 token.
@@ -404,20 +404,23 @@ event ChannelSettled(
 );
 ```
 
-- `channel_identifier` : Channel identifier assigned by the current contract.  
-- `participant1` :Address of one of the channel participants  
-- `participant1_transferred_amount` :The token which participant1 transfers to participant2,a monotonically increasing amount  
-- `participant1_locksroot` :Root of merkle tree of all pending lock lockhashes(pending transfers sent by participant1 to participant2).  
-- `participant2` : Address of the other channel participant  
-- `participant2_transferred_amount` :The token which participant2 transfers to participant1,a monotonically increasing amount  
-- `participant2_locksroot` :Root of merkle tree of all pending lock lockhashes(pending transfers sent by participant2 to participant1).  
+* `channel_identifier` : Channel identifier assigned by the current contract.  
+* `participant1` :Address of one of the channel participants  
+* `participant1_transferred_amount` :The token which participant1 transfers to participant2,a monotonically increasing amount  
+* `participant1_locksroot` :Root of merkle tree of all pending lock lockhashes(pending transfers sent by participant1 to participant2).  
+* `participant2` : Address of the other channel participant  
+* `participant2_transferred_amount` :The token which participant2 transfers to participant1,a monotonically increasing amount  
+* `participant2_locksroot` :Root of merkle tree of all pending lock lockhashes(pending transfers sent by participant2 to participant1).  
 
    This function can be called by anyone after the channel settlement window and the punishment window. The channel state Settled means that the channel is settled and the channel data is removed.
 
 **Scenario Description**   
+
   >If Alice does not find Bob unlock the abandoned lock during the punishment window , then Alice can call the settlememt function after the settlement window and the punishment window. According to the parameters submitted by both participants, the amount of tokens which need to be  transferred  is calculated and sent to the Corresponding address. Such as Alice 40 token, Bob 30 token.After the settlement is completed, the channel will be  destroyed. 
 
+
  ####  Cooperatively close and settle a channel
+
  Allows the participants to cooperate and provide both of their balances and signatures. This closes and settles the channel immediately, without triggering a challenge period.Anyone can call the function and can only call once. Cooperative settlement does not include locks. When the channel is open, the two parties negotiate to settle the channel and transfer the balance directly to the other party without closing the channel before.
 ```soldity
   function cooperativeSettle(
@@ -435,6 +438,7 @@ uint256 participant1_amount,
 uint256 participant2_amount
 ）
 ```
+
 - `channel_identifier` : Channel identifier assigned by the current contract.  
 - `participant1` :Address of one of the channel participants  
 - `participant1_balance` :Channel balance of participant1  
