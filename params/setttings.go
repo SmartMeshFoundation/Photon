@@ -25,7 +25,7 @@ const defaultProtocolThrottleFillRate = 10.
 const defaultprotocolRetryInterval = 1.
 
 //DefaultRevealTimeout blocks needs to update transfer
-const DefaultRevealTimeout = 50
+const DefaultRevealTimeout = 3
 
 //DefaultSettleTimeout settle time of channel
 const DefaultSettleTimeout = 600
