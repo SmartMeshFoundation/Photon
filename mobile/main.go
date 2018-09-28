@@ -47,6 +47,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	}
 	//panicOnNullValue()
 	params.MobileMode = true
+	params.DefaultRevealTimeout = 3
 	rapi, err := mainimpl.StartMain()
 	if err != nil {
 		return
