@@ -55,6 +55,7 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 		log.Error(err.Error())
 	}
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
+	config.NetworkMode = params.MixUDPXMPP
 	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler)
 	if err != nil {
 		log.Error(err.Error())
@@ -130,29 +131,29 @@ func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
 	rB = newTestRaidenAPIQuick()
 	rC = newTestRaidenAPIQuick()
 	rD = newTestRaidenAPIQuick()
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() {
-		/*#nosec*/
-		rA.Raiden.Start()
-		wg.Done()
-	}()
-	go func() {
-		/*#nosec*/
-		rB.Raiden.Start()
-		wg.Done()
-	}()
-	go func() {
-		/*#nosec*/
-		rC.Raiden.Start()
-		wg.Done()
-	}()
-	go func() {
-		/*#nosec*/
-		rD.Raiden.Start()
-		wg.Done()
-	}()
-	wg.Wait()
+	//wg := sync.WaitGroup{}
+	//wg.Add(4)
+	//go func() {
+	//	/*#nosec*/
+	//	rA.Raiden.Start()
+	//	wg.Done()
+	//}()
+	//go func() {
+	//	/*#nosec*/
+	//	rB.Raiden.Start()
+	//	wg.Done()
+	//}()
+	//go func() {
+	//	/*#nosec*/
+	//	rC.Raiden.Start()
+	//	wg.Done()
+	//}()
+	//go func() {
+	//	/*#nosec*/
+	//	rD.Raiden.Start()
+	//	wg.Done()
+	//}()
+	//wg.Wait()
 	return
 }
 
