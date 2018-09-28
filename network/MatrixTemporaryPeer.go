@@ -7,7 +7,7 @@ import (
 )
 
 //DefaultTemporaryPeerTimeout is the time when to remove a peer without receiving new message
-const DefaultTemporaryPeerTimeout = time.Minute * 5
+const DefaultTemporaryPeerTimeout = time.Second * 30
 
 type temporaryPeerRoomInfo struct {
 	roomID          string    //id of this room
