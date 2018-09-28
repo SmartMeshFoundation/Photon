@@ -213,7 +213,7 @@ func TestXMPPConnection_SendData(t *testing.T) {
 		si := sm[data]
 		ri := rm[data]
 		if si == nil || ri == nil {
-			t.Errorf("send or receive error for %s,ri=%s,si=%s", data, ri, si)
+			t.Errorf("send or receive error for %s,ri=%s,si=%s", data, utils.StringInterface(ri, 2), utils.StringInterface(si, 2))
 			continue
 		}
 		sendTakeTime := si.end.Sub(si.start)
