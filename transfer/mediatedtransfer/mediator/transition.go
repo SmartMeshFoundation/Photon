@@ -658,6 +658,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
 	if transferPair == nil {
+		log.Warn("no usable route, reject")
 		/*
 				回退此交易,相当于没收到过一样处理
 			todo 如何保存相关通道状态?
