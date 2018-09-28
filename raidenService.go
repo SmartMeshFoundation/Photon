@@ -923,6 +923,10 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		secret = utils.NewRandomHash()
 		lockSecretHash = utils.ShaSecret(secret[:])
 	}
+	/*
+		发起方在这里记录发起的交易状态,后续UpdateTransferStatus会更新DB中的值
+	*/
+	rs.db.NewTransferStatus(tokenAddress, lockSecretHash)
 	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
 	result.LockSecretHash = lockSecretHash
 	return
