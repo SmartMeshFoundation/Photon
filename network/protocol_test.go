@@ -13,6 +13,8 @@ import (
 
 	"sync"
 
+	"fmt"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -56,6 +58,7 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 	//	return
 	//}
 	p1.Start()
+	p2.StopAndWait()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
 	err = p1.SendAndWait(p2.nodeAddr, ping, time.Second*2)
@@ -169,15 +172,18 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(p1.privKey, mtr)
 	err := p1.SendAndWait(reciever, mtr, time.Second*5)
+	fmt.Println(err)
 	if err != errTimeout {
 		t.Errorf("should time out but get %s", err)
 		return
 	}
 	lock.Expiration = 3
+	p1.ChannelStatusGetter = &testChannelStatusGetterInvalid{}
 	mtr2 := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr2.Sign(p1.privKey, mtr2)
 	err = p1.SendAndWait(reciever, mtr2, time.Second*5)
+	fmt.Println(err)
 	if err != errExpired {
 		t.Error(errors.New("should expired before timeout"))
 		return

@@ -316,7 +316,6 @@ func (rs *RaidenService) Start() (err error) {
 			return
 		}
 	}
-
 	return nil
 }
 
@@ -1653,8 +1652,9 @@ func (rs *RaidenService) conditionQuitWhenReceiveAck(msg encoding.Messager) {
 
 func (rs *RaidenService) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (channels []*channel.Channel) {
 	for _, lockSecretHash2Channels := range rs.Token2Hashlock2Channels {
-		for _, channelsTemp := range lockSecretHash2Channels {
-			channels = append(channels, channelsTemp...)
+		chs := lockSecretHash2Channels[lockSecretHash]
+		if len(chs) > 0 {
+			channels = append(channels, chs...)
 		}
 	}
 	return

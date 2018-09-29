@@ -68,6 +68,12 @@ func (t *testChannelStatusGetter) GetChannelStatus(channelIdentifier common.Hash
 	return channeltype.StateOpened
 }
 
+type testChannelStatusGetterInvalid struct{}
+
+func (t *testChannelStatusGetterInvalid) GetChannelStatus(channelIdentifier common.Hash) int {
+	return channeltype.StateInValid
+}
+
 type timeBlockNumberGetter struct {
 	t time.Time
 }
