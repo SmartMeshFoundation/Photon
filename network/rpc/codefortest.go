@@ -19,7 +19,7 @@ import (
 )
 
 //PrivateRopstenRegistryAddress test registry address, todo use env
-var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("REGISTRY"))
+var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
 
 //TestRPCEndpoint test eth rpc url, todo use env
 var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")

@@ -166,7 +166,7 @@ IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:])
-	err := model.db.Get(bucketWithDraw, key, &result)
+	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
 	if err != nil {
 		return false
 	}
