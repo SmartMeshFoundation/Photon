@@ -32,10 +32,10 @@ func transfer(urlstr, tokenAddr, target string, amount, identifier int) (result 
 	var client = &http.Client{
 		Transport: &http.Transport{
 			Dial: func(netw, addr string) (net.Conn, error) {
-				c, err := net.DialTimeout(netw, addr, time.Second*30000)
-				if err != nil {
-					//fmt.Println("dail timeout", err)
-					return nil, err
+				c, err2 := net.DialTimeout(netw, addr, time.Second*30000)
+				if err2 != nil {
+					//fmt.Println("dail timeout", err2)
+					return nil, err2
 				}
 				return c, nil
 			},
@@ -135,7 +135,10 @@ func main() {
 }
 
 func mainctx(ctx *cli.Context) {
-	debug.Setup(ctx)
+	err := debug.Setup(ctx)
+	if err != nil {
+		log.Error(fmt.Sprintf("setup err=%s", err))
+	}
 	number := ctx.Int("number")
 	wg := sync.WaitGroup{}
 	wg.Add(number)
