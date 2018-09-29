@@ -4,7 +4,6 @@ Resources and documentation for the [SmartRaiden](https://github.com/SmartMeshFo
 New to SmartRaiden?  [Overview](./overview.md),  [Installation](./installation_guide.md), and  [Tutorial](./api_walkthrough.md)
 
 ## Develop
-Looking for detailed dev manuals?  [Developer Guides](./spec.md)
 
 Specification document for the Solidity smart contracts ? [Contract Specification](./contract_spec.md)
 

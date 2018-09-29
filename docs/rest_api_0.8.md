@@ -502,10 +502,12 @@ Query transaction status
 ```
 **Response JSON Array of Objects :**  
 - `Status`
-  - 0 - Revocable transaction status(Before sending the secret)  
-  - 1 - Irrevocable transaction status(After sending the secret)  
-  - 2 - Transaction Successed  
-  -  3 - Transaction revocation    
+  - 0 - TransferStatusInit init   
+  - 1 - TransferStatusCanCancel transfer can cancel right now  
+  - 2 - TransferStatusCanNotCancel transfer can not cancel  
+  - 3 - TransferStatusSuccess transfer already success  
+  - 4 - TransferStatusCanceled transfer cancel by user request  
+  - 5 - TransferStatusFailed transfer already failed      
 
 ## POST /api/1/registersecret  
 Register `secret`, after which `MediatedTransfer` can be successfully unlocked.    
