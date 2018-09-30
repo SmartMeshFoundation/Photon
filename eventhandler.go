@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/graph"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -51,6 +52,12 @@ func (eh *stateMachineEventHandler) dispatchBySecretHash(lockSecretHash common.H
 	}
 }
 
+func (eh *stateMachineEventHandler) dispatchByPendingLocksInChannel(channel *channel.Channel, st transfer.StateChange) {
+	for lockSecretHash := range channel.OurState.Lock2PendingLocks {
+		eh.dispatchBySecretHash(lockSecretHash, st)
+	}
+}
+
 func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager, stateChange transfer.StateChange) (events []transfer.Event) {
 	eh.updateStateManagerFromStateChange(stateManager, stateChange)
 	events = stateManager.Dispatch(stateChange)
@@ -70,12 +77,24 @@ func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager
  比如 A-B-C A-D-C ,AC进行 token swap,A 是 maker,C 是 taker,A 给 C 的 expiration 是1000,C 给 A 的 expiration 是500,
 那么 C 完全可以不理 A 发出的 secret request,然后在500块以后把 A 给 C 的 token 取走.
 */
+/*
+ *	eventSendRevealSecret : function to send RevealSecret to all channel participants.
+ *
+ *	Note that all channel participants in this payment network should refer this secret to their partner once they received the secret.
+ *	1. If one participant is sender, repeatedly register the secret has no impact.
+ *	2. If he participates in tokenswap, then he must register the secret in responding channel at the time he sends out secret to his partner.
+ *		for example, A-B-C A-D-C, AC undergoes token swap, A is the maker, C is the taker, expiration block A sets to C is 1000, expiration block C sets to A is 500.
+ *		then C can neglect secret request sent from A then steal those tokens C deposited after 500 block number.
+ */
 func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfer.EventSendRevealSecret, stateManager *transfer.StateManager) (err error) {
 	eh.raiden.conditionQuit("EventSendRevealSecretBefore")
 	eh.raiden.registerSecret(event.Secret)
 	revealMessage := encoding.NewRevealSecret(event.Secret)
 	err = revealMessage.Sign(eh.raiden.PrivateKey, revealMessage)
 	err = eh.raiden.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+	}
 	return err
 }
 func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransfer.EventSendSecretRequest, stateManager *transfer.StateManager) (err error) {
@@ -117,7 +136,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		var fromCh *channel.Channel
-		fromCh, err = eh.raiden.findChannelByAddress(event.FromChannel)
+		fromCh, err = eh.raiden.findChannelByIdentifier(event.FromChannel)
 		if err != nil {
 			return
 		}
@@ -130,6 +149,8 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		err = eh.raiden.db.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
+			// database cache fault, impossible to happen.
+			// If occurs, then throw this to upper layer.
 			//err=tx.Rollback()
 			panic(fmt.Sprintf("update channel err %s", err))
 		}
@@ -137,6 +158,9 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.raiden.sendAsync(receiver, mtr)
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+	}
 	return
 }
 func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
@@ -155,6 +179,9 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	eh.raiden.conditionQuit("EventSendUnlockBefore")
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(receiver, tr)
+	if err == nil {
+		eh.raiden.db.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+	}
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtransfer.EventSendAnnounceDisposed, stateManager *transfer.StateManager) (err error) {
@@ -181,6 +208,8 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 		eh.raiden.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		//有可能同一个消息会引发两个 event send, 比如收到 中间节点EventAnnouceDisposed
 		// 会触发EventSendAnnounceDisposedResponse 和EventSendMediatedTransfer
+		// Maybe a message triggers two event send, when receiving Medaited node's EventAnnounceDisposed
+		// which triggers EventSendAnnounceDisposedResponse, and EventSendMediatedTransfer
 		stateManager.LastReceivedMessage = nil
 	}
 	eh.raiden.conditionQuit("EventSendAnnouncedDisposedBefore")
@@ -240,7 +269,7 @@ func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransf
 	//if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
 	//	panic("EventWithdrawFailed can only comes from a target node or mediated node")
 	//}
-	//ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+	//ch, err := eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 	//if err != nil {
 	//	log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
 	//	return
@@ -263,7 +292,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	if manager.Name == target.NameTargetTransition {
 		panic("event unlock failed can not  happen for a target node")
 	}
-	ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 	if err != nil {
 		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
 		return
@@ -283,6 +312,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	eh.raiden.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
 	err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.raiden.sendAsync(ch.PartnerState.Address, tr)
+	eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	return
 }
 func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
@@ -308,7 +338,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventSendAnnouncedDisposedResponse(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendAnnouncedDisposedResponseAfter")
 	case *transfer.EventTransferSentSuccess:
-		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+		ch, err = eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 		if err != nil {
 			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
@@ -317,12 +347,14 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
+		st := eh.raiden.db.NewSentTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
+		eh.raiden.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
+		eh.raiden.db.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
-		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+		ch, err = eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 		if err != nil {
 			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
@@ -331,7 +363,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
+		rt := eh.raiden.db.NewReceivedTransfer(eh.raiden.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
+		eh.raiden.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
 		log.Error(fmt.Sprintf("EventWithdrawFailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))
@@ -443,10 +476,11 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 }
 
 func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractBalanceStateChange) error {
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
-		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelAddress=%s", utils.HPex(st.ChannelIdentifier)))
+		// todo handle this event, when routing we should consider the weight between nodes, weight = sum of deposits between a participant pair.
+		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
@@ -458,8 +492,8 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 }
 
 func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractClosedStateChange) error {
-	channelAddress := st.ChannelIdentifier
-	ch, err := eh.raiden.findChannelByAddress(channelAddress)
+	channelIdentifier := st.ChannelIdentifier
+	ch, err := eh.raiden.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		//i'm not a participant
 		token := eh.raiden.TokenNetwork2Token[st.TokenNetworkAddress]
@@ -481,6 +515,14 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 3. 数据库中 non participant 信息
 4. todo statemanager 中有关该 channel 的信息, 是否有?
 */
+/*
+ *	Remove this channel infor from local memory.
+ *
+ *	1. channel information in channel graph
+ *	2. channel info in database.
+ *	3. non participant info in database
+ *	4. todo is there any channel info in statemanager,?
+ */
 func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) error {
 	g := eh.raiden.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
 	g.RemoveChannel(ch)
@@ -498,7 +540,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -511,9 +553,11 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 }
 
 //大部分与 settle 相同,是否可以合并呢?或者合约上干脆合并了?
+// Most part of this is same as settle
+// can we just combine them?
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -522,11 +566,15 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 		return err
 	}
-	return eh.removeSettledChannel(ch)
+	err = eh.removeSettledChannel(ch)
+	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	// notify all statemanager with pending locks, then we can send announcedisposed and try another route.
+	eh.dispatchByPendingLocksInChannel(ch, st)
+	return err
 }
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -536,13 +584,22 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 		return err
 	}
 	err = eh.raiden.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
+	// nofity all statemanager with pending locks, and send announce disposed or try new route.
+	eh.dispatchByPendingLocksInChannel(ch, st)
 	return err
 }
 
 //如果是对方 unlock 我的锁,那么有可能需要 punish 对方,即使不需要 punish 对方,settle 的时候也需要用到新的 locksroot 和 transferamount
+/*
+ *	handleUnlockOnChain : function to handle unlock event.
+ *
+ *	Note that if case is that my partner unlocks locks of mine, then maybe I need to punish my partner,
+ *	even if that's not the case, when channel settle, I still need to use the the locksroot and transferAmount on chain
+ */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -552,6 +609,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 		return err
 	}
 	//对方解锁我发出去的交易,考虑可否惩罚
+	// my partner unlock transfer I sent, consider punish him?
 	if eh.raiden.NodeAddress == st.Participant {
 		ad := eh.raiden.db.GetReceiviedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
 		if ad != nil {
@@ -570,7 +628,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 }
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
 	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -584,7 +642,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 }
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
 	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -594,8 +652,10 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 }
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	// 这里需要注册密码,否则unlock消息无法正常发送
+	// we need register secret here, otherwise we can not send unlock.
 	eh.raiden.registerRevealedLockSecretHash(st.LockSecretHash, st.Secret, st.BlockNumber)
 	//需要 disatch 给相关的 statemanager, 让他们处理未完成的交易.
+	// we need dispatch it to relevant statemanager, and let them handle incomplete transfers.
 	eh.dispatchBySecretHash(st.LockSecretHash, st)
 	return nil
 }
@@ -625,7 +685,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {
-			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channelIdentifier=%s,settleblock=%d,thisblock=%d",
 				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
@@ -633,7 +693,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {
-			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channelIdentifier=%s,settleblock=%d,thisblock=%d",
 				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
 		}
 	case *mediatedtransfer.ContractChannelWithdrawStateChange:

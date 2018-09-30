@@ -131,9 +131,9 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 }
 
 //GetChannelByAddress return a channel queried by channel address
-func (model *ModelDB) GetChannelByAddress(channelAddress common.Hash) (c *channeltype.Serialization, err error) {
+func (model *ModelDB) GetChannelByAddress(ChannelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
 	var c2 channeltype.Serialization
-	err = model.db.One("Key", channelAddress[:], &c2)
+	err = model.db.One("Key", ChannelIdentifier[:], &c2)
 	if err == nil {
 		c = &c2
 	}
@@ -166,7 +166,7 @@ IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:])
-	err := model.db.Get(bucketWithDraw, key, &result)
+	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
 	if err != nil {
 		return false
 	}

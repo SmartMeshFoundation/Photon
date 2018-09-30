@@ -17,6 +17,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -56,16 +57,29 @@ type PingSender interface {
 }
 
 /*
+ChannelStatusGetter get the status of channel address, so sender can remove msg based on channel status
+	for example :
+		A send B a mediated transfer, but B is offline
+		when B is online ,this transfer is invalid, so A will never receive ack
+		if A  remove this msg, this channel can not be used only more.
+		but if A does't remove, when A settle/withdraw/reopen channel with B,this msg will make the new channel unusable too.
+		So A need to remove channel when channel status change.
+*/
+type ChannelStatusGetter interface {
+	GetChannelStatus(channelIdentifier common.Hash) int
+}
+
+/*
 BlockNumberGetter get the lastest block number,so sender can remove expired mediated transfer.
 	for example :
 		A send B a mediated transfer, but B is offline
 		when B is online ,this transfer is invalid, so A will never receive  ack ,so A will try forever.
 		message secret,secretRequest,revealSecret won't allow error
 */
-type BlockNumberGetter interface {
-	// GetBlockNumber return latest block number
-	GetBlockNumber() int64
-}
+//type BlockNumberGetter interface {
+//	// GetBlockNumber return latest block number
+//	GetBlockNumber() int64
+//}
 
 type timeoutGenerator func() time.Duration
 
@@ -115,7 +129,7 @@ type RaidenProtocol struct {
 	ReceivedMessageResultChan chan error
 	sendingQueueMap           map[string]chan *SentMessageState //write to this channel to send a message
 	receivedMessageSaver      ReceivedMessageSaver
-	BlockNumberGetter         BlockNumberGetter
+	ChannelStatusGetter       ChannelStatusGetter
 	onStop                    bool //flag for stop
 	//notify quit
 	quitChan chan struct{}
@@ -125,7 +139,7 @@ type RaidenProtocol struct {
 }
 
 // NewRaidenProtocol create RaidenProtocol
-func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNumberGetter BlockNumberGetter) *RaidenProtocol {
+func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *RaidenProtocol {
 	rp := &RaidenProtocol{
 		Transport:                 transport,
 		privKey:                   privKey,
@@ -135,9 +149,9 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, blockNu
 		ReceivedMessageChan:       make(chan *MessageToRaiden),
 		ReceivedMessageResultChan: make(chan error),
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
-		BlockNumberGetter:         blockNumberGetter,
+		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
-		receiveChan:               make(chan []byte, 20),
+		receiveChan:               make(chan []byte, 200),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -192,26 +206,32 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
 }
 
 /*
-	message mediatedTransfer  can safely be discarded when expired.
-	如果丢弃,意味着通道状态将不再同步,通道只能关闭,无法起作用了.
+	message mediatedTransfer  can safely be discarded when channel not exist only more
+	当channel被移除后,可以安全的移除待发送的消息,否则会导致新channel无法使用
+	(之前的实现是交易中的锁过期后移除,但这可能会导致通道双方状态不同步)
 */
-func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager) bool {
-	var expired int64
-	switch msg2 := msg.(type) {
-	case *encoding.MediatedTransfer:
-		expired = msg2.Expiration
-	}
-	if expired > 0 && expired <= p.BlockNumberGetter.GetBlockNumber() {
-		return false
+/*
+ *	messageCanBeSent : function to check MediatedTransfer can be discarded securely when channel no long exists.
+ *
+ *	Note that once this channel gets removed, those pending message should also be securely removed,
+ *	otherwise new channel can't be created.
+ */
+func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
+	if channelIdentifier != utils.EmptyHash {
+		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
+		if status == channeltype.StateInValid {
+			p.log.Info(fmt.Sprintf("message cannot be send because of channel status =%d", status))
+			return false
+		}
 	}
 	return true
 }
 
-func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr common.Hash) chan<- *SentMessageState {
+func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelIdentifier common.Hash) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
-	key := fmt.Sprintf("%s-%s", receiver.String(), channelAddr.String())
+	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
 	var sendingChan chan *SentMessageState
 	var ok bool
 	/*
@@ -219,14 +239,14 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 		if  channel address is not nil,it must contain a new balance proof.
 		balance proof must be sent ordered
 	*/
-	if channelAddr == utils.EmptyHash {
+	if channelIdentifier == utils.EmptyHash {
 		sendingChan = make(chan *SentMessageState, 1) //should not block sender
 	} else {
 		sendingChan, ok = p.sendingQueueMap[key]
 		if ok {
 			return sendingChan
 		}
-		sendingChan = make(chan *SentMessageState, 1000) //should not block sender
+		sendingChan = make(chan *SentMessageState, 10) //should not block sender
 		p.sendingQueueMap[key] = sendingChan
 	}
 	go func() {
@@ -256,8 +276,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 				utils.APex2(msgState.ReceiverAddress), msgState.Message,
 				utils.HPex(msgState.EchoHash)))
 			for {
-				if !p.messageCanBeSent(msgState.Message) {
-					p.log.Info(fmt.Sprintf("message cannot be send because of expired msg=%s", msgState.Message))
+				if !p.messageCanBeSent(msgState.Message, channelIdentifier) {
 					msgState.AsyncResult.Result <- errExpired
 					break
 				}
@@ -289,21 +308,21 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 	return sendingChan
 }
 
-func getMessageChannelAddress(msg encoding.Messager) common.Hash {
-	var channelAddress common.Hash
+func getMessageChannelIdentifier(msg encoding.Messager) common.Hash {
+	var channelIdentifier common.Hash
 	switch msg2 := msg.(type) {
 	case *encoding.DirectTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.MediatedTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.AnnounceDisposedResponse:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.UnLock:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.RemoveExpiredHashlockTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	}
-	return channelAddress
+	return channelIdentifier
 }
 
 /*
@@ -344,9 +363,19 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	p.SentHashesToChannel[echohash] = msgState
 	p.mapLock.Unlock()
 	result = msgState.AsyncResult
-	channelAddress := getMessageChannelAddress(msg)
-	//make sure not block
-	p.getChannelQueue(receiver, channelAddress) <- msgState
+	channelIdentifier := getMessageChannelIdentifier(msg)
+	sentChan := p.getChannelQueue(receiver, channelIdentifier)
+	//make sure not block sending
+	p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	select {
+	case sentChan <- msgState:
+		//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	default:
+		go func() {
+			p.getChannelQueue(receiver, channelIdentifier) <- msgState
+			//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+		}()
+	}
 	return
 }
 
@@ -384,7 +413,10 @@ func (p *RaidenProtocol) receive(data []byte) {
 	//todo fix ,remove copy and fix deadlock of send and receive
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
+
+	//p.log.Trace(fmt.Sprintf("try to send receive data l=%d,message=%s", len(cdata), encoding.MessageType(cdata[0])))
 	p.receiveChan <- cdata
+	//p.log.Trace(fmt.Sprintf("receive complete l=%d", len(cdata)))
 }
 
 func (p *RaidenProtocol) loop() {
@@ -524,6 +556,12 @@ func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 		}
 		nodesmap[addr] = ua
 	}
-	p.Transport.(*MixTransporter).udp.setHostPort(nodesmap)
+	if transport, ok := p.Transport.(*MixTransport); ok {
+		transport.udp.setHostPort(nodesmap)
+	} else if transport, ok := p.Transport.(*UDPTransport); ok {
+		transport.setHostPort(nodesmap)
+	} else {
+		return errors.New("no need to register nodes while udp doesn't work")
+	}
 	return nil
 }

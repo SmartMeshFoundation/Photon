@@ -9,6 +9,7 @@ import (
 
 	"encoding/hex"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,7 +52,7 @@ func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
 }
 
 //MakeTestMixTransport creat a test mix transport
-func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
+func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransport {
 	port := randomPort()
 	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
 	if err != nil {
@@ -61,10 +62,16 @@ func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransporter {
 	return t
 }
 
-type testBlockNumberGetter struct{}
+type testChannelStatusGetter struct{}
 
-func (t *testBlockNumberGetter) GetBlockNumber() int64 {
-	return 0
+func (t *testChannelStatusGetter) GetChannelStatus(channelIdentifier common.Hash) int {
+	return channeltype.StateOpened
+}
+
+type testChannelStatusGetterInvalid struct{}
+
+func (t *testChannelStatusGetterInvalid) GetChannelStatus(channelIdentifier common.Hash) int {
+	return channeltype.StateInValid
 }
 
 type timeBlockNumberGetter struct {
@@ -88,7 +95,7 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 	////#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testBlockNumberGetter{})
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 
@@ -96,7 +103,7 @@ func MakeTestRaidenProtocol(name string) *RaidenProtocol {
 func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
 	//#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, newTimeBlockNumberGetter(time.Now()))
+	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 

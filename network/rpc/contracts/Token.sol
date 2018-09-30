@@ -3,7 +3,10 @@ pragma solidity ^0.4.24;
 /// @title an interface for Token.
 /// @notice it contains various utility functions that will be used by a token.
 interface Token {
-
+    /*name,decimals and symbol are optional*/
+    /*string public name;                   //fancy name: eg Simon Bucks
+    uint8 public decimals;                //How many decimals to show.
+    string public symbol;                 //An identifier: eg SBX*/
     /// @return total amount of tokens
     function totalSupply() external view returns (uint256 supply);
 

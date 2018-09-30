@@ -37,7 +37,7 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	N6.Start(env)
 	// 启动节点3, RefundTransferRecevieAck
 	N3.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "RefundTransferRecevieAck",
+		QuitEvent: "ReceiveAnnounceDisposedAck",
 	})
 	// 初始数据记录
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
@@ -46,7 +46,7 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	cd45 := N4.GetChannelWith(N5, tokenAddress).PrintDataBeforeTransfer()
 	cd56 := N5.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 5)
 	// 4. 崩溃判断
 	if N3.IsRunning() {
@@ -62,8 +62,8 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	cd45middle := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterCrash()
 	cd56middle := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 
-	// 校验cd23, 双锁定
-	if !cd23middle.CheckLockBoth(transAmount) {
+	// 校验cd23, 无锁
+	if !cd23middle.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23middle.Name)
 	}
 	// 校验cd36，无锁定
@@ -102,8 +102,8 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 
-	// 校验cd23, 双锁定
-	if !cd23new.CheckLockBoth(transAmount) {
+	// 校验cd23, 无锁定
+	if !cd23new.CheckNoLock() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
 	}
 	// 校验cd36，无锁定

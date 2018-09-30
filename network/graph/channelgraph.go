@@ -22,6 +22,7 @@ import (
 )
 
 //EmptyExlude 为了调用 GetBestRoutes 方便一点
+// EmptyExclude : to make GetBestRoutes easy to invoke.
 var EmptyExlude map[common.Address]bool
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 }
 
 //MakeExclude 为了调用 GetBestRoutes 方便一点
+// MakeExclude : to make GetBestRoutes easy to invoke.
 func MakeExclude(addrs ...common.Address) map[common.Address]bool {
 	m := make(map[common.Address]bool)
 	for _, addr := range addrs {
@@ -45,14 +47,15 @@ type NodesStatusGetter interface {
 
 //ChannelGraph is a Graph based on the channels and can find path between participants.
 //整个 ChannelGraph 只能单线程访问
+// The whole ChannelGraph can only be accessed by a single process.
 type ChannelGraph struct {
-	g                       *dijkstra.Graph
-	OurAddress              common.Address
-	TokenAddress            common.Address
-	PartenerAddress2Channel map[common.Address]*channel.Channel
-	ChannelAddress2Channel  map[common.Hash]*channel.Channel
-	address2index           map[common.Address]int
-	index2address           map[int]common.Address
+	g                         *dijkstra.Graph
+	OurAddress                common.Address
+	TokenAddress              common.Address
+	PartenerAddress2Channel   map[common.Address]*channel.Channel
+	ChannelIdentifier2Channel map[common.Hash]*channel.Channel
+	address2index             map[common.Address]int
+	index2address             map[int]common.Address
 }
 
 /*
@@ -60,13 +63,13 @@ NewChannelGraph create ChannelGraph,one token one channelGraph
 */
 func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Address) *ChannelGraph {
 	cg := &ChannelGraph{
-		OurAddress:              ourAddress,
-		TokenAddress:            tokenAddress,
-		PartenerAddress2Channel: make(map[common.Address]*channel.Channel),
-		ChannelAddress2Channel:  make(map[common.Hash]*channel.Channel),
-		address2index:           make(map[common.Address]int),
-		index2address:           make(map[int]common.Address),
-		g:                       dijkstra.NewGraph(),
+		OurAddress:                ourAddress,
+		TokenAddress:              tokenAddress,
+		PartenerAddress2Channel:   make(map[common.Address]*channel.Channel),
+		ChannelIdentifier2Channel: make(map[common.Hash]*channel.Channel),
+		address2index:             make(map[common.Address]int),
+		index2address:             make(map[int]common.Address),
+		g:                         dijkstra.NewGraph(),
 	}
 	cg.makeGraph(edges)
 	cg.printGraph()
@@ -149,10 +152,10 @@ func (cg *ChannelGraph) AddChannel(ch *channel.Channel) error {
 	if ch.OurState.Address != cg.OurAddress {
 		return errors.New("Address mismatch, our_address doesn't match the channel details")
 	}
-	if ch2 := cg.GetChannelAddress2Channel(ch.ChannelIdentifier.ChannelIdentifier); ch2 == nil {
+	if ch2 := cg.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier]; ch2 == nil {
 
 		cg.PartenerAddress2Channel[ch.PartnerState.Address] = ch
-		cg.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier] = ch
+		cg.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier] = ch
 		cg.AddPath(ch.OurState.Address, ch.PartnerState.Address)
 	} else {
 		log.Info(fmt.Sprintf("add channel %s,but channel already exist", ch.ChannelIdentifier.String()))
@@ -216,7 +219,7 @@ func (cg *ChannelGraph) ShortestPath(source, target common.Address, amount *big.
 
 //RemoveChannel remove a channel from graph,and i'm a participant of this channel
 func (cg *ChannelGraph) RemoveChannel(ch *channel.Channel) {
-	delete(cg.ChannelAddress2Channel, ch.ChannelIdentifier.ChannelIdentifier)
+	delete(cg.ChannelIdentifier2Channel, ch.ChannelIdentifier.ChannelIdentifier)
 	delete(cg.PartenerAddress2Channel, ch.PartnerState.Address)
 	cg.RemovePath(ch.OurState.Address, ch.PartnerState.Address)
 }
@@ -305,6 +308,12 @@ GetBestRoutes returns all neighbor nodes order by weight from it to target.
 我们现在的路由算法应该是有历史记忆的最短路径/最小费用算法.
 跳过所有已经走过的路径.
 */
+/*
+ *	GetBestRoutes :function to return all neighbor nodes order by weight from it to target.
+ *
+ *	Note that the routing algorithm we currently use should be the shortest-path/minimized-fee algorithm with history record,
+ *	which circumvents all routes that have been iterated.
+ */
 func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
 	targetAdress common.Address, amount *big.Int, excludeAddresses map[common.Address]bool, feeCharger fee.Charger) (onlineNodes []*route.State) {
 	/*
@@ -371,12 +380,6 @@ func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *c
 	if c == nil {
 		//log.Error(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(cg.TokenAddress)))
 	}
-	return
-}
-
-//GetChannelAddress2Channel return a channel by address,maybe nil if not exist
-func (cg *ChannelGraph) GetChannelAddress2Channel(address common.Hash) (c *channel.Channel) {
-	c = cg.ChannelAddress2Channel[address]
 	return
 }
 

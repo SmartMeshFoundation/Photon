@@ -155,7 +155,7 @@ func (t *TokenNetworkProxy) GetContract() *contracts.TokenNetwork {
 }
 
 //CloseChannel close channel
-func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (err error) {
+func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
 	tx, err := t.GetContract().CloseChannel(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
 	if err != nil {
 		return
@@ -174,7 +174,7 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 }
 
 //CloseChannelAsync close channel async
-func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
 		err := t.CloseChannel(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
@@ -184,8 +184,8 @@ func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transf
 }
 
 //UpdateBalanceProof update balance proof of partner
-func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (err error) {
-	tx, err := t.GetContract().UpdateBalanceProof(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
+func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
+	tx, err := t.GetContract().UpdateBalanceProof(t.bcs.Auth, partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
 	if err != nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 }
 
 //UpdateBalanceProofAsync update balance proof async
-func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce int64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
 		err := t.UpdateBalanceProof(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
@@ -345,10 +345,9 @@ func (t *TokenNetworkProxy) DepositAsync(participant, partner common.Address, am
 }
 
 //Withdraw  to  a channel
-func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int,
-	p1Withdraw, p2Withdraw *big.Int, p1Signature, p2Signature []byte) (err error) {
-	tx, err := t.GetContract().WithDraw(t.bcs.Auth, p1Addr, p1Balance, p1Withdraw,
-		p2Addr, p2Balance, p2Withdraw,
+func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance,
+	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (err error) {
+	tx, err := t.GetContract().WithDraw(t.bcs.Auth, p1Addr, p2Addr, p1Balance, p1Withdraw,
 		p1Signature, p2Signature,
 	)
 	if err != nil {
@@ -368,11 +367,11 @@ func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance, p
 }
 
 //WithdrawAsync   a channel async
-func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int,
-	p1Withdraw, p2Withdraw *big.Int, p1Signature, p2Signature []byte) (result *utils.AsyncResult) {
+func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balance,
+	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
-		err := t.Withdraw(p1Addr, p2Addr, p1Balance, p2Balance, p1Withdraw, p2Withdraw, p1Signature, p2Signature)
+		err := t.Withdraw(p1Addr, p2Addr, p1Balance, p1Withdraw, p1Signature, p2Signature)
 		result.Result <- err
 	}()
 	return

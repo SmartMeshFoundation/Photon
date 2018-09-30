@@ -4,11 +4,11 @@ import "./Utils.sol";
 import "./Token.sol";
 import "./TokenNetwork.sol";
 
-/// @title contract to register a TokenNetwork.
-/// @notice arg
+/// @title TokenNetworkRegistry
+/// @notice the contract to register the TokenNetwork.
 contract TokenNetworkRegistry is Utils {
 
-    string constant public contract_version = "0.3._";
+    string constant public contract_version = "0.4._";
     address public secret_registry_address;
     uint256 public chain_id;
 
@@ -33,8 +33,8 @@ contract TokenNetworkRegistry is Utils {
     /// @param  _token_address          the address of a token contract
     /// @return token_network_address   the address of a token network contract.
     function createERC20TokenNetwork(address _token_address)
-        external
-        returns (address token_network_address)
+    external
+    returns (address token_network_address)
     {
         require(token_to_token_networks[_token_address] == 0x0);
 

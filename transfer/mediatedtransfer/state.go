@@ -141,6 +141,9 @@ StateSecretRegistered 密码已经在链上披露了
 发起方收到SecretRegistered, 应该立即发送 unlock 消息
 中间节点也是一样,收到 secretRegistered 以后,必须立即给下家发送 unlock 消息,无论有没有收到上家的 unlock 消息
 */
+// StateSecretRegistered : channel state meaning that secret has been registered on-chain.
+// Then all channel participant assume that this transfer completes, no matter transfer initiator, mediator, or recipient.
+// And they should immediately send unlock to their partner once they have received SecretRegistered.
 const StateSecretRegistered = "secret_registered"
 
 //TargetState State of mediated transfer target.

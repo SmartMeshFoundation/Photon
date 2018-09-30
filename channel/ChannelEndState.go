@@ -76,8 +76,9 @@ func (node *EndState) locksRoot() common.Hash {
 //SetContractTransferAmount update node's  transfer amount by contract event
 func (node *EndState) SetContractTransferAmount(amount *big.Int) {
 	// amount 为0,只有一种情况就是发生了 punish 事件
-	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) <= 0 {
-		panic(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
+	// amount is 0, which means punish event occurs.
+	if amount.Cmp(utils.BigInt0) != 0 && amount.Cmp(node.BalanceProofState.TransferAmount) < 0 {
+		log.Error(fmt.Sprintf("ContractTransferAmount must be greater, ContractTransferAmount=%s,TransferAmount=%s",
 			amount,
 			node.BalanceProofState.TransferAmount,
 		))
@@ -97,7 +98,7 @@ func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
 }
 
 //SetContractNonce update node's nonce by contract event
-func (node *EndState) SetContractNonce(nonce int64) {
+func (node *EndState) SetContractNonce(nonce uint64) {
 	node.BalanceProofState.Nonce = nonce
 }
 
@@ -114,7 +115,7 @@ func (node *EndState) amountLocked() *big.Int {
 }
 
 //nonce returns next nonce of this node.
-func (node *EndState) nonce() int64 {
+func (node *EndState) nonce() uint64 {
 	return node.BalanceProofState.Nonce
 }
 
@@ -274,6 +275,14 @@ nonce,channel 由前置检查保证
 transferAmount 必须增大,
 locksroot 必须相等.
 */
+/*
+ *	registerDirectTransfer : function to register message of direct transfer.
+ *
+ *	Security Check :
+ *		1. nonce, channel must be ensured by pre-set check.
+ *		2. transferAmount must increase.
+ *		3. locksroot must not get changed.
+ */
 func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTransfer) error {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(directTransfer)
 	if balanceProof.LocksRoot != node.Tree.MerkleRoot() {
@@ -310,6 +319,14 @@ this message may be sent out from this node or received from partner
 2.locksroot 要恰好等于去掉这个锁
 3.transferAmount 要恰好等于这个锁的金额加上历史 transferAmount
 */
+/*
+ *	registerSecretMessage : function to register message of secret.
+ *
+ *	Note that this message may be sent out from this node or received from his partner.
+ *		1. this transfer lock exists.
+ *		2. locksroot must remove lock of this transfer.
+ *		3. transferAmount must equal to the value of previous transferAmount plus the amount of this transfer.
+ */
 func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error) {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(unlock)
 	lockSecretHash := utils.ShaSecret(unlock.LockSecret[:])
@@ -330,6 +347,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	/*
 		金额只能是当前金额加上本次锁的金额,多了少了都是错的
 	*/
+	// transferAmount = previous transferAmount + token amount in this lock
 	if unlock.TransferAmount.Cmp(transferAmount) != 0 {
 		return fmt.Errorf("invalid transferred_amount, expected: %s got: %s",
 			transferAmount, unlock.TransferAmount)
@@ -339,6 +357,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	/*
 		确保所有的信息都是正确的,才能更新状态
 	*/
+	// Verify messages are correct then update channel state.
 	node.Tree = newtree
 	node.BalanceProofState = balanceProof
 	return nil
@@ -351,6 +370,14 @@ this message may be sent out from this node or received from partner
 2.transferAmount 必须不变
 3.locksroot 要恰好等于旧 locksroot 加上新锁
 */
+/*
+ *	registerMediatedMessage : function to register messages of MediatedTransfer.
+ *
+ *	Note that this message may be sent out from this node or received by his partner.
+ *		1. the lock must not be existent.
+ *		2. transferAmount must not have any change.
+ * 		3. locksroot must be equal to value of previous locksroot plus the amount of this new amount.
+ */
 func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (err error) {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(mtr)
 	mtranfer := encoding.GetMtrFromLockedTransfer(mtr)

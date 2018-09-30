@@ -7,6 +7,8 @@ import (
 
 	"errors"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
@@ -56,7 +58,6 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 		err = mh.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
-		mh.raiden.db.NewReceivedRevealSecret(models.NewReceivedRevealSecret(m2, hash))
 		f := mh.raiden.RevealSecretListenerMap[m2.LockSecretHash()]
 		if f != nil {
 			remove := (f)(m2)
@@ -114,11 +115,17 @@ func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 /*
  todo 收到密码,可能会影响到好多StateManager, 这些 StateManager 我如何做到原子保存呢?
 */
+// todo receive secret may impact manay StateManager, how should I do atomic store for these StateManager?
 func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender
 	mh.raiden.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
+	// save log to db
+	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash())
+	for _, c := range channels {
+		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
@@ -129,12 +136,25 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 2. 找到了对应的 StateManager, 但是消息内容不对,比如 Amount 不对,忽略即可
 3. 找到了对应的 StateManager, 并且消息内容正确,则肯定回发送 RevealSecret,这时保存消息收到并且更新状态
 */
+/*
+ *	messageSecretRequest : function to handle SecretRequest
+ *
+ *	Note that channel states should be triggered by stateManager to keep the record of these states.
+ *	1. If there is no relevant StateManager, then do nothing.
+ *	2. If we find relevant StateManager, but message content has faults, just neglect it.
+ *	3. If we find relevant StateManager, and message is correct, then send RevealSecret, and store this message and switch channel state.
+ */
 func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
 	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
 		Amount:         new(big.Int).Set(msg.PaymentAmount),
 		LockSecretHash: msg.LockSecretHash,
 		Sender:         msg.Sender,
 		Message:        msg,
+	}
+	// save log to db
+	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash)
+	for _, c := range channels {
+		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
@@ -150,18 +170,44 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 3. CrashStateManager 更新 State, 移除此锁
 因此,适宜直接在此函数更新通道状态并保存ack
 */
+/*
+ *	messageUnlock : function to handle unlock.
+ *
+ *	Note that if received unlock message, first we need to verify if it is correct. If not, which means channel states are not synchronized, then close the channel.
+ *	If correct, then just check relevant StateManager, there are four possible StateManager.
+ *	1. InitiatorStateManager : assumed fault, neglect.
+ *	2. MediatedStateManager : update channel state, may assume that this transfer completes (only one TransferPair), or this transfer goes on (multiple TransferPair).
+ *	3. TargetStateManager : update channel state, assume this transfer completes.
+ *	4. CrashStateManager : update channel state and remove the lock.
+ *	So, it is reasonable that we update channel state and store ACK just in this function.
+ */
 func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	lockSecretHash := msg.LockSecretHash()
 	secret := msg.LockSecret
 	mh.raiden.registerSecret(secret)
 	var ch *channel.Channel
 	var err error
-	ch, err = mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
+	ch, err = mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
 		return err
 	}
 	log.Trace(fmt.Sprintf("lockSecretHash=%s,nettingchannel=%s", utils.HPex(lockSecretHash), ch))
+	/*
+		收到unlock时,需要判断下通道的状态,如果该通道的状态已经不为open了,就不应该处理这笔unlock,否则有可能会损失钱.
+		因为我已经提交过balance proof,如果不提交新的,我会损失钱,如果提交新的,那么之前在链上unlock过的锁,需要再unlock一遍,同样会损失gas
+		所以应该拒绝该笔unlock,什么都不做
+	*/
+	/*
+		When receive an unlock, I need to determine the state of the next channel.
+		If the state of the channel is no longer open, I shouldn't process the unlock, otherwise I may lose money.
+		Because I've already submitted balance proof, if I don't submit a new one, I'll lose money.
+		If I submit a new one, then unlocked locks on the chain that were previously unlocked need to be unlocked again, and gas will also be lost.
+		So we should abandon the unlock msg and do nothing.
+	*/
+	if !channeltype.CanDealUnlock[ch.State] {
+		return errors.New("received unlock msg,but channel cannot deal unlock, do nothing")
+	}
 	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("messageUnlock RegisterTransfer err=%s", err))
@@ -180,8 +226,15 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 相关的 StateManager 自己根据超时判断是否结束
 适宜直接更新通道并保存 ack
 */
+/*
+ * messageRemoveExpiredHashlockTransfer : function to handle RemoveExpiredHashlock event.
+ *
+ *	Note that if message is faulty, which means channel states are not synchronized, this channel should be closed.
+ *	Relevant StateManager should check this by settle_timeout
+ *	Reasonable to update channel and store ACK.
+ */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
+	ch, err := mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		return fmt.Errorf("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 	}
@@ -210,6 +263,21 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 1. 作为 InitiatorStateManager, 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
 2. 作为MediatedStateManager 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
 */
+/*
+ * messageAnnounceDisposed : function to handle AnnounceDisposed message.
+ *
+ *	Note that when receiving AnnounceDisposed, if any fault occurs, which means channel states are not synchronized, this channel should be closed.
+ *	When receiving normal AnnounceDisposed :
+ *	1. InitiatorStateManager : Choose another node to route, and it may fail, but certainly it sends out AnnounceDisposedResponse.
+ *	2. MediatedStateManager : Choose another node to route, may send AnnounceDisposed denoting that this transfer can't be furthered, but it must send AnnounceDisposedResponse.
+ *	3. TargetStateManager : faulty channel state, impossible to occur.
+ * 	4. CrashStateManager : immediately send AnnounceDisposedResponse
+ *
+ *	Hence, once channel states and stored messages are received, they can be put in EventSendAnnounceDisposedResponse.
+ *	But there are cases of non-atomic update :
+ *	1. As to InitiatorStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
+ *	2. As to MediatedStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
+ */
 func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -240,6 +308,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Message: msg,
 	}
 	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
+	mh.raiden.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 
@@ -253,6 +322,17 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 4. CrashStateManager 无需处理,等锁自动过期即可,因为这种情况,我是不会知道密码的.
 因此适宜直接更新通道,并保存ack
 */
+/*
+ *	messageAnnounceDisposedResponse : function to handle AnnounceDisposedResponse event.
+ *
+ *	Note that when receiving AnnounceDisposed, if any fault occurs, which means channel states are not synchronized, this channel should be closed.
+ *	When receiving normal AnnounceDisposedResponse :
+ *	1. InitiatorStateManager : Cannot receive this event, faults occur.
+ *	2. MediatedStateManager : No need to handle.
+ *	3. TargetStateManager : impossible to receive this event.
+ * 	4. CrashStateManager : No need to handle, just wait for expiration.
+ *	Reasonable to update payment channel and store ACK.
+ */
 func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
@@ -269,6 +349,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	/*
 		必须验证我确实发送过这个Dispose
 	*/
+	// must check that I actually send this Dispose
 	b := mh.raiden.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
 	if !b {
 		return fmt.Errorf("maybe a attack, receive a announce disposed response,but i never send announce disposed,msg=%s", msg)
@@ -278,6 +359,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		return
 	}
 	//保存通道状态即可.
+	// Just store channel state.
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
@@ -286,7 +368,18 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 如果验证错误,说明节点状态不同步,只能关闭通道
 没有相关的 StateManager, 直接更新通道并保持 ack
 */
+/*
+ * messageDirectTransfer : function to handle directTransfer event.
+ *
+ *	Note that if verification is faulty, which means channel states are not synchronized, then we have to close this channel.
+ *	There is no relevant StateManager, just update channel states and store ACK.
+ */
 func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
+	// 用户调用了prepare-update,暂停接收新交易
+	// halt new transfer because clients invoke prepare-update
+	if mh.raiden.StopCreateNewTransfers {
+		return rerr.ErrStopCreateNewTransfer
+	}
 	//mh.balanceProof(msg)
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
@@ -331,13 +424,32 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 3. 如果是 token swap
 todo 需要设计如何保存 token swap 相关数据,并在崩溃恢复以后保证原子性.
 */
+/*
+ *	received MediatedTransfer. If verification fails, which means node states are not synchronous, and channel has to be closed.
+ *
+ *	Verification succeed :
+ *		1. I am transfer initiator : Create TargetStateManager, send SecretRequest, and should update channel state in EventSendSecretRequest, and Store ACK.
+ *		2. I am mediated node :
+ *				2.1 First time receiving this LockSecretHash : Create a MediatedStateManager, if we can continue our transfer, then send MediatedTransfer,
+ *				otherwise sending AnnounceDisposed, should update channel state and store ACK in relevant send event.
+ *				2.2 n-th time receiving this LockSecretHash : if transfer can continue, then sending MediatedTransfer, otherwise, sending AnnounceDisposed,
+ *				participants should update channel states and store ACK in relevant send event.
+ *		3. if we use token swap.
+ *		todo we should design how to store related data of token swap, and ensure atomicity after node crashes.
+ */
 func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
+	// 用户调用了prepare-update,暂停接收新交易
+	// Clients inovke prepare-update, stop receiving new transfers.
+	if mh.raiden.StopCreateNewTransfers {
+		return rerr.ErrStopCreateNewTransfer
+	}
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
 		//todo what about return a AnnounceDisposed Message ?
 		/*
 			需要考虑恶意攻击的情况,比如发送一个我已经知道密码,但是尚未 unlock 的锁
 		*/
+		// We need to consider cases with potential attack risks, such as sending a lock that I know the secret but not yet unlock.
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
 	if mh.raiden.Config.IsMeshNetwork {
@@ -361,6 +473,31 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if err != nil {
 		return err
 	}
+	// only for test
+	dataForDebug := &struct {
+		SearchKey           string
+		TokenNetworkAddress string
+		PartnerAddress      string
+		TransferAmount      int64
+		Expiration          int64
+		Amount              int64
+		LockSecretHash      string
+		MerkleProof         []common.Hash
+		Signature           string
+	}{
+		SearchKey:           "dataForDebug",
+		TokenNetworkAddress: mh.raiden.Config.RegistryAddress.String(),
+		PartnerAddress:      msg.Sender.String(),
+		TransferAmount:      msg.TransferAmount.Int64(),
+		Expiration:          msg.Expiration,
+		Amount:              msg.PaymentAmount.Int64(),
+		LockSecretHash:      msg.LockSecretHash.String(),
+		MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
+		Signature:           common.Bytes2Hex(msg.Signature),
+	}
+
+	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
+	log.Trace(string(buf))
 	//mh.updateChannelAndSaveAck(ch, msg.Tag())
 	if msg.Target == mh.raiden.NodeAddress {
 		mh.raiden.targetMediatedTransfer(msg, ch)
@@ -390,6 +527,14 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 无论那种情况,这个通道在对方看来都不能再继续使用,只能强制关闭.
 直接更新通道状态并保存 ack 即可
 */
+/*
+ *	messageSettleRequest : function to handle SettleRequest event.
+ *
+ *	Note that if verification does not pass, the reason might be channel states are not synchronous,
+ *	or maybe there are another on-chain asynchronous event.
+ *  No matter which is our case, this channel are assumed to be not able to use, then enforce channel close.
+ * 	Directly update channel states and store ACK.
+ */
 func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
 	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
@@ -414,20 +559,22 @@ func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 		log.Error(fmt.Sprintf("CreateCooperativeSettleResponse err %s", err))
 		return err
 	}
-	if ch.HasAnyUnkonwnSecretTransferOnRoad() {
-		//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
-		result := ch.CooperativeSettleChannelOnRequest(msg.Participant1Signature, settleResponse)
-		go func() {
-			var err2 error
-			err2 = <-result.Result
-			if err2 != nil {
-				log.Error(fmt.Sprintf("CooperativeSettleChannelOnRequest err %s", err2))
-			} else {
-				log.Info(fmt.Sprintf("CooperativeSettleChannelOnRequest success on channel %s", ch.ChannelIdentifier.String()))
-			}
-		}()
-		return nil
-	}
+	// 如果这里有我发出的未解的锁,那么说明对方在老的balance_proof上withdraw,
+	// 此时同意对我并没有坏处,所以正常返回response
+	//if ch.HasAnyUnkonwnSecretTransferOnRoad() {
+	//	//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
+	//	result := ch.CooperativeSettleChannelOnRequest(msg.Participant1Signature, settleResponse)
+	//	go func() {
+	//		var err2 error
+	//		err2 = <-result.Result
+	//		if err2 != nil {
+	//			log.Error(fmt.Sprintf("CooperativeSettleChannelOnRequest err %s", err2))
+	//		} else {
+	//			log.Info(fmt.Sprintf("CooperativeSettleChannelOnRequest success on channel %s", ch.ChannelIdentifier.String()))
+	//		}
+	//	}()
+	//	return nil
+	//}
 	err = settleResponse.Sign(mh.raiden.PrivateKey, settleResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for settle response err %s", err))
@@ -455,6 +602,12 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 			极小概率可能出现,如果出现,就退回到原始的 close/settle 模式
 		也要防止另一方主动发出 settle response, 而我并没有发出 settle request 请求这种情况.
 	*/
+	/*
+	 *	Is there any possibility that both participants send settle request?
+	 *	Like one of them send settle, but the other send withdraw.
+	 *	Not possible, if so, then revert to orignal close/settle mode.
+	 *	Also, we need to prevent the other participant proactively send settle response, but I do not send settle request.
+	 */
 	if ch.State != channeltype.StateCooprativeSettle {
 		return fmt.Errorf("receive settle response but channel state is %s", ch.State)
 	}
@@ -491,27 +644,31 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 		log.Error(fmt.Sprintf("RegisterWithdrawRequest error %s\n", err))
 		return err
 	}
-	//这里需要询问用户我想取现多少,现在默认用0来替代.
-	withdrawResponse, err := ch.CreateWithdrawResponse(msg, utils.BigInt0)
+	// 现在只允许一方取现,直接构造response
+	// Now we only allow one partcipant to withdraw, directly create response.
+	withdrawResponse, err := ch.CreateWithdrawResponse(msg)
 	if err != nil {
 		//if err, channel can only be closed /settled
 		log.Error(fmt.Sprintf("CreateWithdrawResponse err %s", err))
 		return err
 	}
-	if ch.HasAnyUnkonwnSecretTransferOnRoad() {
-		//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
-		result := ch.WithdrawOnRequest(msg.Participant1Signature, withdrawResponse)
-		go func() {
-			var err2 error
-			err2 = <-result.Result
-			if err2 != nil {
-				log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
-			} else {
-				log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier.String()))
-			}
-		}()
-		return nil
-	}
+
+	// 如果这里有我发出的未解的锁,那么说明对方在老的balance_proof上withdraw,
+	// 此时同意对我并没有坏处,所以正常返回response
+	//if ch.HasAnyUnkonwnSecretTransferOnRoad() {
+	//	//我自己理解 withdraw on channel就可以,防止上一笔交易额外损失
+	//	result := ch.WithdrawOnRequest(msg.Participant1Signature, withdrawResponse)
+	//	go func() {
+	//		var err2 error
+	//		err2 = <-result.Result
+	//		if err2 != nil {
+	//			log.Error(fmt.Sprintf("WithdrawOnRequest err %s", err2))
+	//		} else {
+	//			log.Info(fmt.Sprintf("WithdrawOnRequest success on channel %s", ch.ChannelIdentifier.String()))
+	//		}
+	//	}()
+	//	return nil
+	//}
 	err = withdrawResponse.Sign(mh.raiden.PrivateKey, withdrawResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for withdraw response err %s", err))
@@ -539,6 +696,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	/*
 		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册
 	*/
+	// We need to verify withdraw request that is send and tokenAmount is correct, then register this request.
 	err := ch.RegisterWithdrawResponse(msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
@@ -546,6 +704,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
+	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)
 	go func() {
 		err = <-result.Result

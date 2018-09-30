@@ -1,7 +1,14 @@
 package smartraiden
 
 import (
+	"encoding/binary"
 	"time"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/channel"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 
 	"fmt"
 
@@ -12,8 +19,6 @@ import (
 	"errors"
 
 	"bytes"
-	"encoding/binary"
-
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -25,6 +30,8 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+var errEthConnectionNotReady = errors.New("eth connection not ready")
 
 //RaidenAPI raiden for user
 type RaidenAPI struct {
@@ -73,8 +80,8 @@ func (r *RaidenAPI) GetChannelList(tokenAddress common.Address, partnerAddress c
 }
 
 //GetChannel get channel by address
-func (r *RaidenAPI) GetChannel(channelAddress common.Hash) (c *channeltype.Serialization, err error) {
-	return r.Raiden.db.GetChannelByAddress(channelAddress)
+func (r *RaidenAPI) GetChannel(ChannelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+	return r.Raiden.db.GetChannelByAddress(ChannelIdentifier)
 }
 
 /*
@@ -82,6 +89,10 @@ TokenAddressIfTokenRegistered return the channel manager address,If the token is
 Also make sure that the channel manager is registered with the node.
 */
 func (r *RaidenAPI) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+	if r.Raiden.Registry == nil {
+		err = errEthConnectionNotReady
+		return
+	}
 	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err != nil {
 		return
@@ -94,6 +105,10 @@ RegisterToken Will register the token at `token_address` with raiden. If it's al
     registered, will throw an exception.
 */
 func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+	if r.Raiden.Registry == nil {
+		err = errEthConnectionNotReady
+		return
+	}
 	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
 	if err == nil && mgrAddr != utils.EmptyAddress {
 		err = errors.New("TokenNetworkAddres already registered")
@@ -324,32 +339,27 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 	return
 }
 
-//TransferAndWait Do a transfer with `target` with the given `amount` of `token_address`.
-func (r *RaidenAPI) TransferAndWait(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (err error) {
-	result, err := r.transferAsync(token, amount, fee, target, secret, isDirectTransfer)
+//Transfer transfer and wait
+func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferAsync(token, amount, fee, target, secret, isDirectTransfer)
 	if err != nil {
-		return err
+		return
 	}
 	if timeout > 0 {
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			err = rerr.ErrTransferTimeout
+			return result, errors.New("timeout")
 		case err = <-result.Result:
 		}
 	} else {
 		err = <-result.Result
 	}
-	return
+	return result, err
 }
 
-//Transfer transfer and wait
-func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) error {
-	return r.TransferAndWait(token, amount, fee, target, secret, timeout, isDirectTransfer)
-}
-
-//transferAsync
-func (r *RaidenAPI) transferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+//TransferAsync :
+func (r *RaidenAPI) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -410,6 +420,7 @@ func (r *RaidenAPI) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress c
 func (r *RaidenAPI) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
 	lockSecretHash := utils.ShaSecret(secret.Bytes())
 	//在channel 中注册密码
+	// register secret in channel
 	r.Raiden.registerSecret(secret)
 
 	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
@@ -425,6 +436,7 @@ func (r *RaidenAPI) RegisterSecret(secret common.Hash, tokenAddress common.Addre
 		return rerr.InvalidState("wrong secret")
 	}
 	// 在state manager中注册密码
+	// register secret in state manager
 	state.FromTransfer.Secret = secret
 	state.Secret = secret
 	return
@@ -458,6 +470,7 @@ func (r *RaidenAPI) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, to
 	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
 	if !ok {
 		// 接收人不是自己
+		// I'm not the recipient
 		return
 	}
 	resp = new(TransferDataResponse)
@@ -716,10 +729,10 @@ func (r *RaidenAPI) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, e
 }
 
 //GetChannelEvents events of this channel
-func (r *RaidenAPI) GetChannelEvents(channelAddress common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
+func (r *RaidenAPI) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
 
 	//var events []transfer.Event
-	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
+	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelIdentifier, fromBlock, toBlock)
 	//if err != nil {
 	//	return
 	//}
@@ -810,112 +823,144 @@ func (r *RaidenAPI) Stop() {
 	log.Info("stop successful..")
 }
 
-/*
-{
-    "channel_address": "0x5B3F0E96E45e1e4351F6460feBfB6007af25FBB0",
- "update_transfer":{
-        "nonce": 32,
-        "transferred_amount": 1800000000000000,
-        "locksroot": " 0x447b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89",
-        "extra_hash": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89",
-        "closing_signature": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e8927",
-        "non_closing_signature": " 0x557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e89557b478a024ade59c5c18e348c357aae6a4ec6e30131213f8cf6444214c57e8927"
- },
- "withdraws":[
-     {
-        "locked_encoded": "0x00000033333333333333333333333333333333333333333",
-        "merkle_proof": "0x3333333333333333333333333333",
-        "secret": "0x333333333333333333333333333333333333333",
-     },
-      {
-        "locked_encoded": "0x00000033333333333333333333333333333333333333333",
-        "merkle_proof": "0x3333333333333333333333333333",
-        "secret": "0x333333333333333333333333333333333333333",
-     },
- ],
-}
-*/
 type updateTransfer struct {
-	Nonce               int64    `json:"nonce"`
-	TransferAmount      *big.Int `json:"transfer_amount"`
-	Locksroot           string   `json:"locksroot"`
-	ExtraHash           string   `json:"extra_hash"`
-	ClosingSignature    string   `json:"closing_signature"`
-	NonClosingSignature string   `json:"non_closing_signature"`
+	Nonce               uint64      `json:"nonce"`
+	TransferAmount      *big.Int    `json:"transfer_amount"`
+	Locksroot           common.Hash `json:"locksroot"`
+	ExtraHash           common.Hash `json:"extra_hash"`
+	ClosingSignature    []byte      `json:"closing_signature"`
+	NonClosingSignature []byte      `json:"non_closing_signature"`
 }
+
+//todo 需要第三方服务帮忙注册密码么?如果不需要,是否应该自己注册密码?
+// todo do we need delegation service to help us register secret? If not, should we register secret in person?
 type unlock struct {
-	LockedEncoded string `json:"locked_encoded"`
-	MerkleProof   string `json:"merkle_proof"`
-	Secret        string `json:"secret"`
+	Lock        *mtree.Lock `json:"lock"`
+	MerkleProof []byte      `json:"merkle_proof"`
+	Secret      common.Hash `json:"secret"`
+	Signature   []byte      `json:"signature"`
+}
+
+//需要委托给第三方的 punish证据
+// punish proof that is delegated to third-party.
+type punish struct {
+	LockHash       common.Hash `json:"lock_hash"` //the whole lock's hash,not lock secret hash
+	AdditionalHash common.Hash `json:"additional_hash"`
+	Signature      []byte      `json:"signature"`
 }
 
 //ChannelFor3rd is for 3rd party to call update transfer
 type ChannelFor3rd struct {
-	ChannelAddress string         `json:"channel_address"`
-	UpdateTransfer updateTransfer `json:"update_transfer"`
-	Withdraws      []*unlock      `json:"withdraws"`
+	ChannelIdentifier  common.Hash    `json:"channel_identifier"`
+	OpenBlockNumber    int64          `json:"open_block_number"`
+	TokenNetworkAddrss common.Address `json:"token_network_address"`
+	PartnerAddress     common.Address `json:"partner_address"`
+	UpdateTransfer     updateTransfer `json:"update_transfer"`
+	Unlocks            []*unlock      `json:"unlocks"`
+	Punishes           []*punish      `json:"punishes"`
 }
 
 /*
 ChannelInformationFor3rdParty generate all information need by 3rd party
 */
-func (r *RaidenAPI) ChannelInformationFor3rdParty(channelAddr common.Hash, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
+func (r *RaidenAPI) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
 	var sig []byte
-	c, err := r.GetChannel(channelAddr)
+	c, err := r.GetChannel(ChannelIdentifier)
 	if err != nil {
 		return
 	}
 	c3 := new(ChannelFor3rd)
-	c3.ChannelAddress = channelAddr.String()
+	c3.ChannelIdentifier = ChannelIdentifier
+	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
+	c3.TokenNetworkAddrss = r.Raiden.Token2TokenNetwork[c.TokenAddress()]
+	c3.PartnerAddress = c.PartnerAddress()
 	if c.PartnerBalanceProof == nil {
 		result = c3
 		return
 	}
-	c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
-	c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
-	c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot.String()
-	c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash.String()
-	c3.UpdateTransfer.ClosingSignature = common.Bytes2Hex(c.PartnerBalanceProof.Signature)
-	sig, err = signFor3rd(c, thirdAddr, r.Raiden.PrivateKey)
-	if err != nil {
-		return
+	if c.PartnerBalanceProof.Nonce > 0 {
+		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
+		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
+		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
+		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
+		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
+		sig, err = signBalanceProofFor3rd(c, r.Raiden.PrivateKey)
+		if err != nil {
+			return
+		}
+		c3.UpdateTransfer.NonClosingSignature = sig
 	}
-	c3.UpdateTransfer.NonClosingSignature = common.Bytes2Hex(sig)
-	//todo 以后添加
-	//tree := mtree.NewMerkleTree(c.PartnerLeaves)
-	//var ws []*unlock
-	//for _, l := range c.PartnerLock2UnclaimedLocks() {
-	//	//proof := channel.ComputeProofForLock( l.Lock, tree)
-	//	//w := &unlock{
-	//	//	LockedEncoded: common.Bytes2Hex(mtree.Proof2Bytes(proof)),
-	//	//	Secret:        l.Secret.String(),
-	//	//	MerkleProof:   common.Bytes2Hex(transfer.Proof2Bytes(proof.MerkleProof)),
-	//	//}
-	//	//log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
-	//	//ws = append(ws, w)
-	//}
-	//c3.Withdraws = ws
 
+	tree := mtree.NewMerkleTree(c.PartnerLeaves)
+	var ws []*unlock
+	for _, l := range c.PartnerLock2UnclaimedLocks() {
+		proof := channel.ComputeProofForLock(l.Lock, tree)
+		w := &unlock{
+			Lock:        l.Lock,
+			Secret:      l.Secret,
+			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
+		}
+		w.Signature, err = signUnlockFor3rd(c, w, thirdAddr, r.Raiden.PrivateKey)
+		log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
+		ws = append(ws, w)
+	}
+	c3.Unlocks = ws
+	var ps []*punish
+	for _, annouceDisposed := range r.Raiden.db.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
+		//跳过历史 channel
+		// omit history channel
+		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
+			continue
+		}
+		p := &punish{
+			LockHash:       common.BytesToHash(annouceDisposed.LockHash),
+			AdditionalHash: annouceDisposed.AdditionalHash,
+			Signature:      annouceDisposed.Signature,
+		}
+		ps = append(ps, p)
+	}
+	c3.Punishes = ps
 	result = c3
 	return
 }
 
 //make sure PartnerBalanceProof is not nil
-func signFor3rd(c *channeltype.Serialization, thirdAddr common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
+func signBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
 	if c.PartnerBalanceProof == nil {
 		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
 		return nil, errors.New("empty PartnerBalanceProof")
 	}
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractBalanceProofDelegateMessageLength))
 	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
 	_, err = buf.Write(c.PartnerBalanceProof.LocksRoot[:])
+	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
 	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	_, err = buf.Write(c.PartnerBalanceProof.MessageHash[:])
-	_, err = buf.Write(c.PartnerBalanceProof.Signature)
-	_, err = buf.Write(thirdAddr[:])
+	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	if err != nil {
 		log.Error(fmt.Sprintf("buf write error %s", err))
+	}
+	dataToSign := buf.Bytes()
+	return utils.SignData(privkey, dataToSign)
+}
+
+func signUnlockFor3rd(c *channeltype.Serialization, u *unlock, thirdAddress common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractUnlockDelegateProofMessageLength))
+	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
+	_, err = buf.Write(thirdAddress[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Lock.Expiration)))
+	_, err = buf.Write(utils.BigIntTo32Bytes(u.Lock.Amount))
+	_, err = buf.Write(u.Lock.LockSecretHash[:])
+	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	if err != nil {
+		log.Error(fmt.Sprintf("buf write error %s", err))
+		return
 	}
 	dataToSign := buf.Bytes()
 	return utils.SignData(privkey, dataToSign)
@@ -1003,4 +1048,64 @@ func (r *RaidenAPI) getBalance() (balances []*AccountTokenBalanceVo, err error) 
 		balances = append(balances, balance)
 	}
 	return
+}
+
+// ForceUnlock : only for debug
+func (r *RaidenAPI) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secret common.Hash) (err error) {
+	channel := r.Raiden.getChannelWithAddr(channelIdentifier)
+	if channel == nil {
+		return fmt.Errorf("can not find channel %s", channelIdentifier.String())
+	}
+	tokenNetwork, err := r.Raiden.Chain.TokenNetwork(r.Raiden.Token2TokenNetwork[channel.TokenAddress])
+	if err != nil {
+		return
+	}
+	// 获取数据
+	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
+	if lock.Lock == nil {
+		return fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
+	}
+	partnerAddress := channel.PartnerState.Address
+	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
+	contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
+	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
+	nonce := channel.PartnerState.BalanceProofState.Nonce
+	signature := channel.PartnerState.BalanceProofState.Signature
+	addtionalHash := channel.PartnerState.BalanceProofState.MessageHash
+	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
+
+	if channel.State == channeltype.StateOpened {
+		// 自己close
+		fmt.Printf("ForceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
+			partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature))
+		err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
+		if err != nil {
+			fmt.Printf("ForceUnlock : close channel fail %s\n", err.Error())
+			return
+		}
+	}
+	// register
+	err = r.Raiden.Chain.SecretRegistryProxy.RegisterSecret(secret)
+	if err != nil {
+		fmt.Printf("ForceUnlock : register secret fail %s\n", err.Error())
+		return
+	}
+	// unlock
+	fmt.Printf("ForceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
+		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
+		lock.LockHash.String())
+
+	err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock.Lock, mtree.Proof2Bytes(proof))
+	if err != nil {
+		fmt.Printf("ForceUnlock : unlock failed %s\n", err.Error())
+		return
+	}
+	log.Info(fmt.Sprintf("ForceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
+	return nil
+}
+
+// CancelTransfer : cancel a transfer when haven't send secret
+func (r *RaidenAPI) CancelTransfer(lockSecretHash common.Hash, tokenAddress common.Address) error {
+	result := r.Raiden.cancelTransferClient(lockSecretHash, tokenAddress)
+	return <-result.Result
 }

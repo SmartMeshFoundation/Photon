@@ -18,6 +18,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,7 @@ func newTestRaiden() *RaidenService {
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	bcs := newTestBlockChainService()
+	notifyHandler := notify.NewNotifyHandler()
 	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
 	config.MyAddress = bcs.NodeAddress
@@ -53,7 +55,8 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 		log.Error(err.Error())
 	}
 	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config)
+	config.NetworkMode = params.MixUDPXMPP
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -64,7 +67,7 @@ func newTestRaidenAPI() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
 	err := api.Raiden.Start()
 	if err != nil {
-		log.Error(fmt.Sprintf("raiden start err %s", err))
+		panic(fmt.Sprintf("raiden start err %s", err))
 	}
 	return api
 }
@@ -90,8 +93,8 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
-	privkey, _ := testGetnextValidAccount()
-	//	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
+	privkey, addr := testGetnextValidAccount()
+	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
 	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 }
 
@@ -116,10 +119,10 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 }
 func newTestRaidenAPIQuick() *RaidenAPI {
 	api := NewRaidenAPI(newTestRaiden())
-	go func() {
-		/*#nosec*/
-		api.Raiden.Start()
-	}()
+	//go func() {
+	//	/*#nosec*/
+	//	api.Raiden.Start()
+	//}()
 	return api
 }
 
@@ -169,6 +172,7 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 			api.Raiden.Start()
 			wg.Done()
 		}()
+		apis = append(apis, api)
 	}
 	wg.Wait()
 	return

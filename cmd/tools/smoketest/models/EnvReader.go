@@ -88,6 +88,9 @@ func (env *RaidenEnvReader) RefreshTokens() {
 	if err != nil {
 		panic(err)
 	}
+	if len(tokenAddrs) == 0 {
+		panic("no token")
+	}
 	env.Tokens = []*Token{}
 	for _, addr := range tokenAddrs {
 		if env.HasToken(addr) {
@@ -131,7 +134,7 @@ func (env *RaidenEnvReader) RefreshChannels() {
 		for _, channel := range nodeChannels {
 			channel.SelfAddress = node.AccountAddress
 			for _, token := range env.Tokens {
-				if channel.TokenAddress == token.Address && !token.hasChannel(channel.ChannelAddress) {
+				if channel.TokenAddress == token.Address && !token.hasChannel(channel.ChannelIdentifier) {
 					token.Channels = append(token.Channels, channel)
 					break
 				}

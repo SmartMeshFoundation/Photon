@@ -18,6 +18,8 @@ import (
 
 	"runtime/debug"
 
+	"context"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -31,6 +33,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -70,17 +73,29 @@ RaidenService is a raiden node
 most of raidenService's member is not thread safe, and should not visit outside the loop method.
 */
 type RaidenService struct {
-	Chain                 *rpc.BlockChainService
-	Registry              *rpc.RegistryProxy
+	/*
+		module
+	*/
+	Config                   *params.Config
+	Chain                    *rpc.BlockChainService
+	Registry                 *rpc.RegistryProxy
+	Transport                network.Transporter
+	Protocol                 *network.RaidenProtocol
+	MessageHandler           *raidenMessageHandler
+	StateMachineEventHandler *stateMachineEventHandler
+	BlockChainEvents         *blockchain.Events
+	AlarmTask                *blockchain.AlarmTask
+	db                       *models.ModelDB
+	FeePolicy                fee.Charger //Mediation fee
+	NotifyHandler            *notify.Handler
+
+	/*
+	 */
 	SecretRegistryAddress common.Address
 	RegistryAddress       common.Address
 	PrivateKey            *ecdsa.PrivateKey
-	Transport             network.Transporter
-	Config                *params.Config
-	Protocol              *network.RaidenProtocol
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
-
 	TokenNetwork2Token    map[common.Address]common.Address
 	Token2TokenNetwork    map[common.Address]common.Address
 	Transfer2StateManager map[common.Hash]*transfer.StateManager
@@ -93,20 +108,14 @@ type RaidenService struct {
 			         released/withdrawn but not when the secret is registered.
 		TODO remove this,this design is very weird
 	*/
-	Token2Hashlock2Channels  map[common.Address]map[common.Hash][]*channel.Channel
-	MessageHandler           *raidenMessageHandler
-	StateMachineEventHandler *stateMachineEventHandler
-	BlockChainEvents         *blockchain.Events
-	AlarmTask                *blockchain.AlarmTask
-	db                       *models.ModelDB
-	FileLocker               *flock.Flock
-	BlockNumber              *atomic.Value
+	Token2Hashlock2Channels map[common.Address]map[common.Hash][]*channel.Channel
+	FileLocker              *flock.Flock
+	BlockNumber             *atomic.Value
 	/*
 		chan for user request
 	*/
 	UserReqChan                 chan *apiReq
 	ProtocolMessageSendComplete chan *protocolMessage
-	FeePolicy                   fee.Charger //Mediation fee
 	/*
 		these four maps designed for token swap,but it can be extended for purpose usage.
 		for example:
@@ -118,50 +127,54 @@ type RaidenService struct {
 		important!:
 			we must valid the mediated transfer is valid or not first, then to test  if this mediated transfer matchs any token swap.
 	*/
-	ReceivedMediatedTrasnferListenerMap map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
-	SentMediatedTransferListenerMap     map[*SentMediatedTransferListener]bool     //for tokenswap
-	HealthCheckMap                      map[common.Address]bool
-	quitChan                            chan struct{} //for quit notification
-	ethInited                           bool
-	EthConnectionStatus                 chan netshare.Status
-	ChanStartupComplete                 chan struct{}
+	ReceivedMediatedTrasnferListenerMap   map[*ReceivedMediatedTrasnferListener]bool //for tokenswap
+	SentMediatedTransferListenerMap       map[*SentMediatedTransferListener]bool     //for tokenswap
+	HealthCheckMap                        map[common.Address]bool
+	quitChan                              chan struct{} //for quit notification
+	isStarting                            bool
+	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
+	EthConnectionStatus                   chan netshare.Status
+	ChanHistoryContractEventsDealComplete chan struct{}
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config) (rs *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler) (rs *RaidenService, err error) {
 	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
 		return
 	}
 	rs = &RaidenService{
-		Chain:                               chain,
-		Registry:                            chain.Registry(chain.RegistryAddress),
-		RegistryAddress:                     chain.RegistryAddress,
-		PrivateKey:                          privateKey,
-		Config:                              config,
-		Transport:                           transport,
-		NodeAddress:                         crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:                  make(map[common.Address]*graph.ChannelGraph),
-		TokenNetwork2Token:                  make(map[common.Address]common.Address),
-		Token2TokenNetwork:                  make(map[common.Address]common.Address),
-		Transfer2StateManager:               make(map[common.Hash]*transfer.StateManager),
-		Transfer2Result:                     make(map[common.Hash]*utils.AsyncResult),
-		Token2Hashlock2Channels:             make(map[common.Address]map[common.Hash][]*channel.Channel),
-		SwapKey2TokenSwap:                   make(map[swapKey]*TokenSwap),
-		AlarmTask:                           blockchain.NewAlarmTask(chain.Client),
-		UserReqChan:                         make(chan *apiReq, 10),
-		BlockNumber:                         new(atomic.Value),
-		ProtocolMessageSendComplete:         make(chan *protocolMessage, 10),
-		SecretRequestPredictorMap:           make(map[common.Hash]SecretRequestPredictor),
-		RevealSecretListenerMap:             make(map[common.Hash]RevealSecretListener),
-		ReceivedMediatedTrasnferListenerMap: make(map[*ReceivedMediatedTrasnferListener]bool),
-		SentMediatedTransferListenerMap:     make(map[*SentMediatedTransferListener]bool),
-		FeePolicy:                           &ConstantFeePolicy{},
-		HealthCheckMap:                      make(map[common.Address]bool),
-		quitChan:                            make(chan struct{}),
-		EthConnectionStatus:                 make(chan netshare.Status, 10),
-		ChanStartupComplete:                 make(chan struct{}),
+		NotifyHandler:                         notifyHandler,
+		Chain:                                 chain,
+		Registry:                              chain.Registry(chain.RegistryAddress),
+		RegistryAddress:                       chain.RegistryAddress,
+		PrivateKey:                            privateKey,
+		Config:                                config,
+		Transport:                             transport,
+		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
+		TokenNetwork2Token:                    make(map[common.Address]common.Address),
+		Token2TokenNetwork:                    make(map[common.Address]common.Address),
+		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
+		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
+		Token2Hashlock2Channels:               make(map[common.Address]map[common.Hash][]*channel.Channel),
+		SwapKey2TokenSwap:                     make(map[swapKey]*TokenSwap),
+		AlarmTask:                             blockchain.NewAlarmTask(chain.Client),
+		UserReqChan:                           make(chan *apiReq, 10),
+		BlockNumber:                           new(atomic.Value),
+		ProtocolMessageSendComplete:           make(chan *protocolMessage, 10),
+		SecretRequestPredictorMap:             make(map[common.Hash]SecretRequestPredictor),
+		RevealSecretListenerMap:               make(map[common.Hash]RevealSecretListener),
+		ReceivedMediatedTrasnferListenerMap:   make(map[*ReceivedMediatedTrasnferListener]bool),
+		SentMediatedTransferListenerMap:       make(map[*SentMediatedTransferListener]bool),
+		FeePolicy:                             &ConstantFeePolicy{},
+		HealthCheckMap:                        make(map[common.Address]bool),
+		quitChan:                              make(chan struct{}),
+		isStarting:                            true,
+		StopCreateNewTransfers:                false,
+		EthConnectionStatus:                   make(chan netshare.Status, 10),
+		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newRaidenMessageHandler(rs)
@@ -171,6 +184,14 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
 		return
+	}
+	//todo fixme MatrixTransport should have a better contructor function
+	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
+	if ok {
+		err = mtransport.SetMatrixDB(rs.db)
+		if err != nil {
+			return
+		}
 	}
 	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.db))
 	/*
@@ -185,15 +206,33 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
 	if rs.Registry != nil {
 		//我已经连接到以太坊全节点
+		// I have connected all Ethereum nodes
 		rs.SecretRegistryAddress, err = rs.Registry.GetContract().SecretRegistryAddress(nil)
 		if err != nil {
 			return
 		}
 		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
+		// 获取ChainID并保存在数据库
+		// get ChainID and store it into database
+		var chainID *big.Int
+		chainID, err = rs.Chain.Client.NetworkID(context.Background())
+		if err != nil {
+			return
+		}
+		params.ChainID = chainID
+		rs.db.SaveChainID(chainID.Int64())
 	} else {
 		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
+		// Read SecretRegistryAddress stored in local database. If none, which means system does not initialize it, just exit.
 		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
 		if rs.SecretRegistryAddress == utils.EmptyAddress {
+			err = fmt.Errorf("first startup without ethereum rpc connection")
+			return
+		}
+		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
+		// Read ChainID stored in database, if none, which means system does not initialize it, just exit.
+		params.ChainID = big.NewInt(rs.db.GetChainID())
+		if params.ChainID.Cmp(big.NewInt(0)) == 0 {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}
@@ -211,6 +250,13 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 
 // Start the node.
 func (rs *RaidenService) Start() (err error) {
+
+	/*
+		事先从DB里面获取最后的blocknumber,以免重启后因为超时而拒绝掉之前的MediatedTransfer消息
+		Get the last block number from the DB beforehand to avoid rejecting the previous MeditatedTransfer message after restart because of timeout
+	*/
+	n := rs.db.GetLatestBlockNumber()
+	rs.BlockNumber.Store(n)
 
 	rs.registerRegistry()
 	rs.Protocol.Start()
@@ -252,16 +298,23 @@ func (rs *RaidenService) Start() (err error) {
 	// 这里如果状态为connected,则等待积压的block events处理完毕后再启动api以及订阅其他节点的消息
 	// 如果状态不为connected,则直接启动api以及订阅其他节点的消息,这样做可能带来的风险:
 	// 1. 积压事件处理完毕之前,用户/其他节点通过api/消息对本地数据作出修改,是否会给后续的链上事件同步工作带来问题???
+	// Here if status is connected, then after block events completes, we should restart api and subscribe messages from other nodes.
 	if rs.Chain.Client.Status == netshare.Connected {
 		//wait for start up complete.
-		<-rs.ChanStartupComplete
+		<-rs.ChanHistoryContractEventsDealComplete
+		log.Info(fmt.Sprintf("SmartRaiden Startup complete and history events process complete."))
 	}
-	log.Info(fmt.Sprintf("raide"))
+	//
+	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-	err = rs.startSubscribeNeighborStatus()
-	if err != nil {
-		err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-		return
+	// 只有在混合模式下启动时,才订阅其他节点的在线状态
+	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
+	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
+		err = rs.startSubscribeNeighborStatus()
+		if err != nil {
+			err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
+			return
+		}
 	}
 	return nil
 }
@@ -274,6 +327,7 @@ func (rs *RaidenService) Stop() {
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.Chain.Client.Close()
+	rs.NotifyHandler.Stop()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.db.CloseDB()
 	//anther instance cann run now
@@ -318,22 +372,23 @@ func (rs *RaidenService) loop() {
 			// contract events from block chain
 		case st, ok = <-rs.BlockChainEvents.StateChangeChannel:
 			if ok {
-				_, ok = st.(*mediatedtransfer.FakeContractInfoCompleteStateChange)
+				_, ok = st.(*mediatedtransfer.FakeLastHistoryContractStateChange)
 				if ok {
-					rs.ChanStartupComplete <- struct{}{}
-					log.Info("raiden startup complete")
-					if !rs.ethInited {
-						log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
-						rs.ethInited = true
-						err = rs.AlarmTask.Start()
-						if err != nil {
-							log.Error(fmt.Sprintf("alarm task start err %s", err))
-							n := rs.db.GetLatestBlockNumber()
-							rs.BlockNumber.Store(n)
-						} else {
-							//must have a valid blocknumber before any transfer operation
-							rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-						}
+					// 历史合约事件处理完成
+					// 启动时,通知上层
+					// Complete handling history contract events.
+					// When we start, notify it to uppercase.
+					if rs.isStarting {
+						rs.ChanHistoryContractEventsDealComplete <- struct{}{}
+					}
+					// 启动AlarmTask
+					// Start AlarmTask
+					err = rs.AlarmTask.Start()
+					if err != nil {
+						log.Error(fmt.Sprintf("alarm task start err %s", err))
+					} else {
+						//must have a valid blocknumber before any transfer operation
+						rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
 					}
 				} else {
 					err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
@@ -376,7 +431,9 @@ func (rs *RaidenService) loop() {
 				//never block
 			}
 			if s == netshare.Connected {
-				rs.handleEthRRCConnectionOK()
+				rs.handleEthRPCConnectionOK()
+			} else {
+				rs.NotifyHandler.Notify(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -386,6 +443,8 @@ func (rs *RaidenService) loop() {
 }
 
 //for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
+// for init, read db history,
+// all on-chain events I have not handled should wait in queue.
 func (rs *RaidenService) registerRegistry() {
 	dbRegistry := rs.db.GetRegistryAddress()
 	if dbRegistry != rs.RegistryAddress && dbRegistry != utils.EmptyAddress {
@@ -412,12 +471,19 @@ i'm one of the channel participants
 收到来自链上的事件,新创建了 channel
 但是事件有可能重复
 */
+/*
+ *	newChannelFromEvent : function to handle channel query event.
+ *
+ *	Note that this node is also one of the channle participant, and he receives messages on-chain, to create a new channel.
+ *	But those events could be repeated.
+ */
 func (rs *RaidenService) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, tokenAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) (ch *channel.Channel, err error) {
 	/*
 		因为有可能在我离线的时候收到一堆事件,所以通道的信息不一定就是新创建时候的状态,
 		但是保证后续的事件会继续收到,所以应该按照新通道处理.
 	*/
-
+	// Because it is possible that I receive a bunch of events when disconnected, so channel states may not be the same as those when first created.
+	// But we ensure that following events will be got by me 100%, so we should handle them as creating a new channel.
 	ourState := channel.NewChannelEndState(rs.NodeAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 	partenerState := channel.NewChannelEndState(partnerAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 
@@ -439,7 +505,7 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 	*/
 	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
-		for _, c := range cg.ChannelAddress2Channel {
+		for _, c := range cg.ChannelIdentifier2Channel {
 			err := rs.StateMachineEventHandler.ChannelStateTransition(c, statechange)
 			if err != nil {
 				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
@@ -455,14 +521,23 @@ func (rs *RaidenService) GetBlockNumber() int64 {
 	return rs.BlockNumber.Load().(int64)
 }
 
-func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
+// GetChannelStatus return status of channel
+func (rs *RaidenService) GetChannelStatus(channelIdentifier common.Hash) int {
+	c := rs.getChannelWithAddr(channelIdentifier)
+	if c == nil {
+		return channeltype.StateInValid
+	}
+	return int(c.State)
+}
+
+func (rs *RaidenService) findChannelByIdentifier(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
-		ch := g.GetChannelAddress2Channel(channelIdentifier)
+		ch := g.ChannelIdentifier2Channel[channelIdentifier]
 		if ch != nil {
 			return ch, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown channel %s", channelIdentifier)
+	return nil, fmt.Errorf("unknown channel %s", utils.HPex(channelIdentifier))
 }
 
 /*
@@ -541,6 +616,7 @@ func (rs *RaidenService) registerSecret(secret common.Hash) {
 /*
 链上这个锁对应的密码注册了,
 */
+// The secret of this lock has been registered on-chain.
 func (rs *RaidenService) registerRevealedLockSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) {
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {
@@ -658,7 +734,7 @@ func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, par
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
+	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -714,11 +790,20 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
 		Token:             tokenAddress,
 	}
-	result = rs.Protocol.SendAsync(directChannel.PartnerState.Address, tr)
+	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	/*
+		Transfer is success
+		whenever partner receive this transfer  or not
+	*/
 	err = rs.StateMachineEventHandler.OnEvent(transferSuccess, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("dispatch transferSuccess err %s", err))
 	}
+	result.Result <- err
 	return
 }
 
@@ -735,6 +820,20 @@ Calls:
 	//2. token swap taker 带lockSecretHash,不带secret
 	//3. token swap maker 带lockSecretHash,带secret
 */
+/*
+ *	launch a new mediated transfer
+ *
+ *	Args :
+ *		hashlock : caller can specify a hashlock or use empty, when empty, will generate a random secret.
+ *		expiration : caller can specify a valid blocknumber or 0, when 0, will calculate based on settle timeout of channel.
+ *	Calls :
+ *		1. mediatedTransfer
+ *			1.1 if it has lockSecretHash and Secret, then it is a transfer with specific secret.
+ *			1.2 If it has no lockSecretHash or Secret, then it is a normal transfer, and we need generate a random secret for it.
+ *		2. token swap
+ *			2.1 taker should contain lockSecretHash, but no secret.
+ *			2.2 maker should contain lockSecretHash and secret.
+ */
 func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
@@ -770,6 +869,7 @@ func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target comm
 	/*
 		发起方每次切换路径不再切换密码,不切换依然可以保证安全
 	*/
+	// Initiator has no need to switch secret, every time he switches the route, and security can be ensured.
 	initInitiator := &mediatedtransfer.ActionInitInitiatorStateChange{
 		OurAddress:     rs.NodeAddress,
 		Tranfer:        transferState,
@@ -804,6 +904,11 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		1. 注册SecretRequestPredictor,防止在用户允许之前发送密码出去
 		2. 保证用户在提供密码之后,能移除掉这个predictor
 		*/
+		/*
+		 *	Participants use specified secret to send a transfer, then
+		 *		1. Register SecretRequestPredictor, preventing secret is sent out before participants permit.
+		 *		2. Ensure that this predictor can be removed once participants provide secret.
+		 */
 		var secretRequestHook SecretRequestPredictor = func(msg *encoding.SecretRequest) (ignore bool) {
 			return true
 		}
@@ -813,10 +918,16 @@ func (rs *RaidenService) startMediatedTransfer(tokenAddress, target common.Addre
 		/*
 			普通交易，随机生成密码
 		*/
+		// Normal transfer, generate random secret.
 		secret = utils.NewRandomHash()
 		lockSecretHash = utils.ShaSecret(secret[:])
 	}
+	/*
+		发起方在这里记录发起的交易状态,后续UpdateTransferStatus会更新DB中的值
+	*/
+	rs.db.NewTransferStatus(tokenAddress, lockSecretHash)
 	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
+	result.LockSecretHash = lockSecretHash
 	return
 }
 
@@ -830,9 +941,15 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 		首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 			锁是有可能重复的,比如 token swap 中.
 	*/
+	/*
+	 *	First time receiving this secret.
+	 *	We need to check if I have ever abandoned this secret, if so, handle it carefully.
+	 *	Locks can be duplicated, like in token swap.
+	 */
 	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
+		// do nothing.
 		return
 	}
 	amount := msg.PaymentAmount
@@ -884,9 +1001,15 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 		锁是有可能重复的,比如 token swap 中.
 	*/
+	/*
+	 *	First time receiving this secret.
+	 *	todo We need to check if I have ever abandoned this secret, if so, handle it carefully.
+	 * 	Locks might be duplicate, like in toke swap.
+	 */
 	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
+		// do nothing
 		return
 	}
 	if stateManager != nil {
@@ -914,6 +1037,8 @@ func (rs *RaidenService) targetMediatedTransfer(msg *encoding.MediatedTransfer, 
 	//rs.db.AddStateManager(stateManager)
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
+	// notify upper
+	rs.NotifyHandler.NotifyReceiveMediatedTransfer(msg, ch)
 }
 
 func (rs *RaidenService) startHealthCheckFor(address common.Address) {
@@ -946,11 +1071,20 @@ func (rs *RaidenService) startNeighboursHealthCheck() {
 	}
 }
 func (rs *RaidenService) startSubscribeNeighborStatus() error {
-	mt, ok := rs.Transport.(*network.MixTransporter)
-	if !ok {
-		return fmt.Errorf("transport is not mix transpoter")
+	var err error
+	switch t := rs.Transport.(type) {
+	case *network.MixTransport:
+		err = t.SubscribeNeighbor(rs.db)
+	case *network.MatrixMixTransport:
+		err = t.SetMatrixDB(rs.db)
+	default:
+		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
-	return mt.SubscribeNeighbor(rs.db)
+	if err != nil {
+		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+		return nil
+	}
+	return err
 }
 func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
@@ -960,7 +1094,7 @@ func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg 
 	return
 }
 func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *graph.ChannelGraph) {
-	ch, err := rs.findChannelByAddress(channelIdentifier)
+	ch, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		return
 	}
@@ -971,16 +1105,16 @@ func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *gra
 	return
 }
 func (rs *RaidenService) getTokenForChannelIdentifier(channelidentifier common.Hash) (token common.Address) {
-	ch, err := rs.findChannelByAddress(channelidentifier)
+	ch, err := rs.findChannelByIdentifier(channelidentifier)
 	if err != nil {
 		return
 	}
 	return ch.TokenAddress
 }
 
-//only for test, should call findChannelByAddress
-func (rs *RaidenService) getChannelWithAddr(channelAddr common.Hash) *channel.Channel {
-	c, err := rs.findChannelByAddress(channelAddr)
+//only for test, should call findChannelByIdentifier
+func (rs *RaidenService) getChannelWithAddr(channelIdentifier common.Hash) *channel.Channel {
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 
 	}
@@ -1026,9 +1160,9 @@ func (rs *RaidenService) newChannelAndDeposit(token, partner common.Address, set
 /*
 process user's deposit request
 */
-func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+func (rs *RaidenService) depositChannel(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		result.Result <- err
 		return
@@ -1043,13 +1177,13 @@ func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.
 /*
 process user's close or settle channel request
 */
-func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op string) (result *utils.AsyncResult) {
-	c, err := rs.findChannelByAddress(channelAddress)
+func (rs *RaidenService) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
 		return
 	}
-	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelIdentifier)))
 	if op == closeChannelReqName {
 		result = c.Close()
 	} else {
@@ -1057,9 +1191,9 @@ func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op str
 	}
 	return
 }
-func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) cooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
@@ -1069,7 +1203,7 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
-	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelIdentifier)))
 	s, err := c.CreateCooperativeSettleRequest()
 	if err != nil {
 		result.Result <- err
@@ -1085,14 +1219,14 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) prepareCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) prepareCooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.PrepareForCooperativeSettle()
 	if err != nil {
 		result.Result <- err
@@ -1102,14 +1236,14 @@ func (rs *RaidenService) prepareCooperativeSettleChannel(channelAddress common.H
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.CancelWithdrawOrCooperativeSettle()
 	if err != nil {
 		result.Result <- err
@@ -1120,9 +1254,9 @@ func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(chan
 	return
 }
 
-func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+func (rs *RaidenService) withdraw(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
@@ -1132,7 +1266,7 @@ func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
-	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelAddress), amount))
+	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
 	s, err := c.CreateWithdrawRequest(amount)
 	if err != nil {
 		result.Result <- err
@@ -1148,14 +1282,14 @@ func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) prepareForWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) prepareForWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.PrepareForWithdraw()
 	if err != nil {
 		result.Result <- err
@@ -1265,7 +1399,7 @@ func (rs *RaidenService) messageTokenSwapTaker(msg *encoding.MediatedTransfer, t
 		taker's Expiration must be smaller than maker's ,
 		taker and maker may have direct channels on these two tokens.
 	*/
-	takerExpiration := msg.Expiration - params.DefaultRevealTimeout
+	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
 	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
@@ -1292,6 +1426,41 @@ func (rs *RaidenService) tokenSwapTaker(tokenswap *TokenSwap) (result *utils.Asy
 	return
 }
 
+/*
+cancel a transfer before secret send
+only initiator can call
+*/
+func (rs *RaidenService) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	// get transfer info and check
+	smKey := utils.Sha3(req.LockSecretHash[:], req.TokenAddress[:])
+	manager := rs.Transfer2StateManager[smKey]
+	if manager == nil {
+		result.Result <- errors.New("can not found transfer")
+		return
+	}
+	if manager.Name != initiator.NameInitiatorTransition {
+		result.Result <- errors.New("you can only cancel transfers you send")
+		return
+	}
+	transferStatus, err := rs.db.GetTransferStatus(req.TokenAddress, req.LockSecretHash)
+	if err != nil {
+		result.Result <- errors.New("can not found transfer status")
+		return
+	}
+	if transferStatus.Status != models.TransferStatusCanCancel {
+		result.Result <- errors.New("transfer already can not cancel now")
+		return
+	}
+	stateChange := &transfer.ActionCancelTransferStateChange{
+		LockSecretHash: req.LockSecretHash,
+	}
+	rs.StateMachineEventHandler.dispatch(manager, stateChange)
+	rs.db.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	result.Result <- nil
+	return
+}
+
 //recieve a ack from
 func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	data := sentMessage.Message.Pack()
@@ -1300,6 +1469,33 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	if ok2 {
 		rs.db.DeleteEnvelopMessager(echohash)
 	}
+	switch msg := sentMessage.Message.(type) {
+	case *encoding.MediatedTransfer:
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "MediatedTransfer 发送成功")
+	case *encoding.RevealSecret:
+		// save log to db
+		channels := rs.findAllChannelsByLockSecretHash(msg.LockSecretHash())
+		for _, c := range channels {
+			rs.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), "RevealSecret 发送成功")
+		}
+	case *encoding.UnLock:
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+	case *encoding.AnnounceDisposedResponse:
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "AnnounceDisposedResponse 发送成功")
+	}
+	rs.conditionQuitWhenReceiveAck(sentMessage.Message)
 	log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
 }
 
@@ -1333,20 +1529,10 @@ func (rs *RaidenService) GetDb() *models.ModelDB {
 	return rs.db
 }
 
-func (rs *RaidenService) handleEthRRCConnectionOK() {
-	//if !rs.ethInited {
-	//	log.Info(fmt.Sprintf("eth connection ok, will reinit raiden"))
-	//	rs.ethInited = true
-	//	err := rs.AlarmTask.Start()
-	//	if err != nil {
-	//		log.Error(fmt.Sprintf("alarm task start err %s", err))
-	//		n := rs.db.GetLatestBlockNumber()
-	//		rs.BlockNumber.Store(n)
-	//	} else {
-	//		//must have a valid blocknumber before any transfer operation
-	//		rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
-	//	}
-	//}
+/*
+things to do when smartraiden connect to eth
+*/
+func (rs *RaidenService) handleEthRPCConnectionOK() {
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
@@ -1354,6 +1540,12 @@ func (rs *RaidenService) handleEthRRCConnectionOK() {
 	if err != nil {
 		err = fmt.Errorf("events listener error %v", err)
 		return
+	}
+	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
+	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
+	// otherwise we can do things like token registry.
+	if rs.Registry == nil {
+		rs.Registry = rs.Chain.Registry(rs.Chain.RegistryAddress)
 	}
 }
 
@@ -1408,6 +1600,9 @@ func (rs *RaidenService) handleReq(req *apiReq) {
 	case cancelPrepareWithdrawReqName:
 		r := req.Req.(*closeSettleChannelReq)
 		result = rs.cancelPrepareForCooperativeSettleChannelOrWithdraw(r.addr)
+	case cancelTransfer:
+		r := req.Req.(*cancelTransferReq)
+		result = rs.cancelTransfer(r)
 	default:
 		panic("unkown req")
 	}
@@ -1426,4 +1621,41 @@ func (rs *RaidenService) updateChannelAndSaveAck(c *channel.Channel, tag interfa
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}
+}
+
+func (rs *RaidenService) conditionQuitWhenReceiveAck(msg encoding.Messager) {
+	var quitName string
+	switch msg.(type) {
+	case *encoding.SecretRequest:
+		quitName = "ReceiveSecretRequestAck"
+	case *encoding.RevealSecret:
+		quitName = "ReceiveRevealSecretAck"
+	case *encoding.UnLock:
+	case *encoding.DirectTransfer:
+	case *encoding.MediatedTransfer:
+		quitName = "ReceiveMediatedTransferAck"
+	case *encoding.AnnounceDisposed:
+		quitName = "ReceiveAnnounceDisposedAck"
+	case *encoding.AnnounceDisposedResponse:
+	case *encoding.RemoveExpiredHashlockTransfer:
+	case *encoding.SettleRequest:
+	case *encoding.SettleResponse:
+	case *encoding.WithdrawRequest:
+	case *encoding.WithdrawResponse:
+	default:
+
+	}
+	if len(quitName) > 0 {
+		rs.conditionQuit(quitName)
+	}
+}
+
+func (rs *RaidenService) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (channels []*channel.Channel) {
+	for _, lockSecretHash2Channels := range rs.Token2Hashlock2Channels {
+		chs := lockSecretHash2Channels[lockSecretHash]
+		if len(chs) > 0 {
+			channels = append(channels, chs...)
+		}
+	}
+	return
 }

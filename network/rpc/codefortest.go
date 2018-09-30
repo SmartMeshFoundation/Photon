@@ -19,7 +19,8 @@ import (
 )
 
 //PrivateRopstenRegistryAddress test registry address, todo use env
-var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY")) // params.ROPSTEN_REGISTRY_ADDRESS
+var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
+
 //TestRPCEndpoint test eth rpc url, todo use env
 var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
 
@@ -31,6 +32,7 @@ func init() {
 		keybin, err := hex.DecodeString(os.Getenv("KEY1"))
 		if err != nil {
 			//启动错误不要用 log, 那时候 log 还没准备好
+			// do not use log to print start error, it's not ready
 			panic(fmt.Sprintf("err %s", err))
 		}
 		TestPrivKey, err = crypto.ToECDSA(keybin)

@@ -79,14 +79,14 @@ func (node *RaidenNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 600,
+		Timeout: time.Second * 60,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
-		panic(err)
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
 	}
 	if statusCode != 200 {
-		panic(err)
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
 	}
 }
 
@@ -104,12 +104,106 @@ func (node *RaidenNode) SendTransWithSecret(tokenAddress string, amount int32, t
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err : http status=%d, body=%s", statusCode, string(body)))
+	}
+}
+
+// Withdraw :
+func (node *RaidenNode) Withdraw(channelIdentifier string, withdrawAmount int32) {
+	type WithdrawPayload struct {
+		Amount int32
+		Op     string
+	}
+	p, _ := json.Marshal(WithdrawPayload{
+		Amount: withdrawAmount,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/withdraw/" + channelIdentifier,
+		Method:  http.MethodPut,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
 	statusCode, _, err := req.Invoke()
-	//if err != nil {
-	//	panic(err)
-	//}
-	fmt.Println(statusCode, err)
-	//if statusCode != 200 {
-	//	panic(err)
-	//}
+	if err != nil {
+		Logger.Println(fmt.Sprintf("WithdrawApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("WithdrawApi err : http status=%d", statusCode))
+	}
+}
+
+// Close :
+func (node *RaidenNode) Close(channelIdentifier string) {
+	type ClosePayload struct {
+		State string `json:"state"`
+		Force bool   `json:"force"`
+	}
+	p, _ := json.Marshal(ClosePayload{
+		State: "closed",
+		Force: true,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
+		Method:  http.MethodPatch,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+	}
+}
+
+// Settle :
+func (node *RaidenNode) Settle(channelIdentifier string) {
+	type SettlePayload struct {
+		State string `json:"state"`
+	}
+	p, _ := json.Marshal(SettlePayload{
+		State: "settled",
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
+		Method:  http.MethodPatch,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SettleApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SettleApi err : http status=%d", statusCode))
+	}
+}
+
+// CooperateSettle :
+func (node *RaidenNode) CooperateSettle(channelIdentifier string) {
+	type ClosePayload struct {
+		State string `json:"state"`
+	}
+	p, _ := json.Marshal(ClosePayload{
+		State: "closed",
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
+		Method:  http.MethodPatch,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+	}
 }

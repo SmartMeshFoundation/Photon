@@ -15,10 +15,14 @@ import (
 State describes a route state
 路由状态我如何收到的或者发送MediatedTransfer
 */
+/*
+ *	State : describe a route state
+ *	route state means how does this participant get or send MediatedTransfer.
+ */
 type State struct {
 	ch                *channel.Channel //don't save pointer
-	ChannelIdentifier common.Hash      //崩溃恢复的时候需要
-	IsSend            bool             //用这个 route 来发送还是接收?
+	ChannelIdentifier common.Hash      //崩溃恢复的时候需要	// Needed when handling crash cases.
+	IsSend            bool             //用这个 route 来发送还是接收?	// whether this route is used to send or receive.
 	Fee               *big.Int         // how much fee to this channel charge charge .
 	TotalFee          *big.Int         // how much fee for all path when initiator use this route
 }

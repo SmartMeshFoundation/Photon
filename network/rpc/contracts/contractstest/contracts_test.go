@@ -20,6 +20,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
@@ -28,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/params"
+	ethparams "github.com/ethereum/go-ethereum/params"
 )
 
 var client *ethclient.Client
@@ -72,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKENNETWORK"))
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -322,6 +323,7 @@ func TestCloseChannel1(t *testing.T) {
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, utils.BigInt0, utils.EmptyHash, 0, utils.EmptyHash, nil)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -407,6 +409,8 @@ func createPartnerBalanceProofWithLocks(key *ecdsa.PrivateKey, channelID contrac
 }
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("176"))
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
@@ -433,9 +437,19 @@ func TestCloseChannel2(t *testing.T) {
 		return
 	}
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
+	log.Info(fmt.Sprintf("openblocknumber=%d,tokennetwork=%s", bp.OpenBlockNumber, bp.TokenNetworkAddress.String()))
+	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d,addhash=%s,signature=%s",
+		partnerAddr.String(),
+		bp.TransferAmount,
+		bp.LocksRoot.String(),
+		bp.Nonce,
+		bp.AdditionalHash.String(),
+		hex.EncodeToString(bp.Signature),
+	))
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -448,38 +462,38 @@ func TestCloseChannel2(t *testing.T) {
 	log.Info(fmt.Sprintf("CloseChannel with evidence gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
 
-type BalanceProofUpdateForContracts struct {
+type BalanceProofDelegateForContracts struct {
 	BalanceProofForContract
 	NonClosingSignature []byte
 }
 
-func NewBalanceProofUpdateForContracts(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier) *BalanceProofUpdateForContracts {
+func NewBalanceProofDelegateForContracts(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier) *BalanceProofDelegateForContracts {
 	bp1 := createPartnerBalanceProof(closingKey, channelID)
-	bp2 := &BalanceProofUpdateForContracts{
+	bp2 := &BalanceProofDelegateForContracts{
 		BalanceProofForContract: *bp1,
 	}
 	bp2.sign(nonClosingKey)
 	return bp2
 }
-func NewBalanceProofUpdateForContractsWithLocks(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofUpdateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
+func NewBalanceProofUpdateForContractsWithLocks(closingKey, nonClosingKey *ecdsa.PrivateKey, channelID contracts.ChannelIdentifier, lockNumber int, expiredBlock int64) (bp *BalanceProofDelegateForContracts, locks []*mtree.Lock, secrets []common.Hash) {
 	bp1, locks, secrets := createPartnerBalanceProofWithLocks(closingKey, channelID, lockNumber, expiredBlock)
-	bp = &BalanceProofUpdateForContracts{
+	bp = &BalanceProofDelegateForContracts{
 		BalanceProofForContract: *bp1,
 	}
 	bp.sign(nonClosingKey)
 	return
 }
-func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
+func (b *BalanceProofDelegateForContracts) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("144"))
 	buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	buf.Write(b.LocksRoot[:])
 	binary.Write(buf, binary.BigEndian, b.Nonce)
-	buf.Write(b.AdditionalHash[:])
 	buf.Write(b.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
 	buf.Write(utils.BigIntTo32Bytes(b.ChainID))
-	buf.Write(b.Signature)
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -487,15 +501,30 @@ func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
 	b.NonClosingSignature = sig
 }
 func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
-	channelID, partnerAddr, partnerKey, err := getTestOpenChannel(t)
+	_, partnerAddr, partnerKey, err := getTestOpenChannel(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
+	log.Info(fmt.Sprintf("openblocknumber=%d,tokennetwork=%s", bp.OpenBlockNumber, bp.TokenNetworkAddress.String()))
+	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d,addhash=%s,signature=%s",
+		partnerAddr.String(),
+		bp.TransferAmount,
+		bp.LocksRoot.String(),
+		bp.Nonce,
+		bp.AdditionalHash.String(),
+		hex.EncodeToString(bp.Signature),
+	))
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -531,7 +560,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
+	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
 	fmt.Printf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
 		auth.From.String(),
 		partnerAddr.String(),
@@ -616,15 +645,22 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 	/*
 		partneraddr 需要有 ether 作为 gas
 	*/
-	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(params.Ether))
+	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(ethparams.Ether))
 	if err != nil {
 		t.Error(err)
 	}
 	partnerAuth := bind.NewKeyedTransactor(partnerKey)
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
+	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d",
+		partnerAddr.String(),
+		bp.TransferAmount.String(),
+		bp.LocksRoot,
+		bp.Nonce,
+	))
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -636,7 +672,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	log.Trace(fmt.Sprintf("bp=\n%s", utils.StringInterface(bp, 3)))
-	bp2 := NewBalanceProofUpdateForContracts(TestPrivKey, partnerKey, channelID)
+	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
 	log.Info(fmt.Sprintf("UpdateBalanceProof closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\n,balance_hash=%s",
 		auth.From.String(),
 		bp2.TransferAmount.String(),
@@ -725,6 +761,8 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("176"))
 	buf.Write(c.Particiant1[:])
 	buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
 	buf.Write(c.Participant2[:])
@@ -820,7 +858,7 @@ func TestUnlock(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(params.Ether))
+	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(ethparams.Ether))
 	if err != nil {
 		t.Error(err)
 		return
@@ -857,6 +895,7 @@ func TestUnlock(t *testing.T) {
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -1008,11 +1047,9 @@ func TestUnlock(t *testing.T) {
 
 }
 
-type WithDraw1ForContract struct {
+type WithDrawForContract struct {
 	Participant1         common.Address
-	Participant2         common.Address
 	Participant1Deposit  *big.Int
-	Participant2Deposit  *big.Int
 	Participant1Withdraw *big.Int
 	ChannelIdentifier    contracts.ChannelIdentifier
 	OpenBlockNumber      uint64
@@ -1020,12 +1057,12 @@ type WithDraw1ForContract struct {
 	ChainID              *big.Int
 }
 
-func (w *WithDraw1ForContract) sign(key *ecdsa.PrivateKey) []byte {
+func (w *WithDrawForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("156"))
 	buf.Write(w.Participant1[:])
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	buf.Write(w.Participant2[:])
-	buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
 	buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
 	buf.Write(w.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
@@ -1038,61 +1075,25 @@ func (w *WithDraw1ForContract) sign(key *ecdsa.PrivateKey) []byte {
 	return sig
 }
 
-type WithDraw2ForContract struct {
-	Participant1         common.Address
-	Participant2         common.Address
-	Participant1Deposit  *big.Int
-	Participant2Deposit  *big.Int
-	Participant1Withdraw *big.Int
-	Participant2Withdraw *big.Int
-	ChannelIdentifier    contracts.ChannelIdentifier
-	OpenBlockNumber      uint64
-	TokenNetworkAddress  common.Address
-	ChainID              *big.Int
-}
-
-func (w *WithDraw2ForContract) sign(key *ecdsa.PrivateKey) []byte {
-	buf := new(bytes.Buffer)
-	buf.Write(w.Participant1[:])
-	buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	buf.Write(w.Participant2[:])
-	buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
-	buf.Write(w.ChannelIdentifier[:])
-	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
-	//buf.Write(w.TokenNetworkAddress[:])
-	buf.Write(utils.BigIntTo32Bytes(w.ChainID))
-	sig, err := utils.SignData(key, buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	return sig
-}
 func TestWithdraw(t *testing.T) {
 	channelID, partnerAddr, partnerKey, err := getTestOpenChannel(t)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	w1 := &WithDraw1ForContract{
+	w1 := &WithDrawForContract{
 		Participant1:         auth.From,
-		Participant2:         partnerAddr,
 		Participant1Withdraw: big.NewInt(1),
 		Participant1Deposit:  big.NewInt(totalAmount / 2),
-		Participant2Deposit:  big.NewInt(totalAmount / 2),
 		ChannelIdentifier:    channelID,
 		OpenBlockNumber:      openBlockNumber,
 		ChainID:              ChainID,
 		TokenNetworkAddress:  tokenNetworkAddress,
 	}
-	w2 := &WithDraw2ForContract{
+	w2 := &WithDrawForContract{
 		Participant1:         auth.From,
-		Participant2:         partnerAddr,
 		Participant1Withdraw: big.NewInt(1),
-		Participant2Withdraw: big.NewInt(1),
 		Participant1Deposit:  big.NewInt(totalAmount / 2),
-		Participant2Deposit:  big.NewInt(totalAmount / 2),
 		ChannelIdentifier:    channelID,
 		OpenBlockNumber:      openBlockNumber,
 		ChainID:              ChainID,
@@ -1100,26 +1101,22 @@ func TestWithdraw(t *testing.T) {
 	}
 	log.Trace(fmt.Sprintf("w1=\n%s", utils.StringInterface(w1, 3)))
 	log.Trace(fmt.Sprintf("w2=\n%s", utils.StringInterface(w2, 3)))
-	log.Trace(fmt.Sprintf("WithDraw call, participant1=%s,participant2=%s,"+
-		"p1deposit=%s,p2deposit=%s,p1withdarw=%s,p2withdraw=%s,"+
+	log.Trace(fmt.Sprintf("WithDraw call, participant=%s,partner=%s,"+
+		"p1deposit=%s, p1withdarw=%s,"+
 		"p1sig=0x%s,p2sig=0x%s ",
 		w2.Participant1.String(),
-		w2.Participant2.String(),
+		partnerAddr.String(),
 		w2.Participant1Deposit,
-		w2.Participant2Deposit,
-		w2.Participant2Withdraw,
-		w2.Participant2Withdraw,
+		w2.Participant1Withdraw,
 		hex.EncodeToString(w1.sign(TestPrivKey)),
 		hex.EncodeToString(w2.sign(partnerKey)),
 	))
 	tx, err := tokenNetwork.WithDraw(
 		auth,
 		w2.Participant1,
+		partnerAddr,
 		w2.Participant1Deposit,
 		w2.Participant1Withdraw,
-		w2.Participant2,
-		w2.Participant2Deposit,
-		w2.Participant2Withdraw,
 		w1.sign(TestPrivKey),
 		w2.sign(partnerKey),
 	)
@@ -1162,6 +1159,8 @@ type unlockDelegateForContract struct {
 
 func (u *unlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("188"))
 	buf.Write(u.Agent[:])
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
 	buf.Write(utils.BigIntTo32Bytes(u.Amount))
@@ -1192,6 +1191,8 @@ type ObseleteUnlockForContract struct {
 
 func (w *ObseleteUnlockForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
+	buf.Write(params.ContractSignaturePrefix)
+	buf.Write([]byte("136"))
 	buf.Write(w.LockHash[:])
 	buf.Write(w.ChannelIdentifier[:])
 	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
@@ -1222,7 +1223,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(params.Ether))
+	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(ethparams.Ether))
 	if err != nil {
 		t.Error(err)
 		return
@@ -1248,6 +1249,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	r, err := bind.WaitMined(context.Background(), client, tx)
 	if err != nil {
@@ -1397,7 +1399,7 @@ func TestTokenFallback(t *testing.T) {
 	var err error
 	setup()
 	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -1478,7 +1480,7 @@ func TestApproveAndCall(t *testing.T) {
 	var err error
 	setup()
 	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)

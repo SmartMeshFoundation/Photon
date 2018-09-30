@@ -33,7 +33,7 @@ func TestEndState(t *testing.T) {
 	bcs := rpc.MakeTestBlockChainService()
 	address1 := bcs.NodeAddress
 	address2 := utils.NewRandomAddress()
-	channelAddress := &contracts.ChannelUniqueID{
+	channelIdentifier := &contracts.ChannelUniqueID{
 		ChannelIdentifier: utils.NewRandomHash(),
 		OpenBlockNumber:   testOpenBlockNumber,
 	}
@@ -74,7 +74,7 @@ func TestEndState(t *testing.T) {
 	*/
 	bp := &encoding.BalanceProof{
 		Nonce:             1,
-		ChannelIdentifier: channelAddress.ChannelIdentifier,
+		ChannelIdentifier: channelIdentifier.ChannelIdentifier,
 		OpenBlockNumber:   testOpenBlockNumber,
 		TransferAmount:    transferedAmount,
 		Locksroot:         locksroot,
@@ -148,7 +148,7 @@ func TestEndState(t *testing.T) {
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
 
-	secretMessage := encoding.NewUnlock(encoding.NewBalanceProof(2, x.Add(transferedAmount, lockAmount), utils.EmptyHash, channelAddress), lockSecret)
+	secretMessage := encoding.NewUnlock(encoding.NewBalanceProof(2, x.Add(transferedAmount, lockAmount), utils.EmptyHash, channelIdentifier), lockSecret)
 	secretMessage.Sign(bcs.PrivKey, secretMessage)
 	state1.registerSecretMessage(secretMessage)
 
@@ -967,7 +967,7 @@ func TestChannel_RegisterWithdrawRequest(t *testing.T) {
 	assert.EqualValues(t, ch1.CanTransfer(), false)
 	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
 	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
-	res, err := ch1.CreateWithdrawResponse(req, big.NewInt(1))
+	res, err := ch1.CreateWithdrawResponse(req)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1067,6 +1067,8 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 	assert.EqualValues(t, ch1.CanTransfer(), false)
 	assert.EqualValues(t, ch1.CanContinueTransfer(), false)
 	//目前 channel 并不验证自己是否发出了 withdrawRequest,这些请求应该保存在数据库中,由更高层验证.
+	// Currently, channel can't verify if he self sends out withdrawrequest,
+	// these requests are backed up in local database, which needs to be verified by upper layer.
 	res, err := ch1.CreateCooperativeSettleResponse(req)
 	if err != nil {
 		t.Error(err)

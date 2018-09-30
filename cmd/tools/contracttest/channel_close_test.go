@@ -8,6 +8,7 @@ import (
 )
 
 // TestChannelCloseRight : 正确调用测试
+// TestChannelCloseRight : Test for correct function call.
 func TestChannelCloseRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -41,6 +42,7 @@ func TestChannelCloseRight(t *testing.T) {
 }
 
 // TestChannelCloseException : 异常调用测试
+// TestChannelCloseException : Test for abnormal function call.
 func TestChannelCloseException(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -74,6 +76,7 @@ func TestChannelCloseException(t *testing.T) {
 }
 
 // TestChannelCloseEdge : 边界测试
+// TestChannelCloseEdge : Edge Test.
 func TestChannelCloseEdge(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -81,6 +84,7 @@ func TestChannelCloseEdge(t *testing.T) {
 }
 
 // TestChannelCloseAttack : 恶意调用测试
+// TestChannelCloseAttack : Test for Potential Attack.
 func TestChannelCloseAttack(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0

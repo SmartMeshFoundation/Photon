@@ -25,7 +25,7 @@ const defaultProtocolThrottleFillRate = 10.
 const defaultprotocolRetryInterval = 1.
 
 //DefaultRevealTimeout blocks needs to update transfer
-const DefaultRevealTimeout = 5
+var DefaultRevealTimeout = 10
 
 //DefaultSettleTimeout settle time of channel
 const DefaultSettleTimeout = 600
@@ -43,6 +43,8 @@ const DefaultInitialChannelTarget = 3
 const DefaultTxTimeout = 5 * time.Minute //15seconds for one block,it may take sever minutes
 //MaxRequestTimeout args
 const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for example ,settle all channles?
+//MaxAsyncRequestTimeout args
+const MaxAsyncRequestTimeout = 500 * time.Millisecond //longest time for a async transfer call
 
 var gasLimitHex string
 
@@ -68,6 +70,23 @@ const DefaultXMPPServer = "193.112.248.133:5222"
 
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
+//ContractSignaturePrefix for EIP191 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-191.md
+var ContractSignaturePrefix = []byte("\x19Ethereum Signed Message:\n")
+
+const (
+	//ContractBalanceProofMessageLength balance proof  length
+	ContractBalanceProofMessageLength = "176"
+	//ContractBalanceProofDelegateMessageLength update balance proof delegate length
+	ContractBalanceProofDelegateMessageLength = "144"
+	//ContractCooperativeSettleMessageLength cooperative settle channel proof length
+	ContractCooperativeSettleMessageLength = "176"
+	//ContractDisposedProofMessageLength annouce disposed proof length
+	ContractDisposedProofMessageLength = "136"
+	//ContractWithdrawProofMessageLength withdraw proof length
+	ContractWithdrawProofMessageLength = "156"
+	//ContractUnlockDelegateProofMessageLength unlock delegate proof length
+	ContractUnlockDelegateProofMessageLength = "188"
+)
 
 func init() {
 	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
@@ -80,6 +99,14 @@ MobileMode works on mobile device, 移动设备模式,这时候 smartraiden 并�
 2. 对于网络通信的处理要更谨慎
 3. 对于资源的消耗如何控制?
 */
+/*
+ *	MobileMode : a boolean value to adapt with mobile modes.
+ *
+ *	Note : if true, then smartraiden is not an individual process, work mode is about to change.
+ *		1. not support exit arbitrarily.
+ *		2. handle internet communication more prudent.
+ *		3. How to control amount of resource consumption.
+ */
 var MobileMode bool
 
 /*
@@ -88,4 +115,20 @@ InTest are we test now?
 var InTest = true
 
 //ChainID of this tokenNetwork
-var ChainID = big.NewInt(8888)
+var ChainID = big.NewInt(1)
+
+//MatrixServerConfig matrix server config
+var MatrixServerConfig = map[string]string{
+	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
+	"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
+	"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
+}
+
+//AliasFragment  is discovery AliasFragment
+const AliasFragment = "discovery"
+
+//DiscoveryServer is discovery server
+const DiscoveryServer = "transport01.smartmesh.cn"
+
+//NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on
+var NETWORKNAME = "ropsten"

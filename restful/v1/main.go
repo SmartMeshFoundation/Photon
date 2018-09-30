@@ -33,11 +33,17 @@ func Start() {
 	router, err := rest.MakeRouter(
 
 		/*
+			prepare update
+		*/
+		rest.Post("/api/1/prepare-update", PrepareUpdate),
+		/*
 			transfers
 		*/
 		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
 		rest.Post("/api/1/transfers/:token/:target", Transfers),
+		rest.Get("/api/1/transferstatus/:token/:locksecrethash", GetTransferStatus),
+		rest.Post("/api/1/transfercancel/:token/:locksecrethash", CancelTransfer),
 		/*
 			transfer with specified secret
 		*/
@@ -103,9 +109,9 @@ func Start() {
 		/*
 			events
 		*/
-		rest.Get("/api/1/events/network", EventNetwork),
-		rest.Get("/api/1/events/tokens/:token", EventTokens),
-		rest.Get("/api/1/events/channels/:channel", EventChannels),
+		//rest.Get("/api/1/events/network", EventNetwork),
+		//rest.Get("/api/1/events/tokens/:token", EventTokens),
+		//rest.Get("/api/1/events/channels/:channel", EventChannels),
 		/*
 			for debug only
 		*/
@@ -113,6 +119,7 @@ func Start() {
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
+		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))

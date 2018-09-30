@@ -50,7 +50,7 @@ func (a *API) GetChannelList() (channels string, err error) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelAddress:      common.BytesToHash(c.Key).String(),
+			ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
@@ -68,19 +68,20 @@ func (a *API) GetChannelList() (channels string, err error) {
 }
 
 //GetOneChannel GET /api/1/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226
-func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
+func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelAddress, channel, err))
+		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelIdentifier, channel, err))
 	}()
-	chaddr := common.HexToHash(channelAddress)
-	c, err := a.api.GetChannel(chaddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelDataDetail{
-		ChannelAddress:           common.BytesToHash(c.Key).String(),
-		PartnerAddrses:           c.PartnerAddress().String(),
+		ChannelIdentifier:        common.BytesToHash(c.Key).String(),
+		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddress:           c.PartnerAddress().String(),
 		Balance:                  c.OurBalance(),
 		PartnerBalance:           c.PartnerBalance(),
 		State:                    c.State,
@@ -110,22 +111,22 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
 		))
 	}()
-	partnerAddr, err := utils.HexToAddress(partnerAddress)
+	partnerAddr, err := utils.HexToAddressWithoutValidation(partnerAddress)
 	if err != nil {
 		return
 	}
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, params.DefaultRevealTimeout, balance)
+	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, a.api.Raiden.Config.RevealTimeout, balance)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -141,14 +142,14 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 }
 
 //CloseChannel close a channel
-func (a *API) CloseChannel(channelAddress string, force bool) (channel string, err error) {
+func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api CloseChannel in channelAddress=%s,out channel=\n%s,err=%v",
-			channelAddress, channel, err,
+		log.Trace(fmt.Sprintf("Api CloseChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
+			channelIdentifier, channel, err,
 		))
 	}()
-	chAddr := common.HexToHash(channelAddress)
-	c, err := a.api.GetChannel(chAddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -167,7 +168,7 @@ func (a *API) CloseChannel(channelAddress string, force bool) (channel string, e
 		}
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -182,15 +183,15 @@ func (a *API) CloseChannel(channelAddress string, force bool) (channel string, e
 }
 
 //SettleChannel settle a channel
-func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
+func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api SettleChannel in channelAddress=%s,out channel=\n%s,err=%v",
-			channelAddres, channel, err,
+		log.Trace(fmt.Sprintf("Api SettleChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
+			channelIdentifier, channel, err,
 		))
 	}()
 
-	chAddr := common.HexToHash(channelAddres)
-	c, err := a.api.GetChannel(chAddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -201,7 +202,7 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -216,17 +217,17 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 }
 
 //DepositChannel deposit balance to channel
-func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel string, err error) {
+func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api DepositChannel channelAddres=%s,balanceStr=%s,out channel=\n%s,err=%v",
-			channelAddres, balanceStr, channel, err,
+		log.Trace(fmt.Sprintf("Api DepositChannel channelIdentifier=%s,balanceStr=%s,out channel=\n%s,err=%v",
+			channelIdentifier, balanceStr, channel, err,
 		))
 	}()
-	chAddr := common.HexToHash(channelAddres)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.GetChannel(chAddr)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
-		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(chAddr), err))
+		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifierHash), err))
 		return
 	}
 	c, err = a.api.Deposit(c.TokenAddress(), c.PartnerAddress(), balance, params.DefaultPollTimeout)
@@ -237,7 +238,7 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 	}
 
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -264,7 +265,7 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 
 //TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
 func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
-	token, err := utils.HexToAddress(tokenAddress)
+	token, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -278,8 +279,8 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 }
 
 //ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
-func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (eventsString string, err error) {
-	channel := common.HexToHash(channelAddress)
+func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelIdentifier string) (eventsString string, err error) {
+	channel := common.HexToHash(channelIdentifier)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -310,7 +311,7 @@ type partnersData struct {
 
 //TokenPartners GET /api/1/tokens/0x61bb630d3b2e8eda0fc1d50f9f958ec02e3969f6/partners
 func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -338,7 +339,7 @@ func (a *API) RegisterToken(tokenAddress string) (managerAddress string, err err
 			tokenAddress, managerAddress, err,
 		))
 	}()
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -361,11 +362,11 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, transfer, err,
 		))
 	}()
-	tokenAddr, err := utils.HexToAddress(tokenAddress)
+	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
 	}
-	targetAddr, err := utils.HexToAddress(targetAddress)
+	targetAddr, err := utils.HexToAddressWithoutValidation(targetAddress)
 	if err != nil {
 		return
 	}
@@ -380,12 +381,13 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = errors.New("amount should be positive")
 		return
 	}
-	err = a.api.Transfer(tokenAddr, amount, fee, targetAddr, secret, params.MaxRequestTimeout, isDirect)
+	result, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	req := &v1.TransferData{}
+	req.LockSecretHash = result.LockSecretHash.String()
 	req.Initiator = a.api.Raiden.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
@@ -409,7 +411,7 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	}
 
 	var target common.Address
-	target, err = utils.HexToAddress(TargetAddress)
+	target, err = utils.HexToAddressWithoutValidation(TargetAddress)
 	if err != nil {
 		return
 	}
@@ -419,11 +421,11 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	}
 	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
 	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
-	makerToken, err := utils.HexToAddress(SendingToken)
+	makerToken, err := utils.HexToAddressWithoutValidation(SendingToken)
 	if err != nil {
 		return
 	}
-	takerToken, err := utils.HexToAddress(ReceivingToken)
+	takerToken, err := utils.HexToAddressWithoutValidation(ReceivingToken)
 	if err != nil {
 		return
 	}
@@ -450,17 +452,17 @@ func (a *API) Stop() {
 ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
 */
-func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
-	channelAddr := common.HexToHash(channelAddress)
-	thirdPartyAddr, err := utils.HexToAddress(thirdPartyAddress)
+func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error) {
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	thirdPartyAddr, err := utils.HexToAddressWithoutValidation(thirdPartyAddress)
 	if err != nil {
 		return
 	}
-	if channelAddr == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
+	if channelIdentifierHash == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
 		err = errors.New("invalid argument")
 		return
 	}
-	result, err := a.api.ChannelInformationFor3rdParty(channelAddr, thirdPartyAddr)
+	result, err := a.api.ChannelInformationFor3rdParty(channelIdentifierHash, thirdPartyAddr)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -480,6 +482,10 @@ func (a *API) SwitchNetwork(isMesh bool) {
 /*
 UpdateMeshNetworkNodes 同一个局域网内优先
 */
+/*
+ *	UpdateMeshNetworkNodes : function to update all nodes in MeshNetwork.
+ *	Nodes within the same local network have higher priority.
+ */
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api UpdateMeshNetworkNodes nodesstr=%s,out err=%v", nodesstr, err))
@@ -561,16 +567,24 @@ type NotifyHandler interface {
 	OnReceivedTransfer(tr string)
 	//OnSentTransfer a transfer sent success
 	OnSentTransfer(tr string)
+	// OnNotify get some important message raiden want to notify upper application
+	OnNotify(level int, info string)
 }
 
 /*
-关于状态汇报,为了脱耦,单独放到一个包中,使用 channel 通信,
+Subscribe : 关于状态汇报,为了脱耦,单独放到一个包中,使用 channel 通信,
 为了防止写阻塞,可以通过 select 写入.
 向 panic一样,每次重新初始化
 尽量避免 启动 go routine
 如果要新创建Raiden 实例,必须调用 sub.Unsubscribe, 否则肯定会发生内存泄漏
 */
-
+/*
+ *	Subscribe : As to Status Notification, we put these codebase into an individual package
+ *	and use channel to communication.
+ * 	To avoid write block, we can write data through select.
+ *	We should make effort to avoid start go routine.
+ *  If there's need to create a new Raiden instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
+ */
 // Subscribe notifications about the current blockchain head
 // on the given channel.
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
@@ -581,14 +595,22 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 		XMPPStatus: netshare.Disconnected,
 		EthStatus:  netshare.Disconnected,
 	}
-	mt, ok := a.api.Raiden.Transport.(*network.MixTransporter)
-	if !ok {
-		err = fmt.Errorf("not MixTransporter %s", utils.StringInterface(a.api.Raiden.Transport, 3))
-		return
-	}
-	xn, err := mt.GetNotify()
-	if err != nil {
-		log.Error(fmt.Sprintf("xmpp transport err %s", err))
+
+	var xn <-chan netshare.Status
+	switch t := a.api.Raiden.Transport.(type) {
+	case *network.MatrixMixTransport:
+		xn, err = t.GetNotify()
+		if err != nil {
+			log.Error(fmt.Sprintf("matrix transport get nofity err %s", err))
+			return
+		}
+	case *network.MixTransport:
+		xn, err = t.GetNotify()
+		if err != nil {
+			log.Error(fmt.Sprintf("mix transport get notify err %s", err))
+			return
+		}
+	default:
 		xn = make(chan netshare.Status)
 	}
 	go func() {
@@ -609,12 +631,20 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t := <-a.api.Raiden.GetDb().SentTransferChan:
-				d, err = json.Marshal(t)
-				handler.OnSentTransfer(string(d))
-			case t := <-a.api.Raiden.GetDb().ReceivedTransferChan:
-				d, err = json.Marshal(t)
-				handler.OnReceivedTransfer(string(d))
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetSentTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnSentTransfer(string(d))
+				}
+			case t, ok := <-a.api.Raiden.NotifyHandler.GetReceivedTransferChan():
+				if ok {
+					d, err = json.Marshal(t)
+					handler.OnReceivedTransfer(string(d))
+				}
+			case n, ok := <-a.api.Raiden.NotifyHandler.GetNoticeChan():
+				if ok {
+					handler.OnNotify(int(n.Level), n.Info)
+				}
 			case <-sub.quitChan:
 				return
 			}

@@ -11,8 +11,6 @@ import (
 
 	"math/big"
 
-	"os"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -26,7 +24,7 @@ var big1 = big.NewInt(1)
 //a valid channel address onchain
 func getAChannel(api *RaidenAPI) common.Hash {
 	for _, g := range api.Raiden.Token2ChannelGraph {
-		for addr := range g.ChannelAddress2Channel {
+		for addr := range g.ChannelIdentifier2Channel {
 			return addr
 		}
 	}
@@ -212,7 +210,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Hash]common.Add
 	}
 	m := make(map[common.Hash]common.Address)
 	for _, g := range ra.Raiden.Token2ChannelGraph {
-		for addr, c := range g.ChannelAddress2Channel {
+		for addr, c := range g.ChannelIdentifier2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State == channeltype.StateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = ra.Raiden.NodeAddress
@@ -221,7 +219,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Hash]common.Add
 		}
 	}
 	for _, g := range rb.Raiden.Token2ChannelGraph {
-		for addr, c := range g.ChannelAddress2Channel {
+		for addr, c := range g.ChannelIdentifier2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State == channeltype.StateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = rb.Raiden.NodeAddress
@@ -249,13 +247,13 @@ func TestTransfer(t *testing.T) {
 	log.Info("channels number ", len(chm))
 	var i uint64
 	values := make(map[*RaidenAPI]map[common.Hash]*big.Int)
-	for chaddr, nodeAddr := range chm {
+	for channelIdentifier, nodeAddr := range chm {
 		i++
 		r := rb
 		if nodeAddr == ra.Raiden.NodeAddress {
 			r = ra
 		}
-		ch, err := r.GetChannel(chaddr)
+		ch, err := r.GetChannel(channelIdentifier)
 		if err != nil {
 			t.Error(err)
 		}
@@ -263,11 +261,11 @@ func TestTransfer(t *testing.T) {
 		if !ok {
 			values[r] = make(map[common.Hash]*big.Int)
 		}
-		values[r][chaddr] = ch.OurBalance()
+		values[r][channelIdentifier] = ch.OurBalance()
 		go func(r *RaidenAPI, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
 			wgStart.Wait() //start at the same time
-			err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, utils.EmptyHash, time.Minute*2, false)
+			_, err := r.Transfer(tokenAddr, big1, utils.BigInt0, partnerAddr, utils.EmptyHash, time.Minute*2, false)
 			if err != nil {
 				t.Error()
 			}
@@ -299,26 +297,26 @@ func TestTransfer(t *testing.T) {
 //test must must fail,because transfer must ordered between two partners.
 //but should not panic
 func TestTransferWithPython(t *testing.T) {
-	reinit()
-	ra := newTestRaidenAPI()
-	defer ra.Stop()
-	log.Info("node addr:=", ra.Address().String())
-	c, _ := ra.GetChannel(common.HexToHash(os.Getenv("CHANNEL")))
-	wg := sync.WaitGroup{}
-	//cnt := int(money) - 1
-	cnt := 10
-	wg.Add(cnt)
-	for i := 1; i < cnt+1; i++ {
-		go func(id int) {
-			err := ra.Transfer(c.TokenAddress(), big1, utils.BigInt0, c.PartnerAddress(), utils.EmptyHash, time.Second*10, false)
-			if err != nil {
-				log.Error(fmt.Sprintf("err=%s", err))
-			}
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-	time.Sleep(time.Second * 3)
+	//reinit()
+	//ra := newTestRaidenAPI()
+	//defer ra.Stop()
+	//log.Info("node addr:=", ra.Address().String())
+	//c, _ := ra.GetChannel(common.HexToHash(os.Getenv("CHANNEL")))
+	//wg := sync.WaitGroup{}
+	////cnt := int(money) - 1
+	//cnt := 10
+	//wg.Add(cnt)
+	//for i := 1; i < cnt+1; i++ {
+	//	go func(id int) {
+	//		_, err := ra.Transfer(c.TokenAddress(), big1, utils.BigInt0, c.PartnerAddress(), utils.EmptyHash, time.Second*10, false)
+	//		if err != nil {
+	//			log.Error(fmt.Sprintf("err=%s", err))
+	//		}
+	//		wg.Done()
+	//	}(i)
+	//}
+	//wg.Wait()
+	//time.Sleep(time.Second * 3)
 	//assert(t, c.OurBalance, x.Sub(originalBalance, big.NewInt(int64(cnt))))
 }
 
@@ -345,14 +343,14 @@ func TestPairTransfer(t *testing.T) {
 	for i := 1; i <= cnt; i++ {
 		//wg.Add(2)
 		go func(index int) {
-			err := ra.Transfer(c.TokenAddress, big1, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
+			_, err := ra.Transfer(c.TokenAddress, big1, utils.BigInt0, rb.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
 			if err != nil {
 				t.Error(err)
 			}
 			wg.Done()
 		}(i)
 		go func(index int) {
-			err := rb.Transfer(c.TokenAddress, big1, utils.BigInt0, ra.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
+			_, err := rb.Transfer(c.TokenAddress, big1, utils.BigInt0, ra.Raiden.NodeAddress, utils.EmptyHash, time.Minute*20, false)
 			if err != nil {
 				t.Error(err)
 			}

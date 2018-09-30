@@ -41,9 +41,9 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
 	state.Transfer.Secret = utils.EmptyHash
-	state.Transfer.LockSecretHash = utils.EmptyHash
+	//state.Transfer.LockSecretHash = utils.EmptyHash // need by remove
 	state.Message = nil
-	state.Route = nil
+	//state.Route = nil // need by remove
 	state.SecretRequest = nil
 	state.RevealSecret = nil
 	cancel := &transfer.EventTransferSentFailed{
@@ -52,8 +52,11 @@ func userCancelTransfer(state *mt.InitiatorState) *transfer.TransitionResult {
 		Target:         state.Transfer.Target,
 		Token:          state.Transfer.Token,
 	}
+	/*
+		need state exist to send remove msg after expired
+	*/
 	return &transfer.TransitionResult{
-		NewState: nil,
+		NewState: state,
 		Events:   []transfer.Event{cancel},
 	}
 }
@@ -98,7 +101,6 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 			Events:   events,
 		}
 	}
-	state.Route = tryRoute
 	/*
 				  The initiator doesn't need to learn the secret, so there is no need
 		         to decrement reveal_timeout from the lock timeout.
@@ -126,6 +128,14 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		Fee:            tryRoute.TotalFee,
 	}
 	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
+	if len(state.Routes.CanceledRoutes) > 0 {
+		/*
+			保存上次尝试的路由信息,否则当发起方收到AnnounceDisposed的时候,尝试新路由时,会出现异常
+		*/
+		// Store route info of previous one, or when receiving AnnounceDisposed message and try a new route, error occurs.
+		msg.FromChannel = state.Routes.CanceledRoutes[len(state.Routes.CanceledRoutes)-1].ChannelIdentifier
+	}
+	state.Route = tryRoute
 	state.Transfer = tr
 	state.Message = msg
 	log.Trace(fmt.Sprintf("send mediated transfer id=%s,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
@@ -153,12 +163,29 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 make sure not call this when transfer already finished , state is nil means finished.
 */
 func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChange) *transfer.TransitionResult {
+	var events []transfer.Event
 	if state.BlockNumber < stateChange.BlockNumber {
 		state.BlockNumber = stateChange.BlockNumber
 	}
+	if state.BlockNumber > state.Transfer.Expiration {
+		// 超时
+		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
+		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,发送remove expired,然后移除state manager
+		// timeout
+		// If I have not sent secret, then just send removeExpiredLock, and remove stateManager.
+		// If I have already sent secret, then assume transfer timeout failure, send remove expired, and remove state manager.
+		events = append(events, &mt.EventUnlockFailed{
+			LockSecretHash:    state.Transfer.LockSecretHash,
+			ChannelIdentifier: state.Route.ChannelIdentifier,
+			Reason:            "lock expired",
+		})
+		events = append(events, &mt.EventRemoveStateManager{
+			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
+		})
+	}
 	return &transfer.TransitionResult{
 		NewState: state,
-		Events:   expiredHashLockEvents(state),
+		Events:   events,
 	}
 }
 
@@ -197,8 +224,8 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.LockSecretHash == state.Transfer.LockSecretHash &&
 		stateChange.Amount.Cmp(state.Transfer.TargetAmount) == 0
-	isInvalid := stateChange.Sender == state.Transfer.Target &&
-		stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
+	//isInvalid := stateChange.Sender == state.Transfer.Target &&
+	//	stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
 	if isValid {
 		/*
 		   Reveal the secret to the target node and wait for its confirmation,
@@ -221,27 +248,38 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 			NewState: state,
 			Events:   []transfer.Event{revealSecret},
 		}
-	} else if isInvalid {
-		return cancelCurrentRoute(state)
-	} else {
-		return &transfer.TransitionResult{
-			NewState: state,
-			Events:   nil,
-		}
+	}
+	/*
+		BUG : 每次交易密码不会发生变化,如果尝试其他路径,可能会被恶意利用
+	*/
+	//if isInvalid {
+	//	return cancelCurrentRoute(state)
+	//}
+	return &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
 	}
 }
 
 /*
 密码在链上注册了,只要在有效期范围内,就相当于收到了对方的 reveal secret, 主动给对方发送 unlock 消息.
 */
+/*
+ *	handleSecretRevealOnChain : function to handle event of RevealSecretOnChain.
+ *
+ *	Note : Once the secret has been registered on chain, all nodes act like they receives reveal secret from their partner,
+ *	then send unlock to their partner.
+ */
 func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
 	if st.LockSecretHash != state.LockSecretHash {
 		//无论是不是 token swap, 都应该知道 locksecrethash,否则肯定是实现有问题
+		// we should know locksecrethash no matter whether it is token swap, otherwise implementation has problem.
 		panic(fmt.Sprintf("my locksecrethash=%s,received=%s", state.LockSecretHash.String(), st.LockSecretHash.String()))
 	}
 	log.Trace(fmt.Sprintf("Check lock's expiration, state.Transfer.Expiration=%d, st.BlockNumber=%d\n", state.Transfer.Expiration, st.BlockNumber))
 	if state.Transfer.Expiration < st.BlockNumber {
 		//对于我来说这笔交易已经超期了. 应该发出 移除此锁消息.
+		// As to me this transfer expired, should send RemoveExpiredLock message.
 		events := expiredHashLockEvents(state)
 		events = append(events, &mt.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
@@ -252,6 +290,7 @@ func handleSecretRevealOnChain(state *mt.InitiatorState, st *mt.ContractSecretRe
 		}
 	}
 	//认为交易成功了
+	// assume transfer succeed.
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   transferSuccessEvents(state),
@@ -291,6 +330,7 @@ func handleSecretReveal(state *mt.InitiatorState, st *mt.ReceiveSecretRevealStat
 	/*
 		考虑到崩溃恢复情形,可能崩溃了很久. 如果这时候交易还继续进行,显然不合理.
 	*/
+	// Consider that crash happened for a long time, if transfer still goes on, that's not reasonable.
 	if state.BlockNumber >= state.Transfer.Expiration {
 		return &transfer.TransitionResult{
 			NewState: state,
@@ -354,6 +394,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		/*
 			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
 		*/
+		// As transfer initiator, we assume that this transfer completes once we send unlock and my partner receive it.
 		//todo fix, find a way to remove this identifier from raiden.Transfer2StateManager
 		log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 			utils.StringInterface1(originalState), utils.StringInterface1(st)))
@@ -370,6 +411,17 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				因为有可能对方是恶意的,一个恶意的实现就是, maker 发出的secret request 对方根本不响应,造成自己有一个 state manager 不知道密码,
 				从而造成损失.
 			*/
+			/*
+			 *	As long as secret correct, then we should send secret. There might be problematic about this procedure but result is correct.
+			 *	Because according to protocol layer, same message won't send repeatedly, which leads to maker can't send reveal secret in tokenswap.
+			 *
+			 *	As to token swap, maybe redundency occurs because both participants send / receive revealsecret twice.
+			 *
+			 *	maker :
+			 *		1. when maker sends reveal secret to his partner, two statemanager of a lock should know the secret.
+			 *			Because maybe partner is fraudulent node, and he never responds to secret request, which leads to one stateManager without secret.
+			 *
+			 */
 		case *mt.ReceiveSecretRevealStateChange:
 			it = handleSecretReveal(state, st2)
 		case *mt.ContractSecretRevealOnChainStateChange:
@@ -398,6 +450,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			} else {
 				panic(fmt.Sprintf("secret already revealed,transfer cannot canceled"))
 			}
+		case *mt.ContractCooperativeSettledStateChange:
+			it = cancelCurrentRoute(state)
+		case *mt.ContractChannelWithdrawStateChange:
+			it = cancelCurrentRoute(state)
 		default:
 			log.Error(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
 		}

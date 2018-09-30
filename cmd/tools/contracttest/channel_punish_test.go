@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // TestChannelPunishRight : 正确调用测试
+// TestChannelPunishRight : normal function call
 func TestChannelPunishRight(t *testing.T) {
 	InitEnv(t, "./env.INI")
 	count := 0
@@ -352,12 +354,14 @@ type ObseleteUnlockForContract struct {
 
 func (w *ObseleteUnlockForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	buf.Write(w.LockHash[:])
-	buf.Write(w.ChannelIdentifier[:])
-	binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("136"))
+	_, err = buf.Write(w.LockHash[:])
+	_, err = buf.Write(w.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
-	buf.Write(utils.BigIntTo32Bytes(w.ChainID))
-	buf.Write(w.AdditionalHash[:])
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
+	_, err = buf.Write(w.AdditionalHash[:])
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)

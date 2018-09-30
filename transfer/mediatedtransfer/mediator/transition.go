@@ -219,9 +219,12 @@ func clearIfFinalized(result *transfer.TransitionResult) *transfer.TransitionRes
 		}
 	}
 	if isAllFinalized {
+		// 此处可以移除state manager了
 		return &transfer.TransitionResult{
 			NewState: nil,
-			Events:   result.Events,
+			Events: append(result.Events, &mediatedtransfer.EventRemoveStateManager{
+				Key: utils.Sha3(state.LockSecretHash[:], state.Token[:]),
+			}),
 		}
 	}
 	return result
@@ -368,6 +371,10 @@ Set the state of expired transfers, and return the failed events
 按照现在的规则
 payer的 expiration>=payee 的 expiration 可以相等
 */
+/*
+ *	set the state of expired transfers, and return the failed events.
+ *	According to current rule, that expiration between payer and payee can be equal.
+ */
 func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event, hasNotExpired bool) {
 	pendingTransfersPairs := getPendingTransferPairs(transfersPairs)
 	hasNotExpired = len(pendingTransfersPairs) > 0
@@ -375,6 +382,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 		if blockNumber > pair.PayerTransfer.Expiration {
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
 				//未必一定, 两者的 expiration 很可能是相同的
+				// we cannot be certain, both expiration can be identical.
 			}
 			if pair.PayeeTransfer.Expiration > pair.PayerTransfer.Expiration {
 				panic("PayeeTransfer.Expiration>=pair.PayerTransfer.Expiration")
@@ -437,7 +445,7 @@ func eventsForRefund(refundRoute *route.State, refundTransfer *mediatedtransfer.
 	/*
 		原封不动声明放弃此锁即可
 	*/
-
+	// abandon this lock just fine.
 	rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
 		Token:          refundTransfer.Token,
 		Amount:         new(big.Int).Set(refundTransfer.Amount),
@@ -476,6 +484,33 @@ Reveal the secret backwards.
 如果我收到密码的时候已经临近上家密码的 reveal timeout,这样的做法会不会造成连锁反应,造成所有的人都主动去链上注册密码呢?
 我要不要发送 reveal secret 给上家呢?
 */
+/*
+ *	Reveal the secret backwards.
+ *
+ *   This node is named N, suppose there is a mediated transfer with two refund
+ *   transfers, one from B and one from C:
+ *
+ *       A-N-B...B-N-C..C-N-D
+ *
+ *   Under normal operation N will first learn the secret from D, then reveal to
+ *  C, wait for C to inform the secret is known before revealing it to B, and
+ *   again wait for B before revealing the secret to A.
+ *
+ *   If B somehow sent a reveal secret before C and D, then the secret will be
+ *   revealed to A, but not C and D, meaning the secret won't be propagated
+ *   forward. Even if D sent a reveal secret at about the same time, the secret
+ *   will only be revealed to B upon confirmation from C.
+ *
+ *   Even though B somehow learnt the secret out-of-order N is safe to proceed
+ *   with the protocol, the transitBlocks configuration adds enough time for
+ *   the reveal secrets to propagate backwards and for B to send the balance
+ *   proof. If the proof doesn't arrive in time and the lock's expiration is at
+ *   risk, N won't lose tokens since it knows the secret can go on-chain at any
+ *   time.
+ *
+ *   All these transfersPair are mediated transfers I involve in.
+ *	 If the time is near reveal timeout set by previous node, does this leads to interlock effect that all participants register secret on-chain?
+ */
 func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState, ourAddress common.Address) (events []transfer.Event) {
 	for j := len(transfersPair) - 1; j >= 0; j-- {
 		pair := transfersPair[j]
@@ -505,9 +540,18 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 		payeePayed := stateTransferPaidMaps[pair.PayeeState]
 		payeeChannelOpen := pair.PayeeRoute.State() == channeltype.StateOpened
 		/*
+			如果上家通道已经关闭,不主动发送unlock,尽量让下家去注册密码,避免自己上链注册密码
+		*/
+		// If previous channel closed, don't send unlock and let next node to register secret
+		payerChannelOpen := pair.PayerRoute.State() == channeltype.StateOpened
+
+		/*
 			如果我收到密码的时候已经临近上家密码的 reveal timeout,那么安全的做法就是什么都不做.
 				强迫这个交易失败,或者强迫下家去注册密码,对方就不应该在临近过期的时候才告诉我密码,应该提早告诉.
 		*/
+		// If the time I receive secret from my previous node is near reveal_timeout, then we better do nothing.
+		// to force failure of this transfer or next node to register secret.
+		// My partner should not reveal this secret to me near reveal_timeout instead that he should reveal it ahead.
 		payerTransferInDanger := blockNumber > pair.PayerTransfer.Expiration-int64(pair.PayerRoute.RevealTimeout())
 		/*
 					  todo: All nodes must register the secret  on-chain if the
@@ -517,7 +561,7 @@ func eventsForBalanceProof(transfersPair []*mediatedtransfer.MediationPairState,
 			         define the unsafe region, since that is a local configuration)
 		*/
 		lockValid := isLockValid(pair.PayeeTransfer, blockNumber)
-		if payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid && !payerTransferInDanger {
+		if payerChannelOpen && payeeChannelOpen && payeeKnowsSecret && !payeePayed && lockValid && !payerTransferInDanger {
 			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			tr := pair.PayeeTransfer
 			balanceProof := &mediatedtransfer.EventSendBalanceProof{
@@ -541,6 +585,10 @@ Close the channels that are in the unsafe region prior to an on-chain
 发出注册密码事件应该是整个交易的事情,而不是某个 pair 的事
 如果发生了崩溃恢复怎么处理呢?
 */
+/*
+ *	Close the channels that are in the unsafe region prior to an on-chain withdraw
+ *	All channel participants should be responsbile to send reveal secret when necessary.
+ */
 func eventsForRegisterSecret(transfersPair []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event) {
 	pendings := getPendingTransferPairs(transfersPair)
 	needRegisterSecret := false
@@ -548,6 +596,7 @@ func eventsForRegisterSecret(transfersPair []*mediatedtransfer.MediationPairStat
 		pair := pendings[j]
 		if isSecretRegisterNeeded(pair, blockNumber) {
 			//只需发出一次注册请求,所有的 pair 状态都应该修改为StatePayerWaitingRegisterSecret
+			// we only need to send reveal secret once, all pairs state should switch to StatePayerWaitingRegisterSecret.
 			if needRegisterSecret {
 				pair.PayerState = mediatedtransfer.StatePayerWaitingRegisterSecret
 			} else {
@@ -609,16 +658,43 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
 	if transferPair == nil {
+		log.Warn("no usable route, reject")
 		/*
 				回退此交易,相当于没收到过一样处理
 			todo 如何保存相关通道状态?
 		*/
+		/*
+		 *	Exit this transfer, like never received it.
+		 *	todo How to store relevant channel state.
+		 */
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
 		refundEvents := eventsForRefund(originalRoute, originalTransfer)
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   refundEvents,
+		}
+	}
+	/*
+		这里根据reveal_timeout限制持有锁的数量,如果同时持有对方的锁大于某个值,说明对方很有可能不是诚信节点,此时不再接收对方发来的交易,
+		这是为了避免上下家合作利用时间差来攻击我,造成我损失钱的情况
+		在这里做可以直接通过announce disposed拒绝该笔交易,既达到拒绝的目的,也不至于让交易卡住
+		暂时直接使用通道的reveal_timeout作为阈值
+	*/
+	/*
+		Here, the number of locks held is limited according to reveal_timeout. If the locks held at the same time are more than a certain value,
+		the other party may not be a trustworthy node and no longer receive transactions from the other party.
+		This is to avoid the cooperation between the payer and payee in using time difference to attack me, causing me to lose money.
+
+		It is possible to reject the transaction directly through announcement disposed, so that the purpose of rejection is achieved and the transaction is not stuck.
+		Reveal_timeout is used directly as a threshold value temporarily.
+	*/
+	payerChannel := transferPair.PayerRoute.Channel()
+	if len(payerChannel.PartnerState.Lock2PendingLocks)+len(payerChannel.PartnerState.Lock2UnclaimedLocks) > payerChannel.RevealTimeout {
+		log.Warn(fmt.Sprintf("holding too much lock of %s, reject new mediated transfer from him", utils.APex2(payerChannel.PartnerState.Address)))
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   eventsForRefund(payerRoute, payerTransfer),
 		}
 	}
 	/*
@@ -633,8 +709,51 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 }
 
 /*
+
+ */
+func cancelCurrentRoute(state *mediatedtransfer.MediatorState, refundChannelIdentify common.Hash) *transfer.TransitionResult {
+	var it = &transfer.TransitionResult{
+		NewState: state,
+		Events:   nil,
+	}
+	l := len(state.TransfersPair)
+	if l <= 0 {
+		log.Error(fmt.Sprintf("recevie refund ,but has no transfer pair ,must be a attack!!"))
+		return it
+	}
+	transferPair := state.TransfersPair[l-1]
+	state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
+	/*
+		if refund msg came from payer, panic, something must wrong!
+	*/
+	if refundChannelIdentify == transferPair.PayerRoute.ChannelIdentifier {
+		panic("receive refund/withdraw/cooperateSettle from payer,that should happen")
+	}
+	/*
+		这里需要判断下payer通道的状态,如果该通道的状态已经不为open了,就不应该继续尝试新路由.
+		因为我已经在通道close时提交过balance proof,如果继续这笔交易,并且最终交易成功的话,我需要自己注册密码并且上链unlock
+		这不仅需要花费gas,而且存在没来得及unlock以至于丢钱的风险,所以没有必要继续,直接拒绝
+	*/
+	/*
+		Here I need to determine the state of the payer channel, and if the state of the channel is no longer open, you should not continue to try new routing.
+		Because I've already submitted balance proof at channel close, and if this transaction continues and eventually succeeds,
+		I need to register secret and unlock it.
+		Not only does it cost gas, but there's a risk of losing money by not unlocking it in time, so there's no need to go on.
+		Refuse by announce disposed.
+	*/
+	if transferPair.PayerRoute.ClosedBlock() != 0 {
+		log.Warn("channel already closed, stop trying new route")
+		it.Events = eventsForRefund(transferPair.PayerRoute, transferPair.PayerTransfer)
+		return it
+	}
+	it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+	return it
+}
+
+/*
 又收到了一个 mediatedtransfer
 */
+// receive another mediatedTransfer
 func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.MediatorReReceiveStateChange) *transfer.TransitionResult {
 	return mediateTransfer(state, st.FromRoute, st.FromTransfer)
 }
@@ -660,6 +779,7 @@ func handleBlock(state *mediatedtransfer.MediatorState, st *transfer.BlockStateC
 	events = append(events, unlockfailEvents...)
 	if !hasNotExpired {
 		//所有的mediatedtransfer 都已经过期了,放心移除这个 stateManager 吧
+		// All mediatedTransfers are expired, feel safe to remove this StateManager.
 		events = append(events, &mediatedtransfer.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Token[:]),
 		})
@@ -715,6 +835,8 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 		todo A-B-C-F-B-G-D
 		B首先收到了来自 C 的refund 怎么处理?网络错误?网络攻击?
 	*/
+	// todo A-B-C-F-B-G-D
+	// If B first receives refund of C, how to deal with that?
 	if IsValidRefund(payeeTransfer, payeeRoute, st) {
 		/*
 					假定队列中的是
@@ -725,8 +847,15 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 				todo 如何保存相关通道呢?
 			todo 长时间崩溃恢复以后会收到这个消息么?
 		*/
-		state.TransfersPair = state.TransfersPair[:l-1] //移除最后一个
-		it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)
+		/*
+		 *	Assume that order in this queue is
+		 *	AB BC EB BF
+		 *	which means we receive refund of F, then we should assume that payeeTransfer invalid,
+		 *  which acts like receiving transfer of E, then begin to find a route again.
+		 *	todo How to store relevant channel
+		 *	todo Do we receive this message after crashed for a long time ?
+		 */
+		it = cancelCurrentRoute(state, st.Message.ChannelIdentifier)
 		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
 			Token:          state.Token,
 			LockSecretHash: st.Lock.LockSecretHash,
@@ -760,6 +889,13 @@ func handleSecretReveal(state *mediatedtransfer.MediatorState, st *mediatedtrans
 没有过期的交易都还在这里
 todo 但是如果发生了崩溃恢复,时间还较长怎么处理呢?
 */
+/*
+ *	Received secret has been registered on-chain,
+ *	this transfer completes.
+ *	For those expired transfers, partner should receive remove expired Hashlock
+ *	For those unexpired transfers, they are here.
+ *	todo but if node crashes for a long time, how to deal with that ?
+ */
 func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ContractSecretRevealOnChainStateChange) *transfer.TransitionResult {
 	var it = &transfer.TransitionResult{
 		NewState: state,
@@ -775,6 +911,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 		route := pair.PayeeRoute
 		if tr.Expiration >= st.BlockNumber {
 			//没有超时,就应该发送 unlock 消息,不用关心现在通道是什么状态,就是 settle 了问题也不大.
+			// if not be reveal_timeout, then we should send unlock, do not care current channel state.
 			ev := &mediatedtransfer.EventSendBalanceProof{
 				LockSecretHash:    tr.LockSecretHash,
 				ChannelIdentifier: route.ChannelIdentifier,
@@ -784,6 +921,7 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 			events = append(events, ev)
 			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
+			// As for payer, he will not be impacted even he does not send BalanceProof, but cost gas to on-chain secret register.
 		}
 	}
 	it.Events = events
@@ -794,6 +932,24 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveUnlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
 	for _, pair := range state.TransfersPair {
+		if pair.PayeeState != mediatedtransfer.StatePayeeBalanceProof {
+			/*
+				如果收到unlock的时候,还没有给下家发送unlock,补发
+			*/
+			// If not receiving unlock from next node when receiving unlock, re-send it.
+			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
+			tr := pair.PayeeTransfer
+			balanceProof := &mediatedtransfer.EventSendBalanceProof{
+				LockSecretHash:    tr.LockSecretHash,
+				ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+				Token:             tr.Token,
+				Receiver:          pair.PayeeRoute.HopNode(),
+			}
+			unlockSuccess := &mediatedtransfer.EventUnlockSuccess{
+				LockSecretHash: pair.PayerTransfer.LockSecretHash,
+			}
+			events = append(events, balanceProof, unlockSuccess)
+		}
 		if pair.PayerRoute.HopNode() == st.NodeAddress {
 			withdraw := &mediatedtransfer.EventWithdrawSuccess{
 				LockSecretHash: pair.PayeeTransfer.LockSecretHash,
@@ -867,6 +1023,14 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			} else {
 				log.Error(fmt.Sprintf("already known secret,but recevie medaited tranfer again:%s", st2.Message))
 			}
+		/*
+			only receive from channel with payee,
+			never receive from channel with payer
+		*/
+		case *mediatedtransfer.ContractCooperativeSettledStateChange:
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier)
+		case *mediatedtransfer.ContractChannelWithdrawStateChange:
+			it = cancelCurrentRoute(state, st2.ChannelIdentifier.ChannelIdentifier)
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}

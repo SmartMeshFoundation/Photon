@@ -1,11 +1,11 @@
 package mediatedtransfer
 
 import (
-	"encoding/gob"
-
 	"math/big"
 
 	"math"
+
+	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
@@ -120,16 +120,21 @@ type EventRemoveStateManager struct {
 /*
 ContractStateChange  所有的合约事件都应该是按照链上发生的顺序抵达,这样可以保证同一个通道 settle 重新打开以后,不至于把事件发送给错误的通道.
 */
+// ContractStateChange : All contract events should be obtained in the order as they are sent out on-chain,
+// which makes sure that events will not be sent to another channel when the same channel resumes its settle phase.
 type ContractStateChange interface {
 	GetBlockNumber() int64
 }
 
-//FakeContractInfoCompleteStateChange 主要用来通知上层,第一次启动获取历史事件完毕
-type FakeContractInfoCompleteStateChange struct {
+//FakeLastHistoryContractStateChange 主要用来通知上层,历史合约事件处理完毕
+// FakeLastHistoryContractStateChange : mainly used to send notification to upper layer
+// that history events have been completed.
+type FakeLastHistoryContractStateChange struct {
 }
 
 //GetBlockNumber 返回一个不可能存在的块数,
-func (e *FakeContractInfoCompleteStateChange) GetBlockNumber() int64 {
+// GetBlockNumber : returns the block number that never exists.
+func (e *FakeLastHistoryContractStateChange) GetBlockNumber() int64 {
 	return math.MaxInt64
 }
 
@@ -138,6 +143,9 @@ ContractSecretRevealOnChainStateChange 密码在链上注册了
 1.诚实的节点在检查对方可以在链上unlock 这个锁的时候,应该主动发送unloc消息,移除此锁
 2.自己应该把密码保存在本地,然后在需要的时候链上兑现
 */
+// ContractSecretRevealOnChainStateChange : channel state of the secret been registered on-chain.
+// 1. Honest node check that his partner should proactively send unlock message to remove ths lock while his partner has the chance to do that.
+// 2. He should backup the secret into local storage, then register it whenever he needs to do that.
 type ContractSecretRevealOnChainStateChange struct {
 	Secret         common.Hash
 	LockSecretHash common.Hash
@@ -168,6 +176,8 @@ func (e *ContractUnlockStateChange) GetBlockNumber() int64 {
 type ContractChannelWithdrawStateChange struct {
 	ChannelIdentifier *contracts.ChannelUniqueID
 	//剩余的 balance 有意义?目前提供的 Event 并不知道 Participant1是谁,所以没啥用.
+	//remnant balance has meaning?
+	// Currently Event has no idea about the identity of Participant1, so no use.
 	Participant1        common.Address
 	Participant1Balance *big.Int
 	Participant2        common.Address

@@ -6,7 +6,7 @@ This section will walk through the steps necessary to participate in a SmartRaid
 
 Before getting started with below guides, please see [Overview and Guide](./overview.md), to make sure that a proper connection to SmartRaiden is established.
 
-Furthermore, to see all available endpoints, please see [REST API Endpoints](./rest_api.md).
+Furthermore, to see all available endpoints, please see [REST API Endpoints](./rest_api_0.8.md).
 ## Scenarios
 Below is a series of different scenarios showing different ways a user can interact with the SmartRaiden API.
 

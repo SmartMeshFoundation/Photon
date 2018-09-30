@@ -1,0 +1,116 @@
+{
+  "next_batch": "s824_1224_18_1_43_1_1_197_1",
+  "device_one_time_keys_count": {},
+  "account_data": {
+    "events": []
+  },
+  "to_device": {
+    "events": []
+  },
+  "groups": {
+    "leave": {},
+    "join": {},
+    "invite": {}
+  },
+  "presence": {
+    "events": [
+      {
+        "content": {
+          "last_active_ago": 1254641,
+          "presence": "offline"
+        },
+        "type": "m.presence",
+        "sender": "@0x292650fee408320d888e06ed89d938294ea42f99:transport02.smartmesh.cn"
+      },
+      {
+        "content": {
+          "status_msg": "other",
+          "currently_active": true,
+          "last_active_ago": 87164,
+          "presence": "online"
+        },
+        "type": "m.presence",
+        "sender": "@0x4b89bff01009928784eb7e7d10bf773e6d166066:transport02.smartmesh.cn"
+      },
+      {
+        "content": {
+          "status_msg": "other",
+          "currently_active": true,
+          "last_active_ago": 20003,
+          "presence": "online"
+        },
+        "type": "m.presence",
+        "sender": "@0x292650fee408320d888e06ed89d938294ea42f99:transport01.smartmesh.cn"
+      },
+      {
+        "content": {
+          "last_active_ago": 3532180,
+          "presence": "unavailable"
+        },
+        "type": "m.presence",
+        "sender": "@cyy:transport01.smartmesh.cn"
+      },
+      {
+        "content": {
+          "last_active_ago": 577709,
+          "presence": "offline"
+        },
+        "type": "m.presence",
+        "sender": "@0x151e62a787d0d8d9effac182eae06c559d1b68c2:transport02.smartmesh.cn"
+      },
+      {
+        "content": {
+          "status_msg": "other",
+          "currently_active": true,
+          "last_active_ago": 19865,
+          "presence": "online"
+        },
+        "type": "m.presence",
+        "sender": "@0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40:transport01.smartmesh.cn"
+      },
+      {
+        "content": {
+          "status_msg": "other",
+          "currently_active": true,
+          "last_active_ago": 19871,
+          "presence": "online"
+        },
+        "type": "m.presence",
+        "sender": "@0x3bc7726c489e617571792ac0cd8b70df8a5d0e22:transport01.smartmesh.cn"
+      },
+      {
+        "content": {
+          "last_active_ago": 455558,
+          "presence": "offline"
+        },
+        "type": "m.presence",
+        "sender": "@0x3bc7726c489e617571792ac0cd8b70df8a5d0e22:transport02.smartmesh.cn"
+      },
+      {
+        "content": {
+          "currently_active": false,
+          "last_active_ago": 122234,
+          "presence": "online"
+        },
+        "type": "m.presence",
+        "sender": "@alice:transport01.smartmesh.cn"
+      },
+      {
+        "content": {
+          "presence": "offline"
+        },
+        "type": "m.presence",
+        "sender": "@0xd4bd8facd16704c2b6ed4b06775467d44f216174:transport02.smartmesh.cn"
+      }
+    ]
+  },
+  "device_lists": {
+    "changed": [],
+    "left": []
+  },
+  "rooms": {
+    "leave": {},
+    "join": {},
+    "invite": {}
+  }
+}

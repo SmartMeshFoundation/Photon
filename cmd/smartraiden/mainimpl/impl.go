@@ -27,6 +27,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -118,6 +119,20 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "enable-health-check",
 			Usage: "enable health check ",
 		},
+		cli.StringFlag{
+			Name:  "matrix-server",
+			Usage: "use another matrix server",
+			Value: "",
+		},
+		cli.BoolFlag{
+			Name:  "matrix",
+			Usage: "use matrix as transport",
+		},
+		cli.IntFlag{
+			Name:  "reveal-timeout",
+			Usage: "channels' reveal timeout, default 50",
+			Value: params.DefaultRevealTimeout,
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -145,9 +160,12 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	notifyHandler := notify.NewNotifyHandler()
 	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
 	ethEndpoint := ctx.String("eth-rpc-endpoint")
 	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
+	// Forbid starting up via HTTP, because there is case that smartraiden starting while in internect connection
+	// but failing to get on-chain events, which brings potential risks into the system.
 	if strings.HasPrefix(ethEndpoint, "http") {
 		err = fmt.Errorf("cannot connect to geth :%s err= does not support http protocol,please use websocket instead", ethEndpoint)
 		return
@@ -162,7 +180,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler)
 	if err != nil {
 		transport.Stop()
 		return
@@ -215,6 +233,14 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 			deviceType = network.DeviceTypeMobile
 		}
 		transport, err = network.NewMixTranspoter(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+	case params.MixUDPMatrix:
+		log.Trace(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
+		policy := network.NewTokenBucket(10, 1, time.Now)
+		deviceType := network.DeviceTypeOther
+		if params.MobileMode {
+			deviceType = network.DeviceTypeMobile
+		}
+		transport, err = network.NewMatrixMixTransporter(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	}
 	return
 }
@@ -303,6 +329,8 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
 	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
+	} else if ctx.Bool("matrix") {
+		config.NetworkMode = params.MixUDPMatrix
 	} else {
 		config.NetworkMode = params.MixUDPXMPP
 	}
@@ -313,5 +341,13 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		config.EnableHealthCheck = true
 	}
 	config.XMPPServer = ctx.String("xmpp-server")
+	if len(ctx.String("matrix-server")) > 0 {
+		s := ctx.String("matrix-server")
+		log.Info(fmt.Sprintf("use matrix server %s", s))
+		params.MatrixServerConfig = map[string]string{
+			s: fmt.Sprintf("http://%s:8008", s),
+		}
+	}
+	config.RevealTimeout = ctx.Int("reveal-timeout")
 	return
 }

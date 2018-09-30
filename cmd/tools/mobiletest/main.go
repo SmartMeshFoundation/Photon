@@ -75,7 +75,8 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress, "",
+	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress,
+		"", params.SpectrumTestNetRegistryAddress.String(),
 		otherArgs)
 	if err != nil {
 		log.Crit(fmt.Sprintf("start up err %s", err))
@@ -111,4 +112,8 @@ func (h handler) OnReceivedTransfer(tr string) {
 //OnSentTransfer a transfer sent success
 func (h handler) OnSentTransfer(tr string) {
 	log.Error(fmt.Sprintf("sent transfer %s", tr))
+}
+
+func (h handler) OnNotify(level int, info string) {
+	log.Info(fmt.Sprintf("Receive notice : level=%d info=%s\n", level, info))
 }

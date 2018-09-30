@@ -41,7 +41,3 @@ func TestStruct(t *testing.T) {
 	var a *T
 	t.Logf("a.a=%d", a.a)
 }
-
-func TestStartMain(t *testing.T) {
-	StartMain()
-}

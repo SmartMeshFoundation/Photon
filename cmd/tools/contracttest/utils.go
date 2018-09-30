@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -35,7 +36,9 @@ type CoOperativeSettleForContracts struct {
 
 func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_, err := buf.Write(c.Particiant1[:])
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("176"))
+	_, err = buf.Write(c.Particiant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant1Balance))
 	_, err = buf.Write(c.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(c.Participant2Balance))
@@ -49,12 +52,11 @@ func (c *CoOperativeSettleForContracts) sign(key *ecdsa.PrivateKey) []byte {
 	return sig
 }
 
-// WithDraw1ForContract : param for withdraw 1
-type WithDraw1ForContract struct {
+// WithDrawForContract : param for withdraw 1
+type WithDrawForContract struct {
 	Participant1         common.Address
 	Participant2         common.Address
 	Participant1Deposit  *big.Int
-	Participant2Deposit  *big.Int
 	Participant1Withdraw *big.Int
 	ChannelIdentifier    contracts.ChannelIdentifier
 	OpenBlockNumber      uint64
@@ -62,46 +64,13 @@ type WithDraw1ForContract struct {
 	ChainID              *big.Int
 }
 
-func (w *WithDraw1ForContract) sign(key *ecdsa.PrivateKey) []byte {
+func (w *WithDrawForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_, err := buf.Write(w.Participant1[:])
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("156"))
+	_, err = buf.Write(w.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_, err = buf.Write(w.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
 	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_, err = buf.Write(w.ChannelIdentifier[:])
-	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
-	//buf.Write(w.TokenNetworkAddress[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.ChainID))
-	sig, err := utils.SignData(key, buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	return sig
-}
-
-// WithDraw2ForContract : param for withdraw 2
-type WithDraw2ForContract struct {
-	Participant1         common.Address
-	Participant2         common.Address
-	Participant1Deposit  *big.Int
-	Participant2Deposit  *big.Int
-	Participant1Withdraw *big.Int
-	Participant2Withdraw *big.Int
-	ChannelIdentifier    contracts.ChannelIdentifier
-	OpenBlockNumber      uint64
-	TokenNetworkAddress  common.Address
-	ChainID              *big.Int
-}
-
-func (w *WithDraw2ForContract) sign(key *ecdsa.PrivateKey) []byte {
-	buf := new(bytes.Buffer)
-	_, err := buf.Write(w.Participant1[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Deposit))
-	_, err = buf.Write(w.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Deposit))
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant1Withdraw))
-	_, err = buf.Write(utils.BigIntTo32Bytes(w.Participant2Withdraw))
 	_, err = buf.Write(w.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, w.OpenBlockNumber)
 	//buf.Write(w.TokenNetworkAddress[:])
@@ -221,26 +190,13 @@ func openChannelAndDeposit(a1, a2 *Account, depositA1, depositA2 *big.Int, settl
 	}
 }
 
-func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA2, withdrawA2 *big.Int) {
+func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account) {
 	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(a1, a2)
-	param1 := &WithDraw1ForContract{
+	param1 := &WithDrawForContract{
 		Participant1:         a1.Address,
 		Participant2:         a2.Address,
 		Participant1Deposit:  depositA1,
-		Participant2Deposit:  depositA2,
 		Participant1Withdraw: withdrawA1,
-		ChannelIdentifier:    channelID,
-		OpenBlockNumber:      openBlockNumber,
-		TokenNetworkAddress:  env.TokenNetworkAddress,
-		ChainID:              ChainID,
-	}
-	param2 := &WithDraw2ForContract{
-		Participant1:         a1.Address,
-		Participant2:         a2.Address,
-		Participant1Deposit:  depositA1,
-		Participant2Deposit:  depositA2,
-		Participant1Withdraw: withdrawA1,
-		Participant2Withdraw: withdrawA2,
 		ChannelIdentifier:    channelID,
 		OpenBlockNumber:      openBlockNumber,
 		TokenNetworkAddress:  env.TokenNetworkAddress,
@@ -248,14 +204,12 @@ func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA
 	}
 	tx, err := env.TokenNetwork.WithDraw(
 		a2.Auth,
-		param2.Participant1,
-		param2.Participant1Deposit,
-		param2.Participant1Withdraw,
-		param2.Participant2,
-		param2.Participant2Deposit,
-		param2.Participant2Withdraw,
+		param1.Participant1,
+		param1.Participant2,
+		param1.Participant1Deposit,
+		param1.Participant1Withdraw,
 		param1.sign(a1.Key),
-		param2.sign(a2.Key),
+		param1.sign(a2.Key),
 	)
 	if err != nil {
 		panic(err)
@@ -266,32 +220,19 @@ func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA
 	}
 }
 
-func createWithdrawParam(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account, depositA2, withdrawA2 *big.Int) (*WithDraw1ForContract, *WithDraw2ForContract) {
+func createWithdrawParam(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account) *WithDrawForContract {
 	channelID, _, openBlockNumber, _, _, ChainID := getChannelInfo(a1, a2)
-	param1 := &WithDraw1ForContract{
+	param1 := &WithDrawForContract{
 		Participant1:         a1.Address,
 		Participant2:         a2.Address,
 		Participant1Deposit:  depositA1,
-		Participant2Deposit:  depositA2,
 		Participant1Withdraw: withdrawA1,
 		ChannelIdentifier:    channelID,
 		OpenBlockNumber:      openBlockNumber,
 		TokenNetworkAddress:  env.TokenNetworkAddress,
 		ChainID:              ChainID,
 	}
-	param2 := &WithDraw2ForContract{
-		Participant1:         a1.Address,
-		Participant2:         a2.Address,
-		Participant1Deposit:  depositA1,
-		Participant2Deposit:  depositA2,
-		Participant1Withdraw: withdrawA1,
-		Participant2Withdraw: withdrawA2,
-		ChannelIdentifier:    channelID,
-		OpenBlockNumber:      openBlockNumber,
-		TokenNetworkAddress:  env.TokenNetworkAddress,
-		ChainID:              ChainID,
-	}
-	return param1, param2
+	return param1
 }
 
 //BalanceData of contract
@@ -325,7 +266,9 @@ type BalanceProofForContract struct {
 
 func (b *BalanceProofForContract) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("176"))
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	_, err = buf.Write(b.LocksRoot[:])
 	err = binary.Write(buf, binary.BigEndian, b.Nonce)
 	_, err = buf.Write(b.AdditionalHash[:])
@@ -365,15 +308,15 @@ type BalanceProofUpdateForContracts struct {
 
 func (b *BalanceProofUpdateForContracts) sign(key *ecdsa.PrivateKey) {
 	buf := new(bytes.Buffer)
-	_, err := buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("144"))
+	_, err = buf.Write(utils.BigIntTo32Bytes(b.TransferAmount))
 	_, err = buf.Write(b.LocksRoot[:])
 	err = binary.Write(buf, binary.BigEndian, b.Nonce)
-	_, err = buf.Write(b.AdditionalHash[:])
 	_, err = buf.Write(b.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, b.OpenBlockNumber)
 	//buf.Write(b.TokenNetworkAddress[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(b.ChainID))
-	_, err = buf.Write(b.Signature)
 	sig, err := utils.SignData(key, buf.Bytes())
 	if err != nil {
 		panic(err)
@@ -552,7 +495,9 @@ type UnlockDelegateForContract struct {
 
 func (u *UnlockDelegateForContract) sign(key *ecdsa.PrivateKey) []byte {
 	buf := new(bytes.Buffer)
-	_, err := buf.Write(u.Agent[:])
+	_, err := buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte("188"))
+	_, err = buf.Write(u.Agent[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Expiraition)))
 	_, err = buf.Write(utils.BigIntTo32Bytes(u.Amount))
 	_, err = buf.Write(u.SecretHash[:])

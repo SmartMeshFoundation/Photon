@@ -1,9 +1,8 @@
 package blockchain
 
 import (
-	"sort"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"sort"
 )
 
 type contractStateChangeSlice []mediatedtransfer.ContractStateChange
@@ -23,6 +22,11 @@ must be stable
 对于 ChannelOpenedAndDeposit 事件,会产生两个 stateChange,
 严格要求有先后顺序
 */
+/*
+ *  This function must be stable.
+ * 	As for ChannelOpenedAndDeposit event, two stateChange will be generated,
+ *  and they must be in order.
+ */
 func sortContractStateChange(chs []mediatedtransfer.ContractStateChange) {
 	sort.Stable(contractStateChangeSlice(chs))
 }

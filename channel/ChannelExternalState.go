@@ -42,14 +42,14 @@ type ExternalState struct {
 
 //NewChannelExternalState create a new channel external state
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
-	tokenNetwork *rpc.TokenNetworkProxy, channelAddress *contracts.ChannelUniqueID, privkey *ecdsa.PrivateKey, client *helper.SafeEthClient, db channeltype.Db, closedBlock int64, MyAddress, PartnerAddress common.Address) *ExternalState {
+	tokenNetwork *rpc.TokenNetworkProxy, channelIdentifier *contracts.ChannelUniqueID, privkey *ecdsa.PrivateKey, client *helper.SafeEthClient, db channeltype.Db, closedBlock int64, MyAddress, PartnerAddress common.Address) *ExternalState {
 	cs := &ExternalState{
 		funcRegisterChannelForHashlock: fun,
 		TokenNetwork:                   tokenNetwork,
 		auth:                           bind.NewKeyedTransactor(privkey),
 		privKey:                        privkey,
 		Client:                         client,
-		ChannelIdentifier:              *channelAddress,
+		ChannelIdentifier:              *channelIdentifier,
 		db:                             db,
 		ClosedBlock:                    closedBlock,
 		SettledBlock:                   0,
@@ -86,7 +86,7 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result 
 		return
 	}
 	//start tx close and wait.
-	var Nonce int64
+	var Nonce uint64
 	TransferAmount := utils.BigInt0
 	var LocksRoot = utils.EmptyHash
 	//var ChannelIdentifier common.Address = utils.EmptyAddress
@@ -121,6 +121,11 @@ func (e *ExternalState) UpdateTransfer(bp *transfer.BalanceProofState) (result *
 Unlock call withdraw function of contract
 调用者要确保不包含自己声明放弃过的锁
 */
+/*
+ *	Unlock : function to unlock.
+ *
+ *	Note that caller has to ensure that there aren't locks that claimed abandoned by him contained.
+ */
 func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTransferdAmount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	transferAmount := new(big.Int).Set(argTransferdAmount)
@@ -144,6 +149,8 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 				/*
 					一旦 unlock 成功,那么 transferAmount 就会发生变化,下次必须用新的 transferAmount
 				*/
+				// Once unlock succeed, then transferAmount is going to change
+				// next time we must use a new transferAmount.
 				transferAmount = transferAmount.Add(transferAmount, proof.Lock.Amount)
 			}
 		}
@@ -183,6 +190,9 @@ func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (r
 /*
 PunishObsoleteUnlock 惩罚对手 unlock 一个声明放弃了的锁.
 */
+/*
+ *	PunishObsoleteUnlock : function to punishment channel participant who unlocks a transfer lock that has been claimed abandoned.
+ */
 func (e *ExternalState) PunishObsoleteUnlock(lockhash, additionalHash common.Hash, cheaterSignature []byte) (result *utils.AsyncResult) {
 	log.Info(fmt.Sprintf("PunishObsoleteUnlock called %s", e.ChannelIdentifier.String()))
 	result = e.TokenNetwork.PunishObsoleteUnlockAsync(e.MyAddress, e.PartnerAddress, lockhash, additionalHash, cheaterSignature)

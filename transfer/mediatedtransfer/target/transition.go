@@ -65,6 +65,7 @@ func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfe
 		}
 	}
 	//如果超时了,那就什么都不做,等待相关各方自己取消?
+	// If timeout, then do nothing and wait to cancel this lock via participants themselves?
 	return &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -81,6 +82,10 @@ func handleSecretRegisteredOnChain(state *mediatedtransfer.TargetState, st *medi
 			没有超时,交易成功结束
 			超时,交易失败结束
 		*/
+		/*
+		 *	Not timeout, transfer finishes successfully.
+		 *	timeout, transfer failed.
+		 */
 		state.State = mediatedtransfer.StateSecretRegistered
 		ev := &mediatedtransfer.EventRemoveStateManager{
 			Key: utils.Sha3(st.LockSecretHash[:], state.FromTransfer.Token[:]),
@@ -128,6 +133,11 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 /*
 我收到了对方的 unlock 消息以后,就算是彻底结束了.
 */
+/*
+ *	handleBalanceProof : function to handle event of BalanceProof.
+ *
+ *	Note that once this participant receives unlock message from his channel partner, the function ends.
+ */
 func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveUnlockStateChange) (it *transfer.TransitionResult) {
 	var events []transfer.Event
 	//TODO: byzantine behavior event when the sender doesn't match
@@ -190,6 +200,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 		}
 	} else if state.State == mediatedtransfer.StateBalanceProof {
 		//这些事件对应的处理都没有
+		// these events have no related handle solution
 		transferSuccess := &transfer.EventTransferReceivedSuccess{
 			LockSecretHash:    state.FromTransfer.LockSecretHash,
 			Amount:            state.FromTransfer.Amount,
@@ -205,6 +216,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 		}
 	}
 	// 一旦锁过期,就结束了,注销StateManager
+	// Once locks expired, remove StateManager.
 	if state.BlockNumber > state.FromTransfer.Expiration {
 		it.Events = append(it.Events, &mediatedtransfer.EventRemoveStateManager{
 			Key: utils.Sha3(state.FromTransfer.LockSecretHash[:], state.FromTransfer.Token[:]),
@@ -237,10 +249,13 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 		case *mediatedtransfer.ReceiveSecretRevealStateChange:
 			if state.FromTransfer.Secret == utils.EmptyHash {
 				//可能会反复收到 reveal secret, 比如 token swap的时候,再比如存在环路的时候
+				// Maybe we can receive reveal secret over and over again,
+				// such as when using token swap, or circuit exist.
 				it = handleSecretReveal(state, st2)
 			}
 		case *mediatedtransfer.ReceiveUnlockStateChange:
 			//有可能在不知道密码的情况下直接收到 unlock 消息,比如
+			// Maybe we can receive unlock message without receiving secret.
 			it = handleBalanceProof(state, st2)
 		default:
 			log.Error(fmt.Sprintf("target state manager receive unkown state change %s", utils.StringInterface(stateChange, 3)))

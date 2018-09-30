@@ -16,20 +16,20 @@ import (
 )
 
 /*
-MixTransporter is a wrapper for two Transporter(UDP and XMPP)
+MixTransport is a wrapper for two Transporter(UDP and XMPP)
 if I can reach the node by UDP,then UDP,
 if I cannot reach the node, try XMPP
 */
-type MixTransporter struct {
+type MixTransport struct {
 	udp      *UDPTransport
 	xmpp     *XMPPTransport
 	name     string
 	protocol ProtocolReceiver
 }
 
-//NewMixTranspoter create a MixTransporter and discover
-func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MixTransporter, err error) {
-	t = &MixTransporter{
+//NewMixTranspoter create a MixTransport and discover
+func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MixTransport, err error) {
+	t = &MixTransport{
 		name:     name,
 		protocol: protocol,
 	}
@@ -46,7 +46,13 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 Send message
 优先选择局域网,在局域网走不通的情况下,才会考虑 xmpp
 */
-func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
+/*
+ *	Send : function to send out messages.
+ *
+ *	Note that this function prefers to choose LAN, ifor new c local network does not work,
+ * 	then it chooses xmpp.
+ */
+func (t *MixTransport) Send(receiver common.Address, data []byte) error {
 	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {
 		return t.udp.Send(receiver, data)
@@ -60,7 +66,7 @@ func (t *MixTransporter) Send(receiver common.Address, data []byte) error {
 }
 
 //Start the two transporter
-func (t *MixTransporter) Start() {
+func (t *MixTransport) Start() {
 	if t.udp != nil {
 		t.udp.Start()
 	}
@@ -70,7 +76,7 @@ func (t *MixTransporter) Start() {
 }
 
 //Stop the two transporter
-func (t *MixTransporter) Stop() {
+func (t *MixTransport) Stop() {
 	if t.xmpp != nil {
 		t.xmpp.Stop()
 	}
@@ -80,7 +86,7 @@ func (t *MixTransporter) Stop() {
 }
 
 //StopAccepting stops receiving for the two transporter
-func (t *MixTransporter) StopAccepting() {
+func (t *MixTransport) StopAccepting() {
 	if t.xmpp != nil {
 		t.xmpp.StopAccepting()
 	}
@@ -90,7 +96,7 @@ func (t *MixTransporter) StopAccepting() {
 }
 
 //RegisterProtocol register receiver for the two transporter
-func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
+func (t *MixTransport) RegisterProtocol(protcol ProtocolReceiver) {
 	if t.xmpp != nil {
 		t.xmpp.RegisterProtocol(protcol)
 	}
@@ -101,7 +107,7 @@ func (t *MixTransporter) RegisterProtocol(protcol ProtocolReceiver) {
 }
 
 //NodeStatus get node's status and is online right now
-func (t *MixTransporter) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+func (t *MixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
 	deviceType, isOnline = t.udp.NodeStatus(addr)
 	if isOnline {
 		return
@@ -110,7 +116,7 @@ func (t *MixTransporter) NodeStatus(addr common.Address) (deviceType string, isO
 }
 
 //GetNotify notification of connection status change
-func (t *MixTransporter) GetNotify() (notify <-chan netshare.Status, err error) {
+func (t *MixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	if t.xmpp.conn != nil {
 		return t.xmpp.statusChan, nil
 	}
@@ -118,7 +124,7 @@ func (t *MixTransporter) GetNotify() (notify <-chan netshare.Status, err error) 
 }
 
 //SubscribeNeighbor get the status change notification of partner node
-func (t *MixTransporter) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
+func (t *MixTransport) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 	if t.xmpp.conn == nil {
 		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
 	}

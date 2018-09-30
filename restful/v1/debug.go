@@ -11,6 +11,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -134,6 +135,27 @@ func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 		cs.EthStatus = netshare.Disconnected
 	}
 	err := w.WriteJson(cs)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+/*
+ForceUnlock force unlock by locksecrethash
+*/
+func ForceUnlock(w rest.ResponseWriter, r *rest.Request) {
+	channelIdentifierStr := r.PathParam("channel")
+	channelIdentifier := common.HexToHash(channelIdentifierStr)
+	lockSecretHashStr := r.PathParam("locksecrethash")
+	lockSecretHash := common.HexToHash(lockSecretHashStr)
+	secretHashStr := r.PathParam("secrethash")
+	secretHash := common.HexToHash(secretHashStr)
+	err := RaidenAPI.ForceUnlock(channelIdentifier, lockSecretHash, secretHash)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = w.WriteJson("ok")
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

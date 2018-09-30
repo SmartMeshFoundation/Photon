@@ -50,6 +50,10 @@ func TestNewReceivedAnnounceDisposed(t *testing.T) {
 	assert.EqualValues(t, b, false)
 	r2 := model.GetReceiviedAnnounceDisposed(lockHash, channel)
 	assert.EqualValues(t, r, r2)
+	rs := model.GetChannelAnnounceDisposed(channel)
+	assert.EqualValues(t, len(rs), 1)
+	rs = model.GetChannelAnnounceDisposed(utils.NewRandomHash())
+	assert.EqualValues(t, len(rs), 0)
 	r2 = model.GetReceiviedAnnounceDisposed(lockHash, utils.NewRandomHash())
 	if r2 != nil {
 		t.Error("should be nil")

@@ -1,11 +1,10 @@
 package models
 
 import (
+	"math"
 	"math/big"
 
 	"fmt"
-
-	"math"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -18,10 +17,10 @@ type SentTransfer struct {
 	Key               string `storm:"id"`
 	BlockNumber       int64  `json:"block_number" storm:"index"`
 	OpenBlockNumber   int64
-	ChannelIdentifier common.Hash    `json:"channel_address"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	ToAddress         common.Address `json:"to_address"`
 	TokenAddress      common.Address `json:"token_address"`
-	Nonce             int64          `json:"nonce"`
+	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 }
 
@@ -30,22 +29,22 @@ type ReceivedTransfer struct {
 	Key               string `storm:"id"`
 	BlockNumber       int64  `json:"block_number" storm:"index"`
 	OpenBlockNumber   int64
-	ChannelIdentifier common.Hash    `json:"channel_address"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	TokenAddress      common.Address `json:"token_address"`
 	FromAddress       common.Address `json:"from_address"`
-	Nonce             int64          `json:"nonce"`
+	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 }
 
 /*
-NewSentTransfer save a new sent transfer to db,this trqnsfer must be success
+NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce int64, amount *big.Int) {
-	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) *SentTransfer {
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &SentTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
-		ChannelIdentifier: channelAddr,
+		ChannelIdentifier: channelIdentifier,
 		TokenAddress:      tokenAddr,
 		ToAddress:         toAddr,
 		Nonce:             nonce,
@@ -54,26 +53,22 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash
 	if ost, err := model.GetSentTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
 			utils.StringInterface(ost, 2), utils.StringInterface(st, 2)))
-		return
+		return nil
 	}
 	err := model.db.Save(st)
 	if err != nil {
 		log.Error(fmt.Sprintf("save SentTransfer err %s", err))
 	}
-	select {
-	case model.SentTransferChan <- st:
-	default:
-		//nerver block
-	}
+	return st
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce int64, amount *big.Int) {
-	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) *ReceivedTransfer {
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &ReceivedTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
-		ChannelIdentifier: channelAddr,
+		ChannelIdentifier: channelIdentifier,
 		TokenAddress:      tokenAddr,
 		FromAddress:       fromAddr,
 		Nonce:             nonce,
@@ -82,17 +77,13 @@ func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",
 			utils.StringInterface(ost, 2), utils.StringInterface(st, 2)))
-		return
+		return nil
 	}
 	err := model.db.Save(st)
 	if err != nil {
 		log.Error(fmt.Sprintf("save ReceivedTransfer err %s", err))
 	}
-	select {
-	case model.ReceivedTransferChan <- st:
-	default:
-		//never block
-	}
+	return st
 }
 
 //GetSentTransfer return the sent transfer by key

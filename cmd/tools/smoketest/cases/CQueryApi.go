@@ -106,7 +106,7 @@ func QueryNodeSpecificChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "QueryNodeSpecificChannel",
-			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelAddress,
+			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,
@@ -169,13 +169,22 @@ func QueryChannelEventsTest(env *models.RaidenEnvReader, allowFail bool) {
 			panic("allowFail = false,exit")
 		}
 	}
+	if channels == nil || len(channels) == 0 {
+		log.Println("Case [QueryNodeSpecificChannel] FAILED because no suitable env !!!")
+		Logger.Println("Case [QueryNodeSpecificChannel] FAILED because no suitable env !!!")
+		if !allowFail {
+			Logger.Println("allowFail = false,exit")
+			panic("allowFail = false,exit")
+		}
+		return
+	}
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "QueryChannelEvents",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "QueryChannelEvents",
-			FullURL: node.Host + "/api/1/events/channels/" + channels[0].ChannelAddress + "?from_block=1",
+			FullURL: node.Host + "/api/1/events/channels/" + channels[0].ChannelIdentifier + "?from_block=1",
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,

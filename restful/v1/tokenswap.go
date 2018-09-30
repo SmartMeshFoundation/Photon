@@ -25,6 +25,12 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	       "receiving_token": "0x2a65aca4d5fc5b5c859090a6c34d164135398226"
 	   }
 	*/
+	// 用户调用了prepare-update,暂停接收新交易
+	// client invokes prepare-update, halts receiving new transfers
+	if RaidenAPI.Raiden.StopCreateNewTransfers {
+		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
+		return
+	}
 	type Req struct {
 		Role            string   `json:"role"`
 		SendingAmount   *big.Int `json:"sending_amount"`
@@ -71,6 +77,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	}
 	if req.Role == "maker" {
 		// 校验secret和lockSecretHash是否匹配
+		// check whether secret and lockSecretHash match.
 		if req.Secret == "" || utils.ShaSecret(common.HexToHash(req.Secret).Bytes()) != common.HexToHash(lockSecretHash) {
 			rest.Error(w, "must provide a matching pair of secret and lockSecretHash", http.StatusBadRequest)
 			return

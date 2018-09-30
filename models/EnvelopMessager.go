@@ -48,6 +48,7 @@ func (model *ModelDB) DeleteEnvelopMessager(echohash common.Hash) {
 	err := model.db.DeleteStruct(sss)
 	if err != nil {
 		//可能这个消息完全不存在
+		// this messsage might not exist.
 		log.Warn(fmt.Sprintf("try to remove envelop message %s,but err= %s", utils.HPex(echohash), err))
 	}
 }
@@ -83,6 +84,12 @@ must be stable
 对于 ChannelOpenedAndDeposit 事件,会产生两个 stateChange,
 严格要求有先后顺序
 */
+/*
+ *	sortEnvelopMessager : function to sort arrays of sent messenger.
+ *
+ *	Note that for event of ChannelOpenedAndDeposit, two stateChange will be generated.
+ *	And they must be in order.
+ */
 func sortEnvelopMessager(msgs []*SentEnvelopMessager) {
 	sort.Stable(envelopMessageSorter(msgs))
 }

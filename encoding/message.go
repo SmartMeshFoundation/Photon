@@ -28,6 +28,7 @@ import (
 type MessageType int
 
 //消息设计原则: 只要引起balanceproof 变化,那么 nonce 就应该加1
+// MessageDesign : as long as balanceproof changes, nonce should plus 1.
 const (
 	//AckCmdID id of Ack message
 	AckCmdID = 0
@@ -50,6 +51,7 @@ const (
 	/*
 		发起合作关闭通道请求
 	*/
+	// send CooperativeRequest
 	SettleRequestCmdID
 	/*
 		合作关闭通道响应.
@@ -58,14 +60,17 @@ const (
 	/*
 		发起提现请求
 	*/
+	// Send Withdraw Request
 	WithdrawRequestCmdID
 	/*
 		提现响应
 	*/
+	// Respond Withdraw Request
 	WithdrawResponseCmdID
 	/*
 		refund 响应,
 	*/
+	// Respond Refund
 	AnnounceDisposedTransferResponseCmdID
 )
 
@@ -512,15 +517,15 @@ func (rs *RevealSecret) String() string {
 
 //BalanceProof in the message ,not the same as data need by the contract
 type BalanceProof struct {
-	Nonce             int64
+	Nonce             uint64
 	ChannelIdentifier common.Hash
-	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识
+	OpenBlockNumber   int64    //open blocknumber 和 channelIdentifier 一起作为通道的唯一标识	// the only tag for a channel = OpenBlockNumber + ChannelIdentifier
 	TransferAmount    *big.Int //The number has been transferred to the other party
 	Locksroot         common.Hash
 }
 
 //NewBalanceProof create a balance proof
-func NewBalanceProof(nonce int64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
+func NewBalanceProof(nonce uint64, transferredAmount *big.Int, locksRoot common.Hash, channelID *contracts.ChannelUniqueID) *BalanceProof {
 	return &BalanceProof{
 		Nonce:             nonce,
 		TransferAmount:    transferredAmount,
@@ -544,6 +549,8 @@ func (m *EnvelopMessage) String() string {
 func (m *EnvelopMessage) signData(datahash common.Hash) []byte {
 	var err error
 	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractBalanceProofMessageLength))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.TransferAmount))
 	_, err = buf.Write(m.Locksroot[:])
 	err = binary.Write(buf, binary.BigEndian, m.Nonce)
@@ -712,7 +719,7 @@ func (s *UnLock) UnPack(data []byte) error {
 
 //String is fmt.Stringer
 func (s *UnLock) String() string {
-	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(s.LockSecret), s.EnvelopMessage.String())
+	return fmt.Sprintf("Message{type=Unlock secret=%s,%s}", utils.HPex(s.LockSecret), s.EnvelopMessage.String())
 }
 
 /*
@@ -1040,6 +1047,8 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	lockhash := m.Lock.Hash()
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractDisposedProofMessageLength))
 	_, err = buf.Write(lockhash[:])
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
@@ -1163,7 +1172,10 @@ type SettleDataInMessage struct {
 
 //WithdrawRequestData for contract
 type WithdrawRequestData struct {
-	SettleDataInMessage
+	ChannelIDInMessage
+	Participant1          common.Address
+	Participant2          common.Address
+	Participant1Balance   *big.Int
 	Participant1Withdraw  *big.Int
 	Participant1Signature []byte
 }
@@ -1185,12 +1197,10 @@ func NewWithdrawRequest(wd *WithdrawRequestData) *WithdrawRequest {
 	return m
 }
 func (m *WithdrawRequest) String() string {
-	return fmt.Sprintf("Message{type=WithdrawRequest Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
-		"Participant1Withdraw=%s,"+
-		"Participant2=%s,Participant2Balance=%s}",
+	return fmt.Sprintf("Message{type=WithdrawRequest Channel=%s-%d,Participant1=%s,Participant2=%s,"+
+		"Participant1Balance=%s,Participant1Withdraw=%s}",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
-		utils.APex2(m.Participant1), m.Participant1Balance, m.Participant1Withdraw,
-		utils.APex2(m.Participant2), m.Participant2Balance,
+		utils.APex2(m.Participant1), utils.APex2(m.Participant2), m.Participant1Balance, m.Participant1Withdraw,
 	)
 }
 
@@ -1202,10 +1212,9 @@ func (m *WithdrawRequest) Pack() []byte {
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
-	_, err = buf.Write(m.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(m.Participant1Signature)
 	_, err = buf.Write(m.Signature)
 	if err != nil {
@@ -1227,10 +1236,9 @@ func (m *WithdrawRequest) UnPack(data []byte) error {
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
 	_, err = buf.Read(m.Participant1[:])
+	_, err = buf.Read(m.Participant2[:])
 	m.Participant1Balance = utils.ReadBigInt(buf)
 	m.Participant1Withdraw = utils.ReadBigInt(buf)
-	_, err = buf.Read(m.Participant2[:])
-	m.Participant2Balance = utils.ReadBigInt(buf)
 	m.Participant1Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant1Signature)
 	if err != nil || n != signatureLength {
@@ -1272,10 +1280,10 @@ func (m *WithdrawRequest) verifySignature(data []byte) error {
 func (m *WithdrawRequest) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractWithdrawProofMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
-	_, err = buf.Write(m.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
@@ -1303,9 +1311,12 @@ func (m *WithdrawRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err er
 
 //WithdrawReponseData data for withdrawResponse
 type WithdrawReponseData struct {
-	SettleDataInMessage
+	ChannelIDInMessage
+	Participant1          common.Address
+	Participant2          common.Address
+	Participant1Balance   *big.Int
 	Participant1Withdraw  *big.Int
-	Participant2Withdraw  *big.Int
+	Participant1Signature []byte
 	Participant2Signature []byte
 }
 
@@ -1324,12 +1335,11 @@ func NewWithdrawResponse(wd *WithdrawReponseData) *WithdrawResponse {
 	return m
 }
 func (m *WithdrawResponse) String() string {
-	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
-		"Participant1Withdraw=%s,"+
-		"Participant2=%s,Participant2Balance=%s}",
+	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant2=%s,"+
+		"Participant1Balance=%s,Participant1Withdraw=%s,",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
-		utils.APex2(m.Participant1), m.Participant1Balance, m.Participant1Withdraw,
-		utils.APex2(m.Participant2), m.Participant2Balance,
+		utils.APex2(m.Participant1), utils.APex2(m.Participant2),
+		m.Participant1Balance, m.Participant1Withdraw,
 	)
 }
 
@@ -1341,11 +1351,9 @@ func (m *WithdrawResponse) Pack() []byte {
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
+	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
-	_, err = buf.Write(m.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Withdraw))
 	_, err = buf.Write(m.Participant2Signature)
 	_, err = buf.Write(m.Signature)
 	if err != nil {
@@ -1367,11 +1375,9 @@ func (m *WithdrawResponse) UnPack(data []byte) error {
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
 	_, err = buf.Read(m.Participant1[:])
+	_, err = buf.Read(m.Participant2[:])
 	m.Participant1Balance = utils.ReadBigInt(buf)
 	m.Participant1Withdraw = utils.ReadBigInt(buf)
-	_, err = buf.Read(m.Participant2[:])
-	m.Participant2Balance = utils.ReadBigInt(buf)
-	m.Participant2Withdraw = utils.ReadBigInt(buf)
 	m.Participant2Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
@@ -1409,12 +1415,11 @@ func (m *WithdrawResponse) verifySignature(data []byte) error {
 func (m *WithdrawResponse) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractWithdrawProofMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
-	_, err = buf.Write(m.Participant2[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
-	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Withdraw))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
@@ -1543,6 +1548,8 @@ func (m *SettleRequest) verifySignature(data []byte) error {
 func (m *SettleRequest) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractCooperativeSettleMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(m.Participant2[:])
@@ -1678,6 +1685,8 @@ func (m *SettleResponse) verifySignature(data []byte) error {
 func (m *SettleResponse) signDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
+	_, err = buf.Write(params.ContractSignaturePrefix)
+	_, err = buf.Write([]byte(params.ContractCooperativeSettleMessageLength))
 	_, err = buf.Write(m.Participant1[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(m.Participant2[:])
