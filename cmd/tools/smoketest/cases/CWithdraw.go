@@ -16,8 +16,8 @@ import (
 // WithdrawTest :
 func WithdrawTest(env *models.RaidenEnvReader, allowFail bool) {
 	// prepare data for this case
-	//sender, receiver, token, err := prepareDataForDirectTransfer(env)
-	channels := env.GetChannelsOfNodeByState(env.RaidenNodes[len(env.RaidenNodes)-2].AccountAddress, contracts.ChannelStateOpened)
+	node := env.RaidenNodes[len(env.RaidenNodes)-2]
+	channels := env.GetChannelsOfNodeByState(node.AccountAddress, contracts.ChannelStateOpened)
 	if channels == nil || len(channels) == 0 {
 		Logger.Println("Current env can not afford this case !!!")
 		if !allowFail {
@@ -46,7 +46,7 @@ func WithdrawTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "Withdraw",
-			FullURL: env.RaidenNodes[0].Host + "/api/1/withdraw/" + channels[0].ChannelIdentifier,
+			FullURL: node.Host + "/api/1/withdraw/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodPut,
 			Payload: string(p),
 			Timeout: time.Second * 180,
