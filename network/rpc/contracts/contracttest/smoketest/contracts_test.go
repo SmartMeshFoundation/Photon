@@ -1,4 +1,4 @@
-package contractstest
+package smoketest
 
 import (
 	"context"
