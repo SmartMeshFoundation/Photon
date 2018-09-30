@@ -1,6 +1,6 @@
 # Web Application Tutorial
 
-In order to quickly give an overview and idea of what the SmartRaiden Developer Preview is capable of, a simple web application has been created. This application utilizes the [SmartRaiden REST API endpoints](./rest_api.md) to allow the user to interact with token networks, transfer tokens, see the current status of open channels along with closing and settling channels to name some of the functionalities. For a more specific guide of the API itself see the [Getting started with the SmartRaiden API](./api_walkthrough.md).
+In order to quickly give an overview and idea of what the SmartRaiden Developer Preview is capable of, a simple web application has been created. This application utilizes the SmartRaiden REST API endpoints to allow the user to interact with token networks, transfer tokens, see the current status of open channels along with closing and settling channels to name some of the functionalities. For a more specific guide of the API itself see the [Getting started with the SmartRaiden API](./rest_api_0.8.md).
 
 
 ## Running the web application
@@ -42,7 +42,7 @@ The first thing to notice in this view is the list of tokens for which a token n
 
 In the `Actions` column it is possible to open an actions menu for each token network. This menu provides the option to `Join Network`. A pop up will then appear where the user can choose how many tokens to automatically join the token network with. See [connect](./rest_api.md) for more details on how this works.
 
-In this view it is also possible to `Swap Tokens`. This is done by pressing the `Swap Tokens` button and then filling in the form. For more information on what a token swap is, please see [token swaps](./api_walkthrough.md).
+In this view it is also possible to `Swap Tokens`. This is done by pressing the `Swap Tokens` button and then filling in the form. For more information on what a token swap is, please see token swaps.
 
 ![token](./images/token.png)
 
