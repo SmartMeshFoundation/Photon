@@ -279,7 +279,7 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 
 	events := sm.Dispatch(stateChange)
-	assert(t, len(events), 1)
+	assert(t, len(events), 2)
 	_, ok := events[0].(*mediatedtransfer.EventSendMediatedTransfer)
 	assert(t, ok, true, "No mediated transfer event emitted, should have tried a new route")
 	assert(t, sm.CurrentState != nil, true)
@@ -310,7 +310,7 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 
 	events := sm.Dispatch(stateChange)
-	assert(t, len(events), 2)
+	assert(t, len(events), 3)
 	_, ok := events[0].(*transfer.EventTransferSentFailed)
 	assert(t, ok, true)
 	assert(t, sm.CurrentState == nil, true)
@@ -371,8 +371,7 @@ func TestCancelTransfer(t *testing.T) {
 	events := sm.Dispatch(stateChange)
 	assert(t, len(events), 1)
 	_, ok := events[0].(*transfer.EventTransferSentFailed)
-	assert(t, ok, true)
-	assert(t, sm.CurrentState == nil, true)
+	assert(t, true, ok)
 }
 
 func assertStateEqual(t *testing.T, currentState, beforeState *mediatedtransfer.InitiatorState) {
