@@ -37,7 +37,7 @@ type Channel struct {
 
 /*
 NewChannel returns the living channel.
-channelAddress must be a valid contract adress
+channelIdentifier must be a valid contract adress
 settleTimeout must be valid, it cannot too small.
 */
 func NewChannel(ourState, partenerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
@@ -1092,7 +1092,7 @@ func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error 
 	if tr.GetSender() != c.PartnerState.Address {
 		return errInvalidSender
 	}
-	if c.PartnerState.Balance(c.OurState).Cmp(tr.Participant1Balance) != 0 {
+	if c.OurState.Balance(c.PartnerState).Cmp(tr.Participant1Balance) != 0 {
 		return errBalance
 	}
 	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||

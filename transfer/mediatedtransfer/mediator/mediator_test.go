@@ -778,7 +778,7 @@ func TestNoValidRoutes(t *testing.T) {
 	assert(t, sm.CurrentState, nil)
 	events := sm.Dispatch(initStateChange)
 	//assert(t, sm.CurrentState, nil)
-	assert(t, len(events), 1)
+	assert(t, len(events), 2)
 	_, ok := events[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 }

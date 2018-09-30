@@ -83,15 +83,15 @@ func main() {
 }
 
 type withDraw struct {
-	Address                common.Address
-	Conn                   *helper.SafeEthClient
-	PrivateKey             *ecdsa.PrivateKey
-	DbPath                 string
-	bcs                    *rpc.BlockChainService
-	db                     *models.ModelDB
-	WithDrawChannelAddress common.Hash
-	Secret                 common.Hash
-	ChannelAddress2Channel map[common.Hash]*channel.Channel
+	Address                   common.Address
+	Conn                      *helper.SafeEthClient
+	PrivateKey                *ecdsa.PrivateKey
+	DbPath                    string
+	bcs                       *rpc.BlockChainService
+	db                        *models.ModelDB
+	WithDrawChannelIdentifier common.Hash
+	Secret                    common.Hash
+	ChannelIdentifier2Channel map[common.Hash]*channel.Channel
 }
 
 func init() {
@@ -100,7 +100,7 @@ func init() {
 func mainctx(ctx *cli.Context) error {
 	var err error
 	w := &withDraw{
-		ChannelAddress2Channel: make(map[common.Hash]*channel.Channel),
+		ChannelIdentifier2Channel: make(map[common.Hash]*channel.Channel),
 	}
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, utils.MyStreamHandler(os.Stderr)))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
@@ -108,9 +108,9 @@ func mainctx(ctx *cli.Context) error {
 	if err != nil {
 		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
-	w.WithDrawChannelAddress = common.HexToHash(ctx.String("channel"))
+	w.WithDrawChannelIdentifier = common.HexToHash(ctx.String("channel"))
 	w.Secret = common.HexToHash(ctx.String("secret"))
-	if w.WithDrawChannelAddress == utils.EmptyHash || w.Secret == utils.EmptyHash {
+	if w.WithDrawChannelIdentifier == utils.EmptyHash || w.Secret == utils.EmptyHash {
 		log.Crit("channel and secret muse be specified.")
 	}
 	address := common.HexToAddress(ctx.String("address"))
@@ -198,7 +198,7 @@ func (w *withDraw) restoreChannel() error {
 		return err
 	}
 	for _, cs := range allChannels {
-		if bytes.Compare(cs.Key, w.WithDrawChannelAddress[:]) != 0 {
+		if bytes.Compare(cs.Key, w.WithDrawChannelIdentifier[:]) != 0 {
 			//continue
 		}
 		tn, err := w.getTokenNetworkProxy(cs.TokenAddress())
@@ -211,16 +211,16 @@ func (w *withDraw) restoreChannel() error {
 			log.Info(fmt.Sprintf("ignore channel %s, maybe has been settled", utils.BPex(cs.Key)))
 			continue
 		}
-		w.ChannelAddress2Channel[common.BytesToHash(cs.Key)] = c
+		w.ChannelIdentifier2Channel[common.BytesToHash(cs.Key)] = c
 	}
 	return nil
 }
 func (w *withDraw) WithDrawOnChannel() {
-	for addr, c := range w.ChannelAddress2Channel {
-		if addr == w.WithDrawChannelAddress {
+	for addr, c := range w.ChannelIdentifier2Channel {
+		if addr == w.WithDrawChannelIdentifier {
 			err := c.RegisterSecret(w.Secret)
 			if err != nil {
-				log.Error(fmt.Sprintf("regist secret %s on channel %s error %s", utils.HPex(w.Secret), utils.HPex(w.WithDrawChannelAddress), err))
+				log.Error(fmt.Sprintf("regist secret %s on channel %s error %s", utils.HPex(w.Secret), utils.HPex(w.WithDrawChannelIdentifier), err))
 				return
 			}
 			isReg, err := w.bcs.SecretRegistryProxy.IsSecretRegistered(w.Secret)

@@ -30,7 +30,7 @@ type Db interface {
 	/*
 		get the latest channel status
 	*/
-	GetChannelByAddress(channelAddress common.Hash) (c *Serialization, err error)
+	GetChannelByAddress(channelIdentifier common.Hash) (c *Serialization, err error)
 
 	/*
 	 要记录自己放在某个 channel 上放弃了某个锁,到时候一定不能unlock
@@ -77,7 +77,7 @@ func (f *MockChannelDb) RemoveLock(channel common.Hash, sender common.Address, s
 }
 
 //GetChannelByAddress get the latest channel status
-func (f *MockChannelDb) GetChannelByAddress(channelAddress common.Hash) (c *Serialization, err error) {
+func (f *MockChannelDb) GetChannelByAddress(channelIdentifier common.Hash) (c *Serialization, err error) {
 	return nil, errors.New("not found")
 }
 

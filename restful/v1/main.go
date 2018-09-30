@@ -109,9 +109,9 @@ func Start() {
 		/*
 			events
 		*/
-		rest.Get("/api/1/events/network", EventNetwork),
-		rest.Get("/api/1/events/tokens/:token", EventTokens),
-		rest.Get("/api/1/events/channels/:channel", EventChannels),
+		//rest.Get("/api/1/events/network", EventNetwork),
+		//rest.Get("/api/1/events/tokens/:token", EventTokens),
+		//rest.Get("/api/1/events/channels/:channel", EventChannels),
 		/*
 			for debug only
 		*/

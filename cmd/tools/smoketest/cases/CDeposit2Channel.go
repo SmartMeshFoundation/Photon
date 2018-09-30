@@ -64,7 +64,7 @@ func testDepositToChannelByState(env *models.RaidenEnvReader, allowFail bool, ch
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "Deposit2Channel",
-			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelAddress,
+			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodPatch,
 			Payload: "{\"balance\":5}",
 			Timeout: time.Second * 180,

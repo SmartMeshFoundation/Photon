@@ -33,7 +33,7 @@ var testFuncRegisterChannelForHashlock = func(channel *Channel, hashlock common.
 func makeTestExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	//must provide a valid netting channel address
-	tokenNetwork, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
+	tokenNetwork, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKEN_NETWORK")))
 	if err != nil {
 		panic(err)
 	}

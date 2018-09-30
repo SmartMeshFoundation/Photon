@@ -71,7 +71,7 @@ func (rs *RaidenService) restoreLocks() {
 	// collect all locks.
 	for token := range rs.Token2TokenNetwork {
 		g := rs.Token2ChannelGraph[token]
-		for _, ch := range g.ChannelAddress2Channel {
+		for _, ch := range g.ChannelIdentifier2Channel {
 			for _, l := range ch.OurState.Lock2PendingLocks {
 				locks = append(locks, &lockInfo{
 					l:      l.Lock,

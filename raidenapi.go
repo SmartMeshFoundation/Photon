@@ -349,7 +349,7 @@ func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			return result, err
+			return result, errors.New("timeout")
 		case err = <-result.Result:
 		}
 	} else {
@@ -729,10 +729,10 @@ func (r *RaidenAPI) GetNetworkEvents(fromBlock, toBlock int64) ([]interface{}, e
 }
 
 //GetChannelEvents events of this channel
-func (r *RaidenAPI) GetChannelEvents(channelAddress common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
+func (r *RaidenAPI) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock int64) (data []transfer.Event, err error) {
 
 	//var events []transfer.Event
-	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelAddress, fromBlock, toBlock)
+	//events, err = r.Raiden.BlockChainEvents.GetAllNettingChannelEvents(channelIdentifier, fromBlock, toBlock)
 	//if err != nil {
 	//	return
 	//}

@@ -151,7 +151,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
-		receiveChan:               make(chan []byte, 2000),
+		receiveChan:               make(chan []byte, 200),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -227,11 +227,11 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifi
 	return true
 }
 
-func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr common.Hash) chan<- *SentMessageState {
+func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelIdentifier common.Hash) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
-	key := fmt.Sprintf("%s-%s", receiver.String(), channelAddr.String())
+	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
 	var sendingChan chan *SentMessageState
 	var ok bool
 	/*
@@ -239,14 +239,14 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 		if  channel address is not nil,it must contain a new balance proof.
 		balance proof must be sent ordered
 	*/
-	if channelAddr == utils.EmptyHash {
+	if channelIdentifier == utils.EmptyHash {
 		sendingChan = make(chan *SentMessageState, 1) //should not block sender
 	} else {
 		sendingChan, ok = p.sendingQueueMap[key]
 		if ok {
 			return sendingChan
 		}
-		sendingChan = make(chan *SentMessageState, 1000) //should not block sender
+		sendingChan = make(chan *SentMessageState, 10) //should not block sender
 		p.sendingQueueMap[key] = sendingChan
 	}
 	go func() {
@@ -276,7 +276,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 				utils.APex2(msgState.ReceiverAddress), msgState.Message,
 				utils.HPex(msgState.EchoHash)))
 			for {
-				if !p.messageCanBeSent(msgState.Message, channelAddr) {
+				if !p.messageCanBeSent(msgState.Message, channelIdentifier) {
 					msgState.AsyncResult.Result <- errExpired
 					break
 				}
@@ -308,21 +308,21 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 	return sendingChan
 }
 
-func getMessageChannelAddress(msg encoding.Messager) common.Hash {
-	var channelAddress common.Hash
+func getMessageChannelIdentifier(msg encoding.Messager) common.Hash {
+	var channelIdentifier common.Hash
 	switch msg2 := msg.(type) {
 	case *encoding.DirectTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.MediatedTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.AnnounceDisposedResponse:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.UnLock:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	case *encoding.RemoveExpiredHashlockTransfer:
-		channelAddress = msg2.ChannelIdentifier
+		channelIdentifier = msg2.ChannelIdentifier
 	}
-	return channelAddress
+	return channelIdentifier
 }
 
 /*
@@ -363,9 +363,19 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	p.SentHashesToChannel[echohash] = msgState
 	p.mapLock.Unlock()
 	result = msgState.AsyncResult
-	channelAddress := getMessageChannelAddress(msg)
-	//make sure not block
-	p.getChannelQueue(receiver, channelAddress) <- msgState
+	channelIdentifier := getMessageChannelIdentifier(msg)
+	sentChan := p.getChannelQueue(receiver, channelIdentifier)
+	//make sure not block sending
+	p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	select {
+	case sentChan <- msgState:
+		//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	default:
+		go func() {
+			p.getChannelQueue(receiver, channelIdentifier) <- msgState
+			//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+		}()
+	}
 	return
 }
 
@@ -403,7 +413,10 @@ func (p *RaidenProtocol) receive(data []byte) {
 	//todo fix ,remove copy and fix deadlock of send and receive
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
+
+	//p.log.Trace(fmt.Sprintf("try to send receive data l=%d,message=%s", len(cdata), encoding.MessageType(cdata[0])))
 	p.receiveChan <- cdata
+	//p.log.Trace(fmt.Sprintf("receive complete l=%d", len(cdata)))
 }
 
 func (p *RaidenProtocol) loop() {

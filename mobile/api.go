@@ -50,7 +50,7 @@ func (a *API) GetChannelList() (channels string, err error) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelAddress:      common.BytesToHash(c.Key).String(),
+			ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
@@ -68,19 +68,20 @@ func (a *API) GetChannelList() (channels string, err error) {
 }
 
 //GetOneChannel GET /api/1/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226
-func (a *API) GetOneChannel(channelAddress string) (channel string, err error) {
+func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelAddress, channel, err))
+		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelIdentifier, channel, err))
 	}()
-	chaddr := common.HexToHash(channelAddress)
-	c, err := a.api.GetChannel(chaddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
 	}
 	d := &v1.ChannelDataDetail{
-		ChannelAddress:           common.BytesToHash(c.Key).String(),
-		PartnerAddrses:           c.PartnerAddress().String(),
+		ChannelIdentifier:        common.BytesToHash(c.Key).String(),
+		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddress:           c.PartnerAddress().String(),
 		Balance:                  c.OurBalance(),
 		PartnerBalance:           c.PartnerBalance(),
 		State:                    c.State,
@@ -125,7 +126,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -141,14 +142,14 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 }
 
 //CloseChannel close a channel
-func (a *API) CloseChannel(channelAddress string, force bool) (channel string, err error) {
+func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api CloseChannel in channelAddress=%s,out channel=\n%s,err=%v",
-			channelAddress, channel, err,
+		log.Trace(fmt.Sprintf("Api CloseChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
+			channelIdentifier, channel, err,
 		))
 	}()
-	chAddr := common.HexToHash(channelAddress)
-	c, err := a.api.GetChannel(chAddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -167,7 +168,7 @@ func (a *API) CloseChannel(channelAddress string, force bool) (channel string, e
 		}
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -182,15 +183,15 @@ func (a *API) CloseChannel(channelAddress string, force bool) (channel string, e
 }
 
 //SettleChannel settle a channel
-func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
+func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api SettleChannel in channelAddress=%s,out channel=\n%s,err=%v",
-			channelAddres, channel, err,
+		log.Trace(fmt.Sprintf("Api SettleChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
+			channelIdentifier, channel, err,
 		))
 	}()
 
-	chAddr := common.HexToHash(channelAddres)
-	c, err := a.api.GetChannel(chAddr)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -201,7 +202,7 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 		return
 	}
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -216,17 +217,17 @@ func (a *API) SettleChannel(channelAddres string) (channel string, err error) {
 }
 
 //DepositChannel deposit balance to channel
-func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel string, err error) {
+func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api DepositChannel channelAddres=%s,balanceStr=%s,out channel=\n%s,err=%v",
-			channelAddres, balanceStr, channel, err,
+		log.Trace(fmt.Sprintf("Api DepositChannel channelIdentifier=%s,balanceStr=%s,out channel=\n%s,err=%v",
+			channelIdentifier, balanceStr, channel, err,
 		))
 	}()
-	chAddr := common.HexToHash(channelAddres)
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.GetChannel(chAddr)
+	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
-		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(chAddr), err))
+		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifierHash), err))
 		return
 	}
 	c, err = a.api.Deposit(c.TokenAddress(), c.PartnerAddress(), balance, params.DefaultPollTimeout)
@@ -237,7 +238,7 @@ func (a *API) DepositChannel(channelAddres string, balanceStr string) (channel s
 	}
 
 	d := &v1.ChannelData{
-		ChannelAddress:      common.BytesToHash(c.Key).String(),
+		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
 		PartnerBalance:      c.PartnerBalance(),
@@ -278,8 +279,8 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 }
 
 //ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
-func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelAddress string) (eventsString string, err error) {
-	channel := common.HexToHash(channelAddress)
+func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelIdentifier string) (eventsString string, err error) {
+	channel := common.HexToHash(channelIdentifier)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -451,17 +452,17 @@ func (a *API) Stop() {
 ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
 */
-func (a *API) ChannelFor3rdParty(channelAddress, thirdPartyAddress string) (r string, err error) {
-	channelAddr := common.HexToHash(channelAddress)
+func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error) {
+	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	thirdPartyAddr, err := utils.HexToAddressWithoutValidation(thirdPartyAddress)
 	if err != nil {
 		return
 	}
-	if channelAddr == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
+	if channelIdentifierHash == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
 		err = errors.New("invalid argument")
 		return
 	}
-	result, err := a.api.ChannelInformationFor3rdParty(channelAddr, thirdPartyAddr)
+	result, err := a.api.ChannelInformationFor3rdParty(channelIdentifierHash, thirdPartyAddr)
 	if err != nil {
 		log.Error(err.Error())
 		return

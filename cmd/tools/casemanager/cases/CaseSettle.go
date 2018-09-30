@@ -33,11 +33,11 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
 	time.Sleep(3 * time.Second)
 	// Close
-	N0.Close(c01.ChannelAddress)
+	N0.Close(c01.ChannelIdentifier)
 	N0.GetChannelWith(N1, tokenAddress).Println("AfterClose")
 	// Settle
 	time.Sleep(time.Duration(c01.SettleTimeout+20) * time.Second)
-	N0.Settle(c01.ChannelAddress)
+	N0.Settle(c01.ChannelIdentifier)
 	time.Sleep(10 * time.Second)
 	// 验证
 	// verify

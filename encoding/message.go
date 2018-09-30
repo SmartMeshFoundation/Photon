@@ -719,7 +719,7 @@ func (s *UnLock) UnPack(data []byte) error {
 
 //String is fmt.Stringer
 func (s *UnLock) String() string {
-	return fmt.Sprintf("Message{type=Secret secret=%s,%s}", utils.HPex(s.LockSecret), s.EnvelopMessage.String())
+	return fmt.Sprintf("Message{type=Unlock secret=%s,%s}", utils.HPex(s.LockSecret), s.EnvelopMessage.String())
 }
 
 /*
@@ -1338,8 +1338,8 @@ func (m *WithdrawResponse) String() string {
 	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant2=%s,"+
 		"Participant1Balance=%s,Participant1Withdraw=%s,",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
-		utils.APex2(m.Participant1), m.Participant1Balance,
-		utils.APex2(m.Participant2), m.Participant1Withdraw,
+		utils.APex2(m.Participant1), utils.APex2(m.Participant2),
+		m.Participant1Balance, m.Participant1Withdraw,
 	)
 }
 
