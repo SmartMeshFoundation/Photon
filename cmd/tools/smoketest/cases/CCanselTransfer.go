@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/Atmosphere/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 // CancelTransferTest :
