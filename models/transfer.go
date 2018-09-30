@@ -17,7 +17,7 @@ type SentTransfer struct {
 	Key               string `storm:"id"`
 	BlockNumber       int64  `json:"block_number" storm:"index"`
 	OpenBlockNumber   int64
-	ChannelIdentifier common.Hash    `json:"channel_address"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	ToAddress         common.Address `json:"to_address"`
 	TokenAddress      common.Address `json:"token_address"`
 	Nonce             uint64         `json:"nonce"`
@@ -29,7 +29,7 @@ type ReceivedTransfer struct {
 	Key               string `storm:"id"`
 	BlockNumber       int64  `json:"block_number" storm:"index"`
 	OpenBlockNumber   int64
-	ChannelIdentifier common.Hash    `json:"channel_address"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	TokenAddress      common.Address `json:"token_address"`
 	FromAddress       common.Address `json:"from_address"`
 	Nonce             uint64         `json:"nonce"`
@@ -39,12 +39,12 @@ type ReceivedTransfer struct {
 /*
 NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) *SentTransfer {
-	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) *SentTransfer {
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &SentTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
-		ChannelIdentifier: channelAddr,
+		ChannelIdentifier: channelIdentifier,
 		TokenAddress:      tokenAddr,
 		ToAddress:         toAddr,
 		Nonce:             nonce,
@@ -63,12 +63,12 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelAddr common.Hash
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelAddr common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) *ReceivedTransfer {
-	key := fmt.Sprintf("%s-%d", channelAddr.String(), nonce)
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) *ReceivedTransfer {
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &ReceivedTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
-		ChannelIdentifier: channelAddr,
+		ChannelIdentifier: channelIdentifier,
 		TokenAddress:      tokenAddr,
 		FromAddress:       fromAddr,
 		Nonce:             nonce,

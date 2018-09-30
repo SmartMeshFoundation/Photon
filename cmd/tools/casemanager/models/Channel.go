@@ -9,7 +9,7 @@ import (
 type Channel struct {
 	Name                string `json:"name"`
 	SelfAddress         string `json:"self_address"`
-	ChannelAddress      string `json:"channel_address"`
+	ChannelIdentifier   string `json:"channel_identifier"`
 	PartnerAddress      string `json:"partner_address"`
 	Balance             int32  `json:"balance"`
 	LockedAmount        int32  `json:"locked_amount"`

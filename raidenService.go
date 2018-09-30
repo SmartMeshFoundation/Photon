@@ -505,7 +505,7 @@ func (rs *RaidenService) handleBlockNumber(blocknumber int64) {
 	*/
 	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
-		for _, c := range cg.ChannelAddress2Channel {
+		for _, c := range cg.ChannelIdentifier2Channel {
 			err := rs.StateMachineEventHandler.ChannelStateTransition(c, statechange)
 			if err != nil {
 				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
@@ -530,9 +530,9 @@ func (rs *RaidenService) GetChannelStatus(channelIdentifier common.Hash) int {
 	return int(c.State)
 }
 
-func (rs *RaidenService) findChannelByAddress(channelIdentifier common.Hash) (*channel.Channel, error) {
+func (rs *RaidenService) findChannelByIdentifier(channelIdentifier common.Hash) (*channel.Channel, error) {
 	for _, g := range rs.Token2ChannelGraph {
-		ch := g.GetChannelAddress2Channel(channelIdentifier)
+		ch := g.ChannelIdentifier2Channel[channelIdentifier]
 		if ch != nil {
 			return ch, nil
 		}
@@ -734,7 +734,7 @@ func (rs *RaidenService) registerChannel(tokenNetworkAddress common.Address, par
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelAddress2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
+	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -1094,7 +1094,7 @@ func (rs *RaidenService) getToken2ChannelGraph(tokenAddress common.Address) (cg 
 	return
 }
 func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *graph.ChannelGraph) {
-	ch, err := rs.findChannelByAddress(channelIdentifier)
+	ch, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		return
 	}
@@ -1105,16 +1105,16 @@ func (rs *RaidenService) getChannelGraph(channelIdentifier common.Hash) (cg *gra
 	return
 }
 func (rs *RaidenService) getTokenForChannelIdentifier(channelidentifier common.Hash) (token common.Address) {
-	ch, err := rs.findChannelByAddress(channelidentifier)
+	ch, err := rs.findChannelByIdentifier(channelidentifier)
 	if err != nil {
 		return
 	}
 	return ch.TokenAddress
 }
 
-//only for test, should call findChannelByAddress
-func (rs *RaidenService) getChannelWithAddr(channelAddr common.Hash) *channel.Channel {
-	c, err := rs.findChannelByAddress(channelAddr)
+//only for test, should call findChannelByIdentifier
+func (rs *RaidenService) getChannelWithAddr(channelIdentifier common.Hash) *channel.Channel {
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 
 	}
@@ -1160,9 +1160,9 @@ func (rs *RaidenService) newChannelAndDeposit(token, partner common.Address, set
 /*
 process user's deposit request
 */
-func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+func (rs *RaidenService) depositChannel(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		result.Result <- err
 		return
@@ -1177,13 +1177,13 @@ func (rs *RaidenService) depositChannel(channelAddress common.Hash, amount *big.
 /*
 process user's close or settle channel request
 */
-func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op string) (result *utils.AsyncResult) {
-	c, err := rs.findChannelByAddress(channelAddress)
+func (rs *RaidenService) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
 		return
 	}
-	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelIdentifier)))
 	if op == closeChannelReqName {
 		result = c.Close()
 	} else {
@@ -1191,9 +1191,9 @@ func (rs *RaidenService) closeOrSettleChannel(channelAddress common.Hash, op str
 	}
 	return
 }
-func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) cooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
@@ -1203,7 +1203,7 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
-	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelIdentifier)))
 	s, err := c.CreateCooperativeSettleRequest()
 	if err != nil {
 		result.Result <- err
@@ -1219,14 +1219,14 @@ func (rs *RaidenService) cooperativeSettleChannel(channelAddress common.Hash) (r
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) prepareCooperativeSettleChannel(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) prepareCooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.PrepareForCooperativeSettle()
 	if err != nil {
 		result.Result <- err
@@ -1236,14 +1236,14 @@ func (rs *RaidenService) prepareCooperativeSettleChannel(channelAddress common.H
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.CancelWithdrawOrCooperativeSettle()
 	if err != nil {
 		result.Result <- err
@@ -1254,9 +1254,9 @@ func (rs *RaidenService) cancelPrepareForCooperativeSettleChannelOrWithdraw(chan
 	return
 }
 
-func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (result *utils.AsyncResult) {
+func (rs *RaidenService) withdraw(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
@@ -1266,7 +1266,7 @@ func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
-	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelAddress), amount))
+	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
 	s, err := c.CreateWithdrawRequest(amount)
 	if err != nil {
 		result.Result <- err
@@ -1282,14 +1282,14 @@ func (rs *RaidenService) withdraw(channelAddress common.Hash, amount *big.Int) (
 	result.Result <- err
 	return
 }
-func (rs *RaidenService) prepareForWithdraw(channelAddress common.Hash) (result *utils.AsyncResult) {
+func (rs *RaidenService) prepareForWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByAddress(channelAddress)
+	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from db.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelAddress)))
+	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.PrepareForWithdraw()
 	if err != nil {
 		result.Result <- err
@@ -1471,7 +1471,7 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 	}
 	switch msg := sentMessage.Message.(type) {
 	case *encoding.MediatedTransfer:
-		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -1483,13 +1483,13 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 			rs.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), "RevealSecret 发送成功")
 		}
 	case *encoding.UnLock:
-		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}
 		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
-		ch, err := rs.findChannelByAddress(msg.ChannelIdentifier)
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}

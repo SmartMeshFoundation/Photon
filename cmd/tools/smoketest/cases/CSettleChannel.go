@@ -50,7 +50,7 @@ func SettleChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "SettleChannel",
-			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelAddress,
+			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodPatch,
 			Payload: "{\"state\":\"settled\"}",
 			Timeout: time.Second * 180,

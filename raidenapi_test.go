@@ -24,7 +24,7 @@ var big1 = big.NewInt(1)
 //a valid channel address onchain
 func getAChannel(api *RaidenAPI) common.Hash {
 	for _, g := range api.Raiden.Token2ChannelGraph {
-		for addr := range g.ChannelAddress2Channel {
+		for addr := range g.ChannelIdentifier2Channel {
 			return addr
 		}
 	}
@@ -210,7 +210,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Hash]common.Add
 	}
 	m := make(map[common.Hash]common.Address)
 	for _, g := range ra.Raiden.Token2ChannelGraph {
-		for addr, c := range g.ChannelAddress2Channel {
+		for addr, c := range g.ChannelIdentifier2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State == channeltype.StateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = ra.Raiden.NodeAddress
@@ -219,7 +219,7 @@ func findAllCanTransferChannel(ra, rb, rc *RaidenAPI) map[common.Hash]common.Add
 		}
 	}
 	for _, g := range rb.Raiden.Token2ChannelGraph {
-		for addr, c := range g.ChannelAddress2Channel {
+		for addr, c := range g.ChannelIdentifier2Channel {
 			if c.Balance().Cmp(utils.BigInt0) > 0 && c.State == channeltype.StateOpened && allAddresses[c.PartnerState.Address] {
 				if m[addr] == utils.EmptyAddress {
 					m[addr] = rb.Raiden.NodeAddress
@@ -247,13 +247,13 @@ func TestTransfer(t *testing.T) {
 	log.Info("channels number ", len(chm))
 	var i uint64
 	values := make(map[*RaidenAPI]map[common.Hash]*big.Int)
-	for chaddr, nodeAddr := range chm {
+	for channelIdentifier, nodeAddr := range chm {
 		i++
 		r := rb
 		if nodeAddr == ra.Raiden.NodeAddress {
 			r = ra
 		}
-		ch, err := r.GetChannel(chaddr)
+		ch, err := r.GetChannel(channelIdentifier)
 		if err != nil {
 			t.Error(err)
 		}
@@ -261,7 +261,7 @@ func TestTransfer(t *testing.T) {
 		if !ok {
 			values[r] = make(map[common.Hash]*big.Int)
 		}
-		values[r][chaddr] = ch.OurBalance()
+		values[r][channelIdentifier] = ch.OurBalance()
 		go func(r *RaidenAPI, tokenAddr, partnerAddr common.Address, id uint64) {
 			wgStart.Add(1)
 			wgStart.Wait() //start at the same time

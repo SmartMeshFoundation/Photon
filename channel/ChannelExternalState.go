@@ -42,14 +42,14 @@ type ExternalState struct {
 
 //NewChannelExternalState create a new channel external state
 func NewChannelExternalState(fun FuncRegisterChannelForHashlock,
-	tokenNetwork *rpc.TokenNetworkProxy, channelAddress *contracts.ChannelUniqueID, privkey *ecdsa.PrivateKey, client *helper.SafeEthClient, db channeltype.Db, closedBlock int64, MyAddress, PartnerAddress common.Address) *ExternalState {
+	tokenNetwork *rpc.TokenNetworkProxy, channelIdentifier *contracts.ChannelUniqueID, privkey *ecdsa.PrivateKey, client *helper.SafeEthClient, db channeltype.Db, closedBlock int64, MyAddress, PartnerAddress common.Address) *ExternalState {
 	cs := &ExternalState{
 		funcRegisterChannelForHashlock: fun,
 		TokenNetwork:                   tokenNetwork,
 		auth:                           bind.NewKeyedTransactor(privkey),
 		privKey:                        privkey,
 		Client:                         client,
-		ChannelIdentifier:              *channelAddress,
+		ChannelIdentifier:              *channelIdentifier,
 		db:                             db,
 		ClosedBlock:                    closedBlock,
 		SettledBlock:                   0,

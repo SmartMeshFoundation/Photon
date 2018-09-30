@@ -168,6 +168,7 @@ func (x *XMPPConnection) loop() {
 			remoteUser := strings.Split(v.Remote, "/")[0]
 			remoteUser = strings.Split(remoteUser, "@")[0]
 			raddr := common.HexToAddress(remoteUser)
+			log.Trace(fmt.Sprintf("receive from %s message %s", utils.APex2(raddr), v.Text))
 			data, err := base64.StdEncoding.DecodeString(v.Text)
 			if err != nil {
 				log.Error(fmt.Sprintf("receive unkown message %s", utils.StringInterface(v, 3)))

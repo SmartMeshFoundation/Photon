@@ -47,7 +47,7 @@ func CloseChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "CloseChannel",
-			FullURL: node.Host + "/api/1/channels/" + channel.ChannelAddress,
+			FullURL: node.Host + "/api/1/channels/" + channel.ChannelIdentifier,
 			Method:  http.MethodPatch,
 			Payload: "{\"state\":\"closed\"}",
 			Timeout: time.Second * 180,

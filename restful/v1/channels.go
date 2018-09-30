@@ -21,7 +21,7 @@ import (
 ChannelData export json data format
 */
 type ChannelData struct {
-	ChannelAddress      string            `json:"channel_address"`
+	ChannelIdentifier   string            `json:"channel_identifier"`
 	OpenBlockNumber     int64             `json:"open_block_number"`
 	PartnerAddrses      string            `json:"partner_address"`
 	Balance             *big.Int          `json:"balance"`
@@ -37,9 +37,9 @@ type ChannelData struct {
 
 //ChannelDataDetail more info
 type ChannelDataDetail struct {
-	ChannelAddress      string            `json:"channel_address"`
+	ChannelIdentifier   string            `json:"channel_identifier"`
 	OpenBlockNumber     int64             `json:"open_block_number"`
-	PartnerAddrses      string            `json:"partner_address"`
+	PartnerAddress      string            `json:"partner_address"`
 	Balance             *big.Int          `json:"balance"`
 	PartnerBalance      *big.Int          `json:"patner_balance"`
 	LockedAmount        *big.Int          `json:"locked_amount"`
@@ -77,7 +77,7 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 	var datas []*ChannelData
 	for _, c := range chs {
 		d := &ChannelData{
-			ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
 			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
@@ -105,18 +105,18 @@ for update transfer and withdraw.
 func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
 	thirdParty := r.PathParam("3rd")
-	channelAddress := common.HexToHash(ch)
+	channelIdentifier := common.HexToHash(ch)
 	thirdAddress, err := utils.HexToAddress(thirdParty)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if channelAddress == utils.EmptyHash || thirdAddress == utils.EmptyAddress {
+	if channelIdentifier == utils.EmptyHash || thirdAddress == utils.EmptyAddress {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	result, err := RaidenAPI.ChannelInformationFor3rdParty(channelAddress, thirdAddress)
+	result, err := RaidenAPI.ChannelInformationFor3rdParty(channelIdentifier, thirdAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,16 +132,16 @@ SpecifiedChannel get  a channel state
 */
 func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
-	chaddr := common.HexToHash(ch)
-	c, err := RaidenAPI.GetChannel(chaddr)
+	channelIdentifier := common.HexToHash(ch)
+	c, err := RaidenAPI.GetChannel(channelIdentifier)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	d := &ChannelDataDetail{
-		ChannelAddress:           c.ChannelIdentifier.ChannelIdentifier.String(),
+		ChannelIdentifier:        c.ChannelIdentifier.ChannelIdentifier.String(),
 		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:           c.PartnerAddress().String(),
+		PartnerAddress:           c.PartnerAddress().String(),
 		Balance:                  c.OurBalance(),
 		PartnerBalance:           c.PartnerBalance(),
 		State:                    c.State,
@@ -200,7 +200,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		d := &ChannelData{
-			ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
 			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
@@ -235,7 +235,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	chAddr := common.HexToHash(chstr)
+	channelIdentifier := common.HexToHash(chstr)
 	type Req struct {
 		State    string
 		StateInt channeltype.State
@@ -248,7 +248,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c, err := RaidenAPI.GetChannel(chAddr)
+	c, err := RaidenAPI.GetChannel(channelIdentifier)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -301,7 +301,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		}
 	}
 	d := &ChannelData{
-		ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
 		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
@@ -326,7 +326,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	chAddr := common.HexToHash(chstr)
+	channelIdentifier := common.HexToHash(chstr)
 	type Req struct {
 		Amount *big.Int
 		Op     string
@@ -340,7 +340,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c, err := RaidenAPI.GetChannel(chAddr)
+	c, err := RaidenAPI.GetChannel(channelIdentifier)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -366,7 +366,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		}
 	}
 	d := &ChannelData{
-		ChannelAddress:      c.ChannelIdentifier.ChannelIdentifier.String(),
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
 		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 		PartnerAddrses:      c.PartnerAddress().String(),
 		Balance:             c.OurBalance(),
