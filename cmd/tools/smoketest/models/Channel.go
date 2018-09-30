@@ -2,7 +2,7 @@ package models
 
 // Channel : raiden channel, add SelfChannel for test use
 type Channel struct {
-	ChannelAddress      string `json:"channel_address"`
+	ChannelIdentifier   string `json:"channel_identifier"`
 	OpenBlockNumber     uint64 `json:"open_block_number"`
 	PartnerAddress      string `json:"partner_address"`
 	Balance             int32  `json:"balance"`

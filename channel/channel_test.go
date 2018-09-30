@@ -33,7 +33,7 @@ func TestEndState(t *testing.T) {
 	bcs := rpc.MakeTestBlockChainService()
 	address1 := bcs.NodeAddress
 	address2 := utils.NewRandomAddress()
-	channelAddress := &contracts.ChannelUniqueID{
+	channelIdentifier := &contracts.ChannelUniqueID{
 		ChannelIdentifier: utils.NewRandomHash(),
 		OpenBlockNumber:   testOpenBlockNumber,
 	}
@@ -74,7 +74,7 @@ func TestEndState(t *testing.T) {
 	*/
 	bp := &encoding.BalanceProof{
 		Nonce:             1,
-		ChannelIdentifier: channelAddress.ChannelIdentifier,
+		ChannelIdentifier: channelIdentifier.ChannelIdentifier,
 		OpenBlockNumber:   testOpenBlockNumber,
 		TransferAmount:    transferedAmount,
 		Locksroot:         locksroot,
@@ -148,7 +148,7 @@ func TestEndState(t *testing.T) {
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
 
-	secretMessage := encoding.NewUnlock(encoding.NewBalanceProof(2, x.Add(transferedAmount, lockAmount), utils.EmptyHash, channelAddress), lockSecret)
+	secretMessage := encoding.NewUnlock(encoding.NewBalanceProof(2, x.Add(transferedAmount, lockAmount), utils.EmptyHash, channelIdentifier), lockSecret)
 	secretMessage.Sign(bcs.PrivKey, secretMessage)
 	state1.registerSecretMessage(secretMessage)
 

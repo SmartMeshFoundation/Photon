@@ -8,9 +8,9 @@ type Token struct {
 }
 
 // judge a channel exist in this token
-func (t *Token) hasChannel(channelAddress string) bool {
+func (t *Token) hasChannel(channelIdentifier string) bool {
 	for _, channel := range t.Channels {
-		if channel.ChannelAddress == channelAddress {
+		if channel.ChannelIdentifier == channelIdentifier {
 			return true
 		}
 	}

@@ -136,7 +136,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		err = eh.raiden.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		var fromCh *channel.Channel
-		fromCh, err = eh.raiden.findChannelByAddress(event.FromChannel)
+		fromCh, err = eh.raiden.findChannelByIdentifier(event.FromChannel)
 		if err != nil {
 			return
 		}
@@ -269,7 +269,7 @@ func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransf
 	//if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
 	//	panic("EventWithdrawFailed can only comes from a target node or mediated node")
 	//}
-	//ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+	//ch, err := eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 	//if err != nil {
 	//	log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
 	//	return
@@ -292,7 +292,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	if manager.Name == target.NameTargetTransition {
 		panic("event unlock failed can not  happen for a target node")
 	}
-	ch, err := eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 	if err != nil {
 		log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
 		return
@@ -338,7 +338,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventSendAnnouncedDisposedResponse(e2, stateManager)
 		eh.raiden.conditionQuit("EventSendAnnouncedDisposedResponseAfter")
 	case *transfer.EventTransferSentSuccess:
-		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+		ch, err = eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 		if err != nil {
 			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
@@ -354,7 +354,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.raiden.db.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
-		ch, err = eh.raiden.findChannelByAddress(e2.ChannelIdentifier)
+		ch, err = eh.raiden.findChannelByIdentifier(e2.ChannelIdentifier)
 		if err != nil {
 			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
@@ -476,11 +476,11 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 }
 
 func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractBalanceStateChange) error {
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
 		// todo handle this event, when routing we should consider the weight between nodes, weight = sum of deposits between a participant pair.
-		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelAddress=%s", utils.HPex(st.ChannelIdentifier)))
+		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
@@ -492,8 +492,8 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 }
 
 func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractClosedStateChange) error {
-	channelAddress := st.ChannelIdentifier
-	ch, err := eh.raiden.findChannelByAddress(channelAddress)
+	channelIdentifier := st.ChannelIdentifier
+	ch, err := eh.raiden.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		//i'm not a participant
 		token := eh.raiden.TokenNetwork2Token[st.TokenNetworkAddress]
@@ -540,7 +540,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -557,7 +557,7 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 // can we just combine them?
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -574,7 +574,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 }
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -599,7 +599,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
  */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -628,7 +628,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 }
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
 	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -642,7 +642,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 }
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
 	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
-	ch, err := eh.raiden.findChannelByAddress(st.ChannelIdentifier)
+	ch, err := eh.raiden.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
 	}
@@ -685,7 +685,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {
-			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channelIdentifier=%s,settleblock=%d,thisblock=%d",
 				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
@@ -693,7 +693,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {
-			log.Warn(fmt.Sprintf("channel is already settled on a different block channeladdress=%s,settleblock=%d,thisblock=%d",
+			log.Warn(fmt.Sprintf("channel is already settled on a different block channelIdentifier=%s,settleblock=%d,thisblock=%d",
 				c.ChannelIdentifier.String(), c.ExternState.SettledBlock, st2.SettledBlock))
 		}
 	case *mediatedtransfer.ContractChannelWithdrawStateChange:

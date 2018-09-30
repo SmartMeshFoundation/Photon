@@ -22,7 +22,7 @@ type BalanceProofState struct {
 	LocksRoot         common.Hash
 	ChannelIdentifier contracts.ChannelUniqueID
 	MessageHash       common.Hash
-	//signature is nonce + transferred_amount + locksroot + channel_address + message_hash
+	//signature is nonce + transferred_amount + locksroot + channel_identifier + message_hash
 	Signature []byte
 
 	/*

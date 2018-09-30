@@ -37,7 +37,7 @@ type Channel struct {
 
 /*
 NewChannel returns the living channel.
-channelAddress must be a valid contract adress
+channelIdentifier must be a valid contract adress
 settleTimeout must be valid, it cannot too small.
 */
 func NewChannel(ourState, partenerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
