@@ -1,6 +1,6 @@
 # System Requirements and Installation Guide
 ## Introduction
-SmartRaiden is a standard compliant implementation of the Raiden Network protocol in Golang. In this project, optimized raiden network will be available on multiple platforms, and decentralized micropayments on smart mobile devices can be realized.SmartRaiden currently can works on Windows, Linux ,Android, iOS etc. In order to better fit for the mobile network, SmartRaiden also has some special functions, the internet message communication based on XMPP , crash recovery and channel charging function.
+Smartraiden is an off-chain scaling solution, enabling instant, low-fee and scalable payments. It’s complementary to the Ethereum blockchain and Spectrum blockchain and works with ERC20 compatible token and ERC223 compatible token. SmartRaiden currently can works on Windows, Linux ,Android, iOS etc. The new version of smartraiden adds some new functions, such as , cooperative settlement,widraw without closing the channel, and more perfect third-party services. In order to better fit for the mobile network, Smartraiden adopts the Matrix communication mechanism and supports the crash recovery and channel charging function.
 ## Installation
 The preferred way to install SmartRaiden is downloading a self contained application bundle from the [GitHub release page](https://github.com/SmartMeshFoundation/SmartRaiden/releases)
 ### Linux
