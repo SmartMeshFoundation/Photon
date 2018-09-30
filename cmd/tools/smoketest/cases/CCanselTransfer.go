@@ -61,7 +61,7 @@ func CancelTransferTest(env *models.RaidenEnvReader, allowFail bool) {
 			Method:  http.MethodGet,
 			Timeout: time.Second * 180,
 		},
-		TargetStatusCode: 200,
+		TargetStatusCode: 0,
 	}
 	case2.Run()
 

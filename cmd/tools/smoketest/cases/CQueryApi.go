@@ -109,7 +109,7 @@ func QueryNodeSpecificChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "QueryNodeSpecificChannel",
-			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelAddress,
+			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,
@@ -182,7 +182,7 @@ func QueryChannelEventsTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "QueryChannelEvents",
-			FullURL: node.Host + "/api/1/events/channels/" + channels[0].ChannelAddress + "?from_block=1",
+			FullURL: node.Host + "/api/1/events/channels/" + channels[0].ChannelIdentifier + "?from_block=1",
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,
@@ -324,7 +324,7 @@ func ChannelFor3rdPartyTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "ChannelFor3rdParty",
-			FullURL: fmt.Sprintf("%s/api/1/thirdparty/%s/%s", node.Host, channels[0].ChannelAddress, env.RaidenNodes[1].AccountAddress),
+			FullURL: fmt.Sprintf("%s/api/1/thirdparty/%s/%s", node.Host, channels[0].ChannelIdentifier, env.RaidenNodes[1].AccountAddress),
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,

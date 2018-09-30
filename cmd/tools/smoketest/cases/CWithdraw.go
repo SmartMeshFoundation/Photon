@@ -46,7 +46,7 @@ func WithdrawTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "Withdraw",
-			FullURL: env.RaidenNodes[0].Host + "/api/1/withdraw/" + channels[0].ChannelAddress,
+			FullURL: env.RaidenNodes[0].Host + "/api/1/withdraw/" + channels[0].ChannelIdentifier,
 			Method:  http.MethodPut,
 			Payload: string(p),
 			Timeout: time.Second * 180,
