@@ -72,15 +72,15 @@ var Hop3Timeout = Hop2Timeout - UnitRevealTimeout
 MakeRoute Helper for creating a route.
 
     Args:
-        node_address (address): The node address.
-        available_balance (int): The available capacity of the route.
-        settle_timeout (int): The settle_timeout of the route, as agreed in the netting contract.
-        reveal_timeout (int): The configure reveal_timeout of the raiden node.
-        channel_address (address): The correspoding channel address.
+        node_address : The node address.
+        availableBalance  : The available capacity of the route.
+        settleTimeout  : The settle_timeout of the route, as agreed in the netting contract.
+        revealTimeout  : The configure reveal_timeout of the raiden node.
+        channelIdentifier (address): The correspoding channel identifier.
 */
-func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UnitSettleTimeout*/ int, revealTimeout /*UnitRevealTimeout*/ int, closedBlock int64, channelAddress common.Hash) *route.State {
+func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UnitSettleTimeout*/ int, revealTimeout /*UnitRevealTimeout*/ int, closedBlock int64, channelIdentifier common.Hash) *route.State {
 	ch, _ := channel.MakeTestPairChannel()
-	ch.ChannelIdentifier.ChannelIdentifier = channelAddress
+	ch.ChannelIdentifier.ChannelIdentifier = channelIdentifier
 	ch.SettleTimeout = settleTimeout
 	ch.PartnerState.Address = nodeAddress
 	ch.OurState.ContractBalance = new(big.Int).Set(availableBalance)

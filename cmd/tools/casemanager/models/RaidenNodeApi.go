@@ -114,7 +114,7 @@ func (node *RaidenNode) SendTransWithSecret(tokenAddress string, amount int32, t
 }
 
 // Withdraw :
-func (node *RaidenNode) Withdraw(channelAddress string, withdrawAmount int32) {
+func (node *RaidenNode) Withdraw(channelIdentifier string, withdrawAmount int32) {
 	type WithdrawPayload struct {
 		Amount int32
 		Op     string
@@ -123,7 +123,7 @@ func (node *RaidenNode) Withdraw(channelAddress string, withdrawAmount int32) {
 		Amount: withdrawAmount,
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/withdraw/" + channelAddress,
+		FullURL: node.Host + "/api/1/withdraw/" + channelIdentifier,
 		Method:  http.MethodPut,
 		Payload: string(p),
 		Timeout: time.Second * 20,
@@ -138,7 +138,7 @@ func (node *RaidenNode) Withdraw(channelAddress string, withdrawAmount int32) {
 }
 
 // Close :
-func (node *RaidenNode) Close(channelAddress string) {
+func (node *RaidenNode) Close(channelIdentifier string) {
 	type ClosePayload struct {
 		State string `json:"state"`
 		Force bool   `json:"force"`
@@ -148,7 +148,7 @@ func (node *RaidenNode) Close(channelAddress string) {
 		Force: true,
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/channels/" + channelAddress,
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
 		Method:  http.MethodPatch,
 		Payload: string(p),
 		Timeout: time.Second * 20,
@@ -163,7 +163,7 @@ func (node *RaidenNode) Close(channelAddress string) {
 }
 
 // Settle :
-func (node *RaidenNode) Settle(channelAddress string) {
+func (node *RaidenNode) Settle(channelIdentifier string) {
 	type SettlePayload struct {
 		State string `json:"state"`
 	}
@@ -171,7 +171,7 @@ func (node *RaidenNode) Settle(channelAddress string) {
 		State: "settled",
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/channels/" + channelAddress,
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
 		Method:  http.MethodPatch,
 		Payload: string(p),
 		Timeout: time.Second * 20,
@@ -186,7 +186,7 @@ func (node *RaidenNode) Settle(channelAddress string) {
 }
 
 // CooperateSettle :
-func (node *RaidenNode) CooperateSettle(channelAddress string) {
+func (node *RaidenNode) CooperateSettle(channelIdentifier string) {
 	type ClosePayload struct {
 		State string `json:"state"`
 	}
@@ -194,7 +194,7 @@ func (node *RaidenNode) CooperateSettle(channelAddress string) {
 		State: "closed",
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/channels/" + channelAddress,
+		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
 		Method:  http.MethodPatch,
 		Payload: string(p),
 		Timeout: time.Second * 20,

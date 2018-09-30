@@ -25,7 +25,7 @@ func (cm *CaseManager) LocalCase() (err error) {
 	////channel := N1.GetChannelWith(N0, tokenAddress)
 	//go N0.SendTrans(tokenAddress, transAmount, N2.Address, false)
 	////time.Sleep(10 * time.Second)
-	////N1.Close(channel.ChannelAddress)
+	////N1.Close(channel.ChannelIdentifier)
 	//time.Sleep(100 * time.Second)
 	//models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return

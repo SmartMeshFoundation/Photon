@@ -34,7 +34,7 @@ func (cm *CaseManager) CaseWithdraw() (err error) {
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeWithdraw")
 
 	// withdraw
-	N0.Withdraw(c01.ChannelAddress, withdrawAmount)
+	N0.Withdraw(c01.ChannelIdentifier, withdrawAmount)
 	time.Sleep(10 * time.Second)
 	// 验证
 	// verify

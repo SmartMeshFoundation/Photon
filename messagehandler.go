@@ -187,7 +187,7 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	mh.raiden.registerSecret(secret)
 	var ch *channel.Channel
 	var err error
-	ch, err = mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
+	ch, err = mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
 		return err
@@ -234,7 +234,7 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
  *	Reasonable to update channel and store ACK.
  */
 func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	ch, err := mh.raiden.findChannelByAddress(msg.ChannelIdentifier)
+	ch, err := mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		return fmt.Errorf("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 	}
