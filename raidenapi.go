@@ -349,7 +349,7 @@ func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			return result, err
+			return result, errors.New("timeout")
 		case err = <-result.Result:
 		}
 	} else {
