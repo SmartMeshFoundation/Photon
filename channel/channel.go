@@ -1092,7 +1092,7 @@ func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error 
 	if tr.GetSender() != c.PartnerState.Address {
 		return errInvalidSender
 	}
-	if c.PartnerState.Balance(c.OurState).Cmp(tr.Participant1Balance) != 0 {
+	if c.OurState.Balance(c.PartnerState).Cmp(tr.Participant1Balance) != 0 {
 		return errBalance
 	}
 	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
