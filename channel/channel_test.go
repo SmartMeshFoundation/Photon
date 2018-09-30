@@ -174,7 +174,7 @@ func makeExternState() *ExternalState {
 	bcs := newTestBlockChainService()
 	ch := common.HexToHash(os.Getenv("CHANNEL"))
 	//must provide a valid netting channel address
-	tokenNetwork, _ := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
+	tokenNetwork, _ := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKEN_NETWORK")))
 	return NewChannelExternalState(testFuncRegisterChannelForHashlock,
 		tokenNetwork,
 		&contracts.ChannelUniqueID{
@@ -951,12 +951,13 @@ func TestChannel_RegisterWithdrawRequest(t *testing.T) {
 	}
 	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
 	log.Trace(fmt.Sprintf("req=%s", req))
-	req.Sign(ch0.ExternState.privKey, req)
+	req.Sign(ch1.ExternState.privKey, req)
 	err = ch0.RegisterWithdrawRequest(req)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	req.Sign(ch0.ExternState.privKey, req)
 	err = ch1.RegisterWithdrawRequest(req)
 	if err != nil {
 		t.Error(err)

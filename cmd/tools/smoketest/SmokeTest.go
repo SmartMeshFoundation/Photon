@@ -42,17 +42,29 @@ func runSmokeCases() {
 	cases.QueryGeneralNetworkEventsTest(env, allowFail)
 	cases.QueryTokenNetworkEventsTest(env, allowFail)
 	cases.QueryChannelEventsTest(env, allowFail)
-	//
-	//// cases about transfer
+	cases.GetSentTransfersTest(env, allowFail)
+	cases.GetReceivedTransfersTest(env, allowFail)
+	cases.GetRandomSecretTest(env, allowFail)
+	cases.GetBalanceByTokenAddressTest(env, allowFail)
+	cases.ChannelFor3rdPartyTest(env, allowFail)
+
+	// cases about transfer
 	cases.InitiatingTransferTest(env, allowFail)
 	cases.TokenSwapsTest(env, allowFail)
-	//
+
 	// cases about token
 	cases.RegisteringTokenTest(env, allowFail)
 	//cases.Connecting2TokenNetworkTest(env, allowFail)
 	//cases.LeavingTokenNetworkTest(env, allowFail)
-	//
-	//// cases about channel
+
+	// others
+	cases.CancelTransferTest(env, allowFail)
+	env.RefreshChannels()
+	cases.WithdrawTest(env, allowFail)
+	cases.RegisterSecretTest(env, allowFail)
+	cases.PrepareUpdateTest(env, allowFail)
+
+	// cases about channel
 	cases.OpenChannelTest(env, allowFail)
 	env.RefreshChannels()
 	cases.CloseChannelTest(env, allowFail)
