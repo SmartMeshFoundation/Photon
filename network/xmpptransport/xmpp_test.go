@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/mattn/go-xmpp"
+
 	"crypto/ecdsa"
 
 	"time"
@@ -40,7 +42,7 @@ type testDataHandler struct {
 func newTestDataHandler(name string) *testDataHandler {
 	return &testDataHandler{
 		name: name,
-		data: make(chan []byte),
+		data: make(chan []byte, 1000),
 	}
 }
 
@@ -130,10 +132,44 @@ func BenchmarkNewXmpp(b *testing.B) {
 		if err != nil {
 			return
 		}
+		chat := &xmpp.Chat{
+			Remote: fmt.Sprintf("%s%s", "leon", nameSuffix),
+			Type:   "chat",
+			Stamp:  time.Now(),
+			Text:   "aaa",
+		}
+		err = x1.send(chat)
+		if err != nil {
+			b.Error(err)
+		}
 		x1.Close()
 	}
 }
+func TestSend(t *testing.T) {
+	key1, _ := crypto.GenerateKey()
+	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
+	x1, err := NewConnection(params.DefaultTestXMPPServer, addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10))
+	if err != nil {
 
+		return
+	}
+	for i := 0; i < 10000; i++ {
+
+		chat := &xmpp.Chat{
+			Remote: fmt.Sprintf("%s%s/Miranda", "leon", nameSuffix),
+			Type:   "chat",
+			Stamp:  time.Now(),
+			Text:   fmt.Sprintf("%d", i),
+		}
+		err = x1.send(chat)
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+	time.Sleep(time.Second)
+	x1.Close()
+}
 func TestXMPPConnection_SendData(t *testing.T) {
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
@@ -189,22 +225,20 @@ func TestXMPPConnection_SendData(t *testing.T) {
 	lock := sync.Mutex{}
 	for i := 0; i < number; i++ {
 		data := fmt.Sprintf("%d", i)
-		go func(data2 string) {
-			si := &sendInfo{
-				start: time.Now(),
-				data:  data,
-			}
-			err = x1.SendData(addr2, []byte(data2))
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			si.end = time.Now()
-			lock.Lock()
-			sm[data2] = si
-			lock.Unlock()
-		}(data)
-
+		data2 := data
+		si := &sendInfo{
+			start: time.Now(),
+			data:  data,
+		}
+		err = x1.SendData(addr2, []byte(data2))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		si.end = time.Now()
+		lock.Lock()
+		sm[data2] = si
+		lock.Unlock()
 	}
 	wg.Wait()
 	//t.Logf("sm=%s,rm=%s", utils.StringInterface(sm, 3), utils.StringInterface(rm, 3))
