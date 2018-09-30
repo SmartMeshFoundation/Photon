@@ -12,7 +12,7 @@ import (
 
 func TestChannelConcurrentQuery(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	tn, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKENNETWORK")))
+	tn, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKEN_NETWORK")))
 	if err != nil {
 		t.Error(err)
 		return

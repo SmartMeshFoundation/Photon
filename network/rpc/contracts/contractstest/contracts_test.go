@@ -73,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKENNETWORK"))
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -1399,7 +1399,7 @@ func TestTokenFallback(t *testing.T) {
 	var err error
 	setup()
 	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -1480,7 +1480,7 @@ func TestApproveAndCall(t *testing.T) {
 	var err error
 	setup()
 	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress("0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B")
+	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)

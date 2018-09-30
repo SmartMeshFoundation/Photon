@@ -17,12 +17,18 @@ func TestXMPPTransport(t *testing.T) {
 	d2 := newDummyProtocol("x2")
 	x1.RegisterProtocol(d1)
 	x2.RegisterProtocol(d2)
-	x1.Start()
-	x2.Start()
+	x1.conn.SubscribeNeighbour(x2.NodeAddress)
+	x2.conn.SubscribeNeighbour(x1.NodeAddress)
 	defer x1.Stop()
 	defer x2.Stop()
 
+	time.Sleep(3 * time.Second)
 	deviceType, isOnline := x1.NodeStatus(x2.NodeAddress)
+	if deviceType != DeviceTypeOther || !isOnline {
+		t.Error("node status error")
+		return
+	}
+	deviceType, isOnline = x2.NodeStatus(x1.NodeAddress)
 	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")
 		return

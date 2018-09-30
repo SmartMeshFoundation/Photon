@@ -36,7 +36,7 @@ func TestMerkleTreeSingle(t *testing.T) {
 	tree := NewMerkleTree([]*Lock{lock0})
 	root := tree.MerkleRoot()
 	assert.EqualValues(t, root, lock0.Hash())
-	assert.EqualValues(t, root, tree.MakeProof(lock0.Hash()))
+	assert.Empty(t, tree.MakeProof(lock0.Hash()))
 }
 
 func TestMerkleTreeDuplicates(t *testing.T) {
