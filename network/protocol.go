@@ -151,7 +151,7 @@ func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
-		receiveChan:               make(chan []byte, 2000),
+		receiveChan:               make(chan []byte, 200),
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -246,7 +246,7 @@ func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelAddr co
 		if ok {
 			return sendingChan
 		}
-		sendingChan = make(chan *SentMessageState, 1000) //should not block sender
+		sendingChan = make(chan *SentMessageState, 10) //should not block sender
 		p.sendingQueueMap[key] = sendingChan
 	}
 	go func() {
@@ -364,8 +364,18 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 	p.mapLock.Unlock()
 	result = msgState.AsyncResult
 	channelAddress := getMessageChannelAddress(msg)
-	//make sure not block
-	p.getChannelQueue(receiver, channelAddress) <- msgState
+	sentChan := p.getChannelQueue(receiver, channelAddress)
+	//make sure not block sending
+	p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	select {
+	case sentChan <- msgState:
+		//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+	default:
+		go func() {
+			p.getChannelQueue(receiver, channelAddress) <- msgState
+			//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
+		}()
+	}
 	return
 }
 
@@ -403,7 +413,10 @@ func (p *RaidenProtocol) receive(data []byte) {
 	//todo fix ,remove copy and fix deadlock of send and receive
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
+
+	//p.log.Trace(fmt.Sprintf("try to send receive data l=%d,message=%s", len(cdata), encoding.MessageType(cdata[0])))
 	p.receiveChan <- cdata
+	//p.log.Trace(fmt.Sprintf("receive complete l=%d", len(cdata)))
 }
 
 func (p *RaidenProtocol) loop() {
