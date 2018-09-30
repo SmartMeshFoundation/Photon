@@ -344,7 +344,7 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 	_data := base64.StdEncoding.EncodeToString(data)
 	_, err = m.matrixcli.SendText(roomID, _data)
 	if err != nil {
-		m.log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))
+		m.log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s err=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0]), err))
 		return
 	}
 	m.log.Trace(fmt.Sprintf("[Matrix]Send to %s, message=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0])))

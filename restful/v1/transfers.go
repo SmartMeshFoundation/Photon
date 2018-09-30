@@ -21,11 +21,11 @@ type TransferData struct {
 	Target         string   `json:"target_address"`
 	Token          string   `json:"token_address"`
 	Amount         *big.Int `json:"amount"`
-	Secret         string   `json:"secret"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
+	Secret         string   `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
 	LockSecretHash string   `json:"lockSecretHash"`
-	Fee            *big.Int `json:"fee"`
-	IsDirect       bool     `json:"is_direct"`
-	Sync           bool     `json:"sync"` //是否同步
+	Fee            *big.Int `json:"fee,omitempty"`
+	IsDirect       bool     `json:"is_direct,omitempty"`
+	Sync           bool     `json:"sync,omitempty"` //是否同步
 }
 
 /*
@@ -118,6 +118,10 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
+	}
+	//todo fix me support charging fee
+	if req.Fee.Cmp(utils.BigInt0) == 0 {
+		req.Fee = nil
 	}
 	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
 	req.Target = target
