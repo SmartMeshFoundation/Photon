@@ -1,7 +1,7 @@
 # SmartRaiden Developer Site
 Resources and documentation for the [SmartRaiden](https://github.com/SmartMeshFoundation/SmartRaiden)
 ## learn
-New to SmartRaiden?  [Overview](./overview.md),  [Installation](./installation_guide.md), and  [Tutorial](./api_walkthrough.md)
+New to SmartRaiden?  [Installation](./installation_guide.md), and  [Tutorial](./rest_api_0.8.md)
 
 ## Develop
 

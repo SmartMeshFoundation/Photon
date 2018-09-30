@@ -75,7 +75,8 @@ There are other cases,such as, a channel participant is a fraudulent actor and a
 ### Normal Delegation, not including punish
 #### 1. Alice makes a transfer to Bob
 **Via API offered below**  
-`POST  /api/<version>/transfer/<token_address>/target_address`
+`POST  /api/<version>/transfer/<token_address>/target_address`  
+
 **Example Request:**    
 `POST http://127.0.0.1:5002/api/1/transfers/0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd`  
 
