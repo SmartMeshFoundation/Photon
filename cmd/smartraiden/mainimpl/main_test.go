@@ -8,7 +8,7 @@ import (
 )
 
 func TestPromptAccount(t *testing.T) {
-	accounts.PromptAccount(utils.EmptyAddress, `../../../testdata/keystore`, "")
+	accounts.PromptAccount(utils.EmptyAddress, `../../../testdata/keystore`, "123")
 }
 func panicOnNullValue() {
 	var c []int
