@@ -75,8 +75,7 @@ There are other cases,such as, a channel participant is a fraudulent actor and a
 ### Normal Delegation, not including punish
 #### 1. Alice makes a transfer to Bob
 **Via API offered below**  
-`POST  /api/<version>/transfer/<token_address>/target_address`  
-
+`POST  /api/<version>/transfer/<token_address>/target_address`
 **Example Request:**    
 `POST http://127.0.0.1:5002/api/1/transfers/0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd`  
 
@@ -180,7 +179,7 @@ Bob gets disconnected from Internet. If Bob has used SmartRaiden Delegation Serv
 After our delegator disconnected, if Alice has closed the payment channel, SM Service will monitor the closing events and wait half past the settletimeout, then it will update `BalanceProof` on behalf of the delegator. In this phase, we can query delegation status via API below.  
 
 **Via API below :**      
-`GET /tx/<delegater_address>/<channel_identifier>`    
+`GET /tx/<delegater_address>/<channel_address>`    
 
 **Example Request :**     
 `GET http://127.0.0.1:6000/tx/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5/0x2f6418b01422de6cc84fd52e4378fc4449436aeadf69dd543e79e87ee38b6dc8`  

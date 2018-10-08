@@ -126,7 +126,7 @@ func (env *RaidenEnvReader) RefreshChannels() {
 		var nodeChannels []Channel
 		err = json.Unmarshal(body, &nodeChannels)
 		if err != nil {
-			log.Println(err)
+			panic(err)
 		}
 		if len(nodeChannels) == 0 {
 			continue

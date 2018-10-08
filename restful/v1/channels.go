@@ -30,9 +30,9 @@ type ChannelData struct {
 	PartnerLockedAmount *big.Int          `json:"partner_locked_amount"`
 	TokenAddress        string            `json:"token_address"`
 	State               channeltype.State `json:"state"`
-	StateString         string            `json:"state_string"`
-	SettleTimeout       int               `json:"settle_timeout"`
-	RevealTimeout       int               `json:"reveal_timeout"`
+	StateString         string
+	SettleTimeout       int `json:"settle_timeout"`
+	RevealTimeout       int `json:"reveal_timeout"`
 }
 
 //ChannelDataDetail more info

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -106,12 +108,13 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Invalid secret", http.StatusBadRequest)
 		return
 	}
-	var result *utils.AsyncResult
+	var timeout time.Duration
 	if req.Sync {
-		result, err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
+		timeout = params.MaxRequestTimeout
 	} else {
-		result, err = RaidenAPI.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect)
+		timeout = params.MaxAsyncRequestTimeout
 	}
+	result, err := RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), timeout, req.IsDirect)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

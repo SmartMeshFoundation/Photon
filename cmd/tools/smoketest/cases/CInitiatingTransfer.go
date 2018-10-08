@@ -15,10 +15,9 @@ import (
 
 // TransferPayload API  http body
 type TransferPayload struct {
-	Amount   int32  `json:"amount"`
-	Fee      int64  `json:"fee"`
-	IsDirect bool   `json:"is_direct"`
-	Secret   string `json:"secret"`
+	Amount   int32 `json:"amount"`
+	Fee      int64 `json:"fee"`
+	IsDirect bool  `json:"is_direct"`
 }
 
 type testTransferParams struct {

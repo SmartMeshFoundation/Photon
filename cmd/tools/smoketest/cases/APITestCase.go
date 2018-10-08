@@ -43,7 +43,7 @@ type APITestCase struct {
 }
 
 // Run : run api test case
-func (c *APITestCase) Run() string {
+func (c *APITestCase) Run() {
 	Logger.Printf("Test case [%s] START...", c.CaseName)
 	if c.TargetStatusCode != 0 {
 		Logger.Printf("Expect response http code : [%d]", c.TargetStatusCode)
@@ -73,7 +73,7 @@ func (c *APITestCase) Run() string {
 		}
 	}
 	Logger.Printf("Expect [%d] and Get [%d]", c.TargetStatusCode, statusCode)
-	if c.TargetStatusCode != 0 && statusCode != c.TargetStatusCode {
+	if statusCode != c.TargetStatusCode {
 		FailCases = append(FailCases, c.CaseName)
 		if statusCode == 0 {
 			log.Printf("Case [%-40s] TIMEOUT !!!", c.CaseName)
@@ -92,5 +92,4 @@ func (c *APITestCase) Run() string {
 		Logger.Printf("Test case [%s] SUCCESS", c.CaseName)
 	}
 	Logger.Println("==================================================")
-	return string(body)
 }
