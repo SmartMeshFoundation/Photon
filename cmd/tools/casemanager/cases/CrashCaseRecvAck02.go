@@ -39,7 +39,7 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 		QuitEvent: "ReceiveRevealSecretAck",
 	})
 	// 初始数据记录
-	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
@@ -77,10 +77,10 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd32，交易成功
-	if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
-	}
+	//// 校验cd32，交易成功
+	//if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
+	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
+	//}
 	// 校验cd36，交易成功
 	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
