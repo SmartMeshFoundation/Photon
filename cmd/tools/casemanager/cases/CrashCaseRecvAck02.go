@@ -39,7 +39,7 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 		QuitEvent: "ReceiveRevealSecretAck",
 	})
 	// 初始数据记录
-	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
