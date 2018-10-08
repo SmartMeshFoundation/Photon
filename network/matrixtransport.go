@@ -511,7 +511,7 @@ func (m *MatrixTransport) loop() {
 */
 //onHandleReceiveMessage push the message of some one send "account_data"
 func (m *MatrixTransport) onHandleAccountData(event *gomatrix.Event) {
-	log.Trace(fmt.Sprintf("onHandleAccountData %s", utils.StringInterface(event, 5)))
+	//log.Trace(fmt.Sprintf("onHandleAccountData %s", utils.StringInterface(event, 5)))
 	if m.stopreceiving || event.Type != EventAddressRoom {
 		return
 	}
@@ -545,7 +545,7 @@ onHandleReceiveMessage handle text messages sent to listening rooms
 必须保证对应的 UserID 是验证过的,否则就不能认定此 ID 的有效性.
 */
 func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
-	m.log.Trace(fmt.Sprintf("discoveryroomid=%s", m.discoveryroomid))
+	//m.log.Trace(fmt.Sprintf("discoveryroomid=%s", m.discoveryroomid))
 	if m.stopreceiving {
 		return
 	}
@@ -563,7 +563,7 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 }
 func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
 	event := job.Data1.(*gomatrix.Event)
-	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	//m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	msgTime := time.Unix(event.Timestamp/1000, 0)
 	/*
 		ignore any history message
@@ -670,7 +670,7 @@ invite event: 214e invite  214e
 		}
 */
 func (m *MatrixTransport) onHandleMemberShipChange(event *gomatrix.Event) {
-	m.log.Trace(fmt.Sprintf("onHandleMemberShipChange %s ", utils.StringInterface(event, 10)))
+	//m.log.Trace(fmt.Sprintf("onHandleMemberShipChange %s ", utils.StringInterface(event, 10)))
 	if m.stopreceiving {
 		return
 	}
@@ -812,7 +812,7 @@ onHandlePresenceChange handle events in this message, about changes of nodes and
 }
 */
 func (m *MatrixTransport) onHandlePresenceChange(event *gomatrix.Event) {
-	m.log.Trace(fmt.Sprintf("onHandlePresenceChange %s", utils.StringInterface(event, 5)))
+	//m.log.Trace(fmt.Sprintf("onHandlePresenceChange %s", utils.StringInterface(event, 5)))
 	//m.log.Trace(fmt.Sprintf("address i want to know: %s", utils.StringInterface(m.Peers, 3)))
 	if m.stopreceiving == true {
 		return
