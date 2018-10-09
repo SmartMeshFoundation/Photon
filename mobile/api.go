@@ -22,7 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-//API for export interface
+// API for export interface
+//
+// should not export any member because of gomobile's protocol
 type API struct {
 	api *smartraiden.RaidenAPI
 }
@@ -36,7 +38,27 @@ func marshal(v interface{}) (s string, err error) {
 	return string(d), nil
 }
 
-//GetChannelList GET /api/1/channels
+/*
+GetChannelList returns all the available channels
+
+example returns:
+[
+    {
+        "channel_address": "0xc502076485a3cff65f83c00095dc55e745f790eee4c259ea963969a343fc792a",
+        "open_block_number": 5228715,
+        "partner_address": "0x4B89Bff01009928784eB7e7d10Bf773e6D166066",
+        "balance": 499490,
+        "partner_balance": 1500506,
+        "locked_amount": 0,
+        "partner_locked_amount": 0,
+        "token_address": "0x663495a1b8e9Be17083b37924cFE39e17858F9e8",
+        "state": 1,
+        "StateString": "opened",
+        "settle_timeout": 100000,
+        "reveal_timeout": 5000
+    }
+]
+*/
 func (a *API) GetChannelList() (channels string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall GetChannelList channels=\n%s,err=%v", channels, err))
@@ -66,7 +88,62 @@ func (a *API) GetChannelList() (channels string, err error) {
 	return
 }
 
-//GetOneChannel GET /api/1/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226
+/*
+GetOneChannel return one specified channel with more detail information
+
+exmaple returns:
+{
+    "channel_identifier": "0xc502076485a3cff65f83c00095dc55e745f790eee4c259ea963969a343fc792a",
+    "open_block_number": 5228715,
+    "partner_address": "0x4B89Bff01009928784eB7e7d10Bf773e6D166066",
+    "balance": 499490,
+    "patner_balance": 1500506,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x663495a1b8e9Be17083b37924cFE39e17858F9e8",
+    "state": 1,
+    "StateString": "opened",
+    "settle_timeout": 100000,
+    "reveal_timeout": 0,
+    "ClosedBlock": 0,
+    "SettledBlock": 0,
+    "OurUnkownSecretLocks": {},
+    "OurKnownSecretLocks": {},
+    "PartnerUnkownSecretLocks": {},
+    "PartnerKnownSecretLocks": {},
+    "OurLeaves": null,
+    "PartnerLeaves": null,
+    "OurBalanceProof": {
+        "Nonce": 0,
+        "TransferAmount": 0,
+        "LocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "ChannelIdentifier": {
+            "ChannelIdentifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "OpenBlockNumber": 0
+        },
+        "MessageHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "Signature": null,
+        "ContractTransferAmount": 0,
+        "ContractNonce": 0,
+        "ContractLocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "PartnerBalanceProof": {
+        "Nonce": 0,
+        "TransferAmount": 0,
+        "LocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "ChannelIdentifier": {
+            "ChannelIdentifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "OpenBlockNumber": 0
+        },
+        "MessageHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "Signature": null,
+        "ContractTransferAmount": 0,
+        "ContractNonce": 0,
+        "ContractLocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "Signature": null
+}
+*/
 func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelIdentifier, channel, err))
@@ -103,7 +180,29 @@ func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error
 	return
 }
 
-//OpenChannel put request
+/*
+OpenChannel try to open a new channel on contract with
+partnerAddress . the settleTimeout is the settle time of
+the new channel. if  balanceStr is
+an integer and bigger than zero, the amount of `balanceStr` token
+will be deposited to this new channel.
+
+example returns:
+{
+    "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
+    "open_block_number": 2560271,
+    "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
+    "balance": 50,
+    "partner_balance": 0,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "state": 1,
+    "StateString": "opened",
+    "settle_timeout": 150,
+    "reveal_timeout": 0
+}
+*/
 func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api OpenChannel in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
@@ -140,7 +239,25 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 
 }
 
-//CloseChannel close a channel
+/*
+CloseChannel close the  channel
+
+example returns:
+{
+    "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
+    "open_block_number": 2560271,
+    "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
+    "balance": 50,
+    "partner_balance": 0,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "state": 2,
+    "StateString": "closed",
+    "settle_timeout": 150,
+    "reveal_timeout": 0
+}
+*/
 func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api CloseChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
@@ -181,7 +298,25 @@ func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string
 	return
 }
 
-//SettleChannel settle a channel
+/*
+SettleChannel settle a channel
+
+example returns:
+{
+    "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
+    "open_block_number": 2560271,
+    "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
+    "balance": 50,
+    "partner_balance": 0,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "state": 3,
+    "StateString": "settled",
+    "settle_timeout": 150,
+    "reveal_timeout": 0
+}
+*/
 func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api SettleChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
@@ -215,7 +350,25 @@ func (a *API) SettleChannel(channelIdentifier string) (channel string, err error
 	return
 }
 
-//DepositChannel deposit balance to channel
+/*
+DepositChannel deposit balance to a channel
+
+example returns
+{
+    "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
+    "open_block_number": 2560271,
+    "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
+    "balance": 50,
+    "partner_balance": 0,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "state": 1,
+    "StateString": "opened",
+    "settle_timeout": 150,
+    "reveal_timeout": 0
+}
+*/
 func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api DepositChannel channelIdentifier=%s,balanceStr=%s,out channel=\n%s,err=%v",
@@ -251,8 +404,8 @@ func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (chann
 	return
 }
 
-//NetworkEvent GET /api/<version>/events/network
-func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err error) {
+// Deprecated
+func (a *API) networkEvent(fromBlock, toBlock int64) (eventsString string, err error) {
 	events, err := a.api.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -262,8 +415,8 @@ func (a *API) NetworkEvent(fromBlock, toBlock int64) (eventsString string, err e
 	return
 }
 
-//TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
-func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
+//Deprecated: TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
+func (a *API) tokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
 	token, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
@@ -277,8 +430,8 @@ func (a *API) TokensEvent(fromBlock, toBlock int64, tokenAddress string) (events
 	return
 }
 
-//ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
-func (a *API) ChannelsEvent(fromBlock, toBlock int64, channelIdentifier string) (eventsString string, err error) {
+//Deprecated: ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
+func (a *API) channelsEvent(fromBlock, toBlock int64, channelIdentifier string) (eventsString string, err error) {
 	channel := common.HexToHash(channelIdentifier)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
@@ -319,6 +472,7 @@ type partnersData struct {
 
 /*
 TokenPartners  Get all the channel partners of this token.
+
 for example:
 [
     {
@@ -381,11 +535,11 @@ func (a *API) RegisterToken(tokenAddress string) (tokenNetworkAddress string, er
 /*
 Transfers POST /api/1/transfers/0x2a65aca4d5fc5b5c859090a6c34d164135398226/0x61c808d82a3ac53231750dadc13c777b59310bd9
 Initiating a Transfer
-tokenAddress: the token to transfer
-targetAddress: address of the receipt of the transfer
-amountstr: integer amount string
-feestr: always 0 now
-isDirect: this should be True when no internet connection,otherwise false.
+tokenAddress is  the token to transfer
+targetAddress is address of the receipt of the transfer
+amountstr is integer amount string
+feestr is  always 0 now
+isDirect is this should be True when no internet connection,otherwise false.
 
 example returns for a correct call:
 transfer:
@@ -398,7 +552,7 @@ transfer:
     "sync": true
 }
 
-the caller should call
+the caller should call GetTransferStatus periodically to query this transfer's latest status.
 */
 func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error) {
 	defer func() {
@@ -442,10 +596,10 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 }
 
 /*
-TokenSwap token swap for maker
-role: "maker" or "taker"
+TokenSwap token swap for maker for two raiden nodes
+the role should only be  "maker" or "taker".
 */
-func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
+func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
 	type Req struct {
 		Role            string   `json:"role"`
 		SendingAmount   *big.Int `json:"sending_amount"`
@@ -459,7 +613,7 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 	if err != nil {
 		return
 	}
-	if len(Identifier) <= 0 {
+	if len(lockSecretHash) <= 0 {
 		err = errors.New("LockSecretHash must not be empty")
 		return
 	}
@@ -474,10 +628,10 @@ func (a *API) TokenSwap(role string, Identifier string, SendingAmountStr, Receiv
 		return
 	}
 	if role == "maker" {
-		err = a.api.TokenSwapAndWait(Identifier, makerToken, takerToken,
+		err = a.api.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
 			a.api.Raiden.NodeAddress, target, SendingAmount, ReceivingAmount, SecretStr)
 	} else if role == "taker" {
-		err = a.api.ExpectTokenSwap(Identifier, takerToken, makerToken,
+		err = a.api.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
 			target, a.api.Raiden.NodeAddress, ReceivingAmount, SendingAmount)
 	} else {
 		err = fmt.Errorf("provided invalid token swap role %s", role)
@@ -495,6 +649,30 @@ func (a *API) Stop() {
 /*
 ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
+
+example returns:
+{
+    "channel_identifier": "0x029a853513e98050e670eb6d5f36217998a2c689ef2f1c65b5954051490d5965",
+    "open_block_number": 2644876,
+    "token_network_address": "0xa3b6481d1c6aa8ba538e8fa9d4d8b1dbadfd379c",
+    "partner_address": "0x64d11d0cbb3f4f9bb3ee09709d4254f0899a6381",
+    "update_transfer": {
+        "nonce": 0,
+        "transfer_amount": null,
+        "locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "extra_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "closing_signature": null,
+        "non_closing_signature": null
+    },
+    "unlocks": null,
+    "punishes": [
+        {
+            "lock_hash": "0xd4ec833949fa91e5f30b4e5e8b2e88cca10e8192a68e51bdb24d18220b3f519d",
+            "additional_hash": "0xe800ff8e78b8e367fb165b76f6e0cd1f31d46e7fda640e02134eed4f5e983d53",
+            "signature": "i24Lz6KVvDnlqsxhQzDu+IIx6jJKC4gdVyWg6NpkrfsEejzGV8F0CPB0oUUJjDZ2wmChKG6XjZQx24QkDmhsKhs="
+        }
+    ]
+}
 */
 func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error) {
 	channelIdentifierHash := common.HexToHash(channelIdentifier)
@@ -523,9 +701,6 @@ func (a *API) SwitchNetwork(isMesh bool) {
 	a.api.Raiden.Config.IsMeshNetwork = isMesh
 }
 
-/*
-UpdateMeshNetworkNodes 同一个局域网内优先
-*/
 /*
  *	UpdateMeshNetworkNodes : function to update all nodes in MeshNetwork.
  *	Nodes within the same local network have higher priority.
@@ -616,21 +791,12 @@ type NotifyHandler interface {
 }
 
 /*
-Subscribe : 关于状态汇报,为了脱耦,单独放到一个包中,使用 channel 通信,
-为了防止写阻塞,可以通过 select 写入.
-向 panic一样,每次重新初始化
-尽量避免 启动 go routine
-如果要新创建Raiden 实例,必须调用 sub.Unsubscribe, 否则肯定会发生内存泄漏
+Subscribe  As to Status Notification, we put these codebase into an individual package
+ and use channel to communication.
+ To avoid write block, we can write data through select.
+ We should make effort to avoid start go routine.
+ If there's need to create a new Raiden instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
 */
-/*
- *	Subscribe : As to Status Notification, we put these codebase into an individual package
- *	and use channel to communication.
- * 	To avoid write block, we can write data through select.
- *	We should make effort to avoid start go routine.
- *  If there's need to create a new Raiden instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
- */
-// Subscribe notifications about the current blockchain head
-// on the given channel.
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
 		quitChan: make(chan struct{}),
@@ -703,6 +869,31 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 
 /*
 GetTransferStatus return transfer result
+status should be one the following
+// TransferStatusInit init
+TransferStatusInit = 0
+
+// TransferStatusCanCancel transfer can cancel right now
+TransferStatusCanCancel =1
+
+// TransferStatusCanNotCancel transfer can not cancel
+TransferStatusCanNotCancel =2
+
+// TransferStatusSuccess transfer already success
+TransferStatusSuccess =3
+
+// TransferStatusCanceled transfer cancel by user request
+TransferStatusCanceled =4
+
+// TransferStatusFailed transfer already failed
+TransferStatusFailed =5
+
+example returns:
+{
+    "LockSecretHash": "0x2f6dbd44fa95d7edc840570d3bc847e24846a5422fffa324cdd9c5cab945857e",
+    "Status": 2,
+    "StatusMessage": "MediatedTransfer 正在发送 target=4b89\nMediatedTransfer 发送成功\n收到 SecretRequest, from=3af7\nRevealSecret 正在发送 target=3af7\nRevealSecret 发送成功\n收到 RevealSecret, from=4b89\nUnlock 正在发送 target=4b89\nUnLock 发送成功,交易成功.\n"
+}
 */
 func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (r string, err error) {
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
