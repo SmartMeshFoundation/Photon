@@ -404,7 +404,7 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 		tokenAddress = e2.Token
 		err = nil
 	case *transfer.EventTransferSentFailed:
-		log.Warn(fmt.Sprintf("EventTransferSentFailed for id %d,because of %s", e2.LockSecretHash, e2.Reason))
+		log.Warn(fmt.Sprintf("EventTransferSentFailed for id %s,because of %s", e2.LockSecretHash.String(), e2.Reason))
 		lockSecretHash = e2.LockSecretHash
 		err = errors.New(e2.Reason)
 		tokenAddress = e2.Token
