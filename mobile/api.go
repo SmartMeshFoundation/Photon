@@ -914,3 +914,13 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 	r, err = marshal(ts)
 	return
 }
+
+// NotifyNetworkDown :
+func (a *API) NotifyNetworkDown() error {
+	client := a.api.Raiden.Chain.Client
+	if client.IsConnected() {
+		client.Client.Close()
+	}
+	client.RecoverDisconnect()
+	return nil
+}
