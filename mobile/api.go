@@ -2,7 +2,6 @@ package mobile
 
 import (
 	"encoding/json"
-
 	"fmt"
 	"time"
 
@@ -654,5 +653,23 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 		}
 
 	}()
+	return
+}
+
+/*
+GetTransferStatus return transfer result
+*/
+func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (r string, err error) {
+	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	ts, err := a.api.Raiden.GetDb().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
+	if err != nil {
+		log.Error(fmt.Sprintf("err =%s", err))
+		return
+	}
+	r, err = marshal(ts)
 	return
 }
