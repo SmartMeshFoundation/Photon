@@ -118,7 +118,7 @@ CreateChannelBetweenAddress these two address doesn't need have token and ether
 */
 //func CreateChannelBetweenAddress(client *ethclient.Client, addr1, addr2 common.Address, key1, key2 *ecdsa.PrivateKey) (err error) {
 //	token := os.Getenv("TOKEN")
-//	tokenNetwork := os.Getenv("TOKEN_NETWORK")
+//	tokenNetwork := os.Getenv("TOKENNETWORK")
 //	auth := bind.NewKeyedTransactor(TestPrivKey)
 //	tokenNetworkAddress := common.HexToAddress(tokenNetwork)
 //	tp, err := contracts.NewToken(common.HexToAddress(token), client)
