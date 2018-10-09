@@ -245,7 +245,12 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.raiden.GetBlockNumber())
 	if err != nil {
 		log.Warn(fmt.Sprintf("RegisterRemoveExpiredHashlockTransfer err %s", err))
-		return nil
+		/*
+			这里不能直接丢弃掉消息,因为存在双方当前块不同步的情况,此时如果我丢弃了该条消息(本来是正确的),那么双方状态永远不会再同步了
+			所以返回err让对方重发,如果是上诉情况,那么到时候会正常处理掉该消息,双方状态恢复正常.如果不是上诉情况,那么双方状态已经不同步了,
+			一直重发也没什么
+		*/
+		return err
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
