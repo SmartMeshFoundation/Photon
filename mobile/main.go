@@ -16,13 +16,16 @@ func init() {
 }
 
 /*
-StartUp is entry point for mobile raiden
-address :Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
-keystorePath:The address of the private key,  geth keystore directory . eg ~/.geth/keystore
-ethRpcEndPoint:URL connected to geth ,such as:ws://10.0.0.2:8546
-dataDir:The working directory of a node, such as ~/.smartraiden
-passwordfile: file to storage password eg ~/.geth/pass.txt
-apiAddr: 127.0.0.1:5001 for product,0.0.0.1:5001 for test
+StartUp is entry point for mobile raiden.
+address is the Node address,such as 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa.
+keystorePath is the address of the private key,  geth keystore directory . eg ~/.geth/keystore.
+ethRpcEndPoint is the URL connected to geth ,such as:ws://10.0.0.2:8546.
+dataDir is the working directory of a node, such as ~/.smartraiden .
+passwordfile is the file to storage password eg ~/.geth/pass.txt .
+apiAddr is  127.0.0.1:5001 for product,0.0.0.1:5001 for test .
+listenAddr is the listenning address for incomming message from peers.
+registryAddress is the contract address working on.
+otherArgs is an array of other arguments.
 */
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error) {
 	os.Args = make([]string, 0, 20)
