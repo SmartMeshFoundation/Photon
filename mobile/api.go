@@ -702,9 +702,9 @@ func (a *API) SwitchNetwork(isMesh bool) {
 }
 
 /*
- *	UpdateMeshNetworkNodes : function to update all nodes in MeshNetwork.
- *	Nodes within the same local network have higher priority.
- */
+UpdateMeshNetworkNodes updates all nodes in MeshNetwork.
+Nodes within the same local network have higher priority.
+*/
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api UpdateMeshNetworkNodes nodesstr=%s,out err=%v", nodesstr, err))
