@@ -809,6 +809,7 @@ Args:
 */
 type DirectTransfer struct {
 	EnvelopMessage
+	FakeLockSecretHash common.Hash // used when save transfer status to db, do not be used when message pack/unpack
 }
 
 //String is fmt.Stringer

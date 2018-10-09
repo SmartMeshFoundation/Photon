@@ -790,11 +790,19 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
 		Token:             tokenAddress,
 	}
+	/*
+		对于DirectTransfer,生成一个假的LockSecretHash,
+		用于发起方在这里记录发起的交易状态,后续UpdateTransferStatus会更新DB中的值
+	*/
+	tr.FakeLockSecretHash = utils.NewRandomHash()
+	log.Trace(fmt.Sprintf("send direct transfer, use fake lockSecertHash %s to trace transfer status", tr.FakeLockSecretHash.String()))
+	rs.db.NewTransferStatus(tokenAddress, tr.FakeLockSecretHash)
 	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
 	if err != nil {
 		result.Result <- err
 		return
 	}
+	rs.db.UpdateTransferStatusMessage(tokenAddress, tr.FakeLockSecretHash, "DirectTransfer 正在发送")
 	/*
 		Transfer is success
 		whenever partner receive this transfer  or not
@@ -804,6 +812,7 @@ func (rs *RaidenService) directTransferAsync(tokenAddress, target common.Address
 		log.Error(fmt.Sprintf("dispatch transferSuccess err %s", err))
 	}
 	result.Result <- err
+	result.LockSecretHash = tr.FakeLockSecretHash
 	return
 }
 
@@ -1470,6 +1479,12 @@ func (rs *RaidenService) handleSentMessage(sentMessage *protocolMessage) {
 		rs.db.DeleteEnvelopMessager(echohash)
 	}
 	switch msg := sentMessage.Message.(type) {
+	case *encoding.DirectTransfer:
+		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {

@@ -54,6 +54,7 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 func (c *SafeEthClient) Close() {
 	if c.Client != nil {
 		c.Client.Close()
+		c.changeStatus(netshare.Closed)
 	}
 	close(c.quitChan)
 }
