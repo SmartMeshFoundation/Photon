@@ -47,7 +47,7 @@ func (at *AlarmTask) run() {
 	defer rpanic.PanicRecover("alarm task")
 	err := at.waitNewBlock()
 	if err != nil {
-		log.Error("alarm task stopped with err %s", err)
+		log.Error(fmt.Sprintf("alarm task stopped with err %s", err))
 	}
 }
 
