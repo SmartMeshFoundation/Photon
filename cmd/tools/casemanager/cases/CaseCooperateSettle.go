@@ -3,6 +3,7 @@ package cases
 import (
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
 )
 
@@ -39,7 +40,7 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 	// verify
 	c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
 
-	if c01new != nil {
+	if c01new != nil && c01new.State != channeltype.StateCooprativeSettle {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
