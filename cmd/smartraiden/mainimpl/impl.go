@@ -24,8 +24,8 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -68,7 +68,6 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 		cli.StringFlag{
 			Name:  "registry-contract-address",
 			Usage: `hex encoded address of the registry contract.`,
-			Value: params.SpectrumTestNetRegistryAddress.String(),
 		},
 		cli.StringFlag{
 			Name:  "listen-address",
@@ -160,29 +159,26 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	notifyHandler := notify.NewNotifyHandler()
-	//log.Debug(fmt.Sprintf("Config:%s", utils.StringInterface(cfg, 2)))
-	ethEndpoint := ctx.String("eth-rpc-endpoint")
-	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
-	// Forbid starting up via HTTP, because there is case that smartraiden starting while in internect connection
-	// but failing to get on-chain events, which brings potential risks into the system.
-	if strings.HasPrefix(ethEndpoint, "http") {
-		err = fmt.Errorf("cannot connect to geth :%s err= does not support http protocol,please use websocket instead", ethEndpoint)
-		return
-	}
-	client, err := helper.NewSafeClient(ethEndpoint)
+
+	db, err := models.OpenDb(cfg.DataBasePath)
 	if err != nil {
-		err = fmt.Errorf("cannot connect to geth :%s err=%s", ethEndpoint, err)
+		err = fmt.Errorf("open db error %s", err)
 		return
 	}
-	bcs := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
+	bcs, err := rpc.NewBlockChainService(cfg, db)
+	if err != nil {
+		db.CloseDB()
+		return
+	}
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
+		db.CloseDB()
 		return
 	}
-	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler)
+	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, notify.NewNotifyHandler(), db)
 	if err != nil {
 		transport.Stop()
+		db.CloseDB()
 		return
 	}
 	if cfg.EnableMediationFee {
@@ -257,6 +253,15 @@ func regQuitHandler(api *smartraiden.RaidenAPI) {
 }
 func config(ctx *cli.Context) (config *params.Config, err error) {
 	config = &params.DefaultConfig
+	config.EthRPCEndPoint = ctx.String("eth-rpc-endpoint")
+	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
+	// Forbid starting up via HTTP, because there is case that smartraiden starting while in internect connection
+	// but failing to get on-chain events, which brings potential risks into the system.
+	if strings.HasPrefix(config.EthRPCEndPoint, "http") {
+		err = fmt.Errorf("cannot connect to geth :%s err= does not support http protocol,please use websocket instead", config.EthRPCEndPoint)
+		return
+	}
+
 	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
 	if err != nil {
 		return

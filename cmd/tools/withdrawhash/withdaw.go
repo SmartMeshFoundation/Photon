@@ -102,32 +102,11 @@ func mainctx(ctx *cli.Context) error {
 	w := &withDraw{
 		ChannelIdentifier2Channel: make(map[common.Hash]*channel.Channel),
 	}
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, utils.MyStreamHandler(os.Stderr)))
-	// Create an IPC based RPC connection to a remote node and an authorized transactor
-	w.Conn, err = helper.NewSafeClient(ctx.String("eth-rpc-endpoint"))
-	if err != nil {
-		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
-	}
-	w.WithDrawChannelIdentifier = common.HexToHash(ctx.String("channel"))
-	w.Secret = common.HexToHash(ctx.String("secret"))
-	if w.WithDrawChannelIdentifier == utils.EmptyHash || w.Secret == utils.EmptyHash {
-		log.Crit("channel and secret muse be specified.")
-	}
 	address := common.HexToAddress(ctx.String("address"))
 	if address == utils.EmptyAddress {
 		log.Crit("must specified a valid address")
 	}
 	w.Address = address
-	_, key, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
-	if err != nil {
-		log.Crit(fmt.Sprintf("unlock acccount err %s", err))
-	}
-	privateKey, err := crypto.ToECDSA(key)
-	if err != nil {
-		log.Crit("private key is invalid, wrong password?")
-	}
-	w.PrivateKey = privateKey
-
 	//db path
 	userDbPath := hex.EncodeToString(address[:])
 	userDbPath = userDbPath[:8]
@@ -137,7 +116,34 @@ func mainctx(ctx *cli.Context) error {
 		log.Crit("data directory is invalid ,doesn't contain db")
 	}
 	w.openDb()
-	w.bcs = rpc.NewBlockChainService(privateKey, w.db.GetRegistryAddress(), w.Conn)
+	if err != nil {
+		return err
+	}
+	_, key, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	if err != nil {
+		log.Crit(fmt.Sprintf("unlock acccount err %s", err))
+	}
+	privateKey, err := crypto.ToECDSA(key)
+	if err != nil {
+		log.Crit("private key is invalid, wrong password?")
+	}
+	w.PrivateKey = privateKey
+	config := &params.Config{
+		EthRPCEndPoint: ctx.String("eth-rpc-endpoint"),
+		PrivateKey:     privateKey,
+	}
+	w.bcs, err = rpc.NewBlockChainService(config, w.db)
+	if err != nil {
+		return err
+	}
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, utils.MyStreamHandler(os.Stderr)))
+	// Create an IPC based RPC connection to a remote node and an authorized transactor
+	w.Conn = w.bcs.Client
+	w.WithDrawChannelIdentifier = common.HexToHash(ctx.String("channel"))
+	w.Secret = common.HexToHash(ctx.String("secret"))
+	if w.WithDrawChannelIdentifier == utils.EmptyHash || w.Secret == utils.EmptyHash {
+		log.Crit("channel and secret muse be specified.")
+	}
 	err = w.restoreChannel()
 	if err != nil {
 		log.Error(fmt.Sprintf("restore channel %s", err))

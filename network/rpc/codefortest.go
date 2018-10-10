@@ -11,7 +11,6 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -45,12 +44,13 @@ func init() {
 
 //MakeTestBlockChainService creat test BlockChainService
 func MakeTestBlockChainService() *BlockChainService {
-	conn, err := helper.NewSafeClient(TestRPCEndpoint)
-	//conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
-	if err != nil {
-		fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)
-	}
-	return NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
+	//conn, err := helper.NewSafeClient(TestRPCEndpoint)
+	////conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
+	//if err != nil {
+	//	fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)
+	//}
+	//return NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
+	return nil
 }
 
 //GetTestChannelUniqueID for test only,get from env

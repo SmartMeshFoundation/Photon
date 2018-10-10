@@ -6,6 +6,7 @@ import (
 
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -130,3 +131,17 @@ const DiscoveryServer = "transport01.smartmesh.cn"
 
 //NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on
 var NETWORKNAME = "ropsten"
+
+//GenesisBlockHashToDefaultRegistryAddress :
+var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
+	// spectrum
+	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): utils.EmptyAddress,
+	// spectrum test net
+	common.HexToHash(""): utils.EmptyAddress,
+	// ethereum
+	common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): utils.EmptyAddress,
+	// ethereum test net
+	common.HexToHash(""): utils.EmptyAddress,
+	// ethereum private
+	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0x875FAC12efa94dB680392E1EfD339815D83225Cb"),
+}

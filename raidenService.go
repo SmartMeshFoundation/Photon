@@ -138,7 +138,7 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler) (rs *RaidenService, err error) {
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, db *models.ModelDB) (rs *RaidenService, err error) {
 	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
 		err = fmt.Errorf("settle timeout must be in range %d-%d",
 			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
@@ -152,6 +152,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		PrivateKey:                            privateKey,
 		Config:                                config,
 		Transport:                             transport,
+		db:                                    db,
 		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
 		TokenNetwork2Token:                    make(map[common.Address]common.Address),
@@ -180,11 +181,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.MessageHandler = newRaidenMessageHandler(rs)
 	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
 	rs.Protocol = network.NewRaidenProtocol(transport, privateKey, rs)
-	rs.db, err = models.OpenDb(config.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		return
-	}
 	//todo fixme MatrixTransport should have a better contructor function
 	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
 	if ok {

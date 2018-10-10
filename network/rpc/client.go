@@ -14,9 +14,12 @@ import (
 	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,16 +63,64 @@ type BlockChainService struct {
 	queryOpts *bind.CallOpts
 }
 
+// 1. 尝试从数据库获取RegistryAddress
+// 2. 如果db里有且与用户指定的值不同,返回err
+// 3. 如果数据库没有且用户指定了值,使用指定值并保存到db
+// 4. 如果数据没有且用户没指定,根据公链判断使用哪一个默认值并保存到db
+func getRegistryAddress(userRegistryAddress common.Address, db *models.ModelDB, client *helper.SafeEthClient) (registryAddress common.Address, err error) {
+	dbRegistryAddress := db.GetRegistryAddress()
+	fmt.Println("dbRegistryAddress", dbRegistryAddress.String())
+	fmt.Println("userRegistryAddress", userRegistryAddress.String())
+	if dbRegistryAddress == utils.EmptyAddress {
+		registryAddress = userRegistryAddress
+	} else if userRegistryAddress != utils.EmptyAddress && dbRegistryAddress != userRegistryAddress {
+		err = fmt.Errorf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+			registryAddress.String(), userRegistryAddress.String()))
+		return
+	} else {
+		registryAddress = dbRegistryAddress
+	}
+	if registryAddress == utils.EmptyAddress {
+		if client.Status == netshare.Connected {
+			var genesisBlockHash common.Hash
+			genesisBlockHash, err = client.GenesisBlockHash(context.Background())
+			if err != nil {
+				log.Error(err.Error())
+				return
+			}
+			registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
+		} else {
+			err = fmt.Errorf(fmt.Sprintf("registry address is needed when no network"))
+			return
+		}
+	}
+	if registryAddress != dbRegistryAddress {
+		db.SaveRegistryAddress(registryAddress)
+	}
+	log.Info(fmt.Sprintf("start with registry address %s", registryAddress.String()))
+	return
+}
+
 //NewBlockChainService create BlockChainService
-func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) *BlockChainService {
-	bcs := &BlockChainService{
-		PrivKey:         privKey,
-		NodeAddress:     crypto.PubkeyToAddress(privKey.PublicKey),
+func NewBlockChainService(config *params.Config, db *models.ModelDB) (bcs *BlockChainService, err error) {
+	client, err := helper.NewSafeClient(config.EthRPCEndPoint)
+	if err != nil {
+		err = fmt.Errorf("cannot connect to geth :%s err=%s", config.EthRPCEndPoint, err)
+		err = nil
+	}
+	// 获取registryAddress
+	registryAddress, err := getRegistryAddress(config.RegistryAddress, db, client)
+	if err != nil {
+		return
+	}
+	bcs = &BlockChainService{
+		PrivKey:         config.PrivateKey,
+		NodeAddress:     crypto.PubkeyToAddress(config.PrivateKey.PublicKey),
 		RegistryAddress: registryAddress,
 		Client:          client,
 		addressTokens:   make(map[common.Address]*TokenProxy),
 		addressChannels: make(map[common.Address]*TokenNetworkProxy),
-		Auth:            bind.NewKeyedTransactor(privKey),
+		Auth:            bind.NewKeyedTransactor(config.PrivateKey),
 	}
 	bcs.queryOpts = &bind.CallOpts{
 		Pending: false,
@@ -79,7 +130,7 @@ func NewBlockChainService(privKey *ecdsa.PrivateKey, registryAddress common.Addr
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
 	bcs.Auth.GasPrice = big.NewInt(params.GasPrice)
-	return bcs
+	return bcs, nil
 }
 func (bcs *BlockChainService) getQueryOpts() *bind.CallOpts {
 	return &bind.CallOpts{
