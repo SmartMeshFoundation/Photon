@@ -109,6 +109,7 @@ func NewBlockChainService(config *params.Config, db *models.ModelDB) (bcs *Block
 	// 获取registryAddress
 	registryAddress, err := getRegistryAddress(config.RegistryAddress, db, client)
 	if err != nil {
+		client.Close()
 		return
 	}
 	bcs = &BlockChainService{
