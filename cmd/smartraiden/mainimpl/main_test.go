@@ -8,7 +8,7 @@ import (
 
 	"path/filepath"
 
-	"github.com/SmartMeshFoundation/SmartRaiden"
+	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"

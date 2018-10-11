@@ -102,6 +102,11 @@ func mainctx(ctx *cli.Context) error {
 	w := &withDraw{
 		ChannelIdentifier2Channel: make(map[common.Hash]*channel.Channel),
 	}
+	// Create an IPC based RPC connection to a remote node and an authorized transactor
+	w.Conn, err = helper.NewSafeClient(ctx.String("eth-rpc-endpoint"))
+	if err != nil {
+		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
+	}
 	address := common.HexToAddress(ctx.String("address"))
 	if address == utils.EmptyAddress {
 		log.Crit("must specified a valid address")
@@ -132,7 +137,7 @@ func mainctx(ctx *cli.Context) error {
 		EthRPCEndPoint: ctx.String("eth-rpc-endpoint"),
 		PrivateKey:     privateKey,
 	}
-	w.bcs, err = rpc.NewBlockChainService(config, w.db)
+	w.bcs, err = rpc.NewBlockChainService(config, w.db, w.Conn)
 	if err != nil {
 		return err
 	}
@@ -188,7 +193,7 @@ func (w *withDraw) channelSerilization2Channel(c *channeltype.Serialization, tok
 }
 func (w *withDraw) getTokenNetworkProxy(tokenAddress common.Address) (tokenNetwork *rpc.TokenNetworkProxy, err error) {
 	registryAddress := w.db.GetRegistryAddress()
-	r := w.bcs.Registry(registryAddress)
+	r := w.bcs.Registry(registryAddress, true)
 	tokenNetworkAddr, err := r.TokenNetworkByToken(tokenAddress)
 	if err != nil {
 		return

@@ -38,7 +38,10 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	be = NewBlockChainEvents(client, TokenNetworkRegistryAddress, secretRegistryAddress, nil)
+	be = NewBlockChainEvents(client, &fakaRPCModule{
+		RegistryAddress:       TokenNetworkRegistryAddress,
+		SecretRegistryAddress: secretRegistryAddress,
+	}, nil)
 	tokens, err := be.GetAllTokenNetworks(0)
 	if err != nil {
 		panic(fmt.Sprintf("cannot get all token networks err %s", err))
@@ -47,4 +50,17 @@ func setup() {
 		panic(fmt.Sprintf("empty registyr network"))
 	}
 	at = NewAlarmTask(client)
+}
+
+type fakaRPCModule struct {
+	RegistryAddress       common.Address
+	SecretRegistryAddress common.Address
+}
+
+func (r *fakaRPCModule) GetRegistryAddress() common.Address {
+	return r.RegistryAddress
+}
+
+func (r *fakaRPCModule) GetSecretRegistryAddress() common.Address {
+	return r.SecretRegistryAddress
 }

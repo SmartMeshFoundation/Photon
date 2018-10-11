@@ -89,11 +89,11 @@ TokenAddressIfTokenRegistered return the channel manager address,If the token is
 Also make sure that the channel manager is registered with the node.
 */
 func (r *RaidenAPI) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	if r.Raiden.Registry == nil {
+	if r.Raiden.Chain.RegistryProxy == nil {
 		err = errEthConnectionNotReady
 		return
 	}
-	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
+	mgrAddr, err = r.Raiden.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -105,18 +105,18 @@ RegisterToken Will register the token at `token_address` with raiden. If it's al
     registered, will throw an exception.
 */
 func (r *RaidenAPI) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	if r.Raiden.Registry == nil {
+	if r.Raiden.Chain.RegistryProxy == nil {
 		err = errEthConnectionNotReady
 		return
 	}
-	mgrAddr, err = r.Raiden.Registry.TokenNetworkByToken(tokenAddress)
+	mgrAddr, err = r.Raiden.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
 	if err == nil && mgrAddr != utils.EmptyAddress {
 		err = errors.New("TokenNetworkAddres already registered")
 		return
 	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
 	if err == rerr.ErrNoTokenManager {
-		return r.Raiden.Registry.AddToken(tokenAddress)
+		return r.Raiden.Chain.RegistryProxy.AddToken(tokenAddress)
 	}
 	return
 }

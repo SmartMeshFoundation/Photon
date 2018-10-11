@@ -51,16 +51,14 @@ type BlockChainService struct {
 	//NodeAddress is address of this node
 	NodeAddress common.Address
 	//RegistryAddress registy contract address
-	RegistryAddress     common.Address
-	SecretRegistryProxy *SecretRegistryProxy
 	RegistryProxy       *RegistryProxy
+	SecretRegistryProxy *SecretRegistryProxy
 	//Client if eth rpc client
 	Client          *helper.SafeEthClient
 	addressTokens   map[common.Address]*TokenProxy
 	addressChannels map[common.Address]*TokenNetworkProxy
 	//Auth needs by call on blockchain todo remove this
-	Auth      *bind.TransactOpts
-	queryOpts *bind.CallOpts
+	Auth *bind.TransactOpts
 }
 
 // 1. 尝试从数据库获取RegistryAddress
@@ -79,18 +77,14 @@ func getRegistryAddress(userRegistryAddress common.Address, db *models.ModelDB, 
 		registryAddress = dbRegistryAddress
 	}
 	if registryAddress == utils.EmptyAddress {
-		if client.Status == netshare.Connected {
-			var genesisBlockHash common.Hash
-			genesisBlockHash, err = client.GenesisBlockHash(context.Background())
-			if err != nil {
-				log.Error(err.Error())
-				return
-			}
-			registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
-		} else {
-			err = fmt.Errorf(fmt.Sprintf("registry address is needed when no network"))
+		// 如果这两个都没有,那么一定是第一次启动,从链上获取.
+		var genesisBlockHash common.Hash
+		genesisBlockHash, err = client.GenesisBlockHash(context.Background())
+		if err != nil {
+			log.Error(err.Error())
 			return
 		}
+		registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	}
 	if registryAddress != dbRegistryAddress {
 		db.SaveRegistryAddress(registryAddress)
@@ -100,35 +94,25 @@ func getRegistryAddress(userRegistryAddress common.Address, db *models.ModelDB, 
 }
 
 //NewBlockChainService create BlockChainService
-func NewBlockChainService(config *params.Config, db *models.ModelDB) (bcs *BlockChainService, err error) {
-	client, err := helper.NewSafeClient(config.EthRPCEndPoint)
-	if err != nil {
-		err = fmt.Errorf("cannot connect to geth :%s err=%s", config.EthRPCEndPoint, err)
-		err = nil
-	}
+func NewBlockChainService(config *params.Config, db *models.ModelDB, client *helper.SafeEthClient) (bcs *BlockChainService, err error) {
 	// 获取registryAddress
 	registryAddress, err := getRegistryAddress(config.RegistryAddress, db, client)
 	if err != nil {
-		client.Close()
 		return
 	}
 	bcs = &BlockChainService{
 		PrivKey:         config.PrivateKey,
 		NodeAddress:     crypto.PubkeyToAddress(config.PrivateKey.PublicKey),
-		RegistryAddress: registryAddress,
 		Client:          client,
 		addressTokens:   make(map[common.Address]*TokenProxy),
 		addressChannels: make(map[common.Address]*TokenNetworkProxy),
 		Auth:            bind.NewKeyedTransactor(config.PrivateKey),
 	}
-	bcs.queryOpts = &bind.CallOpts{
-		Pending: false,
-		From:    bcs.NodeAddress,
-		Context: GetQueryConext(),
-	}
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
 	bcs.Auth.GasPrice = big.NewInt(params.GasPrice)
+
+	bcs.Registry(registryAddress, client.Status == netshare.Connected)
 	return bcs, nil
 }
 func (bcs *BlockChainService) getQueryOpts() *bind.CallOpts {
@@ -225,32 +209,54 @@ func (bcs *BlockChainService) TokenNetworkWithoutCheck(address common.Address) (
 }
 
 // Registry Return a proxy to interact with Registry.
-func (bcs *BlockChainService) Registry(address common.Address) (t *RegistryProxy) {
+func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain bool) (t *RegistryProxy) {
 	if bcs.RegistryProxy != nil {
 		return bcs.RegistryProxy
 	}
-	reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
-	if err != nil {
-		log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
-		return
+	r := &RegistryProxy{
+		Address: address,
+		bcs:     bcs,
 	}
-	r := &RegistryProxy{address, bcs, reg}
-	secAddr, err := r.registry.SecretRegistryAddress(nil)
-	if err != nil {
-		log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
-		return
-	}
-	s, err := contracts.NewSecretRegistry(secAddr, bcs.Client)
-	if err != nil {
-		log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
-		return
+	if hasConnectChain {
+		reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
+		if err != nil {
+			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
+			return
+		}
+		r.registry = reg
+		secAddr, err := r.registry.SecretRegistryAddress(nil)
+		if err != nil {
+			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
+			return
+		}
+		s, err := contracts.NewSecretRegistry(secAddr, bcs.Client)
+		if err != nil {
+			log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
+			return
+		}
+		bcs.SecretRegistryProxy = &SecretRegistryProxy{
+			Address:          secAddr,
+			bcs:              bcs,
+			registry:         s,
+			RegisteredSecret: make(map[common.Hash]*sync.Mutex),
+		}
 	}
 	bcs.RegistryProxy = r
-	bcs.SecretRegistryProxy = &SecretRegistryProxy{
-		Address:          secAddr,
-		bcs:              bcs,
-		registry:         s,
-		RegisteredSecret: make(map[common.Hash]*sync.Mutex),
-	}
 	return bcs.RegistryProxy
+}
+
+// GetRegistryAddress :
+func (bcs *BlockChainService) GetRegistryAddress() common.Address {
+	if bcs.RegistryProxy != nil {
+		return bcs.RegistryProxy.Address
+	}
+	return utils.EmptyAddress
+}
+
+// GetSecretRegistryAddress :
+func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
+	if bcs.SecretRegistryProxy != nil {
+		return bcs.SecretRegistryProxy.Address
+	}
+	return utils.EmptyAddress
 }

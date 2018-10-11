@@ -14,7 +14,7 @@ func init() {
 }
 func testAddToken() {
 	bcs := rpc.MakeTestBlockChainService()
-	reg := bcs.Registry(bcs.RegistryAddress)
+	reg := bcs.Registry(bcs.RegistryProxy.Address, true)
 	tokenAddress := common.HexToAddress("0xa9b61a3cc7cc1810e133174caa7ead7ef909d701")
 	_, err := reg.AddToken(tokenAddress)
 	if err != nil {

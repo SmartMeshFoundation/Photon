@@ -16,6 +16,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/notify"
@@ -93,6 +94,10 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	return privkey, crypto.PubkeyToAddress(privkey.PublicKey)
 }
 func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
+	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
+	}
 	privkey, addr := testGetnextValidAccount()
 	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
 	config := &params.Config{
@@ -100,7 +105,7 @@ func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
 		PrivateKey:      privkey,
 		RegistryAddress: rpc.PrivateRopstenRegistryAddress,
 	}
-	bcs, err := rpc.NewBlockChainService(config, db)
+	bcs, err := rpc.NewBlockChainService(config, db, conn)
 	if err != nil {
 		log.Error(err.Error())
 	}

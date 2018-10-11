@@ -1,6 +1,7 @@
 package mainimpl
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -19,6 +20,8 @@ import (
 
 	"strings"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
@@ -26,6 +29,8 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
@@ -155,30 +160,66 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("Welcom to smartraiden,version %s\n", ctx.App.Version))
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
+	// load config
 	cfg, err := config(ctx)
 	if err != nil {
 		return
 	}
+	// connect to blockchain
+	client, err := helper.NewSafeClient(cfg.EthRPCEndPoint)
+	if err != nil {
+		err = fmt.Errorf("cannot connect to geth :%s err=%s", cfg.EthRPCEndPoint, err)
+		err = nil
+	}
+	hasConnectedChain := client.Status == netshare.Connected
 
+	// open db
 	db, err := models.OpenDb(cfg.DataBasePath)
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
+		client.Close()
 		return
 	}
-	bcs, err := rpc.NewBlockChainService(cfg, db)
+	dbChainID := db.GetChainID()
+	isFirstStartUp := dbChainID == params.DefaultChainID.Int64()
+
+	// get ChainID todo 用chaindID是否合适
+	if isFirstStartUp {
+		if !hasConnectedChain {
+			err = fmt.Errorf("first startup without ethereum rpc connection")
+			db.CloseDB()
+			client.Close()
+			return
+		}
+		params.ChainID, err = client.NetworkID(context.Background())
+		if err != nil {
+			db.CloseDB()
+			client.Close()
+			return
+		}
+		db.SaveChainID(params.ChainID.Int64())
+	} else {
+		params.ChainID = big.NewInt(dbChainID)
+	}
+
+	// init blockchain module
+	bcs, err := rpc.NewBlockChainService(cfg, db, client)
 	if err != nil {
 		db.CloseDB()
+		client.Close()
 		return
 	}
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
 		db.CloseDB()
+		client.Close()
 		return
 	}
 	raidenService, err := smartraiden.NewRaidenService(bcs, cfg.PrivateKey, transport, cfg, notify.NewNotifyHandler(), db)
 	if err != nil {
-		transport.Stop()
 		db.CloseDB()
+		client.Close()
+		transport.Stop()
 		return
 	}
 	if cfg.EnableMediationFee {

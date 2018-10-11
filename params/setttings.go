@@ -2,9 +2,9 @@ package params
 
 import (
 	"fmt"
-	"math/big"
-
 	"time"
+
+	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -113,8 +113,11 @@ InTest are we test now?
 */
 var InTest = true
 
+// DefaultChainID :
+var DefaultChainID = big.NewInt(0)
+
 //ChainID of this tokenNetwork
-var ChainID = big.NewInt(1)
+var ChainID = DefaultChainID
 
 //MatrixServerConfig matrix server config
 var MatrixServerConfig = map[string]string{
