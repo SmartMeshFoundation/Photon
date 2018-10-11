@@ -1,10 +1,18 @@
 package mainimpl
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
+	"path/filepath"
+
+	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPromptAccount(t *testing.T) {
@@ -40,4 +48,79 @@ func TestStruct(t *testing.T) {
 	}()
 	var a *T
 	t.Logf("a.a=%d", a.a)
+}
+
+func TestStart(t *testing.T) {
+	os.Args = make([]string, 0, 20)
+	os.Args = append(os.Args, "smartraidenmobile")
+	os.Args = append(os.Args, fmt.Sprintf("--address=%s", "0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa"))
+	os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", "../../../testdata/keystore"))
+	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT")))
+	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", ".smartraiden"))
+	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", "../../../testdata/keystore/pass"))
+	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", "127.0.0.1:2000"))
+	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", "127.0.0.1:20000"))
+	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
+	os.Args = append(os.Args, fmt.Sprintf("--debug"))
+	params.MobileMode = true
+
+	var api *smartraiden.RaidenAPI
+	var err error
+	// 1. 无公链第一次启动,must fail
+	clearData(".smartraiden")
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", "ws://127.0.0.1:9999")
+	api, err = StartMain()
+	assert.Error(t, err)
+	time.Sleep(5 * time.Second)
+	api = nil
+	err = nil
+	// 2. 有公链第一次启动,must success
+	clearData(".smartraiden")
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
+	api, err = StartMain()
+	assert.Empty(t, err)
+	time.Sleep(5 * time.Second)
+	api.Stop()
+	// 3. 无公链非第一次启动,must success
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", "ws://127.0.0.1:9999")
+	api, err = StartMain()
+	assert.Empty(t, err)
+	time.Sleep(5 * time.Second)
+	api.Stop()
+	// 4. matrix启动, must success
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
+	os.Args = append(os.Args, fmt.Sprintf("--matrix"))
+	os.Args = append(os.Args, fmt.Sprintf("--matrix-server=%s", "transport01.smartmesh.cn"))
+	api, err = StartMain()
+	assert.Empty(t, err)
+	time.Sleep(5 * time.Second)
+	api.Stop()
+	// 5. nonetwork启动, must success
+	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
+	os.Args[len(os.Args)-2] = fmt.Sprintf("--nonetwork")
+	os.Args[len(os.Args)-1] = fmt.Sprintf("")
+	api, err = StartMain()
+	assert.Empty(t, err)
+	time.Sleep(5 * time.Second)
+	api.Stop()
+}
+
+func clearData(dataPath string) {
+	filepath.Walk(dataPath, func(path string, fi os.FileInfo, err error) error {
+		if nil == fi {
+			return err
+		}
+		if !fi.IsDir() {
+			return nil
+		}
+		name := fi.Name()
+
+		if name == ".smartraiden" {
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Println("delet dir error:", err)
+			}
+		}
+		return nil
+	})
 }

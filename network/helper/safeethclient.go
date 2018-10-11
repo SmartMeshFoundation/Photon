@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -401,4 +402,19 @@ func (c *SafeEthClient) SendTransaction(ctx context.Context, tx *types.Transacti
 		return errNotConnectd
 	}
 	return c.Client.SendTransaction(ctx, tx)
+}
+
+// GenesisBlockHash :
+func (c *SafeEthClient) GenesisBlockHash(ctx context.Context) (genesisBlockHash common.Hash, err error) {
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.Client == nil {
+		return utils.EmptyHash, errNotConnectd
+	}
+	genesisBlockHead, err := c.Client.HeaderByNumber(ctx, big.NewInt(1))
+	if err != nil {
+		return
+	}
+	return genesisBlockHead.Hash(), nil
 }

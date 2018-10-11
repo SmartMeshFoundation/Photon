@@ -901,6 +901,11 @@ example returns:
 }
 */
 func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (r string, err error) {
+	defer func() {
+		log.Trace(fmt.Sprintf("Api GetTransferStatus tokenAddressStr=%s,lockSecretHashStr=%s, err=%s\n",
+			tokenAddressStr, lockSecretHashStr, err,
+		))
+	}()
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
 	if err != nil {
 		log.Error(err.Error())

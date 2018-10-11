@@ -28,7 +28,7 @@ func init() {
 
 func TestAddToken(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	reg := bcs.Registry(bcs.RegistryAddress)
+	reg := bcs.Registry(bcs.RegistryProxy.Address, true)
 	tokenAddress := utils.EmptyAddress
 	_, err := reg.AddToken(tokenAddress)
 	if err == nil {
@@ -39,7 +39,7 @@ func TestAddToken(t *testing.T) {
 
 func TestGetAddTokenLog(t *testing.T) {
 	bcs := MakeTestBlockChainService()
-	logs, err := EventGetInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
+	logs, err := EventGetInternal(context.Background(), bcs.RegistryProxy.Address, rpc.EarliestBlockNumber,
 		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client)
 	if err != nil {
 		t.Error(err)
@@ -51,7 +51,7 @@ func TestEventSubscribe(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	ch := make(chan types.Log, 1)
 	t.Log("wait for tokenadded event")
-	sub, err := EventSubscribeInternal(context.Background(), bcs.RegistryAddress, rpc.EarliestBlockNumber,
+	sub, err := EventSubscribeInternal(context.Background(), bcs.RegistryProxy.Address, rpc.EarliestBlockNumber,
 		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client.Client, ch)
 	if err != nil {
 		t.Error(err)

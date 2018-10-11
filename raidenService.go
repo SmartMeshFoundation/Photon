@@ -18,8 +18,6 @@ import (
 
 	"runtime/debug"
 
-	"context"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/blockchain"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel"
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -78,7 +76,6 @@ type RaidenService struct {
 	*/
 	Config                   *params.Config
 	Chain                    *rpc.BlockChainService
-	Registry                 *rpc.RegistryProxy
 	Transport                network.Transporter
 	Protocol                 *network.RaidenProtocol
 	MessageHandler           *raidenMessageHandler
@@ -91,8 +88,6 @@ type RaidenService struct {
 
 	/*
 	 */
-	SecretRegistryAddress common.Address
-	RegistryAddress       common.Address
 	PrivateKey            *ecdsa.PrivateKey
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
@@ -138,20 +133,14 @@ type RaidenService struct {
 }
 
 //NewRaidenService create raiden service
-func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler) (rs *RaidenService, err error) {
-	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
-		err = fmt.Errorf("settle timeout must be in range %d-%d",
-			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
-		return
-	}
+func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, db *models.ModelDB) (rs *RaidenService, err error) {
 	rs = &RaidenService{
 		NotifyHandler:                         notifyHandler,
 		Chain:                                 chain,
-		Registry:                              chain.Registry(chain.RegistryAddress),
-		RegistryAddress:                       chain.RegistryAddress,
 		PrivateKey:                            privateKey,
 		Config:                                config,
 		Transport:                             transport,
+		db:                                    db,
 		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
 		TokenNetwork2Token:                    make(map[common.Address]common.Address),
@@ -180,11 +169,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.MessageHandler = newRaidenMessageHandler(rs)
 	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
 	rs.Protocol = network.NewRaidenProtocol(transport, privateKey, rs)
-	rs.db, err = models.OpenDb(config.DataBasePath)
-	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		return
-	}
 	//todo fixme MatrixTransport should have a better contructor function
 	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
 	if ok {
@@ -203,40 +187,8 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
-	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.RegistryAddress.String(), rs.NodeAddress.String()))
-	if rs.Registry != nil {
-		//我已经连接到以太坊全节点
-		// I have connected all Ethereum nodes
-		rs.SecretRegistryAddress, err = rs.Registry.GetContract().SecretRegistryAddress(nil)
-		if err != nil {
-			return
-		}
-		rs.db.SaveSecretRegistryAddress(rs.SecretRegistryAddress)
-		// 获取ChainID并保存在数据库
-		// get ChainID and store it into database
-		var chainID *big.Int
-		chainID, err = rs.Chain.Client.NetworkID(context.Background())
-		if err != nil {
-			return
-		}
-		params.ChainID = chainID
-		rs.db.SaveChainID(chainID.Int64())
-	} else {
-		//读取数据库中存放的 SecretRegistryAddress, 如果没有,说明系统没有初始化过,只能退出.
-		// Read SecretRegistryAddress stored in local database. If none, which means system does not initialize it, just exit.
-		rs.SecretRegistryAddress = rs.db.GetSecretRegistryAddress()
-		if rs.SecretRegistryAddress == utils.EmptyAddress {
-			err = fmt.Errorf("first startup without ethereum rpc connection")
-			return
-		}
-		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
-		// Read ChainID stored in database, if none, which means system does not initialize it, just exit.
-		params.ChainID = big.NewInt(rs.db.GetChainID())
-		if params.ChainID.Cmp(big.NewInt(0)) == 0 {
-			err = fmt.Errorf("first startup without ethereum rpc connection")
-			return
-		}
-	}
+	log.Info(fmt.Sprintf("create raiden service registry=%s,node=%s", rs.Chain.GetRegistryAddress().String(), rs.NodeAddress.String()))
+
 	rs.Token2TokenNetwork, err = rs.db.GetAllTokens()
 	if err != nil {
 		return
@@ -244,7 +196,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	for t, tn := range rs.Token2TokenNetwork {
 		rs.TokenNetwork2Token[tn] = t
 	}
-	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain.RegistryAddress, rs.SecretRegistryAddress, rs.Token2TokenNetwork)
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.Token2TokenNetwork)
 	return rs, nil
 }
 
@@ -446,11 +398,6 @@ func (rs *RaidenService) loop() {
 // for init, read db history,
 // all on-chain events I have not handled should wait in queue.
 func (rs *RaidenService) registerRegistry() {
-	dbRegistry := rs.db.GetRegistryAddress()
-	if dbRegistry != rs.RegistryAddress && dbRegistry != utils.EmptyAddress {
-		log.Crit(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
-			dbRegistry, rs.RegistryAddress))
-	}
 	token2TokenNetworks, err := rs.db.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
@@ -1559,9 +1506,7 @@ func (rs *RaidenService) handleEthRPCConnectionOK() {
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.
-	if rs.Registry == nil {
-		rs.Registry = rs.Chain.Registry(rs.Chain.RegistryAddress)
-	}
+	rs.Chain.Registry(rs.Chain.RegistryProxy.Address, true)
 }
 
 //all user's request

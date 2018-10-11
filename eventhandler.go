@@ -423,7 +423,7 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	}
 }
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
-	if st.RegistryAddress != eh.raiden.RegistryAddress {
+	if st.RegistryAddress != eh.raiden.Chain.RegistryProxy.Address {
 		panic("unkown registry")
 	}
 	tokenAddress := st.TokenAddress

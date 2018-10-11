@@ -43,6 +43,7 @@ const (
 
 //Config is configuration for Raiden,
 type Config struct {
+	EthRPCEndPoint            string
 	Host                      string
 	Port                      int
 	PrivateKeyHex             string
@@ -83,7 +84,6 @@ var DefaultConfig = Config{
 	},
 	UseRPC:            true,
 	UseConsole:        false,
-	RegistryAddress:   SpectrumTestNetRegistryAddress,
 	MsgTimeout:        100 * time.Second,
 	EnableHealthCheck: false,
 	XMPPServer:        DefaultXMPPServer,

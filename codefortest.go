@@ -14,6 +14,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/network"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
@@ -36,27 +37,31 @@ func newTestRaiden() *RaidenService {
 }
 
 func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
-	bcs := newTestBlockChainService()
-	notifyHandler := notify.NewNotifyHandler()
-	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
 	config := params.DefaultConfig
-	config.MyAddress = bcs.NodeAddress
-	config.PrivateKey = bcs.PrivKey
 	config.DataDir = os.Getenv("DATADIR")
 	if config.DataDir == "" {
 		config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
 	}
+	config.DataBasePath = path.Join(config.DataDir, "log.db")
+	db, err := models.OpenDb(config.DataBasePath)
+	if err != nil {
+		panic(err)
+	}
+	bcs := newTestBlockChainService(db)
+	notifyHandler := notify.NewNotifyHandler()
+	transport := network.MakeTestMixTransport(utils.APex2(bcs.NodeAddress), bcs.PrivKey)
+	config.MyAddress = bcs.NodeAddress
+	config.PrivateKey = bcs.PrivKey
 	log.Info(fmt.Sprintf("DataDir=%s", config.DataDir))
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600
 	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
-	err := os.MkdirAll(config.DataDir, os.ModePerm)
+	err = os.MkdirAll(config.DataDir, os.ModePerm)
 	if err != nil {
 		log.Error(err.Error())
 	}
-	config.DataBasePath = path.Join(config.DataDir, "log.db")
 	config.NetworkMode = params.MixUDPXMPP
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler)
+	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler, db)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -88,14 +93,23 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	}
 	return privkey, crypto.PubkeyToAddress(privkey.PublicKey)
 }
-func newTestBlockChainService() *rpc.BlockChainService {
+func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
 	privkey, addr := testGetnextValidAccount()
 	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
-	return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
+	config := &params.Config{
+		EthRPCEndPoint:  rpc.TestRPCEndpoint,
+		PrivateKey:      privkey,
+		RegistryAddress: rpc.PrivateRopstenRegistryAddress,
+	}
+	bcs, err := rpc.NewBlockChainService(config, db, conn)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	return bcs
 }
 
 func makeTestRaidens() (r1, r2, r3 *RaidenService) {

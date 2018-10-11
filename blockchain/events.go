@@ -25,13 +25,12 @@ import (
 Events handles all contract events from blockchain
 */
 type Events struct {
-	client                *helper.SafeEthClient
-	lock                  sync.RWMutex
-	LogChannelMap         map[string]chan types.Log
-	RegistryAddress       common.Address //this address is unique
-	SecretRegistryAddress common.Address //get from db or from blockchain
-	Subscribes            map[string]ethereum.Subscription
-	StateChangeChannel    chan transfer.StateChange
+	client              *helper.SafeEthClient
+	lock                sync.RWMutex
+	LogChannelMap       map[string]chan types.Log
+	rpcModuleDependency RPCModuleDependency
+	Subscribes          map[string]ethereum.Subscription
+	StateChangeChannel  chan transfer.StateChange
 	//启动/重连过程中先把收到事件暂存在这个通道中,等启动完毕以后在保存到StateChangeChannel,保证事件被顺序处理.
 	// In the process of start-up and reconnect, we first cache received events into this channel,
 	// after start-up, those events will be stored in StateChangeChannel to make sure the process order.
@@ -43,13 +42,12 @@ type Events struct {
 }
 
 //NewBlockChainEvents create BlockChainEvents
-func NewBlockChainEvents(client *helper.SafeEthClient, registryAddress, secretRegistryAddress common.Address, token2TokenNetwork map[common.Address]common.Address) *Events {
+func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCModuleDependency, token2TokenNetwork map[common.Address]common.Address) *Events {
 	be := &Events{
 		client:                    client,
 		LogChannelMap:             make(map[string]chan types.Log),
 		Subscribes:                make(map[string]ethereum.Subscription),
-		RegistryAddress:           registryAddress,
-		SecretRegistryAddress:     secretRegistryAddress,
+		rpcModuleDependency:       rpcModuleDependency,
 		quitChan:                  make(chan struct{}),
 		TokenNetworks:             make(map[common.Address]bool),
 		startupStateChangeChannel: make(chan mediatedtransfer.ContractStateChange, 100),
@@ -108,9 +106,9 @@ func (be *Events) installEventListener() (err error) {
 	for name := range eventAbiMap {
 		contractAddr := utils.EmptyAddress
 		if name == params.NameTokenNetworkCreated { //only registry's contract address is only one
-			contractAddr = be.RegistryAddress
+			contractAddr = be.rpcModuleDependency.GetRegistryAddress()
 		} else if name == params.NameSecretRevealed {
-			contractAddr = be.SecretRegistryAddress
+			contractAddr = be.rpcModuleDependency.GetSecretRegistryAddress()
 		}
 		sub, err = rpc.EventSubscribe(contractAddr, name, eventAbiMap[name], be.client, be.LogChannelMap[name])
 		if err != nil {
@@ -416,7 +414,7 @@ func (be *Events) startListenEvent() {
 							log.Error(fmt.Sprintf("newEventSecretRevealed err=%s", err))
 							continue
 						}
-						if ev.Raw.Address != be.SecretRegistryAddress {
+						if ev.Raw.Address != be.rpcModuleDependency.GetSecretRegistryAddress() {
 							log.Info(fmt.Sprintf("receive NameSecretRevealed,but it's not our contract,ev=\n%s", utils.StringInterface(ev, 3)))
 							continue
 						}
@@ -486,7 +484,7 @@ func (be *Events) sendStateChange(st mediatedtransfer.ContractStateChange) {
 
 //GetAllTokenNetworks returns all the token network,events 本身需要知道所有的 tokennetwork, 这样才能处理相关事件.
 func (be *Events) GetAllTokenNetworks(fromBlock int64) (events []*contracts.TokenNetworkRegistryTokenNetworkCreated, err error) {
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.RegistryAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.rpcModuleDependency.GetRegistryAddress(), ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameTokenNetworkCreated, eventAbiMap[params.NameTokenNetworkCreated], be.client)
 	if err != nil {
 		return
@@ -720,7 +718,7 @@ func (be *Events) GetChannelBalanceProofUpdated(fromBlock int64, tokenNetworkAdd
 GetAllSecretRevealed return all secret reveal events
 */
 func (be *Events) GetAllSecretRevealed(fromBlock int64) (events []*contracts.SecretRegistrySecretRevealed, err error) {
-	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.SecretRegistryAddress, ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
+	logs, err := rpc.EventGetInternal(rpc.GetQueryConext(), be.rpcModuleDependency.GetSecretRegistryAddress(), ethrpc.BlockNumber(fromBlock), ethrpc.LatestBlockNumber,
 		params.NameSecretRevealed, eventAbiMap[params.NameSecretRevealed], be.client)
 	if err != nil {
 		return
