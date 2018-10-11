@@ -354,5 +354,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.RevealTimeout = ctx.Int("reveal-timeout")
+	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
+		err = fmt.Errorf("settle timeout must be in range %d-%d",
+			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
+		return
+	}
 	return
 }

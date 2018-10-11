@@ -69,8 +69,6 @@ type BlockChainService struct {
 // 4. 如果数据没有且用户没指定,根据公链判断使用哪一个默认值并保存到db
 func getRegistryAddress(userRegistryAddress common.Address, db *models.ModelDB, client *helper.SafeEthClient) (registryAddress common.Address, err error) {
 	dbRegistryAddress := db.GetRegistryAddress()
-	fmt.Println("dbRegistryAddress", dbRegistryAddress.String())
-	fmt.Println("userRegistryAddress", userRegistryAddress.String())
 	if dbRegistryAddress == utils.EmptyAddress {
 		registryAddress = userRegistryAddress
 	} else if userRegistryAddress != utils.EmptyAddress && dbRegistryAddress != userRegistryAddress {

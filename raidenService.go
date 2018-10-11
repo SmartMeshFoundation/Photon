@@ -139,11 +139,6 @@ type RaidenService struct {
 
 //NewRaidenService create raiden service
 func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, db *models.ModelDB) (rs *RaidenService, err error) {
-	if config.SettleTimeout < params.ChannelSettleTimeoutMin || config.SettleTimeout > params.ChannelSettleTimeoutMax {
-		err = fmt.Errorf("settle timeout must be in range %d-%d",
-			params.ChannelSettleTimeoutMin, params.ChannelSettleTimeoutMax)
-		return
-	}
 	rs = &RaidenService{
 		NotifyHandler:                         notifyHandler,
 		Chain:                                 chain,
@@ -228,7 +223,7 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		// 读取数据库中存放的chainID,如果没有,说明系统没有初始化过,只能退出.
 		// Read ChainID stored in database, if none, which means system does not initialize it, just exit.
 		params.ChainID = big.NewInt(rs.db.GetChainID())
-		if params.ChainID.Cmp(big.NewInt(0)) == 0 {
+		if params.ChainID.Cmp(big.NewInt(1)) == 0 {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
 			return
 		}

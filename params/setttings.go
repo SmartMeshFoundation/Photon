@@ -137,11 +137,11 @@ var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// spectrum
 	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): utils.EmptyAddress,
 	// spectrum test net
-	common.HexToHash(""): utils.EmptyAddress,
+	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): utils.EmptyAddress,
 	// ethereum
 	common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): utils.EmptyAddress,
 	// ethereum test net
-	common.HexToHash(""): utils.EmptyAddress,
+	common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): utils.EmptyAddress,
 	// ethereum private
-	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0x875FAC12efa94dB680392E1EfD339815D83225Cb"),
+	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0xf86D80dcFE02fDfadA663ab5df8186e15aC99232"),
 }
