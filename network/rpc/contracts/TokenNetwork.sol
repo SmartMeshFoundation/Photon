@@ -331,6 +331,8 @@ contract TokenNetwork is Utils {
 
         // Update the participant's channel deposit
         total_deposit += amount;
+        // make sure not overflow
+        require(total_deposit>=amount);
         participant_state.deposit = total_deposit;
 
         emit ChannelNewDeposit(channel_identifier, participant, total_deposit);
@@ -389,7 +391,7 @@ contract TokenNetwork is Utils {
        功能:在不关闭通道的情况下提现,任何人都可以调用
 
        一旦一方提出 withdraw, 实际上和提出 cooperative settle 效果是一样的,就是不能再进行任何交易了.
-       必须等待 withdraw 完成才能重置交易数据,重新开始交易
+       必须等待 total_deposit += amount 完成才能重置交易数据,重新开始交易
        参数说明:
        participant,partner 通道参与双方
        participant_balance: 取款方的 balance 是多少
@@ -792,6 +794,7 @@ contract TokenNetwork is Utils {
             但是如果是恶意的会溢出,但是溢出对于 自身 也没好处啊
         */
         transferered_amount += amount;
+        require(transferered_amount>=amount);
         /*
             注意transferered_amount已经更新了,
         */
