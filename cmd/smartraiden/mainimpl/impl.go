@@ -22,6 +22,10 @@ import (
 
 	"math/big"
 
+	"crypto/ecdsa"
+
+	"plugin"
+
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
@@ -322,18 +326,13 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if err != nil {
 		return
 	}
-	address := common.HexToAddress(ctx.String("address"))
-	address, privkeyBin, err := accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
-	if err != nil {
-		return
-	}
-	config.PrivateKeyHex = hex.EncodeToString(privkeyBin)
-	config.PrivateKey, err = crypto.ToECDSA(privkeyBin)
-	config.MyAddress = address
+	config.PrivateKey, err = getPrivateKey(ctx)
 	if err != nil {
 		err = fmt.Errorf("privkey error: %s", err)
 		return
 	}
+	config.MyAddress = crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
+	log.Info(fmt.Sprintf("Start with account %s", config.MyAddress.String()))
 	registAddrStr := ctx.String("registry-contract-address")
 	if len(registAddrStr) > 0 {
 		config.RegistryAddress = common.HexToAddress(registAddrStr)
@@ -396,4 +395,34 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	}
 	config.RevealTimeout = ctx.Int("reveal-timeout")
 	return
+}
+
+func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
+	if os.Getenv("IS_MESH_BOX") == "true" || os.Getenv("IS_MESH_BOX") == "TRUE" {
+		// load photon_plugin.so
+		var plug *plugin.Plugin
+		var privateKeyGetter plugin.Symbol
+		var privateKeyBytes []byte
+		plug, err = plugin.Open("photon_plugin.so")
+		if err != nil {
+			return
+		}
+		privateKeyGetter, err = plug.Lookup("GetPrivateKeyForMeshBox")
+		if err != nil {
+			return
+		}
+
+		privateKeyBytes, err = privateKeyGetter.(func() ([]byte, error))()
+		if err != nil {
+			return
+		}
+		return crypto.ToECDSA(privateKeyBytes)
+	}
+	var keyBin []byte
+	address := common.HexToAddress(ctx.String("address"))
+	address, keyBin, err = accounts.PromptAccount(address, ctx.String("keystore-path"), ctx.String("password-file"))
+	if err != nil {
+		return
+	}
+	return crypto.ToECDSA(keyBin)
 }

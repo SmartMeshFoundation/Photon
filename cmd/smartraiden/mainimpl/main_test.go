@@ -52,7 +52,7 @@ func TestStruct(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	os.Args = make([]string, 0, 20)
-	os.Args = append(os.Args, "smartraidenmobile")
+	os.Args = append(os.Args, "smartraiden")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", "0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa"))
 	os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", "../../../testdata/keystore"))
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT")))
@@ -101,6 +101,32 @@ func TestStart(t *testing.T) {
 	os.Args[len(os.Args)-1] = fmt.Sprintf("")
 	api, err = StartMain()
 	assert.Empty(t, err)
+	time.Sleep(5 * time.Second)
+	api.Stop()
+}
+
+func TestMeshBoxStart(t *testing.T) {
+	if os.Getenv("IS_MESH_BOX") != "true" {
+		return
+	}
+	os.Args = make([]string, 0, 20)
+	os.Args = append(os.Args, "smartraiden")
+	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT")))
+	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", ".smartraiden"))
+	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", "127.0.0.1:2000"))
+	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", "127.0.0.1:20000"))
+	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
+	os.Args = append(os.Args, fmt.Sprintf("--debug"))
+	params.MobileMode = true
+
+	var api *smartraiden.RaidenAPI
+	var err error
+	// 1. 无公链第一次启动,must fail
+	clearData(".smartraiden")
+	api, err = StartMain()
+	if err != nil {
+		panic(err)
+	}
 	time.Sleep(5 * time.Second)
 	api.Stop()
 }

@@ -46,7 +46,6 @@ type Config struct {
 	EthRPCEndPoint            string
 	Host                      string
 	Port                      int
-	PrivateKeyHex             string
 	PrivateKey                *ecdsa.PrivateKey
 	RevealTimeout             int
 	SettleTimeout             int
@@ -73,7 +72,6 @@ type Config struct {
 //DefaultConfig default config
 var DefaultConfig = Config{
 	Port:          InitialPort,
-	PrivateKeyHex: "",
 	RevealTimeout: DefaultRevealTimeout,
 	SettleTimeout: DefaultSettleTimeout,
 	Protocol: protocolConfig{
