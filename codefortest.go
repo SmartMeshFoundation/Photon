@@ -8,8 +8,6 @@ import (
 
 	"time"
 
-	"encoding/hex"
-
 	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
@@ -55,7 +53,6 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 	log.Info(fmt.Sprintf("DataDir=%s", config.DataDir))
 	config.RevealTimeout = 10
 	config.SettleTimeout = 600
-	config.PrivateKeyHex = hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))
 	err = os.MkdirAll(config.DataDir, os.ModePerm)
 	if err != nil {
 		log.Error(err.Error())
