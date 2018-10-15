@@ -488,7 +488,7 @@ func verifyContractCode(registryAddress common.Address, client *helper.SafeEthCl
 		return
 	}
 	if !strings.Contains(utils.BPex(codeBytesOnChain), contracts.TokenNetworkBin[2:]) {
-		errors.New("local contract code mismatch contract code on chain")
+		err = errors.New("local contract code mismatch contract code on chain")
 	}
 	return
 }
