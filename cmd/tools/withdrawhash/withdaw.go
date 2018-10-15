@@ -133,11 +133,7 @@ func mainctx(ctx *cli.Context) error {
 		log.Crit("private key is invalid, wrong password?")
 	}
 	w.PrivateKey = privateKey
-	config := &params.Config{
-		EthRPCEndPoint: ctx.String("eth-rpc-endpoint"),
-		PrivateKey:     privateKey,
-	}
-	w.bcs, err = rpc.NewBlockChainService(config, w.db, w.Conn)
+	w.bcs, err = rpc.NewBlockChainService(privateKey, w.db.GetRegistryAddress(), w.Conn)
 	if err != nil {
 		return err
 	}

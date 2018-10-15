@@ -3,6 +3,7 @@ package mainimpl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 
 	"encoding/hex"
@@ -19,8 +20,6 @@ import (
 	"strconv"
 
 	"strings"
-
-	"math/big"
 
 	"crypto/ecdsa"
 
@@ -164,6 +163,7 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("Welcom to smartraiden,version %s\n", ctx.App.Version))
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
+	var isFirstStartUp, hasConnectedChain bool
 	// load config
 	cfg, err := config(ctx)
 	if err != nil {
@@ -175,8 +175,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 		err = fmt.Errorf("cannot connect to geth :%s err=%s", cfg.EthRPCEndPoint, err)
 		err = nil
 	}
-	hasConnectedChain := client.Status == netshare.Connected
-
 	// open db
 	db, err := models.OpenDb(cfg.DataBasePath)
 	if err != nil {
@@ -184,10 +182,14 @@ func mainCtx(ctx *cli.Context) (err error) {
 		client.Close()
 		return
 	}
-	dbChainID := db.GetChainID()
-	isFirstStartUp := dbChainID == params.DefaultChainID.Int64()
+	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, db, client)
+	if err != nil {
+		client.Close()
+		db.CloseDB()
+		return
+	}
 
-	// get ChainID todo 用chaindID是否合适
+	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
@@ -203,11 +205,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		}
 		db.SaveChainID(params.ChainID.Int64())
 	} else {
-		params.ChainID = big.NewInt(dbChainID)
+		params.ChainID = big.NewInt(db.GetChainID())
 	}
 
 	// init blockchain module
-	bcs, err := rpc.NewBlockChainService(cfg, db, client)
+	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	if err != nil {
 		db.CloseDB()
 		client.Close()
@@ -425,4 +427,44 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 		return
 	}
 	return crypto.ToECDSA(keyBin)
+}
+
+func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
+	dbRegistryAddress := db.GetRegistryAddress()
+	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
+	hasConnectedChain = client.Status == netshare.Connected
+	if isFirstStartUp && !hasConnectedChain {
+		err = fmt.Errorf("first startup without ethereum rpc connection")
+		return
+	}
+	if !isFirstStartUp && config.RegistryAddress != utils.EmptyAddress && dbRegistryAddress != config.RegistryAddress {
+		err = fmt.Errorf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+			registryAddress.String(), config.RegistryAddress.String()))
+		return
+	}
+	if isFirstStartUp {
+		if config.RegistryAddress == utils.EmptyAddress {
+			registryAddress, err = getDefaultRegistryByEthClien(client)
+			if err != nil {
+				return
+			}
+		} else {
+			registryAddress = config.RegistryAddress
+		}
+		db.SaveRegistryAddress(registryAddress)
+	} else {
+		registryAddress = dbRegistryAddress
+	}
+	return
+}
+
+func getDefaultRegistryByEthClien(client *helper.SafeEthClient) (registryAddress common.Address, err error) {
+	var genesisBlockHash common.Hash
+	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
+	return
 }

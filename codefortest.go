@@ -97,12 +97,7 @@ func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
 	}
 	privkey, addr := testGetnextValidAccount()
 	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
-	config := &params.Config{
-		EthRPCEndPoint:  rpc.TestRPCEndpoint,
-		PrivateKey:      privkey,
-		RegistryAddress: rpc.PrivateRopstenRegistryAddress,
-	}
-	bcs, err := rpc.NewBlockChainService(config, db, conn)
+	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
 	if err != nil {
 		log.Error(err.Error())
 	}
