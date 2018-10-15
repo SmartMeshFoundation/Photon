@@ -50,12 +50,12 @@ func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
 	}
 	// 6. 中间数据记录
 	models.Logger.Println("------------ Data After Crash ------------")
-	cd32middle := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
 	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
-	// 校验cd32, 2锁定45
-	if !cd32middle.CheckLockPartner(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
-	}
+	//// 校验cd32, 2锁定45
+	//if !cd32middle.CheckLockPartner(transAmount) {
+	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
+	//}
 	// 校验cd36，交易成功
 	if !cd36middle.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
@@ -75,10 +75,10 @@ func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
 	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
 		return cm.caseFail(env.CaseName)
 	}
-	// 校验cd32，2锁定45
-	if !cd32new.CheckLockPartner(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
-	}
+	//// 校验cd32，2锁定45
+	//if !cd32new.CheckLockPartner(transAmount) {
+	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
+	//}
 	// 校验cd36，交易成功
 	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
