@@ -18,6 +18,16 @@ unzip smartraiden-<version>-macOS.zip
 ```
 The resulting binary will work on any version of macOS from 10.12 onwards without any other dependencies. An Ethereum client is required.
 
+### mobile
+If you want to develop smartraiden on mobile, you can execute the following commands
+
+```
+go get github.com/SmartMeshFoundation/SmartRaiden/
+cd mobile
+gomobile bind -target=android
+gomobile bind -target=ios
+```
+
 ### Dependencies
 You will need to have an Ethereum client installed in your system.
 
