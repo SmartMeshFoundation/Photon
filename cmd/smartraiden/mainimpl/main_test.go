@@ -10,6 +10,7 @@ import (
 
 	smartraiden "github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
+	"github.com/SmartMeshFoundation/SmartRaiden/codefortest"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/stretchr/testify/assert"
@@ -149,4 +150,19 @@ func clearData(dataPath string) {
 		}
 		return nil
 	})
+}
+
+func TestVerifyContractCode(t *testing.T) {
+	client, err := codefortest.GetEthClient()
+	if err != nil {
+		t.Error(err.Error())
+	}
+	registryAddress, _, err := codefortest.DeployRegistryContract()
+	if err != nil {
+		t.Error(err.Error())
+	}
+	err = verifyContractCode(registryAddress, client)
+	if err != nil {
+		t.Error(err.Error())
+	}
 }

@@ -35,6 +35,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful"
@@ -43,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/go-errors/errors"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -188,7 +190,14 @@ func mainCtx(ctx *cli.Context) (err error) {
 		db.CloseDB()
 		return
 	}
-
+	if isFirstStartUp {
+		err = verifyContractCode(cfg.RegistryAddress, client)
+		if err != nil {
+			client.Close()
+			db.CloseDB()
+			return
+		}
+	}
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
@@ -466,5 +475,20 @@ func getDefaultRegistryByEthClien(client *helper.SafeEthClient) (registryAddress
 		return
 	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
+	return
+}
+
+/*
+	校验链上的合约代码和代码里面的合约代码二进制内容
+*/
+func verifyContractCode(registryAddress common.Address, client *helper.SafeEthClient) (err error) {
+	var codeBytesOnChain []byte
+	codeBytesOnChain, err = client.Client.CodeAt(context.Background(), registryAddress, nil)
+	if err != nil {
+		return
+	}
+	if !strings.Contains(utils.BPex(codeBytesOnChain), contracts.TokenNetworkBin[2:]) {
+		errors.New("local contract code mismatch contract code on chain")
+	}
 	return
 }
