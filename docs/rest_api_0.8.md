@@ -19,19 +19,19 @@ Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec fo
     }
 ```
 
-channel variables explanation :
-* `channel_identifier` : address for a channel
-* `open_block_number` : block height when a channel opens
-* `partner_address` : address for your channel partner
-* `balance` : your token balance in this channel
-* `partner_balance` : token balance for your channel partner
-* `locked_amount` : the amount of token you locked in this channel
-* `partner_locked_amount` : the amount of token your partner locked in this channel
-* `token_address` : address for tokens in this channel
-* `state` : digits denoting transaction states
-* `StateString` : String literal for Channel States
-* `settle_timeout` : some amount of block denoting time period for transaction settlement
-* `reveal_timeout` : block height at which nodes registering `secret`
+channel variables explanation :  
+* `channel_identifier` : address for a channel  
+* `open_block_number` : block height when a channel opens  
+* `partner_address` : address for your channel partner  
+* `balance` : your token balance in this channel  
+* `partner_balance` : token balance for your channel partner  
+* `locked_amount` : the amount of token you locked in this channel  
+* `partner_locked_amount` : the amount of token your partner locked in this channel  
+* `token_address` : address for tokens in this channel  
+* `state` : digits denoting transaction states  
+* `StateString` : String literal for Channel States  
+* `settle_timeout` : some amount of block denoting time period for transaction settlement  
+* `reveal_timeout` : block height at which nodes registering `secret`  
 
 
 State|StateString|Description
@@ -72,10 +72,10 @@ Check registered token
 - `200 OK` - Check Success
 - `404 Not Found` - Check Failure
 ## GET /api/1/tokens/*(token_address)*/partners
-Get all the channel partners of this token.
-**Example Request:**
-`GET /api/1/tokens/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/partners`
- **Example Response :**
+Get all the channel partners of this token.  
+**Example Request:**  
+`GET /api/1/tokens/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/partners`  
+ **Example Response :**  
 ```json
 [
     {
@@ -91,24 +91,24 @@ Get all the channel partners of this token.
 ## PUT /api/1/tokens/*(token_address)*
 Register another token type
 
-**Example Request:**
-`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`
+**Example Request:**  
+`PUT /api/1/tokens/0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a`  
 
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_manager_address": "0xBb1e95363b0181De7bBf394f18eaC7D4230e391A"
 }
 ```
-**Status Codes:**
-- `200 OK` - Register Success
-- `400 Bad Request` - Invalid Token Address
-- `409 Conflict` - Token has been registered
+**Status Codes:**  
+- `200 OK` - Register Success  
+- `400 Bad Request` - Invalid Token Address  
+- `409 Conflict` - Token has been registered  
 
 
 ## GET /api/1/channels
-Check all unsettled channels of a node.
-**Example Response:**
+Check all unsettled channels of a node.  
+**Example Response:**  
 ```json
 [
     {
@@ -127,13 +127,13 @@ Check all unsettled channels of a node.
     }
 ]
 ```
-**Status Codes:**
-- `200 OK` - Check Success
-- `404 Not Found` - Check Failure
+**Status Codes:**  
+- `200 OK` - Check Success  
+- `404 Not Found` - Check Failure  
 
 ## POST /api/1/channels
-Open a new Channel
-**PAYLOAD:**
+Open a new Channel  
+**PAYLOAD:**  
 ```json
 {
     "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
@@ -142,7 +142,7 @@ Open a new Channel
     "settle_timeout": 150
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
@@ -159,16 +159,16 @@ Open a new Channel
     "reveal_timeout": 0
 }
 ```
-**Status Codes:**
-- `200 OK` - Open Channel Success
-- `400 Bad Request` - Invalid Parameter
-- `409 Conflict` - Channel Already Opened
+**Status Codes:**  
+- `200 OK` - Open Channel Success  
+- `400 Bad Request` - Invalid Parameter  
+- `409 Conflict` - Channel Already Opened  
 
-## GET /api/1/channels/*(channel_identifier)*
-Check specific channel, can get in-depth channel information
-**Example Request**
-`GET /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`
-**Example Response:**
+## GET /api/1/channels/*(channel_identifier)*  
+Check specific channel, can get in-depth channel information  
+**Example Request**  
+`GET /api/1/channels/0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489`  
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
@@ -222,14 +222,14 @@ Check specific channel, can get in-depth channel information
     "Signature": null
 }
 ```
-**Status Codes:**
-- `200 OK` - Check Success
-- `404 Not Found` - Check Failure
-## PUT /api/1/withdraw/*(channel_identifier)*
-CooperateWithdraw available when both channel participants online
+**Status Codes:**  
+- `200 OK` - Check Success  
+- `404 Not Found` - Check Failure  
+## PUT /api/1/withdraw/*(channel_identifier)*  
+CooperateWithdraw available when both channel participants online  
 
-When you're ready to withdraw, you can switch the channel state to `prepareForWithdraw` by setting the `"op":"preparewithdraw"` and refuse to accept the transaction.It should be noted that the amount must be 0 at this time, otherwise it will be directly `withdrawing`.
-**PAYLOAD:**
+When you're ready to withdraw, you can switch the channel state to `prepareForWithdraw` by setting the `"op":"preparewithdraw"` and refuse to accept the transaction.It should be noted that the amount must be 0 at this time, otherwise it will be directly `withdrawing`.  
+**PAYLOAD:**  
 ```json
 {
 	"amount":0,
@@ -253,15 +253,15 @@ When you're ready to withdraw, you can switch the channel state to `prepareForWi
     "reveal_timeout": 10
 }
 ```
-When you want to cancel the preparation of the `preparewithdraw` state, you can switch the channel state to the open state through the parameter `"op":"cancelprepare"`.
-**PAYLOAD:**
+When you want to cancel the preparation of the `preparewithdraw` state, you can switch the channel state to the open state through the parameter `"op":"cancelprepare"`.  
+**PAYLOAD:**  
 ```json
 {
 	"amount":0,
 	"op":"cancelprepare"
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0x623c5bf569977f6da37ff39da9a917eb500089ba7ae95ee894b9349db4320b16",
@@ -278,15 +278,15 @@ When you want to cancel the preparation of the `preparewithdraw` state, you can 
     "reveal_timeout": 10
 }
 ```
-Of course, as long as both channels are online and there is no lock, then you can directly withdraw, `op` parameters are not necessary.
-**PAYLOAD:**
+Of course, as long as both channels are online and there is no lock, then you can directly withdraw, `op` parameters are not necessary.  
+**PAYLOAD:**  
 ```json
 {
 	"amount":50,
 
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
@@ -303,12 +303,12 @@ Of course, as long as both channels are online and there is no lock, then you ca
     "reveal_timeout": 5
 }
 ```
-**Request JSON Object:**
-- `op` - Alter Channel States(Optional)
-  - `preparewithdraw` - Alter Channel State to `prepareForWithdraw`, detail in Channel State Chart
-  - `cancelprepare` - cancel prepare/alter channel state to `open`
+**Request JSON Object:**  
+- `op` - Alter Channel States(Optional)  
+  - `preparewithdraw` - Alter Channel State to `prepareForWithdraw`, detail in Channel State Chart  
+  - `cancelprepare` - cancel prepare/alter channel state to `open`  
 
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
@@ -325,21 +325,21 @@ Of course, as long as both channels are online and there is no lock, then you ca
     "reveal_timeout": 5
 }
 ```
-**Status Codes:**
-- `200 OK ` - Withdraw Success
-- `400 Bad Request` - Invalid Parameter/Low Token Balance
+**Status Codes:**  
+- `200 OK ` - Withdraw Success  
+- `400 Bad Request` - Invalid Parameter/Low Token Balance  
 
-## PATCH /api/1/channels/*(channel_identifier)*
-Deposit in a channel
-**Example  Request:**
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`
-**PAYLOAD:**
+## PATCH /api/1/channels/*(channel_identifier)*  
+Deposit in a channel  
+**Example  Request:**  
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
+**PAYLOAD:**  
 ```json
 {
     "balance": 100
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
@@ -356,21 +356,21 @@ Deposit in a channel
     "reveal_timeout": 5
 }
 ```
-**Status Codes:**
-- `200 OK` - Deposit Success
-- `400 Bad Request` - Invalid Requst Parameter
+**Status Codes:**  
+- `200 OK` - Deposit Success  
+- `400 Bad Request` - Invalid Requst Parameter  
 
 Close a channel, set `force` default to `false`, meaning that channel participants cooperate settle channel.
 
-**Example  Request:**
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`
-**PAYLOAD:**
+**Example  Request:**  
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
+**PAYLOAD:**  
 ```json
 {"state":"closed"，
   "force":false
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0xf1fa19fa6a54912e32d6e6e1aa0baa14d530385c60266886ef7c18838f6e9bdc",
@@ -387,14 +387,14 @@ Close a channel, set `force` default to `false`, meaning that channel participan
     "reveal_timeout": 5
 }
 ```
-Once channel partner is offline or do not wish to cooperate settle, then alter `force` to `true`, wait for `settle_timeout` then do channel settle procedure.
-**PAYLOAD：**
-```json
+Once channel partner is offline or do not wish to cooperate settle, then alter `force` to `true`, wait for `settle_timeout` then do channel settle procedure.  
+**PAYLOAD：**  
+```json 
 {"state":"closed",
   "force":true
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 {
     "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
@@ -411,17 +411,17 @@ Once channel partner is offline or do not wish to cooperate settle, then alter `
     "reveal_timeout": 5
 }
 ```
-Settle Channel. Once channel is closed and `settle_timeout` block has passed, channels can be settled.
-**Example  Request:**
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`
+Settle Channel. Once channel is closed and `settle_timeout` block has passed, channels can be settled.  
+**Example  Request:**  
+`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`  
 
-**PAYLOAD:**
+**PAYLOAD:**  
 ```json
 {
     "state":"settled"
 }
 ```
-**Example Response:**
+**Example Response:**  
 ```json
 
 {
@@ -439,17 +439,17 @@ Settle Channel. Once channel is closed and `settle_timeout` block has passed, ch
     "reveal_timeout": 5
 }
 ```
-**Status Codes :**
-- `200 OK` - Close/Settle Success
-- `400 Bad Request` - Invalid Parameter
-- `409 Conflict` - State Conflicts
+**Status Codes :**  
+- `200 OK` - Close/Settle Success  
+- `400 Bad Request` - Invalid Parameter  
+- `409 Conflict` - State Conflicts  
 
 
 ## POST /api/1/transfer/*(token_address)*/*(target_address)*
-When channel state is `open` with sufficient funds, participants can make transfers in it.
-**Example Request :**
+When channel state is `open` with sufficient funds, participants can make transfers in it.  
+**Example Request :**  
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`
-**PAYLOAD :**
+**PAYLOAD :**  
 ```json
 {
     "amount":20,
@@ -457,7 +457,7 @@ When channel state is `open` with sufficient funds, participants can make transf
 
 }
 ```
-**Example Response :**
+**Example Response :**  
 ```json
 {
     "initiator_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
@@ -470,9 +470,9 @@ When channel state is `open` with sufficient funds, participants can make transf
 ```
 Send transfers with specified `secret`.
 
-**Example Request :**
-`http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`
-**PAYLOAD :**
+**Example Request :**  
+`http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`  
+**PAYLOAD :**  
 ```json
 {
     "amount":20,
@@ -481,8 +481,8 @@ Send transfers with specified `secret`.
 }
 ```
 ## GET /api/1/querysenttransfer
-Query the transaction record that is sent successfully and return all successful transactions list.
-**Example Response :**
+Query the transaction record that is sent successfully and return all successful transactions list.  
+**Example Response :**  
 ```json
 [
     {
@@ -508,8 +508,8 @@ Query the transaction record that is sent successfully and return all successful
 ]
 ```
 ## GET /api/1/queryreceivedtransfer
-Query successfully received transaction record of Unlock message.
-**Example Response :**
+Query successfully received transaction record of Unlock message.  
+**Example Response :**  
 ```json
 [
     {
@@ -534,11 +534,11 @@ Query successfully received transaction record of Unlock message.
     }
 ]
 ```
-## GET /api/1/getunfinishedreceivedtransfer/*(tokenaddress)*/*(locksecrethash)*
-The receiver of the transaction inquires the transaction that has not yet been received.
-**Example Request :**
-`GET /api/1/getunfinishedreceivedtransfer/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843`
-**Example Response :**
+## GET /api/1/getunfinishedreceivedtransfer/*(tokenaddress)*/*(locksecrethash)*  
+The receiver of the transaction inquires the transaction that has not yet been received.  
+**Example Request :**  
+`GET /api/1/getunfinishedreceivedtransfer/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843`  
+**Example Response :**  
 ```json
 {
     "initiator_address": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
@@ -553,10 +553,10 @@ The receiver of the transaction inquires the transaction that has not yet been r
 ```
 
 ## GET /api/1/transferstatus/*(token_address)*/*(locksecrethash)*
-Query transaction status
-**Example Request :**
-`GET /api/1/transferstatus/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82`
-**Example Response :**
+Query transaction status  
+**Example Request :**  
+`GET /api/1/transferstatus/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82`  
+**Example Response :**  
 ```json
 {
     "LockSecretHash": "0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82",
@@ -564,39 +564,39 @@ Query transaction status
     "StatusMessage": "MediatedTransfer 正在发送 target=151e\nMediatedTransfer 发送成功\n"
 }
 ```
-**Response JSON Array of Objects :**
-- `Status`
-  - 0 - TransferStatusInit init
-  - 1 - TransferStatusCanCancel transfer can cancel right now
-  - 2 - TransferStatusCanNotCancel transfer can not cancel
-  - 3 - TransferStatusSuccess transfer already success
-  - 4 - TransferStatusCanceled transfer cancel by user request
-  - 5 - TransferStatusFailed transfer already failed
+**Response JSON Array of Objects :**  
+- `Status`  
+  - 0 - TransferStatusInit init  
+  - 1 - TransferStatusCanCancel transfer can cancel right now    
+  - 2 - TransferStatusCanNotCancel transfer can not cancel    
+  - 3 - TransferStatusSuccess transfer already success  
+  - 4 - TransferStatusCanceled transfer cancel by user request  
+  - 5 - TransferStatusFailed transfer already failed  
 
-## POST /api/1/registersecret
-Register `secret`, after which `MediatedTransfer` can be successfully unlocked.
-**PAYLOAD :**
+## POST /api/1/registersecret  
+Register `secret`, after which `MediatedTransfer` can be successfully unlocked.  
+**PAYLOAD :**  
 ```json
 {
 	"secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1",
 	"token_address":"0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5"
 }
 ```
-**Status Codes :**
-- `200 OK` - Transfer Success
-- `400 Bad Request` - Invalid Parameter
-- `409 Conflict` - No Valid Router
+**Status Codes :**  
+- `200 OK` - Transfer Success  
+- `400 Bad Request` - Invalid Parameter  
+- `409 Conflict` - No Valid Router  
 
 ## PUT /api/1/token_swaps/*(target_address)*/*(lock_secret_hash)*
 Token Swap can be used to exchange within two types of tokens. Under the circumstances that valid routing strategies are existed, first invoke `taker` then `maker`, and with `/api/1/secret/` channel participants can receive a `lock_secret_hash` / `secret` pair.  tips:
 
-- The parties involved in Swaps have an effective channel
-- Call taker first and then call maker
+- The parties involved in Swaps have an effective channel  
+- Call taker first and then call maker  
 
-**Example Request :**
+**Example Request :**  
 the taker:
-`PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`
-**PAYLOAD :**
+`PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
+**PAYLOAD :**  
 ```json
 {
     "role": "taker",
@@ -606,10 +606,10 @@ the taker:
     "receiving_token": "0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a"
 }
 ```
-the maker:
-`PUT /api/1/token_swaps/0x69C5621db8093ee9a26cc2e253f929316E6E5b92/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`
+the maker:  
+`PUT /api/1/token_swaps/0x69C5621db8093ee9a26cc2e253f929316E6E5b92/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
-**PAYLOAD :**
+**PAYLOAD :**  
 ```json
 {
     "role": "maker",
@@ -620,12 +620,12 @@ the maker:
     "secret": "0x40a6994181d0b98efcf80431ff38f9bae6fefda303f483e7cf5b7de7e341502a"
 }
 ```
-**Status Codes :**
-- `201 Created` - Success
-- `400 Bad Request` - Invalid Parameter
+**Status Codes :**  
+- `201 Created` - Success  
+- `400 Bad Request` - Invalid Parameter  
 ## GET /api/1/secret
-Receive `lock_secret_hash` / `secret` pair.
-**Example Response :**
+Receive `lock_secret_hash` / `secret` pair.  
+**Example Response :**  
 ```json
 {
     "lock_secret_hash": "0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
@@ -634,22 +634,22 @@ Receive `lock_secret_hash` / `secret` pair.
 ```
 
 ## Post /api/1/transfercancel/*(token)*/*(locksecrethash)*
-To revoke a transaction according to token and locksecrethash, only the initiator can invoke it, and the transaction must be revocable.
-**Example Request :**
+To revoke a transaction according to token and locksecrethash, only the initiator can invoke it, and the transaction must be revocable.  
+**Example Request :**  
 `POST /api/1/transfercancel/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0xe0f8d65ddb4f70899b97f36795925a97c1b286582f58f56a041f141d345acdca`
-**Example Response :**
-**200 OK**
-The transaction status can be querying through the`/api/1/transferstatus`
+**Example Response :**  
+**200 OK**  
+The transaction status can be querying through the`/api/1/transferstatus`  
 ## GET /api/1/switch/*(Boolean)*
-Switch to no net state
-- Boolean
-  - `true` - Switch to nonetwork
-  - `false` - Switch to network
-When switching to no net state, only direct transactions can be accepted.
+Switch to no net state  
+- Boolean  
+  - `true` - Switch to nonetwork  
+  - `false` - Switch to network  
+When switching to no net state, only direct transactions can be accepted.  
 
 ##  POST /api/1/updatenodes
-Update node information,It is necessary to update node information in order to ensure normal transaction without network conditions.
-**PAYLOAD :**
+Update node information,It is necessary to update node information in order to ensure normal transaction without network conditions.  
+**PAYLOAD :**  
 ```json
 [{
    "address":"0x151E62a787d0d8d9EfFac182Eae06C559d1B68C2",
@@ -661,7 +661,7 @@ Update node information,It is necessary to update node information in order to e
    "device_type":"mobile"
 }]
 ```
-**Example Response :**
-**200 OK**
+**Example Response :**  
+**200 OK**  
 
 
