@@ -1506,7 +1506,7 @@ func (rs *RaidenService) handleEthRPCConnectionOK() {
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.
-	rs.Chain.Registry(rs.Chain.RegistryProxy.Address, true)
+	rs.Chain.Registry(rs.Config.RegistryAddress, true)
 }
 
 //all user's request
