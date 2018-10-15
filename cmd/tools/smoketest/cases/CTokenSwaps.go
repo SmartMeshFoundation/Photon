@@ -2,6 +2,7 @@ package cases
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/go-errors/errors"
 )
 
 // TokenSwapsPayload :
@@ -79,11 +79,11 @@ func prepareDataForDirectTokenSwap(env *models.RaidenEnvReader) (sender *models.
 	sender, receiver = env.RaidenNodes[0], env.RaidenNodes[1]
 	token1, token2 = env.Tokens[0], env.Tokens[1]
 	if !env.HasOpenedChannelBetween(sender, receiver, token1) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	if !env.HasOpenedChannelBetween(sender, receiver, token2) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	return
@@ -101,19 +101,19 @@ func prepareDataForIndirectTokenSwap(env *models.RaidenEnvReader) (sender *model
 	sender, mid, receiver := env.RaidenNodes[0], env.RaidenNodes[1], env.RaidenNodes[2]
 	token1, token2 = env.Tokens[0], env.Tokens[1]
 	if !env.HasOpenedChannelBetween(sender, mid, token1) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, mid.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, mid.AccountAddress)
 		return
 	}
 	if !env.HasOpenedChannelBetween(mid, receiver, token1) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, mid.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, mid.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	if !env.HasOpenedChannelBetween(sender, mid, token2) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, mid.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, sender.AccountAddress, mid.AccountAddress)
 		return
 	}
 	if !env.HasOpenedChannelBetween(mid, receiver, token2) {
-		err = errors.New(fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, mid.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token2.Address, mid.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	return

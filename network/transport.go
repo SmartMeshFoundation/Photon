@@ -7,6 +7,7 @@ import (
 
 	"net"
 
+	"errors"
 	"sync"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
@@ -15,7 +16,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/go-errors/errors"
 )
 
 //Policier to control the sending speed of transporter

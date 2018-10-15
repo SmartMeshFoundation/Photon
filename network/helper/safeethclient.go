@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"sync"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/fatedier/frp/src/utils/log"
-	"github.com/go-errors/errors"
 )
 
 var errNotConnectd = errors.New("eth not connected")

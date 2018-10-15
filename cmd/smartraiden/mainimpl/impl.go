@@ -2,6 +2,7 @@ package mainimpl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -44,7 +45,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/go-errors/errors"
 	"gopkg.in/urfave/cli.v1"
 )
 
