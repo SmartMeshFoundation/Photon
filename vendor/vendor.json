@@ -571,12 +571,6 @@
 			"revisionTime": "2018-08-21T19:56:54Z"
 		},
 		{
-			"checksumSHA1": "DcM6Fo68U/+wP6usa3qN+7iwpXA=",
-			"path": "github.com/go-errors/errors",
-			"revision": "3afebba5a48dbc89b574d890b6b34d9ee10b4785",
-			"revisionTime": "2017-11-01T22:39:33Z"
-		},
-		{
 			"checksumSHA1": "wDZdTaY9JiqqqnF4c3pHP71nWmk=",
 			"path": "github.com/go-ole/go-ole",
 			"revision": "be49f7c07711fcb603cff39e1de7c67926dc0ba7",
