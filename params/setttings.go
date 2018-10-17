@@ -151,3 +151,6 @@ var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 
 // DefaultEthRPCPollPeriod :
 var DefaultEthRPCPollPeriod = 15 * time.Second
+
+// TestPrivateChainID :
+var TestPrivateChainID int64 = 8888
