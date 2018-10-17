@@ -660,6 +660,19 @@ func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtr
 	return nil
 }
 
+func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockStateChange) error {
+	eh.dispatchToAllTasks(st)
+	//for _, cg := range eh.raiden.Token2ChannelGraph {
+	//	for _, c := range cg.ChannelIdentifier2Channel {
+	//		err := eh.ChannelStateTransition(c, st)
+	//		if err != nil {
+	//			log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
+	//		}
+	//	}
+	//}
+	return nil
+}
+
 //avoid dead lock
 func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
 	switch st2 := st.(type) {
@@ -736,7 +749,6 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 }
 
 func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateChange) (err error) {
-	log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
 	switch st2 := st.(type) {
 	case *mediatedtransfer.ContractTokenAddedStateChange:
 		err = eh.HandleTokenAdded(st2)
@@ -760,6 +772,8 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		err = eh.handleCooperativeSettled(st2)
 	case *mediatedtransfer.ContractChannelWithdrawStateChange:
 		err = eh.handleWithdraw(st2)
+	case *transfer.BlockStateChange:
+		err = eh.handleBlockStateChange(st2)
 	default:
 		err = fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())

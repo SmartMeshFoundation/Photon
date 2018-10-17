@@ -13,6 +13,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -26,7 +27,8 @@ var TestKeystorePath = os.Getenv("KEYSTORE")
 var TestPassword = "123"
 
 // DeployRegistryContract :
-func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokenNetworkRegistry, err error) {
+func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokenNetworkRegistry, secretRegistryAddress common.Address, err error) {
+	var tx *types.Transaction
 	conn, err := GetEthClient()
 	if err != nil {
 		return
@@ -41,7 +43,7 @@ func DeployRegistryContract() (registryAddress common.Address, registry *contrac
 	auth := bind.NewKeyedTransactor(key)
 
 	//Deploy Secret Registry
-	secretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
+	secretRegistryAddress, tx, _, err = contracts.DeploySecretRegistry(auth, conn)
 	if err != nil {
 		err = fmt.Errorf("failed to deploy SecretRegistry contract: %v", err)
 		return
@@ -85,6 +87,7 @@ type TestAccount struct {
 }
 
 // GetAccounts :
+// TODO 解耦account模块
 func GetAccounts() (accounts []TestAccount, err error) {
 	am := accountModule.NewAccountManager(TestKeystorePath)
 	if len(am.Accounts) == 0 {

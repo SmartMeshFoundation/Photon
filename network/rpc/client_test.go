@@ -11,13 +11,10 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func init() {
@@ -35,49 +32,6 @@ func TestAddToken(t *testing.T) {
 		t.Errorf("should fail for invalid token")
 		return
 	}
-}
-
-func TestGetAddTokenLog(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	logs, err := EventGetInternal(context.Background(), bcs.RegistryProxy.Address, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	spew.Dump(logs)
-}
-func TestEventSubscribe(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	ch := make(chan types.Log, 1)
-	t.Log("wait for tokenadded event")
-	sub, err := EventSubscribeInternal(context.Background(), bcs.RegistryProxy.Address, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, "TokenNetworkCreated", contracts.TokenNetworkRegistryABI, bcs.Client.Client, ch)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	//select {
-	//case log := <-ch:
-	//	spew.Dump(log)
-	//	break
-	//case err = <-sub.Err():
-	//	t.Error(err)
-	//	break
-	//}
-	sub.Unsubscribe()
-}
-
-func TestEventGetChannelNew(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	tokenNetworkAddress := TestGetTokenNetworkAddress()
-	logs, err := EventGetInternal(context.Background(), tokenNetworkAddress, rpc.EarliestBlockNumber,
-		rpc.LatestBlockNumber, params.NameChannelOpened, contracts.TokenNetworkABI, bcs.Client)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	spew.Dump(logs)
 }
 
 func TestCodeAt(t *testing.T) {

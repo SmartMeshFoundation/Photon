@@ -146,5 +146,11 @@ var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// ethereum test net
 	common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): utils.EmptyAddress,
 	// ethereum private
-	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0xf86D80dcFE02fDfadA663ab5df8186e15aC99232"),
+	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0x56d05806656D3Ea8F2142a2FF2eA6dFE5D625254"),
 }
+
+// DefaultEthRPCPollPeriod :
+var DefaultEthRPCPollPeriod = 15 * time.Second
+
+// TestPrivateChainID :
+var TestPrivateChainID int64 = 8888

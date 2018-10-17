@@ -341,7 +341,7 @@ func (r *RaidenAPI) GetTokenTokenNetorks() (tokens []string) {
 
 //Transfer transfer and wait
 func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferAsync(token, amount, fee, target, secret, isDirectTransfer)
+	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer)
 	if err != nil {
 		return
 	}
@@ -358,8 +358,23 @@ func (r *RaidenAPI) Transfer(token common.Address, amount *big.Int, fee *big.Int
 	return result, err
 }
 
-//TransferAsync :
+// TransferAsync :
 func (r *RaidenAPI) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer)
+	if err != nil {
+		return
+	}
+	timeoutCh := time.After(300 * time.Millisecond)
+	select {
+	case <-timeoutCh:
+		return result, nil
+	case err = <-result.Result:
+	}
+	return result, err
+}
+
+//TransferInternal :
+func (r *RaidenAPI) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {

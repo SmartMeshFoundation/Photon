@@ -3,8 +3,6 @@ package mediatedtransfer
 import (
 	"math/big"
 
-	"math"
-
 	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
@@ -124,18 +122,6 @@ ContractStateChange  所有的合约事件都应该是按照链上发生的顺�
 // which makes sure that events will not be sent to another channel when the same channel resumes its settle phase.
 type ContractStateChange interface {
 	GetBlockNumber() int64
-}
-
-//FakeLastHistoryContractStateChange 主要用来通知上层,历史合约事件处理完毕
-// FakeLastHistoryContractStateChange : mainly used to send notification to upper layer
-// that history events have been completed.
-type FakeLastHistoryContractStateChange struct {
-}
-
-//GetBlockNumber 返回一个不可能存在的块数,
-// GetBlockNumber : returns the block number that never exists.
-func (e *FakeLastHistoryContractStateChange) GetBlockNumber() int64 {
-	return math.MaxInt64
 }
 
 /*

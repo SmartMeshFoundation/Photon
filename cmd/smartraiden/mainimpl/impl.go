@@ -2,7 +2,6 @@ package mainimpl
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -310,13 +309,6 @@ func regQuitHandler(api *smartraiden.RaidenAPI) {
 func config(ctx *cli.Context) (config *params.Config, err error) {
 	config = &params.DefaultConfig
 	config.EthRPCEndPoint = ctx.String("eth-rpc-endpoint")
-	// 禁止使用http协议启动,smartraiden,因为会出现以有网状态启动,但始终无法获取到链上的事件的情况,这会带来风险
-	// Forbid starting up via HTTP, because there is case that smartraiden starting while in internect connection
-	// but failing to get on-chain events, which brings potential risks into the system.
-	if strings.HasPrefix(config.EthRPCEndPoint, "http") {
-		err = fmt.Errorf("cannot connect to geth :%s err= does not support http protocol,please use websocket instead", config.EthRPCEndPoint)
-		return
-	}
 
 	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
 	if err != nil {
@@ -448,12 +440,12 @@ func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helpe
 	}
 	if !isFirstStartUp && config.RegistryAddress != utils.EmptyAddress && dbRegistryAddress != config.RegistryAddress {
 		err = fmt.Errorf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
-			registryAddress.String(), config.RegistryAddress.String()))
+			dbRegistryAddress.String(), config.RegistryAddress.String()))
 		return
 	}
 	if isFirstStartUp {
 		if config.RegistryAddress == utils.EmptyAddress {
-			registryAddress, err = getDefaultRegistryByEthClien(client)
+			registryAddress, err = getDefaultRegistryByEthClient(client)
 			if err != nil {
 				return
 			}
@@ -467,7 +459,7 @@ func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helpe
 	return
 }
 
-func getDefaultRegistryByEthClien(client *helper.SafeEthClient) (registryAddress common.Address, err error) {
+func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddress common.Address, err error) {
 	var genesisBlockHash common.Hash
 	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
 	if err != nil {
@@ -488,7 +480,7 @@ func verifyContractCode(registryAddress common.Address, client *helper.SafeEthCl
 		return
 	}
 	if !strings.Contains(utils.BPex(codeBytesOnChain), contracts.TokenNetworkBin[2:]) {
-		err = errors.New("local contract code mismatch contract code on chain")
+		err = fmt.Errorf("local contract code mismatch contract code on chain, address = %s", registryAddress.String())
 	}
 	return
 }
