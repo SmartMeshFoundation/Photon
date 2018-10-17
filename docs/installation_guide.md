@@ -75,9 +75,9 @@ In order to use SmartRaiden correctly and safely there are some things that need
 
 - **Layer 1 works reliably:** That means that you have a local public chain node, or connect to a stable server which own the public chain node , that is always synced and working reliably. If there are any problems or bugs on the client then SmartRaiden can not work reliably.   
 - **Unique account for SmartRaiden:** We need to have a specific public chain account dedicated to SmartRaiden. Creating any manual transaction with the account that SmartRaiden uses, while the SmartRaiden client is running, can result in undefined behaviour.  
-- **SmartRaiden account has sufficient Public Chain Coin:** SmartRaiden will try to warn you if there is not enough Public chain coin  in your smartraiden account in order to maintain your current open chanels and go through their entire cycle.  
-- **Persistency of local DB:** Your local state database is located at ~/.smartraiden. This data should not be deleted by the user or tampered with in any way. Frequent backups are also recommended. Deleting this directory could mean losing funds.  
-- **SmartRaiden Always online:** Make sure that your node is always working, your network connection is stable and that the SmartRaiden node is always online. If it crashes for whatever reason you are responsible to restart it and keep it always online. We recommend running it inside some form of monitor that will restart if for some reason the smartraiden node crashes.  
+- **SmartRaiden account need sufficient Public Chain Coin:** SmartRaiden will not to warn you whether there is enough Public chain coin in smartraiden account or not, so you need to transfer sufficient public chain coin to the account in order to maintain your current open chanels and go through their entire cycle.    
+- **Persistency of local DB:** Your local state database is located at ~/.smartraiden. This data should not be deleted by the user or tampered with in any way. Frequent backups are also recommended. Deleting this directory could mean losing funds.    
+- **SmartRaiden node can be offline or online according to usage :** In smartraiden,some nodes ,such as mobile nodes(just for payment requirment), can be offline after delegating evidence to the SmartMonitor; Another nodes, such as meshbox nodes,which provide the mediate transfer service, need to confirm that the inside smartraiden node is always running, If it crashes for whatever reason you are responsible to restart it.
 
 ## Firing it up
 ### Ethereum
