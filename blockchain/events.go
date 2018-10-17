@@ -119,6 +119,7 @@ Start listening events send to  channel can duplicate but cannot lose.
 func (be *Events) Start(LastBlockNumber int64) {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
 	be.lastBlockNumber = LastBlockNumber
+	be.stopped = false
 	/*
 		1. start alarm task
 	*/
