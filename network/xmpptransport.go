@@ -2,10 +2,10 @@ package network
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
-	"time"
-
 	"sync"
+	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
@@ -15,7 +15,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/go-errors/errors"
 )
 
 var errXMPPConnectionNotReady = errors.New("xmpp connection not ready")

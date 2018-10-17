@@ -1,6 +1,7 @@
 package cases
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/go-errors/errors"
 )
 
 // TransferPayload API  http body
@@ -120,7 +120,7 @@ func prepareDataForDirectTransfer(env *models.RaidenEnvReader) (sender *models.R
 		}
 	}
 	if token == nil {
-		err = errors.New(fmt.Errorf("no opened channel between %s and %s", sender.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no opened channel between %s and %s", sender.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	return
@@ -140,7 +140,7 @@ func prepareDataForIndirectTransfer(env *models.RaidenEnvReader) (sender *models
 		}
 	}
 	if token == nil {
-		err = errors.New(fmt.Errorf("no enable route between %s and %s", sender.AccountAddress, receiver.AccountAddress))
+		err = fmt.Errorf("no enable route between %s and %s", sender.AccountAddress, receiver.AccountAddress)
 		return
 	}
 	return
