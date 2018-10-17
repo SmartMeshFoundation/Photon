@@ -157,12 +157,27 @@ func TestVerifyContractCode(t *testing.T) {
 	if err != nil {
 		t.Error(err.Error())
 	}
-	registryAddress, _, err := codefortest.DeployRegistryContract()
+	registryAddress, _, _, err := codefortest.DeployRegistryContract()
 	if err != nil {
 		t.Error(err.Error())
 	}
 	err = verifyContractCode(registryAddress, client)
 	if err != nil {
 		t.Error(err.Error())
+	}
+}
+
+func TestChan(t *testing.T) {
+	c := make(chan int)
+	ok := false
+	select {
+	case _, ok2 := <-c:
+		ok = ok2
+	default:
+	}
+	if ok {
+		close(c)
+	} else {
+		fmt.Println("already close")
 	}
 }

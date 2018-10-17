@@ -81,7 +81,6 @@ type RaidenService struct {
 	MessageHandler           *raidenMessageHandler
 	StateMachineEventHandler *stateMachineEventHandler
 	BlockChainEvents         *blockchain.Events
-	AlarmTask                *blockchain.AlarmTask
 	db                       *models.ModelDB
 	FeePolicy                fee.Charger //Mediation fee
 	NotifyHandler            *notify.Handler
@@ -149,7 +148,6 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
 		Token2Hashlock2Channels:               make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                     make(map[swapKey]*TokenSwap),
-		AlarmTask:                             blockchain.NewAlarmTask(chain.Client),
 		UserReqChan:                           make(chan *apiReq, 10),
 		BlockNumber:                           new(atomic.Value),
 		ProtocolMessageSendComplete:           make(chan *protocolMessage, 10),
@@ -275,7 +273,6 @@ func (rs *RaidenService) Start() (err error) {
 func (rs *RaidenService) Stop() {
 	log.Info("raiden service stop...")
 	close(rs.quitChan)
-	rs.AlarmTask.Stop()
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
 	rs.Chain.Client.Close()
@@ -302,7 +299,6 @@ func (rs *RaidenService) loop() {
 	var ok bool
 	var m *network.MessageToRaiden
 	var st transfer.StateChange
-	var blockNumber int64
 	var req *apiReq
 	var sentMessage *protocolMessage
 
@@ -324,40 +320,23 @@ func (rs *RaidenService) loop() {
 			// contract events from block chain
 		case st, ok = <-rs.BlockChainEvents.StateChangeChannel:
 			if ok {
-				_, ok = st.(*mediatedtransfer.FakeLastHistoryContractStateChange)
-				if ok {
-					// 历史合约事件处理完成
-					// 启动时,通知上层
-					// Complete handling history contract events.
-					// When we start, notify it to uppercase.
-					if rs.isStarting {
-						rs.ChanHistoryContractEventsDealComplete <- struct{}{}
-					}
-					// 启动AlarmTask
-					// Start AlarmTask
-					err = rs.AlarmTask.Start()
-					if err != nil {
-						log.Error(fmt.Sprintf("alarm task start err %s", err))
-					} else {
-						//must have a valid blocknumber before any transfer operation
-						rs.BlockNumber.Store(rs.AlarmTask.LastBlockNumber)
+				blockStateChange, ok2 := st.(*transfer.BlockStateChange)
+				if ok2 {
+					rs.BlockNumber.Store(blockStateChange.BlockNumber)
+					rs.db.SaveLatestBlockNumber(blockStateChange.BlockNumber)
+					if rs.ChanHistoryContractEventsDealComplete != nil {
+						close(rs.ChanHistoryContractEventsDealComplete)
+						rs.ChanHistoryContractEventsDealComplete = nil
 					}
 				} else {
-					err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
-					if err != nil {
-						log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
-					}
+					log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
+				}
+				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
+				if err != nil {
+					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
 				}
 			} else {
 				log.Info("Events.StateChangeChannel closed")
-				return
-			}
-			// new block event, it's the timer of raiden
-		case blockNumber, ok = <-rs.AlarmTask.LastBlockNumberChan:
-			if ok {
-				rs.handleBlockNumber(blockNumber)
-			} else {
-				log.Info("BlockNumberChan closed")
 				return
 			}
 		//user's request
@@ -1498,11 +1477,7 @@ func (rs *RaidenService) handleEthRPCConnectionOK() {
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
-	err := rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
-	if err != nil {
-		err = fmt.Errorf("events listener error %v", err)
-		return
-	}
+	rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.

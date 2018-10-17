@@ -1,35 +1,10 @@
 package blockchain
 
 import (
-	"strings"
-
-	"fmt"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/types"
 )
-
-var secretRegistryAbi abi.ABI
-var tokenNetworkRegistryAbi abi.ABI
-var tokenNetworkAbi abi.ABI
-
-func init() {
-	var err error
-	secretRegistryAbi, err = abi.JSON(strings.NewReader(contracts.SecretRegistryABI))
-	if err != nil {
-		panic(fmt.Sprintf("secretRegistryAbi parse err %s", err))
-	}
-	tokenNetworkAbi, err = abi.JSON(strings.NewReader(contracts.TokenNetworkABI))
-	if err != nil {
-		panic(fmt.Sprintf("tokenNetworkAbi parse err %s", err))
-	}
-	tokenNetworkRegistryAbi, err = abi.JSON(strings.NewReader(contracts.TokenNetworkRegistryABI))
-	if err != nil {
-		panic(fmt.Sprintf("tokenNetworkRegistryAbi parse err %s", err))
-	}
-}
 
 func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkRegistryTokenNetworkCreated, err error) {
 	event = &contracts.TokenNetworkRegistryTokenNetworkCreated{}
