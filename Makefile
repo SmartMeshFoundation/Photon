@@ -6,9 +6,12 @@
 
 
 export GOBIN = $(shell pwd)/build/bin
+export GIT_COMMIT=$(shell git rev-list -1 HEAD)
+export GO_VERSION=$(shell go version|sed 's/ //g')
+export BUILD_DATE=$(shell date|sed 's/ //g')
 all: smartraiden batchtransfer deploy newtestenv  withdrawhash
 smartraiden:
-	go  install ./cmd/smartraiden
+	go  install -ldflags ' -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GitCommit=$(GIT_COMMIT) -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GoVersion="$(GO_VERSION)" -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.BuildDate="$(BUILD_DATE)" '  ./cmd/smartraiden
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/smartraiden\" to launch smartraiden."
 
