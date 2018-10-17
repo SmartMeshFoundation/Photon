@@ -25,7 +25,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/satori/go.uuid"
 )
 
 // BytesToString accepts bytes and returns their string presentation
@@ -58,14 +57,6 @@ func StringToBytes(s string) []byte {
 	/* #nosec */
 	return *(*[]byte)(unsafe.Pointer(&bh))
 }
-
-//
-const (
-	letterBytes   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-)
 
 //RandSrc random source from math
 var RandSrc = rand.NewSource(time.Now().UnixNano())
@@ -109,13 +100,8 @@ func NewRandomAddress() common.Address {
 }
 
 //NewRandomHash generate random hash,for testonly
-//todo 这似乎并不是一个好的生产密码的方式,虽然说不容易重复,但是是不是容易被猜到呢?
 func NewRandomHash() common.Hash {
-	u2, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Sprintf("Something went wrong: %s", err))
-	}
-	return Sha3(u2.Bytes())
+	return Sha3(Random(64))
 }
 
 //MakePrivateKeyAddress generate a private key and it's address
@@ -170,23 +156,6 @@ func Exists(dir string) bool {
 		return false
 	}
 	return true
-}
-
-// SecretGenerator Return n random bytes suitable for cryptographic and it's corresponding hashlock
-type SecretGenerator func() (secret, hashlock common.Hash)
-
-//RandomSecretGenerator generate a random secret
-func RandomSecretGenerator() (secret, hashlock common.Hash) {
-	secret = common.BytesToHash(Random(32))
-	hashlock = ShaSecret(secret[:])
-	return
-}
-
-//NewSepecifiedSecretGenerator create a secret generator which don't know the secret
-func NewSepecifiedSecretGenerator(hashlock common.Hash) SecretGenerator {
-	return func() (secret, hashlock2 common.Hash) {
-		return EmptyHash, hashlock
-	}
 }
 
 // GetHomePath returns the user's $HOME directory
