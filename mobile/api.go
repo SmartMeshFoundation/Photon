@@ -926,6 +926,6 @@ func (a *API) NotifyNetworkDown() error {
 	if client.IsConnected() {
 		client.Client.Close()
 	}
-	client.RecoverDisconnect()
+	go client.RecoverDisconnect()
 	return nil
 }
