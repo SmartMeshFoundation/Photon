@@ -662,14 +662,14 @@ func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtr
 
 func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockStateChange) error {
 	eh.dispatchToAllTasks(st)
-	for _, cg := range eh.raiden.Token2ChannelGraph {
-		for _, c := range cg.ChannelIdentifier2Channel {
-			err := eh.ChannelStateTransition(c, st)
-			if err != nil {
-				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
-			}
-		}
-	}
+	//for _, cg := range eh.raiden.Token2ChannelGraph {
+	//	for _, c := range cg.ChannelIdentifier2Channel {
+	//		err := eh.ChannelStateTransition(c, st)
+	//		if err != nil {
+	//			log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
+	//		}
+	//	}
+	//}
 	return nil
 }
 

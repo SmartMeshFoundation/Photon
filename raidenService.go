@@ -323,17 +323,19 @@ func (rs *RaidenService) loop() {
 				blockStateChange, ok2 := st.(*transfer.BlockStateChange)
 				if ok2 {
 					rs.BlockNumber.Store(blockStateChange.BlockNumber)
-					rs.db.SaveLatestBlockNumber(blockStateChange.BlockNumber)
-					if rs.ChanHistoryContractEventsDealComplete != nil {
-						close(rs.ChanHistoryContractEventsDealComplete)
-						rs.ChanHistoryContractEventsDealComplete = nil
-					}
 				} else {
 					log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
 				}
 				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
 				if err != nil {
 					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
+				}
+				if ok2 {
+					rs.db.SaveLatestBlockNumber(blockStateChange.BlockNumber)
+					if rs.ChanHistoryContractEventsDealComplete != nil {
+						close(rs.ChanHistoryContractEventsDealComplete)
+						rs.ChanHistoryContractEventsDealComplete = nil
+					}
 				}
 			} else {
 				log.Info("Events.StateChangeChannel closed")

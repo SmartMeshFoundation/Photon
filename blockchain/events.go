@@ -172,11 +172,12 @@ func (be *Events) startAlarmTask() {
 		currentBlock = lastedBlock
 		be.lastBlockNumber = currentBlock
 
+		be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
+
 		// notify raiden service
 		for _, sc := range stateChanges {
 			be.StateChangeChannel <- sc
 		}
-		be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 
 		// wait to next time
 		time.Sleep(be.pollPeriod)
