@@ -138,7 +138,8 @@ func (be *Events) startAlarmTask() {
 		h, err := be.client.HeaderByNumber(context.Background(), nil)
 		if err != nil && !be.stopped {
 			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
-			be.client.RecoverDisconnect()
+			go be.client.RecoverDisconnect()
+			return
 		}
 		if be.pollPeriod == 0 {
 			// first time
