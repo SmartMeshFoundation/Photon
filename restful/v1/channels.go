@@ -384,3 +384,22 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
+
+//BalanceUpdateForPFS for path finding service, test only
+func BalanceUpdateForPFS(w rest.ResponseWriter, r *rest.Request) {
+	ch := r.PathParam("channel")
+	channelIdentifier := common.HexToHash(ch)
+	if channelIdentifier == utils.EmptyHash {
+		rest.Error(w, "argument error", http.StatusBadRequest)
+		return
+	}
+	result, err := RaidenAPI.BalanceProofForPFS(channelIdentifier)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = w.WriteJson(result)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
