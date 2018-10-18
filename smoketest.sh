@@ -4,7 +4,8 @@
 
 # 1. install smartraiden
 cd $GOPATH/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
-go install
+./build.sh
+cp smartraiden $GOPATH/bin
 
 # 2. build envinit and run
 cd ../tools/smoketest/envinit
