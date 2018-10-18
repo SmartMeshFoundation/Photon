@@ -26,7 +26,23 @@ import (
 //
 // should not export any member because of gomobile's protocol
 type API struct {
-	api *smartraiden.RaidenAPI
+	api           *smartraiden.RaidenAPI
+	callID2result map[string]Result
+}
+
+// Result :
+type Result struct {
+	Result string `json:"result"`
+	Err    error  `json:"error"`
+	Done   bool   `json:"done"`
+}
+
+func newResult() Result {
+	return Result{
+		Result: "",
+		Err:    nil,
+		Done:   false,
+	}
 }
 
 func marshal(v interface{}) (s string, err error) {
@@ -205,7 +221,21 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
+func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.openChannel(partnerAddress, tokenAddress, settleTimeout, balanceStr)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+
+func (a *API) openChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api OpenChannel in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
@@ -263,7 +293,21 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
+func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.closeChannel(channelIdentifier, force)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+
+}
+func (a *API) closeChannel(channelIdentifier string, force bool) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api CloseChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
 			channelIdentifier, channel, err,
@@ -322,7 +366,20 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
+func (a *API) SettleChannel(channelIdentifier string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.settleChannel(channelIdentifier)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+func (a *API) settleChannel(channelIdentifier string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api SettleChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
 			channelIdentifier, channel, err,
@@ -374,7 +431,20 @@ example returns
     "reveal_timeout": 0
 }
 */
-func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
+func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.depositChannel(channelIdentifier, balanceStr)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+func (a *API) depositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api DepositChannel channelIdentifier=%s,balanceStr=%s,out channel=\n%s,err=%v",
 			channelIdentifier, balanceStr, channel, err,
@@ -519,7 +589,20 @@ for example:
 tokenNetworkAddress: 0xBb1e95363b0181De7bBf394f18eaC7D4230e391A
 err: nil
 */
-func (a *API) RegisterToken(tokenAddress string) (tokenNetworkAddress string, err error) {
+func (a *API) RegisterToken(tokenAddress string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.registerToken(tokenAddress)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+func (a *API) registerToken(tokenAddress string) (tokenNetworkAddress string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api RegisterToken tokenAddress=%s,tokenNetworkAddress=%s,err=%v",
 			tokenAddress, tokenNetworkAddress, err,
@@ -604,7 +687,19 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 TokenSwap token swap for maker for two raiden nodes
 the role should only be  "maker" or "taker".
 */
-func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
+func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		e := a.tokenSwap(role, lockSecretHash, SendingAmountStr, ReceivingAmountStr, SendingToken, ReceivingToken, TargetAddress, SecretStr)
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+func (a *API) tokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
 	type Req struct {
 		Role            string   `json:"role"`
 		SendingAmount   *big.Int `json:"sending_amount"`
@@ -929,4 +1024,24 @@ func (a *API) NotifyNetworkDown() error {
 	}
 	go client.RecoverDisconnect()
 	return nil
+}
+
+// GetCallResult :
+func (a *API) GetCallResult(callID string) (r string, done bool, err error) {
+	result, ok := a.callID2result[callID]
+	if !ok {
+		err = errors.New("not found")
+		return
+	}
+	if result.Err != nil {
+		err = result.Err
+		return
+	}
+	r = result.Result
+	done = result.Done
+	err = result.Err
+	if done {
+		delete(a.callID2result, callID)
+	}
+	return
 }
