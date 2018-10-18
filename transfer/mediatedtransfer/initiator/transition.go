@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	mt "github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
@@ -112,7 +113,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		         The two nodes will most likely disagree on latest block, as far as
 		         the expiration goes this is no problem.
 	*/
-	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout())
+	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout()) - int64(params.DefaultRevealTimeout) // - revealTimeout for test
 	if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
 		lockExpiration = state.Transfer.Expiration
 	}

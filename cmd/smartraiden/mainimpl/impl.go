@@ -409,7 +409,13 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 			s: fmt.Sprintf("http://%s:8008", s),
 		}
 	}
-	config.RevealTimeout = ctx.Int("reveal-timeout")
+
+	if ctx.IsSet("reveal-timeout") {
+		config.RevealTimeout = ctx.Int("reveal-timeout")
+		if config.RevealTimeout <= 0 {
+			log.Warn("reveal timeout should > 0")
+		}
+	}
 	return
 }
 
