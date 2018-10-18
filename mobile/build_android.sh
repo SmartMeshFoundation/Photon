@@ -6,9 +6,9 @@ echo $GIT_COMMIT
 echo $GO_VERSION
 echo $BUILD_DATE
 gomobile bind -ldflags " -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GitCommit=$GIT_COMMIT -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GoVersion=$GO_VERSION -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.BuildDate=$BUILD_DATE " 
- -target=android
-gomobile bind -ldflags " -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GitCommit=$GIT_COMMIT -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GoVersion=$GO_VERSION -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.BuildDate=$BUILD_DATE " 
- -target=ios
+   -target=android
+#gomobile bind -ldflags " -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GitCommit=$GIT_COMMIT -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GoVersion=$GO_VERSION -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.BuildDate=$BUILD_DATE " 
+  -target=ios
 #gomobile bind -v -tags=lldb -gcflags "-N -l"  -target=ios
 #tar cjf - Mobile.framework/ | split -b 5m - ./out/ios.tar.bz2.
 #tar cjf - mobile.aar mobile-sources.jar | split -b 5m - ./out/android.tar.bz2
