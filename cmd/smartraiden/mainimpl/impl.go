@@ -67,6 +67,9 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 	os.Args[0] = "smartraiden"
 	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%s\n", GoVersion, GitCommit, BuildDate)
 	fmt.Printf("os.args=%q\n", os.Args)
+	if len(GitCommit) != len(utils.EmptyAddress)*2 {
+		return nil, fmt.Errorf("smartraiden must build use makefile")
+	}
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
