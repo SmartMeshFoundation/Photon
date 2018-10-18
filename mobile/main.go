@@ -55,6 +55,6 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	if err != nil {
 		return
 	}
-	api = &API{rapi}
+	api = &API{rapi, make(map[string]Result)}
 	return
 }
