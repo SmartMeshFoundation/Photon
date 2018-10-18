@@ -34,12 +34,14 @@ type API struct {
 type Result struct {
 	Result string `json:"result"`
 	Err    error  `json:"error"`
+	Done   bool   `json:"done"`
 }
 
 func newResult() Result {
 	return Result{
 		Result: "",
-		Err:    errors.New("dealing"),
+		Err:    nil,
+		Done:   false,
 	}
 }
 
@@ -227,6 +229,7 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 		r, e := a.openChannel(partnerAddress, tokenAddress, settleTimeout, balanceStr)
 		result.Result = r
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -298,6 +301,7 @@ func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string,
 		r, e := a.closeChannel(channelIdentifier, force)
 		result.Result = r
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -370,6 +374,7 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 		r, e := a.settleChannel(channelIdentifier)
 		result.Result = r
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -434,6 +439,7 @@ func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callI
 		r, e := a.depositChannel(channelIdentifier, balanceStr)
 		result.Result = r
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -591,6 +597,7 @@ func (a *API) RegisterToken(tokenAddress string) (callID string, err error) {
 		r, e := a.registerToken(tokenAddress)
 		result.Result = r
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -687,6 +694,7 @@ func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, Re
 	go func() {
 		e := a.tokenSwap(role, lockSecretHash, SendingAmountStr, ReceivingAmountStr, SendingToken, ReceivingToken, TargetAddress, SecretStr)
 		result.Err = e
+		result.Done = true
 		a.callID2result[callID] = result
 	}()
 	return
@@ -1019,15 +1027,21 @@ func (a *API) NotifyNetworkDown() error {
 }
 
 // GetCallResult :
-func (a *API) GetCallResult(callID string) (r string, err error) {
+func (a *API) GetCallResult(callID string) (r string, done bool, err error) {
 	result, ok := a.callID2result[callID]
 	if !ok {
 		err = errors.New("not found")
+		return
 	}
 	if result.Err != nil {
 		err = result.Err
 		return
 	}
 	r = result.Result
+	done = result.Done
+	err = result.Err
+	if done {
+		delete(a.callID2result, callID)
+	}
 	return
 }

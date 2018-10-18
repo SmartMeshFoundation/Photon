@@ -8,7 +8,10 @@ import (
 
 	"encoding/json"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -53,7 +56,21 @@ func TestMobile(t *testing.T) {
 	}
 
 	partnerAddr := utils.NewRandomAddress()
-	channelstr, err := api.OpenChannel(partnerAddr.String(), tokens[0].String(), 30, "3")
+	callID, err := api.OpenChannel(partnerAddr.String(), tokens[0].String(), 30, "3")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var channelstr string
+	var done bool
+	for {
+		channelstr, done, err = api.GetCallResult(callID)
+		if !done {
+			time.Sleep(time.Second)
+			continue
+		}
+		break
+	}
 	if err != nil {
 		t.Error(err)
 		return
@@ -64,13 +81,36 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, err = api.CloseChannel(c.ChannelIdentifier, true)
+	callID, err = api.CloseChannel(c.ChannelIdentifier, true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	//c := channels[0]
-	//api.Transfers(c.TokenAddress.String(), c.PartnerAddress.String(), "1", "0", 0)
+	for {
+		channelstr, done, err = api.GetCallResult(callID)
+		if !done {
+			time.Sleep(time.Second)
+			continue
+		}
+		break
+	}
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = json.Unmarshal([]byte(channelstr), &c)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if c.State != contracts.ChannelStateClosed {
+		t.Error(err)
+		return
+	}
+	_, _, err = api.GetCallResult(callID)
+	if err.Error() != "not found" {
+		t.Error(err)
+	}
 }
 
 func TestFormat(t *testing.T) {
