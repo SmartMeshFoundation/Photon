@@ -31,8 +31,4 @@ func main() {
 
 	// 5. Run smoke test
 	SmokeTest()
-
-	// 6. save all data to after.data
-	env.Refresh()
-	env.SaveToFile("./log/after.data")
 }
