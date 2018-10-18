@@ -53,10 +53,23 @@ func init() {
 
 var api *smartraiden.RaidenAPI
 
+//GoVersion genegate at build time
+var GoVersion string
+
+//GitCommit genegate at build time
+var GitCommit string
+
+//BuildDate genegate at build time
+var BuildDate string
+
 //StartMain entry point of raiden app
 func StartMain() (*smartraiden.RaidenAPI, error) {
 	os.Args[0] = "smartraiden"
+	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%s\n", GoVersion, GitCommit, BuildDate)
 	fmt.Printf("os.args=%q\n", os.Args)
+	if len(GitCommit) != len(utils.EmptyAddress)*2 {
+		return nil, fmt.Errorf("smartraiden must build use makefile")
+	}
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
