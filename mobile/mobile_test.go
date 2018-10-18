@@ -10,6 +10,7 @@ import (
 
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
@@ -18,6 +19,9 @@ import (
 )
 
 func TestMobile(t *testing.T) {
+	mainimpl.GoVersion = "test"
+	mainimpl.GitCommit = utils.NewRandomAddress().String()[2:]
+	mainimpl.BuildDate = "test"
 	nodeAddr := common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa")
 	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", os.Getenv("TOKEN_NETWORK_REGISTRY"), nil)
 	if err != nil {
@@ -111,6 +115,8 @@ func TestMobile(t *testing.T) {
 	if err.Error() != "not found" {
 		t.Error(err)
 	}
+
+	api.Stop()
 }
 
 func TestFormat(t *testing.T) {
