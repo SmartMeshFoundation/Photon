@@ -924,8 +924,9 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 func (a *API) NotifyNetworkDown() error {
 	client := a.api.Raiden.Chain.Client
 	if client.IsConnected() {
+		a.api.Raiden.BlockChainEvents.Stop()
 		client.Client.Close()
 	}
-	client.RecoverDisconnect()
+	go client.RecoverDisconnect()
 	return nil
 }
