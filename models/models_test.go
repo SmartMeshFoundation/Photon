@@ -126,7 +126,6 @@ func TestGobAddressMap(t *testing.T) {
 		return
 	}
 	encodedData := buf.Bytes()
-	fmt.Printf("first\n%s", hex.Dump(encodedData))
 	dec := gob.NewDecoder(bytes.NewBuffer(encodedData))
 	var am2 AddressMap
 	err = dec.Decode(&am2)
@@ -136,16 +135,24 @@ func TestGobAddressMap(t *testing.T) {
 	}
 	if !reflect.DeepEqual(am, am2) {
 		t.Error("not equal")
+		return
 	}
 	var buf2 bytes.Buffer
 	enc2 := gob.NewEncoder(&buf2)
 	enc2.Encode(&am2)
 	encodedData2 := buf2.Bytes()
-	fmt.Printf("second\n%s", hex.Dump(encodedData2))
-	if !reflect.DeepEqual(encodedData, encodedData2) {
-		t.Error("not equal")
+	//should not use bytes equal, because map's random visit mechanism
+	//if !reflect.DeepEqual(encodedData, encodedData2) {
+	if len(encodedData) != len(encodedData2) {
+		t.Errorf("not equal,encodedata=%s,encodedata2=%s", utils.StringInterface(encodedData, 2), utils.StringInterface(encodedData2, 2))
+		panic("err")
 	}
 
+}
+func TestGob2(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		TestGobAddressMap(t)
+	}
 }
 func TestWithdraw(t *testing.T) {
 
