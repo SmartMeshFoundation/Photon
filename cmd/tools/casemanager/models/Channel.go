@@ -27,6 +27,12 @@ func (c *Channel) PrintDataBeforeTransfer() *Channel {
 	return c.Println(header)
 }
 
+// PrintDataAfterTransfer :
+func (c *Channel) PrintDataAfterTransfer() *Channel {
+	header := fmt.Sprintf("Channel data after transfer %s-AfterTransfer :", c.Name)
+	return c.Println(header)
+}
+
 // PrintDataAfterCrash :
 func (c *Channel) PrintDataAfterCrash() *Channel {
 	header := fmt.Sprintf("Channel data after crash %s-AfterCrash :", c.Name)
