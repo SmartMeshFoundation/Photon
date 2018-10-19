@@ -19,7 +19,9 @@ fi
 
 # build smartraiden
 cd cmd/smartraiden
-go install
+chmod +x ./build.sh
+./build.sh
+cp smartraiden $GOPATH/bin/
 if [ $? -ne 0 ]; then
     echo "smartraiden build failed"
     exit -1
