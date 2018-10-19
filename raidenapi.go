@@ -1124,3 +1124,54 @@ func (r *RaidenAPI) CancelTransfer(lockSecretHash common.Hash, tokenAddress comm
 	result := r.Raiden.cancelTransferClient(lockSecretHash, tokenAddress)
 	return <-result.Result
 }
+
+type balanceProof struct {
+	Nonce             uint64      `json:"nonce"`
+	TransferAmount    *big.Int    `json:"transfer_amount"`
+	LocksRoot         common.Hash `json:"locks_root"`
+	ChannelIdentifier common.Hash `json:"channel_identifier"`
+	OpenBlockNumber   int64       `json:"open_block_number"`
+	MessageHash       common.Hash `json:"addition_hash"`
+	//signature is nonce + transferred_amount + locksroot + channel_identifier + message_hash
+	Signature []byte `json:"signature"`
+}
+
+//ProofForPFS proof for path finding service, test only
+type ProofForPFS struct {
+	BalanceProof balanceProof `json:"balance_proof"`
+	Signature    []byte       `json:"balance_signature"`
+	LockAmount   *big.Int     `json:"lock_amount"`
+}
+
+//BalanceProofForPFS proof for path finding service ,test only
+func (r *RaidenAPI) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofForPFS, err error) {
+	ch, err := r.GetChannel(channelIdentifier)
+	if err != nil {
+		return
+	}
+	proof = &ProofForPFS{
+		BalanceProof: balanceProof{
+			Nonce:             ch.PartnerBalanceProof.Nonce,
+			TransferAmount:    ch.PartnerBalanceProof.TransferAmount,
+			LocksRoot:         ch.PartnerBalanceProof.LocksRoot,
+			ChannelIdentifier: ch.ChannelIdentifier.ChannelIdentifier,
+			OpenBlockNumber:   ch.ChannelIdentifier.OpenBlockNumber,
+			MessageHash:       ch.PartnerBalanceProof.MessageHash,
+			Signature:         ch.PartnerBalanceProof.Signature,
+		},
+		LockAmount: ch.PartnerAmountLocked(),
+	}
+	bpf := &proof.BalanceProof
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, bpf.Nonce)
+	_, err = buf.Write(utils.BigIntTo32Bytes(bpf.TransferAmount))
+	_, err = buf.Write(bpf.LocksRoot[:])
+	_, err = buf.Write(bpf.ChannelIdentifier[:])
+	err = binary.Write(buf, binary.BigEndian, bpf.OpenBlockNumber)
+	_, err = buf.Write(bpf.MessageHash[:])
+	_, err = buf.Write(bpf.Signature)
+	_, err = buf.Write(utils.BigIntTo32Bytes(proof.LockAmount))
+	dataToSign := buf.Bytes()
+	proof.Signature, err = utils.SignData(r.Raiden.PrivateKey, dataToSign)
+	return
+}
