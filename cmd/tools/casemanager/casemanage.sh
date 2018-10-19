@@ -21,11 +21,11 @@ fi
 cd cmd/smartraiden
 chmod +x ./build.sh
 ./build.sh
-cp smartraiden $GOPATH/bin/
 if [ $? -ne 0 ]; then
     echo "smartraiden build failed"
     exit -1
 fi
+cp smartraiden $GOPATH/bin/
 
 # build casemaneger
 cd ../tools/casemanager
