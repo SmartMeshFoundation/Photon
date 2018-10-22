@@ -136,12 +136,6 @@ func (be *Events) startAlarmTask() {
 			log.Info(fmt.Sprintf("AlarmTask quit complete"))
 			return
 		}
-		h, err := be.client.HeaderByNumber(context.Background(), nil)
-		if err != nil && !be.stopped {
-			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
-			go be.client.RecoverDisconnect()
-			return
-		}
 		if be.pollPeriod == 0 {
 			// first time
 			if params.ChainID.Int64() == params.TestPrivateChainID {
@@ -150,6 +144,15 @@ func (be *Events) startAlarmTask() {
 				be.pollPeriod = params.DefaultEthRPCPollPeriod
 			}
 		}
+		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+		h, err := be.client.HeaderByNumber(ctx, nil)
+		if err != nil && !be.stopped {
+			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
+			cancelFunc()
+			go be.client.RecoverDisconnect()
+			return
+		}
+		cancelFunc()
 		lastedBlock := h.Number.Int64()
 		if currentBlock == lastedBlock {
 			time.Sleep(500 * time.Millisecond)

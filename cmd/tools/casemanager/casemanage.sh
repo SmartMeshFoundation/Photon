@@ -19,11 +19,13 @@ fi
 
 # build smartraiden
 cd cmd/smartraiden
-go install
+chmod +x ./build.sh
+./build.sh
 if [ $? -ne 0 ]; then
     echo "smartraiden build failed"
     exit -1
 fi
+cp smartraiden $GOPATH/bin/
 
 # build casemaneger
 cd ../tools/casemanager

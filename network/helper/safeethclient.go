@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
+	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,10 +43,9 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	}
 	var err error
 	c.Client, err = ethclient.Dial(rawurl)
-	if err == nil {
+	if err == nil && checkConnectStatus(c.Client) == nil {
 		c.changeStatus(netshare.Connected)
 	} else {
-		//c.changeStatus(xmpptransport.Disconnected)
 		go c.RecoverDisconnect()
 	}
 	return c, nil
@@ -93,6 +93,9 @@ func (c *SafeEthClient) RecoverDisconnect() {
 	var err error
 	var client *ethclient.Client
 	c.changeStatus(netshare.Reconnecting)
+	if c.Client != nil {
+		c.Client.Close()
+	}
 	for {
 		log.Info("tyring to reconnect geth ...")
 		select {
@@ -102,10 +105,10 @@ func (c *SafeEthClient) RecoverDisconnect() {
 			//never block
 		}
 		client, err = ethclient.Dial(c.url)
-		if err != nil {
-			log.Info(fmt.Sprintf("reconnect to geth error: %s", err))
-			time.Sleep(time.Second * 3)
-		} else {
+		if err == nil {
+			err = checkConnectStatus(client)
+		}
+		if err == nil {
 			//reconnect ok
 			c.Client = client
 			c.changeStatus(netshare.Connected)
@@ -122,6 +125,8 @@ func (c *SafeEthClient) RecoverDisconnect() {
 			c.lock.Unlock()
 			return
 		}
+		log.Info(fmt.Sprintf("reconnect to geth error: %s", err))
+		time.Sleep(time.Second * 3)
 	}
 }
 
@@ -417,4 +422,17 @@ func (c *SafeEthClient) GenesisBlockHash(ctx context.Context) (genesisBlockHash 
 		return
 	}
 	return genesisBlockHead.Hash(), nil
+}
+
+func checkConnectStatus(c *ethclient.Client) (err error) {
+	if c == nil {
+		return errNotConnectd
+	}
+	ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+	defer cancelFunc()
+	_, err = c.HeaderByNumber(ctx, big.NewInt(1))
+	if err != nil {
+		return
+	}
+	return
 }

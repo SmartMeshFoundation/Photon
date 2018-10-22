@@ -8,6 +8,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 )
 
@@ -121,6 +122,10 @@ func Start() {
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
 		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
+		rest.Get("/api/1/debug/shutdown", func(writer rest.ResponseWriter, request *rest.Request) {
+			RaidenAPI.Raiden.Stop()
+			utils.SystemExit(0)
+		}),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))
