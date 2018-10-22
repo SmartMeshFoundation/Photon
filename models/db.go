@@ -151,7 +151,7 @@ func (model *ModelDB) SaveRegistryAddress(registryAddress common.Address) {
 func (model *ModelDB) GetRegistryAddress() common.Address {
 	var registry common.Address
 	err := model.db.Get(bucketMeta, "registry", &registry)
-	if err != nil {
+	if err != nil && err != storm.ErrNotFound {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
 	return registry
