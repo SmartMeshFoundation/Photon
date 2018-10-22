@@ -154,3 +154,6 @@ var DefaultEthRPCPollPeriod = 15 * time.Second
 
 // TestPrivateChainID :
 var TestPrivateChainID int64 = 8888
+
+// EthRPCTimeout :
+var EthRPCTimeout = 15 * time.Second
