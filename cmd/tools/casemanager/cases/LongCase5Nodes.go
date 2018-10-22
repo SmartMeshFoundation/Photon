@@ -3,8 +3,8 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/Atmosphere/utils"
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 // LongCase5Nodes :
