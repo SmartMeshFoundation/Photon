@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
@@ -141,6 +142,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if C04 == nil {
 		return cm.caseFail(env.CaseName)
 	}
+	time.Sleep(5 * time.Second)
 
 	// step 13 : N4 deposits 25 tokens to N0<->N4 channel
 	models.Logger.Println("step 13 ---->")
@@ -314,7 +316,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -327,7 +329,110 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if !C23new.CheckPartnerBalance(C12.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 
+	// step 28 : N4 closes his channel with N2
+	models.Logger.Println("step 28 ---->")
+	N4.Close(C24.ChannelIdentifier)
+	time.Sleep(10 * time.Second)
+	C24 = N2.GetChannelWith(N4, tokenAddress)
+	if C24.State != int(netshare.Closed) {
+		return cm.caseFail(env.CaseName)
+	}
+
+	// step 29 : N2 tries to make a deposit in the channel that is being closed (fail 409)
+	models.Logger.Println("step 29 ---->")
+	err = N2.Deposit(C24.ChannelIdentifier, depositAmount)
+	if err == nil {
+		return cm.caseFail(env.CaseName)
+	}
+
+	// step 30 : N2 sends 10 tokens to N1
+	transferAmount = 10
+	models.Logger.Println("step 30 ---->")
+	C12 = N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	err = N2.Transfer(tokenAddress, transferAmount, N1.Address, false)
+	if err != nil {
+		return cm.caseFail(env.CaseName)
+	}
+	time.Sleep(10 * time.Second)
+	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
+	if !C12new.CheckPartnerBalance(C12.PartnerBalance - transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
+	}
+
+	// step 31 : N1 sends 10 tokens to N0
+	transferAmount = 10
+	models.Logger.Println("step 31 ---->")
+	C01 = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
+	err = N1.Transfer(tokenAddress, transferAmount, N0.Address, false)
+	if err != nil {
+		return cm.caseFail(env.CaseName)
+	}
+	time.Sleep(10 * time.Second)
+	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
+	if !C01new.CheckPartnerBalance(C01.PartnerBalance - transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
+	}
+
+	// step 32 : N4 sends 10 tokens to N2 (N0 -> N1-> N2)
+	transferAmount = 10
+	models.Logger.Println("step 32 ---->")
+	C04 = N0.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
+	C01 = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
+	C12 = N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
+	err = N4.Transfer(tokenAddress, transferAmount, N2.Address, false)
+	if err != nil {
+		return cm.caseFail(env.CaseName)
+	}
+	time.Sleep(10 * time.Second)
+	C04new = N0.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
+	if !C04new.CheckSelfBalance(C04.Balance + transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C04new.Name)
+	}
+	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
+	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
+	}
+	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
+	if !C12new.CheckPartnerBalance(C12.PartnerBalance + transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
+	}
+
+	// step 33 : settle all channel
+	models.Logger.Println("step 33 ---->")
+	N0.CooperateSettle(C01.ChannelIdentifier)
+	N0.CooperateSettle(C04.ChannelIdentifier)
+	N1.CooperateSettle(C12.ChannelIdentifier)
+	N2.CooperateSettle(C23.ChannelIdentifier)
+	time.Sleep(time.Duration(settleTimeout) * time.Second) // wait to settle C24
+	N2.Settle(C24.ChannelIdentifier)
+	time.Sleep(50 * time.Second) // wait to settle C24
+
+	C01 = N0.GetChannelWith(N1, tokenAddress)
+	if C01 != nil {
+		C01.Println("")
+		return cm.caseFail(env.CaseName)
+	}
+	C04 = N0.GetChannelWith(N4, tokenAddress)
+	if C04 != nil {
+		C04.Println("")
+		return cm.caseFail(env.CaseName)
+	}
+	C12 = N1.GetChannelWith(N2, tokenAddress)
+	if C12 != nil {
+		C12.Println("")
+		return cm.caseFail(env.CaseName)
+	}
+	C23 = N2.GetChannelWith(N3, tokenAddress)
+	if C23 != nil {
+		C23.Println("")
+		return cm.caseFail(env.CaseName)
+	}
+	C24 = N2.GetChannelWith(N4, tokenAddress)
+	if C24 != nil {
+		C24.Println("")
+		return cm.caseFail(env.CaseName)
+	}
+	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }
