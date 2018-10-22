@@ -328,5 +328,6 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+
 	return
 }
