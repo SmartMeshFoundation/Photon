@@ -202,14 +202,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 		db.CloseDB()
 		return
 	}
-	if isFirstStartUp {
-		err = verifyContractCode(cfg.RegistryAddress, client)
-		if err != nil {
-			client.Close()
-			db.CloseDB()
-			return
-		}
-	}
+
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
@@ -470,6 +463,10 @@ func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helpe
 			}
 		} else {
 			registryAddress = config.RegistryAddress
+		}
+		err = verifyContractCode(registryAddress, client)
+		if err != nil {
+			return
 		}
 		db.SaveRegistryAddress(registryAddress)
 	} else {
