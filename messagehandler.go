@@ -626,7 +626,7 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	go func() {
 		err = <-result.Result
 		if err != nil {
-			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel", utils.HPex(msg.ChannelIdentifier)))
+			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
 		}
 	}()
 	return nil

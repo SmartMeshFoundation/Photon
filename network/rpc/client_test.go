@@ -11,6 +11,7 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,5 +78,24 @@ func TestNewHead(t *testing.T) {
 			sub.Unsubscribe()
 			return
 		}
+	}
+}
+
+func TestPendingNonceAt(t *testing.T) {
+	ethRPCEndpoint := "http://127.0.0.1:9001"
+	account := common.HexToAddress("0x3de45febbd988b6e417e4ebd2c69e42630fefbf0")
+	client, err := helper.NewSafeClient(ethRPCEndpoint)
+	if err != nil {
+		err = fmt.Errorf("cannot connect to geth :%s err=%s", ethRPCEndpoint, err)
+		err = nil
+	}
+
+	for {
+		pendingNonce, _ := client.PendingNonceAt(context.Background(), account)
+		nonce, _ := client.NonceAt(context.Background(), account, nil)
+		fmt.Println("pendingNonce", pendingNonce)
+		fmt.Println("nonce", nonce)
+		fmt.Println("=============")
+		time.Sleep(3 * time.Second)
 	}
 }
