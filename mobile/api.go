@@ -1027,7 +1027,7 @@ func (a *API) NotifyNetworkDown() error {
 }
 
 // GetCallResult :
-func (a *API) GetCallResult(callID string) (r string, done bool, err error) {
+func (a *API) GetCallResult(callID string) (r string, err error) {
 	result, ok := a.callID2result[callID]
 	if !ok {
 		err = errors.New("not found")
@@ -1038,10 +1038,12 @@ func (a *API) GetCallResult(callID string) (r string, done bool, err error) {
 		return
 	}
 	r = result.Result
-	done = result.Done
-	err = result.Err
+	done := result.Done
 	if done {
+		err = result.Err
 		delete(a.callID2result, callID)
+	} else {
+		err = errors.New("dealing")
 	}
 	return
 }
