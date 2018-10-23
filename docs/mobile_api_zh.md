@@ -271,7 +271,6 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 
 返回:
-* `done bool`– 调用是否完成,当done=true时,r和err才有意义
 * `r string`– 接口调用返回,示例参考http接口文档
-* `err error`– 接口调用错误信息
+* `err error`– 接口调用错误信息,返回dealing说明正在处理尚未收到结果
 

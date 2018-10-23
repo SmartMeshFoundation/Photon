@@ -68,7 +68,7 @@ func TestMobile(t *testing.T) {
 	var channelstr string
 	var done bool
 	for {
-		channelstr, done, err = api.GetCallResult(callID)
+		channelstr, err = api.GetCallResult(callID)
 		if !done {
 			time.Sleep(time.Second)
 			continue
@@ -91,7 +91,7 @@ func TestMobile(t *testing.T) {
 		return
 	}
 	for {
-		channelstr, done, err = api.GetCallResult(callID)
+		channelstr, err = api.GetCallResult(callID)
 		if !done {
 			time.Sleep(time.Second)
 			continue
@@ -111,7 +111,7 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = api.GetCallResult(callID)
+	_, err = api.GetCallResult(callID)
 	if err.Error() != "not found" {
 		t.Error(err)
 	}
