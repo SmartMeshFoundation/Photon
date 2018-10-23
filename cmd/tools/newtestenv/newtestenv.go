@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 
 	"context"
 
@@ -33,7 +34,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var globalPassword = "123"
+var globalPassword = "111111"
 
 const (
 	tokenERC223   = "erc223"
@@ -43,6 +44,13 @@ const (
 	tokenEther         = "ether"
 )
 
+var base int64 = int64(math.Pow10(18))
+
+func getAmount(x *big.Int) *big.Int {
+	y := new(big.Int)
+	y = y.Mul(x, big.NewInt(base))
+	return y
+}
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	app := cli.NewApp()
@@ -67,6 +75,11 @@ func main() {
 			Name:  "not-create-channel",
 			Usage: "not-create channels between node for test.",
 		},
+		cli.IntFlag{
+			Name:  "base",
+			Usage: "decimal part of ERC20 Token",
+			Value: 0,
+		},
 	}
 	app.Action = mainctx
 	app.Name = "newraidenenv"
@@ -80,6 +93,7 @@ func main() {
 func mainctx(ctx *cli.Context) error {
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
+	base = int64(math.Pow10(ctx.Int("base")))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
@@ -94,6 +108,7 @@ func mainctx(ctx *cli.Context) error {
 		return err
 	}
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223Approve)
+	return nil
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenEther)
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenStandard)
 	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223)
@@ -107,6 +122,7 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	}
 	addr = am.Accounts[0].Address
 	log.Printf("deploy account = %s", addr.String())
+	log.Printf("accounts=%q", am.Accounts)
 	for i := 0; i < 3; i++ {
 		//fmt.Printf("\npassword is %s\n", password)
 		keybin, err := am.GetPrivateKey(addr, globalPassword)
@@ -199,13 +215,13 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 	auth := bind.NewKeyedTransactor(key)
 	switch tokenType {
 	case tokenERC223:
-		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, big.NewInt(500000000000000000), "test erc223")
+		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223")
 	case tokenStandard:
-		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, big.NewInt(500000000000000000), "test standard")
+		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard")
 	case tokenERC223Approve:
-		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(500000000000000000), "test erc223 approve")
+		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve")
 	case tokenEther:
-		auth.Value = big.NewInt(500000000000000000)
+		auth.Value = getAmount(big.NewInt(500000000000000000))
 		tokenAddr, tx, _, err = tokenether.DeployHumanEtherToken(auth, conn, "test ether")
 	}
 	if err != nil {
@@ -248,7 +264,7 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
 			//由于生成的 Transfer 不能很好处理重载,因此需要用 approve and transfer from
-			amount := big.NewInt(500000000000)
+			amount := getAmount(big.NewInt(500000000000))
 			tx, err := token.Approve(auth2, account, amount)
 			if err != nil {
 				log.Fatalf("Failed to Transfer: %v", err)
@@ -308,139 +324,144 @@ func createChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	keyF := keys[5]
 	keyG := keys[6]
 	//fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s\n", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 90, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, 70, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, 60, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 10, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, 90, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, 80, tokenNetworkAddress, token, conn)
-
-}
-
-func createChannels2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
-	if len(accounts) < 6 {
-		panic("need 6 accounts")
+	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, getAmount(big.NewInt(100)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, getAmount(big.NewInt(90)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, getAmount(big.NewInt(50)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, getAmount(big.NewInt(70)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, getAmount(big.NewInt(60)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, getAmount(big.NewInt(10)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, getAmount(big.NewInt(190)), tokenNetworkAddress, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, getAmount(big.NewInt(80)), tokenNetworkAddress, token, conn)
+	for i := 6; i < len(accounts)-1; i++ {
+		createchannel.CreatAChannelAndDeposit(accounts[i], accounts[i+1], keys[i], keys[i+1],
+			getAmount(big.NewInt(100)), tokenNetworkAddress, token, conn,
+		)
 	}
-	AccountA := accounts[0]
-	AccountB := accounts[1]
-	AccountC := accounts[2]
-	AccountD := accounts[3]
-	AccountE := accounts[4]
-	AccountF := accounts[5]
-	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
-	keyA := keys[0]
-	keyB := keys[1]
-	keyC := keys[2]
-	keyD := keys[3]
-	keyE := keys[4]
-	keyF := keys[5]
-	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s\n", keyA, keyB, keyC, keyD, keyE, keyF)
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 50, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountC, keyA, keyC, 90, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 80, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountE, AccountD, keyE, keyD, 70, tokenNetworkAddress, token, conn)
 
 }
 
-/*
-registry address :0x0C31cF985eA2F2932c2EDF05f36aBC7b24B17d40 test poa net networkid :8888
-you find this topology at the above address
-*/
-func createChannels3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
-	if len(accounts) < 6 {
-		panic("need 6 accounts")
-	}
-	AccountA := accounts[0]
-	AccountB := accounts[1]
-	AccountC := accounts[2]
-	AccountD := accounts[3]
-	AccountE := accounts[4]
-	AccountF := accounts[5]
-	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
-	keyA := keys[0]
-	keyB := keys[1]
-	keyC := keys[2]
-	keyD := keys[3]
-	keyE := keys[4]
-	keyF := keys[5]
-
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 90, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountD, keyC, keyD, 50, tokenNetworkAddress, token, conn)
-
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountE, keyB, keyE, 80, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountE, AccountF, keyE, keyF, 70, tokenNetworkAddress, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountF, AccountD, keyF, keyD, 60, tokenNetworkAddress, token, conn)
-
-}
-func createChannels4(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
-	if len(accounts) < 6 {
-		panic("need 6 accounts")
-	}
-	AccountA := accounts[0]
-	AccountB := accounts[1]
-	AccountC := accounts[2]
-	AccountD := accounts[3]
-	AccountE := accounts[4]
-	AccountF := accounts[5]
-	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
-	keyA := keys[0]
-	keyB := keys[1]
-	keyC := keys[2]
-	keyD := keys[3]
-	keyE := keys[4]
-	keyF := keys[5]
-	/*
-	   4.1 create channel A-B and save 100 both
-
-	*/
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
-	/*
-	 4.2 create channel B-C and save 50 both
-	*/
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, tokenNetworkAddress, token, conn)
-	/*
-	  4.3 create channel C-E and save 100 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 100, tokenNetworkAddress, token, conn)
-
-	/*
-	   4.4 create channel A-D and save 100 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountD, keyA, keyD, 100, tokenNetworkAddress, token, conn)
-
-	/*
-	  4.5 create channel B-D and save 100 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 100, tokenNetworkAddress, token, conn)
-
-	/*
-	   4.6 create channel D-F and save 100 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountD, AccountF, keyD, keyF, 100, tokenNetworkAddress, token, conn)
-
-	/*
-	   4.7 create channel F-E and save 100 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountF, AccountE, keyF, keyE, 100, tokenNetworkAddress, token, conn)
-	/*
-	   4.8 create channel C-F and save 50 both
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, 50, tokenNetworkAddress, token, conn)
-
-	/*
-	   4.9     D-E 100
-	*/
-
-	createchannel.CreatAChannelAndDeposit(AccountD, AccountE, keyD, keyE, 100, tokenNetworkAddress, token, conn)
-
-}
+//func createChannels2(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
+//	if len(accounts) < 6 {
+//		panic("need 6 accounts")
+//	}
+//	AccountA := accounts[0]
+//	AccountB := accounts[1]
+//	AccountC := accounts[2]
+//	AccountD := accounts[3]
+//	AccountE := accounts[4]
+//	AccountF := accounts[5]
+//	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
+//	keyA := keys[0]
+//	keyB := keys[1]
+//	keyC := keys[2]
+//	keyD := keys[3]
+//	keyE := keys[4]
+//	keyF := keys[5]
+//	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s\n", keyA, keyB, keyC, keyD, keyE, keyF)
+//	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 50, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountA, AccountC, keyA, keyC, 90, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 80, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountE, AccountD, keyE, keyD, 70, tokenNetworkAddress, token, conn)
+//
+//}
+//
+///*
+//registry address :0x0C31cF985eA2F2932c2EDF05f36aBC7b24B17d40 test poa net networkid :8888
+//you find this topology at the above address
+//*/
+//func createChannels3(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
+//	if len(accounts) < 6 {
+//		panic("need 6 accounts")
+//	}
+//	AccountA := accounts[0]
+//	AccountB := accounts[1]
+//	AccountC := accounts[2]
+//	AccountD := accounts[3]
+//	AccountE := accounts[4]
+//	AccountF := accounts[5]
+//	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
+//	keyA := keys[0]
+//	keyB := keys[1]
+//	keyC := keys[2]
+//	keyD := keys[3]
+//	keyE := keys[4]
+//	keyF := keys[5]
+//
+//	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 90, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountC, AccountD, keyC, keyD, 50, tokenNetworkAddress, token, conn)
+//
+//	createchannel.CreatAChannelAndDeposit(AccountB, AccountE, keyB, keyE, 80, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountE, AccountF, keyE, keyF, 70, tokenNetworkAddress, token, conn)
+//	createchannel.CreatAChannelAndDeposit(AccountF, AccountD, keyF, keyD, 60, tokenNetworkAddress, token, conn)
+//
+//}
+//func createChannels4(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
+//	if len(accounts) < 6 {
+//		panic("need 6 accounts")
+//	}
+//	AccountA := accounts[0]
+//	AccountB := accounts[1]
+//	AccountC := accounts[2]
+//	AccountD := accounts[3]
+//	AccountE := accounts[4]
+//	AccountF := accounts[5]
+//	fmt.Printf("accountA=%saccountB=%saccountC=%saccountD=%saccountE=%saccountF=%s\n", AccountA.String(), AccountB.String(), AccountC.String(), AccountD.String(), AccountE.String(), AccountF.String())
+//	keyA := keys[0]
+//	keyB := keys[1]
+//	keyC := keys[2]
+//	keyD := keys[3]
+//	keyE := keys[4]
+//	keyF := keys[5]
+//	/*
+//	   4.1 create channel A-B and save 100 both
+//
+//	*/
+//	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetworkAddress, token, conn)
+//	/*
+//	 4.2 create channel B-C and save 50 both
+//	*/
+//	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, tokenNetworkAddress, token, conn)
+//	/*
+//	  4.3 create channel C-E and save 100 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 100, tokenNetworkAddress, token, conn)
+//
+//	/*
+//	   4.4 create channel A-D and save 100 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountA, AccountD, keyA, keyD, 100, tokenNetworkAddress, token, conn)
+//
+//	/*
+//	  4.5 create channel B-D and save 100 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 100, tokenNetworkAddress, token, conn)
+//
+//	/*
+//	   4.6 create channel D-F and save 100 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountD, AccountF, keyD, keyF, 100, tokenNetworkAddress, token, conn)
+//
+//	/*
+//	   4.7 create channel F-E and save 100 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountF, AccountE, keyF, keyE, 100, tokenNetworkAddress, token, conn)
+//	/*
+//	   4.8 create channel C-F and save 50 both
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, 50, tokenNetworkAddress, token, conn)
+//
+//	/*
+//	   4.9     D-E 100
+//	*/
+//
+//	createchannel.CreatAChannelAndDeposit(AccountD, AccountE, keyD, keyE, 100, tokenNetworkAddress, token, conn)
+//
+//}

@@ -57,7 +57,7 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 }
 
 //CreatAChannelAndDeposit create a channel
-func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount int64, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
+func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
@@ -84,7 +84,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth1, tokenNetworkAddres, big.NewInt(amount))
+		tx, err := token.Approve(auth1, tokenNetworkAddres, amount)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -95,7 +95,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.Deposit(auth1, account1, account2, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth1, account1, account2, amount)
 		if err != nil {
 			log.Fatalf("Failed to Deposit1: %v", err)
 		}
@@ -110,7 +110,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth2, tokenNetworkAddres, big.NewInt(amount))
+		tx, err := token.Approve(auth2, tokenNetworkAddres, amount)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -120,7 +120,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.Deposit(auth2, account2, account1, big.NewInt(amount))
+		tx, err = tokenNetwork.Deposit(auth2, account2, account1, amount)
 		if err != nil {
 			log.Fatalf("Failed to Deposit2: %v", err)
 		}
