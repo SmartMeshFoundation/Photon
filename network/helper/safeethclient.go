@@ -25,12 +25,14 @@ var errNotConnectd = errors.New("eth not connected")
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
 	*ethclient.Client
-	lock       sync.Mutex
-	url        string
-	ReConnect  map[string]chan struct{}
-	Status     netshare.Status
-	StatusChan chan netshare.Status
-	quitChan   chan struct{}
+	lock             sync.Mutex
+	url              string
+	ReConnect        map[string]chan struct{}
+	Status           netshare.Status
+	StatusChan       chan netshare.Status
+	quitChan         chan struct{}
+	accountNonce     uint64
+	accountNonceLock sync.Mutex
 }
 
 //NewSafeClient create safeclient
@@ -340,13 +342,28 @@ func (c *SafeEthClient) PendingCodeAt(ctx context.Context, account common.Addres
 }
 
 //PendingNonceAt wrapper of PendingNonceAt
-func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+// 考虑到短时间内并发调用合约出现nonce相同导致调用失败的问题,在这里获取可用nonce的时候,加入了缓冲机制
+func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Address) (nonce uint64, err error) {
+	c.accountNonceLock.Lock()
+	defer c.accountNonceLock.Unlock()
 	if c.Client == nil {
 		return 0, errNotConnectd
 	}
-	return c.Client.PendingNonceAt(ctx, account)
+	times := 1
+	for {
+		nonce, err = c.Client.PendingNonceAt(ctx, account)
+		if err != nil {
+			return 0, err
+		}
+		if nonce != c.accountNonce || times > 5 {
+			c.accountNonce = nonce
+			log.Debug("call contract with account nonce %d ", nonce)
+			return
+		}
+		log.Warn("call contract too often,nonce %d already used, sleep 100ms and retry %d times ...", nonce, times)
+		times++
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // PendingTransactionCount returns the total number of transactions in the pending state.
