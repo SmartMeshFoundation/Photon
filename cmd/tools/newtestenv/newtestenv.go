@@ -47,7 +47,7 @@ const (
 	tokenEther         = "ether"
 )
 
-var base int64 = int64(math.Pow10(18))
+var base = int64(math.Pow10(18))
 
 func getAmount(x *big.Int) *big.Int {
 	y := new(big.Int)
