@@ -72,7 +72,7 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Add
 		g:                         dijkstra.NewGraph(),
 	}
 	cg.makeGraph(edges)
-	cg.printGraph()
+	//cg.printGraph()
 	return cg
 }
 func (cg *ChannelGraph) printGraph() {
@@ -140,7 +140,7 @@ func (cg *ChannelGraph) AddPath(source, target common.Address) {
 	if err != nil {
 		log.Error(fmt.Sprintf("add path err%s", err))
 	}
-	cg.printGraph()
+	//cg.printGraph()
 }
 
 /*
