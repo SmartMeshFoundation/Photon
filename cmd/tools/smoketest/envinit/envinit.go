@@ -280,13 +280,13 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	keyF := keys[5]
 	keyG := keys[6]
 	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, 100, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, 90, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, 50, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, 70, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, 60, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, 10, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, 90, tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, 80, tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, big.NewInt(100), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, big.NewInt(90), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, big.NewInt(50), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, big.NewInt(70), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, big.NewInt(60), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, big.NewInt(10), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, big.NewInt(90), tokenNetorkAddr, token, conn)
+	createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, big.NewInt(80), tokenNetorkAddr, token, conn)
 
 }
