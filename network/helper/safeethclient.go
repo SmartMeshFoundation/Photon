@@ -25,14 +25,12 @@ var errNotConnectd = errors.New("eth not connected")
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
 	*ethclient.Client
-	lock             sync.Mutex
-	url              string
-	ReConnect        map[string]chan struct{}
-	Status           netshare.Status
-	StatusChan       chan netshare.Status
-	quitChan         chan struct{}
-	accountNonce     uint64
-	accountNonceLock sync.Mutex
+	lock       sync.Mutex
+	url        string
+	ReConnect  map[string]chan struct{}
+	Status     netshare.Status
+	StatusChan chan netshare.Status
+	quitChan   chan struct{}
 }
 
 //NewSafeClient create safeclient
@@ -344,8 +342,8 @@ func (c *SafeEthClient) PendingCodeAt(ctx context.Context, account common.Addres
 //PendingNonceAt wrapper of PendingNonceAt
 // 考虑到短时间内并发调用合约出现nonce相同导致调用失败的问题,在这里获取可用nonce的时候,加入了缓冲机制
 func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Address) (nonce uint64, err error) {
-	c.accountNonceLock.Lock()
-	defer c.accountNonceLock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.Client == nil {
 		return 0, errNotConnectd
 	}
