@@ -349,21 +349,8 @@ func (c *SafeEthClient) PendingNonceAt(ctx context.Context, account common.Addre
 	if c.Client == nil {
 		return 0, errNotConnectd
 	}
-	times := 1
-	for {
-		nonce, err = c.Client.PendingNonceAt(ctx, account)
-		if err != nil {
-			return 0, err
-		}
-		if nonce != c.accountNonce || times > 5 {
-			c.accountNonce = nonce
-			log.Debug("call contract with account nonce %d ", nonce)
-			return
-		}
-		log.Warn("call contract too often,nonce %d already used, sleep 100ms and retry %d times ...", nonce, times)
-		times++
-		time.Sleep(100 * time.Millisecond)
-	}
+	nonce, err = c.Client.PendingNonceAt(ctx, account)
+	return
 }
 
 // PendingTransactionCount returns the total number of transactions in the pending state.
