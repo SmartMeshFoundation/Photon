@@ -112,7 +112,7 @@ func TestRegisterAndJoinDiscoveryRoom(t *testing.T) {
 	/*
 		观察初次注册加入 discovery room 是否返回其他人在线信息.
 	*/
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 3)
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)

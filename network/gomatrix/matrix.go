@@ -281,7 +281,7 @@ func (mcli *MatrixClient) MakeRequest(method string, httpURL string, reqBody int
 		if end > start {
 			path = httpURL[start:end]
 		} else {
-			path = httpURL[start:]
+			path = httpURL
 		}
 		path, err = url.PathUnescape(path)
 		if err != nil {
