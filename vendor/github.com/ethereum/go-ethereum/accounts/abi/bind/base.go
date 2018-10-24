@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -250,7 +251,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
 		return nil, err
 	}
-	//time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	return signedTx, nil
 }
 

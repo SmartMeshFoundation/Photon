@@ -16,11 +16,9 @@ import (
 
 	"encoding/json"
 
-	"time"
+	"io"
 
 	"strconv"
-
-	"io"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -319,7 +317,6 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, acc
 			}
 			wg.Done()
 		}(account, index)
-		time.Sleep(time.Millisecond * 100)
 	}
 	wg.Wait()
 	for _, account := range accounts {
@@ -338,25 +335,31 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	if options == nil || len(options) == 0 {
 		return
 	}
-	for _, option := range options {
-		s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
-		_, token := env.GetTokenByName(s[2])
-		if token.Token == nil {
-			fmt.Println("use old token , do not create channel...")
-			return
-		}
-		index1, account1 := env.GetNodeAddressByName(s[0])
-		key1 := env.Keys[index1]
-		amount1, err := strconv.ParseInt(s[3], 10, 64)
-		index2, account2 := env.GetNodeAddressByName(s[1])
-		key2 := env.Keys[index2]
-		amount2, err := strconv.ParseInt(s[4], 10, 64)
-		settledTimeout, err := strconv.ParseUint(s[5], 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
+	wg := sync.WaitGroup{}
+	wg.Add(len(options))
+	for _, o := range options {
+		go func(option string) {
+			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
+			_, token := env.GetTokenByName(s[2])
+			if token.Token == nil {
+				fmt.Println("use old token , do not create channel...")
+				return
+			}
+			index1, account1 := env.GetNodeAddressByName(s[0])
+			key1 := env.Keys[index1]
+			amount1, err := strconv.ParseInt(s[3], 10, 64)
+			index2, account2 := env.GetNodeAddressByName(s[1])
+			key2 := env.Keys[index2]
+			amount2, err := strconv.ParseInt(s[4], 10, 64)
+			settledTimeout, err := strconv.ParseUint(s[5], 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
+			wg.Done()
+		}(o)
 	}
+	wg.Wait()
 	Logger.Println("Load and create channels SUCCESS")
 	return nil
 }
@@ -368,7 +371,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
-		approveAccount(token.Token, auth1, token.TokenNetworkAddress, amount1, conn)
+		approveAccountIfNeeded(token.Token, auth1, token.TokenNetworkAddress, amount1, conn)
 		tx, err = token.TokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, settledTimeout, amount1)
 	} else {
 		tx, err = token.TokenNetwork.OpenChannel(auth1, account1, account2, settledTimeout)
@@ -381,7 +384,7 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		panic(err)
 	}
 	if amount2.Int64() > 0 {
-		approveAccount(token.Token, auth2, token.TokenNetworkAddress, amount2, conn)
+		approveAccountIfNeeded(token.Token, auth2, token.TokenNetworkAddress, amount2, conn)
 		tx, err = token.TokenNetwork.Deposit(auth2, account2, account1, amount2)
 		if err != nil {
 			panic(err)
@@ -394,16 +397,35 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 }
 
 func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
-	tx, err := token.Approve(auth, tokenNetworkAddress, amount)
+	approveAmt := new(big.Int)
+	approveAmt = approveAmt.Mul(amount, big.NewInt(100)) //保证多个通道创建的时候不会因为approve冲突
+	tx, err := token.Approve(auth, tokenNetworkAddress, approveAmt)
 	if err != nil {
 		log.Fatalf("Failed to Approve: %v", err)
 	}
-	log.Printf("approve gas %s:%d\n", tx.Hash().String(), tx.Gas())
 	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to Approve when mining :%v", err)
 	}
+	log.Printf("approve account %s %d tokens to %s success\n", utils.APex(auth.From), approveAmt, utils.APex(tokenNetworkAddress))
+}
+
+var approveMap = make(map[common.Hash]int64)
+var approveMapLock = sync.Mutex{}
+
+func approveAccountIfNeeded(token *contracts.Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
+	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:])
+	m, ok := approveMap[key]
+	if ok && m > amount.Int64() {
+		return
+	}
+	approveMapLock.Lock()
+	defer approveMapLock.Unlock()
+	approveAccount(token, auth, tokenNetworkAddress, amount, conn)
+	approveAmt := new(big.Int)
+	approveAmt = approveAmt.Mul(amount, big.NewInt(100))
+	approveMap[key] = approveAmt.Int64()
 }
 
 // KillAllRaidenNodes kill all raiden node

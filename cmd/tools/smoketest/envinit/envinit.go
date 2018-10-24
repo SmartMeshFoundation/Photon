@@ -84,8 +84,16 @@ func Main(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
-	createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"))
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	lock := &sync.Mutex{}
+	for i := 0; i < 2; i++ {
+		go func() {
+			createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), lock)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 	err = env.WriteFile("../env.INI", 0644, "smartraiden smoke test envInit")
 	return err
 }
@@ -161,7 +169,8 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (registryAddr
 	fmt.Printf("RegistryAddress=%s\nSecretyRegistryAddress=%s\n", registryAddress.String(), secretRegistryAddress.String())
 	return
 }
-func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool) {
+func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool, lock *sync.Mutex) {
+	lock.Lock()
 	tokenNetworkAddr, tokenAddress := NewToken(key, conn, registry)
 	token, err := contracts.NewToken(tokenAddress, conn)
 	if err != nil {
@@ -183,7 +192,10 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *ethclient.Client, regis
 		}
 		keys = append(keys, keytemp)
 	}
+	lock.Unlock()
 	fmt.Printf("key=%s", key)
+	//createerc20token合约时间较长,导致多个token同时部署的时候Tx nonce会冲突
+	time.Sleep(time.Second)
 	TransferMoneyForAccounts(key, conn, accounts[1:], token)
 	if createchannel {
 		CreateChannels(conn, accounts, keys, tokenNetworkAddr, token)
@@ -222,15 +234,15 @@ func NewToken(key *ecdsa.PrivateKey, conn *ethclient.Client, registry *contracts
 func TransferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *contracts.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
-	auth := bind.NewKeyedTransactor(key)
-	nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//auth := bind.NewKeyedTransactor(key)
+	//nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 	for index, account := range accounts {
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
-			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
+			//auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			fmt.Printf("transfer to %s,nonce=%s\n", account.String(), auth2.Nonce)
 			var tx *types.Transaction
 			tx, err := token.Transfer(auth2, account, big.NewInt(5000000), nil)
@@ -279,14 +291,40 @@ func CreateChannels(conn *ethclient.Client, accounts []common.Address, keys []*e
 	keyE := keys[4]
 	keyF := keys[5]
 	keyG := keys[6]
-	fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
-	createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, big.NewInt(100), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, big.NewInt(90), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, big.NewInt(50), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, big.NewInt(70), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, big.NewInt(60), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, big.NewInt(10), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, big.NewInt(90), tokenNetorkAddr, token, conn)
-	createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, big.NewInt(80), tokenNetorkAddr, token, conn)
-
+	wg := sync.WaitGroup{}
+	wg.Add(8)
+	//fmt.Printf("keya=%s,keyb=%s,keyc=%s,keyd=%s,keye=%s,keyf=%s,keyg=%s", keyA, keyB, keyC, keyD, keyE, keyF, keyG)
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountA, AccountB, keyA, keyB, big.NewInt(100), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountB, AccountD, keyB, keyD, big.NewInt(90), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountB, AccountC, keyB, keyC, big.NewInt(50), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountB, AccountF, keyB, keyF, big.NewInt(70), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountC, AccountF, keyC, keyF, big.NewInt(60), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountC, AccountE, keyC, keyE, big.NewInt(10), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountD, AccountG, keyD, keyG, big.NewInt(90), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	go func() {
+		createchannel.CreatAChannelAndDeposit(AccountG, AccountE, keyG, keyE, big.NewInt(80), tokenNetorkAddr, token, conn)
+		wg.Done()
+	}()
+	wg.Wait()
 }

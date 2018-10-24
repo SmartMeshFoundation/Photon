@@ -41,6 +41,34 @@ func (node *RaidenNode) GetChannelWith(partnerNode *RaidenNode, tokenAddr string
 	return nil
 }
 
+// GetChannels :
+func (node *RaidenNode) GetChannels(tokenAddr string) []*Channel {
+	req := &models.Req{
+		FullURL: node.Host + "/api/1/channels",
+		Method:  http.MethodGet,
+		Payload: "",
+		Timeout: time.Second * 30,
+	}
+	_, body, err := req.Invoke()
+	if err != nil {
+		panic(err)
+	}
+	var nodeChannels []Channel
+	err = json.Unmarshal(body, &nodeChannels)
+	if err != nil {
+		panic(err)
+	}
+	var channels []*Channel
+	for _, channel := range nodeChannels {
+		if channel.TokenAddress == tokenAddr {
+			channel.SelfAddress = node.Address
+			channel.Name = "CD-" + node.Name + "-"
+			channels = append(channels, &channel)
+		}
+	}
+	return channels
+}
+
 // IsRunning check by api address
 func (node *RaidenNode) IsRunning() bool {
 	req := &Req{
@@ -263,14 +291,15 @@ func (node *RaidenNode) OpenChannel(partnerAddress, tokenAddress string, balance
 		FullURL: node.Host + "/api/1/channels",
 		Method:  http.MethodPut,
 		Payload: string(p),
-		Timeout: time.Second * 20,
+		Timeout: time.Second * 60,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("OpenChannelApi %s err :%s", req.FullURL, err))
+		Logger.Println(fmt.Sprintf("OpenChannelApi %s err : http status=%d body=%s err=%s", req.FullURL, statusCode, string(body), err.Error()))
+		return err
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("OpenChannelApi %s err : http status=%d", req.FullURL, statusCode))
+		Logger.Println(fmt.Sprintf("OpenChannelApi %s err : http status=%d body=%s ", req.FullURL, statusCode, string(body)))
 		return fmt.Errorf("http status=%d", statusCode)
 	}
 	return err

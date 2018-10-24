@@ -14,6 +14,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
@@ -627,6 +628,7 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
+			mh.raiden.NotifyHandler.Notify(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
 		}
 	}()
 	return nil
