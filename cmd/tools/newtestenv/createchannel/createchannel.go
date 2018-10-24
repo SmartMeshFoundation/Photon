@@ -84,7 +84,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth1, tokenNetworkAddres, amount)
+		approve := new(big.Int)
+		approve = approve.Mul(amount, big.NewInt(100)) //保证多个通道创建的时候不会因为approve冲突
+		tx, err := token.Approve(auth1, tokenNetworkAddres, approve)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -110,7 +112,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth2, tokenNetworkAddres, amount)
+		approve := new(big.Int)
+		approve = approve.Mul(amount, big.NewInt(100)) //保证多个通道创建的时候不会因为approve冲突
+		tx, err := token.Approve(auth2, tokenNetworkAddres, approve)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}

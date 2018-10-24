@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -180,11 +181,14 @@ func (c *BoundContract) Transfer(opts *TransactOpts) (*types.Transaction, error)
 	return c.transact(opts, &c.address, nil)
 }
 
+var lock = sync.Mutex{}
+
 // transact executes an actual transaction invocation, first deriving any missing
 // authorization fields, and then scheduling the transaction for execution.
 func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, input []byte) (*types.Transaction, error) {
 	var err error
-
+	lock.Lock()
+	defer lock.Unlock()
 	// Ensure a valid value field and resolve the account nonce
 	value := opts.Value
 	if value == nil {
@@ -224,6 +228,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 		}
 	}
+	//fmt.Printf("send Transaction with nonce=%d,fromaddress=%s\n", nonce, opts.From.String())
 	// Create the transaction, sign it and schedule it for execution
 	var rawTx *types.Transaction
 	if contract == nil {
@@ -245,6 +250,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
 		return nil, err
 	}
+	//time.Sleep(100 * time.Millisecond)
 	return signedTx, nil
 }
 
