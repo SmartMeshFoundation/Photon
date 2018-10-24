@@ -4,6 +4,8 @@ import (
 	"log"
 	"math"
 
+	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 
 	"context"
@@ -249,7 +251,7 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, r
 	//fmt.Printf("key=%s\n", key)
 	transferMoneyForAccounts(key, conn, localAccounts[1:], keys[1:], token)
 	if createchannel {
-		createChannels(conn, localAccounts, keys, tokenNetworkAddress, token)
+		createChannels(conn.Client, localAccounts, keys, tokenNetworkAddress, token)
 	}
 }
 
@@ -346,7 +348,7 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *helper.SafeEthClient,
 }
 
 //path A-B-C-F-B-D-G-E
-func createChannels(conn *helper.SafeEthClient, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
+func createChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}

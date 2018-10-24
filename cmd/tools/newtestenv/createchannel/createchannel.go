@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -59,7 +57,7 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 }
 
 //CreatAChannelAndDeposit create a channel
-func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *helper.SafeEthClient) {
+func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
