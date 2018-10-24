@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+
 	"encoding/hex"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
@@ -57,7 +59,7 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 }
 
 //CreatAChannelAndDeposit create a channel
-func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
+func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *helper.SafeEthClient) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
@@ -84,7 +86,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth1, tokenNetworkAddres, amount)
+		approve := new(big.Int)
+		approve = approve.Mul(amount, big.NewInt(100)) //保证多个通道创建的时候不会因为approve冲突
+		tx, err := token.Approve(auth1, tokenNetworkAddres, approve)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
@@ -110,7 +114,9 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	go func() {
 		wg2.Add(1)
 		defer wg2.Done()
-		tx, err := token.Approve(auth2, tokenNetworkAddres, amount)
+		approve := new(big.Int)
+		approve = approve.Mul(amount, big.NewInt(100)) //保证多个通道创建的时候不会因为approve冲突
+		tx, err := token.Approve(auth2, tokenNetworkAddres, approve)
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
