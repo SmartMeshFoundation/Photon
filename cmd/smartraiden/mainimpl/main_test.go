@@ -64,6 +64,7 @@ func TestStart(t *testing.T) {
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	params.MobileMode = true
+	GitCommit = utils.NewRandomAddress().String()[2:]
 
 	var api *smartraiden.RaidenAPI
 	var err error
