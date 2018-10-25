@@ -112,7 +112,7 @@ func TestRegisterAndJoinDiscoveryRoom(t *testing.T) {
 	/*
 		观察初次注册加入 discovery room 是否返回其他人在线信息.
 	*/
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 1)
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
@@ -120,7 +120,7 @@ func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
 	defer m1.Stop()
 	m1.Start()
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 1)
 }
 
 func TestGetJoinedRoomAlias(t *testing.T) {
@@ -167,9 +167,12 @@ func TestInvite(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 }
 func TestSearchNode(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	m0, m1, m2, m3 := newFourTestMatrixTransport()
 	m0.Start()
 	m1.Start()
@@ -238,6 +241,9 @@ func TestSearchNode(t *testing.T) {
 }
 
 func TestSendMessage(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, m1, m2, _ := newFourTestMatrixTransport()
 	m1.db.(*MockDb).addPartner(m2.NodeAddress)
 	m2.db.(*MockDb).addPartner(m1.NodeAddress)
@@ -317,6 +323,9 @@ func TestSendMessage(t *testing.T) {
 }
 
 func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, m1, m2, _ := newFourTestMatrixTransport()
 	m1.db.(*MockDb).addPartner(m2.NodeAddress)
 	m2.db.(*MockDb).addPartner(m1.NodeAddress)
@@ -426,6 +435,9 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 }
 
 func TestSendMessageWithoutChannel(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, m1, m2, _ := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
@@ -523,6 +535,9 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 }
 
 func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, m1, m2, _ := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()

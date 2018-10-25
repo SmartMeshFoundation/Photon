@@ -35,7 +35,7 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 	p2.Start()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
-	err := p1.SendAndWait(p2.nodeAddr, ping, time.Minute)
+	err := p1.SendAndWait(p2.nodeAddr, ping, time.Second*15)
 	if err != nil {
 		t.Error(err)
 		return
@@ -81,7 +81,7 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 		msg = m.Msg
 		p2.ReceivedMessageResultChan <- nil
 	}()
-	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
+	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Second*15)
 	if err != nil {
 		t.Error(err)
 		return
@@ -124,7 +124,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		p2.ReceivedMessageResultChan <- nil
 		secretRequest := encoding.NewSecretRequest(utils.EmptyHash, big.NewInt(12))
 		secretRequest.Sign(p2.privKey, secretRequest)
-		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Minute)
+		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Second*5)
 		if err != nil {
 			t.Error(err)
 		}
@@ -137,7 +137,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		wg.Done()
 	}()
 	wg.Add(1)
-	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
+	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Second*5)
 	if err != nil {
 		t.Error(err)
 		return

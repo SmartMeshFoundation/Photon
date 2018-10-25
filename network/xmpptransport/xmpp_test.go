@@ -152,7 +152,7 @@ func TestSend(t *testing.T) {
 
 		return
 	}
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 10; i++ {
 
 		chat := &xmpp.Chat{
 			Remote: fmt.Sprintf("%s%s/Miranda", "leon", nameSuffix),
