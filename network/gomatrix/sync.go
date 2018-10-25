@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"runtime/debug"
 	"time"
-
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 )
 
 // Syncer represents an interface that must be satisfied in order to do /sync requests on a client.
@@ -81,7 +78,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 			s.notifyListeners(&event)
 			//handle room aliases
 			if event.Type == "m.room.aliases" {
-				log.Trace(fmt.Sprintf("eventxx %s", utils.StringInterface(event, 5)))
+				//log.Trace(fmt.Sprintf("eventxx %s", utils.StringInterface(event, 5)))
 				aliases, ok := event.Content["aliases"]
 				if ok {
 					//{

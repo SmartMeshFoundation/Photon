@@ -258,15 +258,6 @@ func getTestOpenChannel(t *testing.T) (channelID contracts.ChannelIdentifier, pa
 	var settleBlockNumber uint64
 	var state uint8
 	testApprove(t)
-	//keybin, err := hex.DecodeString(os.Getenv("KEY2"))
-	//if err != nil {
-	//	log.Crit("err %s", err)
-	//}
-	//partnerKey, err = crypto.ToECDSA(keybin)
-	//if err != nil {
-	//	log.Crit("err %s", err)
-	//}
-	//partnerAddr = crypto.PubkeyToAddress(partnerKey.PublicKey)
 	partnerKey, partnerAddr = utils.MakePrivateKeyAddress()
 	err = creatAChannelAndDeposit(auth.From, partnerAddr, TestPrivKey, totalAmount/2, client)
 	if err != nil {

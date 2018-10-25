@@ -3,6 +3,8 @@ package rpc
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+
 	"os"
 
 	"encoding/hex"
@@ -44,13 +46,16 @@ func init() {
 
 //MakeTestBlockChainService creat test BlockChainService
 func MakeTestBlockChainService() *BlockChainService {
-	//conn, err := helper.NewSafeClient(TestRPCEndpoint)
-	////conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
-	//if err != nil {
-	//	fmt.Printf("Failed to connect to the Ethereum client: %s\n", err)
-	//}
-	//return NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
-	return nil
+	conn, err := helper.NewSafeClient(TestRPCEndpoint)
+	//conn, err := ethclient.Dial("ws://" + node.DefaultWSEndpoint())
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to the Ethereum client: %s\n", err))
+	}
+	bcs, err := NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
+	if err != nil {
+		panic(err)
+	}
+	return bcs
 }
 
 //GetTestChannelUniqueID for test only,get from env
