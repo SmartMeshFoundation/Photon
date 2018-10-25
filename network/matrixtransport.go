@@ -213,10 +213,12 @@ func (m *MatrixTransport) collectChannelInfo(db xmpptransport.XMPPDb) error {
 			m.lock.RLock()
 			p := m.Peers[c.PartnerAddress()]
 			m.lock.RUnlock()
-			err := m.startupCheckOneParticipant(p)
-			if err != nil {
-				log.Error(fmt.Sprintf("handleNewPartner for %s,err %s", utils.APex2(c.PartnerAddress()), err))
-			}
+			go func() {
+				err := m.startupCheckOneParticipant(p)
+				if err != nil {
+					log.Error(fmt.Sprintf("handleNewPartner for %s,err %s", utils.APex2(c.PartnerAddress()), err))
+				}
+			}()
 		}
 		return false
 	})
