@@ -837,10 +837,6 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	ch0s := NewChannelSerialization(ch0)
-	ch1s := NewChannelSerialization(ch1)
-	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(ch0s, 3)))
-	log.Trace(fmt.Sprintf("ch1=%s", utils.StringInterface(ch1s, 3)))
 	assertMirror(ch0, ch1, t)
 	req, err := ch1.CreateAnnouceDisposed(lockSecretHash, blockNumber)
 	if err != nil {
@@ -1050,7 +1046,7 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
+	//log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
 	log.Trace(fmt.Sprintf("req=%s", req))
 	req.Sign(ch0.ExternState.privKey, req)
 	err = ch0.RegisterCooperativeSettleRequest(req)

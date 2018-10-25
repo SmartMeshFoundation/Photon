@@ -916,7 +916,7 @@ func (r *RaidenAPI) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash,
 			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
 		}
 		w.Signature, err = signUnlockFor3rd(c, w, thirdAddr, r.Raiden.PrivateKey)
-		log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
+		//log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
 		ws = append(ws, w)
 	}
 	c3.Unlocks = ws

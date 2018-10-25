@@ -3,9 +3,6 @@ package models
 import (
 	"testing"
 
-	"fmt"
-
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -60,5 +57,5 @@ func TestReadDbAgain(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("edges=%s", utils.StringInterface(edges, 3)))
+	//log.Trace(fmt.Sprintf("edges=%s", utils.StringInterface(edges, 3)))
 }

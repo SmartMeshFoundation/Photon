@@ -66,7 +66,7 @@ func (model *ModelDB) IsLockSecretHashDisposed(lockSecretHash common.Hash) bool 
 	if err != nil {
 		return false
 	}
-	log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
+	//log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
 	return true
 }
 
@@ -78,7 +78,7 @@ func (model *ModelDB) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash c
 	if err != nil {
 		return false
 	}
-	log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
+	//log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
 	return true
 }
 

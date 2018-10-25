@@ -106,7 +106,7 @@ func (rs *RaidenService) restoreLocks() {
 			}
 		}
 	}
-	log.Trace(fmt.Sprintf("after restart current locks %s", utils.StringInterface(locks, 4)))
+	//log.Trace(fmt.Sprintf("after restart current locks %s", utils.StringInterface(locks, 4)))
 	//将 lock 转换为ActionInitCrashRestartStateChange
 	// switch lock to ActionInitCrashRestartStateChange
 	for _, l := range locks {
@@ -132,7 +132,7 @@ func (rs *RaidenService) restoreLocks() {
 		}
 		token2ActionInitCrashRestartStateChange[key] = aicr
 	}
-	log.Trace(fmt.Sprintf("after restart ActionInitCrashRestartStateChanges=%s", utils.StringInterface(token2ActionInitCrashRestartStateChange, 5)))
+	//log.Trace(fmt.Sprintf("after restart ActionInitCrashRestartStateChanges=%s", utils.StringInterface(token2ActionInitCrashRestartStateChange, 5)))
 	//根据ActionInitCrashRestartStateChange,创建对应的 stateManager
 	// Create corresponding stateManager, according to ActionInitCrashRestartStateChange.
 	for k, st := range token2ActionInitCrashRestartStateChange {

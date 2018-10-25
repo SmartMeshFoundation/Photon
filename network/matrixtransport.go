@@ -787,7 +787,7 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 		}
 		//user can not be verified
 		if err := m.validateAndUpdateUser(user); err != nil {
-			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s err %s", utils.StringInterface(event, 5), err))
+			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s err %s", user.UserID, err))
 			return
 		}
 		err := m.inviteIfPossible(userid, event.RoomID)

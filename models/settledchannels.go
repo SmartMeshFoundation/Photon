@@ -6,10 +6,7 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	"encoding/hex"
-
 	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -44,7 +41,7 @@ func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 			if string(k) == "__storm_metadata" {
 				return nil
 			}
-			log.Trace(fmt.Sprintf("GetAllSettledChannel key=%s, value=%s\n", string(k), hex.EncodeToString(v)))
+			//log.Trace(fmt.Sprintf("GetAllSettledChannel key=%s, value=%s\n", string(k), hex.EncodeToString(v)))
 			var c channeltype.Serialization
 			err = unmarshal(v, &c)
 			if err != nil {

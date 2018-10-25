@@ -60,7 +60,7 @@ func (model *ModelDB) GetAllOrderedSentEnvelopMessager() []*SentEnvelopMessager 
 	if err != nil && err != storm.ErrNotFound {
 		panic(fmt.Sprintf("GetAllOrderedSentEnvelopMessager err=%s", err))
 	}
-	log.Trace(fmt.Sprintf("GetAllOrderedSentEnvelopMessager=%s", utils.StringInterface(msgs, 3)))
+	//log.Trace(fmt.Sprintf("GetAllOrderedSentEnvelopMessager=%s", utils.StringInterface(msgs, 3)))
 	sortEnvelopMessager(msgs)
 	return msgs
 }
