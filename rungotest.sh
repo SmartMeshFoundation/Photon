@@ -8,4 +8,4 @@ export KEY2=36234555bc087435cf52371f9a0139cb98a4267ba62b722e3f46b90d35f31678
 export ISTEST=1
 export ETHRPCENDPOINT="http://127.0.0.1:8545"
 
-go test ./...
+go test -v  -failfast -timeout 5m -short `go list ./... | grep -v contracts`

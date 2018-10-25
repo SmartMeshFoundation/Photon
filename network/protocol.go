@@ -538,7 +538,7 @@ type NodeInfo struct {
 
 // UpdateMeshNetworkNodes update nodes in this intranet
 func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
-	p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
+	//p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)

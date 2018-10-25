@@ -662,7 +662,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		t.Errorf("receipient err ,r=%s", r)
 		return
 	}
-	log.Trace(fmt.Sprintf("bp=\n%s", utils.StringInterface(bp, 3)))
+	//log.Trace(fmt.Sprintf("bp=\n%s", utils.StringInterface(bp, 3)))
 	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
 	log.Info(fmt.Sprintf("UpdateBalanceProof closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\n,balance_hash=%s",
 		auth.From.String(),
@@ -784,7 +784,7 @@ func TestCooperateSettleChannel(t *testing.T) {
 		ChainID:             ChainID,
 		TokenNetworkAddress: tokenNetworkAddress,
 	}
-	log.Trace(fmt.Sprintf("cs=\n%s", utils.StringInterface(cs, 3)))
+	//log.Trace(fmt.Sprintf("cs=\n%s", utils.StringInterface(cs, 3)))
 	tx, err := tokenNetwork.CooperativeSettle(
 		auth,
 		cs.Particiant1,
@@ -1090,8 +1090,8 @@ func TestWithdraw(t *testing.T) {
 		ChainID:              ChainID,
 		TokenNetworkAddress:  tokenNetworkAddress,
 	}
-	log.Trace(fmt.Sprintf("w1=\n%s", utils.StringInterface(w1, 3)))
-	log.Trace(fmt.Sprintf("w2=\n%s", utils.StringInterface(w2, 3)))
+	//log.Trace(fmt.Sprintf("w1=\n%s", utils.StringInterface(w1, 3)))
+	//log.Trace(fmt.Sprintf("w2=\n%s", utils.StringInterface(w2, 3)))
 	log.Trace(fmt.Sprintf("WithDraw call, participant=%s,partner=%s,"+
 		"p1deposit=%s, p1withdarw=%s,"+
 		"p1sig=0x%s,p2sig=0x%s ",

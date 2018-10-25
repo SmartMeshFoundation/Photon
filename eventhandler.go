@@ -480,7 +480,7 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 	if err != nil {
 		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
 		// todo handle this event, when routing we should consider the weight between nodes, weight = sum of deposits between a participant pair.
-		log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
+		//log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)

@@ -1,9 +1,8 @@
 package models
 
 import (
-	"testing"
-
 	"fmt"
+	"testing"
 
 	"github.com/SmartMeshFoundation/SmartRaiden/log"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
@@ -60,5 +59,5 @@ func TestReadDbAgain(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("edges=%s", utils.StringInterface(edges, 3)))
+	log.Trace(fmt.Sprintf("len edges=%d", len(edges)))
 }
