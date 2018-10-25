@@ -38,10 +38,6 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(tokensstr) <= 0 {
-		t.Errorf("tokens length err")
-		return
-	}
 	var channels []*v1.ChannelData
 	channelsstr, err := api.GetChannelList()
 	if err != nil {
@@ -52,10 +48,6 @@ func TestMobile(t *testing.T) {
 	err = json.Unmarshal([]byte(channelsstr), &channels)
 	if err != nil {
 		t.Error(err)
-		return
-	}
-	if len(channels) <= 0 {
-		t.Error("channels length error")
 		return
 	}
 
