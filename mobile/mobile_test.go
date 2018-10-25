@@ -38,10 +38,6 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(tokensstr) <= 0 {
-		t.Errorf("tokens length err")
-		return
-	}
 	var channels []*v1.ChannelData
 	channelsstr, err := api.GetChannelList()
 	if err != nil {
@@ -54,10 +50,6 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if len(channels) <= 0 {
-		t.Error("channels length error")
-		return
-	}
 
 	partnerAddr := utils.NewRandomAddress()
 	callID, err := api.OpenChannel(partnerAddr.String(), tokens[0].String(), 30, "3")
@@ -66,14 +58,16 @@ func TestMobile(t *testing.T) {
 		return
 	}
 	var channelstr string
-	var done bool
+	now := time.Now()
 	for {
-		channelstr, err = api.GetCallResult(callID)
-		if !done {
-			time.Sleep(time.Second)
-			continue
+		if time.Since(now) > 20*time.Second {
+			break
 		}
-		break
+		channelstr, err = api.GetCallResult(callID)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second)
 	}
 	if err != nil {
 		t.Error(err)
@@ -90,13 +84,16 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	now = time.Now()
 	for {
-		channelstr, err = api.GetCallResult(callID)
-		if !done {
-			time.Sleep(time.Second)
-			continue
+		if time.Since(now) > 20*time.Second {
+			break
 		}
-		break
+		channelstr, err = api.GetCallResult(callID)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second)
 	}
 	if err != nil {
 		t.Error(err)
@@ -115,7 +112,6 @@ func TestMobile(t *testing.T) {
 	if err.Error() != "not found" {
 		t.Error(err)
 	}
-
 	api.Stop()
 }
 
