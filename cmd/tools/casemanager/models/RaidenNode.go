@@ -51,6 +51,7 @@ func (node *RaidenNode) Start(env *TestEnv) {
 	} else {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
+	time.Sleep(10 * time.Second)
 }
 
 // ReStartWithoutConditionquit : Restart start a raiden node

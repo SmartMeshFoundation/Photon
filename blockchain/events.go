@@ -146,10 +146,12 @@ func (be *Events) startAlarmTask() {
 		}
 		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
 		h, err := be.client.HeaderByNumber(ctx, nil)
-		if err != nil && !be.stopped {
+		if err != nil {
 			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
 			cancelFunc()
-			go be.client.RecoverDisconnect()
+			if !be.stopped {
+				go be.client.RecoverDisconnect()
+			}
 			return
 		}
 		cancelFunc()
@@ -167,8 +169,13 @@ func (be *Events) startAlarmTask() {
 
 		// get all state change between currentBlock and lastedBlock
 		stateChanges, err := be.queryAllStateChange(currentBlock+1, lastedBlock)
-		if err != nil && !be.stopped {
+		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
+			if be.stopped {
+				return
+			}
+			// 如果这里出现err,不能继续处理该blocknumber,否则会丢事件,直接从该块重新处理即可
+			continue
 		}
 		if len(stateChanges) > 0 {
 			log.Trace(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), currentBlock+1, lastedBlock))
