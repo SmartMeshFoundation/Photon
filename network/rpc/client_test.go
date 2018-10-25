@@ -91,7 +91,11 @@ func TestPendingNonceAt(t *testing.T) {
 		panic(err)
 	}
 	account := accounts[0].Address
+	now := time.Now()
 	for {
+		if time.Since(now) > 20*time.Second {
+			break
+		}
 		pendingNonce, _ := client.PendingNonceAt(context.Background(), account)
 		nonce, _ := client.NonceAt(context.Background(), account, nil)
 		fmt.Println("pendingNonce", pendingNonce)
