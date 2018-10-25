@@ -22,7 +22,7 @@ script:
   - go build
   - pwd
   # - pwd
-  - go test -v -timeout 20m `go list ./... | grep -v network/rpc/contracts`
+  - go test -v  -failfast -timeout 10m -short `go list ./... | grep -v contracts`
   - chmod +x ./smoketest.sh
   - ./smoketest.sh
 
