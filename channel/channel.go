@@ -43,7 +43,7 @@ settleTimeout must be valid, it cannot too small.
 func NewChannel(ourState, partenerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
 	revealTimeout, settleTimeout int) (c *Channel, err error) {
 	if settleTimeout <= revealTimeout {
-		err = errors.New("reveal_timeout can not be larger-or-equal to settle_timeout")
+		err = fmt.Errorf("reveal_timeout can not be larger-or-equal to settle_timeout, reveal_timeout=%d,settle_timeout=%d", revealTimeout, settleTimeout)
 		return
 	}
 	if revealTimeout < 3 {

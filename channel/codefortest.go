@@ -1,7 +1,11 @@
 package channel
 
 import (
+	"fmt"
 	"math/big"
+
+	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
 
 	"os"
 
@@ -13,16 +17,19 @@ import (
 )
 
 func newTestBlockChainService() *rpc.BlockChainService {
-	//conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
-	//if err != nil {
-	//	log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
-	//}
-	//privkey, _ := utils.MakePrivateKeyAddress()
-	//if err != nil {
-	//	log.Crit("Failed to create authorized transactor: ", err)
-	//}
-	//return rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
-	return nil
+	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
+	if err != nil {
+		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
+	}
+	privkey, _ := utils.MakePrivateKeyAddress()
+	if err != nil {
+		log.Crit("Failed to create authorized transactor: ", err)
+	}
+	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
+	if err != nil {
+		panic(err)
+	}
+	return bcs
 }
 
 var testFuncRegisterChannelForHashlock = func(channel *Channel, hashlock common.Hash) {}

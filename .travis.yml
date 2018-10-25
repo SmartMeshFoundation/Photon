@@ -21,27 +21,9 @@ script:
   - go build
   - pwd
   # - pwd
-  # - go test -timeout 60m ./...
+   - go test -timeout 60m ./...
   - chmod +x ./smoketest.sh
   - ./smoketest.sh
-  # go test in child dirs
-  - cd ./accounts
-  - go test ./...
-
-  - cd ../log
-  - go test ./...
-
-  - cd ../utils
-  - go test ./...
-
-  - cd ../encoding
-  - go test ./...
-
-  - cd ../internal
-  - go test ./...
-
-  - cd ../models
-  - go test ./...
 
 
 notifications:

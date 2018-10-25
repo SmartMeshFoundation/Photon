@@ -148,7 +148,7 @@ func (bcs *BlockChainService) TokenNetwork(address common.Address) (t *TokenNetw
 			return
 		}
 		if !bcs.contractExist(address) {
-			return nil, fmt.Errorf("no code at %s", address)
+			return nil, fmt.Errorf("no code at %s", address.String())
 		}
 		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: tokenNetwork}
 	}
