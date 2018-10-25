@@ -15,13 +15,14 @@ script:
   - export KEY2=36234555bc087435cf52371f9a0139cb98a4267ba62b722e3f46b90d35f31678
   - export ISTEST=1
   - export ETHRPCENDPOINT="ws://182.254.155.208:30306"
+  - export KEYSTORE=$GOPAH/src/github.com/SmartMeshFoundation/SmartRaiden/testdata/keystore
   #- go get  ./...
   - chmod +x ./goclean.sh
   - ./goclean.sh
   - go build
   - pwd
   # - pwd
-  - go test -timeout 60m ./...
+  - go test -v -timeout 20m `go list ./... | grep -v network/rpc/contracts`
   - chmod +x ./smoketest.sh
   - ./smoketest.sh
 
