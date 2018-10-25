@@ -25,7 +25,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
 	"github.com/SmartMeshFoundation/SmartRaiden/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -77,6 +76,7 @@ type matrixJob struct {
 type MatrixTransport struct {
 	matrixcli             *gomatrix.MatrixClient //the instantiated matrix
 	servername            string                 //the homeserver's name
+	serverURL             string                 //http://transport01.smartmesh.cn
 	running               bool                   //running status
 	stopreceiving         bool                   //Whether to stop accepting(data)
 	key                   *ecdsa.PrivateKey      //key
@@ -366,32 +366,32 @@ func (m *MatrixTransport) Start() {
 			var store gomatrix.Storer
 			var syncer *gomatrix.DefaultSyncer
 			var homeServerValid = ""
+			var homeServerURLValid = ""
 			var matrixClientValid *gomatrix.MatrixClient
 			firstSync := make(chan struct{}, 5)
 			isFirstSynced := false
 			for name, url := range m.servers {
 				var mcli *gomatrix.MatrixClient
-				homeserverurl := url
-				homeservername := name
-				mcli, err = gomatrix.NewClient(homeserverurl, "", "", PATHPREFIX0, m.log)
+				mcli, err = gomatrix.NewClient(url, "", "", PATHPREFIX0, m.log)
 				if err != nil {
 					continue
 				}
 				_, err = mcli.Versions()
 				if err != nil {
-					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", homeserverurl, err))
+					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", url, err))
 					continue
 				}
-				homeServerValid = homeservername
+				homeServerValid = name
+				homeServerURLValid = url
 				matrixClientValid = mcli
 				break
 			}
 			if homeServerValid == "" || matrixClientValid == nil {
-				errinfo := "unable to find any reachable Matrix server"
-				m.log.Error(errinfo)
+				m.log.Error("unable to find any reachable Matrix server")
 				goto tryNext
 			}
 			m.servername = homeServerValid
+			m.serverURL = homeServerURLValid
 			m.matrixcli = matrixClientValid
 			m.changeStatus(netshare.Connected)
 
@@ -873,6 +873,37 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 	m.log.Trace(fmt.Sprintf("peer %s status=%s,deviceType=%s", utils.APex2(address), peer.status, peer.deviceType))
 }
 
+//register new user on homeserver using application service
+func (m *MatrixTransport) register(username, password string) (userID string, err error) {
+	type reg struct {
+		LocalPart   string `json:"localpart"`   //@someone:matrix.org someone is localpoart,matrix.org is domain
+		DisplayName string `json:"displayname"` // displayname of this user
+		Password    string `json:"password,omitempty"`
+	}
+	type regResp struct {
+		AccessToken string `json:"access_token"`
+		HomeServer  string `json:"home_server"`
+		UserID      string `json:"user_id"`
+	}
+	regurl := fmt.Sprintf("%s/regapp/1/register", m.serverURL)
+	userID = fmt.Sprintf("@%s:%s", username, m.servername)
+	log.Trace(fmt.Sprintf("register user userid=%s", userID))
+	req := &reg{
+		LocalPart:   username,
+		Password:    password,
+		DisplayName: m.getUserDisplayName(userID),
+	}
+	resp := &regResp{}
+	_, err = m.matrixcli.MakeRequest(http.MethodPost, regurl, req, resp)
+	if err != nil {
+		return
+	}
+	if resp.UserID != userID {
+		err = fmt.Errorf("expect userid=%s,got=%s", userID, resp.UserID)
+	}
+	return
+}
+
 // loginOrRegister node login, if failed, register again then try login,
 // displayname of nodes as the signature of userID
 func (m *MatrixTransport) loginOrRegister() (err error) {
@@ -882,7 +913,7 @@ func (m *MatrixTransport) loginOrRegister() (err error) {
 	baseUsername := strings.ToLower(baseAddress.String())
 
 	username := baseUsername
-	password := hexutil.Encode(m.dataSign([]byte(m.servername)))
+	password := hex.EncodeToString(m.dataSign([]byte(m.servername)))
 	//password := "12345678"
 	for i := 0; i < 5; i++ {
 		var resplogin *gomatrix.RespLogin
@@ -902,25 +933,11 @@ func (m *MatrixTransport) loginOrRegister() (err error) {
 				if i > 0 {
 					m.log.Trace(fmt.Sprintf("couldn't sign in for matrix,trying register %s", username))
 				}
-				authDict := &gomatrix.AuthDict{
-					Type: AUTHTYPE,
+				userID, rerr := m.register(username, password)
+				if rerr != nil {
+					return rerr
 				}
-				req := &gomatrix.ReqRegister{
-					DeviceID: "",
-					Auth:     *authDict,
-					Username: username,
-					Password: password,
-					Type:     LOGINTYPE,
-				}
-				_, uia, rerr := m.matrixcli.Register(req)
-				if rerr != nil && uia == nil {
-					rhttpErr, _ := err.(gomatrix.HTTPError)
-					if rhttpErr.Code == 400 { //M_USER_IN_USE,M_INVALID_USERNAME,M_EXCLUSIVE
-						m.log.Trace("username is in use or invalid,try again")
-						continue
-					}
-				}
-				m.matrixcli.UserID = username
+				m.matrixcli.UserID = userID
 				continue
 			}
 		} else {
@@ -1044,7 +1061,7 @@ func (m *MatrixTransport) findOrCreateRoomByAddress(address common.Address, isPu
 	}
 	//The following is the case where peer-to-peer communication room does not exist.
 	var addressOfPairs = ""
-	strPairs := []string{hexutil.Encode(m.NodeAddress.Bytes()), hexutil.Encode(address.Bytes())}
+	strPairs := []string{hex.EncodeToString(m.NodeAddress.Bytes()), hex.EncodeToString(address.Bytes())}
 	sort.Strings(strPairs)
 	addressOfPairs = strings.Join(strPairs, "_") //format "0cccc_0xdddd"
 	tmpRoomName := m.makeRoomAlias(addressOfPairs)
@@ -1361,10 +1378,7 @@ func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, e
 		err = fmt.Errorf("%s not match our userid rule", user.UserID)
 		return
 	}
-	addressBytes, err := hexutil.Decode(addrlocal)
-	if err != nil {
-		return
-	}
+	address = common.HexToAddress(addrlocal)
 	signature, err := getSignatureFromDisplayName(user.DisplayName)
 	if err != nil {
 		return
@@ -1373,10 +1387,9 @@ func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, e
 	if err != nil {
 		return
 	}
-	if !bytes.Equal(recovered[:], addressBytes) {
+	if !bytes.Equal(recovered[:], address[:]) {
 		err = fmt.Errorf("validate %s failed", user.UserID)
 		return
 	}
-	address = common.BytesToAddress(addressBytes)
 	return
 }
