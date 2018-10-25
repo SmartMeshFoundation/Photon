@@ -127,6 +127,10 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Name:  "fee",
 			Usage: "enable mediation fee",
 		},
+		cli.BoolFlag{
+			Name:  "xmpp",
+			Usage: "use xmpp as transport",
+		},
 		cli.StringFlag{
 			Name:  "xmpp-server",
 			Usage: "use another xmpp server ",
@@ -151,14 +155,14 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
-			Usage: "channels' reveal timeout, default 50",
+			Usage: "channels' reveal timeout, default 10",
 			Value: params.DefaultRevealTimeout,
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
 	app.Name = "smartraiden"
-	app.Version = "0.8"
+	app.Version = "0.9"
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
 			return err
@@ -383,10 +387,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
 	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
-	} else if ctx.Bool("matrix") {
-		config.NetworkMode = params.MixUDPMatrix
-	} else {
+	} else if ctx.Bool("xmpp") {
 		config.NetworkMode = params.MixUDPXMPP
+	} else {
+		config.NetworkMode = params.MixUDPMatrix
 	}
 	if ctx.Bool("fee") {
 		config.EnableMediationFee = true
