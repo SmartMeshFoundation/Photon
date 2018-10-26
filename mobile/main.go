@@ -27,7 +27,7 @@ listenAddr is the listenning address for incomming message from peers.
 registryAddress is the contract address working on.
 otherArgs is an array of other arguments.
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) {
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "smartraidenmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))

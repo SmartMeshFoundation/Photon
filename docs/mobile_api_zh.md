@@ -65,7 +65,7 @@ SmartRaiden依赖gomobile自动进行接口封装,因为是跨语言调用,无�
 为了规避此类问题,SmartRaiden对外提供接口几乎都是基本类型(int,string,error).
 
 ### 启动一个雷电节点
-func StartUp(...) (api *API, err error)
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 参数:
 * `address string`– 雷电节点所使用的账户地址
@@ -243,6 +243,7 @@ func (a *API) Address() (addr string)
 ``0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2``
 ### 获取提供给第三方的委托数据
 func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error)
+
 因为SmartRaiden的工作原理决定了,如果一个节点长时间离线,将会带来自身的资金安全性风险.因此如果SmartRaiden有可能较长时间(相对于创建通道指定的结算窗口时间)离线,
 那么应该把相关的收益证明委托给第三方服务(SmartRaiden-Monitoring),由第三方服务在需要的时候提交相关的BalanceProof.
 SmartRaiden-Monitoring如何使用,请参考[SmartRaiden-Monitoring](https://github.com/SmartMeshFoundation/SmartRaiden-Monitoring)
@@ -275,6 +276,7 @@ SmartRaiden-Monitoring如何使用,请参考[SmartRaiden-Monitoring](https://git
 ```
 ### 获取当前公链连接状态
 func (a *API) EthereumStatus() (r string, err error)
+
 已经废弃,应该使用NotifyHandler来获取连接状态变化.
 返回err表示无公链连接,反之连接正常
 ### 获取所有已经注册的token列表
@@ -390,7 +392,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error)
 方便App查询历史交易,返回数据是`SenTransfer`的数组
 ## 交易/通道相关接口,异步
 ### 发起一笔交易
-func (a *API) Transfers(...) (transfer string, err error)
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error)
 
 发起一笔交易,异步接口,使用返回里面的token_address + lockSecretHash调用GetTransferStatus接口查询交易状态
 
@@ -440,8 +442,9 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 
 ### 发起一笔token swap交易
 func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error)
+
 该接口实现两种Token的去中心化原子互换操作. 
-此交易过程一般是现有`taker`调用,调用示例
+此交易过程一般是先由`taker`调用,调用示例
 ```
     "role": "taker",
     "lockSecretHash":"0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
@@ -472,6 +475,7 @@ func (a *API) RegisterToken(tokenAddress string) (callID string, err error)
 立即返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 创建一个channel
 func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error)
+
 注意: settleTimeout就是结算窗口时间,以块为单位,在实际使用过程中,为了安全起见,应该设置一个较大的值,比如600块(9000秒两个多小时). 
 这意味着在不合作关闭通道的情况下,需要两个多小时Token才能返回自己的账户. 
 返回一个callID,用于调用GetCallResult接口查询调用结果
@@ -481,6 +485,7 @@ func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callI
 返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 关闭一个channel
 func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string, err error)
+
 force 为false,则会寻求和对方协商关闭通道,在协商一致的情况下可以立即(等待一两个块的时间)将Token返回到自己账户
 force 为true,则不会与对方协商,意味着会首先关闭通道,然后等待`settleTimeout`这么多块,然后才可以进行SettleChannel,最终Token才会返回自己的账户
 返回一个callID,用于调用GetCallResult接口查询调用结果
@@ -492,5 +497,5 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 
 返回:
-* `r string`– 接口调用返回,示例参考http接口文档
+* `r string`– 接口调用返回,示例参考http接口文档[rest_api.md](rest_api.md)
 * `err error`– 接口调用错误信息,返回dealing说明正在处理尚未收到结果

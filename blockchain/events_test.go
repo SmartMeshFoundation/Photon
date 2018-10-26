@@ -3,6 +3,8 @@ package blockchain
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
+
 	"fmt"
 
 	"time"
@@ -45,7 +47,7 @@ func TestEvents_Start(t *testing.T) {
 		panic(err)
 	}
 	be := NewBlockChainEvents(client, &fakeRPCModule{
-		RegistryAddress: common.HexToAddress("0x7B25494cF297D63eA2AF72d43Fc133408674c43a"),
+		RegistryAddress: rpc.TestGetTokenNetworkRegistryAddress(),
 	}, nil)
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
