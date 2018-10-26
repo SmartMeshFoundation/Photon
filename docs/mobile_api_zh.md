@@ -65,7 +65,7 @@ SmartRaiden依赖gomobile自动进行接口封装,因为是跨语言调用,无�
 为了规避此类问题,SmartRaiden对外提供接口几乎都是基本类型(int,string,error).
 
 ### 启动一个雷电节点
-func StartUp(...) (api *API, err error)
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 参数:
 * `address string`– 雷电节点所使用的账户地址
@@ -392,7 +392,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error)
 方便App查询历史交易,返回数据是`SenTransfer`的数组
 ## 交易/通道相关接口,异步
 ### 发起一笔交易
-func (a *API) Transfers(...) (transfer string, err error)
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error)
 
 发起一笔交易,异步接口,使用返回里面的token_address + lockSecretHash调用GetTransferStatus接口查询交易状态
 
