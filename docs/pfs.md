@@ -109,6 +109,7 @@ Example Request：
 {
 	"peer_from": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
 	"peer_to": "0x0D0EFCcda4f079C0dD1B728297A43eE54d7170Cd",
+	"token_address": "0x76fCe6fF759B208D27E4D48828F820d79d1719f3",
 	"limit_paths": 6,
 	"send_amount": 100,
 	"signature": "KUmUDRbyJzrt5CR0Tlgvlh2PZ+Q8c8m4rdaHU+Cu9yIxfQ9drHw99qiWs/qXbtr/ok8m7N0ZUvUOX3ldxhcSXBw="
@@ -145,14 +146,8 @@ Example Request：
 Example Response
 ```json
 {
-    "result": {
-        "0x6bebe91a40c39fc3ffcd6adc8dbc46052a02ba6912e45b025e058a07c5f2f0dd": {
-            "channel_id": "0x6bebe91a40c39fc3ffcd6adc8dbc46052a02ba6912e45b025e058a07c5f2f0dd",
-            "peer_address": "0x3607806e038fed0985567992188e919802486bf3",
-            "fee_rate": "1",
-            "effective_time": 1540518875801
-        }
-    }
+    "fee_rate": "1",
+    "effective_time": 1540522043289
 }
 ```
 
