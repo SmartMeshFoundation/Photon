@@ -28,6 +28,9 @@ func init() {
 }
 
 func TestRaidenProtocolSendReceive(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	log.Trace("log...")
 	p1 := MakeTestRaidenProtocol("p1")
 	p2 := MakeTestRaidenProtocol("p2")
@@ -42,6 +45,9 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 	}
 }
 func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var err error
 	log.Trace("log...")
 	p2 := MakeTestRaidenProtocol("p2")
@@ -68,6 +74,9 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 	}
 }
 func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var msg encoding.SignedMessager
 	p1 := MakeTestRaidenProtocol("p1")
 	p2 := MakeTestRaidenProtocol("p2")
@@ -109,6 +118,9 @@ func TestNew(t *testing.T) {
 }
 
 func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	var msg encoding.SignedMessager
 	var wg = sync.WaitGroup{}
 	p1 := MakeTestRaidenProtocol("p1")
@@ -154,6 +166,9 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 }
 
 func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	log.Trace("log...")
 	p1 := MakeTestDiscardExpiredTransferRaidenProtocol("p1")
 	p1.Start()
