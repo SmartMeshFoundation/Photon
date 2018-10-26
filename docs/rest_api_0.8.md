@@ -1,5 +1,5 @@
 # SmartRaiden REST API Reference
-Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec for SmartRaide version 1.0, which adds a lot more new features, as CooperateWithdraw, CooperateCloseChannel, send specific `secret`, etc. Please note that this reference is still updating. If any problem, feel free to submit at our [Issue](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
+Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec for SmartRaiden version 0.9, which adds a lot more new features, such as CooperateWithdraw, CooperateCloseChannel, send specific `secret`, etc. Please note that this reference is still updating. If any problem, feel free to submit at our [Issue](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
 
 ## Channel Structure
 ```json

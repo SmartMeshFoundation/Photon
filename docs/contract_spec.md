@@ -1,4 +1,4 @@
-# SmartRaiden Contract Specification version 0.8 
+# SmartRaiden Contract Specification version 0.9 
 
 ## Overview 
 This is our contract specification for SmartRaiden Project, from which you can get information about SmartRaiden Network Construction, including  Requirement, Data Structure, Feature Description, etc, but in this spec there is no trace for off-chain transfer or any description about relevant check features.
