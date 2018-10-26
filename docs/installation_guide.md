@@ -61,13 +61,13 @@ With the preliminary steps completed, to install `SmartRaiden`, and all related 
 ```
 go get github.com/SmartMeshFoundation/SmartRaiden/ 
 cd cmd/smartraiden
-go install
+./build.sh
 ```
 **Updating**
 ```
 git pull 
 cd cmd/smartraiden
-go install
+./build.sh
 ```
 
 ### Requirements for Safe Usage
