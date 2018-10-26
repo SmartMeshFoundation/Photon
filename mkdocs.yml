@@ -8,6 +8,7 @@ pages:
 -  SmartRaiden’s Mobile API Documentation: mobie.md
 -  SmartRaiden Monitoring Service: sm_service.md
 -  SmartRaiden Pathfinding Service Specification: pfs.md
+-  matrix-regservice:matrix.md
 -  SmartRaiden Glossary: glossary.md
 
 theme:
