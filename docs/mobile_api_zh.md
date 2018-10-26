@@ -1,6 +1,69 @@
 # SmartRaiden’s Mobile API 文档
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
+<!-- code_chunk_output -->
+
+* [SmartRaiden’s Mobile API 文档](#smartraidens-mobile-api-文档)
+	* [安装](#安装)
+		* [android使用](#android使用)
+		* [iOS使用](#ios使用)
+		* [其他已知问题](#其他已知问题)
+	* [节点管理相关接口](#节点管理相关接口)
+		* [启动一个雷电节点](#启动一个雷电节点)
+		* [停止一个雷电节点](#停止一个雷电节点)
+		* [切换雷电运行环境](#切换雷电运行环境)
+		* [通知雷电节点网络断开](#通知雷电节点网络断开)
+		* [订阅雷电事件](#订阅雷电事件)
+			* [OnError](#onerror)
+			* [OnStatusChange](#onstatuschange)
+			* [OnReceivedTransfer](#onreceivedtransfer)
+			* [OnSentTransfer](#onsenttransfer)
+			* [OnNotify](#onnotify)
+		* [手动注册节点信息](#手动注册节点信息)
+	* [查询接口](#查询接口)
+		* [获取运行雷电节点的账户地址](#获取运行雷电节点的账户地址)
+		* [获取提供给第三方的委托数据](#获取提供给第三方的委托数据)
+		* [获取当前公链连接状态](#获取当前公链连接状态)
+		* [获取所有已经注册的token列表](#获取所有已经注册的token列表)
+		* [查询某个token下自己参与的所有channel](#查询某个token下自己参与的所有channel)
+		* [获取通道列表](#获取通道列表)
+		* [获取一个通道的信息](#获取一个通道的信息)
+		* [查询收到的交易列表](#查询收到的交易列表)
+		* [查询发出的交易列表](#查询发出的交易列表)
+	* [交易/通道相关接口,异步](#交易通道相关接口异步)
+		* [发起一笔交易](#发起一笔交易)
+		* [查询自己发起的交易状态](#查询自己发起的交易状态)
+		* [发起一笔token swap交易](#发起一笔token-swap交易)
+		* [向雷电网络注册一个token](#向雷电网络注册一个token)
+		* [创建一个channel](#创建一个channel)
+		* [向一个channel里面存入对应token](#向一个channel里面存入对应token)
+		* [关闭一个channel](#关闭一个channel)
+		* [结算一个channel](#结算一个channel)
+		* [根据callID查询调用结果](#根据callid查询调用结果)
+
+<!-- /code_chunk_output -->
+
+## 安装
+SmartRaiden mobile SDk编译必须要求gomobile工具可以正常使用. gomobile的安装编译工作请参考[gomobile](https://godoc.org/golang.org/x/mobile)
+```bash
+cd mobile
+#build android
+./build_android.sh
+#build iOS
+./build_iOS.sh
+```
+### android使用
+将mobile.aar 集成到项目即可
+### iOS使用
+将Mobile.framework集成到项目即可
+
+### 其他已知问题
+由于gomobile的工作方式限制,如果项目中同时有两个gomobile编译的sdk(比如你的项目还依赖ethereum的mobile包),程序无法正常运行.
 
 ## 节点管理相关接口
+SmartRaiden依赖gomobile自动进行接口封装,因为是跨语言调用,无法避免的就是类型转换问题. 
+为了规避此类问题,SmartRaiden对外提供接口几乎都是基本类型(int,string,error).
+
 ### 启动一个雷电节点
 func StartUp(...) (api *API, err error)
 
@@ -14,8 +77,20 @@ func StartUp(...) (api *API, err error)
 * `listenAddr string` – udp 监听端口
 * `logFile string` – 日志文件路径
 * `registryAddress string` – TokenNetworkRegistry合约地址
-* `otherArgs string` – 其他参数,参考smartraiden -h
+* `otherArgs mobile.Strings` – 其他参数,参考smartraiden -h   
 
+如果需要传递默认参数以外的其他参数,可以参考如下方式:
+```go
+otherArgs := mobile.NewStrings(2)
+err = otherArgs.Set(0, fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
+if err != nil {
+    return err
+}
+err = otherArgs.Set(1, fmt.Sprintf("--help"))
+if err != nil {
+    return err
+}
+```
 返回:
 * `api *API` – 启动成功返回api句柄
 * `err error` – 错误信息
@@ -27,32 +102,152 @@ func (a *API) Stop()
 func (a *API) SwitchNetwork(isMesh bool)
 
 切换网络环境,Mesh or Internet
+在Mesh网络下,节点之间直接使用UDP协议通信,需要App通过UpdateMeshNetworkNodes来告知SmartRaiden其他节点信息.
 
 ### 通知雷电节点网络断开
 func (a *API) NotifyNetworkDown() error
 
 主动告知雷电节点网络断开,并让雷电节点开始尝试重连
 
+在手机网络环境下,由于网络复杂性,比如WiFi断开等,这些事件SmartRaiden不能直接从系统感知,需要App主动告诉SmartRaiden,让其采取相应的处理.
+
 ### 订阅雷电事件
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error)
 
 订阅雷电节点事件,包含交易通知,错误通知等
+```go
+// NotifyHandler is a client-side subscription callback to invoke on events and
+// subscription failure.
+type NotifyHandler interface {
+	//some unexpected error
+	OnError(errCode int, failure string)
+	//OnStatusChange server connection status change
+	OnStatusChange(s string)
+	//OnReceivedTransfer  receive a transfer
+	OnReceivedTransfer(tr string)
+	//OnSentTransfer a transfer sent success
+	OnSentTransfer(tr string)
+	// OnNotify get some important message raiden want to notify upper application
+	OnNotify(level int, info string)
+}
+```
+
+#### OnError
+ 通知SmartRaiden内部发生了不可恢复的错误,SmartRaiden的任何功能必须立即重启才能使用. 由于考虑到SmartRaiden的集成方式可能是单进程方式,我们不希望因为SmartRaiden
+ 的未知错误导致App闪退,因此即使SmartRaiden内部发生了不可预知的错误,也会有SmartRaiden截获并报告给App,由App来决定是立即退出还是继续使用.
+- `errCode`是错误代码
+- `failure`是错误信息描述
+重启SmartRaiden方式:
+```go
+api.Stop()
+newAPI,err:=Startup(...)
+```
+#### OnStatusChange
+s 是如下结构体的json编码
+```go
+//ConnectionStatus status of network connection
+type ConnectionStatus struct {
+	XMPPStatus    netshare.Status
+	EthStatus     netshare.Status
+	LastBlockTime string
+}
+```
+其中`XMPPStatus`和`EthStatus`定义如下:
+```go
+// Status shows actual connection status.
+type Status int
+
+const (
+	//Disconnected init status
+	Disconnected = Status(iota)
+	//Connected connection status
+	Connected
+	//Closed user closed
+	Closed
+	//Reconnecting connection error
+	Reconnecting
+)
+```
+#### OnReceivedTransfer
+tr是如下结构体的json编码
+```go
+//ReceivedTransfer tokens I have received and where it comes from
+type ReceivedTransfer struct {
+	Key               string `storm:"id"`
+	BlockNumber       int64  `json:"block_number" storm:"index"`
+	OpenBlockNumber   int64
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
+	TokenAddress      common.Address `json:"token_address"`
+	FromAddress       common.Address `json:"from_address"`
+	Nonce             uint64         `json:"nonce"`
+	Amount            *big.Int       `json:"amount"`
+}
+```
+注意: 此接口并不包含作为中间中转节点参与的交易
+#### OnSentTransfer
+tr是如下结构体的编码
+```go
+//SentTransfer transfer's I have sent and success.
+type SentTransfer struct {
+	Key               string `storm:"id"`
+	BlockNumber       int64  `json:"block_number" storm:"index"`
+	OpenBlockNumber   int64
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
+	ToAddress         common.Address `json:"to_address"`
+	TokenAddress      common.Address `json:"token_address"`
+	Nonce             uint64         `json:"nonce"`
+	Amount            *big.Int       `json:"amount"`
+}
+```
+注意: 此接口不包含作为中间中转接点参与的交易
+#### OnNotify
+`level`定义如下
+```go
+type Level int
+
+const (
+	// LevelInfo :
+	LevelInfo = iota
+	// LevelWarn :
+	LevelWarn
+	// LevelError :
+	LevelError
+)
+```
+其中info为对应的消息,希望通过此接口,希望App能够截获并弹出相应的MessageBox.
 
 ### 手动注册节点信息
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error)
 
 手动注册一个可通信的节点地址到smartraiden
+example data:
+```json
+[{
+   "address":"0x292650fee408320D888e06ed89D938294Ea42f99",
+   "ip_port":"127.0.0.1:40001"
+},
+{
+     "address":"0x4B89Bff01009928784eB7e7d10Bf773e6D166066",
+    "ip_port":"127.0.0.1:40002"
+}
+]
+```
+告诉SmartRaiden如何与0x292650fee408320D888e06ed89D938294Ea42f99和0x4B89Bff01009928784eB7e7d10Bf773e6D166066两个节点进行通信.
+
 
 ## 查询接口
 ### 获取运行雷电节点的账户地址
 func (a *API) Address() (addr string)
 
-
 返回示例:
 ``0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2``
 ### 获取提供给第三方的委托数据
 func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error)
+因为SmartRaiden的工作原理决定了,如果一个节点长时间离线,将会带来自身的资金安全性风险.因此如果SmartRaiden有可能较长时间(相对于创建通道指定的结算窗口时间)离线,
+那么应该把相关的收益证明委托给第三方服务(SmartRaiden-Monitoring),由第三方服务在需要的时候提交相关的BalanceProof.
+SmartRaiden-Monitoring如何使用,请参考[SmartRaiden-Monitoring](https://github.com/SmartMeshFoundation/SmartRaiden-Monitoring)
 
+返回数据应该原封不动提交给您可信赖的第三方监控服务.
 返回示例:
 ```json
 {
@@ -80,9 +275,9 @@ func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r
 ```
 ### 获取当前公链连接状态
 func (a *API) EthereumStatus() (r string, err error)
-
+已经废弃,应该使用NotifyHandler来获取连接状态变化.
 返回err表示无公链连接,反之连接正常
-### 获取所有token列表
+### 获取所有已经注册的token列表
 func (a *API) Tokens() (tokens string)
 
 返回示例:
@@ -189,9 +384,10 @@ func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error
 ### 查询收到的交易列表
 func (a *API) GetReceivedTransfers(from, to int64) (r string, err error)
 
+方便App查询历史交易,返回数据是`ReceivedTransfer`的数组
 ### 查询发出的交易列表
 func (a *API) GetSentTransfers(from, to int64) (r string, err error)
-
+方便App查询历史交易,返回数据是`SenTransfer`的数组
 ## 交易/通道相关接口,异步
 ### 发起一笔交易
 func (a *API) Transfers(...) (transfer string, err error)
@@ -243,17 +439,41 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 * 5 - transfer already failed
 
 ### 发起一笔token swap交易
-func (a *API) TokenSwap(role string, lockSecretHash string, ...) (callID string, err error)
-
+func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error)
+该接口实现两种Token的去中心化原子互换操作. 
+此交易过程一般是现有`taker`调用,调用示例
+```
+    "role": "taker",
+    "lockSecretHash":"0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
+    "TargeAddress":"0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
+    "SendingAmountStr": 10,
+    "SendingToken": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "ReceivingAmountStr": 100,
+    "ReceivingToken": "0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a"
+    "SecretStr":"",
+```
+然后在另一台手机上作为maker调用,调用示例:
+```
+    "role": "maker",
+    "TargetAddress":"0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
+    "SendingAmountStr": 100,
+    "SendingToken": "0x9E7c6C6bf3A60751df8AAee9DEB406f037279C2a",
+    "ReceivingAmountStr": 10,
+    "ReceivingToken": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
+    "SecretStr": "0x40a6994181d0b98efcf80431ff38f9bae6fefda303f483e7cf5b7de7e341502a",
+    "lockSecretHash":""
+```
+此函数会立即返回,交换结果可以通过GetCallResult
 返回一个callID,用于调用GetCallResult接口查询调用结果
 
 ### 向雷电网络注册一个token
 func (a *API) RegisterToken(tokenAddress string) (callID string, err error)
 
-返回一个callID,用于调用GetCallResult接口查询调用结果
+立即返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 创建一个channel
 func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error)
-
+注意: settleTimeout就是结算窗口时间,以块为单位,在实际使用过程中,为了安全起见,应该设置一个较大的值,比如600块(9000秒两个多小时). 
+这意味着在不合作关闭通道的情况下,需要两个多小时Token才能返回自己的账户. 
 返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 向一个channel里面存入对应token
 func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callID string, err error)
@@ -261,7 +481,8 @@ func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callI
 返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 关闭一个channel
 func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string, err error)
-
+force 为false,则会寻求和对方协商关闭通道,在协商一致的情况下可以立即(等待一两个块的时间)将Token返回到自己账户
+force 为true,则不会与对方协商,意味着会首先关闭通道,然后等待`settleTimeout`这么多块,然后才可以进行SettleChannel,最终Token才会返回自己的账户
 返回一个callID,用于调用GetCallResult接口查询调用结果
 ### 结算一个channel
 func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
@@ -273,4 +494,3 @@ func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 返回:
 * `r string`– 接口调用返回,示例参考http接口文档
 * `err error`– 接口调用错误信息,返回dealing说明正在处理尚未收到结果
-
