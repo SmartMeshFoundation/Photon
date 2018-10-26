@@ -11,6 +11,9 @@ import (
 )
 
 func TestChannelConcurrentQuery(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	bcs := MakeTestBlockChainService()
 	tn, err := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKEN_NETWORK")))
 	if err != nil {
