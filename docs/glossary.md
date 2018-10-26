@@ -14,7 +14,7 @@
 - `target`: In a mediated transfer the target is the smartraiden node for which the transfer sent by the initiator is intended
 - `SecretRequest`: The secret request message is sent by the target of a mediated transfer to its initiator in order to request the secret to unlock the transfer.
 - `RevealSecret`: The reveal secret message is sent to a node that is known to have an interest to learn the secret.
-- `unlock message`: The `unlock message is a message used for synchronization between mediated transfer participants.
+- `unlock message`: The unlock message is a message used for synchronization between mediated transfer participants.
 - `secret`: The preimage, what we call the secret in smartraiden, is 32 bytes  keccak hash ends up being the hashlock.
 - `reveal timeout`: The number of blocks in a channel allowed for learning about a secret being reveal through the blockchain and acting on it.
 - `SecretRequest`: The secret request message is sent by the target of a mediated transfer to its initiator in order to request the secret to unlock the transfer.
