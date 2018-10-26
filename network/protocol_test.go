@@ -35,7 +35,7 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 	p2.Start()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
-	err := p1.SendAndWait(p2.nodeAddr, ping, time.Second*15)
+	err := p1.SendAndWait(p2.nodeAddr, ping, time.Minute)
 	if err != nil {
 		t.Error(err)
 		return
@@ -61,7 +61,7 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 	p2.StopAndWait()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
-	err = p1.SendAndWait(p2.nodeAddr, ping, time.Second*2)
+	err = p1.SendAndWait(p2.nodeAddr, ping, time.Minute)
 	if err == nil {
 		t.Error(errors.New("should timeout"))
 		return
@@ -81,7 +81,7 @@ func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
 		msg = m.Msg
 		p2.ReceivedMessageResultChan <- nil
 	}()
-	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Second*15)
+	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
 	if err != nil {
 		t.Error(err)
 		return
@@ -124,7 +124,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		p2.ReceivedMessageResultChan <- nil
 		secretRequest := encoding.NewSecretRequest(utils.EmptyHash, big.NewInt(12))
 		secretRequest.Sign(p2.privKey, secretRequest)
-		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Second*5)
+		err := p2.SendAndWait(p1.nodeAddr, secretRequest, time.Minute)
 		if err != nil {
 			t.Error(err)
 		}
@@ -137,7 +137,7 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 		wg.Done()
 	}()
 	wg.Add(1)
-	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Second*5)
+	err := p1.SendAndWait(p2.nodeAddr, revealSecretMsg, time.Minute)
 	if err != nil {
 		t.Error(err)
 		return
@@ -171,7 +171,7 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	mtr := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(p1.privKey, mtr)
-	err := p1.SendAndWait(reciever, mtr, time.Second*5)
+	err := p1.SendAndWait(reciever, mtr, time.Minute)
 	fmt.Println(err)
 	if err != errTimeout {
 		t.Errorf("should time out but get %s", err)
@@ -182,7 +182,7 @@ func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
 	mtr2 := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr2.Sign(p1.privKey, mtr2)
-	err = p1.SendAndWait(reciever, mtr2, time.Second*5)
+	err = p1.SendAndWait(reciever, mtr2, time.Minute)
 	fmt.Println(err)
 	if err != errExpired {
 		t.Error(errors.New("should expired before timeout"))
