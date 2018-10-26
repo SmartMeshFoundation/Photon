@@ -1,6 +1,17 @@
 # SmartRaiden Monitoring Service
 SmartRaiden Monitoring Service, as SM, primarily focuses on mobile platforms. As user's mobile devides disconnected from SmartRaiden, they would be automatically execute `UpdateTransfer` and `Punish` according to delegation, to secure user's assets.  
-
+## Build and Installation
+### Build
+```bash
+cd cmd/smartraidenmonitoring
+go install
+```
+### Run as Service
+Smartraidenmonitoring requires a SmartRaiden node to charge the service. The specific Token? and the charge can be configured. The SmartRaiden node must be running on port 127.0.0.1:5001, otherwise it will not work.
+an example run script:
+```
+smartraidenmonitoring --datadir=.smartraidenmonitoring --eth-rpc-endpoint ws://192.168.124.13:5555  --address="0x292650fee408320D888e06ed89D938294Ea42f99" --keystore-path=/Users/bai/privnet3/keystore  --registry-contract-address 0x7B319fB135811caeED9969E6a97544f74E312A65  --password-file 123 --verbosity 5  --debug   --smt 0x40db17463AD4A00cc824a37d851725aC7eA4E0B6
+```
 ## How to make a use of SmartRaiden Monitoring Service ?
 Well, how to use this SM service ? In-depth Tutorials will be presented below.   
 
