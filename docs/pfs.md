@@ -15,9 +15,10 @@ Then execute it in the same directory of configuration file (pathfinder.yaml).
 ## 
 ## Public Interface
 
-### GET /api/1/pfs/<channel_identifier>
+### GET /api/1/pfs/<channel_identifier>
 Query the latest balance_proof  
-Via API offered below 
+Via API offered below   
+
 `GET http://127.0.0.1:5001/api/1/pfs/0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a`
 
 Example Response：   
@@ -40,7 +41,8 @@ Example Response：
 
 ### PUT /pathfinder/<peer_address>/balance
 Update balance_proof 
-Via API offered below:  
+Via API offered below: 
+
 `PUT http://127.0.0.1:9001/pathfinder/0x10b256b3C83904D524210958FA4E7F9cAFFB76c6/balance`
 
 Example Request：
@@ -100,6 +102,7 @@ Example Response：
 ```
 ### POST /pathfinder/<peer_address>/paths
 Query routing, return to the lowest cost path.
+
 `POST http://127.0.0.1:9001/pathfinder/0x201B20123b3C489b47Fde27ce5b451a0fA55FD60/paths`
 Example Request：
 ```json
