@@ -4,7 +4,7 @@ A centralized path finding service that has a global view on a token network and
 
 
 # Environment Construction 
-## build pfs 
+## Build pfs 
 You can refer to [installation documentation](./PFSinstallation.md).
 Then execute it in the same directory of configuration file (pathfinder.yaml).
 ```sh
