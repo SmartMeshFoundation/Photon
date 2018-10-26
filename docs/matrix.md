@@ -1,4 +1,4 @@
-# matrix-regservice
+# Matrix-Regservice
 Matrix-regservice is used as a third-party application service for Matrix. The main function is to limit the Matrix HomeServer used by SmartRaiden to only accept valid Raiden user registration.
 That is, users registered on this Matrix server can only be SmartRaiden nodes. These nodes have a uniform name and can guarantee that these users must have the corresponding private key to register.
 
@@ -8,16 +8,16 @@ Matrix installation and deployment reference[matrix](https://github.com/matrix-o
 
 ### Modify homeserver.yaml
 
-1. `enable_registration` is changed to False, ensuring that users cannot register through the normal interface, and can only register users through third-party application service.
-2. `search_all_users` is changed to True to ensure that users can be retrieved
-3. `expire_access_token` is changed to True to ensure that the user will automatically log out to prevent third-party replay attacks.
-4. `port` 8008 is modified to 8007
-5. Remove the `webclient` under port 8007 and disable login via web.
-6. `app_service_config_files` is modified to [ registration.yaml]
-7. `trusted_third_party_id_servers` are all deleted
-## matrix-regservice install and deployment
+*  `enable_registration` is changed to False, ensuring that users cannot register through the normal interface, and can only register users through third-party application service.
+*  `search_all_users` is changed to True to ensure that users can be retrieved
+*  `expire_access_token` is changed to True to ensure that the user will automatically log out to prevent third-party replay attacks.
+*  `port` 8008 is modified to 8007
+*  Remove the `webclient` under port 8007 and disable login via web.
+*  `app_service_config_files` is modified to [ registration.yaml]
+*  `trusted_third_party_id_servers` are all deleted
+## Matrix-regservice install and deployment
 
-### install matrix-regservice
+### Install matrix-regservice
 ```bash
 go get github.com/SmartMeshFoundation/matrix-regservice
 ```
@@ -29,7 +29,7 @@ Switch to the matrix working directory (homeserver.yaml directory)
 matrix-regservice --matrixdomain yourdomain.com genconfig
 ```
 registration.yaml and run.sh are generated in the matrix working directory.
-#### a registration.yaml sample
+#### A registration.yaml sample
 ```yaml
 id: Q7PM2E53RE-transport02.smartmesh.cn
 hs_token: RNI4CGEDTKC4WJTB4RZWRK4NOKA7M4PREUW6F2GZ
@@ -50,7 +50,7 @@ run.sh
 matrix-regservice --astoken LODE52N2CKVXMOURUMAWLEEEXMWB4DKIKRI246XD --hstoken RNI4CGEDTKC4WJTB4RZWRK4NOKA7M4PREUW6F2GZ --matrixurl http://127.0.0.1:8008/_matrix/client/api/v1/createUser --host 127.0.0.1 --port 8009 --datapath .matrix --matrixdomain transport02.smartmesh.cn --verbosity 5
 ```
 
-### nginx reverse-proxy configuration
+### Nginx reverse-proxy configuration
 the following is a example configuration file for nginx.
 ```conf
   server {
