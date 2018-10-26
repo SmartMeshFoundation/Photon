@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/pkg/errors"
 )
 
 // TestEthRPCEndPoint :
@@ -110,5 +111,22 @@ func GetAccounts() (accounts []TestAccount, err error) {
 			PrivateKey: key,
 		})
 	}
+	return
+}
+
+// GetAccountsByAddress :
+// TODO 解耦account模块
+func GetAccountsByAddress(address common.Address) (account TestAccount, err error) {
+	accounts, err := GetAccounts()
+	if err != nil {
+		return
+	}
+	for _, a := range accounts {
+		if a.Address == address {
+			account = a
+			return
+		}
+	}
+	err = errors.New("no account in keystore")
 	return
 }

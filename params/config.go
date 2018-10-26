@@ -66,7 +66,8 @@ type Config struct {
 	IgnoreMediatedNodeRequest bool // true: this node will ignore any mediated transfer who's target is not me.
 	EnableHealthCheck         bool //send ping periodically?
 	XMPPServer                string
-	IsMeshNetwork             bool //is mesh now?
+	IsMeshNetwork             bool   //is mesh now?
+	PfsHost                   string // pathfinder server host
 }
 
 //DefaultConfig default config

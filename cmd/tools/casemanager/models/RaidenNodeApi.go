@@ -106,6 +106,7 @@ type TransferPayload struct {
 	Fee      int64  `json:"fee"`
 	IsDirect bool   `json:"is_direct"`
 	Secret   string `json:"secret"`
+	Sync     bool   `json:"sync"`
 }
 
 // Transfer send a transfer
@@ -119,7 +120,7 @@ func (node *RaidenNode) Transfer(tokenAddress string, amount int32, targetAddres
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 60,
+		Timeout: time.Second * 180,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {
@@ -128,7 +129,7 @@ func (node *RaidenNode) Transfer(tokenAddress string, amount int32, targetAddres
 	}
 	if statusCode != 200 {
 		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d", req.FullURL, statusCode))
-		return fmt.Errorf("SendTransApi err : http status=%d", statusCode)
+		return fmt.Errorf("TransferApi err : http status=%d", statusCode)
 	}
 	return nil
 }

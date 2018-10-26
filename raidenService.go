@@ -33,6 +33,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
 	"github.com/SmartMeshFoundation/SmartRaiden/notify"
 	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/SmartRaiden/pfsproxy"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/initiator"
@@ -84,6 +85,7 @@ type RaidenService struct {
 	db                       *models.ModelDB
 	FeePolicy                fee.Charger //Mediation fee
 	NotifyHandler            *notify.Handler
+	PfsProxy                 pfsproxy.PfsProxy
 
 	/*
 	 */
@@ -195,6 +197,10 @@ func NewRaidenService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		rs.TokenNetwork2Token[tn] = t
 	}
 	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.Token2TokenNetwork)
+	// pathfinder
+	if config.PfsHost != "" {
+		rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
+	}
 	return rs, nil
 }
 
@@ -772,8 +778,18 @@ Calls:
  *			2.2 maker should contain lockSecretHash and secret.
  */
 func (rs *RaidenService) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
-	g := rs.getToken2ChannelGraph(tokenAddress)
-	availableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
+	var availableRoutes []*route.State
+	var err error
+	if rs.PfsProxy != nil {
+		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, amount)
+		if err != nil {
+			result.Result <- errors.New("get route from pathfinder failed")
+			return
+		}
+	} else {
+		g := rs.getToken2ChannelGraph(tokenAddress)
+		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
+	}
 	result = utils.NewAsyncResult()
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
@@ -891,7 +907,6 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 	}
 	amount := msg.PaymentAmount
 	targetAddr := msg.Target
-	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
 	fromChannel := ch
 	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
@@ -910,7 +925,17 @@ func (rs *RaidenService) mediateMediatedTransfer(msg *encoding.MediatedTransfer,
 	} else {
 		ourAddress := rs.NodeAddress
 		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		avaiableRoutes := g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, exclude, rs)
+		var avaiableRoutes []*route.State
+		if rs.PfsProxy != nil {
+			var err error
+			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, amount)
+			if err != nil {
+				log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
+			}
+		} else {
+			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, exclude, rs)
+		}
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
@@ -1593,6 +1618,48 @@ func (rs *RaidenService) findAllChannelsByLockSecretHash(lockSecretHash common.H
 		if len(chs) > 0 {
 			channels = append(channels, chs...)
 		}
+	}
+	return
+}
+
+func (rs *RaidenService) submitBalanceProofToPfs(ch *channel.Channel) {
+	if rs.PfsProxy == nil {
+		return
+	}
+	bpPartner := ch.PartnerState.BalanceProofState
+	err := rs.PfsProxy.SubmitBalance(
+		bpPartner.Nonce,
+		bpPartner.TransferAmount,
+		ch.Outstanding(),
+		ch.ChannelIdentifier.OpenBlockNumber,
+		bpPartner.LocksRoot,
+		ch.ChannelIdentifier.ChannelIdentifier,
+		bpPartner.MessageHash,
+		bpPartner.Signature,
+	)
+	if err != nil {
+		log.Error(fmt.Sprintf("updateBalanceProofToPfs err = %s", err.Error()))
+	}
+}
+
+func (rs *RaidenService) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int) (routes []*route.State, err error) {
+	var paths []pfsproxy.FindPathResponse
+	paths, err = rs.PfsProxy.FindPath(peerFrom, peerTo, token, amount)
+	if err != nil {
+		return
+	}
+	for _, path := range paths {
+		if path.Result == nil || path.Result[0] == "" {
+			continue
+		}
+		partnerAddress := common.HexToAddress(path.Result[0])
+		ch := rs.getChannel(token, partnerAddress)
+		if ch == nil {
+			continue
+		}
+		r := route.NewState(ch)
+		r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, token, amount)
+		r.TotalFee = path.Fee
 	}
 	return
 }

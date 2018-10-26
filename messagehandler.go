@@ -219,6 +219,8 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	*/
 	mh.balanceProof(msg)
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	// submit balance proof to pathfinder
+	go mh.raiden.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -254,6 +256,8 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 		return err
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	// submit balance proof to pathfinder
+	go mh.raiden.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -367,6 +371,8 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	//保存通道状态即可.
 	// Just store channel state.
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	// submit balance proof to pathfinder
+	go mh.raiden.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -416,6 +422,8 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	}
 	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.raiden.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
+	// submit balance proof to pathfinder
+	go mh.raiden.submitBalanceProofToPfs(ch)
 	return err
 }
 

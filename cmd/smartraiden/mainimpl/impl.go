@@ -158,6 +158,10 @@ func StartMain() (*smartraiden.RaidenAPI, error) {
 			Usage: "channels' reveal timeout, default 10",
 			Value: params.DefaultRevealTimeout,
 		},
+		cli.StringFlag{
+			Name:  "pfs",
+			Usage: "pathfinder service host",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -413,6 +417,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 			log.Warn("reveal timeout should > 0")
 		}
 	}
+	config.PfsHost = ctx.String("pfs")
 	return
 }
 

@@ -113,6 +113,8 @@ func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransf
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.raiden.sendAsync(event.Receiver, secretRequest)
+	// submit balance proof to pathfinder
+	go eh.raiden.submitBalanceProofToPfs(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtransfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
@@ -161,6 +163,8 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	if err == nil {
 		eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
+	// submit balance proof to pathfinder
+	go eh.raiden.submitBalanceProofToPfs(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
@@ -315,6 +319,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	eh.raiden.db.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	return
 }
+
 func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	var ch *channel.Channel
 	switch e2 := event.(type) {
