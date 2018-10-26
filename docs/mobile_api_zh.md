@@ -444,7 +444,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error)
 
 该接口实现两种Token的去中心化原子互换操作. 
-此交易过程一般是现有`taker`调用,调用示例
+此交易过程一般是先由`taker`调用,调用示例
 ```
     "role": "taker",
     "lockSecretHash":"0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
@@ -497,5 +497,5 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 
 返回:
-* `r string`– 接口调用返回,示例参考http接口文档
+* `r string`– 接口调用返回,示例参考http接口文档[rest_api.md](rest_api_0.8.md)
 * `err error`– 接口调用错误信息,返回dealing说明正在处理尚未收到结果
