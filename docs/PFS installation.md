@@ -1,7 +1,7 @@
 # PFS(SmartRaiden Path Finding Service)
 PFS will be a smartraiden supporting function server written in go.
 
-#Installing PFS
+# Installing PFS
 
  * A cluster of individual components, dealing with different aspects of the
      SmartRaiden protocol.
