@@ -4,7 +4,7 @@ pages:
 -  System Requirements and Installation Guide: installation_guide.md
 -  SmartRaiden’s API Documentation: rest_api_0.8.md
 -  SmartRaiden Monitoring Service: sm_service.md
--  Web Application Tutorial: webui_tutorial.md
+-  SmartRaiden’s Mobile API Documentation: mobie.md
 -  SmartRaiden Contract Specification: contract_spec.md
 - SmartRaiden Messages Specification: SmartRaiden_Messages_Specification.md
 -  SmartRaiden Glossary: glossary.md
