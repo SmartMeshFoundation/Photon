@@ -452,5 +452,5 @@ Returns a callID used to call the GetCallResult interface to query the result of
 func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 
 return:
-* `r string`– interface call returns, example reference [rest_api.md](rest_api_0.8.md)
+* `r string`– interface call returns, example reference [rest_api.md](rest_api.md)
 * `err error` – the interface calls an error message, returning a description indicating that the result is being processed yet
