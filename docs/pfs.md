@@ -104,6 +104,7 @@ Example Response：
 Query the transfer routing, return the lowest cost path.
 
 `POST http://127.0.0.1:9001/pathfinder/0x201B20123b3C489b47Fde27ce5b451a0fA55FD60/paths`
+
 Example Request：
 ```json
 {
@@ -134,6 +135,7 @@ Example Response：
 Query node charging information
 
 `POST http:127.0.0.1:9001/pathfinder/0x3607806E038fED0985567992188E919802486bf3/get_fee_rate`
+
 Example Request：
 ```json
 {
