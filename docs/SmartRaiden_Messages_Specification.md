@@ -39,6 +39,7 @@ BalanceProof|compound type|data structure for a transfer
 ACK is a data structure that our smartraiden messages uses to confirm certain message has been received. It just echoes hash value of that received message.
 
 **Data Field**:
+
 Names|Types|Description
 --|--|--
 Sender|address|address of sender of that received message
@@ -48,6 +49,7 @@ Echo|Hash|a 32-byte hash value of that received message
 Ping is a message used to test the reachablity of a channel. In which, we just contain a nonce.
 
 **Data Field**: 
+
 Names|Types|Description
 --|--|--
 Nonce|int64|serial number for this message 
@@ -56,6 +58,7 @@ Nonce|int64|serial number for this message
 SecretRequest is a message primarily used when a transfer recipient in a payment channel want to get the secret of a transfer. In this case, he should send a SecretRequest to the initiator of this transfer and make transfer initiator understand that he wishes to get the secret.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 LockSecretHash|Hash|a 32-byte hash value of that secret
@@ -65,6 +68,7 @@ PaymentAmount|BigInt|the amount of tokens that this transfer locked
 RevealSecret is a message used at the situation that transfer initiator in a payment channel, once he has received SecretRequest from that participant who needs the secret, reveals the secret of that participant.
 
 **Data Field**:
+
 Names|Types|Description
 --|--|--
 LockSecret|Hash|a 32-byte value denoting the secret og lock
@@ -86,6 +90,7 @@ As we can view in this MediatedTransfer. We have three participants in this chan
     - Actually, Bob cannot rely on the virtue of integrity of Alice, so that he should make it certain that his money would not be stole by fraudulent actors. Our released version of SmartRaiden adds support that anyone who knows the secret can register this secret on the chain to claim their deserved fund. So Bob do not worry about his token, and he can directly unlock his transfer to Charles.
 
 **Data Field** : 
+
 Names|Types|Description
 --|--|--
 EnvelopMessage|compound type|a data structure containing a new BalanceProof and a signature of message sender
@@ -95,6 +100,7 @@ LockSecret|Hash|A 32-byte value denoting the secret of lock
 RemoveExpiredHashlockTransfer is a kind of message and transfer participants primarily adopt it when ongoing transfers get expired for some reason, such as there are one or several mediated nodes disconnect from our token network, or some nodes intentionally stop furthering this transfer to next hop, and causes transfer expiration, etc. 
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 EnvelopMessage|compound type|a data structure containing a new BalanceProof and a signature of this message sender
@@ -115,6 +121,7 @@ EnvelopMessage|compound type|a data structure containing a new BalanceProof and 
 MediatedTransfer is a message that is adopted mostly in cases that a participant has no direct route linking to his transfer recipient. By no means, this participant need resort to other indirect routes so that he can feed his transfer to specific recipient. Please NOTE, in direct payment channel, participants can also use MediatedTransfer.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 EnvelopMessage|compound type|a data structure containing a new BalanceProof 
@@ -126,8 +133,10 @@ Initiator|Address|the initiator of this transfer
 Fee|BigInt|transfer cost
 
 ### AnnounceDisposed
-AnnounceDisposed is the message that we used in mediate transfer to notify that there are some issues which causes a mediated node has no way to further this transfer.
+AnnounceDisposed is the message that we used in mediate transfer to notify that there are some issues which causes a mediated node has no way to further this transfer.  
+
 **Data Field :**
+
 Names|Types|Description
 --|--|--
 SignedMessage|compound type|a data structure containing a signature of message sender and an address of message sender
@@ -137,6 +146,7 @@ AnnounceDisposedProof|compound type|a data structure containing a lock to dispos
 AnnounceDisposedResponse is the message we used when a participant replies to his partner after he/she has received AnnounceDisposedResponse.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 EnvelopMessage|compound type|a data structure containing a new BalanceProof and a signature of this message sender
@@ -147,6 +157,7 @@ LockSecreHash|Hash|a 32-byte value denoting the hash of secret of this transfer
 WithdrawRequest is the message that mainly used in cases that a participant wishes to withdraw fund from his channel deposit. But first he needs to notify his partner about his intention and this intention needs to be confirmed by his partner.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 SignedMessage|compound type|a data structure containing a signature of message sender and an address of message sender
@@ -157,6 +168,7 @@ WithdrawRequesData|compound type|a data structure containing all required inform
 WithdrawResponse is the message that recipient of WithdrawRequest has confirmed this message and he assigns his signature within and returns WithdrawResponse.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 SignedMessage|compound type|a data structure containing a signature of message sender and an address of message sender
@@ -167,6 +179,7 @@ WithdrawResponseData|compound type|a data structure containing a confirmation me
 SettleRequest is the message that channel participants adopt when they need CooperativeSettle that payment channel between them. Sender of this SettleRequest requests to cooperatively settle the channel.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 SignedMessage|compound type| a data structure containing a signature of message sender and an address of message sender
@@ -177,6 +190,7 @@ SettleRequesData|compound type| a data structure containing all information requ
 SettleResponse is the message that channel participants adopt when they just need to confirm the intention and agree with it. When recipient of SettleRequest wishes to present that he agrees to cooperatively settle this payment channel, then he just need to reply to his channel pal with this SettleResponse.
 
 **Data Field** :
+
 Names|Types|Description
 --|--|--
 SignedMessage|compound type| a data structure containing a signature of message sender and an address of message sender
