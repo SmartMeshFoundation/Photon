@@ -17,11 +17,11 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/newtestenv/createchannel"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -65,7 +65,7 @@ func main() {
 
 // Main : main
 func Main(ctx *cli.Context) error {
-	paramsSection := "RAIDEN_PARAMS"
+	paramsSection := "PHOTON_PARAMS"
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
@@ -94,7 +94,7 @@ func Main(ctx *cli.Context) error {
 		}()
 	}
 	wg.Wait()
-	err = env.WriteFile("../env.INI", 0644, "smartraiden smoke test envInit")
+	err = env.WriteFile("../env.INI", 0644, "photon smoke test envInit")
 	return err
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {

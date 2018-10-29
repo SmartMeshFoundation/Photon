@@ -1,21 +1,21 @@
 package main
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/cases"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/cases"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
-var env *models.RaidenEnvReader
+var env *models.PhotonEnvReader
 var allowFail = true
 
 func main() {
 	// 1. init log
 	cases.InitCaseLogger("./log/smoketest.log")
 
-	// 2. start raiden nodes
-	StartRaidenNode("")
+	// 2. start photon nodes
+	StartPhotonNode("")
 
-	// 3. init RaidenEnvReader
+	// 3. init PhotonEnvReader
 	hosts := []string{
 		"http://127.0.0.1:6000",
 		"http://127.0.0.1:6001",
@@ -24,7 +24,7 @@ func main() {
 		"http://127.0.0.1:6004",
 		"http://127.0.0.1:6005",
 	}
-	env = models.NewRaidenEnvReader(hosts)
+	env = models.NewPhotonEnvReader(hosts)
 
 	// 4. save all data to before.data
 	env.SaveToFile("./log/before.data")

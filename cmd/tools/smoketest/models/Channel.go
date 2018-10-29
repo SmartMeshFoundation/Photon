@@ -1,6 +1,6 @@
 package models
 
-// Channel : raiden channel, add SelfChannel for test use
+// Channel : photon channel, add SelfChannel for test use
 type Channel struct {
 	ChannelIdentifier   string `json:"channel_identifier"`
 	OpenBlockNumber     uint64 `json:"open_block_number"`

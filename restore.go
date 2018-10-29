@@ -1,15 +1,15 @@
-package smartraiden
+package photon
 
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/crashnode"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/crashnode"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -25,7 +25,7 @@ import (
  *		1. unsuccessful EnvelopMessages resume to be sent.
  *		2. to create related StateManager as to those locks withholden by a particpant.
  */
-func (rs *RaidenService) restore() {
+func (rs *Service) restore() {
 	//1. 处理未完成的锁
 	// 1. handle incomplete locks
 	rs.restoreLocks()
@@ -33,7 +33,7 @@ func (rs *RaidenService) restore() {
 	// 2. keep sending EnvelopMessage that failed previously.
 	rs.reSendEnvelopMessage()
 }
-func (rs *RaidenService) reSendEnvelopMessage() {
+func (rs *Service) reSendEnvelopMessage() {
 	msgs := rs.db.GetAllOrderedSentEnvelopMessager()
 	for _, msg := range msgs {
 		/*
@@ -64,7 +64,7 @@ type lockInfo struct {
 	ch     *channel.Channel
 }
 
-func (rs *RaidenService) restoreLocks() {
+func (rs *Service) restoreLocks() {
 	token2ActionInitCrashRestartStateChange := make(map[common.Hash]*mediatedtransfer.ActionInitCrashRestartStateChange)
 	var locks []*lockInfo
 	//收集所有的锁,

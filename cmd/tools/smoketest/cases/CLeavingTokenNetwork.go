@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
 // LeavingTokenNetworkTest : test case for leave token network
-func LeavingTokenNetworkTest(env *models.RaidenEnvReader, allowFail bool) {
+func LeavingTokenNetworkTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "LeavingTokenNetwork",
 		AllowFail: allowFail,

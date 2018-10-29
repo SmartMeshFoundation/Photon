@@ -3,7 +3,7 @@ package contracttest
 import (
 	"testing"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // TestSecretRegistryRight : 正确调用测试

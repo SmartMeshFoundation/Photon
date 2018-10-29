@@ -1,3 +1,3 @@
 # deploy
 
-deploy is  a tool to help deploy all raiden contract to ethereum.
+deploy is  a tool to help deploy all photon contract to ethereum.

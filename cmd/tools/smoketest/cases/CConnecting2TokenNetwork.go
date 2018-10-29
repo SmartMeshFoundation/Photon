@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
 // Connecting2TokenNetworkTest : test case for connect token network
-func Connecting2TokenNetworkTest(env *models.RaidenEnvReader, allowFail bool) {
+func Connecting2TokenNetworkTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "Connecting2TokenNetwork",
 		AllowFail: allowFail,

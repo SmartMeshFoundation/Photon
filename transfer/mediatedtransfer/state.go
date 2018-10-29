@@ -5,11 +5,11 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -178,7 +178,7 @@ type MediationPairState struct {
 //StatePayeePending Initial state.
 const StatePayeePending = "payee_pending"
 
-//StatePayeeSecretRevealed The payee is following the raiden protocol and has sent a SecretReveal.
+//StatePayeeSecretRevealed The payee is following the photon protocol and has sent a SecretReveal.
 //#nosec
 const StatePayeeSecretRevealed = "payee_secret_revealed"
 

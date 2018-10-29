@@ -5,8 +5,8 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 // CrashCaseRecv03 场景三：ReceiveTransferRefundStateChange
@@ -20,7 +20,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据

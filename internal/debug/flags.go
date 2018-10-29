@@ -25,8 +25,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/log/term"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/log/term"
 	"github.com/mattn/go-colorable"
 	"gopkg.in/urfave/cli.v1"
 )

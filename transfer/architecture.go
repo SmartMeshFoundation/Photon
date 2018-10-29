@@ -3,7 +3,7 @@ package transfer
 import (
 	"encoding/gob"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/ethereum/go-ethereum/common"
 )
 

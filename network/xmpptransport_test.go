@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestXMPPTransport(t *testing.T) {

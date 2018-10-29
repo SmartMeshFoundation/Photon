@@ -5,17 +5,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 )
 
 // CloseChannelTest : test case for close a channel
-func CloseChannelTest(env *models.RaidenEnvReader, allowFail bool) {
+func CloseChannelTest(env *models.PhotonEnvReader, allowFail bool) {
 	caseName := "CloseChannel"
 	// prepare data
-	var node *models.RaidenNode
+	var node *models.PhotonNode
 	var channels []models.Channel
-	for _, n := range env.RaidenNodes {
+	for _, n := range env.PhotonNodes {
 		channels = env.GetChannelsOfNodeByState(n.AccountAddress, contracts.ChannelStateOpened)
 		if len(channels) > 0 {
 			node = n

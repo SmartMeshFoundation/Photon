@@ -1,6 +1,6 @@
 package models
 
-import "github.com/SmartMeshFoundation/SmartRaiden/models/cb"
+import "github.com/SmartMeshFoundation/Photon/models/cb"
 
 // RegisterNewTokenCallback register a new token callback
 func (model *ModelDB) RegisterNewTokenCallback(f cb.NewTokenCb) {

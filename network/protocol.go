@@ -17,12 +17,12 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -31,9 +31,9 @@ var errTimeout = errors.New("wait timeout")
 var errExpired = errors.New("message expired")
 
 /*
-MessageToRaiden message and it's echo hash
+MessageToPhoton message and it's echo hash
 */
-type MessageToRaiden struct {
+type MessageToPhoton struct {
 	Msg      encoding.SignedMessager
 	EchoHash common.Hash
 }
@@ -107,10 +107,10 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 }
 
 /*
-RaidenProtocol is a UDP protocol,
+PhotonProtocol is a UDP protocol,
 every message needs a ack to make sure sent success.
 */
-type RaidenProtocol struct {
+type PhotonProtocol struct {
 	Transport           Transporter
 	privKey             *ecdsa.PrivateKey
 	nodeAddr            common.Address
@@ -122,9 +122,9 @@ type RaidenProtocol struct {
 	/*
 		message from other nodes
 	*/
-	ReceivedMessageChan chan *MessageToRaiden
+	ReceivedMessageChan chan *MessageToPhoton
 	/*
-		this is a synchronized chan,reading  process message result from raiden
+		this is a synchronized chan,reading  process message result from photon
 	*/
 	ReceivedMessageResultChan chan error
 	sendingQueueMap           map[string]chan *SentMessageState //write to this channel to send a message
@@ -138,15 +138,15 @@ type RaidenProtocol struct {
 	log         log.Logger
 }
 
-// NewRaidenProtocol create RaidenProtocol
-func NewRaidenProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *RaidenProtocol {
-	rp := &RaidenProtocol{
+// NewPhotonProtocol create PhotonProtocol
+func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *PhotonProtocol {
+	rp := &PhotonProtocol{
 		Transport:                 transport,
 		privKey:                   privKey,
 		retryTimes:                10,
 		retryInterval:             time.Millisecond * 6000,
 		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
-		ReceivedMessageChan:       make(chan *MessageToRaiden),
+		ReceivedMessageChan:       make(chan *MessageToPhoton),
 		ReceivedMessageResultChan: make(chan error),
 		sendingQueueMap:           make(map[string]chan *SentMessageState),
 		ChannelStatusGetter:       channelStatusGetter,
@@ -172,30 +172,30 @@ func New(sample interface{}) interface{} {
 }
 
 // SetReceivedMessageSaver set db saver
-func (p *RaidenProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
+func (p *PhotonProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
 	p.receivedMessageSaver = saver
 }
 
-func (p *RaidenProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
+func (p *PhotonProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
 	p.log.Trace(fmt.Sprintf("send to %s, ack=%s", utils.APex2(receiver), ack))
 	err := p.sendRawWitNoAck(receiver, ack.Pack())
 	if err != nil {
 		log.Warn(fmt.Sprintf("sesendRawWitNoAck err %s ", err))
 	}
 }
-func (p *RaidenProtocol) sendRawAck(receiver common.Address, data []byte) {
+func (p *PhotonProtocol) sendRawAck(receiver common.Address, data []byte) {
 	p.log.Trace(fmt.Sprintf("send to %s raw ack", utils.APex2(receiver)))
 	err := p.sendRawWitNoAck(receiver, data)
 	if err != nil {
 		log.Warn(fmt.Sprintf("sesendRawWitNoAck err %s ", err))
 	}
 }
-func (p *RaidenProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
+func (p *PhotonProtocol) sendRawWitNoAck(receiver common.Address, data []byte) error {
 	return p.Transport.Send(receiver, data)
 }
 
 // SendPing PingSender
-func (p *RaidenProtocol) SendPing(receiver common.Address) error {
+func (p *PhotonProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
 	err := ping.Sign(p.privKey, ping)
 	if err != nil {
@@ -216,7 +216,7 @@ func (p *RaidenProtocol) SendPing(receiver common.Address) error {
  *	Note that once this channel gets removed, those pending message should also be securely removed,
  *	otherwise new channel can't be created.
  */
-func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
+func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
 	if channelIdentifier != utils.EmptyHash {
 		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
 		if status == channeltype.StateInValid {
@@ -227,7 +227,7 @@ func (p *RaidenProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifi
 	return true
 }
 
-func (p *RaidenProtocol) getChannelQueue(receiver common.Address, channelIdentifier common.Hash) chan<- *SentMessageState {
+func (p *PhotonProtocol) getChannelQueue(receiver common.Address, channelIdentifier common.Hash) chan<- *SentMessageState {
 
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
@@ -329,7 +329,7 @@ func getMessageChannelIdentifier(msg encoding.Messager) common.Hash {
 	msg should be signed.
 	msg must be sent success.
 */
-func (p *RaidenProtocol) sendWithResult(receiver common.Address,
+func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	msg encoding.Messager) (result *utils.AsyncResult) {
 	//no more message...
 	if p.onStop {
@@ -380,7 +380,7 @@ func (p *RaidenProtocol) sendWithResult(receiver common.Address,
 }
 
 // SendAndWait send this packet and wait ack until timeout
-func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messager, timeout time.Duration) error {
+func (p *PhotonProtocol) SendAndWait(receiver common.Address, msg encoding.Messager, timeout time.Duration) error {
 	var err error
 	result := p.sendWithResult(receiver, msg)
 	timeoutCh := time.After(timeout)
@@ -395,21 +395,21 @@ func (p *RaidenProtocol) SendAndWait(receiver common.Address, msg encoding.Messa
 }
 
 // SendAsync send a message asynchronize ,notify by `AsyncResult`
-func (p *RaidenProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *utils.AsyncResult {
+func (p *PhotonProtocol) SendAsync(receiver common.Address, msg encoding.Messager) *utils.AsyncResult {
 	return p.sendWithResult(receiver, msg)
 }
 
 // CreateAck creat a ack message,
-func (p *RaidenProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
+func (p *PhotonProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
 	return encoding.NewAck(p.nodeAddr, echohash)
 }
 
 // GetNetworkStatus return `addr` node's network status
-func (p *RaidenProtocol) GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool) {
+func (p *PhotonProtocol) GetNetworkStatus(addr common.Address) (deviceType string, isOnline bool) {
 	return p.Transport.NodeStatus(addr)
 }
 
-func (p *RaidenProtocol) receive(data []byte) {
+func (p *PhotonProtocol) receive(data []byte) {
 	//todo fix ,remove copy and fix deadlock of send and receive
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
@@ -419,7 +419,7 @@ func (p *RaidenProtocol) receive(data []byte) {
 	//p.log.Trace(fmt.Sprintf("receive complete l=%d", len(cdata)))
 }
 
-func (p *RaidenProtocol) loop() {
+func (p *PhotonProtocol) loop() {
 	for {
 		select {
 		case <-p.quitChan:
@@ -430,7 +430,7 @@ func (p *RaidenProtocol) loop() {
 	}
 }
 
-func (p *RaidenProtocol) receiveInternal(data []byte) {
+func (p *PhotonProtocol) receiveInternal(data []byte) {
 	if len(data) > params.UDPMaxMessageSize {
 		p.log.Error("receive packet larger than maximum size :", len(data))
 		return
@@ -487,16 +487,16 @@ func (p *RaidenProtocol) receiveInternal(data []byte) {
 		if messager.Cmd() == encoding.PingCmdID { //send ack
 			p.sendAck(signedMessager.GetSender(), p.CreateAck(echohash))
 		} else {
-			//send message to raiden ,and wait result
-			p.log.Trace(fmt.Sprintf("protocol send message to raiden... %s", signedMessager))
-			p.ReceivedMessageChan <- &MessageToRaiden{signedMessager, echohash}
+			//send message to photon ,and wait result
+			p.log.Trace(fmt.Sprintf("protocol send message to photon... %s", signedMessager))
+			p.ReceivedMessageChan <- &MessageToPhoton{signedMessager, echohash}
 			select {
 			case err, ok = <-p.ReceivedMessageResultChan:
 			case <-p.quitChan:
 				ok = false
 				err = errors.New("protocol stoped")
 			}
-			p.log.Trace(fmt.Sprintf("protocol receive message response from raiden ok=%v,err=%v", ok, err))
+			p.log.Trace(fmt.Sprintf("protocol receive message response from photon ok=%v,err=%v", ok, err))
 			//only send the Ack if the message was handled without exceptions
 			if err == nil && ok {
 				ack := p.CreateAck(echohash)
@@ -505,7 +505,7 @@ func (p *RaidenProtocol) receiveInternal(data []byte) {
 					p.receivedMessageSaver.SaveAck(echohash, messager, ack.Pack())
 				}
 			} else {
-				p.log.Info(fmt.Sprintf("and raiden report error %s, for Received Message %s", err, utils.StringInterface(signedMessager, 3)))
+				p.log.Info(fmt.Sprintf("and photon report error %s, for Received Message %s", err, utils.StringInterface(signedMessager, 3)))
 			}
 		}
 	}
@@ -513,19 +513,19 @@ func (p *RaidenProtocol) receiveInternal(data []byte) {
 }
 
 // StopAndWait stop andf wait for clean.
-func (p *RaidenProtocol) StopAndWait() {
-	p.log.Info("RaidenProtocol stop...")
+func (p *PhotonProtocol) StopAndWait() {
+	p.log.Info("PhotonProtocol stop...")
 	p.onStop = true
 	close(p.quitChan)
 	p.Transport.StopAccepting()
 	//what about the outgoing packets, maybe lost
 	p.Transport.Stop()
 
-	p.log.Info("raiden protocol stop ok...")
+	p.log.Info("photon protocol stop ok...")
 }
 
-// Start raiden protocol
-func (p *RaidenProtocol) Start() {
+// Start photon protocol
+func (p *PhotonProtocol) Start() {
 	p.Transport.Start()
 }
 
@@ -537,7 +537,7 @@ type NodeInfo struct {
 }
 
 // UpdateMeshNetworkNodes update nodes in this intranet
-func (p *RaidenProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
+func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 	//p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
 	for _, n := range nodes {

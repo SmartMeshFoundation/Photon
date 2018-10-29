@@ -11,14 +11,14 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -26,7 +26,7 @@ import (
 //
 // should not export any member because of gomobile's protocol
 type API struct {
-	api           *smartraiden.RaidenAPI
+	api           *photon.API
 	callID2result map[string]Result
 }
 
@@ -250,7 +250,7 @@ func (a *API) openChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, a.api.Raiden.Config.RevealTimeout, balance)
+	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -526,7 +526,7 @@ func (a *API) Address() (addr string) {
 }
 
 /*
-Tokens returns all the token have registered on smart raiden
+Tokens returns all the token have registered on Photon
 for example:
 [
     "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
@@ -583,7 +583,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 }
 
 /*
-RegisterToken  Registering a new Token to smart raiden
+RegisterToken  Registering a new Token to smart photon
 returns the new token's corresponding TokenNetwork Contract address.
 for example:
 tokenNetworkAddress: 0xBb1e95363b0181De7bBf394f18eaC7D4230e391A
@@ -674,7 +674,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	}
 	req := &v1.TransferData{}
 	req.LockSecretHash = result.LockSecretHash.String()
-	req.Initiator = a.api.Raiden.NodeAddress.String()
+	req.Initiator = a.api.Photon.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
 	req.Amount = amount
@@ -684,7 +684,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 }
 
 /*
-TokenSwap token swap for maker for two raiden nodes
+TokenSwap token swap for maker for two Photon nodes
 the role should only be  "maker" or "taker".
 */
 func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error) {
@@ -729,17 +729,17 @@ func (a *API) tokenSwap(role string, lockSecretHash string, SendingAmountStr, Re
 	}
 	if role == "maker" {
 		err = a.api.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
-			a.api.Raiden.NodeAddress, target, SendingAmount, ReceivingAmount, SecretStr)
+			a.api.Photon.NodeAddress, target, SendingAmount, ReceivingAmount, SecretStr)
 	} else if role == "taker" {
 		err = a.api.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
-			target, a.api.Raiden.NodeAddress, ReceivingAmount, SendingAmount)
+			target, a.api.Photon.NodeAddress, ReceivingAmount, SendingAmount)
 	} else {
 		err = fmt.Errorf("provided invalid token swap role %s", role)
 	}
 	return
 }
 
-//Stop stop raiden
+//Stop stop Photon
 func (a *API) Stop() {
 	log.Trace("Api Stop")
 	//test only
@@ -798,7 +798,7 @@ SwitchNetwork  switch between mesh and internet
 */
 func (a *API) SwitchNetwork(isMesh bool) {
 	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
-	a.api.Raiden.Config.IsMeshNetwork = isMesh
+	a.api.Photon.Config.IsMeshNetwork = isMesh
 }
 
 /*
@@ -815,7 +815,7 @@ func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 		log.Error(err.Error())
 		return
 	}
-	err = a.api.Raiden.Protocol.UpdateMeshNetworkNodes(nodes)
+	err = a.api.Photon.Protocol.UpdateMeshNetworkNodes(nodes)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -824,11 +824,11 @@ func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 }
 
 /*
-EthereumStatus  query the status between raiden and ethereum
+EthereumStatus  query the status between Photon and ethereum
 todo fix it ,r is useless
 */
 func (a *API) EthereumStatus() (r string, err error) {
-	c := a.api.Raiden.Chain
+	c := a.api.Photon.Chain
 	if c != nil && c.Client.Status == netshare.Connected {
 		return time.Now().String(), nil
 	}
@@ -886,7 +886,7 @@ type NotifyHandler interface {
 	OnReceivedTransfer(tr string)
 	//OnSentTransfer a transfer sent success
 	OnSentTransfer(tr string)
-	// OnNotify get some important message raiden want to notify upper application
+	// OnNotify get some important message Photon want to notify upper application
 	OnNotify(level int, info string)
 }
 
@@ -895,7 +895,7 @@ Subscribe  As to Status Notification, we put these codebase into an individual p
  and use channel to communication.
  To avoid write block, we can write data through select.
  We should make effort to avoid start go routine.
- If there's need to create a new Raiden instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
+ If there's need to create a new Photon instance, sub.Unsubscribe must be invoked to do that or memory leakage will occur.
 */
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	sub = &Subscription{
@@ -907,7 +907,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 	}
 
 	var xn <-chan netshare.Status
-	switch t := a.api.Raiden.Transport.(type) {
+	switch t := a.api.Photon.Transport.(type) {
 	case *network.MatrixMixTransport:
 		xn, err = t.GetNotify()
 		if err != nil {
@@ -931,27 +931,27 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			select {
 			case err = <-rpanic.GetNotify():
 				handler.OnError(32, err.Error())
-			case s := <-a.api.Raiden.EthConnectionStatus:
+			case s := <-a.api.Photon.EthConnectionStatus:
 				cs.EthStatus = s
-				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
+				cs.LastBlockTime = a.api.Photon.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
-				cs.LastBlockTime = a.api.Raiden.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
+				cs.LastBlockTime = a.api.Photon.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t, ok := <-a.api.Raiden.NotifyHandler.GetSentTransferChan():
+			case t, ok := <-a.api.Photon.NotifyHandler.GetSentTransferChan():
 				if ok {
 					d, err = json.Marshal(t)
 					handler.OnSentTransfer(string(d))
 				}
-			case t, ok := <-a.api.Raiden.NotifyHandler.GetReceivedTransferChan():
+			case t, ok := <-a.api.Photon.NotifyHandler.GetReceivedTransferChan():
 				if ok {
 					d, err = json.Marshal(t)
 					handler.OnReceivedTransfer(string(d))
 				}
-			case n, ok := <-a.api.Raiden.NotifyHandler.GetNoticeChan():
+			case n, ok := <-a.api.Photon.NotifyHandler.GetNoticeChan():
 				if ok {
 					handler.OnNotify(int(n.Level), n.Info)
 				}
@@ -1006,7 +1006,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 		log.Error(err.Error())
 		return
 	}
-	ts, err := a.api.Raiden.GetDb().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
+	ts, err := a.api.Photon.GetDb().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
 	if err != nil {
 		log.Error(fmt.Sprintf("err =%s", err))
 		return
@@ -1017,9 +1017,9 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 
 // NotifyNetworkDown :
 func (a *API) NotifyNetworkDown() error {
-	client := a.api.Raiden.Chain.Client
+	client := a.api.Photon.Chain.Client
 	if client.IsConnected() {
-		a.api.Raiden.BlockChainEvents.Stop()
+		a.api.Photon.BlockChainEvents.Stop()
 		client.Client.Close()
 	}
 	go client.RecoverDisconnect()

@@ -8,7 +8,7 @@ smoketest工具使用说明
           如已经运行过，可跳过该步骤
           如有现成的环境，可指定env.INI中的registry_contract_address和[ACCOUNT]下至少N0-N5共计6个账户以上，也可不运行envinit
 
-2. 根据本地环境配置env.INI中的raidenpath指定smartraiden命令路径
+2. 根据本地环境配置env.INI中的photonpath指定photon命令路径
 
 3. 执行smoketest：
     cd ..
@@ -19,6 +19,6 @@ smoketest工具使用说明
             smoketest.log   :    测试用例日志
             before.data     :    测试运行前获取的当前节点所有数据汇总，包含节点、token、channel等数据
             after.data      :    测试运行后获取的当前节点所有数据汇总，包含节点、token、channel等数据，方便与before.data做对比
-            N0-N5.log       ：   smartraiden节点日志
-            killall.log     ：   smartraiden进程kill日志
+            N0-N5.log       ：   photon节点日志
+            killall.log     ：   photon进程kill日志
             

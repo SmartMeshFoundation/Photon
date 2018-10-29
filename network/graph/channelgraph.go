@@ -11,13 +11,13 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/dijkstra"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/dijkstra"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/fee"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 

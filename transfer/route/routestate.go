@@ -5,8 +5,8 @@ import (
 
 	"encoding/gob"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/nkbai/log"
 )

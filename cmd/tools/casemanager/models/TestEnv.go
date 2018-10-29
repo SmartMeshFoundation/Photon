@@ -20,10 +20,10 @@ import (
 
 	"strconv"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -44,7 +44,7 @@ type TestEnv struct {
 	RegistryContractAddress string
 	Verbosity               int
 	Debug                   bool
-	Nodes                   []*RaidenNode
+	Nodes                   []*PhotonNode
 	Tokens                  []*Token
 	Channels                []*Channel
 	Keys                    []*ecdsa.PrivateKey `json:"-"`
@@ -85,8 +85,8 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	}
 	Logger = log.New(&logTee{logFile, os.Stderr}, "", log.LstdFlags|log.Lshortfile)
 	Logger.Println("Start to prepare env for " + env.CaseName + "...")
-	env.Main = c.RdString("COMMON", "main", "smartraiden")
-	env.DataDir = c.RdString("COMMON", "data_dir", ".smartraiden")
+	env.Main = c.RdString("COMMON", "main", "photon")
+	env.DataDir = c.RdString("COMMON", "data_dir", ".photon")
 	env.KeystorePath = c.RdString("COMMON", "keystore_path", "../../../testdata/casemanager-keystore")
 	env.PasswordFile = c.RdString("COMMON", "password_file", "../../../testdata/casemanager-keystore/pass")
 	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "")
@@ -104,7 +104,7 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	env.Nodes = loadNodes(c)
 	env.Tokens = loadTokenAddrs(c, env, conn, key, registry)
 	env.Channels = loadAndBuildChannels(c, env, conn)
-	env.KillAllRaidenNodes()
+	env.KillAllPhotonNodes()
 	env.ClearHistoryData()
 	env.Println(env.CaseName + " env:")
 	Logger.Println("Env Prepare SUCCESS")
@@ -185,7 +185,7 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	}
 	return
 }
-func loadNodes(c *config.Config) (nodes []*RaidenNode) {
+func loadNodes(c *config.Config) (nodes []*PhotonNode) {
 	options, err := c.Options("NODE")
 	if err != nil {
 		panic(err)
@@ -193,7 +193,7 @@ func loadNodes(c *config.Config) (nodes []*RaidenNode) {
 	sort.Strings(options)
 	for _, option := range options {
 		s := strings.Split(c.RdString("NODE", option, ""), ",")
-		nodes = append(nodes, &RaidenNode{
+		nodes = append(nodes, &PhotonNode{
 			Name:          option,
 			Host:          "http://" + s[1],
 			Address:       s[0],
@@ -428,21 +428,21 @@ func approveAccountIfNeeded(token *contracts.Token, auth *bind.TransactOpts, tok
 	approveMap[key] = approveAmt.Int64()
 }
 
-// KillAllRaidenNodes kill all raiden node
-func (env *TestEnv) KillAllRaidenNodes() {
+// KillAllPhotonNodes kill all photon node
+func (env *TestEnv) KillAllPhotonNodes() {
 	var pstr2 []string
 	//kill the old process
 	if runtime.GOOS == "windows" {
 		pstr2 = append(pstr2, "-F")
 		pstr2 = append(pstr2, "-IM")
-		pstr2 = append(pstr2, "smartraiden*")
+		pstr2 = append(pstr2, "photon*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
 		pstr2 = append(pstr2, "-9")
-		pstr2 = append(pstr2, "smartraiden")
+		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
-	Logger.Println("Kill all raiden nodes SUCCESS")
+	Logger.Println("Kill all photon nodes SUCCESS")
 }
 
 // ClearHistoryData :
@@ -450,7 +450,7 @@ func (env *TestEnv) ClearHistoryData() {
 	if env.DataDir == "" {
 		return
 	}
-	filepath.Walk(env.DataDir, func(path string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(env.DataDir, func(path string, fi os.FileInfo, err error) error {
 		if nil == fi {
 			return err
 		}
@@ -459,15 +459,18 @@ func (env *TestEnv) ClearHistoryData() {
 		}
 		name := fi.Name()
 
-		if name == ".smartraiden" {
+		if name == ".photon" {
 			err := os.RemoveAll(path)
 			if err != nil {
 				fmt.Println("delet dir error:", err)
 			}
 		}
-		Logger.Println("Clear history data SUCCESS")
+		Logger.Println("Clear history data SUCCESS ")
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 // GetTokenByName :
@@ -491,7 +494,7 @@ func (env *TestEnv) GetNodeAddressByName(nodeName string) (index int, address co
 }
 
 // GetNodeByAddress :
-func (env *TestEnv) GetNodeByAddress(nodeAddress string) *RaidenNode {
+func (env *TestEnv) GetNodeByAddress(nodeAddress string) *PhotonNode {
 	for _, node := range env.Nodes {
 		if node.Address == nodeAddress {
 			return node

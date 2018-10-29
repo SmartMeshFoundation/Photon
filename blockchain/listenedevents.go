@@ -1,8 +1,8 @@
 package blockchain
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 

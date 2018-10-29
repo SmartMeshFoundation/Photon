@@ -7,11 +7,11 @@ import (
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 

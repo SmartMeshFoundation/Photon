@@ -5,8 +5,8 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 // CrashCaseRecvAck05 场景五：RevealSecretRecevieAck
@@ -18,7 +18,7 @@ func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据

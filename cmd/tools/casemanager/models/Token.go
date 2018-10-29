@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/common"
 )
 

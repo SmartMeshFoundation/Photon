@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/cases"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/cases"
 	"github.com/urfave/cli"
 )
 

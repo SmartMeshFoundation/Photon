@@ -10,9 +10,9 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,7 +51,7 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	return c, nil
 }
 
-//Close connection when destroy raiden service
+//Close connection when destroy photon service
 func (c *SafeEthClient) Close() {
 	if c.Client != nil {
 		c.Client.Close()

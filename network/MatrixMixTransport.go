@@ -3,12 +3,12 @@ package network
 import (
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/params"
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
 )
 

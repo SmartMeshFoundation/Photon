@@ -8,14 +8,14 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/helper"
+	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )

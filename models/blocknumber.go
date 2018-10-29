@@ -5,7 +5,7 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 const bucketBlockNumber = "bucketBlockNumber"

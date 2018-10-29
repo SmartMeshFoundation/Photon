@@ -7,8 +7,8 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 )
 
 //IsTest for test function only

@@ -1,8 +1,8 @@
-package smartraiden
+package photon
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/ethereum/go-ethereum/common"
 )
 

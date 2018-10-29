@@ -8,18 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/gomatrix"
+	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/models/cb"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 var testPrivKey *ecdsa.PrivateKey
@@ -153,7 +153,7 @@ func TestInvite(t *testing.T) {
 		Invite:        []string{m2.UserID},
 		Visibility:    "public",
 		Preset:        "public_chat",
-		RoomAliasName: fmt.Sprintf("smartraiden_%s_%s", utils.APex2(m1.NodeAddress), utils.APex2(m2.NodeAddress)),
+		RoomAliasName: fmt.Sprintf("photon_%s_%s", utils.APex2(m1.NodeAddress), utils.APex2(m2.NodeAddress)),
 	})
 	if err != nil {
 		t.Error(err)

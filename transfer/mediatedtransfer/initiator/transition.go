@@ -5,13 +5,13 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	mt "github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	mt "github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 //NameInitiatorTransition name for state manager
@@ -396,7 +396,7 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
 		*/
 		// As transfer initiator, we assume that this transfer completes once we send unlock and my partner receive it.
-		//todo fix, find a way to remove this identifier from raiden.Transfer2StateManager
+		//todo fix, find a way to remove this identifier from photon.Transfer2StateManager
 		log.Warn(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 			utils.StringInterface1(originalState), utils.StringInterface1(st)))
 	} else {

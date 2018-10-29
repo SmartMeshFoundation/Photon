@@ -7,15 +7,15 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 )
 
 // query api default timeout
 var queryTimeOut = time.Second * 30
 
 // QueryNodeAddressTest :
-func QueryNodeAddressTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryNodeAddressTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryNodeAddress",
 		AllowFail: allowFail,
@@ -32,7 +32,7 @@ func QueryNodeAddressTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // QueryRegisteredTokenTest :
-func QueryRegisteredTokenTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryRegisteredTokenTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryRegisteredToken",
 		AllowFail: allowFail,
@@ -49,7 +49,7 @@ func QueryRegisteredTokenTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // QueryAllPartnersForOneTokenTest :
-func QueryAllPartnersForOneTokenTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryAllPartnersForOneTokenTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryAllPartnersForOneToken",
 		AllowFail: allowFail,
@@ -66,7 +66,7 @@ func QueryAllPartnersForOneTokenTest(env *models.RaidenEnvReader, allowFail bool
 }
 
 // QueryNodeAllChannelsTest :
-func QueryNodeAllChannelsTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryNodeAllChannelsTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryNodeAllChannels",
 		AllowFail: allowFail,
@@ -83,11 +83,11 @@ func QueryNodeAllChannelsTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // QueryNodeSpecificChannelTest :
-func QueryNodeSpecificChannelTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryNodeSpecificChannelTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
-	var node *models.RaidenNode
+	var node *models.PhotonNode
 	var channels []models.Channel
-	for _, n := range env.RaidenNodes {
+	for _, n := range env.PhotonNodes {
 		channels = env.GetChannelsOfNode(n.AccountAddress)
 		if len(channels) > 0 {
 			node = n
@@ -120,7 +120,7 @@ func QueryNodeSpecificChannelTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // QueryGeneralNetworkEventsTest :
-func QueryGeneralNetworkEventsTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryGeneralNetworkEventsTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryGeneralNetworkEvents",
 		AllowFail: allowFail,
@@ -137,7 +137,7 @@ func QueryGeneralNetworkEventsTest(env *models.RaidenEnvReader, allowFail bool) 
 }
 
 // QueryTokenNetworkEventsTest :
-func QueryTokenNetworkEventsTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryTokenNetworkEventsTest(env *models.PhotonEnvReader, allowFail bool) {
 	case1 := &APITestCase{
 		CaseName:  "QueryTokenNetworkEvents",
 		AllowFail: allowFail,
@@ -154,11 +154,11 @@ func QueryTokenNetworkEventsTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // QueryChannelEventsTest :
-func QueryChannelEventsTest(env *models.RaidenEnvReader, allowFail bool) {
+func QueryChannelEventsTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
-	var node *models.RaidenNode
+	var node *models.PhotonNode
 	var channels []models.Channel
-	for _, n := range env.RaidenNodes {
+	for _, n := range env.PhotonNodes {
 		channels = env.GetChannelsOfNode(n.AccountAddress)
 		if len(channels) > 0 {
 			node = n
@@ -193,11 +193,11 @@ func QueryChannelEventsTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // GetSentTransfersTest :
-func GetSentTransfersTest(env *models.RaidenEnvReader, allowFail bool) {
+func GetSentTransfersTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
-	var node *models.RaidenNode
+	var node *models.PhotonNode
 	var channels []models.Channel
-	for _, n := range env.RaidenNodes {
+	for _, n := range env.PhotonNodes {
 		channels = env.GetChannelsOfNode(n.AccountAddress)
 		if len(channels) > 0 {
 			node = n
@@ -231,11 +231,11 @@ func GetSentTransfersTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // GetReceivedTransfersTest :
-func GetReceivedTransfersTest(env *models.RaidenEnvReader, allowFail bool) {
+func GetReceivedTransfersTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
-	var node *models.RaidenNode
+	var node *models.PhotonNode
 	var channels []models.Channel
-	for _, n := range env.RaidenNodes {
+	for _, n := range env.PhotonNodes {
 		channels = env.GetChannelsOfNode(n.AccountAddress)
 		if len(channels) > 0 {
 			node = n
@@ -269,14 +269,14 @@ func GetReceivedTransfersTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // GetRandomSecretTest :
-func GetRandomSecretTest(env *models.RaidenEnvReader, allowFail bool) {
+func GetRandomSecretTest(env *models.PhotonEnvReader, allowFail bool) {
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "GetRandomSecre",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "GetRandomSecre",
-			FullURL: env.RaidenNodes[0].Host + "/api/1/secret",
+			FullURL: env.PhotonNodes[0].Host + "/api/1/secret",
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,
@@ -287,14 +287,14 @@ func GetRandomSecretTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // GetBalanceByTokenAddressTest :
-func GetBalanceByTokenAddressTest(env *models.RaidenEnvReader, allowFail bool) {
+func GetBalanceByTokenAddressTest(env *models.PhotonEnvReader, allowFail bool) {
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "GetBalanceByTokenAddress",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "GetBalanceByTokenAddress",
-			FullURL: env.RaidenNodes[0].Host + "/api/1/balance",
+			FullURL: env.PhotonNodes[0].Host + "/api/1/balance",
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,
@@ -305,9 +305,9 @@ func GetBalanceByTokenAddressTest(env *models.RaidenEnvReader, allowFail bool) {
 }
 
 // ChannelFor3rdPartyTest :
-func ChannelFor3rdPartyTest(env *models.RaidenEnvReader, allowFail bool) {
+func ChannelFor3rdPartyTest(env *models.PhotonEnvReader, allowFail bool) {
 	// run case
-	node := env.RaidenNodes[0]
+	node := env.PhotonNodes[0]
 	channels := env.GetChannelsOfNodeByState(node.AccountAddress, contracts.ChannelStateOpened)
 	if channels == nil || len(channels) == 0 {
 		Logger.Println("Current env can not afford this case !!!")
@@ -324,7 +324,7 @@ func ChannelFor3rdPartyTest(env *models.RaidenEnvReader, allowFail bool) {
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "ChannelFor3rdParty",
-			FullURL: fmt.Sprintf("%s/api/1/thirdparty/%s/%s", node.Host, channels[0].ChannelIdentifier, env.RaidenNodes[1].AccountAddress),
+			FullURL: fmt.Sprintf("%s/api/1/thirdparty/%s/%s", node.Host, channels[0].ChannelIdentifier, env.PhotonNodes[1].AccountAddress),
 			Method:  http.MethodGet,
 			Payload: "",
 			Timeout: queryTimeOut,

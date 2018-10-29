@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
 // LogPath : api test case log path

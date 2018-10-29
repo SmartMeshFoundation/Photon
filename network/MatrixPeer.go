@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/gomatrix"
+	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -32,7 +32,7 @@ func (s peerStatus) String() string {
 	return "error status"
 }
 
-//MatrixPeer is the  raiden node on matrix server
+//MatrixPeer is the  photon node on matrix server
 type MatrixPeer struct {
 	address common.Address //需要通信的对象
 	//address 对应的所有可能的 User

@@ -6,7 +6,7 @@ import (
 
 	"runtime"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 func TestDefaultKeyStoreDir(t *testing.T) {

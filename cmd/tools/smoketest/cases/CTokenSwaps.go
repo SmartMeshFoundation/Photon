@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // TokenSwapsPayload :
@@ -23,14 +23,14 @@ type TokenSwapsPayload struct {
 }
 
 type testTokenSwapParams struct {
-	Env         *models.RaidenEnvReader
+	Env         *models.PhotonEnvReader
 	AllowFail   bool
 	CaseName    string
-	PrepareData func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error)
+	PrepareData func(env *models.PhotonEnvReader) (node1 *models.PhotonNode, node2 *models.PhotonNode, token1 *models.Token, token2 *models.Token, err error)
 }
 
 // TokenSwapsTest : test case for TokenSwap
-func TokenSwapsTest(env *models.RaidenEnvReader, allowFail bool) {
+func TokenSwapsTest(env *models.PhotonEnvReader, allowFail bool) {
 	// test TokenSwap between two nodes who have direct opened channel
 	testTokenSwap(&testTokenSwapParams{
 		Env:         env,
@@ -67,16 +67,16 @@ func testTokenSwap(param *testTokenSwapParams) {
 	invokeTokenSwap(node2, node1, token2, token1, 2, 1, "maker", param.CaseName, param.AllowFail, lockSecretHash, secret)
 }
 
-func prepareDataForDirectTokenSwap(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error) {
-	if len(env.RaidenNodes) < 2 {
-		err = errors.New("no enough raiden node")
+func prepareDataForDirectTokenSwap(env *models.PhotonEnvReader) (sender *models.PhotonNode, receiver *models.PhotonNode, token1 *models.Token, token2 *models.Token, err error) {
+	if len(env.PhotonNodes) < 2 {
+		err = errors.New("no enough photon node")
 		return
 	}
 	if len(env.Tokens) < 2 {
 		err = errors.New("no enough registered token ")
 		return
 	}
-	sender, receiver = env.RaidenNodes[0], env.RaidenNodes[1]
+	sender, receiver = env.PhotonNodes[0], env.PhotonNodes[1]
 	token1, token2 = env.Tokens[0], env.Tokens[1]
 	if !env.HasOpenedChannelBetween(sender, receiver, token1) {
 		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, receiver.AccountAddress)
@@ -89,16 +89,16 @@ func prepareDataForDirectTokenSwap(env *models.RaidenEnvReader) (sender *models.
 	return
 }
 
-func prepareDataForIndirectTokenSwap(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token1 *models.Token, token2 *models.Token, err error) {
-	if len(env.RaidenNodes) < 3 {
-		err = errors.New("no enough raiden node")
+func prepareDataForIndirectTokenSwap(env *models.PhotonEnvReader) (sender *models.PhotonNode, receiver *models.PhotonNode, token1 *models.Token, token2 *models.Token, err error) {
+	if len(env.PhotonNodes) < 3 {
+		err = errors.New("no enough photon node")
 		return
 	}
 	if len(env.Tokens) < 2 {
 		err = errors.New("no enough registered token ")
 		return
 	}
-	sender, mid, receiver := env.RaidenNodes[0], env.RaidenNodes[1], env.RaidenNodes[2]
+	sender, mid, receiver := env.PhotonNodes[0], env.PhotonNodes[1], env.PhotonNodes[2]
 	token1, token2 = env.Tokens[0], env.Tokens[1]
 	if !env.HasOpenedChannelBetween(sender, mid, token1) {
 		err = fmt.Errorf("no opened channel on token [%s] between %s and %s", token1.Address, sender.AccountAddress, mid.AccountAddress)
@@ -119,7 +119,7 @@ func prepareDataForIndirectTokenSwap(env *models.RaidenEnvReader) (sender *model
 	return
 }
 
-func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 *models.Token, token2 *models.Token, amount1 int32, amount2 int32, role string, caseName string, allowFail bool, lockSecretHash string, secret string) {
+func invokeTokenSwap(node1 *models.PhotonNode, node2 *models.PhotonNode, token1 *models.Token, token2 *models.Token, amount1 int32, amount2 int32, role string, caseName string, allowFail bool, lockSecretHash string, secret string) {
 	payload := TokenSwapsPayload{
 		Role:            role,
 		SendingToken:    token1.Address,
@@ -141,7 +141,7 @@ func invokeTokenSwap(node1 *models.RaidenNode, node2 *models.RaidenNode, token1 
 			FullURL: node1.Host + "/api/1/token_swaps/" + node2.AccountAddress + "/" + lockSecretHash,
 			Method:  http.MethodPut,
 			Payload: string(p),
-			Timeout: time.Second * 240,
+			Timeout: time.Second * 60,
 		},
 		TargetStatusCode: 201,
 	}

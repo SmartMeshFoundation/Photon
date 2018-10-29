@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "smartraiden/TokenNetwork.sol";
+import "photon/TokenNetwork.sol";
 
 contract TokenNetworkInternalsTest is TokenNetwork {
     constructor (address _token_address, address _secret_registry, uint256 _chain_id)

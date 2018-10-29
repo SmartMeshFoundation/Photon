@@ -3,7 +3,7 @@ package models
 import (
 	"testing"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestModelDB_XMPPIsAddrSubed(t *testing.T) {

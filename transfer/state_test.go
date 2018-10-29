@@ -7,8 +7,8 @@ import (
 
 	"bytes"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestNewBalanceProofStateFromEnvelopMessage(t *testing.T) {

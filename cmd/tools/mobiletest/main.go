@@ -7,9 +7,9 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/mobile"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/mobile"
+	"github.com/SmartMeshFoundation/Photon/params"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/urfave/cli"
 )
@@ -19,7 +19,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "address",
-			Usage: "The ethereum address you would like raiden to use and for which a keystore file exists in your local system.",
+			Usage: "The ethereum address you would like photon to use and for which a keystore file exists in your local system.",
 		},
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
@@ -36,7 +36,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "listen-address",
-			Usage: `"host:port" for the raiden service to listen on.`,
+			Usage: `"host:port" for the photon service to listen on.`,
 			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
 		},
 		cli.StringFlag{
@@ -45,7 +45,7 @@ func main() {
 		},
 		ethutils.DirectoryFlag{
 			Name:  "datadir",
-			Usage: "Directory for storing raiden data.",
+			Usage: "Directory for storing photon data.",
 		},
 		cli.StringFlag{
 			Name:  "password-file",

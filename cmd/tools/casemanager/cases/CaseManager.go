@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 // CaseManager include env and cases

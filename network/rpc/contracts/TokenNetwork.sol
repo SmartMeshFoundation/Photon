@@ -7,7 +7,7 @@ import "./SecretRegistry.sol";
 
 /// @title TokenNetwork -- a network of a specific token
 /// @author SmartMeshFoundation
-/// @notice In our SmartRaiden version 1.0, we prefer an alternative method that just store all tokens in the channel network
+/// @notice In our Photon version 1.0, we prefer an alternative method that just store all tokens in the channel network
 /// @notice into one single contract, instead of dividing them into every single channel.
 contract TokenNetwork is Utils {
 

@@ -10,7 +10,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
 // TransferPayload API  http body
@@ -22,16 +22,16 @@ type TransferPayload struct {
 }
 
 type testTransferParams struct {
-	Env          *models.RaidenEnvReader
+	Env          *models.PhotonEnvReader
 	AllowFail    bool
 	CaseName     string
-	PrepareData  func(env *models.RaidenEnvReader) (node1 *models.RaidenNode, node2 *models.RaidenNode, token *models.Token, err error)
+	PrepareData  func(env *models.PhotonEnvReader) (node1 *models.PhotonNode, node2 *models.PhotonNode, token *models.Token, err error)
 	IsDirect     bool
 	TargetStatus int
 }
 
 // InitiatingTransferTest : test case for InitiatingTransfer
-func InitiatingTransferTest(env *models.RaidenEnvReader, allowFail bool) {
+func InitiatingTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 
 	// test transfer between two nodes who have direct opened channel
 	testTransfer(&testTransferParams{
@@ -99,7 +99,7 @@ func testTransfer(param *testTransferParams) {
 			FullURL: sender.Host + "/api/1/transfers/" + token.Address + "/" + receiver.AccountAddress,
 			Method:  http.MethodPost,
 			Payload: string(p),
-			Timeout: time.Second * 180,
+			Timeout: time.Second * 60,
 		},
 		TargetStatusCode: param.TargetStatus,
 	}
@@ -107,12 +107,12 @@ func testTransfer(param *testTransferParams) {
 }
 
 // find a opened channel from env, if there is none, create one
-func prepareDataForDirectTransfer(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token *models.Token, err error) {
-	if len(env.RaidenNodes) < 2 {
-		err = errors.New("no enough raiden node")
+func prepareDataForDirectTransfer(env *models.PhotonEnvReader) (sender *models.PhotonNode, receiver *models.PhotonNode, token *models.Token, err error) {
+	if len(env.PhotonNodes) < 2 {
+		err = errors.New("no enough photon node")
 		return
 	}
-	sender, receiver = env.RaidenNodes[0], env.RaidenNodes[1]
+	sender, receiver = env.PhotonNodes[0], env.PhotonNodes[1]
 	for _, t := range env.Tokens {
 		if env.HasOpenedChannelBetween(sender, receiver, t) {
 			token = t
@@ -127,12 +127,12 @@ func prepareDataForDirectTransfer(env *models.RaidenEnvReader) (sender *models.R
 }
 
 // find a enable route from env, if there is none, create one
-func prepareDataForIndirectTransfer(env *models.RaidenEnvReader) (sender *models.RaidenNode, receiver *models.RaidenNode, token *models.Token, err error) {
-	if len(env.RaidenNodes) < 3 {
-		err = errors.New("no enough raiden node")
+func prepareDataForIndirectTransfer(env *models.PhotonEnvReader) (sender *models.PhotonNode, receiver *models.PhotonNode, token *models.Token, err error) {
+	if len(env.PhotonNodes) < 3 {
+		err = errors.New("no enough photon node")
 		return
 	}
-	sender, mid, receiver := env.RaidenNodes[0], env.RaidenNodes[1], env.RaidenNodes[2]
+	sender, mid, receiver := env.PhotonNodes[0], env.PhotonNodes[1], env.PhotonNodes[2]
 	for _, t := range env.Tokens {
 		if env.HasOpenedChannelBetween(sender, mid, t) && env.HasOpenedChannelBetween(mid, receiver, t) {
 			token = t

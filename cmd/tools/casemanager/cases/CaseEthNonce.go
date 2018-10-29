@@ -5,8 +5,8 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // CaseEthNonce :
@@ -17,7 +17,7 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据

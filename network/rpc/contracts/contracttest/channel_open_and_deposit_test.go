@@ -6,7 +6,7 @@ import (
 
 	"encoding/hex"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // TestChannelOpenAndDepositRight : 正确调用测试

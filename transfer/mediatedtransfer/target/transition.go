@@ -3,11 +3,11 @@ package target
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer/mediator"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 //NameTargetTransition name for state manager
@@ -156,7 +156,7 @@ func handleBalanceProof(state *mediatedtransfer.TargetState, st *mediatedtransfe
 }
 
 /*
-After Raiden learns about a new block this function must be called to
+After Photon learns about a new block this function must be called to
     handle expiration of the hash time lock.
 */
 func handleBlock(state *mediatedtransfer.TargetState, st *transfer.BlockStateChange) (it *transfer.TransitionResult) {

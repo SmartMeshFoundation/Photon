@@ -3,9 +3,9 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // LongCase5Nodes :
@@ -16,7 +16,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据
@@ -24,7 +24,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2, N3, N4 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// step 1 : Start 5 Raiden nodes
+	// step 1 : Start 5 Photon nodes
 	models.Logger.Println("step 1 ---->")
 	N0.Start(env)
 	N1.Start(env)
@@ -162,7 +162,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(6 * time.Second)
 	C01new := N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -183,7 +183,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(6 * time.Second)
 	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	if !C12new.CheckSelfBalance(C12.Balance + C12.PartnerBalance) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
@@ -210,7 +210,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 	}
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
 	C24new = N2.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
 	if !C24new.CheckPartnerBalance(C24.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C24new.Name)
@@ -240,7 +240,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(6 * time.Second)
 	C04new = N0.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C04new.CheckPartnerBalance(C04.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C04new.Name)
@@ -316,7 +316,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -333,7 +333,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 28 : N4 closes his channel with N2
 	models.Logger.Println("step 28 ---->")
 	N4.Close(C24.ChannelIdentifier)
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	C24 = N2.GetChannelWith(N4, tokenAddress)
 	if C24.State != int(netshare.Closed) {
 		return cm.caseFail(env.CaseName)
@@ -354,7 +354,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	if !C12new.CheckPartnerBalance(C12.PartnerBalance - transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
@@ -368,7 +368,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance - transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -406,7 +406,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	N2.CooperateSettle(C23.ChannelIdentifier)
 	time.Sleep(time.Duration(settleTimeout) * time.Second) // wait to settle C24
 	N2.Settle(C24.ChannelIdentifier)
-	time.Sleep(50 * time.Second) // wait to settle C24
+	time.Sleep(100 * time.Second) // wait to settle C24
 
 	C01 = N0.GetChannelWith(N1, tokenAddress)
 	if C01 != nil {

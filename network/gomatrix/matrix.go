@@ -16,11 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 // MatrixHTTPClient is a custom http client

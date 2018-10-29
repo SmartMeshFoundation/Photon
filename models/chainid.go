@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 const bucketChainID = "bucketChainID"

@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // CancelTransferTest :
-func CancelTransferTest(env *models.RaidenEnvReader, allowFail bool) {
+func CancelTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
 	sender, receiver, token, err := prepareDataForDirectTransfer(env)
 	if err != nil {

@@ -3,7 +3,7 @@ package blockchain
 import (
 	"sort"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 )
 
 type contractStateChangeSlice []mediatedtransfer.ContractStateChange

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -31,7 +31,7 @@ func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.AllowRevealSecret(lockSecretHash, tokenAddress)
+	err = API.AllowRevealSecret(lockSecretHash, tokenAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -54,7 +54,7 @@ func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Invalid lockSecretHash", http.StatusBadRequest)
 		return
 	}
-	transferData := RaidenAPI.GetUnfinishedReceivedTransfer(lockSecretHash, tokenAddress)
+	transferData := API.GetUnfinishedReceivedTransfer(lockSecretHash, tokenAddress)
 	err = w.WriteJson(transferData)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
@@ -82,7 +82,7 @@ func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.RegisterSecret(secret, tokenAddress)
+	err = API.RegisterSecret(secret, tokenAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

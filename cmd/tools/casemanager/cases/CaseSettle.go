@@ -3,7 +3,7 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 // CaseSettle :
@@ -14,7 +14,7 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据

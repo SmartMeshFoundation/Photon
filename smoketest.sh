@@ -1,11 +1,11 @@
 #!/bin/bash
-# The script does automatic smoketest on smartraiden api
-# Start pwd : $HOME/gopath/src/github.com/SmartMeshFoundation/SmartRaiden
+# The script does automatic smoketest on photon api
+# Start pwd : $HOME/gopath/src/github.com/SmartMeshFoundation/Photon
 
-# 1. install smartraiden
-cd $GOPATH/src/github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden
+# 1. install photon
+cd $GOPATH/src/github.com/SmartMeshFoundation/Photon/cmd/photon
 ./build.sh
-cp smartraiden $GOPATH/bin
+cp photon $GOPATH/bin
 
 # 2. build envinit and run
 cd ../tools/smoketest/envinit
@@ -17,7 +17,7 @@ fi
 
 # 3. build smoketest and run
 cd ..
-rm -rf .smartraiden
+rm -rf .photon
 if [ ! -d "./log" ];then
     mkdir log
 fi

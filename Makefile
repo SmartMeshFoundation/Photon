@@ -2,18 +2,18 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY:all smartraiden batchtransfer deploy newtestenv withdrawhash
+.PHONY:all Photon batchtransfer deploy newtestenv withdrawhash
 
 
 export GOBIN = $(shell pwd)/build/bin
 export GIT_COMMIT=$(shell git rev-list -1 HEAD)
 export GO_VERSION=$(shell go version|sed 's/ //g')
 export BUILD_DATE=$(shell date|sed 's/ //g')
-all: smartraiden batchtransfer deploy newtestenv  withdrawhash
-smartraiden:
-	go  install -ldflags ' -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GitCommit=$(GIT_COMMIT) -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.GoVersion="$(GO_VERSION)" -X github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl.BuildDate="$(BUILD_DATE)" '  ./cmd/smartraiden
+all: Photon batchtransfer deploy newtestenv  withdrawhash
+Photon:
+	go  install -ldflags ' -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.GitCommit=$(GIT_COMMIT) -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.GoVersion="$(GO_VERSION)" -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.BuildDate="$(BUILD_DATE)" '  ./cmd/photon
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/smartraiden\" to launch smartraiden."
+	@echo "Run \"$(GOBIN)/photon\" to launch photon."
 
 batchtransfer:
 	go  install ./cmd/tools/batchtransfer

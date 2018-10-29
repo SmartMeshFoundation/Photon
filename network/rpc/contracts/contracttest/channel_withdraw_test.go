@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // TestChannelWithdrawRight : 正确调用测试

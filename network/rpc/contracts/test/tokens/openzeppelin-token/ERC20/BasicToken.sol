@@ -2,7 +2,7 @@ pragma solidity ^0.4.24;
 
 
 import "./ERC20Basic.sol";
-import "smartraiden/lib/SafeMath.sol";
+import "photon/lib/SafeMath.sol";
 
 
 /**

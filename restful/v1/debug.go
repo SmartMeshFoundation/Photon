@@ -7,9 +7,9 @@ import (
 
 	"context"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -33,7 +33,7 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	t, err := RaidenAPI.Raiden.Chain.Token(token)
+	t, err := API.Photon.Chain.Token(token)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -74,7 +74,7 @@ func TransferToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "arg error ", http.StatusBadRequest)
 		return
 	}
-	t, err := RaidenAPI.Raiden.Chain.Token(token)
+	t, err := API.Photon.Chain.Token(token)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -99,7 +99,7 @@ func EthBalance(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	v, err := RaidenAPI.Raiden.Chain.Client.BalanceAt(context.Background(), addr, nil)
+	v, err := API.Photon.Chain.Client.BalanceAt(context.Background(), addr, nil)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -121,13 +121,13 @@ type ConnectionStatus struct {
 }
 
 /*
-EthereumStatus  query the status between raiden and ethereum
+EthereumStatus  query the status between Photon and ethereum
 */
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
-	c := RaidenAPI.Raiden.Chain
+	c := API.Photon.Chain
 	cs := &ConnectionStatus{
 		XMPPStatus:    netshare.Disconnected,
-		LastBlockTime: RaidenAPI.Raiden.GetDb().GetLastBlockNumberTime().Format(BlockTimeFormat),
+		LastBlockTime: API.Photon.GetDb().GetLastBlockNumberTime().Format(BlockTimeFormat),
 	}
 	if c != nil && c.Client.Status == netshare.Connected {
 		cs.EthStatus = netshare.Connected
@@ -150,7 +150,7 @@ func ForceUnlock(w rest.ResponseWriter, r *rest.Request) {
 	lockSecretHash := common.HexToHash(lockSecretHashStr)
 	secretHashStr := r.PathParam("secrethash")
 	secretHash := common.HexToHash(secretHashStr)
-	err := RaidenAPI.ForceUnlock(channelIdentifier, lockSecretHash, secretHash)
+	err := API.ForceUnlock(channelIdentifier, lockSecretHash, secretHash)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
