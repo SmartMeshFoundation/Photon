@@ -1,7 +1,7 @@
 # Photon Developer Site
 Resources and documentation for the [Photon](https://github.com/SmartMeshFoundation/Photon)
 ## learn
-New to SmartRaiden?  [Installation](./installation_guide.md), and  [Tutorial](./rest_api.md)
+New to Photon?  [Installation](./installation_guide.md), and  [Tutorial](./rest_api.md)
 
 ## Develop
 
