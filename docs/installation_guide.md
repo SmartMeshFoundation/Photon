@@ -7,7 +7,7 @@ The preferred way to install Photon is downloading a self contained application 
 Download the latest photon-<version>-[linux.tar.gz](https://github.com/SmartMeshFoundation/Photon/releases), and extract it:
 
 ```
-tar -xvzf smartraiden-<version>-linux.tar.gz
+tar -xvzf photon-<version>-linux.tar.gz
 ```
 
 The Photon binary should work on most 64bit GNU/Linux distributions without any specific system dependencies, other than an Ethereum client installed in your system (see below). The Photon binary takes the same command line arguments as the photon script.
@@ -91,7 +91,7 @@ If problems arise for above method, please see [the Ropsten README](https://gith
 
 Then launch Photon with the default testnet keystore path:
 ```
-smartraiden --keystore-path  ~/.ethereum/testnet/keystore
+photon --keystore-path  ~/.ethereum/testnet/keystore
 ```
 
 ### Spectrum
