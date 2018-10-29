@@ -1,4 +1,4 @@
-#Photon Monitoring Service
+# Photon Monitoring Service
 Photon Monitoring Service, as SM, primarily focuses on mobile platforms. As user's mobile devides disconnected from Photon, they would be automatically execute `UpdateTransfer` and `Punish` according to delegation, to secure user's assets.  
 ## Build and Installation
 ### Build
