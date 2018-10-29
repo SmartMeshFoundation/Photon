@@ -75,6 +75,10 @@ func main() {
 			Value: fmt.Sprintf("http://127.0.0.1:8545"), //, node.DefaultWSEndpoint()),
 		},
 		cli.BoolFlag{
+			Name:  "not-create-token",
+			Usage: "not-create token.",
+		},
+		cli.BoolFlag{
 			Name:  "not-create-channel",
 			Usage: "not-create channels between node for test.",
 		},
@@ -106,12 +110,13 @@ func main() {
 func mainctx(ctx *cli.Context) error {
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
+	fmt.Printf("not-create-token=%v\n", ctx.Bool("not-create-token"))
 	base = int64(math.Pow10(ctx.Int("base")))
 	globalPassword = ctx.String("password")
 	tokenNumber := ctx.Int("tokennum")
-	if tokenNumber <= 0 || tokenNumber > 4 {
-		log.Fatalf("tokenum must be between 1-4")
-	}
+	//if tokenNumber <= 0 || tokenNumber > 4 {
+	//	log.Fatalf("tokenum must be between 1-4")
+	//}
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := helper.NewSafeClient(ctx.String("eth-rpc-endpoint"))
 	if err != nil {
@@ -121,6 +126,9 @@ func mainctx(ctx *cli.Context) error {
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
 	registryAddress := deployContract(key, conn)
+	if ctx.Bool("not-create-token") {
+		return nil
+	}
 	registry, err := contracts.NewTokenNetworkRegistry(registryAddress, conn)
 	if err != nil {
 		return err
