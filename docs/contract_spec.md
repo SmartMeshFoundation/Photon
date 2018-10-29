@@ -38,7 +38,7 @@ This new contract adds support for EIP191 standard, in all signed data exists EI
 
 ###  Balance Proof
 
-All the data requested by Smart Raiden contract when updating payment channels, channel participants should assign their signature to their Balance Proof. Signature defines as below :  
+All the data requested by Photon contract when updating payment channels, channel participants should assign their signature to their Balance Proof. Signature defines as below :  
 ```soldity
 ecdsa_recoverable(privkey, keccak256(channel_identifier || transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || chain_id)
 ```
