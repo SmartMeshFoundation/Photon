@@ -1,4 +1,4 @@
-site_name: photonnetwork
+site_name:PhotonNetwork
 pages:
 -  Photon Developer Site: index.md
 -  System Requirements and Installation Guide: installation_guide.md
