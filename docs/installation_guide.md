@@ -80,20 +80,6 @@ In order to use Photon correctly and safely there are some things that need to b
 - **Photon node can be offline or online according to usage :** In photon,some nodes ,such as mobile nodes(just for payment requirment), can be offline after delegating evidence to the PhotonMonitor; Another nodes, such as meshbox nodes,which provide the mediate transfer service, need to confirm that the inside photon node is always running, If it crashes for whatever reason you are responsible to restart it.
 
 ## Firing it up
-### Ethereum
-Run the Ethereum client and let it sync with the Ropsten testnet:
-```
-geth --testnet --fast --rpc --rpcapi eth,net,web3 --bootnodes "enode://20c9ad97c081d63397d7b685a412227a40e23c8bdc6688c6f37e97cfbc22d2b4d1db1510d8f61e6a8866ad7f0e17c02b14182d37ea7c3c8b9c2683aeb6b733a1@52.169.14.227:30303,enode://6ce05930c72abc632c58e2e4324f7c7ea478cec0ed4fa2528982cf34483094e9cbc9216e7aa349691242576d552a2a56aaeae426c5303ded677ce455ba1acd9d@13.84.180.240:30303"
-```
-Unless you already have an account you can also create one in the console by invoking `personal.newAccount()`.
-
-If problems arise for above method, please see [the Ropsten README](https://github.com/ethereum/ropsten) for further instructions.
-
-Then launch Photon with the default testnet keystore path:
-```
-photon --keystore-path  ~/.ethereum/testnet/keystore
-```
-
 ### Spectrum
 Run Photon nodes on the Spectrum testnet
 #### Installing Spectrum
