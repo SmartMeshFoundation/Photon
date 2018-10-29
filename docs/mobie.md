@@ -21,7 +21,7 @@ Due to the working restrictions of gomobile, if there are two gomobile compiled 
 Photon relies on gomobile to automate interface encapsulation. Because it is a cross-language call, it is unavoidable that it is a type conversion problem.
 In order to avoid such problems, Photon provides interfaces to almost all basic types (int, string, error).
 
-### Starting a raiden node
+### Starting a photon node
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 parameter:
