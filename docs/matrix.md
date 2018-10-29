@@ -1,6 +1,6 @@
 # Matrix-Regservice
-Matrix-regservice is used as a third-party application service for Matrix. The main function is to limit the Matrix HomeServer used by SmartRaiden to only accept valid Raiden user registration.
-That is, users registered on this Matrix server can only be SmartRaiden nodes. These nodes have a uniform name and can guarantee that these users must have the corresponding private key to register.
+Matrix-regservice is used as a third-party application service for Matrix. The main function is to limit the Matrix HomeServer used by Photon to only accept valid photon user registration.
+That is, users registered on this Matrix server can only be Photon nodes. These nodes have a uniform name and can guarantee that these users must have the corresponding private key to register.
 
 
 ## Matrix HomeServer Deployment
