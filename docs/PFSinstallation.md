@@ -1,10 +1,10 @@
-# PFS(SmartRaiden Path Finding Service)
-PFS will be a smartraiden supporting function server written in go.
+# PFS(Photon Path Finding Service)
+PFS will be a Photon supporting function server written in go.
 
 # Installing PFS
 
  * A cluster of individual components, dealing with different aspects of the
-     SmartRaiden protocol.
+     Photon protocol.
      
 ## Requirements
  - Go 1.8+
@@ -13,8 +13,8 @@ PFS will be a smartraiden supporting function server written in go.
 ## Setting up a development environment
 ```bash
 # Get the code
-git clone https://github.com/SmartMeshFoundation/SmartRaiden-Path-Finder.git
-cd SmartRaiden-Path-Finder
+git clone https://github.com/SmartMeshFoundation/Photon-Path-Finder.git
+cd Photon-Path-Finder
 
 # Build it
 go get github.com/constabulary/gb/...
