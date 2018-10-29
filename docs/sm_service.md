@@ -10,7 +10,7 @@ go install
 Photonmonitoring requires a Photon node to charge the service. The specific Token and the charge can be configured. The Photon node must be running on port 127.0.0.1:5001, otherwise it will not work.
 an example run script:
 ```
-smartraidenmonitoring --datadir=.smartraidenmonitoring --eth-rpc-endpoint ws://192.168.124.13:5555  --address="0x292650fee408320D888e06ed89D938294Ea42f99" --keystore-path=/Users/bai/privnet3/keystore  --registry-contract-address 0x7B319fB135811caeED9969E6a97544f74E312A65  --password-file 123 --verbosity 5  --debug   --smt 0x40db17463AD4A00cc824a37d851725aC7eA4E0B6
+photonmonitoring --datadir=.photonmonitoring --eth-rpc-endpoint ws://192.168.124.13:5555  --address="0x292650fee408320D888e06ed89D938294Ea42f99" --keystore-path=/Users/bai/privnet3/keystore  --registry-contract-address 0x7B319fB135811caeED9969E6a97544f74E312A65  --password-file 123 --verbosity 5  --debug   --smt 0x40db17463AD4A00cc824a37d851725aC7eA4E0B6
 ```
 The field descriptions are shown in Photon Monitoring Start.
 ## How to make a use of Photon Monitoring Service ?
@@ -29,7 +29,7 @@ Channel Participant `Bob`|0xf0f6e53d6bbb9debf35da6531ec9f1141cd549d5
 **Photon Monitoring Start**  
 Run script code below to kickstart.  
 ```sh
-photonmonitoring  --datadir=.smartraidenmonitoring --eth-rpc-endpoint ws://127.0.0.1:5555  --address="0x6b9e4d89ee3828e7a477ea9aa7b62810260e27e9" --keystore-path ~/.ethereum/keystore --registry-contract-address 0x4dc3388E72e45E99061Ec4Fe17Db2ebfe3B4341f  --password-file /home/niexin/niexin/data.txt  --smt  0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20
+photonmonitoring  --datadir=.photonmonitoring --eth-rpc-endpoint ws://127.0.0.1:5555  --address="0x6b9e4d89ee3828e7a477ea9aa7b62810260e27e9" --keystore-path ~/.ethereum/keystore --registry-contract-address 0x4dc3388E72e45E99061Ec4Fe17Db2ebfe3B4341f  --password-file /home/niexin/niexin/data.txt  --smt  0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20
 echo "quit ok"
 ```
 
@@ -42,7 +42,7 @@ echo "quit ok"
 - `password-file` : the path of password  
 - `smt` : the address of token  
 
-*Default port for SmartRaiden Monitoring : 6000*  
+*Default port for Photon Monitoring : 6000*  
 
 **Start-up Delegated Charge Node**
 Run script below to operate delegated charged node.  
@@ -61,7 +61,7 @@ Same as Start-up Delegated Charge Node, you can run codes below to achieve that.
 ```sh
 echo privnet
 echo run photon...
-photon --datadir=.smartraiden --api-address=0.0.0.0:5002 --listen-address=127.0.0.1:40002 --address="0x31ddac67e610c22d19e887fb1937bee3079b56cd" --keystore-path ~/.ethereum/keystore --registry-contract-address 0x4dc3388E72e45E99061Ec4Fe17Db2ebfe3B4341f --password-file 123  --eth-rpc-endpoint ws://127.0.0.1:5555  
+photon --datadir=.photon --api-address=0.0.0.0:5002 --listen-address=127.0.0.1:40002 --address="0x31ddac67e610c22d19e887fb1937bee3079b56cd" --keystore-path ~/.ethereum/keystore --registry-contract-address 0x4dc3388E72e45E99061Ec4Fe17Db2ebfe3B4341f --password-file 123  --eth-rpc-endpoint ws://127.0.0.1:5555  
 echo "quit ok"
 ```
 **Bob:**    
