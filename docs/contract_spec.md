@@ -1,12 +1,12 @@
-# SmartRaiden Contract Specification version 0.9 
+# Photon Contract Specification version 0.9 
 
 ## Overview 
-This is our contract specification for SmartRaiden Project, from which you can get information about SmartRaiden Network Construction, including  Requirement, Data Structure, Feature Description, etc, but in this spec there is no trace for off-chain transfer or any description about relevant check features.
+This is our contract specification for Photon Project, from which you can get information about Photon Network Construction, including  Requirement, Data Structure, Feature Description, etc, but in this spec there is no trace for off-chain transfer or any description about relevant check features.
 
 ## General Requirement
 ### Secure
 #### Channel particpant cannot collude with his partner to steal tokens in TokenNetwork. 
-Compared with smartraiden 0.3, we have adopted a new way that is to bond tokens of a specific type into a related contract of TokenNetwork, rather than to keep the old way to create an individual contract for each single channel. You can assume that in our TokenNetwork stores this type of tokens used in all payment channels. For such a reason, our contract must make sure that both participants cannot collude with each other to spend more than what they both deposit in the channel. Namely, the summed value of their balance proofs should not exceed the amount of tokens deposited in TokenNetwork. This is our bottomline for security.   
+Compared with photon 0.3, we have adopted a new way that is to bond tokens of a specific type into a related contract of TokenNetwork, rather than to keep the old way to create an individual contract for each single channel. You can assume that in our TokenNetwork stores this type of tokens used in all payment channels. For such a reason, our contract must make sure that both participants cannot collude with each other to spend more than what they both deposit in the channel. Namely, the summed value of their balance proofs should not exceed the amount of tokens deposited in TokenNetwork. This is our bottomline for security.   
 
 #### No matter which in a channel provides faulty, fradulent proofs he cannot impair his channel partner's token.
 Due to possibilities that channel participants are able to submit BalanceProofs with faulty, fradulent data, our contract ensures that if anyone in a channel does provide used/fradulent BalanceProofs up to mainchain, it can recognize and identify that proof and provide a remedy mechanism so that channel partner will not get impaired.  
@@ -21,7 +21,7 @@ During the lifecyle of payment channels, it is necessary that both participants 
 In the lifetime of payment channels, participants have to submit proofs in accord with the channel phases. As a honest actor, if he updates the most recently-generated, accurate proofs at a certain phase, our contrast validates that he can get his deserved benefit, even his partner does not update any proof or does with fradulent proof. 
 
 ### Instant
-The newly-released contract provides instant transfer. Nodes (channel participants) can make an instant off-chain payment in our smartraiden token network, so that there is less possibility for lengthy mediated transfers due to lack of channel balance. Our new version of contract has abandoned previous solution for channel lack of balance in mediated transfer, instead adopting a new method that is to re-route transfers in such cases. The efficiency for channel transfer has been improved. 
+The newly-released contract provides instant transfer. Nodes (channel participants) can make an instant off-chain payment in our photon token network, so that there is less possibility for lengthy mediated transfers due to lack of channel balance. Our new version of contract has abandoned previous solution for channel lack of balance in mediated transfer, instead adopting a new method that is to re-route transfers in such cases. The efficiency for channel transfer has been improved. 
 
 ### Cost-Effective
 The design for gas optimization has been adopted in our new version, which are mainly aimed at cost reduction in fields as user-involved channel creation, channel closing, and proof updates. Compared with previously-released contract, our new version can slash a huge amount of cost of gas. 
@@ -31,7 +31,7 @@ The design for gas optimization has been adopted in our new version, which are m
 - Channel tokens are able to be entrusted to contract, any one of both participants has the ability to withdraw from contract after channels are settled.  
 - Contract must support smart locks.    
 - Signature messages must be non malleable.    
-- Contract should support SmartRaiden Monitoring Service, to ensure assets safety when nodes offline.     
+- Contract should support Photon Monitoring Service, to ensure assets safety when nodes offline.     
 
 ## Data Structure
 This new contract adds support for EIP191 standard, in all signed data exists EIP191 string and its length, which is `"\x19Ethereum Signed Message:\n" + len(message)`. Proofs below are presumed to contain EIP191 string and length.   
@@ -103,13 +103,13 @@ signature|bytes|Elliptic Curve 256k1 signature on the above data
 ## Project Specification 
 ###  Feature Highlight
 ####Cooperative Settling Channel
-Under most circumstances, both channel participants are Cooperative. Hence, any channel participant attempting to unilaterally close the channel will boost the time consuming and cost. In order to minimize cost, smartraiden adds up a feature to cooperative settling the channel in which both channel participants have no need to submit their most recent pre-signed balance proof on-chain, just to sign the signature to show the agreement to the final state. If approved, channel settle can be immediately processed, normally within 20 secs, tokens will be allocated accordingly to accounts of this channel participants.
+Under most circumstances, both channel participants are Cooperative. Hence, any channel participant attempting to unilaterally close the channel will boost the time consuming and cost. In order to minimize cost, photon adds up a feature to cooperative settling the channel in which both channel participants have no need to submit their most recent pre-signed balance proof on-chain, just to sign the signature to show the agreement to the final state. If approved, channel settle can be immediately processed, normally within 20 secs, tokens will be allocated accordingly to accounts of this channel participants.
 
 ####  Withdraw without closing the channel
  The participants of the channel can withdraw part of the funds from the channel to their accounts without closing the channel by consensus.  Due to the potential risk of replay attack, Field `open_block_number` has to be reset after withdraw, otherwise, channel participants have the chance to utilize used BalanceProofs to fraud and make an undeserved profit. 
 
 #### More perfect support for third-party delegation
-We add much more Third-party delegation serviecs in our new contract, so that channel participants can join our SmartRaiden network and secure their assets on the condition of no internet connection. Major feature supported in our new contract includes
+We add much more Third-party delegation serviecs in our new contract, so that channel participants can join our photon network and secure their assets on the condition of no internet connection. Major feature supported in our new contract includes
 
 - Delegate `updateBalanceProof`  
 - Delegate `unlock`  
@@ -141,7 +141,7 @@ To optimize contract logic and business logic, we add support of ApproveAndCall 
 Function are contained in contracts like TokenNetworkRegistry, TokenNetwork, and SecretRegistry. Next we are about to describe them in-depth. 
 
 #### TokenNetworkRegistry contract
-With the help of TokenNetworkRegistry, we can better use functions in TokenNetwork. Major functions in TokenNetworkRegistry are to deploye TokenNetwork for a certain type of token in order for further invocation by smartraiden. Major Attributes are   
+With the help of TokenNetworkRegistry, we can better use functions in TokenNetwork. Major functions in TokenNetworkRegistry are to deploye TokenNetwork for a certain type of token in order for further invocation by photon. Major Attributes are   
 
 - `address public secret_registry_address`, provide address of `SecretRegistry` for TokenNetwork   
 - `uint256 public chain_id`, used to minimize the risk of replay attack  
@@ -158,7 +158,7 @@ event TokenNetworkCreated(address indexed token_address, address indexed token_n
 - `token_network_address` : address of a newly-deployed TokenNetwork   
 
 **Scenario Description**   
->Suppose a user owns some amount of ERC20 or ERC223 tokens but that token haven't been registered on smartraiden. this user has to register his tokens into a TokenNetwork contract before he can use his tokens in off-chain payments. SmartRaiden provides individual TokenNetwork for each token type. Once a specific type of token has been registered, users of that token have ability to connect to this token network and invoke related functions of that TokenNetwork.
+>Suppose a user owns some amount of ERC20 or ERC223 tokens but that token haven't been registered on photon. this user has to register his tokens into a TokenNetwork contract before he can use his tokens in off-chain payments. Photon provides individual TokenNetwork for each token type. Once a specific type of token has been registered, users of that token have ability to connect to this token network and invoke related functions of that TokenNetwork.
 
 #### TokenNetwork contract
 TokenNetwork is mainly a contract offering interfaces to interact with payment channels. Payment channels can only transfer tokens from `token_address` in this contract. TokenNetwork integrates most functions that payment channels interact with during their lifecycle, including ChannelOpen, Deposit/Withdraw, ChannelClose, ChannelSettle, etc. Apart from that, TokenNetwork contract maintains global variables for payment channels to use while certain functions are invoked. These variables includes 
@@ -192,7 +192,7 @@ function getChannelParticipantInfo(address participant, address partner) view ex
 
 
 **Scenario Description**  
->Assume that a user wishes to make a off-chain payment via smartraiden, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
+>Assume that a user wishes to make a off-chain payment via photon, take Alice and Bob as example. Alice plans to transfer 30 tokens to Bob. In order to make a secure transfer, Alice has to know that she does not create a payment channel with Bob before via `getChannelIdentifier`. If not, she needs to know that channel state via `getChannelInfo`. If Alice is able to use that channel, then she has to check data consistency within Bob and hers stored in local storage via `getChannelParticipantInfo`. 
 
 ##### Open a Channel
 Before any transfer, channel participants has to open a channel between him and the one he wishes to make transfers with.    
@@ -210,7 +210,7 @@ event ChannelOpened(byte32 indexed channel_identifier, adddress participant1, ad
 Note `participant1` and `participant2` must be valid addresses, and can not be identical. openChannel can be invoked by anyone with multiple times. This function allows two different valid addresses to construct a single one payment channel, after that they can make transfers to each other.
  
 **Scenario Description**   
->Assume that a client has intention to use smartraiden to do payment off the chain. Let's take Alice and Bob as example. Alice plans to send 30 tokens to Bob. If this is the first time that Both Alice and Bob use smartraiden to undergo offline payment and there is no channel directly connection them. So, as a transfer initiator, Alice necessitates to invoke `openChannel` of the contract, and pass the address of hers and Bob's as function arguments. Once it returns without error, a direct channel connecting Alice and Bob has been created. Right at that time, there are no token deposited in this channel, Alice and Bob can make a deposit once a channel created. 
+>Assume that a client has intention to use photon to do payment off the chain. Let's take Alice and Bob as example. Alice plans to send 30 tokens to Bob. If this is the first time that Both Alice and Bob use photon to undergo offline payment and there is no channel directly connection them. So, as a transfer initiator, Alice necessitates to invoke `openChannel` of the contract, and pass the address of hers and Bob's as function arguments. Once it returns without error, a direct channel connecting Alice and Bob has been created. Right at that time, there are no token deposited in this channel, Alice and Bob can make a deposit once a channel created. 
 
 ##### Open a channel with deposit 
 To create a channel within `participant` and `partner`, while depositing some amount of tokens inside. It is an auxiliary function provided to client which combines `openChannel` with `deposit` to save gas cost. 
@@ -227,7 +227,7 @@ The major parameters are identical to `openChannel`, addresses for participant a
 - Indirect call by call `receiveApproval` for some ERC20-compatible tokens   
 
 **Scenario Decription**  
->Assume that a client has intention to use smartraiden to make the payment off the chain. This time Alice and Bob as our example. Alice wants to send to Bob 30 tokens. If Alice and Bob has no direct payment channel between them, and Alice is required to create a new direct payment channel to Bob and deposit certain amount of tokens in it. Via `openChannelWithDeposit`, Alice can achieve that. Once `openChannelWithDeposit` has done invoking, users can start to make transfers.  
+>Assume that a client has intention to use photon to make the payment off the chain. This time Alice and Bob as our example. Alice wants to send to Bob 30 tokens. If Alice and Bob has no direct payment channel between them, and Alice is required to create a new direct payment channel to Bob and deposit certain amount of tokens in it. Via `openChannelWithDeposit`, Alice can achieve that. Once `openChannelWithDeposit` has done invoking, users can start to make transfers.  
 
 ##### Deposit tokens in a channel 
 To deposit certain amount of tokens into a payment channel while that channel stay open. It will increase the amount of deposit in that channel. This function can be invoked multiple times by anyone in that channel.   
@@ -289,7 +289,7 @@ event ChannelClosed(uint256 indexed channel_identifier, address closing_particip
 >After Alice and Bob have done quite a lot of transfers, Alice wishes to stop transfers and plans to close the channel. So, Alice determines to call `closeChannel` to this channel. In order to avoid losing tokens, Alice must update the newest BalanceProof from Bob upto the main chain to keep a record.  
 
 #### Update non-closing participant balance proof
-To update BalanceProof from Non-Closing Participant, and this function can be called only after channel is closed. Only channel participants can invoke this function, and within settletimeout window it can be invoked multiple times. The aim is to update balance proof of non-closing  participant without SmartRaiden Monitoring Service.
+To update BalanceProof from Non-Closing Participant, and this function can be called only after channel is closed. Only channel participants can invoke this function, and within settletimeout window it can be invoked multiple times. The aim is to update balance proof of non-closing  participant without Photon Monitoring Service.
 
 ```soldity
 function updateBalanceProof(address partner, uint256 transferred_amount, bytes32 locksroot, uint64 nonce, bytes32 additional_hash, bytes partner_signature) public 
@@ -308,7 +308,7 @@ event BalanceProofUpdated(bytes32 indexed channel_identifier, address participan
 >Bob receives messages that Alice plans to close payment channel between them, in order to avoid losing tokens, Bob also has to submit the most recent BalanceProof that Alice has sent. Then Bob is able to call `updateBalanceProof` to update that proof upto the main chain and keept a record.  
 
 #### Delegate Update Balance Proof of Non-Closing Participant
-We provide some new function in our released version, which we call it SmartRaiden Monitoring Service. This function aims at situations when one of channel participants plans to delegate relevant services to a trustworthy third-party for some reasons. Only after channel is closed, this function can be invoked by anyone among both channel participants and the third-party, with multiple times. The purpose of this function is to update balance proof of `partner` via delegation.
+We provide some new function in our released version, which we call it Photon Monitoring Service. This function aims at situations when one of channel participants plans to delegate relevant services to a trustworthy third-party for some reasons. Only after channel is closed, this function can be invoked by anyone among both channel participants and the third-party, with multiple times. The purpose of this function is to update balance proof of `partner` via delegation.
 
 ```soldity
  function updateBalanceProofDelegate(address partner, address participant, uint256 transferred_amount, bytes32 locksroot, uint64 nonce, bytes32 additional_hash, bytes partner_signature, bytes participant_signature) public
