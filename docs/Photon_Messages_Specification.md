@@ -87,7 +87,7 @@ As we can view in this MediatedTransfer. We have three participants in this chan
 - As to Charles, when he receives the secret from Alice, to get his deserved money, Charles prepares to reveal secret to his former hop node, Bob, via `RevealSecret`.
 - When Bob has received this secret, and after he'd completed verification, he has two choices : 
     - First, If Bob can make sure that Alice is an honest actor and will unlock those money locked in her BalanceProof, Bob immediately send an `Unlock` to Charles to unlock money. But This is not our case.
-    - Actually, Bob cannot rely on the virtue of integrity of Alice, so that he should make it certain that his money would not be stole by fraudulent actors. Our released version of SmartRaiden adds support that anyone who knows the secret can register this secret on the chain to claim their deserved fund. So Bob do not worry about his token, and he can directly unlock his transfer to Charles.
+    - Actually, Bob cannot rely on the virtue of integrity of Alice, so that he should make it certain that his money would not be stole by fraudulent actors. Our released version of Photon adds support that anyone who knows the secret can register this secret on the chain to claim their deserved fund. So Bob do not worry about his token, and he can directly unlock his transfer to Charles.
 
 **Data Field** : 
 
