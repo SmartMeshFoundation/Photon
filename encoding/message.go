@@ -15,11 +15,11 @@ import (
 
 	"encoding/hex"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -440,7 +440,7 @@ func (sr *SecretRequest) String() string {
 /*
 RevealSecret used to reveal a secret to party known to have interest in it.
 
-This message is not sufficient for state changes in the raiden Channel, the
+This message is not sufficient for state changes in the Photon Channel, the
 reason is that a node participating in split transfer or in both mediated
 transfer for an exchange might can reveal the secret to it's partners, but
 that must not update the internal channel state.
@@ -660,7 +660,7 @@ func (m *EnvelopMessage) fromBalanceProof(bp *BalanceProof) {
 }
 
 /*
-UnLock Message used to do state changes on a partner Raiden Channel.
+UnLock Message used to do state changes on a partner Photon Channel.
 
 Locksroot changes need to be synchronized among both participants, the
 protocol is for only the side unlocking to send the Secret message allowing
@@ -803,7 +803,7 @@ Args:
         the channel partner. This value is monotonically increasing and can
         be larger than a channels deposit, since the channels are
         bidirecional.
-    recipient: The address of the raiden node participating in the channel.
+    recipient: The address of the Photon node participating in the channel.
     locksroot: The root of a merkle tree which records the current
         outstanding locks.
 */

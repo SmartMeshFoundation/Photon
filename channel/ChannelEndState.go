@@ -7,12 +7,12 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -40,11 +40,11 @@ all the transfer (whenever lock or not ) I have sent.
 */
 type EndState struct {
 	Address             common.Address
-	ContractBalance     *big.Int                                //lock protect race codition with raidenapi
+	ContractBalance     *big.Int                                //lock protect race codition with Photonapi
 	Lock2PendingLocks   map[common.Hash]channeltype.PendingLock //the lock I have sent
 	Lock2UnclaimedLocks map[common.Hash]channeltype.UnlockPartialProof
 	Tree                *mtree.Merkletree
-	BalanceProofState   *transfer.BalanceProofState //race codition with raidenapi
+	BalanceProofState   *transfer.BalanceProofState //race codition with Photonapi
 }
 
 //NewChannelEndState create EndState

@@ -9,9 +9,9 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,7 +20,7 @@ import (
 )
 
 // RegisteringTokenTest : test case for register token
-func RegisteringTokenTest(env *models.RaidenEnvReader, allowFail bool) {
+func RegisteringTokenTest(env *models.PhotonEnvReader, allowFail bool) {
 	// 1. register a not-exist token
 	case1 := &APITestCase{
 		CaseName:  "Register a not-exist token",
@@ -58,8 +58,8 @@ func deployNewToken() (newTokenAddress string) {
 		log.Println("config.ReadDefault error:", err)
 		return
 	}
-	EthRPCEndpoint := c.RdString("RAIDEN_PARAMS", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
-	KeyStorePath := c.RdString("RAIDEN_PARAMS", "keystore_path", "/smtwork/privnet3/data/keystore")
+	EthRPCEndpoint := c.RdString("PHOTON_PARAMS", "eth_rpc_endpoint", "ws://127.0.0.1:8546")
+	KeyStorePath := c.RdString("PHOTON_PARAMS", "keystore_path", "/smtwork/privnet3/data/keystore")
 	conn, err := ethclient.Dial(EthRPCEndpoint)
 	if err != nil {
 		log.Fatalf("connect to eth rpc error %s", err)

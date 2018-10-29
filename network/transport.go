@@ -10,11 +10,11 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -28,10 +28,10 @@ type Policier interface {
 	Consume(tokens float64) time.Duration
 }
 
-//DeviceTypeMobile if you are a raiden running on a mobile phone
+//DeviceTypeMobile if you are a Photon running on a mobile phone
 var DeviceTypeMobile = xmpptransport.TypeMobile
 
-//DeviceTypeMeshBox if you are a raiden running on a meshbox
+//DeviceTypeMeshBox if you are a Photon running on a meshbox
 var DeviceTypeMeshBox = xmpptransport.TypeMeshBox
 
 //DeviceTypeOther if you don't known the type,and is not a mobile phone, then other

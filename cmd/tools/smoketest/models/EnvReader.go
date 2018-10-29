@@ -8,25 +8,25 @@ import (
 	"os"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 )
 
-// RaidenEnvReader : save all data about raiden nodes and refresh in time
-type RaidenEnvReader struct {
+// PhotonEnvReader : save all data about photon nodes and refresh in time
+type PhotonEnvReader struct {
 	RegisterContractAddress string        `json:"register_contract_address"`
-	RaidenNodes             []*RaidenNode `json:"raiden_nodes"` // 节点列表
+	PhotonNodes             []*PhotonNode `json:"photon_nodes"` // 节点列表
 	Tokens                  []*Token      `json:"tokens"`       // Token列表
 }
 
-// NewRaidenEnvReader : construct
-func NewRaidenEnvReader(hosts []string) *RaidenEnvReader {
-	var env = new(RaidenEnvReader)
+// NewPhotonEnvReader : construct
+func NewPhotonEnvReader(hosts []string) *PhotonEnvReader {
+	var env = new(PhotonEnvReader)
 	// init hosts
 	if hosts == nil || len(hosts) == 0 {
-		panic("At least need one raiden node")
+		panic("At least need one photon node")
 	}
 	for _, host := range hosts {
-		env.RaidenNodes = append(env.RaidenNodes, &RaidenNode{
+		env.PhotonNodes = append(env.PhotonNodes, &PhotonNode{
 			Host: host,
 		})
 	}
@@ -34,8 +34,8 @@ func NewRaidenEnvReader(hosts []string) *RaidenEnvReader {
 	return env
 }
 
-// Refresh : refresh all data by raiden query api
-func (env *RaidenEnvReader) Refresh() {
+// Refresh : refresh all data by photon query api
+func (env *PhotonEnvReader) Refresh() {
 	// 1. refresh node address
 	env.RefreshNodes()
 	// 2. refresh tokens
@@ -45,8 +45,8 @@ func (env *RaidenEnvReader) Refresh() {
 }
 
 // RefreshNodes :
-func (env *RaidenEnvReader) RefreshNodes() {
-	for _, node := range env.RaidenNodes {
+func (env *PhotonEnvReader) RefreshNodes() {
+	for _, node := range env.PhotonNodes {
 		req := &Req{
 			APIName: "QueryNodeAddress",
 			FullURL: node.Host + "/api/1/address",
@@ -67,11 +67,11 @@ func (env *RaidenEnvReader) RefreshNodes() {
 		}
 		node.AccountAddress = addr.OurAddress
 	}
-	log.Println("RaidenEnvReader refresh nodes done")
+	log.Println("PhotonEnvReader refresh nodes done")
 }
 
 // RefreshTokens :
-func (env *RaidenEnvReader) RefreshTokens() {
+func (env *PhotonEnvReader) RefreshTokens() {
 	req := &Req{
 		APIName: "QueryRegisteredTokens",
 		FullURL: env.RandomNode().Host + "/api/1/tokens",
@@ -101,17 +101,17 @@ func (env *RaidenEnvReader) RefreshTokens() {
 			IsRegistered: true,
 		})
 	}
-	log.Println("RaidenEnvReader refresh tokens done")
+	log.Println("PhotonEnvReader refresh tokens done")
 }
 
 // RefreshChannels :
-func (env *RaidenEnvReader) RefreshChannels() {
+func (env *PhotonEnvReader) RefreshChannels() {
 	// clear old data
 	for _, token := range env.Tokens {
 		token.Channels = []Channel{}
 	}
 	// set new data
-	for _, node := range env.RaidenNodes {
+	for _, node := range env.PhotonNodes {
 		req := &Req{
 			APIName: "QueryNodeAllChannels",
 			FullURL: node.Host + "/api/1/channels",
@@ -141,11 +141,11 @@ func (env *RaidenEnvReader) RefreshChannels() {
 			}
 		}
 	}
-	log.Println("RaidenEnvReader refresh channels done")
+	log.Println("PhotonEnvReader refresh channels done")
 }
 
 // HasToken ：
-func (env *RaidenEnvReader) HasToken(tokenAddress string) bool {
+func (env *PhotonEnvReader) HasToken(tokenAddress string) bool {
 	for _, token := range env.Tokens {
 		if token.Address == tokenAddress {
 			return true
@@ -155,7 +155,7 @@ func (env *RaidenEnvReader) HasToken(tokenAddress string) bool {
 }
 
 // SaveToFile : save all data to file
-func (env *RaidenEnvReader) SaveToFile(filepath string) {
+func (env *PhotonEnvReader) SaveToFile(filepath string) {
 	dataFile, err := os.Create(filepath)
 	defer dataFile.Close()
 	if err != nil {
@@ -172,18 +172,18 @@ func (env *RaidenEnvReader) SaveToFile(filepath string) {
 	log.Println("Write env data to " + filepath + " done")
 }
 
-// RandomNode : get a random raiden node
-func (env *RaidenEnvReader) RandomNode() *RaidenNode {
+// RandomNode : get a random photon node
+func (env *PhotonEnvReader) RandomNode() *PhotonNode {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	num := len(env.RaidenNodes)
+	num := len(env.PhotonNodes)
 	if num == 0 {
 		return nil
 	}
-	return env.RaidenNodes[r.Intn(num)]
+	return env.PhotonNodes[r.Intn(num)]
 }
 
 // RandomToken : get a random Token
-func (env *RaidenEnvReader) RandomToken() *Token {
+func (env *PhotonEnvReader) RandomToken() *Token {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	num := len(env.Tokens)
 	if num == 0 {
@@ -192,8 +192,8 @@ func (env *RaidenEnvReader) RandomToken() *Token {
 	return env.Tokens[r.Intn(num)]
 }
 
-// GetChannelsOfNode : get all channels of a smartraiden node
-func (env *RaidenEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channels []Channel) {
+// GetChannelsOfNode : get all channels of a photon node
+func (env *PhotonEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channels []Channel) {
 	for _, token := range env.Tokens {
 		for _, channel := range token.Channels {
 			if channel.SelfAddress == nodeAccountAddress {
@@ -214,8 +214,8 @@ func (env *RaidenEnvReader) GetChannelsOfNode(nodeAccountAddress string) (channe
 	return channels
 }
 
-// GetChannelsOfNodeByState get all channels of a smartraiden node by channel state
-func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, state int) (channels []Channel) {
+// GetChannelsOfNodeByState get all channels of a photon node by channel state
+func (env *PhotonEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, state int) (channels []Channel) {
 	all := env.GetChannelsOfNode(nodeAccountAddress)
 	for _, channel := range all {
 		if channel.State == state {
@@ -226,7 +226,7 @@ func (env *RaidenEnvReader) GetChannelsOfNodeByState(nodeAccountAddress string, 
 }
 
 // GetChannelsByState : get all channels by channel state
-func (env *RaidenEnvReader) GetChannelsByState(state int) (channels []Channel) {
+func (env *PhotonEnvReader) GetChannelsByState(state int) (channels []Channel) {
 	for _, token := range env.Tokens {
 		for _, channel := range token.Channels {
 			if channel.State == state {
@@ -238,8 +238,8 @@ func (env *RaidenEnvReader) GetChannelsByState(state int) (channels []Channel) {
 }
 
 // GetNodeByAccountAddress :
-func (env *RaidenEnvReader) GetNodeByAccountAddress(accountAddress string) (node *RaidenNode) {
-	for _, n := range env.RaidenNodes {
+func (env *PhotonEnvReader) GetNodeByAccountAddress(accountAddress string) (node *PhotonNode) {
+	for _, n := range env.PhotonNodes {
 		if n.AccountAddress == accountAddress {
 			node = n
 		}
@@ -248,7 +248,7 @@ func (env *RaidenEnvReader) GetNodeByAccountAddress(accountAddress string) (node
 }
 
 // HasOpenedChannelBetween :
-func (env *RaidenEnvReader) HasOpenedChannelBetween(node1 *RaidenNode, node2 *RaidenNode, token *Token) bool {
+func (env *PhotonEnvReader) HasOpenedChannelBetween(node1 *PhotonNode, node2 *PhotonNode, token *Token) bool {
 	for _, channel := range token.Channels {
 		if channel.State == contracts.ChannelStateOpened &&
 			((channel.SelfAddress == node1.AccountAddress && channel.PartnerAddress == node2.AccountAddress) ||

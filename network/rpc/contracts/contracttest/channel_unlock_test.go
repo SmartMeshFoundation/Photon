@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // TestChannelUnlockRight : 正确调用测试

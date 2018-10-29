@@ -7,18 +7,18 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
-EventNetwork returns all events related to raiden network
+EventNetwork returns all events related to Photon network
 */
 func EventNetwork(w rest.ResponseWriter, r *rest.Request) {
 	fromBlock, toBlock := getFromTo(r)
-	events, err := RaidenAPI.GetNetworkEvents(fromBlock, toBlock)
+	events, err := API.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -48,7 +48,7 @@ func EventTokens(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	events, err := RaidenAPI.GetTokenNetworkEvents(token, fromBlock, toBlock)
+	events, err := API.GetTokenNetworkEvents(token, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -74,7 +74,7 @@ func EventChannels(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	channel = common.HexToHash(channelstr)
-	events, err := RaidenAPI.GetChannelEvents(channel, fromBlock, toBlock)
+	events, err := API.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusInternalServerError)

@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 // Handler is the global debugging handler.

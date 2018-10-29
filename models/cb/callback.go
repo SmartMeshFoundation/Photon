@@ -1,7 +1,7 @@
 package cb
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/ethereum/go-ethereum/common"
 )
 

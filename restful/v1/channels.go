@@ -7,12 +7,12 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -70,7 +70,7 @@ type ChannelDataDetail struct {
 GetChannelList list all my channels
 */
 func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
-	chs, err := RaidenAPI.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, err := API.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -116,7 +116,7 @@ func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	result, err := RaidenAPI.ChannelInformationFor3rdParty(channelIdentifier, thirdAddress)
+	result, err := API.ChannelInformationFor3rdParty(channelIdentifier, thirdAddress)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -133,7 +133,7 @@ SpecifiedChannel get  a channel state
 func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
 	channelIdentifier := common.HexToHash(ch)
-	c, err := RaidenAPI.GetChannel(channelIdentifier)
+	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -193,7 +193,7 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.State == 0 { //open channel
-		c, err := RaidenAPI.Open(tokenAddr, partnerAddr, req.SettleTimeout, RaidenAPI.Raiden.Config.RevealTimeout, req.Balance)
+		c, err := API.Open(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance)
 		if err != nil {
 			log.Error(err.Error())
 			rest.Error(w, err.Error(), http.StatusConflict)
@@ -248,14 +248,14 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c, err := RaidenAPI.GetChannel(channelIdentifier)
+	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	if req.Balance != nil && req.Balance.Cmp(utils.BigInt0) > 0 { //deposit
-		c, err = RaidenAPI.Deposit(c.TokenAddress(), c.PartnerAddress(), req.Balance, params.DefaultPollTimeout)
+		c, err = API.Deposit(c.TokenAddress(), c.PartnerAddress(), req.Balance, params.DefaultPollTimeout)
 		if err != nil {
 			rest.Error(w, err.Error(), http.StatusRequestTimeout)
 			return
@@ -275,7 +275,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		}
 		if req.StateInt == channeltype.StateClosed {
 			if req.Force {
-				c, err = RaidenAPI.Close(c.TokenAddress(), c.PartnerAddress())
+				c, err = API.Close(c.TokenAddress(), c.PartnerAddress())
 				if err != nil {
 					log.Error(err.Error())
 					rest.Error(w, err.Error(), http.StatusConflict)
@@ -283,7 +283,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 				}
 			} else {
 				//cooperative settle channel
-				c, err = RaidenAPI.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
+				c, err = API.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
 				if err != nil {
 					log.Error(err.Error())
 					rest.Error(w, err.Error(), http.StatusConflict)
@@ -292,7 +292,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 			}
 
 		} else if req.StateInt == channeltype.StateSettled {
-			c, err = RaidenAPI.Settle(c.TokenAddress(), c.PartnerAddress())
+			c, err = API.Settle(c.TokenAddress(), c.PartnerAddress())
 			if err != nil {
 				log.Error(err.Error())
 				rest.Error(w, err.Error(), http.StatusConflict)
@@ -340,23 +340,23 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c, err := RaidenAPI.GetChannel(channelIdentifier)
+	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	if req.Amount != nil && req.Amount.Cmp(utils.BigInt0) > 0 { //deposit
-		c, err = RaidenAPI.Withdraw(c.TokenAddress(), c.PartnerAddress(), req.Amount)
+		c, err = API.Withdraw(c.TokenAddress(), c.PartnerAddress(), req.Amount)
 		if err != nil {
 			rest.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	} else {
 		if req.Op == OpPrepareWithdraw {
-			c, err = RaidenAPI.PrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+			c, err = API.PrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
 		} else if req.Op == OpCancelPrepare {
-			c, err = RaidenAPI.CancelPrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+			c, err = API.CancelPrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
 		} else {
 			err = fmt.Errorf("unkown operation %s", req.Op)
 		}
@@ -393,7 +393,7 @@ func BalanceUpdateForPFS(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
 		return
 	}
-	result, err := RaidenAPI.BalanceProofForPFS(channelIdentifier)
+	result, err := API.BalanceProofForPFS(channelIdentifier)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return

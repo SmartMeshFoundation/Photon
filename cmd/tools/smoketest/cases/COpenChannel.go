@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
 )
 
 // OpenChannelPayload :
@@ -17,7 +17,7 @@ type OpenChannelPayload struct {
 }
 
 // OpenChannelTest : test case for open channel
-func OpenChannelTest(env *models.RaidenEnvReader, allowFail bool) {
+func OpenChannelTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data
 	var newchannel OpenChannelPayload
 	newchannel.PartnerAddress = "0x000000000000000000000000000000000FfffFfF"

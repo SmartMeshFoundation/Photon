@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/ethereum/go-ethereum/common"
 )
 

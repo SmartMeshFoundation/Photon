@@ -1,15 +1,15 @@
-site_name: SmartRaiden
+site_name: Photon
 pages:
--  SmartRaiden Developer Site: index.md
+-  Photon Developer Site: index.md
 -  System Requirements and Installation Guide: installation_guide.md
-- SmartRaiden Messages Specification: SmartRaiden_Messages_Specification.md
--  SmartRaiden Contract Specification: contract_spec.md
--  SmartRaiden’s API Documentation: rest_api.md
--  SmartRaiden’s Mobile API Documentation: mobie.md
--  SmartRaiden Monitoring Service: sm_service.md
--  SmartRaiden Pathfinding Service Specification: pfs.md
+- Photon Messages Specification: Photon_Messages_Specification.md
+-  Photon Contract Specification: contract_spec.md
+-  Photon’s API Documentation: rest_api.md
+-  Photon’s Mobile API Documentation: mobie.md
+-  Photon Monitoring Service: sm_service.md
+-  Photon Pathfinding Service Specification: pfs.md
 -  Matrixregservice: matrix.md
--  SmartRaiden Glossary: glossary.md
+-  Photon Glossary: glossary.md
 
 theme:
     name: readthedocs

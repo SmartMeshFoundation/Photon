@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // RegisterSecretPayload :
@@ -16,7 +16,7 @@ type RegisterSecretPayload struct {
 }
 
 // RegisterSecretTest : test case for open channel
-func RegisterSecretTest(env *models.RaidenEnvReader, allowFail bool) {
+func RegisterSecretTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data
 	var payload RegisterSecretPayload
 	payload.Secret = utils.NewRandomHash().String()

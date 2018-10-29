@@ -10,14 +10,14 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/helper"
+	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -181,13 +181,13 @@ func (be *Events) startAlarmTask() {
 			log.Trace(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), currentBlock+1, lastedBlock))
 		}
 
-		// refresh block number and notify raidenService
+		// refresh block number and notify PhotonService
 		currentBlock = lastedBlock
 		be.lastBlockNumber = currentBlock
 
 		be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 
-		// notify raiden service
+		// notify Photon service
 		for _, sc := range stateChanges {
 			be.StateChangeChannel <- sc
 		}

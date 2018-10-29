@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Channel raiden chainnode
+// Channel photon chainnode
 type Channel struct {
 	Name                string `json:"name"`
 	SelfAddress         string `json:"self_address"`

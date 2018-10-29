@@ -3,9 +3,9 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // LongCase5Nodes :
@@ -16,7 +16,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据
@@ -24,7 +24,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2, N3, N4 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// step 1 : Start 5 Raiden nodes
+	// step 1 : Start 5 Photon nodes
 	models.Logger.Println("step 1 ---->")
 	N0.Start(env)
 	N1.Start(env)

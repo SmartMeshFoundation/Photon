@@ -8,9 +8,9 @@ import (
 
 	"crypto/ecdsa"
 
-	accountModule "github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	accountModule "github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/network/helper"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

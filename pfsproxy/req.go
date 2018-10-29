@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// req a raiden api http request
+// req a http request
 type req struct {
 	FullURL string        `json:"url"`
 	Method  string        `json:"method"`

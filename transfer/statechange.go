@@ -5,7 +5,7 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
+	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/ethereum/go-ethereum/common"
 )
 

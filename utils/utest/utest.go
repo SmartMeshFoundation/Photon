@@ -3,10 +3,10 @@ package utest
 import (
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatedier/frp/src/utils/log"
 )
@@ -75,7 +75,7 @@ MakeRoute Helper for creating a route.
         node_address : The node address.
         availableBalance  : The available capacity of the route.
         settleTimeout  : The settle_timeout of the route, as agreed in the netting contract.
-        revealTimeout  : The configure reveal_timeout of the raiden node.
+        revealTimeout  : The configure reveal_timeout of the photon node.
         channelIdentifier (address): The correspoding channel identifier.
 */
 func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTimeout /*UnitSettleTimeout*/ int, revealTimeout /*UnitRevealTimeout*/ int, closedBlock int64, channelIdentifier common.Hash) *route.State {

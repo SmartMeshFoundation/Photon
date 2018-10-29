@@ -10,11 +10,11 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/smartraiden/mainimpl"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl"
+	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 

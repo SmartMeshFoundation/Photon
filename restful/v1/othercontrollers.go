@@ -6,8 +6,8 @@ import (
 
 	"strconv"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/ant0ine/go-json-rest/rest"
 )
 
@@ -21,7 +21,7 @@ func UpdateMeshNetworkNodes(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.Raiden.Protocol.UpdateMeshNetworkNodes(nodes)
+	err = API.Photon.Protocol.UpdateMeshNetworkNodes(nodes)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -42,7 +42,7 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "arg error", http.StatusBadRequest)
 		return
 	}
-	RaidenAPI.Raiden.Config.IsMeshNetwork = isMesh
+	API.Photon.Config.IsMeshNetwork = isMesh
 	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
@@ -54,8 +54,8 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
 	// 这里没并发问题,直接操作即可
 	// no concurrent issue, just do it.
-	RaidenAPI.Raiden.StopCreateNewTransfers = true
-	num := len(RaidenAPI.Raiden.Transfer2StateManager)
+	API.Photon.StopCreateNewTransfers = true
+	num := len(API.Photon.Transfer2StateManager)
 	if num > 0 {
 		rest.Error(w, fmt.Sprintf("%d transactions are still in progress. Please wait until all transactions are over", num), http.StatusBadRequest)
 		return

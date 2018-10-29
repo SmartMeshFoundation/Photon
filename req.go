@@ -1,9 +1,9 @@
-package smartraiden
+package photon
 
 import (
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -131,7 +131,7 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) *utils.AsyncResult {
+func (rs *Service) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  transferReqName,
@@ -147,13 +147,13 @@ func (rs *RaidenService) transferAsyncClient(tokenAddress common.Address, amount
 	return rs.sendReqClient(req)
 	//return rs.startMediatedTransfer(tokenAddress, target, amount, identifier)
 }
-func (rs *RaidenService) sendReqClient(req *apiReq) *utils.AsyncResult {
+func (rs *Service) sendReqClient(req *apiReq) *utils.AsyncResult {
 	req.result = make(chan *utils.AsyncResult, 1)
 	rs.UserReqChan <- req
 	ar := <-req.result
 	return ar
 }
-func (rs *RaidenService) newChannelClient(token, partner common.Address, settleTimeout int, deposit *big.Int) *utils.AsyncResult {
+func (rs *Service) newChannelClient(token, partner common.Address, settleTimeout int, deposit *big.Int) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  newChannelReqName,
@@ -166,7 +166,7 @@ func (rs *RaidenService) newChannelClient(token, partner common.Address, settleT
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) depositChannelClient(channelIdentifier common.Hash, amount *big.Int) *utils.AsyncResult {
+func (rs *Service) depositChannelClient(channelIdentifier common.Hash, amount *big.Int) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  depositChannelReqName,
@@ -177,7 +177,7 @@ func (rs *RaidenService) depositChannelClient(channelIdentifier common.Hash, amo
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) closeChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) closeChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  closeChannelReqName,
@@ -187,7 +187,7 @@ func (rs *RaidenService) closeChannelClient(channelIdentifier common.Hash) *util
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) settleChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) settleChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  settleChannelReqName,
@@ -197,7 +197,7 @@ func (rs *RaidenService) settleChannelClient(channelIdentifier common.Hash) *uti
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) cooperativeSettleChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) cooperativeSettleChannelClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  cooperativeSettleChannelReqName,
@@ -207,7 +207,7 @@ func (rs *RaidenService) cooperativeSettleChannelClient(channelIdentifier common
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) markChannelForCooperativeSettleClient(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) markChannelForCooperativeSettleClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  prepareForCooperativeSettleReqName,
@@ -217,7 +217,7 @@ func (rs *RaidenService) markChannelForCooperativeSettleClient(channelIdentifier
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) cancelMarkChannelForCooperativeSettleClient(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) cancelMarkChannelForCooperativeSettleClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  cancelPrepareForCooperativeSettleReqName,
@@ -227,7 +227,7 @@ func (rs *RaidenService) cancelMarkChannelForCooperativeSettleClient(channelIden
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) withdrawClient(channelIdentifier common.Hash, amount *big.Int) *utils.AsyncResult {
+func (rs *Service) withdrawClient(channelIdentifier common.Hash, amount *big.Int) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  withdrawReqName,
@@ -238,7 +238,7 @@ func (rs *RaidenService) withdrawClient(channelIdentifier common.Hash, amount *b
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) markWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) markWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  prepareWithdrawReqName,
@@ -248,7 +248,7 @@ func (rs *RaidenService) markWithdraw(channelIdentifier common.Hash) *utils.Asyn
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) cancelMarkWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) cancelMarkWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  cancelPrepareWithdrawReqName,
@@ -258,7 +258,7 @@ func (rs *RaidenService) cancelMarkWithdraw(channelIdentifier common.Hash) *util
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) tokenSwapMakerClient(tokenswap *TokenSwap) *utils.AsyncResult {
+func (rs *Service) tokenSwapMakerClient(tokenswap *TokenSwap) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  tokenSwapMakerReqName,
@@ -266,7 +266,7 @@ func (rs *RaidenService) tokenSwapMakerClient(tokenswap *TokenSwap) *utils.Async
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) tokenSwapTakerClient(tokenswap *TokenSwap) *utils.AsyncResult {
+func (rs *Service) tokenSwapTakerClient(tokenswap *TokenSwap) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  tokenSwapTakerReqName,
@@ -274,7 +274,7 @@ func (rs *RaidenService) tokenSwapTakerClient(tokenswap *TokenSwap) *utils.Async
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *RaidenService) cancelTransferClient(lockSecretHash common.Hash, tokenAddress common.Address) *utils.AsyncResult {
+func (rs *Service) cancelTransferClient(lockSecretHash common.Hash, tokenAddress common.Address) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  cancelTransfer,

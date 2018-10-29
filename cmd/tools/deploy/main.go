@@ -11,9 +11,9 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +28,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "address",
-			Usage: "The ethereum address you would like raiden to use and for which a keystore file exists in your local system.",
+			Usage: "The ethereum address you would like Photon to use and for which a keystore file exists in your local system.",
 		},
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
@@ -43,7 +43,7 @@ func main() {
 		},
 	}
 	app.Action = mainctx
-	app.Name = "raidendeploy"
+	app.Name = "photondeploy"
 	app.Version = "0.1"
 	err := app.Run(os.Args)
 	if err != nil {

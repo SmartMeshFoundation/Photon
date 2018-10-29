@@ -1,4 +1,4 @@
-package smartraiden
+package photon
 
 import (
 	"crypto/ecdsa"
@@ -10,16 +10,16 @@ import (
 
 	"sync"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/fee"
-	"github.com/SmartMeshFoundation/SmartRaiden/notify"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/network"
+	"github.com/SmartMeshFoundation/Photon/network/helper"
+	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/fee"
+	"github.com/SmartMeshFoundation/Photon/notify"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -30,11 +30,11 @@ var curAccountIndex = 0
 func reinit() {
 	curAccountIndex = 0
 }
-func newTestRaiden() *RaidenService {
-	return newTestRaidenWithPolicy(&NoFeePolicy{})
+func newTestPhoton() *Service {
+	return newTestPhotonWithPolicy(&NoFeePolicy{})
 }
 
-func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
+func newTestPhotonWithPolicy(feePolicy fee.Charger) *Service {
 	config := params.DefaultConfig
 	config.DataDir = os.Getenv("DATADIR")
 	if config.DataDir == "" {
@@ -58,18 +58,18 @@ func newTestRaidenWithPolicy(feePolicy fee.Charger) *RaidenService {
 		log.Error(err.Error())
 	}
 	config.NetworkMode = params.MixUDPXMPP
-	rd, err := NewRaidenService(bcs, bcs.PrivKey, transport, &config, notifyHandler, db)
+	rd, err := NewPhotonService(bcs, bcs.PrivKey, transport, &config, notifyHandler, db)
 	if err != nil {
 		log.Error(err.Error())
 	}
 	rd.SetFeePolicy(feePolicy)
 	return rd
 }
-func newTestRaidenAPI() *RaidenAPI {
-	api := NewRaidenAPI(newTestRaiden())
-	err := api.Raiden.Start()
+func newTestPhotonAPI() *API {
+	api := NewPhotonAPI(newTestPhoton())
+	err := api.Photon.Start()
 	if err != nil {
-		panic(fmt.Sprintf("raiden start err %s", err))
+		panic(fmt.Sprintf("Photon start err %s", err))
 	}
 	return api
 }
@@ -104,10 +104,10 @@ func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
 	return bcs
 }
 
-func makeTestRaidens() (r1, r2, r3 *RaidenService) {
-	r1 = newTestRaiden()
-	r2 = newTestRaiden()
-	r3 = newTestRaiden()
+func makeTestPhotons() (r1, r2, r3 *Service) {
+	r1 = newTestPhoton()
+	r2 = newTestPhoton()
+	r3 = newTestPhoton()
 	go func() {
 		/*#nosec*/
 		r1.Start()
@@ -123,47 +123,47 @@ func makeTestRaidens() (r1, r2, r3 *RaidenService) {
 	time.Sleep(time.Second * 3)
 	return
 }
-func newTestRaidenAPIQuick() *RaidenAPI {
-	api := NewRaidenAPI(newTestRaiden())
+func newTestPhotonAPIQuick() *API {
+	api := NewPhotonAPI(newTestPhoton())
 	//go func() {
 	//	/*#nosec*/
-	//	api.Raiden.Start()
+	//	api.Photon.Start()
 	//}()
 	return api
 }
 
-func makeTestRaidenAPIs() (rA, rB, rC, rD *RaidenAPI) {
-	rA = newTestRaidenAPIQuick()
-	rB = newTestRaidenAPIQuick()
-	rC = newTestRaidenAPIQuick()
-	rD = newTestRaidenAPIQuick()
+func makeTestPhotonAPIs() (rA, rB, rC, rD *API) {
+	rA = newTestPhotonAPIQuick()
+	rB = newTestPhotonAPIQuick()
+	rC = newTestPhotonAPIQuick()
+	rD = newTestPhotonAPIQuick()
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
 		/*#nosec*/
-		rA.Raiden.Start()
+		rA.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rB.Raiden.Start()
+		rB.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rC.Raiden.Start()
+		rC.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rD.Raiden.Start()
+		rD.Photon.Start()
 		wg.Done()
 	}()
 	wg.Wait()
 	return
 }
 
-func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
+func makeTestPhotonAPIArrays(datadirs ...string) (apis []*API) {
 	if datadirs == nil || len(datadirs) == 0 {
 		return
 	}
@@ -172,10 +172,10 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 	for _, datadir := range datadirs {
 		// #nosec
 		os.Setenv("DATADIR", datadir)
-		api := newTestRaidenAPIQuick()
+		api := newTestPhotonAPIQuick()
 		go func() {
 			/*#nosec*/
-			api.Raiden.Start()
+			api.Photon.Start()
 			wg.Done()
 		}()
 		apis = append(apis, api)
@@ -184,31 +184,31 @@ func makeTestRaidenAPIArrays(datadirs ...string) (apis []*RaidenAPI) {
 	return
 }
 
-func makeTestRaidenAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *RaidenAPI) {
-	rA = NewRaidenAPI(newTestRaidenWithPolicy(policy))
-	rB = NewRaidenAPI(newTestRaidenWithPolicy(policy))
-	rC = NewRaidenAPI(newTestRaidenWithPolicy(policy))
-	rD = NewRaidenAPI(newTestRaidenWithPolicy(policy))
+func makeTestPhotonAPIsWithFee(policy fee.Charger) (rA, rB, rC, rD *API) {
+	rA = NewPhotonAPI(newTestPhotonWithPolicy(policy))
+	rB = NewPhotonAPI(newTestPhotonWithPolicy(policy))
+	rC = NewPhotonAPI(newTestPhotonWithPolicy(policy))
+	rD = NewPhotonAPI(newTestPhotonWithPolicy(policy))
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() {
 		/*#nosec*/
-		rA.Raiden.Start()
+		rA.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rB.Raiden.Start()
+		rB.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rC.Raiden.Start()
+		rC.Photon.Start()
 		wg.Done()
 	}()
 	go func() {
 		/*#nosec*/
-		rD.Raiden.Start()
+		rD.Photon.Start()
 		wg.Done()
 	}()
 	wg.Wait()

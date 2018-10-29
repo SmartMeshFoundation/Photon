@@ -7,14 +7,14 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils/utest"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/SmartMeshFoundation/Photon/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
 	assert2 "github.com/stretchr/testify/assert"
 )

@@ -8,7 +8,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 	//}
 	//defer func() {
 	//	if env.Debug == false {
-	//		env.KillAllRaidenNodes()
+	//		env.KillAllPhotonNodes()
 	//	}
 	//}()
 	//// 源数据

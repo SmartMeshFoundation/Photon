@@ -3,8 +3,8 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/casemanager/models"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 // CaseCooperateSettle :
@@ -15,7 +15,7 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 	}
 	defer func() {
 		if env.Debug == false {
-			env.KillAllRaidenNodes()
+			env.KillAllPhotonNodes()
 		}
 	}()
 	// 源数据

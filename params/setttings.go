@@ -6,7 +6,7 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -14,7 +14,7 @@ import (
 //InitialPort listening port for communication bewtween nodes
 const InitialPort = 40001
 
-//GasLimit max gas usage for raiden tx
+//GasLimit max gas usage for photon tx
 const GasLimit = 3141592 //den's gasLimit.
 //GasPrice from ethereum
 const GasPrice = params.Shannon * 20
@@ -57,7 +57,7 @@ const ChannelSettleTimeoutMin = 6
 ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
  1 year with the assumption of very fast block times of 12 seconds.
  There is a maximum to avoidpotential overflows as described here:
- https://github.com/SmartRaiden/raiden/issues/1038
+ https://github.com/Photon/photon/issues/1038
 */
 const ChannelSettleTimeoutMax = 2700000
 
@@ -92,7 +92,7 @@ func init() {
 }
 
 /*
-MobileMode works on mobile device, 移动设备模式,这时候 smartraiden 并不是一个独立的进程,这时候很多工作模式要发生变化.
+MobileMode works on mobile device, 移动设备模式,这时候 photon 并不是一个独立的进程,这时候很多工作模式要发生变化.
 比如:
 1.不能任意退出
 2. 对于网络通信的处理要更谨慎
@@ -101,7 +101,7 @@ MobileMode works on mobile device, 移动设备模式,这时候 smartraiden 并�
 /*
  *	MobileMode : a boolean value to adapt with mobile modes.
  *
- *	Note : if true, then smartraiden is not an individual process, work mode is about to change.
+ *	Note : if true, then photon is not an individual process, work mode is about to change.
  *		1. not support exit arbitrarily.
  *		2. handle internet communication more prudent.
  *		3. How to control amount of resource consumption.
@@ -132,7 +132,7 @@ const AliasFragment = "discovery"
 //DiscoveryServer is discovery server
 const DiscoveryServer = "transport01.smartmesh.cn"
 
-//NETWORKNAME Specify the network name of the Ethereum network to run SmartRaiden on
+//NETWORKNAME Specify the network name of the Ethereum network to run Photon on
 var NETWORKNAME = "ropsten"
 
 //GenesisBlockHashToDefaultRegistryAddress :

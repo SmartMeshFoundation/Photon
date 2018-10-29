@@ -1,4 +1,4 @@
-package smartraiden
+package photon
 
 import (
 	"fmt"
@@ -9,33 +9,33 @@ import (
 
 	"encoding/json"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel"
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/notify"
-	"github.com/SmartMeshFoundation/SmartRaiden/rerr"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/notify"
+	"github.com/SmartMeshFoundation/Photon/rerr"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
  Class responsible to handle the protocol messages.
 
-        This class is not intended to be used standalone, use RaidenService
+        This class is not intended to be used standalone, use Service
         instead.
 */
-type raidenMessageHandler struct {
-	raiden        *RaidenService
+type photonMessageHandler struct {
+	photon        *Service
 	blockedTokens map[common.Address]bool
 }
 
-func newRaidenMessageHandler(raiden *RaidenService) *raidenMessageHandler {
-	h := &raidenMessageHandler{
-		raiden:        raiden,
+func newPhotonMessageHandler(photon *Service) *photonMessageHandler {
+	h := &photonMessageHandler{
+		photon:        photon,
 		blockedTokens: make(map[common.Address]bool),
 	}
 	return h
@@ -44,13 +44,13 @@ func newRaidenMessageHandler(raiden *RaidenService) *raidenMessageHandler {
 /*
  Handles `message` and sends an ACK on success.
 */
-func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash common.Hash) (err error) {
+func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash common.Hash) (err error) {
 	msg.SetTag(&transfer.MessageTag{
 		EchoHash: hash,
 	})
 	switch m2 := msg.(type) {
 	case *encoding.SecretRequest:
-		f := mh.raiden.SecretRequestPredictorMap[m2.LockSecretHash]
+		f := mh.photon.SecretRequestPredictorMap[m2.LockSecretHash]
 		if f != nil {
 			ignore := (f)(m2)
 			if ignore {
@@ -59,11 +59,11 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 		err = mh.messageSecretRequest(m2)
 	case *encoding.RevealSecret:
-		f := mh.raiden.RevealSecretListenerMap[m2.LockSecretHash()]
+		f := mh.photon.RevealSecretListenerMap[m2.LockSecretHash()]
 		if f != nil {
 			remove := (f)(m2)
 			if remove {
-				delete(mh.raiden.RevealSecretListenerMap, m2.LockSecretHash())
+				delete(mh.photon.RevealSecretListenerMap, m2.LockSecretHash())
 			}
 		}
 		err = mh.messageRevealSecret(m2) //has no relation with statemanager,duplicate message will be ok
@@ -74,10 +74,10 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 	case *encoding.MediatedTransfer:
 		err = mh.messageMediatedTransfer(m2)
 		if err == nil {
-			for f := range mh.raiden.ReceivedMediatedTrasnferListenerMap {
+			for f := range mh.photon.ReceivedMediatedTrasnferListenerMap {
 				remove := (*f)(m2)
 				if remove {
-					delete(mh.raiden.ReceivedMediatedTrasnferListenerMap, f)
+					delete(mh.photon.ReceivedMediatedTrasnferListenerMap, f)
 				}
 			}
 		}
@@ -96,13 +96,13 @@ func (mh *raidenMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 	case *encoding.WithdrawResponse:
 		err = mh.messageWithdrawResponse(m2)
 	default:
-		log.Error(fmt.Sprintf("raidenMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
+		log.Error(fmt.Sprintf("photonMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
 	}
 	return err
 }
 
-func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
+func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock) {
 	blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
 	balanceProof := &mediatedtransfer.ReceiveUnlockStateChange{
 		LockSecretHash: msg.LockSecretHash(),
@@ -110,24 +110,24 @@ func (mh *raidenMessageHandler) balanceProof(msg *encoding.UnLock) {
 		BalanceProof:   blanceProof,
 		Message:        msg,
 	}
-	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
+	mh.photon.StateMachineEventHandler.dispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
 }
 
 /*
  todo 收到密码,可能会影响到好多StateManager, 这些 StateManager 我如何做到原子保存呢?
 */
 // todo receive secret may impact manay StateManager, how should I do atomic store for these StateManager?
-func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
+func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender
-	mh.raiden.registerSecret(secret)
+	mh.photon.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
 	// save log to db
-	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash())
+	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash())
 	for _, c := range channels {
-		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
-	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
+	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
 }
 
@@ -145,7 +145,7 @@ func (mh *raidenMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
  *	2. If we find relevant StateManager, but message content has faults, just neglect it.
  *	3. If we find relevant StateManager, and message is correct, then send RevealSecret, and store this message and switch channel state.
  */
-func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
+func (mh *photonMessageHandler) messageSecretRequest(msg *encoding.SecretRequest) error {
 	stateChange := &mediatedtransfer.ReceiveSecretRequestStateChange{
 		Amount:         new(big.Int).Set(msg.PaymentAmount),
 		LockSecretHash: msg.LockSecretHash,
@@ -153,11 +153,11 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 		Message:        msg,
 	}
 	// save log to db
-	channels := mh.raiden.findAllChannelsByLockSecretHash(msg.LockSecretHash)
+	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash)
 	for _, c := range channels {
-		mh.raiden.db.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.db.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
 	}
-	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
+	mh.photon.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
 }
 
@@ -182,13 +182,13 @@ func (mh *raidenMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
  *	4. CrashStateManager : update channel state and remove the lock.
  *	So, it is reasonable that we update channel state and store ACK just in this function.
  */
-func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
+func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	lockSecretHash := msg.LockSecretHash()
 	secret := msg.LockSecret
-	mh.raiden.registerSecret(secret)
+	mh.photon.registerSecret(secret)
 	var ch *channel.Channel
 	var err error
-	ch, err = mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
+	ch, err = mh.photon.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		log.Info(fmt.Sprintf("Message for unknown channel: %s", err))
 		return err
@@ -209,7 +209,7 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	if !channeltype.CanDealUnlock[ch.State] {
 		return errors.New("received unlock msg,but channel cannot deal unlock, do nothing")
 	}
-	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
+	err = ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("messageUnlock RegisterTransfer err=%s", err))
 		return err
@@ -218,9 +218,9 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 		验证过消息是有效的,然后通知相应的 stateMana 该结束的结束,
 	*/
 	mh.balanceProof(msg)
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.raiden.submitBalanceProofToPfs(ch)
+	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -236,8 +236,8 @@ func (mh *raidenMessageHandler) messageUnlock(msg *encoding.UnLock) error {
  *	Relevant StateManager should check this by settle_timeout
  *	Reasonable to update channel and store ACK.
  */
-func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
-	ch, err := mh.raiden.findChannelByIdentifier(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
+	ch, err := mh.photon.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		return fmt.Errorf("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
 	}
@@ -245,7 +245,7 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 		log.Warn(fmt.Sprintf("receive msg %s, but channel cannot continue transfer", msg))
 		return nil
 	}
-	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.raiden.GetBlockNumber())
+	err = ch.RegisterRemoveExpiredHashlockTransfer(msg, mh.photon.GetBlockNumber())
 	if err != nil {
 		log.Warn(fmt.Sprintf("RegisterRemoveExpiredHashlockTransfer err %s", err))
 		/*
@@ -255,9 +255,9 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 		*/
 		return err
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.raiden.submitBalanceProofToPfs(ch)
+	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -288,12 +288,12 @@ func (mh *raidenMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
  *	1. As to InitiatorStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
  *	2. As to MediatedStateManager, there is no atomic operation between EventSendMediatedTransfer and EventSendAnnounceDisposedResponse.
  */
-func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
 	}
-	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(mh.photon.NodeAddress, msg.Sender) {
 		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
@@ -306,7 +306,7 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		return
 	}
 	punish := models.NewReceivedAnnounceDisposed(msg.Lock.Hash(), msg.ChannelIdentifier, msg.GetAdditionalHash(), msg.OpenBlockNumber, msg.Signature)
-	err = mh.raiden.db.MarkLockHashCanPunish(punish)
+	err = mh.photon.db.MarkLockHashCanPunish(punish)
 	if err != nil {
 		err = fmt.Errorf("MarkLockHashCanPunish %s err %s", utils.StringInterface(punish, 2), err)
 		return
@@ -317,8 +317,8 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Lock:    msg.Lock,
 		Message: msg,
 	}
-	mh.raiden.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
-	mh.raiden.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
+	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
+	mh.photon.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 
@@ -343,12 +343,12 @@ func (mh *raidenMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
  * 	4. CrashStateManager : No need to handle, just wait for expiration.
  *	Reasonable to update payment channel and store ACK.
  */
-func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.AnnounceDisposedResponse) (err error) {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
 	}
-	if !graph.HasChannel(mh.raiden.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(mh.photon.NodeAddress, msg.Sender) {
 		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
@@ -360,19 +360,19 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		必须验证我确实发送过这个Dispose
 	*/
 	// must check that I actually send this Dispose
-	b := mh.raiden.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
+	b := mh.photon.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
 	if !b {
 		return fmt.Errorf("maybe a attack, receive a announce disposed response,but i never send announce disposed,msg=%s", msg)
 	}
-	err = ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
+	err = ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		return
 	}
 	//保存通道状态即可.
 	// Just store channel state.
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.raiden.submitBalanceProofToPfs(ch)
+	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
 }
 
@@ -386,15 +386,15 @@ func (mh *raidenMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
  *	Note that if verification is faulty, which means channel states are not synchronized, then we have to close this channel.
  *	There is no relevant StateManager, just update channel states and store ACK.
  */
-func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
+func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransfer) error {
 	// 用户调用了prepare-update,暂停接收新交易
 	// halt new transfer because clients invoke prepare-update
-	if mh.raiden.StopCreateNewTransfers {
+	if mh.photon.StopCreateNewTransfers {
 		return rerr.ErrStopCreateNewTransfer
 	}
 	//mh.balanceProof(msg)
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
 	}
@@ -410,7 +410,7 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	}
 	var amount = new(big.Int)
 	amount = amount.Sub(msg.TransferAmount, ch.PartnerState.TransferAmount())
-	err := ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
+	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
@@ -420,10 +420,10 @@ func (mh *raidenMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		Initiator:         msg.Sender,
 		ChannelIdentifier: msg.ChannelIdentifier,
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
-	err = mh.raiden.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	err = mh.photon.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	// submit balance proof to pathfinder
-	go mh.raiden.submitBalanceProofToPfs(ch)
+	go mh.photon.submitBalanceProofToPfs(ch)
 	return err
 }
 
@@ -451,14 +451,14 @@ todo 需要设计如何保存 token swap 相关数据,并在崩溃恢复以后�
  *		3. if we use token swap.
  *		todo we should design how to store related data of token swap, and ensure atomicity after node crashes.
  */
-func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
+func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTransfer) error {
 	// 用户调用了prepare-update,暂停接收新交易
 	// Clients inovke prepare-update, stop receiving new transfers.
-	if mh.raiden.StopCreateNewTransfers {
+	if mh.photon.StopCreateNewTransfers {
 		return rerr.ErrStopCreateNewTransfer
 	}
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
-	if mh.raiden.Config.IgnoreMediatedNodeRequest && msg.Target != mh.raiden.NodeAddress {
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+	if mh.photon.Config.IgnoreMediatedNodeRequest && msg.Target != mh.photon.NodeAddress {
 		//todo what about return a AnnounceDisposed Message ?
 		/*
 			需要考虑恶意攻击的情况,比如发送一个我已经知道密码,但是尚未 unlock 的锁
@@ -466,13 +466,13 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		// We need to consider cases with potential attack risks, such as sending a lock that I know the secret but not yet unlock.
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
-	if mh.raiden.Config.IsMeshNetwork {
+	if mh.photon.Config.IsMeshNetwork {
 		return fmt.Errorf("deny any mediated transfer when there is no internet connection")
 	}
 	if _, ok := mh.blockedTokens[token]; ok {
 		return rerr.ErrTransferUnwanted
 	}
-	graph := mh.raiden.getToken2ChannelGraph(token)
+	graph := mh.photon.getToken2ChannelGraph(token)
 	if graph == nil {
 		return fmt.Errorf("received transfer on unkown token :%s", utils.APex2(token))
 	}
@@ -483,7 +483,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if !ch.CanTransfer() {
 		return rerr.TransferWhenClosed(fmt.Sprintf("Mediated transfer received but the channel is  can not accept any transfer %s", ch.ChannelIdentifier.String()))
 	}
-	err := ch.RegisterTransfer(mh.raiden.GetBlockNumber(), msg)
+	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		return err
 	}
@@ -500,7 +500,7 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		Signature           string
 	}{
 		SearchKey:           "dataForDebug",
-		TokenNetworkAddress: mh.raiden.Config.RegistryAddress.String(),
+		TokenNetworkAddress: mh.photon.Config.RegistryAddress.String(),
 		PartnerAddress:      msg.Sender.String(),
 		TransferAmount:      msg.TransferAmount.Int64(),
 		Expiration:          msg.Expiration,
@@ -513,10 +513,10 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
 	log.Trace(string(buf))
 	//mh.updateChannelAndSaveAck(ch, msg.Tag())
-	if msg.Target == mh.raiden.NodeAddress {
-		mh.raiden.targetMediatedTransfer(msg, ch)
+	if msg.Target == mh.photon.NodeAddress {
+		mh.photon.targetMediatedTransfer(msg, ch)
 	} else {
-		mh.raiden.mediateMediatedTransfer(msg, ch)
+		mh.photon.mediateMediatedTransfer(msg, ch)
 	}
 	/*
 		start  taker's tokenswap ,only if receive a valid mediated transfer
@@ -526,10 +526,10 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		FromToken:      token,
 		FromAmount:     msg.PaymentAmount.String(),
 	}
-	if tokenswap, ok := mh.raiden.SwapKey2TokenSwap[key]; ok {
-		remove := mh.raiden.messageTokenSwapTaker(msg, tokenswap)
+	if tokenswap, ok := mh.photon.SwapKey2TokenSwap[key]; ok {
+		remove := mh.photon.messageTokenSwapTaker(msg, tokenswap)
 		if remove { //once the swap start,remove mh key immediately. otherwise,maker may repeat mh tokenswap operation.
-			delete(mh.raiden.SwapKey2TokenSwap, key)
+			delete(mh.photon.SwapKey2TokenSwap, key)
 		}
 		//return nil
 	}
@@ -549,9 +549,9 @@ func (mh *raidenMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
  *  No matter which is our case, this channel are assumed to be not able to use, then enforce channel close.
  * 	Directly update channel states and store ACK.
  */
-func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageSettleRequest(msg *encoding.SettleRequest) error {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
 	}
@@ -589,20 +589,20 @@ func (mh *raidenMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	//	}()
 	//	return nil
 	//}
-	err = settleResponse.Sign(mh.raiden.PrivateKey, settleResponse)
+	err = settleResponse.Sign(mh.photon.PrivateKey, settleResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for settle response err %s", err))
 	}
-	err = mh.raiden.sendAsync(msg.Sender, settleResponse)
+	err = mh.photon.sendAsync(msg.Sender, settleResponse)
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", settleResponse, msg.Sender, err))
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
-func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
 	}
@@ -630,20 +630,20 @@ func (mh *raidenMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		log.Error(fmt.Sprintf("RegisterCooperativeSettleResponse error %s\n", err))
 		return err
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	result := ch.CooperativeSettleChannel(msg)
 	go func() {
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.raiden.NotifyHandler.Notify(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
+			mh.photon.NotifyHandler.Notify(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
 		}
 	}()
 	return nil
 }
-func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawRequest) error {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawRequest) error {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
 	}
@@ -684,20 +684,20 @@ func (mh *raidenMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	//	}()
 	//	return nil
 	//}
-	err = withdrawResponse.Sign(mh.raiden.PrivateKey, withdrawResponse)
+	err = withdrawResponse.Sign(mh.photon.PrivateKey, withdrawResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for withdraw response err %s", err))
 	}
-	err = mh.raiden.sendAsync(msg.Sender, withdrawResponse)
+	err = mh.photon.sendAsync(msg.Sender, withdrawResponse)
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", withdrawResponse, msg.Sender, err))
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
-func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
-	graph := mh.raiden.getChannelGraph(msg.ChannelIdentifier)
-	token := mh.raiden.getTokenForChannelIdentifier(msg.ChannelIdentifier)
+func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
+	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
+	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
 		return fmt.Errorf("unknown channel %s", utils.HPex(msg.ChannelIdentifier))
 	}
@@ -717,7 +717,7 @@ func (mh *raidenMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
 	}
-	mh.raiden.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
 	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)

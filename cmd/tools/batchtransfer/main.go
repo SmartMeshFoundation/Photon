@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/debug"
+	"github.com/SmartMeshFoundation/Photon/internal/debug"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"gopkg.in/urfave/cli.v1"
 )
 

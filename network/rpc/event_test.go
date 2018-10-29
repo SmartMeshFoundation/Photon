@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/codefortest"
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/ethereum/go-ethereum/common"
 )
 

@@ -1,9 +1,9 @@
 package restful
 
 import (
-	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/restful/v1"
+	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/restful/v1"
 )
 
 func init() {
@@ -12,11 +12,11 @@ func init() {
 
 /*
 Start restful server
-RaidenAPI is the interface of raiden network
-config is the configuration of raiden network
+PhotonAPI is the interface of photon network
+config is the configuration of photon network
 */
-func Start(RaidenAPI *smartraiden.RaidenAPI, config *params.Config) {
-	v1.RaidenAPI = RaidenAPI
+func Start(API *photon.API, config *params.Config) {
+	v1.API = API
 	v1.Config = config
 	v1.Start()
 }

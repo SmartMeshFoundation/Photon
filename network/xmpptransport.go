@@ -7,19 +7,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport/xmpppass"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport/xmpppass"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var errXMPPConnectionNotReady = errors.New("xmpp connection not ready")
 
-//XMPPTransport use XMPP to comminucate with other raiden nodes
+//XMPPTransport use XMPP to comminucate with other Photon nodes
 type XMPPTransport struct {
 	conn          *xmpptransport.XMPPConnection
 	quitChan      chan struct{}

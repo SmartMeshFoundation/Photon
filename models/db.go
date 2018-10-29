@@ -11,8 +11,8 @@ import (
 
 	"os"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/asdine/storm"
 	gobcodec "github.com/asdine/storm/codec/gob"
 	"github.com/coreos/bbolt"

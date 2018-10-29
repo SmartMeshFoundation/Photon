@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -27,8 +27,8 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	*/
 	// 用户调用了prepare-update,暂停接收新交易
 	// client invokes prepare-update, halts receiving new transfers
-	if RaidenAPI.Raiden.StopCreateNewTransfers {
-		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
+	if API.Photon.StopCreateNewTransfers {
+		rest.Error(w, "Stop create new transfers, please restart Photon", http.StatusBadRequest)
 		return
 	}
 	type Req struct {
@@ -82,11 +82,11 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 			rest.Error(w, "must provide a matching pair of secret and lockSecretHash", http.StatusBadRequest)
 			return
 		}
-		err = RaidenAPI.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
-			RaidenAPI.Raiden.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret)
+		err = API.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
+			API.Photon.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret)
 	} else if req.Role == "taker" {
-		err = RaidenAPI.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
-			target, RaidenAPI.Raiden.NodeAddress, req.ReceivingAmount, req.SendingAmount)
+		err = API.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
+			target, API.Photon.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
 		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)
 	}

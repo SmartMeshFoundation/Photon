@@ -13,17 +13,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/gomatrix"
+	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/xmpptransport"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -38,7 +38,7 @@ const (
 	// UNKNOWN or other state -unknown
 	UNKNOWN = "unknown"
 	// ROOMPREFIX room prefix
-	ROOMPREFIX = "smartraiden"
+	ROOMPREFIX = "photon"
 	// ROOMSEP with ',' to separate room name's part
 	ROOMSEP = "_"
 	// PATHPREFIX0 the lastest matrix client api version
@@ -50,7 +50,7 @@ const (
 	// CHATPRESET the type of chat=public
 	CHATPRESET = "public_chat"
 	//EventAddressRoom is user defined event type
-	EventAddressRoom = "network.smartraiden.rooms"
+	EventAddressRoom = "network.photon.rooms"
 )
 
 type jobType int
@@ -254,9 +254,12 @@ func (m *MatrixTransport) Stop() {
 	m.changeStatus(netshare.Closed)
 	close(m.quitChan)
 	if m.matrixcli != nil {
-		m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+		err := m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 			Presence: OFFLINE,
 		})
+		if err != nil {
+			m.log.Error(fmt.Sprintf("[Matrix] SetPresenceState failed : %s", err.Error()))
+		}
 		m.matrixcli.StopSync()
 		if _, err := m.matrixcli.Logout(); err != nil {
 			m.log.Error("[Matrix] Logout failed")
@@ -1039,7 +1042,7 @@ func (m *MatrixTransport) userIDToAddress(userID string) common.Address {
 		m.log.Warn(fmt.Sprintf("UserID %s, format error", userID))
 		return utils.EmptyAddress
 	}
-	addressHex, err := extractUserLocalpart(userID) //"@myname:smartraiden.org:cy"->"myname"
+	addressHex, err := extractUserLocalpart(userID) //"@myname:photon.org:cy"->"myname"
 	if err != nil {
 		m.log.Error(fmt.Sprintf("extractUserLocalpart err %s", err))
 		return utils.EmptyAddress
@@ -1370,7 +1373,7 @@ func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, e
 		err = fmt.Errorf("validate user info failed")
 		return
 	}
-	_address, err := extractUserLocalpart(user.UserID) //"@myname:smartraiden.org:cy"->"myname"
+	_address, err := extractUserLocalpart(user.UserID) //"@myname:photon.org:cy"->"myname"
 	if err != nil {
 		return
 	}

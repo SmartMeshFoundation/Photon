@@ -11,12 +11,12 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/internal/rpanic"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/models/cb"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/netshare"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models/cb"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-xmpp"
 )
@@ -40,12 +40,12 @@ const (
 	*/
 	defaultTimeout   = 15 * time.Second
 	defaultReconnect = true
-	nameSuffix       = "@mobileraiden"
-	//TypeMobile raiden run on a mobile device
+	nameSuffix       = "@mobilephoton"
+	//TypeMobile photon run on a mobile device
 	TypeMobile = "mobile"
-	//TypeMeshBox raiden run on a meshbox
+	//TypeMeshBox photon run on a meshbox
 	TypeMeshBox = "meshbox"
-	//TypeOtherDevice raiden run on a other device
+	//TypeOtherDevice photon run on a other device
 	TypeOtherDevice = "other"
 )
 
@@ -73,7 +73,7 @@ type DataHandler interface {
 	DataHandler(from common.Address, data []byte)
 }
 
-//NodeStatus is status of a raiden node
+//NodeStatus is status of a photon node
 type NodeStatus struct {
 	IsOnline   bool
 	DeviceType string
@@ -444,7 +444,7 @@ func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
 //Unsubscribe the status change of `addr`
 /*
 ```xml
-<presence id='xk3h1v69' to='leon@mobileraiden' type='unsubscribe'/>
+<presence id='xk3h1v69' to='leon@mobilephoton' type='unsubscribe'/>
 ```
 */
 func (x *XMPPConnection) Unsubscribe(addr common.Address) error {

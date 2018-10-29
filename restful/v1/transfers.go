@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -32,7 +32,7 @@ GetSentTransfers returns list of sent transfer between `from_block` and `to_bloc
 func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
 	from, to := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := RaidenAPI.GetSentTransfers(from, to)
+	trs, err := API.GetSentTransfers(from, to)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -49,7 +49,7 @@ it contains token swap
 */
 func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 	from, to := getFromTo(r)
-	trs, err := RaidenAPI.GetReceivedTransfers(from, to)
+	trs, err := API.GetReceivedTransfers(from, to)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -66,8 +66,8 @@ Transfers is the api of /transfer/:token/:partner
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	// 用户调用了prepare-update,暂停接收新交易
 	// client invokes prepare-update, halts receiving new transfers.
-	if RaidenAPI.Raiden.StopCreateNewTransfers {
-		rest.Error(w, "Stop create new transfers, please restart smartraiden", http.StatusBadRequest)
+	if API.Photon.StopCreateNewTransfers {
+		rest.Error(w, "Stop create new transfers, please restart photon", http.StatusBadRequest)
 		return
 	}
 	token := r.PathParam("token")
@@ -108,9 +108,9 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = RaidenAPI.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
+		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
 	} else {
-		result, err = RaidenAPI.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect)
+		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect)
 	}
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
@@ -120,7 +120,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	if req.Fee.Cmp(utils.BigInt0) == 0 {
 		req.Fee = nil
 	}
-	req.Initiator = RaidenAPI.Raiden.NodeAddress.String()
+	req.Initiator = API.Photon.NodeAddress.String()
 	req.Target = target
 	req.Token = token
 	req.LockSecretHash = result.LockSecretHash.String()
@@ -142,7 +142,7 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	ts, err := RaidenAPI.Raiden.GetDb().GetTransferStatus(tokenAddr, lockSecretHash)
+	ts, err := API.Photon.GetDb().GetTransferStatus(tokenAddr, lockSecretHash)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -164,7 +164,7 @@ func CancelTransfer(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = RaidenAPI.CancelTransfer(lockSecretHash, tokenAddr)
+	err = API.CancelTransfer(lockSecretHash, tokenAddr)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

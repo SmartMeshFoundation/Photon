@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -35,9 +35,9 @@ func (model *ModelDB) NewSettledChannel(c *channeltype.Serialization) error {
 
 //GetAllSettledChannel returns all settled channel
 func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, err error) {
-	model.db.Bolt.View(func(tx *bolt.Tx) error {
+	err = model.db.Bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketSettledChannel))
-		b.ForEach(func(k, v []byte) error {
+		err = b.ForEach(func(k, v []byte) error {
 			if string(k) == "__storm_metadata" {
 				return nil
 			}

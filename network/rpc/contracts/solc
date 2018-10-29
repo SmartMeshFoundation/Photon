@@ -1,2 +1,2 @@
 #!/bin/sh
-/usr/local/bin/solc smartraiden=/Volumes/dev/godev/src/github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts  --optimize-runs 3000 $1 $2 $3 $4 $5 $6 $7 $8 $9
+/usr/local/bin/solc photon=/Volumes/dev/godev/src/github.com/SmartMeshFoundation/Photon/network/rpc/contracts  --optimize-runs 3000 $1 $2 $3 $4 $5 $6 $7 $8 $9

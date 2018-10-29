@@ -5,21 +5,21 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 )
 
 /*
-RaidenAPI is the interface of raiden network
+API is the interface of Photon network
 should be set before start restful server
 */
-var RaidenAPI *smartraiden.RaidenAPI
+var API *photon.API
 
 /*
-Config is the configuration of raiden network
+Config is the configuration of Photon network
 should be set before start restful server
 */
 var Config *params.Config
@@ -123,7 +123,7 @@ func Start() {
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
 		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
 		rest.Get("/api/1/debug/shutdown", func(writer rest.ResponseWriter, request *rest.Request) {
-			RaidenAPI.Raiden.Stop()
+			API.Photon.Stop()
 			utils.SystemExit(0)
 		}),
 	)
@@ -140,7 +140,7 @@ Stop for app user, call this api before quit.
 */
 func Stop(w rest.ResponseWriter, r *rest.Request) {
 	//test only
-	RaidenAPI.Stop()
+	API.Stop()
 	w.Header().Set("Content-Type", "text/plain")
 	_, err := w.(http.ResponseWriter).Write([]byte("ok"))
 	if err != nil {

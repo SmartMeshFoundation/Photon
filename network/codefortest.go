@@ -9,9 +9,9 @@ import (
 
 	"encoding/hex"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/params"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -91,24 +91,24 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 	return int64(time.Now().Sub(t.t) / time.Second)
 }
 
-//MakeTestRaidenProtocol test only
-func MakeTestRaidenProtocol(name string) *RaidenProtocol {
+//MakeTestPhotonProtocol test only
+func MakeTestPhotonProtocol(name string) *PhotonProtocol {
 	////#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
+	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 
-//MakeTestDiscardExpiredTransferRaidenProtocol test only
-func MakeTestDiscardExpiredTransferRaidenProtocol(name string) *RaidenProtocol {
+//MakeTestDiscardExpiredTransferPhotonProtocol test only
+func MakeTestDiscardExpiredTransferPhotonProtocol(name string) *PhotonProtocol {
 	//#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewRaidenProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
+	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
 }
 
 //SubscribeNeighbor subscribe neighbor's online and offline status
-func SubscribeNeighbor(p *RaidenProtocol, addr common.Address) error {
+func SubscribeNeighbor(p *PhotonProtocol, addr common.Address) error {
 	xt := p.Transport.(*XMPPTransport)
 	return xt.conn.SubscribeNeighbour(addr)
 }

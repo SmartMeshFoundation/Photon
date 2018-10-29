@@ -5,12 +5,12 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/channel/channeltype"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mediatedtransfer"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/route"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/transfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
+	"github.com/SmartMeshFoundation/Photon/transfer/route"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -409,7 +409,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			     have expired too.
 
 			   The problem is that this corollary cannot be asserted. If a user
-			   is running Raiden without a monitoring service, then it may go
+			   is running Photon without a monitoring service, then it may go
 			   offline after having paid a transfer to a payee, but without
 			   getting a balance proof of the payer, and once it comes back
 			   online the transfer may have expired.
@@ -759,7 +759,7 @@ func handleMediatedTransferAgain(state *mediatedtransfer.MediatorState, st *medi
 }
 
 /*
-After Raiden learns about a new block this function must be called to
+After Photon learns about a new block this function must be called to
     handle expiration of the hash time locks.
         state : The current state.
 

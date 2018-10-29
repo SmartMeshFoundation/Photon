@@ -6,15 +6,15 @@ import (
 
 	"log"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/cases"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/cases"
 )
 
-// SmokeTest of smartraiden api
+// SmokeTest of smartphoton api
 func SmokeTest() {
 	log.Println("SmokeTest start ...")
 	caseLogger := cases.Logger
 	caseLogger.Println("==============================================================================================")
-	caseLogger.Println("Start Test goRaiden Api")
+	caseLogger.Println("Start Test gophoton Api")
 	caseLogger.Println("==================================================")
 	rand.Seed(time.Now().UnixNano())
 	start := time.Now()

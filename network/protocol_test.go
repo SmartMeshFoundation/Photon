@@ -15,11 +15,11 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/encoding"
-	"github.com/SmartMeshFoundation/SmartRaiden/log"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/transfer/mtree"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/encoding"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -27,13 +27,13 @@ func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
-func TestRaidenProtocolSendReceive(t *testing.T) {
+func TestPhotonProtocolSendReceive(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	log.Trace("log...")
-	p1 := MakeTestRaidenProtocol("p1")
-	p2 := MakeTestRaidenProtocol("p2")
+	p1 := MakeTestPhotonProtocol("p1")
+	p2 := MakeTestPhotonProtocol("p2")
 	p1.Start()
 	p2.Start()
 	ping := encoding.NewPing(32)
@@ -44,14 +44,14 @@ func TestRaidenProtocolSendReceive(t *testing.T) {
 		return
 	}
 }
-func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
+func TestPhotonProtocolSendReceiveTimeout(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	var err error
 	log.Trace("log...")
-	p2 := MakeTestRaidenProtocol("p2")
-	p1 := MakeTestRaidenProtocol("p1")
+	p2 := MakeTestPhotonProtocol("p2")
+	p1 := MakeTestPhotonProtocol("p1")
 
 	//err := SetMatrixDB(p1, p2.nodeAddr)
 	//if err != nil {
@@ -73,13 +73,13 @@ func TestRaidenProtocolSendReceiveTimeout(t *testing.T) {
 		return
 	}
 }
-func TestRaidenProtocolSendReceiveNormalMessage(t *testing.T) {
+func TestPhotonProtocolSendReceiveNormalMessage(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	var msg encoding.SignedMessager
-	p1 := MakeTestRaidenProtocol("p1")
-	p2 := MakeTestRaidenProtocol("p2")
+	p1 := MakeTestPhotonProtocol("p1")
+	p2 := MakeTestPhotonProtocol("p2")
 	p1.Start()
 	p2.Start()
 	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
@@ -117,14 +117,14 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
+func TestPhotonProtocolSendReceiveNormalMessage2(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	var msg encoding.SignedMessager
 	var wg = sync.WaitGroup{}
-	p1 := MakeTestRaidenProtocol("p1")
-	p2 := MakeTestRaidenProtocol("p2")
+	p1 := MakeTestPhotonProtocol("p1")
+	p2 := MakeTestPhotonProtocol("p2")
 	p1.Start()
 	p2.Start()
 	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
@@ -165,12 +165,12 @@ func TestRaidenProtocolSendReceiveNormalMessage2(t *testing.T) {
 	wg.Wait()
 }
 
-func TestRaidenProtocolSendMediatedTransferExpired(t *testing.T) {
+func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	log.Trace("log...")
-	p1 := MakeTestDiscardExpiredTransferRaidenProtocol("p1")
+	p1 := MakeTestDiscardExpiredTransferPhotonProtocol("p1")
 	p1.Start()
 	expiration := 7 //7 second
 	lock := mtree.Lock{

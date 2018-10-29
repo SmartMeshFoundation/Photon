@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/network/helper"
+	"github.com/SmartMeshFoundation/Photon/network/helper"
 
 	"context"
 
@@ -22,14 +22,14 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/accounts"
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/newtestenv/createchannel"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenerc223approve"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenether"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/test/tokens/tokenstandard"
-	"github.com/SmartMeshFoundation/SmartRaiden/utils"
+	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/newtestenv/createchannel"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenether"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenstandard"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,7 +60,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "address",
-			Usage: "The ethereum address you would like raiden to use and for which a keystore file exists in your local system.",
+			Usage: "The ethereum address you would like photon to use and for which a keystore file exists in your local system.",
 		},
 		cli.StringFlag{
 			Name:  "keystore-path",
@@ -95,7 +95,7 @@ func main() {
 		},
 	}
 	app.Action = mainctx
-	app.Name = "newraidenenv"
+	app.Name = "newphotonenv"
 	app.Version = "0.1"
 	err := app.Run(os.Args)
 	if err != nil {

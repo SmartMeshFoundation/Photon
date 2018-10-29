@@ -9,14 +9,14 @@ import (
 
 	"encoding/json"
 
-	"github.com/SmartMeshFoundation/SmartRaiden/cmd/tools/smoketest/models"
-	"github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 )
 
 // WithdrawTest :
-func WithdrawTest(env *models.RaidenEnvReader, allowFail bool) {
+func WithdrawTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data for this case
-	node := env.RaidenNodes[len(env.RaidenNodes)-2]
+	node := env.PhotonNodes[len(env.PhotonNodes)-2]
 	channels := env.GetChannelsOfNodeByState(node.AccountAddress, contracts.ChannelStateOpened)
 	if channels == nil || len(channels) == 0 {
 		Logger.Println("Current env can not afford this case !!!")

@@ -82,7 +82,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 				aliases, ok := event.Content["aliases"]
 				if ok {
 					//{
-					//	"aliases": ["#raiden_ropsten_discovery:transport01.smartmesh.cn"]
+					//	"aliases": ["#photon_ropsten_discovery:transport01.smartmesh.cn"]
 					//}
 					arrayAliases, ok := aliases.([]interface{})
 					if ok && len(arrayAliases) > 0 {

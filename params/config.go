@@ -41,7 +41,7 @@ const (
 	MixUDPMatrix
 )
 
-//Config is configuration for Raiden,
+//Config is configuration for Photon,
 type Config struct {
 	EthRPCEndPoint            string
 	Host                      string
@@ -96,7 +96,7 @@ type ConditionQuit struct {
 }
 
 /*
-TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete handleSecret in raidenservice)?
+TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete handleSecret in photonservice)?
 todo remove?
 */
 var TreatRefundTransferAsNormalMediatedTransfer = true
@@ -111,11 +111,11 @@ func DefaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "smartraiden")
+			return filepath.Join(home, "Library", "photon")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "smartraiden")
+			return filepath.Join(home, "AppData", "Roaming", "photon")
 		} else {
-			return filepath.Join(home, ".smartraiden")
+			return filepath.Join(home, ".photon")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later
