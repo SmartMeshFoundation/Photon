@@ -1,5 +1,5 @@
-# SmartRaiden REST API Reference
-Hey guys, welcome to SmartRaiden REST API Reference page. This is an API Spec for SmartRaiden version 0.9, which adds a lot more new features, such as CooperateWithdraw, CooperateCloseChannel, send specific `secret`, etc. Please note that this reference is still updating. If any problem, feel free to submit at our [Issue](https://github.com/SmartMeshFoundation/SmartRaiden/issues).
+# Photon REST API Reference
+Hey guys, welcome to Photon REST API Reference page. This is an API Spec for Photon version 0.9, which adds a lot more new features, such as CooperateWithdraw, CooperateCloseChannel, send specific `secret`, etc. Please note that this reference is still updating. If any problem, feel free to submit at our [Issue](https://github.com/SmartMeshFoundation/Photon/issues).
 
 ## Channel Structure
 ```json
@@ -49,7 +49,7 @@ State|StateString|Description
 10|Error|StateError
 
 ## GET /api/1/address
-Check Node's data, which returns the address of SmartRaiden node.
+Check Node's data, which returns the address of Photon node.
 **Example Response:**
 ```json
 {
