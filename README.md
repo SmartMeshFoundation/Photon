@@ -27,6 +27,6 @@ then you can integrate `mobile.aar` into your project.
 ```
 then you can integrate `Mobile.framework` into your project.
 ## Requirements
-geth >=1.8.3
+Latest version of SMC
 
-we need go's plugin module.
+We need go's plugin module.
