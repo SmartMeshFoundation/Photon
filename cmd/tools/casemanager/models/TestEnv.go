@@ -465,7 +465,7 @@ func (env *TestEnv) ClearHistoryData() {
 				fmt.Println("delet dir error:", err)
 			}
 		}
-		Logger.Println("Clear history data SUCCESS")
+		Logger.Println("Clear history data SUCCESS ")
 		return nil
 	})
 	if err != nil {
