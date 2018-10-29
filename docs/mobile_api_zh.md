@@ -219,7 +219,7 @@ const (
 ### 手动注册节点信息
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error)
 
-手动注册一个可通信的节点地址到smartraiden
+手动注册一个可通信的节点地址到photon
 example data:
 ```json
 [{
