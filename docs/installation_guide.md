@@ -99,9 +99,9 @@ Run Photon nodes on the Spectrum testnet
 #### Installing Spectrum
 For prerequisites and detailed build instructions please read the  [Installation Instructions](https://github.com/SmartMeshFoundation/Spectrum/wiki/Building-Specturm)  on the wiki.
 
-Building geth requires both a Go (version 1.9.2 or later) and a C compiler. You can install them using your favourite package manager.
+Building smc requires both a Go (version 1.9.2 or later) and a C compiler. You can install them using your favourite package manager.
 #### Starting Spectrum testnet
 Run boot script
 ```sh
-geth  --datadir=. --testnet --syncmode full     --ws --wsapi  "eth,admin,web3,net,debug,personal"   --rpc  --rpccorsdomain "*" --rpcapi "eth,admin,web3,net,debug,personal"   --wsaddr "0.0.0.0" --rpcaddr "0.0.0.0"   --wsorigins "*"
+smc  --datadir=. --testnet --syncmode full     --ws --wsapi  "eth,admin,web3,net,debug,personal"   --rpc  --rpccorsdomain "*" --rpcapi "eth,admin,web3,net,debug,personal"   --wsaddr "0.0.0.0" --rpcaddr "0.0.0.0"   --wsorigins "*"
 ```
