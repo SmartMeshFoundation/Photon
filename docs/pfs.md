@@ -1,6 +1,6 @@
-# SmartRaiden Pathfinding Service Specification
+# Photon Pathfinding Service Specification
 
-A centralized path finding service that has a global view on a token network and provides suitable payment paths for SmartRaiden nodes.
+A centralized path finding service that has a global view on a token network and provides suitable payment paths for Photon nodes.
 
 
 # Environment Construction 
@@ -8,7 +8,7 @@ A centralized path finding service that has a global view on a token network and
 You can refer to [installation documentation](./PFSinstallation.md).
 Then execute it in the same directory of configuration file (pathfinder.yaml).
 ```sh
-./smartraiden-pathfinding-service
+./photon-pathfinding-service
 ```
 **Pfs default listening port is 9001**
 
@@ -16,7 +16,7 @@ Then execute it in the same directory of configuration file (pathfinder.yaml).
 ## Public Interface
 
 ### GET /api/1/pfs/<channel_identifier>
-Query the latest balance_proof (from smartraiden node) 
+Query the latest balance_proof (from photon node) 
 Via API offered below   
 
 `GET http://127.0.0.1:5001/api/1/pfs/0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a`
@@ -77,7 +77,7 @@ If the balance_proof submitted is not the latest balance_proof, the response are
 ```
 
 ### PUT /pathfinder/<peer_address>/set_fee_rate
-Set the charging rules of the smartraiden node and submit to PFS
+Set the charging rules of the photon node and submit to PFS
 
 `PUT http://127.0.0.1:9001/pathfinder/0x3607806E038fED0985567992188E919802486bf3/set_fee_rate`
 

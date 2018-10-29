@@ -1,19 +1,19 @@
-# SmartRaiden’s Mobile API 文档
+# Photon’s Mobile API 文档
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
-* [SmartRaiden’s Mobile API 文档](#smartraidens-mobile-api-文档)
+* [Photon’s Mobile API 文档](#Photons-mobile-api-文档)
 	* [安装](#安装)
 		* [android使用](#android使用)
 		* [iOS使用](#ios使用)
 		* [其他已知问题](#其他已知问题)
 	* [节点管理相关接口](#节点管理相关接口)
-		* [启动一个雷电节点](#启动一个雷电节点)
-		* [停止一个雷电节点](#停止一个雷电节点)
-		* [切换雷电运行环境](#切换雷电运行环境)
-		* [通知雷电节点网络断开](#通知雷电节点网络断开)
-		* [订阅雷电事件](#订阅雷电事件)
+		* [启动一个光子节点](#启动一个光子节点)
+		* [停止一个光子节点](#停止一个光子节点)
+		* [切换光子运行环境](#切换光子运行环境)
+		* [通知光子节点网络断开](#通知光子节点网络断开)
+		* [订阅光子事件](#订阅光子事件)
 			* [OnError](#onerror)
 			* [OnStatusChange](#onstatuschange)
 			* [OnReceivedTransfer](#onreceivedtransfer)
@@ -21,7 +21,7 @@
 			* [OnNotify](#onnotify)
 		* [手动注册节点信息](#手动注册节点信息)
 	* [查询接口](#查询接口)
-		* [获取运行雷电节点的账户地址](#获取运行雷电节点的账户地址)
+		* [获取运行光子节点的账户地址](#获取运行光子节点的账户地址)
 		* [获取提供给第三方的委托数据](#获取提供给第三方的委托数据)
 		* [获取当前公链连接状态](#获取当前公链连接状态)
 		* [获取所有已经注册的token列表](#获取所有已经注册的token列表)
@@ -34,7 +34,7 @@
 		* [发起一笔交易](#发起一笔交易)
 		* [查询自己发起的交易状态](#查询自己发起的交易状态)
 		* [发起一笔token swap交易](#发起一笔token-swap交易)
-		* [向雷电网络注册一个token](#向雷电网络注册一个token)
+		* [向光子网络注册一个token](#向光子网络注册一个token)
 		* [创建一个channel](#创建一个channel)
 		* [向一个channel里面存入对应token](#向一个channel里面存入对应token)
 		* [关闭一个channel](#关闭一个channel)
@@ -44,7 +44,7 @@
 <!-- /code_chunk_output -->
 
 ## 安装
-SmartRaiden mobile SDk编译必须要求gomobile工具可以正常使用. gomobile的安装编译工作请参考[gomobile](https://godoc.org/golang.org/x/mobile)
+Photon mobile SDk编译必须要求gomobile工具可以正常使用. gomobile的安装编译工作请参考[gomobile](https://godoc.org/golang.org/x/mobile)
 ```bash
 cd mobile
 #build android
@@ -61,23 +61,23 @@ cd mobile
 由于gomobile的工作方式限制,如果项目中同时有两个gomobile编译的sdk(比如你的项目还依赖ethereum的mobile包),程序无法正常运行.
 
 ## 节点管理相关接口
-SmartRaiden依赖gomobile自动进行接口封装,因为是跨语言调用,无法避免的就是类型转换问题. 
-为了规避此类问题,SmartRaiden对外提供接口几乎都是基本类型(int,string,error).
+Photon依赖gomobile自动进行接口封装,因为是跨语言调用,无法避免的就是类型转换问题. 
+为了规避此类问题,Photon对外提供接口几乎都是基本类型(int,string,error).
 
-### 启动一个雷电节点
+### 启动一个光子节点
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 参数:
-* `address string`– 雷电节点所使用的账户地址
+* `address string`– 光子节点所使用的账户地址
 * `keystorePath string` – 账户私钥保存路径
 * `ethRPCEndPoint string` – 公链节点host,http协议
-* `dataDir string` – smartraiden db路径
+* `dataDir string` – Photon db路径
 * `passwordfile string` – 账户密码文件路径
 * `apiAddr string` – http api 监听端口
 * `listenAddr string` – udp 监听端口
 * `logFile string` – 日志文件路径
 * `registryAddress string` – TokenNetworkRegistry合约地址
-* `otherArgs mobile.Strings` – 其他参数,参考smartraiden -h   
+* `otherArgs mobile.Strings` – 其他参数,参考photon -h   
 
 如果需要传递默认参数以外的其他参数,可以参考如下方式:
 ```go
@@ -95,26 +95,26 @@ if err != nil {
 * `api *API` – 启动成功返回api句柄
 * `err error` – 错误信息
 
-### 停止一个雷电节点
+### 停止一个光子节点
 func (a *API) Stop()
 
-### 切换雷电运行环境
+### 切换光子运行环境
 func (a *API) SwitchNetwork(isMesh bool)
 
 切换网络环境,Mesh or Internet
-在Mesh网络下,节点之间直接使用UDP协议通信,需要App通过UpdateMeshNetworkNodes来告知SmartRaiden其他节点信息.
+在Mesh网络下,节点之间直接使用UDP协议通信,需要App通过UpdateMeshNetworkNodes来告知photon其他节点信息.
 
-### 通知雷电节点网络断开
+### 通知光子节点网络断开
 func (a *API) NotifyNetworkDown() error
 
-主动告知雷电节点网络断开,并让雷电节点开始尝试重连
+主动告知光子节点网络断开,并让光子节点开始尝试重连
 
-在手机网络环境下,由于网络复杂性,比如WiFi断开等,这些事件SmartRaiden不能直接从系统感知,需要App主动告诉SmartRaiden,让其采取相应的处理.
+在手机网络环境下,由于网络复杂性,比如WiFi断开等,这些事件Photon不能直接从系统感知,需要App主动告诉Photon,让其采取相应的处理.
 
-### 订阅雷电事件
+### 订阅光子事件
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error)
 
-订阅雷电节点事件,包含交易通知,错误通知等
+订阅光子节点事件,包含交易通知,错误通知等
 ```go
 // NotifyHandler is a client-side subscription callback to invoke on events and
 // subscription failure.
@@ -133,11 +133,11 @@ type NotifyHandler interface {
 ```
 
 #### OnError
- 通知SmartRaiden内部发生了不可恢复的错误,SmartRaiden的任何功能必须立即重启才能使用. 由于考虑到SmartRaiden的集成方式可能是单进程方式,我们不希望因为SmartRaiden
- 的未知错误导致App闪退,因此即使SmartRaiden内部发生了不可预知的错误,也会有SmartRaiden截获并报告给App,由App来决定是立即退出还是继续使用.
+ 通知Photon内部发生了不可恢复的错误,Photon的任何功能必须立即重启才能使用. 由于考虑到Photon的集成方式可能是单进程方式,我们不希望因为Photon
+ 的未知错误导致App闪退,因此即使Photon内部发生了不可预知的错误,也会有Photon截获并报告给App,由App来决定是立即退出还是继续使用.
 - `errCode`是错误代码
 - `failure`是错误信息描述
-重启SmartRaiden方式:
+重启Photon方式:
 ```go
 api.Stop()
 newAPI,err:=Startup(...)
@@ -219,7 +219,7 @@ const (
 ### 手动注册节点信息
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error)
 
-手动注册一个可通信的节点地址到smartraiden
+手动注册一个可通信的节点地址到photon
 example data:
 ```json
 [{
@@ -232,11 +232,11 @@ example data:
 }
 ]
 ```
-告诉SmartRaiden如何与0x292650fee408320D888e06ed89D938294Ea42f99和0x4B89Bff01009928784eB7e7d10Bf773e6D166066两个节点进行通信.
+告诉Photon如何与0x292650fee408320D888e06ed89D938294Ea42f99和0x4B89Bff01009928784eB7e7d10Bf773e6D166066两个节点进行通信.
 
 
 ## 查询接口
-### 获取运行雷电节点的账户地址
+### 获取运行光子节点的账户地址
 func (a *API) Address() (addr string)
 
 返回示例:
@@ -244,9 +244,9 @@ func (a *API) Address() (addr string)
 ### 获取提供给第三方的委托数据
 func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error)
 
-因为SmartRaiden的工作原理决定了,如果一个节点长时间离线,将会带来自身的资金安全性风险.因此如果SmartRaiden有可能较长时间(相对于创建通道指定的结算窗口时间)离线,
-那么应该把相关的收益证明委托给第三方服务(SmartRaiden-Monitoring),由第三方服务在需要的时候提交相关的BalanceProof.
-SmartRaiden-Monitoring如何使用,请参考[SmartRaiden-Monitoring](https://github.com/SmartMeshFoundation/SmartRaiden-Monitoring)
+因为Photon的工作原理决定了,如果一个节点长时间离线,将会带来自身的资金安全性风险.因此如果Photon有可能较长时间(相对于创建通道指定的结算窗口时间)离线,
+那么应该把相关的收益证明委托给第三方服务(Photon-Monitoring),由第三方服务在需要的时候提交相关的BalanceProof.
+Photon-Monitoring如何使用,请参考[Photon-Monitoring](https://github.com/SmartMeshFoundation/Photon-Monitoring)
 
 返回数据应该原封不动提交给您可信赖的第三方监控服务.
 返回示例:
@@ -469,7 +469,7 @@ func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, Re
 此函数会立即返回,交换结果可以通过GetCallResult
 返回一个callID,用于调用GetCallResult接口查询调用结果
 
-### 向雷电网络注册一个token
+### 向光子网络注册一个token
 func (a *API) RegisterToken(tokenAddress string) (callID string, err error)
 
 立即返回一个callID,用于调用GetCallResult接口查询调用结果

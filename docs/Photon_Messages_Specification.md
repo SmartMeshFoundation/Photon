@@ -1,5 +1,5 @@
 ## Overview
-This page primarily introduces SmartRaiden Messages, which is a bunch of data structures used in communication among our off-chain payment channels. Users or Clients can send and receive these messages to claim what they plan to do and present their intention to their transaction partners.
+This page primarily introduces Photon Messages, which is a bunch of data structures used in communication among our off-chain payment channels. Users or Clients can send and receive these messages to claim what they plan to do and present their intention to their transaction partners.
 
 ## Data Structure
 
@@ -36,7 +36,7 @@ BalanceProof|compound type|data structure for a transfer
 ## Messages
 
 ### ACK 
-ACK is a data structure that our smartraiden messages uses to confirm certain message has been received. It just echoes hash value of that received message.
+ACK is a data structure that our photon messages uses to confirm certain message has been received. It just echoes hash value of that received message.
 
 **Data Field**:
 

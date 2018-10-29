@@ -1,6 +1,6 @@
-# SmartRaiden’s Mobile API Documentation
+# Photon’s Mobile API Documentation
 ## Installation
-SmartRaiden mobile SDk compilation must require the gomobile tool to work properly. Please refer to [gomobile](https://godoc.org/golang.org/x/mobile) for gomobile installation 
+Photon mobile SDk compilation must require the gomobile tool to work properly. Please refer to [gomobile](https://godoc.org/golang.org/x/mobile) for gomobile installation 
 
 ```bash
 Cd mobile
@@ -18,23 +18,23 @@ Integrate Mobile.framework into your project.
 Due to the working restrictions of gomobile, if there are two gomobile compiled sdk in the project (for example, your project also depends on the mobile package of ethereum), the program will not run normally.
 
 ## Node Management Related Interface
-SmartRaiden relies on gomobile to automate interface encapsulation. Because it is a cross-language call, it is unavoidable that it is a type conversion problem.
-In order to avoid such problems, SmartRaiden provides interfaces to almost all basic types (int, string, error).
+Photon relies on gomobile to automate interface encapsulation. Because it is a cross-language call, it is unavoidable that it is a type conversion problem.
+In order to avoid such problems, Photon provides interfaces to almost all basic types (int, string, error).
 
-### Starting a raiden node
+### Starting a photon node
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 parameter:
-* `address string` – the account address used by the raiden node
+* `address string` – the account address used by the photon node
 * `keystorePath string` – account private key save path
 * `ethRPCEndPoint string` – public chain node host, http protocol
-* `dataDir string` – smartraiden db path
+* `dataDir string` – photon db path
 * `passwordfile string` – account password file path
 * `apiAddr string` – http api listening port
 * `listenAddr string` – udp listening port
 * `logFile string` – log file path
 * `registryAddress string` – TokenNetworkRegistry contract address
-* `otherArgs mobile.Strings` – other parameters, see smartraiden -h
+* `otherArgs mobile.Strings` – other parameters, see photon -h
 
 If you need to pass other parameters than the default parameters, you can refer to the following ways:
 ```go
@@ -52,26 +52,26 @@ return:
 * `api *API` - startup successfully returns api handle
 * `err error` – error message
 
-### Stop a raiden node
+### Stop a photon node
 func (a *API) Stop()
 
-### Switching the raiden operating environment
+### Switching the photon operating environment
 func (a *API) SwitchNetwork(isMesh bool)
 
 Switch network environment, Mesh or Internet
-In the Mesh network, the nodes directly communicate using the UDP protocol, and the App needs to notify the SmartRaiden other nodes through the UpdateMeshNetworkNodes.
+In the Mesh network, the nodes directly communicate using the UDP protocol, and the App needs to notify the Photon other nodes through the UpdateMeshNetworkNodes.
 
-### Notify the raiden node network to disconnect
+### Notify the photon node network to disconnect
 func (a *API) NotifyNetworkDown() error
 
-Proactively inform the raiden node that the network is disconnected and let the raiden node start trying to reconnect
+Proactively inform the photon node that the network is disconnected and let the photon node start trying to reconnect
 
-In the mobile phone network environment, due to network complexity, such as WiFi disconnection, these events SmartRaiden can not be directly perceived from the system, the App needs to actively tell SmartRaiden to take appropriate processing.
+In the mobile phone network environment, due to network complexity, such as WiFi disconnection, these events Photon can not be directly perceived from the system, the App needs to actively tell Photon to take appropriate processing.
 
-### Subscribe to raiden events
+### Subscribe to photon events
 func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error)
 
-Subscribe to raiden node events, including transaction notifications, error notifications, etc.
+Subscribe to photon node events, including transaction notifications, error notifications, etc.
 ```go
 // NotifyHandler is a client-side subscription callback to invoke on events and
 // subscription failure.
@@ -90,10 +90,10 @@ OnNotify(level int, info string)
 ```
 
 #### OnError
- Notify SmartRaiden that an unrecoverable error has occurred. Any function of SmartRaiden must be restarted before it can be used. Since it is considered that the integration of SmartRaiden may be single-process, The unknown error may cause the App to quit, so even if there is an unpredictable error inside SmartRaiden, SmartRaiden will intercept and report to the App, and the App will decide whether to exit immediately or continue to use it.
+ Notify Photon that an unrecoverable error has occurred. Any function of Photon must be restarted before it can be used. Since it is considered that the integration of Photon may be single-process, The unknown error may cause the App to quit, so even if there is an unpredictable error inside Photon, Photon will intercept and report to the App, and the App will decide whether to exit immediately or continue to use it.
 - `errCode` is the error code
 - `failure` is an error message description
-Restart the SmartRaiden mode:
+Restart the Photon mode:
 ```go
 api.Stop()
 newAPI, err:=Startup(...)
@@ -175,7 +175,7 @@ Where `info` is the corresponding message, I hope that through this interface, I
 ### Manually registering node information
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error)
 
-Manually register a communicable node address to smartraiden
+Manually register a communicable node address to photon
 Example data:
 ```json
 [{
@@ -188,10 +188,10 @@ Example data:
 }
 ]
 ```
-Tell SmartRaiden how to work with 0x292650fee408320D888e06ed89D938294Ea42f99 and 0x4B89Bff01009928784eB7e7d10Bf773e6D166066
+Tell Photon how to work with 0x292650fee408320D888e06ed89D938294Ea42f99 and 0x4B89Bff01009928784eB7e7d10Bf773e6D166066
 
 ## Query interface
-### Get the account address of the running raiden node
+### Get the account address of the running photon node
 func (a *API) Address() (addr string)
 
 Return example:
@@ -199,9 +199,9 @@ Return example:
 ### Get the delegate data provided to a third party
 func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error)
 
-Because SmartRaiden works, if a node goes offline for a long time, it will bring its own financial security risk. So if SmartRaiden is likely to be offline for a long time (relative to the settlement window time specified by the `OpenChannel`),
-Then the relevant proof of income should be delegated to the third-party service (SmartRaiden-Monitoring), and the third-party service submits the relevant BalanceProof when needed.
-For how to use SmartRaiden-Monitoring, please refer to [SmartRaiden-Monitoring](https://github.com/SmartMeshFoundation/SmartRaiden-Monitoring)
+Because Photon works, if a node goes offline for a long time, it will bring its own financial security risk. So if Photon is likely to be offline for a long time (relative to the settlement window time specified by the `OpenChannel`),
+Then the relevant proof of income should be delegated to the third-party service (Photon-Monitoring), and the third-party service submits the relevant BalanceProof when needed.
+For how to use Photon-Monitoring, please refer to [Photon-Monitoring](https://github.com/SmartMeshFoundation/Photon-Monitoring)
 
 The returned data should be submitted intact to your trusted third party monitoring service.
 Return example:
@@ -424,7 +424,7 @@ Then call it as a maker on another phone, calling the example:
 This function will return immediately, and the result of the exchange can be passed to GetCallResult.
 Returns a callID used to call the GetCallResult interface to query the result of the call.
 
-### Registering a token with the raiden network
+### Registering a token with the photon network
 func (a *API) RegisterToken(tokenAddress string) (callID string, err error)
 
 Immediately return a callID, used to call the GetCallResult interface to query the call result
