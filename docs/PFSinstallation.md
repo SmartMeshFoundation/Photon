@@ -61,7 +61,7 @@ PFS requires a postgres database engine,version 10.0 or later.
 ## Starting a PFS server
 
 ```bash
-./bin/smartraiden-pathfinding-service
+./bin/photon-pathfinding-service
 ```
 
 ## Todo
