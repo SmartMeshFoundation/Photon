@@ -4,6 +4,7 @@
 
 # 1. install photon
 cd $GOPATH/src/github.com/SmartMeshFoundation/Photon/cmd/photon
+chmod +x ./build.sh
 ./build.sh
 cp photon $GOPATH/bin
 
