@@ -138,9 +138,9 @@ var NETWORKNAME = "ropsten"
 //GenesisBlockHashToDefaultRegistryAddress :
 var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// spectrum
-	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): utils.EmptyAddress,
+	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): common.HexToAddress("0xCf3C7400C227be86FcdB2c9Be7DEf5c671087620"),
 	// spectrum test net
-	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): utils.EmptyAddress,
+	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): common.HexToAddress("0xb3aE919aB595f5844cba80499ee6423688E06F89"),
 	// ethereum
 	common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): utils.EmptyAddress,
 	// ethereum test net

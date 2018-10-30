@@ -469,7 +469,7 @@ func (env *TestEnv) ClearHistoryData() {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		Logger.Println("No history data ")
 	}
 }
 

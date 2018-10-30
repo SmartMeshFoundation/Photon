@@ -60,7 +60,7 @@ func TestMobile(t *testing.T) {
 	var channelstr string
 	now := time.Now()
 	for {
-		if time.Since(now) > 20*time.Second {
+		if time.Since(now) > 40*time.Second {
 			break
 		}
 		channelstr, err = api.GetCallResult(callID)

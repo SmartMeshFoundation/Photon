@@ -211,22 +211,22 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		}
 	}
 	time.Sleep(60 * time.Second)
-	C24new = N2.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
+	C24new = N2.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C24new.CheckPartnerBalance(C24.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C24new.Name)
 	}
-	C04new := N0.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
+	C04new := N0.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C04new.CheckPartnerBalance(C04.PartnerBalance - transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C04new.Name)
 	}
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
+	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
 
 	// step 18 : N1 shuts down
 	models.Logger.Println("step 18 ---->")
-	N1.Shutdown()
+	N1.Shutdown(env)
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
 	}

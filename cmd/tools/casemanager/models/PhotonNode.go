@@ -23,6 +23,7 @@ type PhotonNode struct {
 	ListenAddress string
 	ConditionQuit *params.ConditionQuit
 	DebugCrash    bool
+	Running       bool
 }
 
 // Start start a photon node
@@ -51,7 +52,13 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	} else {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
+	node.Running = true
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
 }
 
 // ReStartWithoutConditionquit : Restart start a photon node
@@ -71,6 +78,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--nonetwork")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
 	}

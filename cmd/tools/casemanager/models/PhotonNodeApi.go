@@ -88,7 +88,7 @@ func (node *PhotonNode) IsRunning() bool {
 }
 
 // Shutdown check by api address
-func (node *PhotonNode) Shutdown() {
+func (node *PhotonNode) Shutdown(env *TestEnv) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/debug/shutdown",
 		Method:  http.MethodGet,
@@ -97,6 +97,12 @@ func (node *PhotonNode) Shutdown() {
 	}
 	go req.Invoke()
 	time.Sleep(10 * time.Second)
+	node.Running = false
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
 	return
 }
 
@@ -329,4 +335,41 @@ func (node *PhotonNode) Deposit(channelIdentifier string, balance int64) error {
 		return fmt.Errorf("http status=%d", statusCode)
 	}
 	return err
+}
+
+// UpdateMeshNetworkNodes :
+func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
+	type UpdateMeshNetworkNodesPayload struct {
+		Address    string `json:"address"`
+		IPPort     string `json:"ip_port"`
+		DeviceType string `json:"device_type"` // must be mobile?
+	}
+	var payloads []UpdateMeshNetworkNodesPayload
+	if len(nodes) == 0 {
+		return
+	}
+	for _, n := range nodes {
+		if n.Running {
+			payloads = append(payloads, UpdateMeshNetworkNodesPayload{
+				Address: n.Address,
+				IPPort:  n.Host[7:] + "0",
+			})
+		}
+	}
+	p, err := json.Marshal(payloads)
+	req := &Req{
+		FullURL: node.Host + "/api/1/updatenodes",
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 5,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err :%s", req.FullURL, err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err : http status=%d", req.FullURL, statusCode))
+		return
+	}
+	return
 }

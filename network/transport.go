@@ -273,7 +273,7 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	ut.lock.RLock()
 	defer ut.lock.RUnlock()
 	if _, ok := ut.intranetNodes[addr]; ok {
-		return DeviceTypeMobile, true
+		return DeviceTypeOther, true
 	}
 	return DeviceTypeOther, false
 }
