@@ -76,7 +76,7 @@ func TestNewMixTransport(t *testing.T) {
 		return
 	}
 	deviceType, isOnline = m1.NodeStatus(m3.xmpp.NodeAddress)
-	if !isOnline || deviceType != DeviceTypeMobile {
+	if !isOnline || deviceType != DeviceTypeOther {
 		t.Error("type error")
 		return
 	}
