@@ -94,7 +94,7 @@ smc  --datadir=. --testnet --syncmode full     --ws --wsapi  "eth,admin,web3,net
 #### Starting Photon node
 Before start the Photon, you need to creat accounts on spectrum,such as "0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40". Also you need to set the keystore path and password files or password in the boot script.
 ```sh
-photon  --datadir=.photon  --address="0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40"  --keystore-path ./keystore --registry-contract-address 0xb3aE919aB595f5844cba80499ee6423688E06F89 --password-file pass.txt --eth-rpc-endpoint ws://192.168.124.13:28546
+photon  --datadir=.photon  --address="0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40"  --keystore-path ./keystore --registry-contract-address 0xb3aE919aB595f5844cba80499ee6423688E06F89 --password-file pass.txt --eth-rpc-endpoint ws://127.0.0.1:18546
 ```
 After you start the photon node,you can register the token in the photonnetwork and use the various functions provided by photon.
 #### Deployed contract address
