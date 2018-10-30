@@ -40,7 +40,7 @@ const (
 	*/
 	defaultTimeout   = 15 * time.Second
 	defaultReconnect = true
-	nameSuffix       = "@mobilesmartraiden"
+	nameSuffix       = "@mobileraiden"
 	//TypeMobile photon run on a mobile device
 	TypeMobile = "mobile"
 	//TypeMeshBox photon run on a meshbox
