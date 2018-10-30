@@ -88,7 +88,7 @@ func (node *PhotonNode) IsRunning() bool {
 }
 
 // Shutdown check by api address
-func (node *PhotonNode) Shutdown() {
+func (node *PhotonNode) Shutdown(env *TestEnv) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/debug/shutdown",
 		Method:  http.MethodGet,
@@ -97,6 +97,12 @@ func (node *PhotonNode) Shutdown() {
 	}
 	go req.Invoke()
 	time.Sleep(10 * time.Second)
+	node.Running = false
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
 	return
 }
 
@@ -343,10 +349,12 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		return
 	}
 	for _, n := range nodes {
-		payloads = append(payloads, UpdateMeshNetworkNodesPayload{
-			Address: n.Address,
-			IPPort:  n.Host[7:] + "0",
-		})
+		if n.Running {
+			payloads = append(payloads, UpdateMeshNetworkNodesPayload{
+				Address: n.Address,
+				IPPort:  n.Host[7:] + "0",
+			})
+		}
 	}
 	p, err := json.Marshal(payloads)
 	req := &Req{

@@ -226,7 +226,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 18 : N1 shuts down
 	models.Logger.Println("step 18 ---->")
-	N1.Shutdown()
+	N1.Shutdown(env)
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
 	}

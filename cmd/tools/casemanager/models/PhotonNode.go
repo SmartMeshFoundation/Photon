@@ -23,6 +23,7 @@ type PhotonNode struct {
 	ListenAddress string
 	ConditionQuit *params.ConditionQuit
 	DebugCrash    bool
+	Running       bool
 }
 
 // Start start a photon node
@@ -52,7 +53,12 @@ func (node *PhotonNode) Start(env *TestEnv) {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
 	time.Sleep(10 * time.Second)
-	node.UpdateMeshNetworkNodes(env.Nodes...)
+	node.Running = true
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
 }
 
 // ReStartWithoutConditionquit : Restart start a photon node
