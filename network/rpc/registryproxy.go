@@ -24,6 +24,10 @@ type RegistryProxy struct {
 // @param token_address The address of the given token
 // @return Address of tokenNetwork
 func (r *RegistryProxy) TokenNetworkByToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
+	if r.registry == nil {
+		err = errors.New("registry does't init")
+		return
+	}
 	tokenNetworkAddress, err = r.registry.TokenToTokenNetworks(r.bcs.getQueryOpts(), tokenAddress)
 	if tokenNetworkAddress == utils.EmptyAddress {
 		err = rerr.ErrNoTokenManager

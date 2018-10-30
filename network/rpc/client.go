@@ -172,7 +172,7 @@ func (bcs *BlockChainService) TokenNetworkWithoutCheck(address common.Address) (
 
 // Registry Return a proxy to interact with Registry.
 func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain bool) (t *RegistryProxy) {
-	if bcs.RegistryProxy != nil {
+	if bcs.RegistryProxy != nil && bcs.RegistryProxy.registry != nil {
 		return bcs.RegistryProxy
 	}
 	r := &RegistryProxy{
