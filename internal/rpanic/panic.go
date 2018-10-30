@@ -11,11 +11,11 @@ import (
 rpanic 是为了设计给手机用户使用
 实现在进程不退出的情况下,重新初始化资源,仍然可以使用.
 
-发生错误,处理,然后创建新的 RaidenService使用.
+发生错误,处理,然后创建新的 PhotonService使用.
 */
 /*
  *	repository rpanic is designed for mobile users, which implements resource reallocation while processes are executing.
- *	If faults occurs, handle them and create a new RaidenService to continue.
+ *	If faults occurs, handle them and create a new PhotonService to continue.
  */
 
 /*
@@ -30,8 +30,8 @@ var notifier []string
 //永不关闭.
 var notifyChan chan error
 
-//InitRaidenPanic init my panic system
-func InitRaidenPanic() {
+//InitPhotonPanic init my panic system
+func InitPhotonPanic() {
 	errChan = make(chan error, 20)
 	notifyChan = make(chan error, 20)
 	startNotify()
@@ -64,7 +64,7 @@ func RegisterErrorNotifier(name string) {
 	notifier = append(notifier, name)
 }
 
-//startNotify  start notify system,只针对每个 RaidenService 实例启动一次.
+//startNotify  start notify system,只针对每个 PhotonService 实例启动一次.
 func startNotify() {
 	if params.MobileMode {
 		go func() {
