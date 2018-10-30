@@ -91,3 +91,6 @@ Run boot script
 ```sh
 smc  --datadir=. --testnet --syncmode full     --ws --wsapi  "eth,admin,web3,net,debug,personal"   --rpc  --rpccorsdomain "*" --rpcapi "eth,admin,web3,net,debug,personal"   --wsaddr "0.0.0.0" --rpcaddr "0.0.0.0"   --wsorigins "*"
 ```
+#### Deployed contract address
+- Specrum  Mainnet:RegistryAddress=0xCf3C7400C227be86FcdB2c9Be7DEf5c671087620
+- Specrum  Testnet:RegistryAddress=0xb3aE919aB595f5844cba80499ee6423688E06F89 
