@@ -29,9 +29,9 @@ gomobile bind -target=ios
 ```
 
 ### Dependencies
-You will need to have an Ethereum client installed in your system.
+You will need to have an Spectrum client installed in your system.
 
-- Check [this link](https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum) for instructions on the go-ethereum client.
+- Check [this link](https://github.com/SmartMeshFoundation/Spectrum/wiki/Building-Specturm) for instructions on the smc client.
 
 ## For developers
 If you plan to develop on the Photon source code, or the binary distributions do not work for your system, you can follow these steps to install a development version.

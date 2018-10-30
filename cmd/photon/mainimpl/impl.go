@@ -62,10 +62,13 @@ var GitCommit string
 //BuildDate genegate at build time
 var BuildDate string
 
+//Version version of this build
+var Version string
+
 //StartMain entry point of photon app
 func StartMain() (*photon.API, error) {
 	os.Args[0] = "photon"
-	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%s\n", GoVersion, GitCommit, BuildDate)
+	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version)
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
 		return nil, fmt.Errorf("photon must build use makefile")
@@ -166,7 +169,7 @@ func StartMain() (*photon.API, error) {
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
 	app.Name = "photon"
-	app.Version = "0.9"
+	app.Version = Version
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
 			return err
