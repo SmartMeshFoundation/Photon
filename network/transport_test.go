@@ -48,7 +48,7 @@ func TestUDPTransport(t *testing.T) {
 	defer udp1.Stop()
 	defer udp2.Stop()
 	deviceType, isOnline := udp1.NodeStatus(addr1)
-	if deviceType != DeviceTypeMobile || !isOnline {
+	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")
 		return
 	}
