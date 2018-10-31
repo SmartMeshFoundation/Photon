@@ -31,6 +31,9 @@ func TestMobile(t *testing.T) {
 	if api.Address() != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
 		t.Error("address error")
 	}
+	if testing.Short() {
+		return
+	}
 	var tokens []common.Address
 	tokensstr := api.Tokens()
 	err = json.Unmarshal([]byte(tokensstr), &tokens)
