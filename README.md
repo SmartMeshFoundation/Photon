@@ -1,5 +1,5 @@
 # Photon
-![](http://img.shields.io/travis/dognie/Photon.svg)
+![](http://img.shields.io/travis/SmartMeshFoundation/Photon.svg)
 ![](https://github.com/dognie/Photon/blob/master/docs/photon.png?raw=true)
 
   [Photon](https://PhotonNetwork.readthedocs.io/en/latest/) is an off-chain scaling solution, enabling instant, low-fee and scalable payments. It’s complementary to the Ethereum blockchain and Spectrum blockchain and works with ERC20 compatible token and ERC223 compatible token. Photon currently can works on Windows, Linux ,Android, iOS etc. Photon adds some new functions in version 0.9, such as , cooperative settlement,widraw without closing the channel, and more perfect third-party services( [Photon Monitoring](https://github.com/SmartMeshFoundation/Photon-Monitoring) and  [ Photon-Path-Finder](https://github.com/SmartMeshFoundation/Photon-Path-Finder)). In order to improve the user experience and to better fit for the mobile network, Photon adopts the  Matrix communication mechanism and supports the crash recovery and channel charging function.
