@@ -42,11 +42,19 @@ func (r *RegistryProxy) GetContract() *contracts.TokenNetworkRegistry {
 
 // GetContractVersion :
 func (r *RegistryProxy) GetContractVersion() (contractVersion string, err error) {
+	if r.registry == nil {
+		err = errors.New("registry does't init")
+		return
+	}
 	return r.registry.ContractVersion(r.bcs.getQueryOpts())
 }
 
 //AddToken register a new token,this token must be a valid erc20
 func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
+	if r.registry == nil {
+		err = errors.New("registry does't init")
+		return
+	}
 	tx, err := r.registry.CreateERC20TokenNetwork(r.bcs.Auth, tokenAddress)
 	if err != nil {
 		return
