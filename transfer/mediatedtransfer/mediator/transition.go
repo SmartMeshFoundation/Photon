@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/route"
@@ -397,7 +398,8 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 				events = append(events, withdrawFailed)
 			}
 		}
-		if blockNumber > pair.PayeeTransfer.Expiration {
+		// 考虑到分叉攻击,延迟一定块数之后才发送remove
+		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
 			/*
 			   For safety, the correct behavior is:
 
