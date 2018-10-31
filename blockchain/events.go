@@ -278,15 +278,14 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			}
 			log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
 		}
-		/*
-			if needConfirm {
-				if be.lastBlockNumber - l.BlockNumber < 15 {
-					// 待确认,暂不处理
-					continue
-				}
+
+		// 事件延迟确认
+		if params.EnableForkConfirm && needConfirm(eventName) {
+			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
+				continue
 			}
-			// 已确认,直接处理上报并记录处理流水
-		*/
+			log.Info(fmt.Sprintf("event %s tx=%s happened at %d, confirmed at %d", eventName, l.TxHash.String(), l.BlockNumber, be.lastBlockNumber))
+		}
 
 		switch eventName {
 		case params.NameTokenNetworkCreated:
@@ -370,6 +369,17 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 		be.txDone[l.TxHash] = l.BlockNumber
 	}
 	return
+}
+
+func needConfirm(eventName string) bool {
+
+	if eventName == params.NameChannelOpened ||
+		eventName == params.NameChannelOpenedAndDeposit ||
+		eventName == params.NameNewDeposit ||
+		eventName == params.NameChannelWithdraw {
+		return true
+	}
+	return false
 }
 
 //eventChannelSettled2StateChange to stateChange

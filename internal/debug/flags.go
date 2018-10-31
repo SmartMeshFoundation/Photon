@@ -86,13 +86,17 @@ var (
 		Name:  "logfile",
 		Usage: "redirect log to this the given file",
 	}
+	DisableForkConfirm = cli.BoolFlag{
+		Name:  "disable-fork-confirm",
+		Usage: "disable fork confirm when receive events from chain",
+	}
 )
 
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag, vmoduleFlag, backtraceAtFlag, debugFlag,
 	pprofFlag, pprofAddrFlag, pprofPortFlag,
-	memprofilerateFlag, blockprofilerateFlag, cpuprofileFlag, traceFlag, logFileFlag,
+	memprofilerateFlag, blockprofilerateFlag, cpuprofileFlag, traceFlag, logFileFlag, DisableForkConfirm,
 }
 
 var glogger *log.GlogHandler
