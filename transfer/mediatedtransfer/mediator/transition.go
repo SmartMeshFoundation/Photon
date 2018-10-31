@@ -110,6 +110,15 @@ func getPendingTransferPairs(pairs []*mediatedtransfer.MediationPairState) (pend
 	return pendingPairs
 }
 
+func getExpiredTransferPairs(pairs []*mediatedtransfer.MediationPairState) (pendingPairs []*mediatedtransfer.MediationPairState) {
+	for _, pair := range pairs {
+		if pair.PayeeState == mediatedtransfer.StatePayerExpired {
+			pendingPairs = append(pendingPairs, pair)
+		}
+	}
+	return pendingPairs
+}
+
 /*
 Return the timeout blocks, it's the base value from which the payee's
     lock timeout must be computed.
@@ -398,8 +407,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 				events = append(events, withdrawFailed)
 			}
 		}
-		// 考虑到分叉攻击,延迟一定块数之后才发送remove
-		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
+		if blockNumber > pair.PayeeTransfer.Expiration {
 			/*
 			   For safety, the correct behavior is:
 
@@ -421,13 +429,25 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			}
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
 				pair.PayeeState = mediatedtransfer.StatePayeeExpired
-				unlockFailed := &mediatedtransfer.EventUnlockFailed{
-					LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
-					ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
-					Reason:            "lock expired",
-				}
-				events = append(events, unlockFailed)
+				//unlockFailed := &mediatedtransfer.EventUnlockFailed{
+				//	LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
+				//	ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+				//	Reason:            "lock expired",
+				//}
+				//events = append(events, unlockFailed)
 			}
+		}
+	}
+	// 考虑到分叉攻击,延迟一定块数之后才发送remove
+	expiredPairs := getExpiredTransferPairs(transfersPairs)
+	for _, pair := range expiredPairs {
+		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
+			unlockFailed := &mediatedtransfer.EventUnlockFailed{
+				LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
+				ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+				Reason:            "lock expired",
+			}
+			events = append(events, unlockFailed)
 		}
 	}
 	return
