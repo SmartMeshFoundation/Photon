@@ -6,3 +6,7 @@ source_parsers = {
 }
 
 source_suffix = ['.rst', '.md']
+
+html_logo = 'photon.png'
+
+latex_logo = 'photon.png'
