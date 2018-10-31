@@ -159,4 +159,7 @@ var DefaultEthRPCPollPeriod = 7500 * time.Millisecond
 var TestPrivateChainID int64 = 8888
 
 // EthRPCTimeout :
-var EthRPCTimeout = 15 * time.Second
+var EthRPCTimeout = 3 * time.Second
+
+// ContractVersionPrefix :
+var ContractVersionPrefix = "0.4"
