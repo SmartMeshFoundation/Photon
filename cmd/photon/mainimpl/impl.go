@@ -242,6 +242,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if isFirstStartUp {
 		err = verifyContractCode(bcs)
 		if err != nil {
+			db.SaveRegistryAddress(utils.EmptyAddress) // return to first start up
 			db.CloseDB()
 			client.Close()
 			return
