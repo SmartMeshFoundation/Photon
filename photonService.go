@@ -330,7 +330,7 @@ func (rs *Service) loop() {
 				if ok2 {
 					rs.BlockNumber.Store(blockStateChange.BlockNumber)
 				} else {
-					//log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
+					log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
 				}
 				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
 				if err != nil {

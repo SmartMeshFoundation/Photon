@@ -69,8 +69,9 @@ type Events struct {
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
-	pollPeriod          time.Duration // 轮询周期,必须与公链出块间隔一致
-	stopped             bool          // has stopped?
+	pollPeriod          time.Duration          // 轮询周期,必须与公链出块间隔一致
+	stopped             bool                   // has stopped?
+	txDone              map[common.Hash]uint64 // 该map记录最近30块内处理的events流水,用于事件去重
 }
 
 //NewBlockChainEvents create BlockChainEvents
@@ -81,6 +82,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 		tokenNetworks:       make(map[common.Address]bool),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
+		txDone:              make(map[common.Hash]uint64),
 	}
 	if token2TokenNetwork != nil {
 		for _, tn := range token2TokenNetwork {
@@ -166,8 +168,12 @@ func (be *Events) startAlarmTask() {
 			log.Trace(fmt.Sprintf("new block :%d", lastedBlock))
 		}
 
+		fromBlockNumber := currentBlock - 2*params.ForkConfirmNumber
+		if fromBlockNumber < 0 {
+			fromBlockNumber = 0
+		}
 		// get all state change between currentBlock and lastedBlock
-		stateChanges, err := be.queryAllStateChange(currentBlock+1, lastedBlock)
+		stateChanges, err := be.queryAllStateChange(fromBlockNumber, lastedBlock)
 		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
 			if be.stopped {
@@ -191,6 +197,12 @@ func (be *Events) startAlarmTask() {
 			be.StateChangeChannel <- sc
 		}
 
+		// 清除过期流水
+		for key, blockNumber := range be.txDone {
+			if blockNumber <= uint64(fromBlockNumber) {
+				delete(be.txDone, key)
+			}
+		}
 		// wait to next time
 		time.Sleep(be.pollPeriod)
 	}
@@ -258,7 +270,14 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 	for _, l := range logs {
 		eventName := topicToEventName[l.Topics[0]]
 
-		// 根据已处理流水去重 TODO
+		// 根据已处理流水去重
+		if doneBlockNumber, ok := be.txDone[l.TxHash]; ok {
+			if doneBlockNumber == l.BlockNumber {
+				//log.Trace(fmt.Sprintf("get event txhash=%s repeated,ignore...", l.TxHash.String()))
+				continue
+			}
+			log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
+		}
 		/*
 			if needConfirm {
 				if be.lastBlockNumber - l.BlockNumber < 15 {
@@ -347,6 +366,8 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 		default:
 			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", l.String()))
 		}
+		// 记录处理流水
+		be.txDone[l.TxHash] = l.BlockNumber
 	}
 	return
 }
