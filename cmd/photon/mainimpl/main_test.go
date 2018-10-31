@@ -11,6 +11,7 @@ import (
 	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/stretchr/testify/assert"
@@ -154,15 +155,27 @@ func clearData(dataPath string) {
 }
 
 func TestVerifyContractCode(t *testing.T) {
+	accounts, err := codefortest.GetAccounts()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	client, err := codefortest.GetEthClient()
 	if err != nil {
 		t.Error(err.Error())
+		return
 	}
 	registryAddress, _, _, err := codefortest.DeployRegistryContract()
 	if err != nil {
 		t.Error(err.Error())
+		return
 	}
-	err = verifyContractCode(registryAddress, client)
+	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	err = verifyContractCode(bcs)
 	if err != nil {
 		t.Error(err.Error())
 	}

@@ -69,8 +69,9 @@ type Events struct {
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
-	pollPeriod          time.Duration // 轮询周期,必须与公链出块间隔一致
-	stopped             bool          // has stopped?
+	pollPeriod          time.Duration          // 轮询周期,必须与公链出块间隔一致
+	stopped             bool                   // has stopped?
+	txDone              map[common.Hash]uint64 // 该map记录最近30块内处理的events流水,用于事件去重
 }
 
 //NewBlockChainEvents create BlockChainEvents
@@ -81,6 +82,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 		tokenNetworks:       make(map[common.Address]bool),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
+		txDone:              make(map[common.Hash]uint64),
 	}
 	if token2TokenNetwork != nil {
 		for _, tn := range token2TokenNetwork {
@@ -93,7 +95,6 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 //Stop event listenging
 func (be *Events) Stop() {
 	be.stopped = true
-	time.Sleep(be.pollPeriod)
 	log.Info("Events stop ok...")
 }
 
@@ -167,8 +168,12 @@ func (be *Events) startAlarmTask() {
 			log.Trace(fmt.Sprintf("new block :%d", lastedBlock))
 		}
 
+		fromBlockNumber := currentBlock - 2*params.ForkConfirmNumber
+		if fromBlockNumber < 0 {
+			fromBlockNumber = 0
+		}
 		// get all state change between currentBlock and lastedBlock
-		stateChanges, err := be.queryAllStateChange(currentBlock+1, lastedBlock)
+		stateChanges, err := be.queryAllStateChange(fromBlockNumber, lastedBlock)
 		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
 			if be.stopped {
@@ -192,12 +197,35 @@ func (be *Events) startAlarmTask() {
 			be.StateChangeChannel <- sc
 		}
 
+		// 清除过期流水
+		for key, blockNumber := range be.txDone {
+			if blockNumber <= uint64(fromBlockNumber) {
+				delete(be.txDone, key)
+			}
+		}
 		// wait to next time
 		time.Sleep(be.pollPeriod)
 	}
 }
 
 func (be *Events) queryAllStateChange(fromBlock int64, toBlock int64) (stateChanges []mediatedtransfer.ContractStateChange, err error) {
+	/*
+		get all event of contract TokenNetworkRegistry, SecretRegistry , TokenNetwork
+	*/
+	logs, err := be.getLogsFromChain(fromBlock, toBlock)
+	if err != nil {
+		return
+	}
+	stateChanges, err = be.parseLogsToEvents(logs)
+	if err != nil {
+		return
+	}
+	// 排序
+	sortContractStateChange(stateChanges)
+	return
+}
+
+func (be *Events) getLogsFromChain(fromBlock int64, toBlock int64) (logs []types.Log, err error) {
 	/*
 		get all event of contract TokenNetworkRegistry, SecretRegistry , TokenNetwork
 	*/
@@ -208,46 +236,64 @@ func (be *Events) queryAllStateChange(fromBlock int64, toBlock int64) (stateChan
 	for tokenNetworkAddress := range be.tokenNetworks {
 		contractAddresses = append(contractAddresses, tokenNetworkAddress)
 	}
-	var logs []types.Log
 	logs, err = rpc.EventsGetInternal(
 		rpc.GetQueryConext(), contractAddresses, ethrpc.BlockNumber(fromBlock), ethrpc.BlockNumber(toBlock), be.client)
 	if err != nil {
 		return
 	}
 	var newTokenNetworks []common.Address
-	stateChanges, newTokenNetworks, err = be.parseLogsToEvents(logs)
-	/*
-		这里如果查询到了新增token network的事件,则需要再查询一次,否则会丢失这部分合约的事件
-	*/
+	for _, l := range logs {
+		if topicToEventName[l.Topics[0]] == params.NameTokenNetworkCreated {
+			e, err2 := newEventTokenNetworkCreated(&l)
+			if err = err2; err != nil {
+				return
+			}
+			newTokenNetworks = append(newTokenNetworks, e.TokenNetworkAddress)
+		}
+	}
 	if len(newTokenNetworks) > 0 {
 		for _, tokenNetworkAddress := range newTokenNetworks {
 			be.tokenNetworks[tokenNetworkAddress] = true
 		}
 		var newLogs []types.Log
-		var newStateChanges []mediatedtransfer.ContractStateChange
 		newLogs, err = rpc.EventsGetInternal(
 			rpc.GetQueryConext(), newTokenNetworks, ethrpc.BlockNumber(fromBlock), ethrpc.BlockNumber(toBlock), be.client)
 		if err != nil {
 			return
 		}
-		newStateChanges, _, err = be.parseLogsToEvents(newLogs)
-		stateChanges = append(stateChanges, newStateChanges...)
+		logs = append(logs, newLogs...)
 	}
-	// 排序
-	sortContractStateChange(stateChanges)
 	return
 }
 
-func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtransfer.ContractStateChange, newTokenNetworks []common.Address, err error) {
+func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtransfer.ContractStateChange, err error) {
 	for _, l := range logs {
 		eventName := topicToEventName[l.Topics[0]]
+
+		// 根据已处理流水去重
+		if doneBlockNumber, ok := be.txDone[l.TxHash]; ok {
+			if doneBlockNumber == l.BlockNumber {
+				//log.Trace(fmt.Sprintf("get event txhash=%s repeated,ignore...", l.TxHash.String()))
+				continue
+			}
+			log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
+		}
+		/*
+			if needConfirm {
+				if be.lastBlockNumber - l.BlockNumber < 15 {
+					// 待确认,暂不处理
+					continue
+				}
+			}
+			// 已确认,直接处理上报并记录处理流水
+		*/
+
 		switch eventName {
 		case params.NameTokenNetworkCreated:
 			e, err2 := newEventTokenNetworkCreated(&l)
 			if err = err2; err != nil {
 				return
 			}
-			newTokenNetworks = append(newTokenNetworks, e.TokenNetworkAddress)
 			stateChanges = append(stateChanges, eventTokenNetworkCreated2StateChange(e))
 		case params.NameSecretRevealed:
 			e, err2 := newEventSecretRevealed(&l)
@@ -320,6 +366,8 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 		default:
 			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", l.String()))
 		}
+		// 记录处理流水
+		be.txDone[l.TxHash] = l.BlockNumber
 	}
 	return
 }

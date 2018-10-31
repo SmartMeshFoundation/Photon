@@ -35,7 +35,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
-	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/restful"
@@ -240,6 +239,16 @@ func mainCtx(ctx *cli.Context) (err error) {
 		client.Close()
 		return
 	}
+	if isFirstStartUp {
+		err = verifyContractCode(bcs)
+		if err != nil {
+			db.SaveRegistryAddress(utils.EmptyAddress) // return to first start up
+			db.CloseDB()
+			client.Close()
+			return
+		}
+	}
+
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
 		db.CloseDB()
@@ -476,10 +485,6 @@ func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helpe
 		} else {
 			registryAddress = config.RegistryAddress
 		}
-		err = verifyContractCode(registryAddress, client)
-		if err != nil {
-			return
-		}
 		db.SaveRegistryAddress(registryAddress)
 	} else {
 		registryAddress = dbRegistryAddress
@@ -499,16 +504,16 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 }
 
 /*
-	校验链上的合约代码和代码里面的合约代码二进制内容
+	校验链上的合约代码版本
 */
-func verifyContractCode(registryAddress common.Address, client *helper.SafeEthClient) (err error) {
-	var codeBytesOnChain []byte
-	codeBytesOnChain, err = client.Client.CodeAt(context.Background(), registryAddress, nil)
+func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
+	var contractVersion string
+	contractVersion, err = bcs.RegistryProxy.GetContractVersion()
 	if err != nil {
 		return
 	}
-	if !strings.Contains(utils.BPex(codeBytesOnChain), contracts.TokenNetworkBin[2:]) {
-		err = fmt.Errorf("local contract code mismatch contract code on chain, address = %s", registryAddress.String())
+	if !strings.HasPrefix(contractVersion, params.ContractVersionPrefix) {
+		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
 	return
 }

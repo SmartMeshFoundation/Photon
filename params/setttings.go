@@ -159,4 +159,10 @@ var DefaultEthRPCPollPeriod = 7500 * time.Millisecond
 var TestPrivateChainID int64 = 8888
 
 // EthRPCTimeout :
-var EthRPCTimeout = 15 * time.Second
+var EthRPCTimeout = 3 * time.Second
+
+// ContractVersionPrefix :
+var ContractVersionPrefix = "0.4"
+
+// ForkConfirmNumber : 分叉确认块数量,BlockNumber < 最新块-ForkConfirmNumber的事件被认为无分叉的风险
+var ForkConfirmNumber int64 = 15

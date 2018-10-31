@@ -40,6 +40,11 @@ func (r *RegistryProxy) GetContract() *contracts.TokenNetworkRegistry {
 	return r.registry
 }
 
+// GetContractVersion :
+func (r *RegistryProxy) GetContractVersion() (contractVersion string, err error) {
+	return r.registry.ContractVersion(r.bcs.getQueryOpts())
+}
+
 //AddToken register a new token,this token must be a valid erc20
 func (r *RegistryProxy) AddToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
 	tx, err := r.registry.CreateERC20TokenNetwork(r.bcs.Auth, tokenAddress)

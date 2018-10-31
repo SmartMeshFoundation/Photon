@@ -244,6 +244,14 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if err != nil {
 		return nil, err
 	}
+
+	// special dealing for specrum main net
+	var head *types.Header
+	err = c.Call(nil, &head, "eth_getBlockByNumber", "1", false)
+	if err != nil && head != nil && head.Hash() == common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6") {
+		networkID = big.NewInt(20180430)
+	}
+
 	signedTx, err := opts.Signer(types.NewEIP155Signer(networkID), opts.From, rawTx)
 	if err != nil {
 		return nil, err
