@@ -58,6 +58,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 	if err != nil {
 		log.Error(fmt.Sprintf("receive new channel,but can not get channel info from chain, err = %s", err.Error()))
 		stateOnChain = uint8(channeltype.StateOpened)
+		err = nil
 	}
 	c = &Channel{
 		OurState:          ourState,
