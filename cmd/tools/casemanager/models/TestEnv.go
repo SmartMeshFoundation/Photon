@@ -265,7 +265,7 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey,
 }
 func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contracts.TokenNetworkRegistry) (tokenNetworkAddr common.Address, tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble")
+	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble", 0)
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
