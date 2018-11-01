@@ -98,5 +98,5 @@ photon  --datadir=.photon  --address="0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40
 ```
 After you start the photon node,you can register the token in the photonnetwork and use the various functions provided by photon.
 #### Deployed contract address
-- Specrum  Mainnet:RegistryAddress=0xCf3C7400C227be86FcdB2c9Be7DEf5c671087620
-- Specrum  Testnet:RegistryAddress=0xb3aE919aB595f5844cba80499ee6423688E06F89 
+- Specrum  Mainnet:RegistryAddress=0x28233F8e0f8Bd049382077c6eC78bE9c2915c7D4
+- Specrum  Testnet:RegistryAddress=0xa2150A4647908ab8D0135F1c4BFBB723495e8d12 
