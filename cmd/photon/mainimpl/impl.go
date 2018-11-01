@@ -162,7 +162,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "pfs",
-			Usage: "pathfinder service host",
+			Usage: "pathfinder service host,example http://127.0.0.1:9000",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
