@@ -114,7 +114,7 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/pathfinder/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
+		FullURL: pfg.host + "/api/1/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
 		Method:  http.MethodPut,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,

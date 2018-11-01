@@ -651,6 +651,7 @@ func (rs *Service) registerChannel(tokenNetworkAddress common.Address, partnerAd
 		log.Error(fmt.Sprintf("receive new channel %s-%s,but cannot create tokennetwork err %s",
 			utils.APex2(tokenNetworkAddress), utils.APex2(partnerAddress), err,
 		))
+		return
 	}
 	tokenAddress := rs.TokenNetwork2Token[tokenNetworkAddress]
 	if rs.getChannel(tokenAddress, partnerAddress) != nil {

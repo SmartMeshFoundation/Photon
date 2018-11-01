@@ -36,7 +36,7 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	N0.Close(c01.ChannelIdentifier)
 	N0.GetChannelWith(N1, tokenAddress).Println("AfterClose")
 	// Settle
-	time.Sleep(time.Duration(c01.SettleTimeout+20) * time.Second)
+	time.Sleep(time.Duration(c01.SettleTimeout+257+10) * time.Second)
 	N0.Settle(c01.ChannelIdentifier)
 	time.Sleep(10 * time.Second)
 	// 验证

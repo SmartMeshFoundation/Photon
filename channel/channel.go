@@ -40,7 +40,7 @@ NewChannel returns the living channel.
 channelIdentifier must be a valid contract adress
 settleTimeout must be valid, it cannot too small.
 */
-func NewChannel(ourState, partenerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
+func NewChannel(ourState, partnerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
 	revealTimeout, settleTimeout int) (c *Channel, err error) {
 	if settleTimeout <= revealTimeout {
 		err = fmt.Errorf("reveal_timeout can not be larger-or-equal to settle_timeout, reveal_timeout=%d,settle_timeout=%d", revealTimeout, settleTimeout)
@@ -50,15 +50,25 @@ func NewChannel(ourState, partenerState *EndState, externState *ExternalState, t
 		err = errors.New("reveal_timeout must be at least 3")
 		return
 	}
+	/*
+		考虑到避免分叉问题而延迟投递new channel事件的情况,构造channel时实时查询状态
+	*/
+	var stateOnChain = uint8(channeltype.StateOpened)
+	_, _, _, stateOnChain, _, err = externState.TokenNetwork.GetChannelInfo(ourState.Address, partnerState.Address)
+	if err != nil {
+		log.Error(fmt.Sprintf("receive new channel,but can not get channel info from chain, err = %s", err.Error()))
+		stateOnChain = uint8(channeltype.StateOpened)
+		err = nil
+	}
 	c = &Channel{
 		OurState:          ourState,
-		PartnerState:      partenerState,
+		PartnerState:      partnerState,
 		ExternState:       externState,
 		ChannelIdentifier: *channelIdentifier,
 		TokenAddress:      tokenAddr,
 		RevealTimeout:     revealTimeout,
 		SettleTimeout:     settleTimeout,
-		State:             channeltype.StateOpened,
+		State:             channeltype.State(stateOnChain),
 	}
 	if externState.ClosedBlock != 0 {
 		c.State = channeltype.StateClosed
