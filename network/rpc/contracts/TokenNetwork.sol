@@ -23,7 +23,7 @@ contract TokenNetwork is Utils {
     // After a pre-set 'settle time' period, node can submit proofs without any concern that he has no chance
     // to submit punish proofs for his counterpart's submitted updatetransfer & unlock at the time of settle.
     // It's much reasonable to set this variable to a larger digit, like 100 in the version of release.
-    uint64 constant public punish_block_number = 5;
+    uint64 constant public punish_block_number = 100;
 
     // Chain ID as specified by EIP155 used in balance proof signatures to avoid replay attacks
     uint256 public chain_id;
