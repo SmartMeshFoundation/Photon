@@ -33,14 +33,15 @@ contract HumanERC223Token is ERC223,StandardToken {
 
     constructor(
         uint256 _initialAmount,
-        string _tokenSymbol
+        string _tokenSymbol,
+        uint8 _decimals
     )
         public
     {
         balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
         totalSupply_ = _initialAmount;                        // Update total supply
-        name = "ERC223TokenDecimal0";                                   // Set the name for display purposes
-        decimals = 0;                            // Amount of decimals for display purposes
+        name = "ERC223TokenDecimal";                                   // Set the name for display purposes
+        decimals = _decimals;                            // Amount of decimals for display purposes
         symbol = _tokenSymbol;                               // Set the symbol for display purposes
     }
 

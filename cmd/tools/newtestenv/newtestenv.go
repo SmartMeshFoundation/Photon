@@ -269,11 +269,11 @@ func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contr
 	auth := bind.NewKeyedTransactor(key)
 	switch tokenType {
 	case tokenERC223:
-		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223")
+		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223", uint8(base))
 	case tokenStandard:
-		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard")
+		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard", uint8(base))
 	case tokenERC223Approve:
-		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve")
+		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve", uint8(base))
 	case tokenEther:
 		auth.Value = getAmount(big.NewInt(500000000000000000))
 		tokenAddr, tx, _, err = tokenether.DeployHumanEtherToken(auth, conn, "test ether")

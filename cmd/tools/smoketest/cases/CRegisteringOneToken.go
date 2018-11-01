@@ -71,7 +71,7 @@ func deployNewToken() (newTokenAddress string) {
 func deployOneToken(keystorePath string, conn *ethclient.Client) (tokenAddr common.Address) {
 	key := getDeployKey(keystorePath)
 	auth := bind.NewKeyedTransactor(key)
-	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble")
+	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble", 0)
 	if err != nil {
 		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
 	}
