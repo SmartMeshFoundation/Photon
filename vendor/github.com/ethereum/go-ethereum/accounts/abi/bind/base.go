@@ -248,7 +248,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	// special dealing for specrum main net
 	var head *types.Header
 	err = c.Call(nil, &head, "eth_getBlockByNumber", "1", false)
-	if err != nil && head != nil && head.Hash() == common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6") {
+	if err != nil && head != nil && head.Hash() == common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d") {
 		networkID = big.NewInt(20180430)
 	}
 
