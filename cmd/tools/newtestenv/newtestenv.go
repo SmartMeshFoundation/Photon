@@ -47,11 +47,11 @@ const (
 	tokenEther         = "ether"
 )
 
-var base = int64(math.Pow10(18))
+var base = 0
 
 func getAmount(x *big.Int) *big.Int {
 	y := new(big.Int)
-	y = y.Mul(x, big.NewInt(base))
+	y = y.Mul(x, big.NewInt(int64(math.Pow10(base))))
 	return y
 }
 func main() {
@@ -111,7 +111,7 @@ func mainctx(ctx *cli.Context) error {
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	fmt.Printf("not-create-token=%v\n", ctx.Bool("not-create-token"))
-	base = int64(math.Pow10(ctx.Int("base")))
+	base = ctx.Int("base")
 	globalPassword = ctx.String("password")
 	tokenNumber := ctx.Int("tokennum")
 	//if tokenNumber <= 0 || tokenNumber > 4 {
