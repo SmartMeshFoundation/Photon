@@ -82,6 +82,7 @@ func (model *ModelDB) UpdateTransferStatus(tokenAddress common.Address, lockSecr
 		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
 		return
 	}
+	log.Trace(fmt.Sprintf("transfer lockSecretHash=%s %s", lockSecretHash.String(), statusMessage))
 }
 
 // UpdateTransferStatusMessage :
@@ -102,6 +103,7 @@ func (model *ModelDB) UpdateTransferStatusMessage(tokenAddress common.Address, l
 		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
 		return
 	}
+	log.Trace(fmt.Sprintf("transfer lockSecretHash=%s %s", lockSecretHash.String(), statusMessage))
 }
 
 // GetTransferStatus :
