@@ -165,7 +165,7 @@ var EthRPCTimeout = 3 * time.Second
 var ContractVersionPrefix = "0.4"
 
 // EnableForkConfirm : 事件延迟确认开关
-var EnableForkConfirm = true
+var EnableForkConfirm = false
 
 // ForkConfirmNumber : 分叉确认块数量,BlockNumber < 最新块-ForkConfirmNumber的事件被认为无分叉的风险
-var ForkConfirmNumber int64 = 15
+var ForkConfirmNumber int64 = 17

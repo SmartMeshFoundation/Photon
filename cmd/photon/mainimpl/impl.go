@@ -430,8 +430,9 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.PfsHost = ctx.String("pfs")
-	if ctx.Bool("disable-fork-confirm") {
-		params.EnableForkConfirm = false
+	if ctx.IsSet("disable-fork-confirm") && ctx.Bool("disable-fork-confirm") == false {
+		log.Info("fork-confirm enable...")
+		params.EnableForkConfirm = true
 	}
 	return
 }
