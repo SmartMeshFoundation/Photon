@@ -57,6 +57,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 	_, _, _, stateOnChain, _, err = externState.TokenNetwork.GetChannelInfo(ourState.Address, partnerState.Address)
 	if err != nil {
 		log.Error(fmt.Sprintf("receive new channel,but can not get channel info from chain, err = %s", err.Error()))
+		stateOnChain = uint8(channeltype.StateOpened)
 	}
 	c = &Channel{
 		OurState:          ourState,
