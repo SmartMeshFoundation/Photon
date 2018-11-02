@@ -19,7 +19,11 @@ package debug
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	//need pprof
 	_ "net/http/pprof"
 	"os"
@@ -107,6 +111,28 @@ func init() {
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) (err error) {
+	doDebug := ctx.GlobalBool(debugFlag.Name)
+	var slowHandler log.Handler
+	if doDebug {
+		resp, err := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
+		if err != nil {
+			fmt.Printf("log srv assignid err %s", err)
+		} else {
+			id, err := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if err == nil {
+				addr := ctx.GlobalString("address")
+				if params.MobileMode {
+					addr += "-mobile"
+				} else {
+					addr += "-other"
+				}
+				path := fmt.Sprintf(fmt.Sprintf("%s/logsrv/1/log/%s/%s", params.TestLogServer, addr, string(id)))
+				slowHandler = log.HttpHandler(path, log.TerminalFormat(false))
+			}
+		}
+	}
 	//set up glogger
 	if len(ctx.String(logFileFlag.Name)) > 0 {
 		var h log.Handler
@@ -115,14 +141,24 @@ func Setup(ctx *cli.Context) (err error) {
 		if err != nil {
 			return
 		}
-		glogger = log.NewGlogHandler(h)
+		if doDebug {
+			glogger = log.NewGlogHandler(log.TeeHandler(h, slowHandler))
+		} else {
+			glogger = log.NewGlogHandler(h)
+		}
+
 	} else {
 		usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
 		output := io.Writer(os.Stderr)
 		if usecolor {
 			output = colorable.NewColorableStderr()
 		}
-		glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
+		if doDebug {
+			glogger = log.NewGlogHandler(log.TeeHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)), slowHandler))
+		} else {
+			glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
+		}
+
 	}
 	// logging
 	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))

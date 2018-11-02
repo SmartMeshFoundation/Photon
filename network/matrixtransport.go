@@ -297,6 +297,11 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 	if !m.hasDoneStartCheck {
 		return errors.New("ignore message when not startup complete")
 	}
+	_, isOnline := m.NodeStatus(receiverAddr)
+	if !isOnline {
+		//如果接收方不在线,会重复不停的发送,造成不必要的网络浪费.
+		return fmt.Errorf("message receiver %s  not online ", receiverAddr.String())
+	}
 	//m.log.Trace(fmt.Sprintf("sendmsg  %s", utils.StringInterface(m.Peers, 7)))
 	//send should not block
 	select {
