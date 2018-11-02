@@ -106,35 +106,6 @@ func createPartnerBalanceProof(
 	return bp
 }
 
-func TestPfsClient_SetFeeRate(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
-	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
-	channelIdentifier := common.HexToHash("0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a")
-	feeRate := big.NewFloat(0.005)
-	err = c.SetFeeRate(channelIdentifier, feeRate)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestPfsClient_GetFeeRate(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
-	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
-	channelIdentifier := common.HexToHash("0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a")
-	feeRate, effectiveTime, err := c.GetFeeRate(alice.Address, channelIdentifier)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	fmt.Println(feeRate, effectiveTime)
-}
-
 func TestPfsClient_FindPath(t *testing.T) {
 	if testing.Short() {
 		return
@@ -150,8 +121,92 @@ func TestPfsClient_FindPath(t *testing.T) {
 	fmt.Println(routes)
 }
 
-func TestFloat(t *testing.T) {
-	s := "0.00054"
-	f, b, err := big.ParseFloat(s, 10, 3, big.ToNearestEven)
-	fmt.Println(f, b, err)
+func TestPfsClient_SetAccountFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	feeConstant := big.NewInt(4)
+	feePercent := int64(50000)
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	err = c.SetAccountFee(feeConstant, feePercent)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPfsClient_GetAccountFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	//channelIdentifier := common.HexToHash("0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a")
+	feeConstant, feePercent, err := c.GetAccountFee()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(feeConstant, feePercent)
+}
+
+func TestPfsClient_SetTokenFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	feeConstant := big.NewInt(6)
+	feePercent := int64(30000)
+	tokenAddress := common.HexToAddress("0x76fCe6fF759B208D27E4D48828F820d79d1719f3")
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	err = c.SetTokenFee(feeConstant, feePercent, tokenAddress)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPfsClient_GetTokenFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	tokenAddress := common.HexToAddress("0x76fCe6fF759B208D27E4D48828F820d79d1719f3")
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	feeConstant, feePercent, err := c.GetTokenFee(tokenAddress)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(feeConstant, feePercent)
+}
+
+func TestPfsClient_SetChannelFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	feeConstant := big.NewInt(5)
+	feePercent := int64(20000)
+	channelIdentifier := common.HexToHash("0x640b3a6c160eadc37f133400b6a6be62d4d8a2b7ccd67beb04426e84251455ea")
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	err = c.SetChannelFee(feeConstant, feePercent, channelIdentifier)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPfsClient_GetChannelFee(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	channelIdentifier := common.HexToHash("0x640b3a6c160eadc37f133400b6a6be62d4d8a2b7ccd67beb04426e84251455ea")
+	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
+	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
+	//channelIdentifier := common.HexToHash("0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a")
+	feeConstant, feePercent, err := c.GetChannelFee(channelIdentifier)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(feeConstant, feePercent)
 }

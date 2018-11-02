@@ -12,10 +12,13 @@ import (
 
 // req a http request
 type req struct {
-	FullURL string        `json:"url"`
-	Method  string        `json:"method"`
-	Payload string        `json:"payload"`
-	Timeout time.Duration `json:"timeout"`
+	FullURL        string        `json:"url"`
+	Method         string        `json:"method"`
+	Payload        string        `json:"payload"`
+	Timeout        time.Duration `json:"timeout"`
+	RespStatusCode int           `json:"resp_status_code"`
+	RespBody       string        `json:"resp_body"`
+	RespErr        error         `json:"resp_err"`
 }
 
 // GetReq : get *http.Request
@@ -75,6 +78,9 @@ func (r *req) Invoke() (int, []byte, error) {
 	if err != nil && err.Error() == "EOF" {
 		err = nil
 	}
+	r.RespStatusCode = statusCode
+	r.RespBody = string(buf[:n])
+	r.RespErr = err
 	return statusCode, buf[:n], err
 }
 
