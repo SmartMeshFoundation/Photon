@@ -50,16 +50,6 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		err = errors.New("reveal_timeout must be at least 3")
 		return
 	}
-	/*
-		考虑到避免分叉问题而延迟投递new channel事件的情况,构造channel时实时查询状态
-	*/
-	var stateOnChain = uint8(channeltype.StateOpened)
-	_, _, _, stateOnChain, _, err = externState.TokenNetwork.GetChannelInfo(ourState.Address, partnerState.Address)
-	if err != nil {
-		log.Error(fmt.Sprintf("receive new channel,but can not get channel info from chain, err = %s", err.Error()))
-		stateOnChain = uint8(channeltype.StateOpened)
-		err = nil
-	}
 	c = &Channel{
 		OurState:          ourState,
 		PartnerState:      partnerState,
@@ -68,7 +58,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		TokenAddress:      tokenAddr,
 		RevealTimeout:     revealTimeout,
 		SettleTimeout:     settleTimeout,
-		State:             channeltype.State(stateOnChain),
+		State:             channeltype.StateOpened,
 	}
 	if externState.ClosedBlock != 0 {
 		c.State = channeltype.StateClosed
