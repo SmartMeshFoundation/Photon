@@ -130,7 +130,9 @@ func (be *Events) Start(LastBlockNumber int64) {
 
 func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
+	startUpBlockNumber := be.lastBlockNumber
 	currentBlock := be.lastBlockNumber
+	logPeriod := int64(1)
 	retryTime := 0
 	for {
 		//get the lastest number imediatelly
@@ -142,6 +144,7 @@ func (be *Events) startAlarmTask() {
 			// first time
 			if params.ChainID.Int64() == params.TestPrivateChainID {
 				be.pollPeriod = params.DefaultEthRPCPollPeriodForTest
+				logPeriod = 10
 			} else {
 				be.pollPeriod = params.DefaultEthRPCPollPeriod
 			}
@@ -159,10 +162,16 @@ func (be *Events) startAlarmTask() {
 		cancelFunc()
 		lastedBlock := h.Number.Int64()
 		if currentBlock == lastedBlock {
+			if startUpBlockNumber == lastedBlock {
+				// 当启动时获取不到新块,也需要通知photonService,否则会导致api无法启动
+				log.Warn(fmt.Sprintf("photon start with blockNumber %d,but lastedBlockNumber on chain also %d", startUpBlockNumber, lastedBlock))
+				be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
+				startUpBlockNumber = 0
+			}
 			time.Sleep(be.pollPeriod / 2)
 			retryTime++
 			if retryTime > 10 {
-				log.Warn(fmt.Sprintf("get same block number %d from chain %d times,maybe something wrong...", lastedBlock, retryTime))
+				log.Warn(fmt.Sprintf("get same block number %d from chain %d times,maybe something wrong with smc ...", lastedBlock, retryTime))
 			}
 			continue
 		}
@@ -170,7 +179,7 @@ func (be *Events) startAlarmTask() {
 		if currentBlock != -1 && lastedBlock != currentBlock+1 {
 			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks", lastedBlock-currentBlock-1))
 		}
-		if lastedBlock%10 == 0 {
+		if lastedBlock%logPeriod == 0 {
 			log.Trace(fmt.Sprintf("new block :%d", lastedBlock))
 		}
 

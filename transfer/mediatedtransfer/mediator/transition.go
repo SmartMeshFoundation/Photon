@@ -150,6 +150,8 @@ func getTimeoutBlocks(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	if blocksUntilSettlement > payerTransfer.Expiration-blockNumber {
 		blocksUntilSettlement = payerTransfer.Expiration - blockNumber
 	}
+	log.Debug(fmt.Sprintf("get transfer lockSecretHash=%s, expiration=%d, now=%d, blocksUntilSettlement=%d",
+		utils.HPex(payerTransfer.LockSecretHash), payerTransfer.Expiration, blockNumber, blocksUntilSettlement))
 	return blocksUntilSettlement
 }
 

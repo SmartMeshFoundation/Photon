@@ -15,8 +15,12 @@ import (
 UpdateMeshNetworkNodes update nodes of this intranet
 */
 func UpdateMeshNetworkNodes(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> UpdateMeshNetworkNodes ,err=%v", err))
+	}()
 	var nodes []*network.NodeInfo
-	err := r.DecodeJsonPayload(&nodes)
+	err = r.DecodeJsonPayload(&nodes)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -52,15 +56,20 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 // PrepareUpdate : 停止创建新的交易,返回当前是否可以升级
 // PrepareUpdate : stop sending new transfers, return boolean that if we can update now?
 func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> PrepareUpdate ,err=%v", err))
+	}()
 	// 这里没并发问题,直接操作即可
 	// no concurrent issue, just do it.
 	API.Photon.StopCreateNewTransfers = true
 	num := len(API.Photon.Transfer2StateManager)
 	if num > 0 {
-		rest.Error(w, fmt.Sprintf("%d transactions are still in progress. Please wait until all transactions are over", num), http.StatusBadRequest)
+		err = fmt.Errorf("%d transactions are still in progress. Please wait until all transactions are over", num)
+		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, err := w.(http.ResponseWriter).Write([]byte("ok"))
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

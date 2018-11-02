@@ -173,8 +173,12 @@ token must exist
 partner maybe an invalid address
 */
 func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> OpenChannel ,err=%v", err))
+	}()
 	req := &ChannelData{}
-	err := r.DecodeJsonPayload(req)
+	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)
@@ -230,6 +234,10 @@ settle channel
 deposit to channel
 */
 func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> CloseSettleDepositChannel ,err=%v", err))
+	}()
 	chstr := r.PathParam("channel")
 	if len(chstr) != len(utils.EmptyHash.String()) {
 		rest.Error(w, "argument error", http.StatusBadRequest)
@@ -243,7 +251,7 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		Force    bool
 	}
 	req := &Req{}
-	err := r.DecodeJsonPayload(req)
+	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
