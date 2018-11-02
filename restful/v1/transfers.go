@@ -64,6 +64,10 @@ func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 Transfers is the api of /transfer/:token/:partner
 */
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> Transfers ,err=%v", err))
+	}()
 	// 用户调用了prepare-update,暂停接收新交易
 	// client invokes prepare-update, halts receiving new transfers.
 	if API.Photon.StopCreateNewTransfers {
@@ -155,6 +159,10 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 
 // CancelTransfer : cancel a transfer when haven't send secret
 func CancelTransfer(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> CancelTransfer ,err=%v", err))
+	}()
 	lockSecretHashStr := r.PathParam("locksecrethash")
 	lockSecretHash := common.HexToHash(lockSecretHashStr)
 	token := r.PathParam("token")

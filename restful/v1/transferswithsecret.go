@@ -15,12 +15,16 @@ import (
 // AllowRevealSecret : used when clients send a transfer with specific secrets.
 // that secret will not receive SecretRequest before invoking this function to unlock.
 func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecret ,err=%v", err))
+	}()
 	type AllowRevealSecretPayload struct {
 		LockSecretHash string `json:"lock_secret_hash"`
 		TokenAddress   string `json:"token_address"`
 	}
 	var payload AllowRevealSecretPayload
-	err := r.DecodeJsonPayload(&payload)
+	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -66,12 +70,16 @@ func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 // RegisterSecret : when knowing the secret of a transfer from other sources,
 // we can register secret in statemanager
 func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecret ,err=%v", err))
+	}()
 	type RegisterSecretPayload struct {
 		Secret       string `json:"secret"`
 		TokenAddress string `json:"token_address"`
 	}
 	var payload RegisterSecretPayload
-	err := r.DecodeJsonPayload(&payload)
+	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return

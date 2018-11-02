@@ -16,6 +16,10 @@ TokenSwap is the api of /api/1/tokenswap/:id
 :id must be a unique identifier.
 */
 func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> TokenSwap ,err=%v", err))
+	}()
 	/*
 	   {
 	       "role": "maker",
@@ -46,7 +50,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "target address error", http.StatusBadRequest)
 		return
 	}
-	target, err := utils.HexToAddress(targetstr)
+	target, err = utils.HexToAddress(targetstr)
 	if err != nil {
 		log.Error(err.Error())
 		rest.Error(w, err.Error(), http.StatusBadRequest)

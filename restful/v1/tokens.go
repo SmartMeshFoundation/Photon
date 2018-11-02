@@ -70,6 +70,10 @@ RegisterToken register a new token to the photon network.
 this address must be a valid ERC20 token
 */
 func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterToken ,err=%v", err))
+	}()
 	type Ret struct {
 		ChannelManagerAddress string `json:"channel_manager_address"`
 	}
