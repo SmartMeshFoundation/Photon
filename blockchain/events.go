@@ -131,6 +131,7 @@ func (be *Events) Start(LastBlockNumber int64) {
 func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
 	currentBlock := be.lastBlockNumber
+	retryTime := 0
 	for {
 		//get the lastest number imediatelly
 		if be.stopped {
@@ -158,9 +159,14 @@ func (be *Events) startAlarmTask() {
 		cancelFunc()
 		lastedBlock := h.Number.Int64()
 		if currentBlock == lastedBlock {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(be.pollPeriod / 2)
+			retryTime++
+			if retryTime > 10 {
+				log.Warn(fmt.Sprintf("get same block number %d from chain %d times,maybe something wrong...", lastedBlock, retryTime))
+			}
 			continue
 		}
+		retryTime = 0
 		if currentBlock != -1 && lastedBlock != currentBlock+1 {
 			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks", lastedBlock-currentBlock-1))
 		}
