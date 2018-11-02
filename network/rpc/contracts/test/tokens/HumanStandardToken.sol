@@ -30,14 +30,15 @@ contract HumanStandardToken is StandardToken {
 
     constructor(
         uint256 _initialAmount,
-        string _tokenSymbol
+        string _tokenSymbol,
+        uint8 _decimals
     )
         public
     {
         balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
         totalSupply_ = _initialAmount;                        // Update total supply
         name = "standardToken";                                   // Set the name for display purposes
-        decimals = 18;                            // Amount of decimals for display purposes
+        decimals = _decimals;                            // Amount of decimals for display purposes
         symbol = _tokenSymbol;                               // Set the symbol for display purposes
     }
     function () external { revert(); }

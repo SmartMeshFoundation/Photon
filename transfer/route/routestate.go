@@ -7,8 +7,8 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/nkbai/log"
 )
 
 /*

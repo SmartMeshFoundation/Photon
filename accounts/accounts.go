@@ -73,6 +73,10 @@ func (am *AccountManager) GetPrivateKey(addr common.Address, password string) (p
 	if err != nil {
 		return
 	}
+	if len(files) != 1 {
+		err = fmt.Errorf("cannot find %s's key file", addr.String())
+		return
+	}
 	keyjson, err := ioutil.ReadFile(files[0])
 	if err != nil {
 		return

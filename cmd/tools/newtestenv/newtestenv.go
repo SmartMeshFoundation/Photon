@@ -47,11 +47,11 @@ const (
 	tokenEther         = "ether"
 )
 
-var base = int64(math.Pow10(18))
+var base = 0
 
 func getAmount(x *big.Int) *big.Int {
 	y := new(big.Int)
-	y = y.Mul(x, big.NewInt(base))
+	y = y.Mul(x, big.NewInt(int64(math.Pow10(base))))
 	return y
 }
 func main() {
@@ -111,7 +111,7 @@ func mainctx(ctx *cli.Context) error {
 	fmt.Printf("eth-rpc-endpoint:%s\n", ctx.String("eth-rpc-endpoint"))
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	fmt.Printf("not-create-token=%v\n", ctx.Bool("not-create-token"))
-	base = int64(math.Pow10(ctx.Int("base")))
+	base = ctx.Int("base")
 	globalPassword = ctx.String("password")
 	tokenNumber := ctx.Int("tokennum")
 	//if tokenNumber <= 0 || tokenNumber > 4 {
@@ -269,11 +269,11 @@ func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contr
 	auth := bind.NewKeyedTransactor(key)
 	switch tokenType {
 	case tokenERC223:
-		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223")
+		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223", uint8(base))
 	case tokenStandard:
-		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard")
+		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard", uint8(base))
 	case tokenERC223Approve:
-		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve")
+		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve", uint8(base))
 	case tokenEther:
 		auth.Value = getAmount(big.NewInt(500000000000000000))
 		tokenAddr, tx, _, err = tokenether.DeployHumanEtherToken(auth, conn, "test ether")
