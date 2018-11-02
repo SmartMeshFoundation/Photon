@@ -67,6 +67,11 @@ const UDPMaxMessageSize = 1200
 //DefaultXMPPServer xmpp server
 const DefaultXMPPServer = "193.112.248.133:5222"
 
+//TestLogServer only for test, enabled if --debug flag is set
+var TestLogServer = "http://transport01.smartmesh.cn:8008"
+
+//var TestLogServer = "http://127.0.0.1:5000"
+
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 //ContractSignaturePrefix for EIP191 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-191.md
