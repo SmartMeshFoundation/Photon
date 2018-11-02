@@ -10,7 +10,7 @@ pages:
 -  Photon Pathfinding Service Specification: pfs.md
 -  Matrixregservice: matrix.md
 -  Photon Glossary: glossary.md
--  PhotonUsage scene description:photon_network_Usage_scene_description.md
+-  PhotonUsage scene description: UsageSceneDescription.md
 
 theme:
     name: readthedocs
