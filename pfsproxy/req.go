@@ -86,7 +86,7 @@ func (r *req) Invoke() (int, []byte, error) {
 
 // ToString : get json of this
 func (r *req) ToString() string {
-	buf, err := json.MarshalIndent(r, "", "\t")
+	buf, err := json.MarshalIndent(r, "\t", "")
 	if err != nil {
 		panic(err)
 	}

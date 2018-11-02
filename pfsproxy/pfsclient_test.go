@@ -3,6 +3,7 @@ package pfsproxy
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"os"
 	"testing"
 
 	"math/big"
@@ -12,12 +13,17 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 var testPfgHost = "http://192.168.124.7:9001"
+
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 
 func TestPfsClient_SubmitBalance(t *testing.T) {
 	if testing.Short() {
