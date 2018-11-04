@@ -131,7 +131,7 @@ Check all unsettled channels of a node.
 - `200 OK` - Check Success  
 - `404 Not Found` - Check Failure  
 
-## POST /api/1/channels
+## PUT /api/1/channels
 Open a new Channel  
 **PAYLOAD:**  
 ```json
