@@ -105,13 +105,13 @@ func (r *API) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAdd
 RegisterToken Will register the token at `token_address` with photon. If it's already
     registered, will throw an exception.
 */
-func (r *API) RegisterToken(tokenAddress common.Address) (mgrAddr common.Address, err error) {
+func (r *API) RegisterToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
 	if r.Photon.Chain.RegistryProxy == nil {
 		err = errEthConnectionNotReady
 		return
 	}
-	mgrAddr, err = r.Photon.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
-	if err == nil && mgrAddr != utils.EmptyAddress {
+	tokenNetworkAddress, err = r.Photon.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
+	if err == nil && tokenNetworkAddress != utils.EmptyAddress {
 		err = errors.New("TokenNetworkAddres already registered")
 		return
 	}
