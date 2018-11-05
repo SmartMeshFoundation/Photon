@@ -1047,3 +1047,77 @@ func (a *API) GetCallResult(callID string) (r string, err error) {
 	}
 	return
 }
+
+// Withdraw :
+/*
+	1. withdraw
+	{ "amount":3333,}
+	2. prepare for withdraw:
+	{"op":"preparewithdraw",}
+	3. cancel prepare:
+	{"op": "cancelprepare"}
+*/
+func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+	result := newResult()
+	a.callID2result[callID] = result
+	go func() {
+		r, e := a.withdraw(channelIdentifierHashStr, amountstr, op)
+		result.Result = r
+		result.Err = e
+		result.Done = true
+		a.callID2result[callID] = result
+	}()
+	return
+}
+
+func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string, err error) {
+	defer func() {
+		log.Trace(fmt.Sprintf("Api Withdraw channelIdentifierHashStr=%s,amountStr=%s,op=%s,response=%s,err=%v",
+			channelIdentifierHashStr, amountStr, op, r, err))
+	}()
+	const OpPrepareWithdraw = "preparewithdraw"
+	const OpCancelPrepare = "cancelprepare"
+	channelIdentifier := common.HexToHash(channelIdentifierHashStr)
+	amount, _ := new(big.Int).SetString(amountStr, 0)
+	c, err := a.api.GetChannel(channelIdentifier)
+	if err != nil {
+		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifier), err))
+		return
+	}
+	if amount != nil && amount.Cmp(utils.BigInt0) > 0 { // withdraw
+		c, err = a.api.Withdraw(c.TokenAddress(), c.PartnerAddress(), amount)
+		if err != nil {
+			log.Error(fmt.Sprintf("Withdraw %s err %s", utils.HPex(channelIdentifier), err))
+			return
+		}
+	} else {
+		if op == OpPrepareWithdraw {
+			c, err = a.api.PrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+		} else if op == OpCancelPrepare {
+			c, err = a.api.CancelPrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
+		} else {
+			err = fmt.Errorf("unkown operation %s", op)
+		}
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+	}
+	d := &v1.ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	r, err = marshal(d)
+	return
+}
