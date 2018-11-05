@@ -114,7 +114,7 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/api/1/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
+		FullURL: pfg.host + "/pfs/1/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
 		Method:  http.MethodPut,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,
@@ -189,7 +189,7 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/api/1/paths",
+		FullURL: pfg.host + "/pfs/1/paths",
 		Method:  http.MethodPost,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,
@@ -254,7 +254,7 @@ func (pfg *pfsClient) SetAccountFee(feeConstant *big.Int, feePercent int64) (err
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/api/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,
@@ -282,7 +282,7 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 		return
 	}
 	req := &req{
-		FullURL: pfg.host + "/api/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
 	}
@@ -318,7 +318,7 @@ func (pfg *pfsClient) SetTokenFee(feeConstant *big.Int, feePercent int64, tokenA
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/api/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,
@@ -346,7 +346,7 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 		return
 	}
 	req := &req{
-		FullURL: pfg.host + "/api/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
 	}
@@ -382,7 +382,7 @@ func (pfg *pfsClient) SetChannelFee(feeConstant *big.Int, feePercent int64, chan
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{
-		FullURL: pfg.host + "/api/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
 		Payload: marshal(payload),
 		Timeout: time.Second * 10,
@@ -410,7 +410,7 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 		return
 	}
 	req := &req{
-		FullURL: pfg.host + "/api/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
 	}
