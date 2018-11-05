@@ -79,7 +79,7 @@ func (c *SafeEthClient) RegisterReConnectNotify(name string) <-chan struct{} {
 	return ch
 }
 func (c *SafeEthClient) changeStatus(newStatus netshare.Status) {
-	log.Info("ethclient connection status changed from %d to %d", c.Status, newStatus)
+	log.Info("ethclient connection status changed from %d to %d", int(c.Status), int(newStatus))
 	c.Status = newStatus
 	select {
 	case c.StatusChan <- c.Status:

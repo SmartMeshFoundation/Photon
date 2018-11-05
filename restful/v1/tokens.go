@@ -75,7 +75,7 @@ func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
 		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterToken ,err=%v", err))
 	}()
 	type Ret struct {
-		ChannelManagerAddress string `json:"channel_manager_address"`
+		TokenNetworkAddress string `json:"token_network_address"`
 	}
 	token := r.PathParam("token")
 	tokenAddr, err := utils.HexToAddress(token)
@@ -84,12 +84,12 @@ func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	mgr, err := API.RegisterToken(tokenAddr)
+	tokenNetworkAddress, err := API.RegisterToken(tokenAddr)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterToken %s err:%s", tokenAddr.String(), err))
 		rest.Error(w, err.Error(), http.StatusConflict)
 	} else {
-		ret := &Ret{ChannelManagerAddress: mgr.String()}
+		ret := &Ret{TokenNetworkAddress: tokenNetworkAddress.String()}
 		err = w.WriteJson(ret)
 		if err != nil {
 			log.Warn(fmt.Sprintf("writejson err %s", err))
