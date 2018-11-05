@@ -1,9 +1,10 @@
 # Photon’s Mobile API 文档
+
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
-* [Photon’s Mobile API 文档](#Photons-mobile-api-文档)
+* [Photon’s Mobile API 文档](#photons-mobile-api-文档)
 	* [安装](#安装)
 		* [android使用](#android使用)
 		* [iOS使用](#ios使用)
@@ -39,6 +40,7 @@
 		* [向一个channel里面存入对应token](#向一个channel里面存入对应token)
 		* [关闭一个channel](#关闭一个channel)
 		* [结算一个channel](#结算一个channel)
+		* [withdraw 一个channel](#withdraw-一个channel)
 		* [根据callID查询调用结果](#根据callid查询调用结果)
 
 <!-- /code_chunk_output -->
