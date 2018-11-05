@@ -4,11 +4,11 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/channel"
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/route"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/fatedier/frp/src/utils/log"
 )
 
 //UnitSettleTimeout for test only
