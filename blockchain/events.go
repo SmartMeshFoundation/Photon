@@ -294,8 +294,15 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
 		}
 
-		// 事件延迟确认
+		// open,deposit,withdraw事件延迟确认,开关默认关闭,方便测试
 		if params.EnableForkConfirm && needConfirm(eventName) {
+			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
+				continue
+			}
+			log.Info(fmt.Sprintf("event %s tx=%s happened at %d, confirmed at %d", eventName, l.TxHash.String(), l.BlockNumber, be.lastBlockNumber))
+		}
+		// registry secret事件延迟确认,否则在出现恶意分叉的情况下,中间节点有损失资金的风险
+		if eventName == params.NameSecretRevealed {
 			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
 				continue
 			}
