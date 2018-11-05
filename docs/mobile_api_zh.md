@@ -39,6 +39,7 @@
 		* [向一个channel里面存入对应token](#向一个channel里面存入对应token)
 		* [关闭一个channel](#关闭一个channel)
 		* [结算一个channel](#结算一个channel)
+		* [withdraw 一个channel](#withdraw 一个channel)
 		* [根据callID查询调用结果](#根据callid查询调用结果)
 
 <!-- /code_chunk_output -->
@@ -535,6 +536,7 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
     "amount":0,
     "op":"cancelprepare"
 }
+```
 返回示例   
 ```json
 {
@@ -560,7 +562,7 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
     "amount":1000,
     "op":"preparewithdraw"
 }
-
+```
 返回示例 
 ```json
 {
