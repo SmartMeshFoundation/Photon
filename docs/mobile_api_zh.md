@@ -537,6 +537,7 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
     "amount":0,
     "op":"cancelprepare"
 }
+```
 返回示例   
 ```json
 {
@@ -562,7 +563,7 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
     "amount":1000,
     "op":"preparewithdraw"
 }
-
+```
 返回示例 
 ```json
 {
