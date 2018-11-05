@@ -3,6 +3,8 @@ package photon
 import (
 	"math/big"
 
+	"sync"
+
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,39 +40,57 @@ func (c *CombinationFeePolicy) GetNodeChargeFee(nodeAddress, tokenAddress common
 	return f.Add(f, fixedFee)
 }
 
-var defaultFeePolicy = &models.FeePolicy{
-	FeeConstant: big.NewInt(0),
-	FeeRate:     big.NewInt(10000),
-}
-
 // FeeModule :
-type FeeModule struct{}
-
-func (c *FeeModule) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
-	var err error
-	var feePolicy *models.FeePolicy
-	feePolicy, err = models.ModelDB.GetFeePolicyByChannel(nodeAddress, tokenAddress)
-	if err == nil {
-		return calculateFee(feePolicy, amount)
-	}
-	feePolicy, err = models.ModelDB.GetFeePolicyByToken(tokenAddress)
-	if err == nil {
-		return calculateFee(feePolicy, amount)
-	}
-	feePolicy = models.ModelDB.GetFeePolicyByAccount()
-	if feePolicy != nil {
-		return calculateFee(feePolicy, amount)
-	}
-	return calculateFee(defaultFeePolicy, amount)
+type FeeModule struct {
+	db        *models.ModelDB
+	feePolicy *models.FeePolicy
+	lock      sync.Mutex
 }
 
-func calculateFee(feePolicy *models.FeePolicy, amount *big.Int) *big.Int {
-	fee := big.NewInt(0)
-	if feePolicy.FeeRate.Cmp(big.NewInt(0)) > 0 {
-		fee = fee.Div(amount, feePolicy.FeeRate)
+// NewFeeModule :
+func NewFeeModule(db *models.ModelDB) *FeeModule {
+	if db == nil {
+		panic("need init db first")
 	}
-	if feePolicy.FeeConstant.Cmp(big.NewInt(0)) > 0 {
-		fee = fee.Add(fee, feePolicy.FeeConstant)
+	return &FeeModule{
+		db:        db,
+		feePolicy: db.GetFeePolicy(),
+	}
+}
+
+// SetFeePolicy :
+func (fm *FeeModule) SetFeePolicy() (err error) {
+	return
+}
+
+//GetNodeChargeFee : impl of FeeCharge
+func (fm *FeeModule) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
+	var feeSetting *models.FeeSetting
+	var ok bool
+	// 优先channel
+	c, err := fm.db.GetChannel(tokenAddress, nodeAddress)
+	if c != nil && err == nil {
+		feeSetting, ok = fm.feePolicy.ChannelFeeMap[c.ChannelIdentifier.ChannelIdentifier]
+		if ok {
+			return calculateFee(feeSetting, amount)
+		}
+	}
+	// 其次token
+	feeSetting, ok = fm.feePolicy.TokenFeeMap[tokenAddress]
+	if ok {
+		return calculateFee(feeSetting, amount)
+	}
+	// 最后account
+	return calculateFee(fm.feePolicy.AccountFee, amount)
+}
+
+func calculateFee(feeSetting *models.FeeSetting, amount *big.Int) *big.Int {
+	fee := big.NewInt(0)
+	if feeSetting.FeeRate.Cmp(big.NewInt(0)) > 0 {
+		fee = fee.Div(amount, feeSetting.FeeRate)
+	}
+	if feeSetting.FeeConstant.Cmp(big.NewInt(0)) > 0 {
+		fee = fee.Add(fee, feeSetting.FeeConstant)
 	}
 	return fee
 }
