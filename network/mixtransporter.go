@@ -130,3 +130,8 @@ func (t *MixTransport) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 	}
 	return t.xmpp.conn.CollectNeighbors(db)
 }
+
+// Reconnect :
+func (t *MixTransport) Reconnect() {
+	t.xmpp.conn.Reconnect()
+}

@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var testPfgHost = "http://192.168.124.7:9001"
+var testPfgHost = "http://192.168.124.9:7000"
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
@@ -131,8 +131,8 @@ func TestPfsClient_SetAccountFee(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	feeConstant := big.NewInt(4)
-	feePercent := int64(50000)
+	feeConstant := big.NewInt(5)
+	feePercent := int64(10000)
 	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
 	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
 	err = c.SetAccountFee(feeConstant, feePercent)

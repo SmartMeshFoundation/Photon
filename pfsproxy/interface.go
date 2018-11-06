@@ -3,6 +3,7 @@ package pfsproxy
 import (
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -20,6 +21,11 @@ type PfsProxy interface {
 		find path
 	*/
 	FindPath(peerFrom, peerTo, token common.Address, amount *big.Int) (resp []FindPathResponse, err error)
+
+	/*
+		set fee rate by account
+	*/
+	SetFeePolicy(fp *models.FeePolicy) (err error)
 
 	/*
 		set fee rate by account
