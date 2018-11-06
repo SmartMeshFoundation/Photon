@@ -141,7 +141,7 @@ func Setup(ctx *cli.Context) (err error) {
 		if err != nil {
 			return
 		}
-		if doDebug {
+		if doDebug && slowHandler != nil {
 			glogger = log.NewGlogHandler(log.TeeHandler(h, slowHandler))
 		} else {
 			glogger = log.NewGlogHandler(h)
