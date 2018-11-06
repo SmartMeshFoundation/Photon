@@ -4,7 +4,13 @@ import (
 	"fmt"
 	"math/big"
 
+	"crypto/ecdsa"
+
+	"bytes"
+	"encoding/binary"
+
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -12,7 +18,23 @@ import (
 // FeeSetting :
 type FeeSetting struct {
 	FeeConstant *big.Int `json:"fee_constant"`
-	FeeRate     *big.Int `json:"fee_rate"`
+	FeePercent  int64    `json:"fee_percent"`
+	Signature   []byte   `json:"signature"` // used when set fee policy to pfs
+}
+
+func (fs *FeeSetting) sign(key *ecdsa.PrivateKey) []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, fs.FeePercent)
+	_, err = buf.Write(utils.BigIntTo32Bytes(fs.FeeConstant))
+	if err != nil {
+		log.Error(fmt.Sprintf("signData err %s", err))
+	}
+	fs.Signature, err = utils.SignData(key, buf.Bytes())
+	if err != nil {
+		log.Crit(fmt.Sprintf("signDataFor FeeSetting err %s", err))
+	}
+	return fs.Signature
 }
 
 // FeePolicy :
@@ -21,6 +43,17 @@ type FeePolicy struct {
 	AccountFee    *FeeSetting                    `json:"account_fee"`
 	TokenFeeMap   map[common.Address]*FeeSetting `json:"token_fee_map"`
 	ChannelFeeMap map[common.Hash]*FeeSetting    `json:"channel_fee_map"`
+}
+
+// Sign for pfs
+func (fp *FeePolicy) Sign(key *ecdsa.PrivateKey) {
+	fp.AccountFee.sign(key)
+	for _, fs := range fp.TokenFeeMap {
+		fs.sign(key)
+	}
+	for _, fs := range fp.ChannelFeeMap {
+		fs.sign(key)
+	}
 }
 
 const defaultKey string = "feePolicy"
@@ -51,7 +84,7 @@ func newDefaultFeePolicy() *FeePolicy {
 	return &FeePolicy{
 		AccountFee: &FeeSetting{
 			FeeConstant: big.NewInt(0),
-			FeeRate:     big.NewInt(10000),
+			FeePercent:  10000,
 		},
 		TokenFeeMap:   make(map[common.Address]*FeeSetting),
 		ChannelFeeMap: make(map[common.Hash]*FeeSetting),

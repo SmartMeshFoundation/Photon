@@ -2,20 +2,22 @@ package codefortest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	"crypto/ecdsa"
 
 	accountModule "github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 )
 
 // TestEthRPCEndPoint :
@@ -129,4 +131,12 @@ func GetAccountsByAddress(address common.Address) (account TestAccount, err erro
 	}
 	err = errors.New("no account in keystore")
 	return
+}
+
+// GetDb :
+func GetDb() (model *models.ModelDB, err error) {
+	dbPath := path.Join(os.TempDir(), "testxxxx.db")
+	err = os.Remove(dbPath)
+	err = os.Remove(dbPath + ".lock")
+	return models.OpenDb(dbPath)
 }
