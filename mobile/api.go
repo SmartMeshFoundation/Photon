@@ -1017,13 +1017,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 
 // NotifyNetworkDown :
 func (a *API) NotifyNetworkDown() error {
-	client := a.api.Photon.Chain.Client
-	if client.IsConnected() {
-		a.api.Photon.BlockChainEvents.Stop()
-		client.Client.Close()
-	}
-	go client.RecoverDisconnect()
-	return nil
+	return a.api.NotifyNetworkDown()
 }
 
 // GetCallResult :

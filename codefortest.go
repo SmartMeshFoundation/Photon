@@ -62,7 +62,7 @@ func newTestPhotonWithPolicy(feePolicy fee.Charger) *Service {
 	if err != nil {
 		log.Error(err.Error())
 	}
-	rd.SetFeePolicy(feePolicy)
+	rd.FeePolicy = feePolicy
 	return rd
 }
 func newTestPhotonAPI() *API {

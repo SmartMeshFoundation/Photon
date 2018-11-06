@@ -230,6 +230,16 @@ func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
 		//never block
 	}
 }
+
+//Reconnect :
+func (x *XMPPConnection) Reconnect() {
+	err := x.client.Close()
+	if err != nil {
+		log.Warn(fmt.Sprintf("xmpp client close err %s", err))
+	}
+	return
+}
+
 func (x *XMPPConnection) reConnect() {
 	x.changeStatus(netshare.Reconnecting)
 	o := x.options

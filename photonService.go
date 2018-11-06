@@ -157,7 +157,6 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		RevealSecretListenerMap:               make(map[common.Hash]RevealSecretListener),
 		ReceivedMediatedTrasnferListenerMap:   make(map[*ReceivedMediatedTrasnferListener]bool),
 		SentMediatedTransferListenerMap:       make(map[*SentMediatedTransferListener]bool),
-		FeePolicy:                             &ConstantFeePolicy{},
 		HealthCheckMap:                        make(map[common.Address]bool),
 		quitChan:                              make(chan struct{}),
 		isStarting:                            true,
@@ -200,6 +199,15 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	// pathfinder
 	if config.PfsHost != "" {
 		rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
+	}
+	// fee module
+	if config.EnableMediationFee {
+		rs.FeePolicy, err = NewFeeModule(db, rs.PfsProxy)
+		if err != nil {
+			return
+		}
+	} else {
+		rs.FeePolicy = &NoFeePolicy{}
 	}
 	return rs, nil
 }
@@ -1473,11 +1481,6 @@ GetNodeChargeFee implement of FeeCharger
 */
 func (rs *Service) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
 	return rs.FeePolicy.GetNodeChargeFee(nodeAddress, tokenAddress, amount)
-}
-
-//SetFeePolicy set fee policy
-func (rs *Service) SetFeePolicy(feePolicy fee.Charger) {
-	rs.FeePolicy = feePolicy
 }
 
 /*

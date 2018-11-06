@@ -262,11 +262,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 		transport.Stop()
 		return
 	}
-	if cfg.EnableMediationFee {
-		//do nothing.
-	} else {
-		service.SetFeePolicy(&photon.NoFeePolicy{})
-	}
 	err = service.Start()
 	if err != nil {
 		service.Stop()

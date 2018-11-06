@@ -11,10 +11,11 @@ import (
 
 	"math/big"
 
-	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/nkbai/log"
 	"github.com/pkg/errors"
 )
 
@@ -239,6 +240,34 @@ type getFeeResponse struct {
 	FeePolicy   int64    `json:"fee_policy"`
 	FeeConstant *big.Int `json:"fee_constant"`
 	FeePercent  int64    `json:"fee_percent"`
+}
+
+/*
+SetFeePolicy :set fee rate by account
+*/
+func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
+	if pfg.host == "" || pfg.privateKey == nil {
+		return ErrNotInit
+	}
+	fp.Sign(pfg.privateKey)
+	req := &req{
+		FullURL: pfg.host + "/pfs/1/feerate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
+		Method:  http.MethodPut,
+		Payload: marshal(fp),
+		Timeout: time.Second * 10,
+	}
+	statusCode, body, err := req.Invoke()
+	log.Debug(req.ToString())
+	if err != nil {
+		log.Error("PfgAPI SetFeePolicy %s err :%s", req.FullURL, err)
+		return
+	}
+	if statusCode != 200 {
+		err = fmt.Errorf("PfgAPI SetFeePolicy %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
+		log.Error(err.Error())
+		return
+	}
+	return nil
 }
 
 /*
