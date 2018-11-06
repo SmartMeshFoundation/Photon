@@ -445,7 +445,7 @@ Settle Channel. Once channel is closed and `settle_timeout` block has passed, ch
 - `409 Conflict` - State Conflicts  
 
 
-## POST /api/1/transfer/*(token_address)*/*(target_address)*
+## POST /api/1/transfers/*(token_address)*/*(target_address)*
 When channel state is `open` with sufficient funds, participants can make transfers in it.  
 **Example Request :**  
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`

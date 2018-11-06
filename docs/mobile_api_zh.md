@@ -1,9 +1,10 @@
 # Photon’s Mobile API 文档
+
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
-* [Photon’s Mobile API 文档](#Photons-mobile-api-文档)
+* [Photon’s Mobile API 文档](#photons-mobile-api-文档)
 	* [安装](#安装)
 		* [android使用](#android使用)
 		* [iOS使用](#ios使用)
@@ -39,6 +40,7 @@
 		* [向一个channel里面存入对应token](#向一个channel里面存入对应token)
 		* [关闭一个channel](#关闭一个channel)
 		* [结算一个channel](#结算一个channel)
+		* [withdraw 一个channel](#withdraw-一个channel)
 		* [根据callID查询调用结果](#根据callid查询调用结果)
 
 <!-- /code_chunk_output -->
@@ -493,6 +495,95 @@ force 为true,则不会与对方协商,意味着会首先关闭通道,然后等�
 func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 
 返回一个callID,用于调用GetCallResult接口查询调用结果
+
+### withdraw 一个channel 
+func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) 
+该接口提供withdraw功能
+参数
+- amount 取钱的金额
+- op 选项
+  -  preparewithdraw 当你准备`withdraw`的时候，可以把通道转态切换到'prepareForWithdraw'状态，此时通道不再发起或接受任何交易
+  - cancelprepare 取消`withdraw`,把通道转态从`prepareForWithdraw` 切回到`opened`
+
+当然，当`amount`大于0的时候，`op`参数是没有意义的，会直接取钱。
+
+参数    
+```json
+{
+    "amount":0,
+    "op":"preparewithdraw"
+}
+```
+返回示例    
+```json
+{
+    "channel_identifier": "0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "open_block_number": 8100682,
+    "partner_address": "0x10b256b3C83904D524210958FA4E7F9cAFFB76c6",
+    "balance": 1000,
+    "partner_balance": 1000000,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x83073FCD20b9D31C6c6B3aAE1dEE0a539458d0c5",
+    "state": 9,
+    "state_string": "prepareForWithdraw",
+    "settle_timeout": 150,
+    "reveal_timeout": 10
+}
+```
+参数  
+```json
+{
+    "amount":0,
+    "op":"cancelprepare"
+}
+```
+返回示例   
+```json
+{
+    "channel_identifier": "0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "open_block_number": 8100682,
+    "partner_address": "0x10b256b3C83904D524210958FA4E7F9cAFFB76c6",
+    "balance": 1000,
+    "partner_balance": 1000000,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x83073FCD20b9D31C6c6B3aAE1dEE0a539458d0c5",
+    "state": 9,
+    "state_string": "opened",
+    "settle_timeout": 150,
+    "reveal_timeout": 10
+}
+```
+
+`op`参数是可选的，不是必须的。`op`参数的意义是`amount`参数为0时，当`amount`大于0时，`op`参数无效，会直接`withdraw`
+参数  
+```json
+{
+    "amount":1000,
+    "op":"preparewithdraw"
+}
+```
+返回示例 
+```json
+{
+    "channel_identifier": "0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "open_block_number": 8100682,
+    "partner_address": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
+    "balance": 1000000,
+    "partner_balance": 1000,
+    "locked_amount": 0,
+    "partner_locked_amount": 0,
+    "token_address": "0x83073FCD20b9D31C6c6B3aAE1dEE0a539458d0c5",
+    "state": 6,
+    "state_string": "withdrawing",
+    "settle_timeout": 150,
+    "reveal_timeout": 10
+}
+```
+因此，当你不需要进行`withdraw`准备时，不需要设置`op`参数，可以直接进行`withdraw`
+
+
 ### 根据callID查询调用结果
 func (a *API) GetCallResult(callID string) (r string, done bool, err error)
 
