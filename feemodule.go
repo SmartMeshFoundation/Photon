@@ -34,15 +34,25 @@ type FeeModule struct {
 }
 
 // NewFeeModule :
-func NewFeeModule(db *models.ModelDB, pfsProxy pfsproxy.PfsProxy) *FeeModule {
+func NewFeeModule(db *models.ModelDB, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, err error) {
 	if db == nil {
 		panic("need init db first")
 	}
-	return &FeeModule{
-		db:        db,
-		pfsProxy:  pfsProxy,
-		feePolicy: db.GetFeePolicy(),
+	fp := db.GetFeePolicy()
+	fm = &FeeModule{
+		db:       db,
+		pfsProxy: pfsProxy,
 	}
+	err = fm.SetFeePolicy(fp)
+	if err != nil {
+		return
+	}
+	if fm.pfsProxy != nil {
+		log.Info("init fee module with pfs success")
+	} else {
+		log.Info("init fee module without pfs success")
+	}
+	return
 }
 
 // SetFeePolicy :

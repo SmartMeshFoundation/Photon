@@ -22,7 +22,7 @@ func TestFeeModule_Local(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	fm := NewFeeModule(db, nil)
+	fm, err := NewFeeModule(db, nil)
 	fakeAddress := utils.NewRandomAddress()
 	var amount, fee *big.Int
 
@@ -75,7 +75,7 @@ func TestFeeModule_WithPFS(t *testing.T) {
 	}
 	pfsProxy := pfsproxy.NewPfsProxy("http://192.168.124.9:7000", alice.PrivateKey)
 	// fee module
-	fm := NewFeeModule(db, pfsProxy)
+	fm, err := NewFeeModule(db, pfsProxy)
 	fakeAddress := utils.NewRandomAddress()
 	var amount, fee *big.Int
 

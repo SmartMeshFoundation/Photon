@@ -202,7 +202,10 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	// fee module
 	if config.EnableMediationFee {
-		rs.FeePolicy = NewFeeModule(db, rs.PfsProxy)
+		rs.FeePolicy, err = NewFeeModule(db, rs.PfsProxy)
+		if err != nil {
+			return
+		}
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
 	}
