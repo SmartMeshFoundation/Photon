@@ -70,7 +70,7 @@ type Events struct {
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
 	pollPeriod          time.Duration          // 轮询周期,必须与公链出块间隔一致
-	stopped             bool                   // has stopped?
+	stopChan            chan int               // has stopped?
 	txDone              map[common.Hash]uint64 // 该map记录最近30块内处理的events流水,用于事件去重
 }
 
@@ -94,7 +94,8 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 
 //Stop event listenging
 func (be *Events) Stop() {
-	be.stopped = true
+	be.pollPeriod = 0
+	close(be.stopChan)
 	log.Info("Events stop ok...")
 }
 
@@ -121,7 +122,6 @@ Start listening events send to  channel can duplicate but cannot lose.
 func (be *Events) Start(LastBlockNumber int64) {
 	log.Info(fmt.Sprintf("get state change since %d", LastBlockNumber))
 	be.lastBlockNumber = LastBlockNumber
-	be.stopped = false
 	/*
 		1. start alarm task
 	*/
@@ -134,12 +134,9 @@ func (be *Events) startAlarmTask() {
 	currentBlock := be.lastBlockNumber
 	logPeriod := int64(1)
 	retryTime := 0
+	be.stopChan = make(chan int)
 	for {
 		//get the lastest number imediatelly
-		if be.stopped {
-			log.Info(fmt.Sprintf("AlarmTask quit complete"))
-			return
-		}
 		if be.pollPeriod == 0 {
 			// first time
 			if params.ChainID.Int64() == params.TestPrivateChainID {
@@ -154,7 +151,8 @@ func (be *Events) startAlarmTask() {
 		if err != nil {
 			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
 			cancelFunc()
-			if !be.stopped {
+			if be.stopChan != nil {
+				be.pollPeriod = 0
 				go be.client.RecoverDisconnect()
 			}
 			return
@@ -191,9 +189,6 @@ func (be *Events) startAlarmTask() {
 		stateChanges, err := be.queryAllStateChange(fromBlockNumber, lastedBlock)
 		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
-			if be.stopped {
-				return
-			}
 			// 如果这里出现err,不能继续处理该blocknumber,否则会丢事件,直接从该块重新处理即可
 			continue
 		}
@@ -219,7 +214,14 @@ func (be *Events) startAlarmTask() {
 			}
 		}
 		// wait to next time
-		time.Sleep(be.pollPeriod)
+		//time.Sleep(be.pollPeriod)
+		select {
+		case <-time.After(be.pollPeriod):
+		case <-be.stopChan:
+			be.stopChan = nil
+			log.Info(fmt.Sprintf("AlarmTask quit complete"))
+			return
+		}
 	}
 }
 

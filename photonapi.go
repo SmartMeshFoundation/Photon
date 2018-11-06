@@ -1183,10 +1183,9 @@ func (r *API) NotifyNetworkDown() error {
 	// smc client
 	client := r.Photon.Chain.Client
 	if client.IsConnected() {
-		r.Photon.BlockChainEvents.Stop()
+		//r.Photon.BlockChainEvents.Stop()
 		client.Client.Close()
 	}
-	go client.RecoverDisconnect()
 
 	// xmpp client
 	if t, ok := r.Photon.Protocol.Transport.(*network.MixTransport); ok {
