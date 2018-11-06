@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 )
@@ -29,6 +30,39 @@ func GetRandomSecret(w rest.ResponseWriter, r *rest.Request) {
 // NotifyNetworkDown :
 func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
 	err := API.NotifyNetworkDown()
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// GetFeePolicy :
+func GetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	fp, err := API.GetFeePolicy()
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = w.WriteJson(fp)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// SetFeePolicy :
+func SetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	req := &models.FeePolicy{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = API.SetFeePolicy(req)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -16,6 +16,9 @@ import (
 )
 
 // FeeSetting :
+// 其中FeeConstant为固定费率,比如5代表手续费固定部分为5个token,设置为0即不收费
+// FeePercent为比例费率,计算方式为 交易金额/FeePercent,比如交易金额50000,FeePercent=10000,那么手续费比例部分=50000/10000=5,设置为0即不收费
+// 最终为手续费为固定收费+比例收费
 type FeeSetting struct {
 	FeeConstant *big.Int `json:"fee_constant"`
 	FeePercent  int64    `json:"fee_percent"`

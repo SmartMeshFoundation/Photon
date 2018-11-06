@@ -1193,3 +1193,21 @@ func (r *API) NotifyNetworkDown() error {
 	}
 	return nil
 }
+
+// GetFeePolicy :
+func (r *API) GetFeePolicy() (fp *models.FeePolicy, err error) {
+	feeModule, ok := r.Photon.FeePolicy.(*FeeModule)
+	if !ok {
+		return
+	}
+	return feeModule.feePolicy, nil
+}
+
+// SetFeePolicy :
+func (r *API) SetFeePolicy(fp *models.FeePolicy) error {
+	feeModule, ok := r.Photon.FeePolicy.(*FeeModule)
+	if !ok {
+		return errors.New("photon start without param '--fee', can not set fee policy")
+	}
+	return feeModule.SetFeePolicy(fp)
+}
