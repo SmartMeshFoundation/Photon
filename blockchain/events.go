@@ -95,7 +95,9 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 //Stop event listenging
 func (be *Events) Stop() {
 	be.pollPeriod = 0
-	close(be.stopChan)
+	if be.stopChan != nil {
+		close(be.stopChan)
+	}
 	log.Info("Events stop ok...")
 }
 

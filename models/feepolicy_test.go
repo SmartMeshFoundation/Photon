@@ -1,15 +1,15 @@
 package models
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"math/big"
-
-	"github.com/SmartMeshFoundation/Photon/codefortest"
 )
 
 func TestModelDB_FeePolicy(t *testing.T) {
-	model, err := codefortest.GetDb()
+	model, err := newTestDb()
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -42,4 +42,12 @@ func TestModelDB_FeePolicy(t *testing.T) {
 		t.Error("wrong fee rate")
 		return
 	}
+}
+
+// newTestDb :
+func newTestDb() (model *ModelDB, err error) {
+	dbPath := path.Join(os.TempDir(), "testxxxx.db")
+	err = os.Remove(dbPath)
+	err = os.Remove(dbPath + ".lock")
+	return OpenDb(dbPath)
 }
