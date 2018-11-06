@@ -80,7 +80,8 @@ func Start() {
 		/*
 			utils
 		*/
-		rest.Get("/api/1/secret", GetRandomSecret), // api to provide random secret and lockSecretHash pair
+		rest.Get("/api/1/secret", GetRandomSecret),                 // api to provide random secret and lockSecretHash pair
+		rest.Post("/api/1/notify_network_down", NotifyNetworkDown), // api to provide random secret and lockSecretHash pair
 
 		/*
 			test

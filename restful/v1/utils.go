@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -20,6 +21,19 @@ func GetRandomSecret(w rest.ResponseWriter, r *rest.Request) {
 	pair.Secret = seed.String()
 	pair.LockSecretHash = utils.ShaSecret(seed.Bytes()).String()
 	err := w.WriteJson(pair)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// NotifyNetworkDown :
+func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
+	err := API.NotifyNetworkDown()
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

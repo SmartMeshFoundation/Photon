@@ -24,6 +24,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -1175,4 +1176,21 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 	dataToSign := buf.Bytes()
 	proof.Signature, err = utils.SignData(r.Photon.PrivateKey, dataToSign)
 	return
+}
+
+// NotifyNetworkDown :
+func (r *API) NotifyNetworkDown() error {
+	// smc client
+	client := r.Photon.Chain.Client
+	if client.IsConnected() {
+		r.Photon.BlockChainEvents.Stop()
+		client.Client.Close()
+	}
+	go client.RecoverDisconnect()
+
+	// xmpp client
+	if t, ok := r.Photon.Protocol.Transport.(*network.MixTransport); ok {
+		go t.Reconnect()
+	}
+	return nil
 }
