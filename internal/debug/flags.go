@@ -116,7 +116,7 @@ func Setup(ctx *cli.Context) (err error) {
 	if doDebug {
 		resp, err := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
 		if err != nil {
-			fmt.Printf("log srv assignid err %s", err)
+			fmt.Printf("log srv assignid err %s\n", err)
 		} else {
 			id, err := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
@@ -153,7 +153,7 @@ func Setup(ctx *cli.Context) (err error) {
 		if usecolor {
 			output = colorable.NewColorableStderr()
 		}
-		if doDebug {
+		if doDebug && slowHandler != nil {
 			glogger = log.NewGlogHandler(log.TeeHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)), slowHandler))
 		} else {
 			glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
