@@ -61,6 +61,43 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 }
 
+// StartWithFee start a photon node with --fee
+func (node *PhotonNode) StartWithFee(env *TestEnv) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	params := node.getParamStr(env)
+	params = append(params, "--fee")
+	go ExecShell(env.Main, params, logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to StartWithFee, sleep 3s...\n", node.Name)
+		time.Sleep(time.Second * 3)
+		count++
+		if count > 40 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s StartWithFee with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
+	}
+	time.Sleep(10 * time.Second)
+	node.Running = true
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
+}
+
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
