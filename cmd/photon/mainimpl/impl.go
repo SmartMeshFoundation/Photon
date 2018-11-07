@@ -425,6 +425,11 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.PfsHost = ctx.String("pfs")
+	if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPMatrix {
+		err = fmt.Errorf("photon start with pfs %s, but not use matrix, exit", config.PfsHost)
+		return
+	}
+
 	if ctx.IsSet("disable-fork-confirm") && ctx.Bool("disable-fork-confirm") == false {
 		log.Info("fork-confirm enable...")
 		params.EnableForkConfirm = true
