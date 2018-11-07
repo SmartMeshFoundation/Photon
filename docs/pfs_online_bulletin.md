@@ -3,7 +3,7 @@
 We have launched the Spectrum main network and test network PFS services, developers can use PFS
 
 
-## Spectrum Test network
+## Spectrum Test network
 
 The test network PFS has been launched, and the corresponding service configuration information is as follows:
 
@@ -14,7 +14,7 @@ PFS'IP|transport01.smartmesh.cn
 Port|7001
 
 
-## Spectrum Main network
+## Spectrum Main network
 
 Spectrum main network PFS has been launched, and the corresponding service configuration information is as follows:
 
