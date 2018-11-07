@@ -664,4 +664,66 @@ Update node information,It is necessary to update node information in order to e
 **Example Response :**  
 **200 OK**  
 
+## GET /api/1/fee_policy 
+
+Query node charging information , Need to add the `--fee` parameter when the node is started.
+
+**Example Request :**   
+`GET /api/1/fee_policy `
+
+**Example Response :**  
+**200 OK**   
+```json  
+{
+    "Key": "feePolicy",
+    "account_fee": {
+        "fee_constant": 0,
+        "fee_percent": 10000,
+        "signature": null
+    },
+    "token_fee_map": {},
+    "channel_fee_map": {}
+}
+```
+
+## POST /api/1/fee_policy
+Set node charging rate , Need to add the `--fee` parameter when the node is started. 
+
+
+**Example Request :**   
+`POST /api/1/fee_policy` 
+
+**PAYLOAD :**   
+```json 
+{
+    "account_fee":{
+        "fee_constant":5,
+        "fee_percent":10000
+    },
+    "token_fee_map":{
+        "0x83073FCD20b9D31C6c6B3aAE1dEE0a539458d0c5":{
+            "fee_constant":5,
+            "fee_percent":10000
+        }
+    },
+    "channel_fee_map":{
+        "0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5":{
+            "fee_constant":5,
+            "fee_percent":10000
+        }
+    }
+}
+```
+- fee_constant: Fixed charge  
+- fee_percent: Rate charge 
+
+*Charge rule fee = fee_constant + fee_percent*
+
+Where FeeConstant is a fixed rate, for example, 5 means that the fixed fee is 5 tokens, and setting it to 0 means no charge.
+FeePercent is the proportional rate, calculated as the transaction amount/FeePercent, such as transaction amount 50000, FeePercent=10000, then the commission ratio part = 50000/10000=5, set to 0 means no charge
+
+
+
+
+
 

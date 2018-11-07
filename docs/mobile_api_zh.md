@@ -500,7 +500,8 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) 
 该接口提供withdraw功能
 参数
-- amount 取钱的金额
+- channelIdentifierHashStr 通道地址
+- amountstr 取钱的金额
 - op 选项
   -  preparewithdraw 当你准备`withdraw`的时候，可以把通道转态切换到'prepareForWithdraw'状态，此时通道不再发起或接受任何交易
   - cancelprepare 取消`withdraw`,把通道转态从`prepareForWithdraw` 切回到`opened`
@@ -510,7 +511,8 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
 参数    
 ```json
 {
-    "amount":0,
+    "channelIdentifierHashStr":"0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "amountstr":0,
     "op":"preparewithdraw"
 }
 ```
@@ -534,7 +536,8 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
 参数  
 ```json
 {
-    "amount":0,
+    "channelIdentifierHashStr":"0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "amountstr":0,
     "op":"cancelprepare"
 }
 ```
@@ -560,7 +563,8 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
 参数  
 ```json
 {
-    "amount":1000,
+    "channelIdentifierHashStr":"0xa7712241a1a10abdada1c228c6935a71a9db80aa0bf2a13b59940159aa4eb4b5",
+    "amountstr":1000,
     "op":"preparewithdraw"
 }
 ```
