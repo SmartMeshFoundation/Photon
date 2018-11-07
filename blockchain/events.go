@@ -389,7 +389,7 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			}
 			stateChanges = append(stateChanges, eventChannelWithdraw2StateChange(e))
 		default:
-			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", l.String()))
+			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", utils.StringInterface(l,3)))
 		}
 		// 记录处理流水
 		be.txDone[l.TxHash] = l.BlockNumber
