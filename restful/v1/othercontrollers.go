@@ -7,8 +7,11 @@ import (
 	"strconv"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
+	"github.com/ethereum/go-ethereum/common/math"
 )
 
 /*
@@ -70,6 +73,85 @@ func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// NotifyNetworkDown :
+func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
+	err := API.NotifyNetworkDown()
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// GetFeePolicy :
+func GetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	fp, err := API.GetFeePolicy()
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = w.WriteJson(fp)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// SetFeePolicy :
+func SetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	req := &models.FeePolicy{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = API.SetFeePolicy(req)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+// FindPath :
+func FindPath(w rest.ResponseWriter, r *rest.Request) {
+	targetAddressStr := r.PathParam("target_address")
+	targetAddress, err := utils.HexToAddress(targetAddressStr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tokenAddressStr := r.PathParam("token")
+	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	amountStr := r.PathParam("amount")
+	amount, ok := math.ParseBig256(amountStr)
+	if !ok {
+		rest.Error(w, "wrong amount", http.StatusBadRequest)
+		return
+	}
+	resp, err := API.FindPath(targetAddress, tokenAddress, amount)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = w.WriteJson(resp)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}

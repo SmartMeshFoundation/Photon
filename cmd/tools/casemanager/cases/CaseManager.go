@@ -110,3 +110,9 @@ func (c *CaseManager) caseFailWithWrongChannelData(caseName string, channelName 
 	models.Logger.Println(caseName + " END ====> FAILED")
 	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
+
+func (c *CaseManager) logSeparatorLine(s string) {
+	models.Logger.Println("===============================================>")
+	models.Logger.Println(s)
+	models.Logger.Println("===============================================>")
+}

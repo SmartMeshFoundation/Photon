@@ -61,6 +61,75 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 }
 
+// StartWithParams start a photon node with --fee
+func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	params := node.getParamStrWithoutNoNetwork(env)
+	params = append(params, otherParams...)
+	go ExecShell(env.Main, params, logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to StartWithParams, sleep 3s...\n", node.Name)
+		time.Sleep(time.Second * 3)
+		count++
+		if count > 40 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s StartWithParams with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s StartWithParams TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s StartWithParams with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s StartWithParams in %fs", node.Address, node.Host, used.Seconds())
+	}
+	time.Sleep(10 * time.Second)
+	node.Running = true
+}
+
+// StartWithFee start a photon node with --fee
+func (node *PhotonNode) StartWithFee(env *TestEnv) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	params := node.getParamStr(env)
+	params = append(params, "--fee")
+	go ExecShell(env.Main, params, logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to StartWithFee, sleep 3s...\n", node.Name)
+		time.Sleep(time.Second * 3)
+		count++
+		if count > 40 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s StartWithFee with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
+	}
+	time.Sleep(10 * time.Second)
+	node.Running = true
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
+}
+
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
@@ -79,6 +148,35 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
 	param = append(param, "--nonetwork")
+	param = append(param, "--disable-fork-confirm")
+	if env.XMPPServer != "" {
+		param = append(param, "--xmpp-server="+env.XMPPServer)
+	}
+	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
+	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
+	if env.Debug == true {
+		param = append(param, "--debug")
+	}
+	if node.DebugCrash == true {
+		buf, err := json.Marshal(node.ConditionQuit)
+		if err != nil {
+			panic(err)
+		}
+		param = append(param, "--debugcrash")
+		param = append(param, "--conditionquit="+string(buf))
+	}
+	return param
+}
+
+func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
+	var param []string
+	param = append(param, "--datadir="+env.DataDir)
+	param = append(param, "--api-address="+node.APIAddress)
+	param = append(param, "--listen-address="+node.ListenAddress)
+	param = append(param, "--address="+node.Address)
+	param = append(param, "--keystore-path="+env.KeystorePath)
+	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
+	param = append(param, "--password-file="+env.PasswordFile)
 	param = append(param, "--disable-fork-confirm")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)

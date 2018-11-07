@@ -49,7 +49,7 @@ func Main(ctx *cli.Context) (err error) {
 	if caseName != "" {
 		// load all cases
 		caseManager := cases.NewCaseManager()
-		fmt.Println("Start Crash Test...")
+		fmt.Println("Start Casemanager Test...")
 		// run case
 		if caseName == "all" {
 			caseManager.RunAll(ctx.String("skip"))
