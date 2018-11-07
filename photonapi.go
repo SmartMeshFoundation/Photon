@@ -25,6 +25,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -1210,4 +1211,17 @@ func (r *API) SetFeePolicy(fp *models.FeePolicy) error {
 		return errors.New("photon start without param '--fee', can not set fee policy")
 	}
 	return feeModule.SetFeePolicy(fp)
+}
+
+// FindPath :
+func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.Int) (routes []pfsproxy.FindPathResponse, err error) {
+	if r.Photon.PfsProxy == nil {
+		err = errors.New("photon start without param '--pfs', can not calculate total fee")
+		return
+	}
+	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount)
+	if err != nil {
+		return
+	}
+	return
 }
