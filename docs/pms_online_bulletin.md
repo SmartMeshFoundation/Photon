@@ -23,7 +23,7 @@ Spectrum main network PMS has been launched, and the corresponding service confi
 
 Names|Description
 --|--
-ContractAddress|0xa2150A4647908ab8D0135F1c4BFBB723495e8d12
+ContractAddress|0x28233F8e0f8Bd049382077c6eC78bE9c2915c7D4
 PMS'IP|transport01.smartmesh.cn
 Port|7003
 DelegatedChargeNode|0xa94399b93da31e25ab5612de8c64556694d5f2fd
