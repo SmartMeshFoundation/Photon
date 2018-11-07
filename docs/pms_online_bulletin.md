@@ -2,7 +2,7 @@
 
 We have launched the Spectrum main network and test network PMS services, developers can use PMS
 
-## Spectrum Test network
+## Spectrum Test network
 
 The test network PMS has been launched, and the corresponding service configuration information is as follows:
 
@@ -17,7 +17,7 @@ DelegatedChargeToken|0x048257d9F5e671412E46f2Ff4B5F7AFDb7059A86
 
 
 
-## Spectrum Main network
+## Spectrum Main network
 
 Spectrum main network PMS has been launched, and the corresponding service configuration information is as follows:
 
