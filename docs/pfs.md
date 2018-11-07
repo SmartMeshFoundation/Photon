@@ -17,6 +17,7 @@ Then execute it in the same directory of configuration file (pathfinder.yaml).
 
 ### GET /api/1/pfs/*(channel_identifier)*
 Query the latest balance_proof (from photon node) 
+
 Via API offered below   
 
 `GET http://127.0.0.1:5001/api/1/pfs/0x622924d11071238ac70c39b508c37216d1a392097a80b26f5299a8d8f4bc0b7a`
@@ -41,11 +42,13 @@ Example Response：
 
 ### PUT /pfs/1/*(peer_address)*/balance
 Update balance_proof from PFS
+
 Via API offered below: 
 
 `PUT http://127.0.0.1:9001/pfs/1/0x10b256b3C83904D524210958FA4E7F9cAFFB76c6/balance`
 
 Example Request：
+
 ```json
 {
     "balance_proof": {
@@ -62,9 +65,13 @@ Example Request：
 }	
 ```
 Example Response：
+
 **200 OK**
+
 If submitting an invalid  balance_proof, the response are as follows：
+
 **400 Bad Request** and 
+
 ```json
 {
     "Error": "illegal signature of balance message, for participant"
@@ -73,9 +80,13 @@ If submitting an invalid  balance_proof, the response are as follows：
 
 ###  GET /pfs/1/account_rate/*(peer_address)*
 Query account charging rate  
+
 Example Request： 
+
 `GET http://127.0.0.1:9001/pfs/1/account_rate/0x6d946D646879d31a45bCE89a68B24cab165E9A2A`
+
 Example Response： 
+
 ```json
 {
     "fee_policy": 2,
@@ -86,7 +97,9 @@ Example Response：
 
 ### GET /pfs/1/token_rate/*(token_address)*/*(peer_address)*
 Query the charging rate of a node on a certain token 
-Example Request： 
+
+Example Request：
+
 `GET http://127.0.0.1:9001/pfs/1/token_rate/0x83073FCD20b9D31C6c6B3aAE1dEE0a539458d0c5/0x6d946D646879d31a45bCE89a68B24cab165E9A2A`
 Example Response： 
 ```json
@@ -98,9 +111,13 @@ Example Response：
 ```
 ### GET /pfs/1/channel_rate/*(channel_identifier)*/*(peer_address)*  
 Query the charging rate of a node on a certain channel 
+
 Example Request：  
+
 `GET http://127.0.0.1:9001/pfs/1/channel_rate/0x24bab913507cc9fcaa2c1efc4966ab35246448f19a7f0d44db21b8b3601db654/0x6d946D646879d31a45bCE89a68B24cab165E9A2A`
+
 Example Response： 
+
 ```json
 {
     "fee_policy": 2,
@@ -114,6 +131,7 @@ Example Response：
 Query the transfer routing, return the lowest cost path.
 
 Example Request： 
+
 `POST http://127.0.0.1:9001/pfs/1/paths`
 
 ```json
