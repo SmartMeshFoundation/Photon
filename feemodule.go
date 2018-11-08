@@ -91,6 +91,14 @@ func (fm *FeeModule) SetFeePolicy(fp *models.FeePolicy) (err error) {
 	return
 }
 
+//SubmitFeePolicyToPFS :
+func (fm *FeeModule) SubmitFeePolicyToPFS() (err error) {
+	if fm.pfsProxy != nil {
+		err = fm.pfsProxy.SetFeePolicy(fm.feePolicy)
+	}
+	return
+}
+
 //GetNodeChargeFee : impl of FeeCharge
 func (fm *FeeModule) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
 	var feeSetting *models.FeeSetting
