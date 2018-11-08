@@ -272,18 +272,23 @@ func (m *MatrixTransport) StopAccepting() {
 	m.stopreceiving = true
 }
 
-// NodeStatus gets Node states of network, if check self node, `status` is not always be true instead it switches according to server handshake signal.
-func (m *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+func (m *MatrixTransport) nodeStatusInternal(addr common.Address) (deviceType string, isOnline bool, isPartner bool) {
 	if m.matrixcli == nil {
-		return "", false
+		return "", false, false
 	}
 	m.lock.RLock()
 	u, ok := m.Peers[addr]
 	m.lock.RUnlock()
 	if !ok {
-		return "", false
+		return "", false, false
 	}
-	return u.deviceType, u.status == peerStatusOnline
+	return u.deviceType, u.status == peerStatusOnline, true
+}
+
+// NodeStatus gets Node states of network, if check self node, `status` is not always be true instead it switches according to server handshake signal.
+func (m *MatrixTransport) NodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	deviceType, isOnline, _ = m.nodeStatusInternal(addr)
+	return
 }
 
 // Send send message
@@ -297,8 +302,8 @@ func (m *MatrixTransport) Send(receiverAddr common.Address, data []byte) error {
 	if !m.hasDoneStartCheck {
 		return errors.New("ignore message when not startup complete")
 	}
-	_, isOnline := m.NodeStatus(receiverAddr)
-	if !isOnline {
+	_, isOnline, isPartner := m.nodeStatusInternal(receiverAddr)
+	if !isOnline && isPartner {
 		//如果接收方不在线,会重复不停的发送,造成不必要的网络浪费.
 		return fmt.Errorf("message receiver %s  not online ", receiverAddr.String())
 	}
