@@ -405,10 +405,6 @@ func (m *MatrixTransport) Start() {
 			m.matrixcli = matrixClientValid
 			m.changeStatus(netshare.Connected)
 
-			err = m.collectChannelInfo(m.db)
-			if err != nil {
-				m.log.Warn("collectChannelInfo err %s", err)
-			}
 			// log in
 			if err = m.loginOrRegister(); err != nil {
 				m.log.Error(fmt.Sprintf("loginOrRegister err %s", err))
@@ -467,6 +463,10 @@ func (m *MatrixTransport) Start() {
 			//wait for first sync complete
 			<-firstSync
 			isFirstSynced = true
+			err = m.collectChannelInfo(m.db)
+			if err != nil {
+				m.log.Warn("collectChannelInfo err %s", err)
+			}
 			if m.status == netshare.Connected {
 				if !m.hasDoneStartCheck {
 					m.hasDoneStartCheck = true
@@ -1184,6 +1184,10 @@ func (m *MatrixTransport) handleNewPartner(p *MatrixPeer) (err error) {
 	address2Room := make(map[common.Address]string)
 	m.lock.RLock()
 	for addr, peer := range m.Peers {
+		//有可能为所有的通道实现分配了Peers,但是还没有来得及创建聊天室
+		if peer.defaultMessageRoomID == "" {
+			continue
+		}
 		address2Room[addr] = peer.defaultMessageRoomID
 	}
 	m.lock.RUnlock()
@@ -1219,6 +1223,7 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 		err := m.handleNewPartner(p)
 		if err != nil {
 			fmt.Fprintf(errBuf, "handleNewPartner for %s,err=%s\n", utils.APex2(p.address), err)
+			return err
 		}
 	}
 	/*
@@ -1334,7 +1339,7 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 			isValidUserID checks userID not in the default message room right now.
 			hasDoneStartCheck: because of in startup ,I don't know who are in the default message room
 	*/
-	if peer.defaultMessageRoomID != eventRoom && !peer.isValidUserID(userID) {
+	if peer.defaultMessageRoomID != "" && peer.defaultMessageRoomID != eventRoom && !peer.isValidUserID(userID) {
 		//invite this user to the default room
 		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
 			UserID: userID,
