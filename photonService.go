@@ -1664,6 +1664,7 @@ func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, 
 		r := route.NewState(ch)
 		r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, token, amount)
 		r.TotalFee = path.Fee
+		routes = append(routes, r)
 	}
 	return
 }

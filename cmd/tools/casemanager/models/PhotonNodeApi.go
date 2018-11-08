@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	models2 "github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
@@ -146,6 +147,29 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		Amount:   amount,
 		Fee:      0,
 		IsDirect: isDirect,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 60,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
+	}
+}
+
+// SendTransSyncWithFee send a transfer, should be instead of Transfer
+func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, targetAddress string, isDirect bool, fee int64) {
+	p, err := json.Marshal(TransferPayload{
+		Amount:   amount,
+		Fee:      fee,
+		IsDirect: isDirect,
+		Sync:     true,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
@@ -372,4 +396,31 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		return
 	}
 	return
+}
+
+// SetFeePolicy :
+func (node *PhotonNode) SetFeePolicy(fp *models2.FeePolicy) error {
+	req := &Req{
+		FullURL: node.Host + "/api/1/fee_policy",
+		Method:  http.MethodPost,
+		Payload: marshal(fp),
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SetFeePolicy %s err :%s", req.FullURL, err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SetFeePolicy %s err : http status=%d", req.FullURL, statusCode))
+		return fmt.Errorf("http status=%d", statusCode)
+	}
+	return err
+}
+
+func marshal(v interface{}) string {
+	p, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return string(p)
 }
