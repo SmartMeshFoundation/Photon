@@ -86,8 +86,16 @@ func HttpHandler(path string, fmtr Format) Handler {
 	return FuncHandler(func(r *Record) error {
 		go func() {
 			data := fmtr.Format(r)
-			http.Post(path, "application/json", bytes.NewBuffer(data))
-			//fmt.Printf("httphandler err=%s\n", err)
+			r, err := http.Post(path, "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				//fmt.Printf("httphandler err=%s\n", err)
+			} else {
+				err = r.Body.Close()
+				if err != nil {
+					//fmt.Printf("httphandler close err =%s ", err)
+				}
+			}
+
 		}()
 
 		return nil
