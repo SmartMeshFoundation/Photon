@@ -67,7 +67,7 @@ func (cm *CaseManager) CaseFeeWithPFS() (err error) {
 	if !C15new.CheckPartnerBalance(C15.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C15new.Name)
 	}
-	//time.Sleep(1000 * time.Second)
+	time.Sleep(1000 * time.Second)
 	//cm.logSeparatorLine("Test 1 : transfer with fee 0, should FAIL")
 	//transferAmount = 10000
 	//fee = 0
