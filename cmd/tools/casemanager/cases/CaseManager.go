@@ -13,11 +13,13 @@ import (
 type CaseManager struct {
 	Cases           map[string]reflect.Value
 	FailedCaseNames []string
+	IsAutoRun       bool
 }
 
 // NewCaseManager constructor
-func NewCaseManager() (caseManager *CaseManager) {
+func NewCaseManager(isAutoRun bool) (caseManager *CaseManager) {
 	caseManager = new(CaseManager)
+	caseManager.IsAutoRun = isAutoRun
 	caseManager.Cases = make(map[string]reflect.Value)
 	// use reflect to load all cases
 	fmt.Println("load cases...")
