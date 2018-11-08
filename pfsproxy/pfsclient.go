@@ -11,11 +11,11 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/nkbai/log"
 	"github.com/pkg/errors"
 )
 
@@ -198,11 +198,11 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SetFeeRate %s err :%s", req.FullURL, err)
+		log.Error("PfgAPI FindPath %s err :%s", req.FullURL, err)
 		return
 	}
 	if statusCode != 200 {
-		err = fmt.Errorf("PfgAPI SetFeeRate %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
+		err = fmt.Errorf("PfgAPI FindPath %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
 		log.Error(err.Error())
 		return
 	}

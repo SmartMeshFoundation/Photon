@@ -113,8 +113,6 @@ func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransf
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.photon.sendAsync(event.Receiver, secretRequest)
-	// submit balance proof to pathfinder
-	go eh.photon.submitBalanceProofToPfs(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtransfer.EventSendMediatedTransfer, stateManager *transfer.StateManager) (err error) {
@@ -163,8 +161,6 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	if err == nil {
 		eh.photon.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
-	// submit balance proof to pathfinder
-	go eh.photon.submitBalanceProofToPfs(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {

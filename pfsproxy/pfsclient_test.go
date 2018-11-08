@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var testPfgHost = "http://192.168.124.9:7000"
+var testPfgHost = "http://transport01.smartmesh.cn:7002"
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
