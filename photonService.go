@@ -789,6 +789,7 @@ Calls:
 func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	var availableRoutes []*route.State
 	var err error
+	result = utils.NewAsyncResult()
 	if rs.PfsProxy != nil {
 		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, amount)
 		if err != nil {
@@ -799,7 +800,6 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		g := rs.getToken2ChannelGraph(tokenAddress)
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
 	}
-	result = utils.NewAsyncResult()
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -1513,6 +1513,13 @@ func (rs *Service) handleEthRPCConnectionOK() {
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.
 	rs.Chain.Registry(rs.Config.RegistryAddress, true)
+	// 重连时上传手续费设置给PFS
+	if fm, ok := rs.FeePolicy.(*FeeModule); ok {
+		err := fm.SubmitFeePolicyToPFS()
+		if err != nil {
+			log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err.Error()))
+		}
+	}
 }
 
 //all user's request

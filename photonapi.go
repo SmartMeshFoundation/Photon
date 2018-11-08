@@ -1190,7 +1190,7 @@ func (r *API) NotifyNetworkDown() error {
 
 	// xmpp client
 	if t, ok := r.Photon.Protocol.Transport.(*network.MixTransport); ok {
-		go t.Reconnect()
+		t.Reconnect()
 	}
 	return nil
 }

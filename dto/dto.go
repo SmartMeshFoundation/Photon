@@ -9,13 +9,15 @@ import (
 )
 
 // APIErrorCode :
-type APIErrorCode int
+type APIErrorCode string
 
 const (
 	// SUCCESS :
-	SUCCESS = 0
+	SUCCESS = "0000"
+	// DEALING : for async
+	DEALING = "1000"
 	// EXCEPTION :
-	EXCEPTION = 99
+	EXCEPTION = "9999"
 )
 
 // APIResponse :

@@ -38,14 +38,10 @@ func NewFeeModule(db *models.ModelDB, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule
 	if db == nil {
 		panic("need init db first")
 	}
-	fp := db.GetFeePolicy()
 	fm = &FeeModule{
-		db:       db,
-		pfsProxy: pfsProxy,
-	}
-	err = fm.SetFeePolicy(fp)
-	if err != nil {
-		return
+		db:        db,
+		pfsProxy:  pfsProxy,
+		feePolicy: db.GetFeePolicy(),
 	}
 	if fm.pfsProxy != nil {
 		log.Info("init fee module with pfs success")
@@ -88,6 +84,14 @@ func (fm *FeeModule) SetFeePolicy(fp *models.FeePolicy) (err error) {
 		return
 	}
 	fm.feePolicy = fp
+	return
+}
+
+//SubmitFeePolicyToPFS :
+func (fm *FeeModule) SubmitFeePolicyToPFS() (err error) {
+	if fm.pfsProxy != nil {
+		err = fm.pfsProxy.SetFeePolicy(fm.feePolicy)
+	}
 	return
 }
 
