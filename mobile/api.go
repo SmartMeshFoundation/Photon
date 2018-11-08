@@ -1115,3 +1115,12 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string
 	r, err = marshal(d)
 	return
 }
+
+// OnResume :
+// 手机从后台切换至前台时调用
+func (a *API) OnResume() (err error) {
+	// 1. 强制网络重连
+	err = a.NotifyNetworkDown()
+	// 2. 还需要作什么???
+	return
+}
