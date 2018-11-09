@@ -751,6 +751,11 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 			m.log.Warn(fmt.Sprintf("receive invite,but i don't know this user %s", utils.StringInterface(event, 5)))
 			return
 		}
+		if event.StateKey == nil || *event.StateKey != m.UserID {
+			//ignore invite message not send to me
+			return
+		}
+		m.log.Trace(fmt.Sprintf("receive invite, event=%s", utils.StringInterface(event, 5)))
 		go func() {
 			//todo fixme why need sleep, otherwise join will faile because of forbidden
 			time.Sleep(time.Second)
