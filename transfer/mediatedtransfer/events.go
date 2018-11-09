@@ -214,6 +214,20 @@ type EventWithdrawFailed struct {
 	Reason            string
 }
 
+// EventSaveFeeChargeRecord :
+// 记录本次中转收取手续费的流水
+type EventSaveFeeChargeRecord struct {
+	LockSecretHash common.Hash    `json:"lock_secret_hash"`
+	TokenAddress   common.Address `json:"token_address"`
+	TransferFrom   common.Address `json:"transfer_from"`
+	TransferTo     common.Address `json:"transfer_to"`
+	TransferAmount *big.Int       `json:"transfer_amount"`
+	InChannel      common.Hash    `json:"in_channel"`  // 我收款的channelID
+	OutChannel     common.Hash    `json:"out_channel"` // 我付款的channelID
+	Fee            *big.Int       `json:"fee"`
+	Timestamp      int64          `json:"timestamp"` // 时间戳,time.Unix()
+}
+
 func init() {
 	gob.Register(&EventSendMediatedTransfer{})
 	gob.Register(&EventSendRevealSecret{})

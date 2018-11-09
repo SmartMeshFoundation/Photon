@@ -156,3 +156,11 @@ func FindPath(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
+
+// GetAllFeeChargeRecord :
+func GetAllFeeChargeRecord(w rest.ResponseWriter, r *rest.Request) {
+	err := w.WriteJson(API.GetAllFeeChargeRecord())
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}

@@ -5,6 +5,8 @@ import (
 
 	"math/big"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -540,9 +542,9 @@ func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState,
 		pair := transfersPair[j]
 		isPayeeSecretKnown := stateSecretKnownMaps[pair.PayeeState]
 		isPayerSecretKnown := stateSecretKnownMaps[pair.PayerState]
+		tr := pair.PayerTransfer
 		if isPayeeSecretKnown && !isPayerSecretKnown {
 			pair.PayerState = mediatedtransfer.StatePayerSecretRevealed
-			tr := pair.PayerTransfer
 			revealSecret := &mediatedtransfer.EventSendRevealSecret{
 				LockSecretHash: tr.LockSecretHash,
 				Secret:         tr.Secret,
@@ -551,6 +553,24 @@ func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState,
 				Sender:         ourAddress,
 			}
 			events = append(events, revealSecret)
+		}
+
+		fmt.Println("===================================in tr.fee", pair.PayerTransfer.Fee)
+		fmt.Println("===================================in tr.fee", pair.PayeeTransfer.Fee)
+		fmt.Println("===================================in channel route.fee", pair.PayerRoute.Fee)
+		fmt.Println("===================================out channel route.fee", pair.PayeeRoute.Fee)
+		if tr.Fee.Cmp(big.NewInt(0)) > 0 {
+			events = append(events, &mediatedtransfer.EventSaveFeeChargeRecord{
+				LockSecretHash: tr.LockSecretHash,
+				TokenAddress:   tr.Token,
+				TransferFrom:   tr.Initiator,
+				TransferTo:     tr.Target,
+				TransferAmount: tr.TargetAmount,
+				InChannel:      pair.PayerRoute.ChannelIdentifier,
+				OutChannel:     pair.PayeeRoute.ChannelIdentifier,
+				Fee:            new(big.Int).Sub(pair.PayerTransfer.Fee, pair.PayeeTransfer.Fee),
+				Timestamp:      time.Now().Unix(),
+			})
 		}
 	}
 	return events
@@ -946,6 +966,21 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
 			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
 			// As for payer, he will not be impacted even he does not send BalanceProof, but cost gas to on-chain secret register.
+
+			// 没有超时即确认收到了手续费,记录流水
+			if tr.Fee.Cmp(big.NewInt(0)) > 0 {
+				events = append(events, &mediatedtransfer.EventSaveFeeChargeRecord{
+					LockSecretHash: tr.LockSecretHash,
+					TokenAddress:   tr.Token,
+					TransferFrom:   tr.Initiator,
+					TransferTo:     tr.Target,
+					TransferAmount: tr.TargetAmount,
+					InChannel:      pair.PayerRoute.ChannelIdentifier,
+					OutChannel:     pair.PayeeRoute.ChannelIdentifier,
+					Fee:            pair.PayerRoute.Fee,
+					Timestamp:      time.Now().Unix(),
+				})
+			}
 		}
 	}
 	it.Events = events
