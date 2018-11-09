@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
@@ -1224,4 +1225,27 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 		return
 	}
 	return
+}
+
+// GetAllFeeChargeRecord :
+func (r *API) GetAllFeeChargeRecord() (resp *dto.APIResponse) {
+	type responce struct {
+		TotalFee map[common.Address]*big.Int `json:"total_fee"`
+		Details  []*models.FeeChargeRecord   `json:"details"`
+	}
+	var data responce
+	var err error
+	data.Details, err = r.Photon.db.GetAllFeeChargeRecord()
+	if err != nil {
+		return dto.NewExceptionAPIResponse(err)
+	}
+	data.TotalFee = make(map[common.Address]*big.Int)
+	for _, record := range data.Details {
+		totalFee := data.TotalFee[record.TokenAddress]
+		if totalFee == nil {
+			totalFee = big.NewInt(0)
+		}
+		data.TotalFee[record.TokenAddress] = totalFee.Add(totalFee, record.Fee)
+	}
+	return dto.NewSuccessAPIResponse(data)
 }

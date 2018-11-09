@@ -789,16 +789,17 @@ Calls:
 func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	var availableRoutes []*route.State
 	var err error
+	targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
 	if rs.PfsProxy != nil {
-		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, amount)
+		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount)
 		if err != nil {
 			result.Result <- errors.New("get route from pathfinder failed")
 			return
 		}
 	} else {
 		g := rs.getToken2ChannelGraph(tokenAddress)
-		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, graph.EmptyExlude, rs)
+		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
@@ -914,6 +915,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		// do nothing.
 		return
 	}
+	targetAmount := new(big.Int).Sub(msg.PaymentAmount, msg.Fee)
 	amount := msg.PaymentAmount
 	targetAddr := msg.Target
 	fromChannel := ch
@@ -937,13 +939,13 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		var avaiableRoutes []*route.State
 		if rs.PfsProxy != nil {
 			var err error
-			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, amount)
+			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount)
 			if err != nil {
 				log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
 			}
 		} else {
 			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, exclude, rs)
+			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
 		}
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
