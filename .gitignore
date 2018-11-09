@@ -20,8 +20,15 @@ testdata/log/Node5.log
 testdata/log/Node6.log
 env.sh
 .idea/*
-build.sh
 .git_mine/*
 goenv.sh
 build/*
 network/rpc/contracts/test/*
+testdata/mykeystore/*
+*.swp
+.DS_Store
+cmd/tools/casemanager/.photon/*
+cmd/tools/casemanager/casemanager
+cmd/tools/casemanager/log/*
+cmd/tools/deploy/deploy
+
