@@ -1,8 +1,6 @@
 package cases
 
 import (
-	"time"
-
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
@@ -148,7 +146,6 @@ func (cm *CaseManager) CaseFee() (err error) {
 	if !C23new.CheckPartnerBalance(C23.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
 	}
-	time.Sleep(1000 * time.Second)
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }
