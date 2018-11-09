@@ -56,6 +56,7 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 		return
 	}
 	all, err = model.GetAllFeeChargeRecord()
+	fmt.Println(len(all))
 	if err != nil {
 		t.Errorf(err.Error())
 		return

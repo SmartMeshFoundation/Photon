@@ -86,7 +86,7 @@ func (r *FeeChargeRecord) ToSerialized() *FeeChargerRecordSerialization {
 
 // SaveFeeChargeRecord :
 func (model *ModelDB) SaveFeeChargeRecord(r *FeeChargerRecordSerialization) (err error) {
-	if r.Key == nil {
+	if r.Key == nil || common.BytesToHash(r.Key) == utils.EmptyHash {
 		key := utils.NewRandomHash()
 		r.Key = key[:]
 	}
