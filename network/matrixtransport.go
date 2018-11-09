@@ -82,12 +82,10 @@ type MatrixTransport struct {
 	key                   *ecdsa.PrivateKey      //key
 	NodeAddress           common.Address
 	protocol              ProtocolReceiver
-	discoveryroomid       string //the room's ID of sys pre-configured ("![RoomIdData]:[ServerName]")
 	Peers                 map[common.Address]*MatrixPeer
 	temporaryAddress2Room map[common.Address]string //temporary room to
 	temporaryPeers        *matrixTemporaryPeers
-	validatedUsers        map[string]*gomatrix.UserInfo //this userId and display name is validated
-	UserID                string                        //the current user's ID(@kitty:thisserver)
+	UserID                string //the current user's ID(@kitty:thisserver)
 	NodeDeviceType        string
 	avatarurl             string
 	log                   log.Logger
@@ -95,6 +93,7 @@ type MatrixTransport struct {
 	removePeerChan        chan common.Address
 	status                netshare.Status
 	servers               map[string]string
+	trustServers          map[string]bool // these server's userID can be trusted
 	db                    xmpptransport.XMPPDb
 	hasDoneStartCheck     bool
 	quitChan              chan struct{}
@@ -121,7 +120,6 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		NodeAddress:           crypto.PubkeyToAddress(key.PublicKey),
 		key:                   key,
 		Peers:                 make(map[common.Address]*MatrixPeer),
-		validatedUsers:        make(map[string]*gomatrix.UserInfo),
 		temporaryAddress2Room: make(map[common.Address]string),
 		temporaryPeers:        newMatrixTemporaryPeers(),
 		NodeDeviceType:        devicetype,
@@ -133,6 +131,7 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		servers:               servers,
 		quitChan:              make(chan struct{}),
 		jobChan:               make(chan *matrixJob, 10),
+		trustServers:          make(map[string]bool),
 	}
 	return mtr
 }
@@ -149,10 +148,16 @@ func (m *MatrixTransport) changeStatus(newStatus netshare.Status) {
 	}
 }
 
+//todo fixme 不要用set,应该在创建的时候指定,或者从指定服务器上下载才行
+func (m *MatrixTransport) setTrustServers(servers []string) {
+	for _, s := range servers {
+		m.trustServers[s] = true
+	}
+}
+
 //todo should refactor to make db set in constructor
-func (m *MatrixTransport) setDB(db xmpptransport.XMPPDb) error {
+func (m *MatrixTransport) setDB(db xmpptransport.XMPPDb) {
 	m.db = db
-	return nil
 }
 
 func (m *MatrixTransport) addPeerIfNotExist(peer common.Address, hasChannel bool) bool {
@@ -165,37 +170,12 @@ func (m *MatrixTransport) addPeerIfNotExist(peer common.Address, hasChannel bool
 	m.Peers[peer] = NewMatrixPeer(peer, hasChannel, m.removePeerChan)
 	return true
 }
-func (m *MatrixTransport) isUserIDValidated(userID string) bool {
-	return m.validatedUsers[userID] != nil
-}
-func (m *MatrixTransport) validateAndUpdateUser(user *gomatrix.UserInfo) error {
-	oldUser := m.validatedUsers[user.UserID]
-	//user display name is signature of user id
-	if oldUser != nil {
-		//exists user ,but it doesn't have display name or display name exactly match.
-		if len(oldUser.DisplayName) == 0 {
-			oldUser.DisplayName = user.DisplayName
-			return nil
-		}
-		if oldUser.DisplayName == user.DisplayName {
-			return nil
-		}
-		return fmt.Errorf("displayname already exists, old=%s,new=%s, validatedusers=%s",
-			oldUser.DisplayName,
-			user.DisplayName,
-			utils.StringInterface(m.validatedUsers, 3),
-		)
-	}
-	//a new user ,validate user id is valid or not
-	if len(user.DisplayName) == 0 {
-		return fmt.Errorf("validateAndUpdateUser")
-	}
-	_, err := validateUseridSignature(user)
+func (m *MatrixTransport) isTrustedServerUser(userID string) bool {
+	_, domain, err := extractUserInfo(userID)
 	if err != nil {
-		return err
+		return false
 	}
-	m.validatedUsers[user.UserID] = user
-	return nil
+	return m.trustServers[domain]
 }
 
 // collectChannelInfo subscribe status change
@@ -366,7 +346,12 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 	return
 }
 
-// Start matrix
+/*
+Start matrix
+后台不断重试登陆，注册，并初始化相关信息
+如果网络连接正常的话，会保证登陆，初始化完成以后再返回。
+如果网络连接异常，那么会立即返回，然后后台不断尝试
+*/
 func (m *MatrixTransport) Start() {
 	if m.running {
 		return
@@ -419,11 +404,6 @@ func (m *MatrixTransport) Start() {
 			store = gomatrix.NewInMemoryStore()
 			m.matrixcli.Store = store
 
-			//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
-			if err = m.joinDiscoveryRoom(); err != nil {
-				m.log.Error(fmt.Sprintf("joinDiscoveryRoom err %s", err))
-				goto tryNext
-			}
 			//notify to server i am online（include the other participating servers）
 			if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 				Presence:  ONLINE,
@@ -564,10 +544,6 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 	if m.stopreceiving {
 		return
 	}
-	if event.RoomID == m.discoveryroomid {
-		//ignore any message sent to discovery room.
-		return
-	}
 	if !m.hasDoneStartCheck {
 		return
 	}
@@ -608,9 +584,9 @@ func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
 	/*
 		this userID is validated,
 	*/
-	if !m.isUserIDValidated(senderID) {
+	if !m.isTrustedServerUser(senderID) {
 		m.log.Warn(fmt.Sprintf("onHandleReceiveMessage receive msg %s,but userId is never validate", utils.StringInterface(event, 3)))
-		//return
+		return
 	}
 	peerAddress := m.userIDToAddress(senderID)
 	m.lock.RLock()
@@ -718,6 +694,10 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 	event := job.Data1.(*gomatrix.Event)
 	membership := job.Data2.(string)
 	userid := event.Sender
+	if !m.isTrustedServerUser(userid) {
+		m.log.Warn(fmt.Sprintf("receive invite,but i don't know this user %s", utils.StringInterface(event, 5)))
+		return
+	}
 	/*
 		The following membership states are specified:
 
@@ -747,10 +727,7 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 						}
 		*/
 		//cannot verify this user
-		if !m.isUserIDValidated(userid) {
-			m.log.Warn(fmt.Sprintf("receive invite,but i don't know this user %s", utils.StringInterface(event, 5)))
-			return
-		}
+
 		go func() {
 			//todo fixme why need sleep, otherwise join will faile because of forbidden
 			time.Sleep(time.Second)
@@ -775,34 +752,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 			}
 		}()
 	} else if membership == "join" {
-		/*
-			{
-							"content": {
-								"membership": "join",
-								"avatar_url": null,
-								"displayname": "214e-118e7ade8cf61531f0d1629febf299ab939f314f04391b59b3567314525b4bee77220115d9bb0a808b6036857dad8bf242cbf5c09b18e7778c95022a77058bdf1c"
-							},
-							"type": "m.room.member",
-							"sender": "@0x214e7247a2757696ed2986a8331a9e27a330c750:transport01.smartmesh.cn",
-							"state_key": "@0x214e7247a2757696ed2986a8331a9e27a330c750:transport01.smartmesh.cn"
-						}
-		*/
-		displayname, ok := event.ViewContent("displayname")
-		if !ok {
-			m.log.Warn(fmt.Sprintf("receive join,but has no display name %s", utils.StringInterface(event, 5)))
-			return
-		}
-		avatar, _ := event.ViewContent("avatar_url")
-		user := &gomatrix.UserInfo{
-			DisplayName: displayname,
-			UserID:      event.Sender,
-			AvatarURL:   avatar,
-		}
-		//user can not be verified
-		if err := m.validateAndUpdateUser(user); err != nil {
-			m.log.Warn(fmt.Sprintf("receive join ,but user cannot be verified %s err %s", user.UserID, err))
-			return
-		}
 		err := m.inviteIfPossible(userid, event.RoomID)
 		if err != nil {
 			m.log.Error(fmt.Sprintf("inviteIfPossible %s to default room err %s", userid, err))
@@ -866,7 +815,7 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		return
 	}
 	address := m.userIDToAddress(userid)
-	if !m.isUserIDValidated(userid) {
+	if !m.isTrustedServerUser(userid) {
 		m.log.Info(fmt.Sprintf("receive presence %s", utils.StringInterface(event, 5)))
 		return
 	}
@@ -969,13 +918,13 @@ func (m *MatrixTransport) loginOrRegister() (err error) {
 		return
 	}
 	//set displayname as publicly visible
-	dispname := m.getUserDisplayName(m.matrixcli.UserID)
-	if err = m.matrixcli.SetDisplayName(dispname); err != nil {
-		err = fmt.Errorf("could set the node's displayname and quit as well")
-		m.matrixcli.ClearCredentials()
-		return
-	}
-	m.log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
+	//dispname := m.getUserDisplayName(m.matrixcli.UserID)
+	//if err = m.matrixcli.SetDisplayName(dispname); err != nil {
+	//	err = fmt.Errorf("could set the node's displayname and quit as well")
+	//	m.matrixcli.ClearCredentials()
+	//	return
+	//}
+	//m.log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
 	return err
 }
 
@@ -998,51 +947,6 @@ func (m *MatrixTransport) dataSign(data []byte) (signature []byte) {
 		return nil
 	}
 	return
-}
-
-// joinDiscoveryRoom : check discoveryroom if not exist, then create a new one.
-// client caches all memebers of this room, and invite nodes checked from this room again.
-func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
-	//read discovery room'name and fragment from "params-settings"
-	// combine discovery room's alias
-	discoveryRoomAlias := m.makeRoomAlias(ALIASFRAGMENT)
-	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + DISCOVERYROOMSERVER
-	m.discoveryroomid = ""
-	// this node join the discovery room, if not exist, then create.
-	for i := 0; i < 5; i++ {
-		var respJoinRoom *gomatrix.RespJoinRoom
-		var respCreateRoom *gomatrix.RespCreateRoom
-		respJoinRoom, err = m.matrixcli.JoinRoom(discoveryRoomAliasFull, m.servername, nil)
-		if err != nil {
-			//if Room doesn't exist and then create the room(this is the node's resposibility)
-			if m.servername != DISCOVERYROOMSERVER {
-				break
-			}
-			//try to create the discovery room
-			respCreateRoom, err = m.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
-				RoomAliasName: discoveryRoomAlias,
-				Preset:        CHATPRESET,
-				Visibility:    "public",
-			})
-			if err != nil {
-				m.log.Error("can't create a discovery room,try again")
-				continue
-			}
-			m.discoveryroomid = respCreateRoom.RoomID
-			continue
-		} else {
-			m.discoveryroomid = respJoinRoom.RoomID
-			break
-		}
-	}
-	//exit if join room failed
-	if m.discoveryroomid == "" {
-		errinfo := fmt.Sprintf("Discovery room {%s} not found and can't be created on a federated homeserver {%s}", discoveryRoomAliasFull, m.servername)
-		err = fmt.Errorf(errinfo)
-		m.log.Error(errinfo)
-		return
-	}
-	return nil
 }
 
 func (m *MatrixTransport) userIDToAddress(userID string) common.Address {
@@ -1082,10 +986,7 @@ func (m *MatrixTransport) findOrCreateRoomByAddress(address common.Address, isPu
 	tmpRoomName := m.makeRoomAlias(addressOfPairs)
 
 	//try to get user-infos of communication with "account_data" from homeserver include the other participating servers.
-	users, err = m.searchNode(address)
-	if err != nil {
-		return
-	}
+	users = m.getAllPossibleUserID(address)
 
 	//Join a room that connot be found by search_room_directory
 	roomID, err = m.getUnlistedRoom(tmpRoomName, users, isPublic)
@@ -1144,46 +1045,18 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 	return unlistedRoomid, nil
 }
 
-func (m *MatrixTransport) searchNode(address common.Address) (users []*gomatrix.UserInfo, err error) {
-	respusers, err := m.matrixcli.SearchUserDirectory(&gomatrix.ReqUserSearch{
-		SearchTerm: strings.ToLower(address.String()),
-		Limit:      10,
-	})
-	if err != nil {
-		return
+func (m *MatrixTransport) getAllPossibleUserID(address common.Address) (users []*gomatrix.UserInfo) {
+	for s := range m.trustServers {
+		users = append(users, &gomatrix.UserInfo{
+			UserID: fmt.Sprintf("@%s:%s", strings.ToLower(address.String()), s),
+		})
 	}
-	if len(respusers.Results) == 0 {
-		return
-	}
-	for _, user := range respusers.Results {
-		var xaddr common.Address
-		xaddr, err = validateUseridSignature(&user)
-		//validate failed
-		if err != nil {
-			m.log.Error(fmt.Sprintf("validateUseridSignature for %s err %s", user.UserID, err))
-			continue
-		}
-		//validate failed
-		if xaddr != address {
-			continue
-		}
-		//save this validated user, should copy of  `user`, otherwise `user` will be changed later
-		user2 := user
-		m.validatedUsers[user.UserID] = &user2
-		users = append(users, &user2)
-	}
-	return
+	return users
 }
 func (m *MatrixTransport) handleNewPartner(p *MatrixPeer) (err error) {
-	roomID, users, err := m.findOrCreateRoomByAddress(p.address, false)
+	roomID, _, err := m.findOrCreateRoomByAddress(p.address, false)
 	if err != nil {
 		return
-	}
-	for _, u := range users {
-		err = m.validateAndUpdateUser(u)
-		if err != nil {
-			return
-		}
 	}
 	p.defaultMessageRoomID = roomID
 	address2Room := make(map[common.Address]string)
@@ -1254,7 +1127,7 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 			if joined.AvatarURL != nil {
 				u.AvatarURL = *joined.AvatarURL
 			}
-			if err = m.validateAndUpdateUser(u); err == nil {
+			if m.isTrustedServerUser(userID) {
 				users = append(users, u)
 			} else {
 				fmt.Fprintf(errBuf, "JoinedMembers %s verify signature err %s,displayname=%s", u.UserID, err, u.DisplayName)
@@ -1288,19 +1161,16 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 		3. alice won't join my default message room only if she receives my invites
 	*/
 
-	users, err := m.searchNode(p.address)
-	if err != nil {
-		fmt.Fprintf(errBuf, "findValidUsersOnServer for %s,err=%s\n", utils.APex2(p.address), err)
-	} else {
-		for _, u := range users {
-			//it's a user should in the default message room,but it isn't in now.
-			if !p.isValidUserID(u.UserID) {
-				_, err = m.matrixcli.InviteUser(p.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-					UserID: u.UserID,
-				})
-				if err != nil {
-					fmt.Fprintf(errBuf, "InviteUser %s to room %s err %s", u.UserID, p.defaultMessageRoomID, err)
-				}
+	users := m.getAllPossibleUserID(p.address)
+
+	for _, u := range users {
+		//it's a user should in the default message room,but it isn't in now.
+		if !p.isValidUserID(u.UserID) {
+			_, err = m.matrixcli.InviteUser(p.defaultMessageRoomID, &gomatrix.ReqInviteUser{
+				UserID: u.UserID,
+			})
+			if err != nil {
+				fmt.Fprintf(errBuf, "InviteUser %s to room %s err %s", u.UserID, p.defaultMessageRoomID, err)
 			}
 		}
 	}
@@ -1359,7 +1229,7 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 		//this user is joinning in the default message room, a new user
 		if !peer.isValidUserID(userID) {
 			//update presence if possible
-			peer.updateUsers([]*gomatrix.UserInfo{m.validatedUsers[userID]})
+			peer.updateUsers([]*gomatrix.UserInfo{{UserID: userID}})
 			presence, err := m.matrixcli.GetPresenceState(userID)
 			if err == nil {
 				peer.setStatus(userID, presence.Presence)
@@ -1372,12 +1242,28 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 	return nil
 }
 
-// ExtractUserLocalpart Extract user name from user ID
+// extractUserLocalpart Extract user name from user ID
 func extractUserLocalpart(userID string) (string, error) {
 	if len(userID) == 0 || userID[0] != '@' {
 		return "", fmt.Errorf("%s is not a valid user id", userID)
 	}
 	return strings.SplitN(userID[1:], ":", 2)[0], nil
+}
+
+// extractUserInfo Extract user name from user ID
+func extractUserInfo(userID string) (localPart, domain string, err error) {
+	if len(userID) == 0 || userID[0] != '@' {
+		err = fmt.Errorf("%s is not a valid user id", userID)
+		return
+	}
+	ss := strings.SplitN(userID[1:], ":", 2)
+	if len(ss) != 2 {
+		err = fmt.Errorf("%s is not a valid user id", userID)
+		return
+	}
+	localPart = ss[0]
+	domain = ss[1]
+	return
 }
 
 // validate_userid_signature
