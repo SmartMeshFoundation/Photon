@@ -316,6 +316,21 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	return
 }
 
+func (eh *stateMachineEventHandler) eventSaveFeeChargeRecord(e *mediatedtransfer.EventSaveFeeChargeRecord) (err error) {
+	r := &models.FeeChargerRecordSerialization{
+		LockSecretHash: e.LockSecretHash[:],
+		TokenAddress:   e.TokenAddress[:],
+		TransferFrom:   e.TransferFrom[:],
+		TransferTo:     e.TransferTo[:],
+		TransferAmount: e.TransferAmount,
+		InChannel:      e.InChannel[:],
+		OutChannel:     e.OutChannel[:],
+		Fee:            e.Fee,
+		Timestamp:      e.Timestamp,
+	}
+	return eh.photon.db.SaveFeeChargeRecord(r)
+}
+
 func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
 	var ch *channel.Channel
 	switch e2 := event.(type) {
@@ -386,6 +401,8 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		err = eh.eventContractSendRegisterSecret(e2)
 	case *mediatedtransfer.EventRemoveStateManager:
 		delete(eh.photon.Transfer2StateManager, e2.Key)
+	case *mediatedtransfer.EventSaveFeeChargeRecord:
+		err = eh.eventSaveFeeChargeRecord(e2)
 	default:
 		err = fmt.Errorf("unkown event :%s", utils.StringInterface1(event))
 		log.Error(err.Error())

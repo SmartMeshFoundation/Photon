@@ -315,7 +315,7 @@ GetBestRoutes returns all neighbor nodes order by weight from it to target.
  *	which circumvents all routes that have been iterated.
  */
 func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress common.Address,
-	targetAdress common.Address, amount *big.Int, excludeAddresses map[common.Address]bool, feeCharger fee.Charger) (onlineNodes []*route.State) {
+	targetAdress common.Address, amount *big.Int, targetAmount *big.Int, excludeAddresses map[common.Address]bool, feeCharger fee.Charger) (onlineNodes []*route.State) {
 	/*
 
 	   XXX: consider using multiple channels for a single transfer. Useful
@@ -351,7 +351,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}
-		routeState := Channel2RouteState(c, nw.neighbor, amount, feeCharger)
+		routeState := Channel2RouteState(c, nw.neighbor, targetAmount, feeCharger)
 		if routeState.Fee.Cmp(utils.BigInt0) > 0 {
 			routeState.TotalFee = big.NewInt(int64(nw.weight))
 		} else { //no fee policy,
