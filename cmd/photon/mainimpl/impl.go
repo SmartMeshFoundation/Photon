@@ -164,6 +164,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "pfs",
 			Usage: "pathfinder service host,example http://127.0.0.1:9000",
 		},
+		cli.BoolFlag{
+			Name:  "enable-fork-confirm",
+			Usage: "enable fork confirm when receive events from chain",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -430,7 +434,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		return
 	}
 
-	if ctx.IsSet("disable-fork-confirm") && ctx.Bool("disable-fork-confirm") == false {
+	if ctx.Bool("enable-fork-confirm") {
 		log.Info("fork-confirm enable...")
 		params.EnableForkConfirm = true
 	}
