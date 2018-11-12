@@ -99,6 +99,7 @@ type MatrixTransport struct {
 	quitChan              chan struct{}
 	jobChan               chan *matrixJob
 	lock                  sync.RWMutex
+	discoveryroom         string
 }
 
 var (
@@ -133,6 +134,11 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		jobChan:               make(chan *matrixJob, 10),
 		trustServers:          make(map[string]bool),
 	}
+	var serverNames []string
+	for s := range servers {
+		serverNames = append(serverNames, s)
+	}
+	mtr.setTrustServers(serverNames)
 	return mtr
 }
 
@@ -234,6 +240,7 @@ func (m *MatrixTransport) Stop() {
 	m.changeStatus(netshare.Closed)
 	close(m.quitChan)
 	if m.matrixcli != nil {
+		m.log.Info("matrix will offline")
 		err := m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 			Presence: OFFLINE,
 		})
@@ -404,6 +411,11 @@ func (m *MatrixTransport) Start() {
 			store = gomatrix.NewInMemoryStore()
 			m.matrixcli.Store = store
 
+			//handle the issue of discoveryroom,FOR TEST,temporarily retain this room
+			if err = m.joinDiscoveryRoom(); err != nil {
+				m.log.Error(fmt.Sprintf("joinDiscoveryRoom err %s", err))
+				goto tryNext
+			}
 			//notify to server i am online（include the other participating servers）
 			if err = m.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 				Presence:  ONLINE,
@@ -852,7 +864,8 @@ func (m *MatrixTransport) register(username, password string) (userID string, er
 		HomeServer  string `json:"home_server"`
 		UserID      string `json:"user_id"`
 	}
-	regurl := fmt.Sprintf("%s/regapp/1/register", m.serverURL)
+	//regurl := fmt.Sprintf("%s/regapp/1/register", m.serverURL)
+	regurl := fmt.Sprintf("http://127.0.0.1:8009/regapp/1/register")
 	userID = fmt.Sprintf("@%s:%s", username, m.servername)
 	log.Trace(fmt.Sprintf("register user userid=%s", userID))
 	req := &reg{
@@ -1301,4 +1314,55 @@ func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, e
 		return
 	}
 	return
+}
+
+/* joinDiscoveryRoom : check discoveryroom if not exist, then create a new one.
+client caches all memebers of this room, and invite nodes checked from this room again.
+需要找到一个可靠的方式来移除DiscoveryRoom, todo
+目前不能移除DiscoveryRoom是因为PathFinder需要依赖DiscoveryRoom来发现节点的上线下线,正常的Matrix通信已经可以做到不依赖DiscoveryRoom了
+发现聊天室设计目标主要是让节点之间能够找到对方,主要是通过Matrix的Search方式找到相关UserID以及指导这些UserID的上线下线状态.
+但是目前来说这些都不再需要,
+1. Search可以通过@<address>:domain方式自己生产所有可能的UserID
+2. 节点上线下线通知,有Channel的节点直接创建私有的聊天室来解决上线下线状态问题
+*/
+func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
+	//read discovery room'name and fragment from "params-settings"
+	// combine discovery room's alias
+	discoveryRoomAlias := m.makeRoomAlias(ALIASFRAGMENT)
+	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + DISCOVERYROOMSERVER
+	m.discoveryroom = ""
+	// this node join the discovery room, if not exist, then create.
+	for i := 0; i < 5; i++ {
+		var respJoinRoom *gomatrix.RespJoinRoom
+		var respCreateRoom *gomatrix.RespCreateRoom
+		respJoinRoom, err = m.matrixcli.JoinRoom(discoveryRoomAliasFull, m.servername, nil)
+		if err != nil {
+			//if Room doesn't exist and then create the room(this is the node's resposibility)
+			if m.servername != DISCOVERYROOMSERVER {
+				break
+			}
+			//try to create the discovery room
+			respCreateRoom, err = m.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
+				RoomAliasName: discoveryRoomAlias,
+				Preset:        CHATPRESET,
+				Visibility:    "public",
+			})
+			if err != nil {
+				m.log.Error("can't create a discovery room,try again")
+				continue
+			}
+			m.discoveryroom = respCreateRoom.RoomID
+			continue
+		} else {
+			m.discoveryroom = respJoinRoom.RoomID
+			break
+		}
+	}
+	//exit if join room failed
+	if m.discoveryroom == "" {
+		err = fmt.Errorf("Discovery room {%s} not found and can't be created on a federated homeserver {%s}", discoveryRoomAliasFull, m.servername)
+		m.log.Error(err.Error())
+		return
+	}
+	return nil
 }

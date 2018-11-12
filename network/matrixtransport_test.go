@@ -25,6 +25,7 @@ import (
 var testPrivKey *ecdsa.PrivateKey
 var testAddress common.Address
 var testTrustedServers = []string{
+	"transport01.smartraiden.network",
 	"transport01.smartmesh.cn",
 	"transport02.smartmesh.cn",
 	"transport03.smartmesh.cn",
@@ -108,7 +109,8 @@ func TestCreateMatrixTransport(t *testing.T) {
 	m1.Stop()
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
-	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
+	cfg1, _, _ := getMatrixEnvConfig()
+	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
 	m1.setDB(&MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
@@ -243,6 +245,9 @@ func TestSendMessage(t *testing.T) {
 			t.Errorf("m2 content error %s", txt)
 		}
 	}
+	m1.Stop()
+	m2.Stop()
+	time.Sleep(time.Second)
 }
 
 func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
