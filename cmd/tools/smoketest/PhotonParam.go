@@ -37,7 +37,6 @@ func (rp *PhotonParam) getParam() []string {
 	param = append(param, "--password-file="+rp.passwordFile)
 	param = append(param, "--eth-rpc-endpoint="+rp.ethRPCEndpoint)
 	param = append(param, "--verbosity=5")
-	param = append(param, "--disable-fork-confirm")
 	if rp.debug == true {
 		param = append(param, "--debug")
 	}
