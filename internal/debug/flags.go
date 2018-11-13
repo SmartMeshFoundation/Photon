@@ -114,9 +114,9 @@ func Setup(ctx *cli.Context) (err error) {
 		if err2 != nil {
 			fmt.Printf("log srv assignid err %s\n", err2)
 		} else {
-			id, err := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-
+			var id []byte
+			id, err = ioutil.ReadAll(resp.Body)
+			err2 = resp.Body.Close()
 			if err == nil {
 				addr := ctx.GlobalString("address")
 				if params.MobileMode {
@@ -200,6 +200,9 @@ func Setup(ctx *cli.Context) (err error) {
 // Exit stops all running profiles, flushing their output to the
 // respective file.
 func Exit() {
-	Handler.StopCPUProfile()
-	Handler.StopGoTrace()
+	err := Handler.StopCPUProfile()
+	err = Handler.StopGoTrace()
+	if err != nil {
+		fmt.Printf("StopGoTrace err %s ", err)
+	}
 }
