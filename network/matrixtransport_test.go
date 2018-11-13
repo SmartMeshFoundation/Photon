@@ -58,6 +58,9 @@ func (db *MockDb) RegisterChannelStateCallback(f cb.ChannelCb) {
 func (db *MockDb) XMPPUnMarkAddr(addr common.Address) {
 
 }
+func (db *MockDb) RegisterChannelSettleCallback(f cb.ChannelCb) {
+
+}
 func init() {
 	var err error
 	//ALIASFRAGMENT = fmt.Sprintf("testdiscovery-%s", utils.RandomString(10))
@@ -635,4 +638,109 @@ func TestVerifySignature(t *testing.T) {
 		}
 	}
 
+}
+
+func TestRoomTimeLineEvents(t *testing.T) {
+	var err error
+	if testing.Short() {
+		return
+	}
+	_, m1, m2, _ := newFourTestMatrixTransport()
+	m1.db.(*MockDb).addPartner(m2.NodeAddress)
+	m2.db.(*MockDb).addPartner(m1.NodeAddress)
+	m1.Start()
+	m2.Start()
+	m1Chan := make(chan string)
+	m2Chan := make(chan string)
+	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
+		txt, _ := msg.Body()
+		data, _ := base64.StdEncoding.DecodeString(txt)
+		m1Chan <- string(data)
+	})
+	m2.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
+		txt, _ := msg.Body()
+		data, _ := base64.StdEncoding.DecodeString(txt)
+		m2Chan <- string(data)
+	})
+	time.Sleep(time.Second * 10)
+	for i := 0; i < 10000; i++ {
+		//m1 send use
+		err = m1.Send(m2.NodeAddress, []byte("aaa"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
+	time.Sleep(time.Second * 30)
+	m1.Stop()
+	m2.Stop()
+
+	//重新登录,看看事件有没有问题
+	cfg1, cfg2, _ := getMatrixEnvConfig()
+	m1Again := NewMatrixTransport("m1", m1.key, "other", cfg1)
+	if err != nil {
+		t.Error(err)
+	}
+	m1Again.setDB(m1.db)
+	m1Again.setTrustServers(testTrustedServers)
+
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2)
+	if err != nil {
+		t.Error(err)
+	}
+	m2Again.setDB(m2.db)
+	m2Again.setTrustServers(testTrustedServers)
+	time.Sleep(time.Second * 20)
+	//看看下次获取的事件信息
+	m1Again.Start()
+	m2Again.Start()
+	time.Sleep(time.Second * 10)
+}
+
+func TestMatrixTransport_splitAlias(t *testing.T) {
+	prefix, isChannel, addr1, addr2, err := splitRoomAlias("#photon_y_37bd76c0187ebc21e3fd3d474d83810bb495a518_4533775cfd13a2b07bf910c04d2038fd028ff73c:transport02.smartmesh.cn")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if prefix != "photon" {
+		t.Error("prefix")
+		return
+	}
+	if isChannel != "y" {
+		t.Error("channel")
+		return
+	}
+	if addr1 != common.HexToAddress("0x37bd76c0187ebc21e3fd3d474d83810bb495a518") {
+		t.Error("addr1")
+		return
+	}
+	if addr2 != common.HexToAddress("0x4533775cfd13a2b07bf910c04d2038fd028ff73c") {
+		t.Error("addr2")
+		return
+	}
+	_, _, _, _, err = splitRoomAlias("")
+	if err == nil {
+		t.Error("must fail")
+		return
+	}
+	_, _, _, _, err = splitRoomAlias("#photon_ropsten_discovery:transport01.smartmesh.cn")
+	if err == nil {
+		t.Error("must fail")
+		return
+	}
+}
+
+func TestLeaveUselessRoom(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	cfg1, _, _ := getMatrixEnvConfig()
+	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
+	m1.setDB(&MockDb{})
+	m1.setTrustServers(testTrustedServers)
+	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
+	defer m1.Stop()
+	m1.Start()
+	m1.leaveUselessRoom()
 }

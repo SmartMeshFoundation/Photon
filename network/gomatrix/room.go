@@ -4,7 +4,7 @@ package gomatrix
 type Room struct {
 	ID    string
 	Alias string
-	State map[string]map[string]*Event
+	State map[string]map[string]*Event //eventType->StateKey->Event
 }
 
 // UpdateState updates the room's current state with the given Event. This will clobber events based
