@@ -403,7 +403,7 @@ func needConfirm(eventName string) bool {
 
 	if eventName == params.NameChannelOpened ||
 		eventName == params.NameChannelOpenedAndDeposit ||
-		eventName == params.NameNewDeposit ||
+		eventName == params.NameChannelNewDeposit ||
 		eventName == params.NameChannelWithdraw {
 		return true
 	}

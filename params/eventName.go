@@ -35,17 +35,3 @@ const NameChannelCooperativeSettled = "ChannelCooperativeSettled"
 
 //NameSecretRevealed name from contract
 const NameSecretRevealed = "SecretRevealed"
-
-//name of Monitoring Service
-
-//NameNewDeposit event NewDeposit(address indexed receiver, uint amount);
-const NameNewDeposit = "NewDeposit"
-
-//NameNewBalanceProofReceived event of monitoring service
-const NameNewBalanceProofReceived = "NewBalanceProofReceived"
-
-//NameRewardClaimed event RewardClaimed(address indexed ms_address, uint amount, bytes32 indexed reward_identifier);
-const NameRewardClaimed = "RewardClaimed"
-
-//NameWithdrawn event Withdrawn(address indexed account, uint amount);
-const NameWithdrawn = "Withdrawn"
