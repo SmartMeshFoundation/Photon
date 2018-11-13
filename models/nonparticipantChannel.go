@@ -129,3 +129,19 @@ func (model *ModelDB) GetAllNonParticipantChannel(token common.Address) (edges [
 	}
 	return
 }
+
+// GetParticipantAddressByTokenAndChannel :
+func (model *ModelDB) GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address) {
+	var m ChannelParticipantMap
+	err := model.db.Get(bucketChannel, token[:], &m)
+	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))
+	if err == storm.ErrNotFound {
+		return
+	}
+	for key, data := range m {
+		if key == channel {
+			return bytes2participant(data)
+		}
+	}
+	return
+}
