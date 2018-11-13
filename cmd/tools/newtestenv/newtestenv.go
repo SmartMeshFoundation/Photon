@@ -37,7 +37,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-var globalPassword = "111111"
+var passwords = []string{"123", "111111", "123456"}
 
 const (
 	tokenERC223   = "erc223"
@@ -112,7 +112,7 @@ func mainctx(ctx *cli.Context) error {
 	fmt.Printf("not-create-channel=%v\n", ctx.Bool("not-create-channel"))
 	fmt.Printf("not-create-token=%v\n", ctx.Bool("not-create-token"))
 	base = ctx.Int("base")
-	globalPassword = ctx.String("password")
+	passwords[0] = ctx.String("password")
 	tokenNumber := ctx.Int("tokennum")
 	//if tokenNumber <= 0 || tokenNumber > 4 {
 	//	log.Fatalf("tokenum must be between 1-4")
@@ -125,7 +125,8 @@ func mainctx(ctx *cli.Context) error {
 
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
-	registryAddress := deployContract(key, conn)
+	//registryAddress := deployContract(key, conn)
+	registryAddress := common.HexToAddress("0xDe661C5aDaF15c243475C5c6BA96634983821593")
 	if ctx.Bool("not-create-token") {
 		return nil
 	}
@@ -174,7 +175,7 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	log.Printf("accounts=%q", am.Accounts)
 	for i := 0; i < 3; i++ {
 		//fmt.Printf("\npassword is %s\n", password)
-		keybin, err := am.GetPrivateKey(addr, globalPassword)
+		keybin, err := am.GetPrivateKey(addr, passwords[0])
 		if err != nil && i == 3 {
 			log.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", addr))
 			os.Exit(1)
@@ -240,7 +241,16 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, r
 	var localAccounts []common.Address
 	var keys []*ecdsa.PrivateKey
 	for _, account := range am.Accounts {
-		keybin, err := am.GetPrivateKey(account.Address, globalPassword)
+		var keybin []byte
+		for _, p := range passwords {
+			keybin, err = am.GetPrivateKey(account.Address, p)
+			if err != nil {
+				log.Printf("password error for %s,err=%s", utils.APex2(account.Address), err)
+				continue
+			} else {
+				break
+			}
+		}
 		if err != nil {
 			log.Printf("password error for %s,err=%s", utils.APex2(account.Address), err)
 			continue
@@ -269,13 +279,13 @@ func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contr
 	auth := bind.NewKeyedTransactor(key)
 	switch tokenType {
 	case tokenERC223:
-		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223", uint8(base))
+		tokenAddr, tx, _, err = tokenerc223.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(5000000000000000000)), "test erc223", uint8(base))
 	case tokenStandard:
-		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(500000000000000000)), "test standard", uint8(base))
+		tokenAddr, tx, _, err = tokenstandard.DeployHumanStandardToken(auth, conn, getAmount(big.NewInt(5000000000000000000)), "test standard", uint8(base))
 	case tokenERC223Approve:
-		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(500000000000000000)), "test erc223 approve", uint8(base))
+		tokenAddr, tx, _, err = tokenerc223approve.DeployHumanERC223Token(auth, conn, getAmount(big.NewInt(5000000000000000000)), "test erc223 approve", uint8(base))
 	case tokenEther:
-		auth.Value = getAmount(big.NewInt(500000000000000000))
+		auth.Value = getAmount(big.NewInt(5000000000000000000))
 		tokenAddr, tx, _, err = tokenether.DeployHumanEtherToken(auth, conn, "test ether")
 	}
 	if err != nil {

@@ -128,5 +128,6 @@ func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err err
 //SetMatrixDB get the status change notification of partner node
 //func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
 func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
-	return t.matirx.setDB(db)
+	t.matirx.setDB(db)
+	return nil
 }

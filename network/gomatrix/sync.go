@@ -67,33 +67,37 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 	for _, event := range res.AccountData.Events {
 		s.notifyListeners(&event)
 	}
+	handleRoomEvents := func(room *Room, event *Event) {
+		event.RoomID = room.ID
+		room.UpdateState(event)
+		s.notifyListeners(event)
+		//handle room aliases
+		if event.Type == "m.room.aliases" || event.Type == "m.room.canonical_alias" {
+			aliases, ok := event.Content["aliases"]
+			if ok {
+				arrayAliases, ok := aliases.([]interface{})
+				if ok && len(arrayAliases) > 0 {
+					room.Alias = arrayAliases[0].(string)
+				} else {
+					stringAliases, ok := aliases.(string)
+					if ok && len(stringAliases) > 0 {
+						room.Alias = stringAliases
+					}
+				}
+			}
+		}
+	}
 	//log.Trace(fmt.Sprintf("responsexx %s", utils.StringInterface(res, 17)))
 	//消息中的room内发生的join事件
 	// in message room, join event occurs.
 	for roomID, roomData := range res.Rooms.Join {
 		room := s.getOrCreateRoom(roomID)
+		//在第一次sync的时候,如果Timeline中放得下所有的events,那么就会放在timeline中,否则会将room状态信息放到state中
 		for _, event := range roomData.State.Events {
-			event.RoomID = roomID
-			room.UpdateState(&event)
-			s.notifyListeners(&event)
-			//handle room aliases
-			if event.Type == "m.room.aliases" {
-				//log.Trace(fmt.Sprintf("eventxx %s", utils.StringInterface(event, 5)))
-				aliases, ok := event.Content["aliases"]
-				if ok {
-					//{
-					//	"aliases": ["#photon_ropsten_discovery:transport01.smartmesh.cn"]
-					//}
-					arrayAliases, ok := aliases.([]interface{})
-					if ok && len(arrayAliases) > 0 {
-						room.Alias = arrayAliases[0].(string)
-					}
-				}
-			}
+			handleRoomEvents(room, &event)
 		}
 		for _, event := range roomData.Timeline.Events {
-			event.RoomID = roomID
-			s.notifyListeners(&event)
+			handleRoomEvents(room, &event)
 		}
 	}
 	//消息中的room内发生的invite事件
@@ -101,9 +105,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 	for roomID, roomData := range res.Rooms.Invite {
 		room := s.getOrCreateRoom(roomID)
 		for _, event := range roomData.State.Events {
-			event.RoomID = roomID
-			room.UpdateState(&event)
-			s.notifyListeners(&event)
+			handleRoomEvents(room, &event)
 		}
 	}
 	//消息中的room内发生的leave事件
@@ -112,9 +114,7 @@ func (s *DefaultSyncer) ProcessResponse(res *RespSync, since string) (err error)
 		room := s.getOrCreateRoom(roomID)
 		for _, event := range roomData.Timeline.Events {
 			if event.StateKey != nil {
-				event.RoomID = roomID
-				room.UpdateState(&event)
-				s.notifyListeners(&event)
+				handleRoomEvents(room, &event)
 			}
 		}
 	}

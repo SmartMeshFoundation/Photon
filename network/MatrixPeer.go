@@ -47,6 +47,7 @@ type MatrixPeer struct {
 	removeChan           chan<- common.Address
 	quitChan             chan struct{}
 	receiveMessage       chan struct{}
+	channelCount         int // 我与此节点总共有多少条通道
 }
 
 //NewMatrixPeer create matrix user
@@ -59,6 +60,7 @@ func NewMatrixPeer(address common.Address, hasChannel bool, removeChan chan<- co
 		candidateUsersStatus: make(map[string]peerStatus),
 		removeChan:           removeChan,
 		quitChan:             make(chan struct{}),
+		channelCount:         1,
 	}
 	if !u.hasChannelWith {
 		go u.loop()
@@ -139,4 +141,14 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	}
 	peer.status = status
 	return true
+}
+
+//如果小于等于0,说明已经没有任何channel了,这个节点可以移除.
+func (peer *MatrixPeer) decreaseChannelCount() bool {
+	peer.channelCount--
+	return peer.channelCount <= 0
+}
+
+func (peer *MatrixPeer) increaseChannelCount() {
+	peer.channelCount++
 }
