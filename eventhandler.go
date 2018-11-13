@@ -514,7 +514,15 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 	ch, err := eh.photon.findChannelByIdentifier(channelIdentifier)
 	if err != nil {
 		//i'm not a participant
+		// 如果不是自己参与的channel,移除路由中的path
 		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
+		g := eh.photon.getToken2ChannelGraph(token)
+		if g != nil {
+			p1, p2 := eh.photon.db.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
+			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
+				g.RemovePath(p1, p2)
+			}
+		}
 		err = eh.photon.db.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
 		return err
 	}
@@ -577,7 +585,17 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
-		return nil
+		//i'm not a participant
+		// 如果不是自己参与的channel,移除路由中的path
+		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
+		g := eh.photon.getToken2ChannelGraph(token)
+		if g != nil {
+			p1, p2 := eh.photon.db.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
+			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
+				g.RemovePath(p1, p2)
+			}
+		}
+		return eh.photon.db.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
