@@ -161,7 +161,8 @@ func (be *Events) startAlarmTask() {
 		}
 		cancelFunc()
 		lastedBlock := h.Number.Int64()
-		if currentBlock == lastedBlock {
+		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
+		if currentBlock >= lastedBlock {
 			if startUpBlockNumber == lastedBlock {
 				// 当启动时获取不到新块,也需要通知photonService,否则会导致api无法启动
 				log.Warn(fmt.Sprintf("photon start with blockNumber %d,but lastedBlockNumber on chain also %d", startUpBlockNumber, lastedBlock))
@@ -192,6 +193,7 @@ func (be *Events) startAlarmTask() {
 		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
 			// 如果这里出现err,不能继续处理该blocknumber,否则会丢事件,直接从该块重新处理即可
+			time.Sleep(be.pollPeriod / 2)
 			continue
 		}
 		if len(stateChanges) > 0 {
@@ -389,7 +391,7 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			}
 			stateChanges = append(stateChanges, eventChannelWithdraw2StateChange(e))
 		default:
-			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", utils.StringInterface(l,3)))
+			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", utils.StringInterface(l, 3)))
 		}
 		// 记录处理流水
 		be.txDone[l.TxHash] = l.BlockNumber

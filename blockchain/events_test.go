@@ -15,6 +15,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
+	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 type fakeRPCModule struct {
@@ -69,5 +70,18 @@ func TestEvents_Start(t *testing.T) {
 			//	fmt.Println(BlockStateChange.BlockNumber)
 			//}
 		}
+	}
+}
+
+func TestEvents_QueryAllStateChanges(t *testing.T) {
+	client, err := codefortest.GetEthClient()
+	if err != nil {
+		panic(err)
+	}
+	logs, err := rpc.EventsGetInternal(
+		rpc.GetQueryConext(), nil, ethrpc.BlockNumber(50000), ethrpc.BlockNumber(40000), client)
+	fmt.Println(logs, err)
+	if err != nil {
+		return
 	}
 }

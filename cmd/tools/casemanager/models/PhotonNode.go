@@ -148,7 +148,6 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
 	param = append(param, "--nonetwork")
-	param = append(param, "--disable-fork-confirm")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
 	}
@@ -177,7 +176,6 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
-	param = append(param, "--disable-fork-confirm")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
 	}
