@@ -125,8 +125,8 @@ func mainctx(ctx *cli.Context) error {
 
 	_, key := promptAccount(ctx.String("keystore-path"))
 	fmt.Println("start to deploy ...")
-	//registryAddress := deployContract(key, conn)
-	registryAddress := common.HexToAddress("0xDe661C5aDaF15c243475C5c6BA96634983821593")
+	registryAddress := deployContract(key, conn)
+	//registryAddress := common.HexToAddress("0xDe661C5aDaF15c243475C5c6BA96634983821593")
 	if ctx.Bool("not-create-token") {
 		return nil
 	}
