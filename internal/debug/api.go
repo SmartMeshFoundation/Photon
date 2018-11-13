@@ -89,8 +89,7 @@ func (h *HandlerT) CPUProfile(file string, nsec uint) error {
 		return err
 	}
 	time.Sleep(time.Duration(nsec) * time.Second)
-	h.StopCPUProfile()
-	return nil
+	return h.StopCPUProfile()
 }
 
 // StartCPUProfile turns on CPU profiling, writing to the given file.

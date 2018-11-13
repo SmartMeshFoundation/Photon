@@ -110,9 +110,9 @@ func Setup(ctx *cli.Context) (err error) {
 	doDebug := ctx.GlobalBool(debugFlag.Name)
 	var slowHandler log.Handler
 	if doDebug {
-		resp, err := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
-		if err != nil {
-			fmt.Printf("log srv assignid err %s\n", err)
+		resp, err2 := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
+		if err2 != nil {
+			fmt.Printf("log srv assignid err %s\n", err2)
 		} else {
 			id, err := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
