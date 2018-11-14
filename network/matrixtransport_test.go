@@ -367,7 +367,7 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m2, m1, _ := newFourTestMatrixTransport()
+	_, m1, m2, _ := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
 	m1Chan := make(chan string)
@@ -400,7 +400,7 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 		return
 	}
 	select {
-	case <-time.After(time.Second * 30):
+	case <-time.After(time.Second * 300):
 		t.Error("m1 receive timeout ")
 		return
 	case txt := <-m1Chan:

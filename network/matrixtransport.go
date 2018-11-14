@@ -456,7 +456,7 @@ func (m *MatrixTransport) Start() {
 						return
 					}
 					if err2 != nil {
-						m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err))
+						m.log.Error(fmt.Sprintf("Matrix Sync return,err=%s ,will try agin..", err2))
 						m.changeStatus(netshare.Reconnecting)
 						time.Sleep(time.Second * 5)
 					} else {
@@ -1037,19 +1037,19 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		Visibility: "private",
 		Preset:     "trusted_private_chat",
 	}
-	if true {
-		req.Visibility = "public"
-		req.Preset = "public_chat"
-	} else {
-		req.Visibility = "private"
-		req.Preset = "trusted_private_chat"
-	}
+	//if true {
+	//	req.Visibility = "public"
+	//	req.Preset = "public_chat"
+	//} else {
+	//	req.Visibility = "private"
+	//	req.Preset = "trusted_private_chat"
+	//}
 	unlistedRoomid := ""
 	for i := 0; i < 6; i++ {
 		var respJoinRoom *gomatrix.RespJoinRoom
 		respJoinRoom, err = m.matrixcli.JoinRoom(roomNameFull, m.servername, nil)
 		if err != nil {
-			req.RoomAliasName = roomNameFull
+			req.RoomAliasName = roomname
 			_, err = m.matrixcli.CreateRoom(req)
 			if err != nil {
 				m.log.Info(fmt.Sprintf("Room %s not found,trying to create it. but fail %s", roomname, err))
@@ -1395,7 +1395,7 @@ Matrix运行一段时间以后,一个账户必定会累积不少无用的聊天�
 func (m *MatrixTransport) leaveUselessRoom() {
 	rooms := m.matrixcli.Store.LoadRoomOfAll()
 	for roomID, room := range rooms {
-		log.Trace(fmt.Sprintf("for leave room %s,%s", roomID, utils.StringInterface(room, 2)))
+		//log.Trace(fmt.Sprintf("for leave room %s,%s", roomID, utils.StringInterface(room, 2)))
 		//discovery room必须保留
 		if roomID == m.discoveryroom {
 			continue
