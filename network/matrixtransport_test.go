@@ -25,7 +25,7 @@ import (
 var testPrivKey *ecdsa.PrivateKey
 var testAddress common.Address
 var testTrustedServers = []string{
-	"transport01.smartraiden.network",
+	//"transport01.smartraiden.network",
 	"transport01.smartmesh.cn",
 	"transport02.smartmesh.cn",
 	"transport03.smartmesh.cn",
@@ -367,7 +367,7 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m2, m1, _ := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
 	m1Chan := make(chan string)
@@ -400,7 +400,7 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 		return
 	}
 	select {
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 30):
 		t.Error("m1 receive timeout ")
 		return
 	case txt := <-m1Chan:

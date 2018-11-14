@@ -328,7 +328,8 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 			var users []*gomatrix.UserInfo
 			roomID, users, err = m.findOrCreateRoomByAddress(receiverAddr, false)
 			if err != nil || roomID == "" {
-				m.log.Error(fmt.Sprintf("[Matrix]Send failed,cann't find the peer address"))
+				m.log.Error(fmt.Sprintf("[Matrix]Send failed,cann't find the peer address findOrCreateRoomByAddress err %s", err))
+				return
 			}
 			m.temporaryPeers.addPeer(receiverAddr, roomID)
 			//whether these users are in this room or not ,invite them. maybe dupclicate.
@@ -1017,7 +1018,7 @@ func (m *MatrixTransport) findOrCreateRoomByAddress(address common.Address, hasC
 	users = m.getAllPossibleUserID(address)
 
 	//Join a room that connot be found by search_room_directory
-	roomID, err = m.getUnlistedRoom(roomName, users, hasChannel)
+	roomID, err = m.getUnlistedRoom(roomName, users)
 	m.log.Info(fmt.Sprintf("CHANNEL ROOM,peer_address=%s room=%s", address.String(), roomID))
 	return
 }
@@ -1025,7 +1026,7 @@ func (m *MatrixTransport) findOrCreateRoomByAddress(address common.Address, hasC
 // getUnlistedRoom get a conversation room that cannnot be found by search_room_directory.
 // If the room is not exist and create a unnamed room for communication,invite the node finally.
 // This process of join-create-join-room may be repeated 3 times(network delay)
-func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.UserInfo, isPublic bool) (roomID string, err error) {
+func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.UserInfo) (roomID string, err error) {
 	roomNameFull := "#" + roomname + ":" + m.servername
 	var inviteesUids []string
 	for _, user := range users {
@@ -1036,7 +1037,7 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		Visibility: "private",
 		Preset:     "trusted_private_chat",
 	}
-	if isPublic {
+	if true {
 		req.Visibility = "public"
 		req.Preset = "public_chat"
 	} else {
@@ -1048,7 +1049,7 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		var respJoinRoom *gomatrix.RespJoinRoom
 		respJoinRoom, err = m.matrixcli.JoinRoom(roomNameFull, m.servername, nil)
 		if err != nil {
-			req.RoomAliasName = roomname
+			req.RoomAliasName = roomNameFull
 			_, err = m.matrixcli.CreateRoom(req)
 			if err != nil {
 				m.log.Info(fmt.Sprintf("Room %s not found,trying to create it. but fail %s", roomname, err))
@@ -1394,7 +1395,7 @@ Matrix运行一段时间以后,一个账户必定会累积不少无用的聊天�
 func (m *MatrixTransport) leaveUselessRoom() {
 	rooms := m.matrixcli.Store.LoadRoomOfAll()
 	for roomID, room := range rooms {
-		log.Trace(fmt.Sprintf("for leave room %s,%s", roomID, utils.StringInterface(room, 7)))
+		log.Trace(fmt.Sprintf("for leave room %s,%s", roomID, utils.StringInterface(room, 2)))
 		//discovery room必须保留
 		if roomID == m.discoveryroom {
 			continue
