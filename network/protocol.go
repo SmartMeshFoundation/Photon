@@ -558,6 +558,8 @@ func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 	}
 	if transport, ok := p.Transport.(*MixTransport); ok {
 		transport.udp.setHostPort(nodesmap)
+	} else if transport, ok := p.Transport.(*MatrixMixTransport); ok {
+		transport.udp.setHostPort(nodesmap)
 	} else if transport, ok := p.Transport.(*UDPTransport); ok {
 		transport.setHostPort(nodesmap)
 	} else {
