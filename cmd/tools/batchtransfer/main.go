@@ -24,15 +24,16 @@ batch transfer is a tool for test transfer
 */
 
 //test for closing the specified channel for the node
-func transfer(urlstr, tokenAddr, target string, amount, identifier int) (result string, err error) {
+func transfer(urlstr, tokenAddr, target string, amount, identifier int, isdirect bool) (result string, err error) {
 	var payload string
-	payload = "{\"amount\":%d,\"is_direct\":false,\"sync\":true}"
-	payload = fmt.Sprintf(payload, amount)
+	payload = "{\"amount\":%d,\"is_direct\":%v,\"sync\":true}"
+	payload = fmt.Sprintf(payload, amount, isdirect)
+	//fmt.Printf("payload=%s\n", payload)
 	// MatrixHTTPClient is a custom http client
 	var client = &http.Client{
 		Transport: &http.Transport{
 			Dial: func(netw, addr string) (net.Conn, error) {
-				c, err2 := net.DialTimeout(netw, addr, time.Second*30000)
+				c, err2 := net.DialTimeout(netw, addr, time.Second*3)
 				if err2 != nil {
 					//fmt.Println("dail timeout", err2)
 					return nil, err2
@@ -98,7 +99,6 @@ func doRequest(c *http.Client, req *http.Request) (Status string, body []byte, e
 	if len(body) > 0 {
 		//log.Printf("receive <- :\n%s\n", string(body))
 	}
-	err = req.Body.Close()
 	err = resp.Body.Close()
 	return
 }
@@ -116,6 +116,15 @@ func main() {
 		cli.IntFlag{
 			Name:  "number",
 			Usage: `transfer number`,
+		},
+		cli.BoolFlag{
+			Name:  "direct",
+			Usage: "use direct transfer",
+		},
+		cli.StringFlag{
+			Name:  "photon",
+			Usage: "photon host port",
+			Value: "http://127.0.0.1:5001",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
@@ -144,21 +153,25 @@ func mainctx(ctx *cli.Context) {
 	wg.Add(number)
 	wg2 := sync.WaitGroup{}
 	wg2.Add(number)
+	start := time.Now()
 	for i := 1; i <= number; i++ {
 		go func(index int) {
 			wg.Done()
 			wg.Wait()
-			start := time.Now()
-			result, err := transfer("http://127.0.0.1:5001", ctx.String("token"), ctx.String("target"), index, index)
+			start2 := time.Now()
+			result, err := transfer(ctx.String("photon"), ctx.String("token"), ctx.String("target"), index, index, ctx.Bool("direct"))
 			end := time.Now()
 			if err != nil {
-				log.Error(fmt.Sprintf("transfer:%d finished err=%s, result=%s, take time=%s", index, err, result, end.Sub(start)))
+				log.Error(fmt.Sprintf("transfer:%d finished err=%s, result=%s, take time=%s", index, err, result, end.Sub(start2)))
 			} else {
-				log.Trace(fmt.Sprintf("transfer:%d finished err=%s, result=%s, take time=%s", index, err, result, end.Sub(start)))
+				log.Trace(fmt.Sprintf("transfer:%d finished err=%s, result=%s, take time=%s", index, err, result, end.Sub(start2)))
 			}
 			wg2.Done()
 		}(i)
 	}
 	wg2.Wait()
 	log.Info("all finished\n")
+	duration := time.Now().Sub(start)
+
+	log.Info(fmt.Sprintf("tps=%f", float64(number)/float64(float64(duration)/float64(time.Second))))
 }
