@@ -1451,7 +1451,9 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			log.Error(err.Error())
 		}
 		smkey := utils.Sha3(msg.FakeLockSecretHash[:], ch.TokenAddress[:])
-		rs.Transfer2Result[smkey].Result <- nil
+		if r, ok := rs.Transfer2Result[smkey]; ok {
+			r.Result <- nil
+		}
 		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)

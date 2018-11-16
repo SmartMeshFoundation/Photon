@@ -18,7 +18,7 @@ func TestTokenNetworkRegistryRight(t *testing.T) {
 	a1 := env.getRandomAccountExcept(t)
 
 	// deploy new token
-	tokenAddress, tx, _, err := tokenerc223.DeployHumanERC223Token(a1.Auth, env.Client, big.NewInt(500000000000000000), "test erc223")
+	tokenAddress, tx, _, err := tokenerc223.DeployHumanERC223Token(a1.Auth, env.Client, big.NewInt(500000000000000000), "test erc223", 0)
 	assertTxSuccess(t, nil, tx, err)
 	// create token network
 	tx, err = env.TokenNetworkRegistry.CreateERC20TokenNetwork(a1.Auth, tokenAddress)

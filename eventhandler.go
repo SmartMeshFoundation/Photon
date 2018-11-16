@@ -363,7 +363,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		st := eh.photon.db.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount)
+		st := eh.photon.db.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash)
 		eh.photon.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
@@ -379,7 +379,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		rt := eh.photon.db.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount)
+		rt := eh.photon.db.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash)
 		eh.photon.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
@@ -417,12 +417,12 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	var tokenAddress common.Address
 	switch e2 := ev.(type) {
 	case *transfer.EventTransferSentSuccess:
-		log.Info(fmt.Sprintf("EventTransferSentSuccess for id %d ", e2.LockSecretHash))
+		log.Info(fmt.Sprintf("EventTransferSentSuccess for LockSecretHash %s ", e2.LockSecretHash.String()))
 		lockSecretHash = e2.LockSecretHash
 		tokenAddress = e2.Token
 		err = nil
 	case *transfer.EventTransferSentFailed:
-		log.Warn(fmt.Sprintf("EventTransferSentFailed for id %s,because of %s", e2.LockSecretHash.String(), e2.Reason))
+		log.Warn(fmt.Sprintf("EventTransferSentFailed for LockSecretHash %s,because of %s", e2.LockSecretHash.String(), e2.Reason))
 		lockSecretHash = e2.LockSecretHash
 		err = errors.New(e2.Reason)
 		tokenAddress = e2.Token

@@ -106,6 +106,12 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 	}
 }
 
+type queueMessagesAndLock struct {
+	messages   []*SentMessageState
+	lock       sync.Mutex
+	wakeUpChan chan int
+}
+
 /*
 PhotonProtocol is a UDP protocol,
 every message needs a ack to make sure sent success.
@@ -127,7 +133,8 @@ type PhotonProtocol struct {
 		this is a synchronized chan,reading  process message result from photon
 	*/
 	ReceivedMessageResultChan chan error
-	sendingQueueMap           map[string]chan *SentMessageState //write to this channel to send a message
+	sendingChanMap            map[string]chan *SentMessageState //write to this channel to send a message
+	sendingQueueMap           map[string]*queueMessagesAndLock
 	receivedMessageSaver      ReceivedMessageSaver
 	ChannelStatusGetter       ChannelStatusGetter
 	onStop                    bool //flag for stop
@@ -148,7 +155,8 @@ func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
 		ReceivedMessageChan:       make(chan *MessageToPhoton),
 		ReceivedMessageResultChan: make(chan error),
-		sendingQueueMap:           make(map[string]chan *SentMessageState),
+		sendingChanMap:            make(map[string]chan *SentMessageState),
+		sendingQueueMap:           make(map[string]*queueMessagesAndLock),
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
 		receiveChan:               make(chan []byte, 200),
@@ -177,7 +185,7 @@ func (p *PhotonProtocol) SetReceivedMessageSaver(saver ReceivedMessageSaver) {
 }
 
 func (p *PhotonProtocol) sendAck(receiver common.Address, ack *encoding.Ack) {
-	p.log.Trace(fmt.Sprintf("send to %s, ack=%s", utils.APex2(receiver), ack))
+	p.log.Trace(fmt.Sprintf("send ack EchoHash=%s to %s, ", utils.HPex(ack.Echo), utils.APex2(receiver)))
 	err := p.sendRawWitNoAck(receiver, ack.Pack())
 	if err != nil {
 		log.Warn(fmt.Sprintf("sesendRawWitNoAck err %s ", err))
@@ -227,85 +235,100 @@ func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifi
 	return true
 }
 
-func (p *PhotonProtocol) getChannelQueue(receiver common.Address, channelIdentifier common.Hash) chan<- *SentMessageState {
-
+/*
+此函数会修改Protocol关键Map,所以必须有p.mapLock保护
+此函数保证不阻塞
+此函数启动的goroutine会自动处理退出问题
+*/
+func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channelIdentifier common.Hash, msgState *SentMessageState) {
+	if channelIdentifier == utils.EmptyHash {
+		// 不带balance proof的消息,单独发送,不使用队列
+		log.Trace(fmt.Sprintf("send message EchoHash=%s without SendingQueue", utils.HPex(msgState.EchoHash)))
+		go p.sendMessage(receiver, channelIdentifier, msgState)
+		return
+	}
+	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
 	p.mapLock.Lock()
 	defer p.mapLock.Unlock()
-	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
-	var sendingChan chan *SentMessageState
-	var ok bool
-	/*
-		no channelAddr means that p message doesn't need ordered.
-		if  channel address is not nil,it must contain a new balance proof.
-		balance proof must be sent ordered
-	*/
-	if channelIdentifier == utils.EmptyHash {
-		sendingChan = make(chan *SentMessageState, 1) //should not block sender
-	} else {
-		sendingChan, ok = p.sendingQueueMap[key]
-		if ok {
-			return sendingChan
+	ql, ok := p.sendingQueueMap[key]
+	if ok {
+		//存在,顺序投递并唤醒发送goroutine,然后退出
+		log.Trace(fmt.Sprintf("send message EchoHash=%s with exist SendingQueue", utils.HPex(msgState.EchoHash)))
+		ql.messages = append(ql.messages, msgState)
+		select {
+		case ql.wakeUpChan <- 0:
+		default:
+			// never block
 		}
-		sendingChan = make(chan *SentMessageState, 10) //should not block sender
-		p.sendingQueueMap[key] = sendingChan
+		return
 	}
+	// 创建ql并启动goroutine发送
+	ql = &queueMessagesAndLock{
+		wakeUpChan: make(chan int),
+	}
+	ql.messages = append(ql.messages, msgState)
+	p.sendingQueueMap[key] = ql
+	// 启动该ql的发送routing
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("protocol ChannelQueue %s", key))
-		/*
-			1. if p packet is on sending, retry send immediately
-			2. retry infinite, until receive a ack
-			3. p message should be sent by caller after restart.
-
-			caller can read from chan reusltChannel to get if p packet is successfully sent to receiver
-		*/
-	labelNextMessage:
+		log.Trace(fmt.Sprintf("send message EchoHash=%s with New SendingQueue", utils.HPex(msgState.EchoHash)))
 		for {
-			p.log.Trace(fmt.Sprintf("queue %s try send next message", key))
-			var msgState *SentMessageState
-			var ok bool
-			select {
-			case msgState, ok = <-sendingChan:
-			case <-p.quitChan:
-				return
-			}
-			if !ok {
-				p.log.Info(fmt.Sprintf("queue %s quit, because of chan closed", key))
-				return
-			}
-			p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echoash=%s",
-				utils.APex2(msgState.ReceiverAddress), msgState.Message,
-				utils.HPex(msgState.EchoHash)))
-			for {
-				if !p.messageCanBeSent(msgState.Message, channelIdentifier) {
-					msgState.AsyncResult.Result <- errExpired
-					break
-				}
-				nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
-				err := p.sendRawWitNoAck(receiver, msgState.Data)
-				if err != nil {
-					p.log.Info(fmt.Sprintf("sendRawWitNoAck %s msg error %s", key, err.Error()))
-				}
-				timeout := time.After(nextTimeout())
+			p.mapLock.Lock()
+			if len(ql.messages) == 0 {
+				p.mapLock.Unlock()
+				// goroutine保留一段时间,防止频繁创建
 				select {
-				case _, ok = <-msgState.AckChannel:
-					if ok {
-						p.log.Trace(fmt.Sprintf("msg=%s, sent success :%s", encoding.MessageType(msgState.Message.Cmd()), utils.HPex(msgState.EchoHash)))
-						msgState.AsyncResult.Result <- nil
-						goto labelNextMessage
-					} else {
-						//message must send success, otherwise keep trying...
-						p.log.Info(fmt.Sprintf("queue %s quit, because of chan closed", key))
-						return //user call stop
-					}
-				case <-timeout: //retry
-				case <-p.quitChan:
+				case <-p.quitChan: //其他地方要求退出了
 					return
+				case <-ql.wakeUpChan: // 阻塞等待新message唤醒,goroutine 一直保留
+					continue
+					//case <-time.After(60 * time.Second):
+					//	// 清理sendingQueueMap, 退出goroutine
+					//	p.mapLock.Lock()
+					//	delete(p.sendingQueueMap, key)
+					//	p.mapLock.Unlock()
+					//	log.Trace(fmt.Sprintf("sendingQueueMap %s released", key))
+					//	return
 				}
 			}
+			msg := ql.messages[0]
+			ql.messages = ql.messages[1:]
+			p.mapLock.Unlock()
+			p.sendMessage(receiver, channelIdentifier, msg)
 		}
-
 	}()
-	return sendingChan
+}
+
+func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier common.Hash, msgState *SentMessageState) {
+	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
+		utils.APex2(msgState.ReceiverAddress), msgState.Message,
+		utils.HPex(msgState.EchoHash)))
+	for {
+		if !p.messageCanBeSent(msgState.Message, channelIdentifier) {
+			msgState.AsyncResult.Result <- errExpired
+			return
+		}
+		nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
+		err := p.sendRawWitNoAck(receiver, msgState.Data)
+		if err != nil {
+			p.log.Info(fmt.Sprintf("sendRawWitNoAck msg echoHash=%s error %s", utils.HPex(msgState.EchoHash), err.Error()))
+		}
+		timeout := time.After(nextTimeout())
+		var ok bool
+		select {
+		case _, ok = <-msgState.AckChannel:
+			if ok {
+				p.log.Trace(fmt.Sprintf("msg=%s EchoHash=%s, sent success", encoding.MessageType(msgState.Message.Cmd()), utils.HPex(msgState.EchoHash)))
+				msgState.AsyncResult.Result <- nil
+			} else {
+				p.log.Info(fmt.Sprintf("sendMessage EchoHash=%s stop retry, because of chan closed", utils.HPex(msgState.EchoHash)))
+			}
+			return
+		case <-timeout: //retry
+		case <-p.quitChan:
+			return
+		}
+	}
 }
 
 func getMessageChannelIdentifier(msg encoding.Messager) common.Hash {
@@ -347,11 +370,10 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	p.mapLock.Lock()
 	msgState, ok := p.SentHashesToChannel[echohash]
 	if ok {
-		p.mapLock.Unlock()
 		result = msgState.AsyncResult
 		return
 	}
-	p.log.Debug(fmt.Sprintf("send msg=%s to=%s,expected hash=%s", encoding.MessageType(msg.Cmd()), utils.APex2(receiver), utils.HPex(echohash)))
+	p.mapLock.Unlock()
 	msgState = &SentMessageState{
 		AsyncResult:     utils.NewAsyncResult(),
 		ReceiverAddress: receiver,
@@ -361,21 +383,9 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 		EchoHash:        echohash,
 	}
 	p.SentHashesToChannel[echohash] = msgState
-	p.mapLock.Unlock()
 	result = msgState.AsyncResult
 	channelIdentifier := getMessageChannelIdentifier(msg)
-	sentChan := p.getChannelQueue(receiver, channelIdentifier)
-	//make sure not block sending
-	p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
-	select {
-	case sentChan <- msgState:
-		//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
-	default:
-		go func() {
-			p.getChannelQueue(receiver, channelIdentifier) <- msgState
-			//p.log.Trace(fmt.Sprintf("try to queue msg=%s,echohash=%s complete", encoding.MessageType(msg.Cmd()), utils.HPex(msgState.EchoHash)))
-		}()
-	}
+	p.processSentMessageState(receiver, channelIdentifier, msgState)
 	return
 }
 
@@ -466,7 +476,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 	}
 	if messager.Cmd() == encoding.AckCmdID { //some one may be waiting p ack
 		ackMsg := messager.(*encoding.Ack)
-		p.log.Debug(fmt.Sprintf("receive ack ,hash=%s", utils.HPex(ackMsg.Echo)))
+		p.log.Debug(fmt.Sprintf("receive ack ,EchoHash=%s", utils.HPex(ackMsg.Echo)))
 		p.mapLock.Lock()
 		msgState, ok := p.SentHashesToChannel[ackMsg.Echo]
 		if ok && msgState.Success == false {
@@ -479,7 +489,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 		p.mapLock.Unlock()
 	} else {
 		signedMessager, ok := messager.(encoding.SignedMessager)
-		p.log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack=%s", messager, utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
+		p.log.Trace(fmt.Sprintf("received msg=%s from=%s,expect ack EchoHash=%s", messager, utils.APex2(signedMessager.GetSender()), utils.HPex(echohash)))
 		if !ok {
 			p.log.Warn("message should be signed except for ack")
 			return
@@ -557,8 +567,6 @@ func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
 		nodesmap[addr] = ua
 	}
 	if transport, ok := p.Transport.(*MixTransport); ok {
-		transport.udp.setHostPort(nodesmap)
-	} else if transport, ok := p.Transport.(*MatrixMixTransport); ok {
 		transport.udp.setHostPort(nodesmap)
 	} else if transport, ok := p.Transport.(*UDPTransport); ok {
 		transport.setHostPort(nodesmap)

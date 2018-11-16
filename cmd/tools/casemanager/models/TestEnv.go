@@ -348,6 +348,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 			_, token := env.GetTokenByName(s[2])
 			if token.Token == nil {
 				fmt.Println("use old token , do not create channel...")
+				wg.Done()
 				return
 			}
 			index1, account1 := env.GetNodeAddressByName(s[0])
