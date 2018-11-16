@@ -754,8 +754,10 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	if err != nil {
 		log.Error(fmt.Sprintf("dispatch transferSuccess err %s", err))
 	}
-	result.Result <- err
 	result.LockSecretHash = tr.FakeLockSecretHash
+	//result.Result <- err
+	smkey := utils.Sha3(result.LockSecretHash[:], tokenAddress[:])
+	rs.Transfer2Result[smkey] = result
 	return
 }
 
@@ -1448,6 +1450,8 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		if err != nil {
 			log.Error(err.Error())
 		}
+		smkey := utils.Sha3(msg.FakeLockSecretHash[:], ch.TokenAddress[:])
+		rs.Transfer2Result[smkey].Result <- nil
 		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
