@@ -554,11 +554,6 @@ func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState,
 			}
 			events = append(events, revealSecret)
 		}
-
-		fmt.Println("===================================in tr.fee", pair.PayerTransfer.Fee)
-		fmt.Println("===================================in tr.fee", pair.PayeeTransfer.Fee)
-		fmt.Println("===================================in channel route.fee", pair.PayerRoute.Fee)
-		fmt.Println("===================================out channel route.fee", pair.PayeeRoute.Fee)
 		if tr.Fee.Cmp(big.NewInt(0)) > 0 {
 			events = append(events, &mediatedtransfer.EventSaveFeeChargeRecord{
 				LockSecretHash: tr.LockSecretHash,

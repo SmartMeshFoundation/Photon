@@ -24,6 +24,9 @@ should be set before start restful server
 */
 var Config *params.Config
 
+// HTTPPassword is password needed when call http api
+var HTTPPassword = ""
+
 /*
 Start the restful server
 */
@@ -31,6 +34,7 @@ func Start() {
 
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
+	api.Use(&HTTPPasswordCheckMiddleWare{})
 	router, err := rest.MakeRouter(
 
 		/*

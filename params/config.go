@@ -68,6 +68,7 @@ type Config struct {
 	XMPPServer                string
 	IsMeshNetwork             bool   //is mesh now?
 	PfsHost                   string // pathfinder server host
+	HTTPPassword              string
 }
 
 //DefaultConfig default config
