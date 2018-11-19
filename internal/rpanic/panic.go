@@ -3,6 +3,8 @@ package rpanic
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/utils"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 )
@@ -49,9 +51,11 @@ func PanicRecover(ctx string) {
 	if err := recover(); err != nil {
 		err2 := fmt.Errorf("%s occured err %s", ctx, err)
 		log.Error(err2.Error())
+		utils.PrintStack()
 		if params.MobileMode {
 			errChan <- err2
 		} else {
+			log.Error("panic info....")
 			panic(err2)
 		}
 
