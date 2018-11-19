@@ -164,3 +164,11 @@ func GetAllFeeChargeRecord(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
+
+// GetSystemStatus :
+func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
+	err := w.WriteJson(API.SystemStatus())
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
