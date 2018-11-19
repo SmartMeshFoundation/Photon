@@ -26,6 +26,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
@@ -502,7 +503,7 @@ func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAdd
 	return
 }
 
-//Close a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
+//Close a channel opened with `partner_address` for the given `token_address`. return when state has been +d to database
 func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
 	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
@@ -1247,5 +1248,89 @@ func (r *API) GetAllFeeChargeRecord() (resp *dto.APIResponse) {
 		}
 		data.TotalFee[record.TokenAddress] = totalFee.Add(totalFee, record.Fee)
 	}
+	return dto.NewSuccessAPIResponse(data)
+}
+
+// SystemStatus :
+func (r *API) SystemStatus() (resp *dto.APIResponse) {
+	type transfers struct {
+		SendNum    int `json:"send_num"`
+		ReceiveNum int `json:"receive_num"`
+		DealingNum int `json:"dealing_num"`
+	}
+	type systemStatus struct {
+		EthRPCEndpoint      string                            `json:"eth_rpc_endpoint"`
+		EthRPCStatus        string                            `json:"eth_rpc_status"` // disconnected, connected, closed, reconnecting
+		NodeAddress         string                            `json:"node_address"`
+		RegistryAddress     string                            `json:"registry_address"`
+		TokenToTokenNetwork map[common.Address]common.Address `json:"token_to_token_network"`
+		LastBlockNumber     int64                             `json:"block_number"`
+		LastBlockNumberTime time.Time                         `json:"last_block_number_time"`
+		IsMobileMode        bool                              `json:"is_mobile_mode"`
+		NetworkType         string                            `json:"network_type"` // xmpp, xmpp-udp, matrix, matrix-udp,udp
+		FeePolicy           *models.FeePolicy                 `json:"fee_policy"`
+		ChannelNum          int                               `json:"channel_num"`
+		Transfers           *transfers                        `json:"transfers,omitempty"`
+	}
+	var data systemStatus
+	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
+	// EthRPCStatus
+	switch r.Photon.Chain.Client.Status {
+	case netshare.Disconnected:
+		data.EthRPCStatus = "disconnected"
+	case netshare.Connected:
+		data.EthRPCStatus = "connected"
+	case netshare.Closed:
+		data.EthRPCStatus = "closed"
+	case netshare.Reconnecting:
+		data.EthRPCStatus = "reconnecting"
+	}
+	data.NodeAddress = r.Photon.NodeAddress.String()
+	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
+	// TokenToTokenNetwork
+	data.TokenToTokenNetwork = r.Photon.Token2TokenNetwork
+	data.LastBlockNumber = r.Photon.db.GetLatestBlockNumber()
+	data.LastBlockNumberTime = r.Photon.db.GetLastBlockNumberTime()
+	data.IsMobileMode = params.MobileMode
+	// network type
+	switch r.Photon.Transport.(type) {
+	case *network.XMPPTransport:
+		data.NetworkType = "xmpp"
+	case *network.MixTransport:
+		data.NetworkType = "xmpp-udp"
+	case *network.MatrixTransport:
+		data.NetworkType = "matrix"
+	case *network.MatrixMixTransport:
+		data.NetworkType = "matrix-udp"
+	case *network.UDPTransport:
+		data.NetworkType = "udp"
+	}
+	// FeePolicy
+	if r.Photon.Config.EnableMediationFee {
+		data.FeePolicy = r.Photon.db.GetFeePolicy()
+	} else {
+		data.FeePolicy = nil
+	}
+	// channel num
+	cs, err := r.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	if err != nil {
+		return dto.NewExceptionAPIResponse(err)
+	}
+	data.ChannelNum = len(cs)
+	// Transfers
+	sts, err := r.GetSentTransfers(-1, -1)
+	if err != nil {
+		return dto.NewExceptionAPIResponse(err)
+	}
+	rts, err := r.GetReceivedTransfers(-1, -1)
+	if err != nil {
+		return dto.NewExceptionAPIResponse(err)
+	}
+	data.Transfers = &transfers{
+		SendNum:    len(sts),
+		ReceiveNum: len(rts),
+		DealingNum: len(r.Photon.Transfer2StateManager),
+	}
+
 	return dto.NewSuccessAPIResponse(data)
 }

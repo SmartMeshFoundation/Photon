@@ -125,6 +125,7 @@ func Start() {
 		/*
 			for debug only
 		*/
+		rest.Get("/api/1/debug/system-status", GetSystemStatus),
 		rest.Get("/api/1/debug/balance/:token/:addr", Balance),
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),

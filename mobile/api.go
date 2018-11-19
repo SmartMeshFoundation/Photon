@@ -1124,3 +1124,9 @@ func (a *API) OnResume() (err error) {
 	// 2. 还需要作什么???
 	return
 }
+
+// GetSystemStatus :
+func (a *API) GetSystemStatus() (r string, err error) {
+	resp := a.api.SystemStatus()
+	return resp.ToString(), nil
+}
