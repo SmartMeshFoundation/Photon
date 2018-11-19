@@ -99,7 +99,7 @@ func (node *EndState) SetContractLocksroot(locksroot common.Hash) {
 
 //SetContractNonce update node's nonce by contract event
 func (node *EndState) SetContractNonce(nonce uint64) {
-	node.BalanceProofState.Nonce = nonce
+	node.BalanceProofState.ContractNonce = nonce
 }
 
 //amountLocked is the tokens I have sent but partner doesn't have received the new blanceproof
@@ -218,53 +218,6 @@ func (node *EndState) computeMerkleRootWithout(without *mtree.Lock) (*mtree.Merk
 		return nil, utils.EmptyHash, err
 	}
 	return newtree, newtree.MerkleRoot(), nil
-}
-
-/*
-  registerLockedTransfer  API design: using specialized methods to force the user to register the
-    transfer and the lock in a single step
-	Register the latest known transfer.
-
-       The sender needs to use this method before sending a locked transfer,
-       otherwise the calculate locksroot of the transfer message will be
-       invalid and the transfer will be rejected by the partner. Since the
-       sender wants the transfer to be accepted by the receiver otherwise the
-       transfer won't proceed and the sender won't receive their fee.
-
-       The receiver needs to use this method to update the container with a
-       _valid_ transfer, otherwise the locksroot will not contain the pending
-       transfer. The receiver needs to ensure that the merkle root has the
-       hashlock included, otherwise it won't be able to claim it.
-
-       Args:
-          lockedTransfer: The transfer to be added.
-
-//Calculate the banlanceproof locksroot position before sending
-*/
-func (node *EndState) registerLockedTransfer(lockedTransfer encoding.EnvelopMessager) error {
-	if lockedTransfer.Cmd() != encoding.MediatedTransferCmdID {
-		return errors.New("not a locked lockedTransfer")
-	}
-	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(lockedTransfer)
-	mtranfer := encoding.GetMtrFromLockedTransfer(lockedTransfer)
-	lock := mtranfer.GetLock()
-	if node.IsKnown(lock.LockSecretHash) {
-		return errors.New("hashlock is already registered")
-	}
-	newtree, locksroot := node.computeMerkleRootWith(lock)
-	if balanceProof.LocksRoot != locksroot {
-		return &InvalidLocksRootError{
-			ExpectedLocksroot: locksroot,
-			GotLocksroot:      balanceProof.LocksRoot,
-		}
-	}
-	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{
-		Lock:     lock,
-		LockHash: lock.Hash(),
-	}
-	node.BalanceProofState = balanceProof
-	node.Tree = newtree
-	return nil
 }
 
 /*
