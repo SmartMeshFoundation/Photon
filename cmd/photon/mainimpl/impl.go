@@ -168,6 +168,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "enable-fork-confirm",
 			Usage: "enable fork confirm when receive events from chain",
 		},
+		cli.StringFlag{
+			Name:  "http-password",
+			Usage: "the password needed when call http api",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -438,6 +442,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		log.Info("fork-confirm enable...")
 		params.EnableForkConfirm = true
 	}
+	config.HTTPPassword = ctx.String("http-password")
 	return
 }
 
