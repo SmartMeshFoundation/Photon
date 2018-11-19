@@ -42,7 +42,9 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 		quitChan:   make(chan struct{}),
 	}
 	var err error
-	c.Client, err = ethclient.Dial(rawurl)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+	c.Client, err = ethclient.DialContext(ctx, rawurl)
+	cancelFunc()
 	if err == nil && checkConnectStatus(c.Client) == nil {
 		c.changeStatus(netshare.Connected)
 	} else {
@@ -104,7 +106,9 @@ func (c *SafeEthClient) RecoverDisconnect() {
 		default:
 			//never block
 		}
-		client, err = ethclient.Dial(c.url)
+		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+		client, err = ethclient.DialContext(ctx, c.url)
+		cancelFunc()
 		if err == nil {
 			err = checkConnectStatus(client)
 		}
