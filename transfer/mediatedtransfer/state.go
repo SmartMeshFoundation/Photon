@@ -75,18 +75,19 @@ type CrashState struct {
 InitiatorState is State of a node initiating a mediated transfer.
 */
 type InitiatorState struct {
-	OurAddress        common.Address       //This node address.
-	Transfer          *LockedTransferState // The description of the mediated transfer.
-	Routes            *route.RoutesState   //Routes available for this transfer.
-	BlockNumber       int64                //Latest known block number.
-	LockSecretHash    common.Hash
-	Secret            common.Hash
-	Message           *EventSendMediatedTransfer // current message in-transit
-	Route             *route.State               //current route being used
-	SecretRequest     *encoding.SecretRequest
-	RevealSecret      *EventSendRevealSecret
-	CanceledTransfers []*EventSendMediatedTransfer
-	Db                channeltype.Db
+	OurAddress                     common.Address       //This node address.
+	Transfer                       *LockedTransferState // The description of the mediated transfer.
+	Routes                         *route.RoutesState   //Routes available for this transfer.
+	BlockNumber                    int64                //Latest known block number.
+	LockSecretHash                 common.Hash
+	Secret                         common.Hash
+	Message                        *EventSendMediatedTransfer // current message in-transit
+	Route                          *route.State               //current route being used
+	SecretRequest                  *encoding.SecretRequest
+	RevealSecret                   *EventSendRevealSecret
+	CanceledTransfers              []*EventSendMediatedTransfer
+	Db                             channeltype.Db
+	CancelByExceptionSecretRequest bool // set true when receive exception SecretRequest
 }
 
 /*

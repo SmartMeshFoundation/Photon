@@ -228,7 +228,7 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 		stateChange.Amount.Cmp(state.Transfer.TargetAmount) == 0
 	//isInvalid := stateChange.Sender == state.Transfer.Target &&
 	//	stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
-	if isValid {
+	if isValid && !state.CancelByExceptionSecretRequest {
 		/*
 		   Reveal the secret to the target node and wait for its confirmation,
 		   at this point the transfer is not cancellable anymore either the lock
@@ -251,6 +251,11 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 			Events:   []transfer.Event{revealSecret},
 		}
 	}
+	/*
+		如果收到无效的secret request,当成有人做出了攻击行为来处理,设置标志位拒绝后续所有secret request,
+		然后什么都不做,等待remove
+	*/
+	state.CancelByExceptionSecretRequest = true
 	/*
 		BUG : 每次交易密码不会发生变化,如果尝试其他路径,可能会被恶意利用
 	*/
@@ -383,13 +388,14 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		staii, ok := st.(*mt.ActionInitInitiatorStateChange)
 		if ok {
 			state = &mt.InitiatorState{
-				OurAddress:     staii.OurAddress,
-				Transfer:       staii.Tranfer,
-				Routes:         staii.Routes,
-				BlockNumber:    staii.BlockNumber,
-				LockSecretHash: staii.LockSecretHash,
-				Secret:         staii.Secret,
-				Db:             staii.Db,
+				OurAddress:                     staii.OurAddress,
+				Transfer:                       staii.Tranfer,
+				Routes:                         staii.Routes,
+				BlockNumber:                    staii.BlockNumber,
+				LockSecretHash:                 staii.LockSecretHash,
+				Secret:                         staii.Secret,
+				Db:                             staii.Db,
+				CancelByExceptionSecretRequest: false,
 			}
 			return tryNewRoute(state)
 		}
