@@ -1401,7 +1401,7 @@ func (m *MatrixTransport) leaveUselessRoom() {
 			continue
 		}
 		if m.isUseLessRoom(room) {
-			m.log.Info(fmt.Sprintf("try to leave room %s,because of useless ", utils.StringInterface(room, 5)))
+			//m.log.Info(fmt.Sprintf("try to leave room %s,because of useless ", utils.StringInterface(room, 5)))
 			_, err := m.matrixcli.LeaveRoom(roomID)
 			if err != nil {
 				m.log.Error(fmt.Sprintf("leave room %s err %s,room=%s", roomID, err, utils.StringInterface(room, 5)))
