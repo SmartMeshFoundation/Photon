@@ -108,7 +108,8 @@ func init() {
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) (err error) {
 	doDebug := ctx.GlobalBool(debugFlag.Name)
-	var slowHandler log.Handler
+	var httpHandler, fileHandler log.Handler
+	// http handler
 	if doDebug {
 		resp, err2 := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
 		if err2 != nil {
@@ -125,37 +126,27 @@ func Setup(ctx *cli.Context) (err error) {
 					addr += "-other"
 				}
 				path := fmt.Sprintf(fmt.Sprintf("%s/logsrv/1/log/%s/%s", params.TestLogServer, addr, string(id)))
-				slowHandler = log.HttpHandler(path, log.TerminalFormat(false))
+				httpHandler = log.HttpHandler(path, log.TerminalFormat(false))
 			}
 		}
 	}
-	//set up glogger
+	// file handler
 	if len(ctx.String(logFileFlag.Name)) > 0 {
-		var h log.Handler
 		fmt.Printf("log will be write to %s\n", ctx.String(logFileFlag.Name))
-		h, err = log.FileHandler(ctx.String(logFileFlag.Name), log.TerminalFormat(false))
+		fileHandler, err = log.FileHandler(ctx.String(logFileFlag.Name), log.TerminalFormat(false))
 		if err != nil {
 			return
 		}
-		if doDebug && slowHandler != nil {
-			glogger = log.NewGlogHandler(log.TeeHandler(h, slowHandler))
-		} else {
-			glogger = log.NewGlogHandler(h)
-		}
-
-	} else {
-		usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
-		output := io.Writer(os.Stderr)
-		if usecolor {
-			output = colorable.NewColorableStderr()
-		}
-		if doDebug && slowHandler != nil {
-			glogger = log.NewGlogHandler(log.TeeHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)), slowHandler))
-		} else {
-			glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
-		}
-
 	}
+	// console handler
+	usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
+	output := io.Writer(os.Stderr)
+	if usecolor {
+		output = colorable.NewColorableStderr()
+	}
+	consoleHandler := log.StreamHandler(output, log.TerminalFormat(usecolor))
+	glogger = log.NewGlogHandler(log.TeeHandler(consoleHandler, fileHandler, httpHandler))
+
 	// logging
 	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
 	glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
