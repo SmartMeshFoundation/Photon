@@ -39,8 +39,12 @@ type ReceivedTransfer struct {
 /*
 NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int) *SentTransfer {
-	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash) *SentTransfer {
+	if lockSecretHash == utils.EmptyHash {
+		// direct transfer, use fakeLockSecretHash
+		lockSecretHash = utils.NewRandomHash()
+	}
+	key := fmt.Sprintf("%s-%s", channelIdentifier.String(), lockSecretHash.String())
 	st := &SentTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
@@ -63,8 +67,12 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int) *ReceivedTransfer {
-	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash) *ReceivedTransfer {
+	if lockSecretHash == utils.EmptyHash {
+		// direct transfer, use fakeLockSecretHash
+		lockSecretHash = utils.NewRandomHash()
+	}
+	key := fmt.Sprintf("%s-%s", channelIdentifier.String(), lockSecretHash.String())
 	st := &ReceivedTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,

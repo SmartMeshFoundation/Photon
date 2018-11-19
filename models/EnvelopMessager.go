@@ -33,7 +33,7 @@ func (model *ModelDB) NewSentEnvelopMessager(msg encoding.EnvelopMessager, recei
 		Time:     time.Now(),
 		EchoHash: echohash[:],
 	}
-	log.Trace(fmt.Sprintf("NewSentEnvelopMessager %s", utils.BPex(tr.EchoHash)))
+	log.Trace(fmt.Sprintf("NewSentEnvelopMessager EchoHash=%s", utils.BPex(tr.EchoHash)))
 	err := model.db.Save(tr)
 	if err != nil {
 		log.Error(fmt.Sprintf("NewSentEnvelopMessager err=%s", err))
