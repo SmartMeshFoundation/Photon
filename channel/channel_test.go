@@ -81,7 +81,7 @@ func TestEndState(t *testing.T) {
 	}
 	mtr := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
 	mtr.Sign(bcs.PrivKey, mtr)
-	err := state1.registerLockedTransfer(mtr)
+	err := state1.registerMediatedMessage(mtr)
 	if err != nil {
 		t.Error(err)
 		return

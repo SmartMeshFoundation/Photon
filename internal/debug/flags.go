@@ -19,8 +19,9 @@ package debug
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+
+	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
@@ -111,24 +112,18 @@ func Setup(ctx *cli.Context) (err error) {
 	var httpHandler, fileHandler log.Handler
 	// http handler
 	if doDebug {
-		resp, err2 := http.Get(fmt.Sprintf("%s/logsrv/1/assignid", params.TestLogServer))
-		if err2 != nil {
-			fmt.Printf("log srv assignid err %s\n", err2)
-		} else {
-			var id []byte
-			id, err = ioutil.ReadAll(resp.Body)
-			err2 = resp.Body.Close()
-			if err == nil {
-				addr := ctx.GlobalString("address")
-				if params.MobileMode {
-					addr += "-mobile"
-				} else {
-					addr += "-other"
-				}
-				path := fmt.Sprintf(fmt.Sprintf("%s/logsrv/1/log/%s/%s", params.TestLogServer, addr, string(id)))
-				httpHandler = log.HttpHandler(path, log.TerminalFormat(false))
-			}
+		addr := ctx.GlobalString("address")
+		if len(addr) == 0 {
+			addr = utils.RandomString(20)
 		}
+		if params.MobileMode {
+			addr += "-mobile"
+		} else {
+			addr += "-other"
+		}
+		path := fmt.Sprintf(fmt.Sprintf("%s/logsrv/1/log/%s/%s", params.TestLogServer, addr, "1"))
+		httpHandler = log.HttpHandler(path, log.TerminalFormat(false))
+
 	}
 	// file handler
 	if len(ctx.String(logFileFlag.Name)) > 0 {

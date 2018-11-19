@@ -66,7 +66,6 @@ var Version string
 
 //StartMain entry point of photon app
 func StartMain() (*photon.API, error) {
-	os.Args[0] = "photon"
 	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version)
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
@@ -195,6 +194,7 @@ func StartMain() (*photon.API, error) {
 func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("Welcome to photon,version %s\n", ctx.App.Version))
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
+	log.Info(fmt.Sprintf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version))
 	var isFirstStartUp, hasConnectedChain bool
 	// load config
 	cfg, err := config(ctx)
