@@ -464,12 +464,12 @@ func (rs *Service) GetBlockNumber() int64 {
 }
 
 // GetChannelStatus return status of channel
-func (rs *Service) GetChannelStatus(channelIdentifier common.Hash) int {
+func (rs *Service) GetChannelStatus(channelIdentifier common.Hash) (int, int64) {
 	c := rs.getChannelWithAddr(channelIdentifier)
 	if c == nil {
-		return channeltype.StateInValid
+		return channeltype.StateInValid, 0
 	}
-	return int(c.State)
+	return int(c.State), c.ChannelIdentifier.OpenBlockNumber
 }
 
 func (rs *Service) findChannelByIdentifier(channelIdentifier common.Hash) (*channel.Channel, error) {

@@ -66,7 +66,7 @@ ChannelStatusGetter get the status of channel address, so sender can remove msg 
 		So A need to remove channel when channel status change.
 */
 type ChannelStatusGetter interface {
-	GetChannelStatus(channelIdentifier common.Hash) int
+	GetChannelStatus(channelIdentifier common.Hash) (int, int64)
 }
 
 /*
@@ -224,11 +224,15 @@ func (p *PhotonProtocol) SendPing(receiver common.Address) error {
  *	Note that once this channel gets removed, those pending message should also be securely removed,
  *	otherwise new channel can't be created.
  */
-func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash) bool {
+func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash, openBlockNumber int64) bool {
 	if channelIdentifier != utils.EmptyHash {
-		status := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
+		status, localOpenBlockNumber := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
 		if status == channeltype.StateInValid {
 			p.log.Info(fmt.Sprintf("message cannot be send because of channel status =%d", status))
+			return false
+		}
+		if openBlockNumber != localOpenBlockNumber {
+			p.log.Info(fmt.Sprintf("message cannot be send because of channel open block number does't match,now=%d,msg.OpenBlockNumber=%d", localOpenBlockNumber, openBlockNumber))
 			return false
 		}
 	}
@@ -240,11 +244,11 @@ func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifi
 此函数保证不阻塞
 此函数启动的goroutine会自动处理退出问题
 */
-func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channelIdentifier common.Hash, msgState *SentMessageState) {
+func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channelIdentifier common.Hash, openBlockNumber int64, msgState *SentMessageState) {
 	if channelIdentifier == utils.EmptyHash {
 		// 不带balance proof的消息,单独发送,不使用队列
 		log.Trace(fmt.Sprintf("send message EchoHash=%s without SendingQueue", utils.HPex(msgState.EchoHash)))
-		go p.sendMessage(receiver, channelIdentifier, msgState)
+		go p.sendMessage(receiver, channelIdentifier, openBlockNumber, msgState)
 		return
 	}
 	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
@@ -294,17 +298,17 @@ func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channe
 			msg := ql.messages[0]
 			ql.messages = ql.messages[1:]
 			p.mapLock.Unlock()
-			p.sendMessage(receiver, channelIdentifier, msg)
+			p.sendMessage(receiver, channelIdentifier, openBlockNumber, msg)
 		}
 	}()
 }
 
-func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier common.Hash, msgState *SentMessageState) {
+func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier common.Hash, openBlockNumber int64, msgState *SentMessageState) {
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
 	for {
-		if !p.messageCanBeSent(msgState.Message, channelIdentifier) {
+		if !p.messageCanBeSent(msgState.Message, channelIdentifier, openBlockNumber) {
 			msgState.AsyncResult.Result <- errExpired
 			return
 		}
@@ -331,21 +335,33 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier 
 	}
 }
 
-func getMessageChannelIdentifier(msg encoding.Messager) common.Hash {
+func getMessageChannelIdentifier(msg encoding.Messager) (common.Hash, int64) {
 	var channelIdentifier common.Hash
+	var openBlockNumber int64
 	switch msg2 := msg.(type) {
 	case *encoding.DirectTransfer:
 		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
 	case *encoding.MediatedTransfer:
 		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
 	case *encoding.AnnounceDisposedResponse:
 		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
 	case *encoding.UnLock:
 		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
 	case *encoding.RemoveExpiredHashlockTransfer:
 		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
+	case *encoding.SettleRequest:
+		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
+	case *encoding.WithdrawRequest:
+		channelIdentifier = msg2.ChannelIdentifier
+		openBlockNumber = msg2.OpenBlockNumber
 	}
-	return channelIdentifier
+	return channelIdentifier, openBlockNumber
 }
 
 /*
@@ -384,8 +400,8 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	}
 	p.SentHashesToChannel[echohash] = msgState
 	result = msgState.AsyncResult
-	channelIdentifier := getMessageChannelIdentifier(msg)
-	p.processSentMessageState(receiver, channelIdentifier, msgState)
+	channelIdentifier, openBlockNumber := getMessageChannelIdentifier(msg)
+	p.processSentMessageState(receiver, channelIdentifier, openBlockNumber, msgState)
 	return
 }
 

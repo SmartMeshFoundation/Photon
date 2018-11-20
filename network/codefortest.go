@@ -64,14 +64,14 @@ func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransport {
 
 type testChannelStatusGetter struct{}
 
-func (t *testChannelStatusGetter) GetChannelStatus(channelIdentifier common.Hash) int {
-	return channeltype.StateOpened
+func (t *testChannelStatusGetter) GetChannelStatus(channelIdentifier common.Hash) (int, int64) {
+	return channeltype.StateOpened, 0
 }
 
 type testChannelStatusGetterInvalid struct{}
 
-func (t *testChannelStatusGetterInvalid) GetChannelStatus(channelIdentifier common.Hash) int {
-	return channeltype.StateInValid
+func (t *testChannelStatusGetterInvalid) GetChannelStatus(channelIdentifier common.Hash) (int, int64) {
+	return channeltype.StateInValid, 0
 }
 
 type timeBlockNumberGetter struct {
