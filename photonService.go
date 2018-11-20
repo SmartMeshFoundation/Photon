@@ -469,7 +469,7 @@ func (rs *Service) GetChannelStatus(channelIdentifier common.Hash) (int, int64) 
 	if c == nil {
 		return channeltype.StateInValid, 0
 	}
-	return int(c.State), c.ExternState.ChannelIdentifier.OpenBlockNumber
+	return int(c.State), c.ChannelIdentifier.OpenBlockNumber
 }
 
 func (rs *Service) findChannelByIdentifier(channelIdentifier common.Hash) (*channel.Channel, error) {
