@@ -25,8 +25,9 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	assert.Equal(t, r.ChannelIdentifier, caddr)
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
-
+	lockSecertHash = utils.NewRandomHash()
 	m.NewReceivedTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash)
+	lockSecertHash = utils.NewRandomHash()
 	m.NewReceivedTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash)
 
 	trs, err := m.GetReceivedTransferInBlockRange(0, 3)
@@ -67,7 +68,9 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
 
+	lockSecertHash = utils.NewRandomHash()
 	m.NewSentTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash)
+	lockSecertHash = utils.NewRandomHash()
 	m.NewSentTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash)
 
 	trs, err := m.GetSentTransferInBlockRange(0, 3)

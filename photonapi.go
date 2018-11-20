@@ -571,7 +571,7 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 	//send settle request
 	result := r.Photon.cooperativeSettleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Trace(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}

@@ -170,6 +170,7 @@ func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 		return
 	}
 	log.Trace("log...")
+	_, testOpenBlockNumber := (&testChannelStatusGetter{}).GetChannelStatus(utils.EmptyHash)
 	p1 := MakeTestDiscardExpiredTransferPhotonProtocol("p1")
 	p1.Start()
 	expiration := 7 //7 second
@@ -181,7 +182,7 @@ func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 	reciever := utils.NewRandomAddress()
 	bp := encoding.NewBalanceProof(1, utils.BigInt0, utils.EmptyHash, &contracts.ChannelUniqueID{
 		ChannelIdentifier: utils.NewRandomHash(),
-		OpenBlockNumber:   3,
+		OpenBlockNumber:   testOpenBlockNumber,
 	})
 	mtr := encoding.NewMediatedTransfer(bp, &lock,
 		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
