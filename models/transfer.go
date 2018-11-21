@@ -44,7 +44,7 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
 	}
-	key := fmt.Sprintf("%s-%s", channelIdentifier.String(), lockSecretHash.String())
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &SentTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
@@ -72,7 +72,7 @@ func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier c
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
 	}
-	key := fmt.Sprintf("%s-%s", channelIdentifier.String(), lockSecretHash.String())
+	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
 	st := &ReceivedTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
