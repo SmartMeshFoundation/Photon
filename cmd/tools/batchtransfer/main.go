@@ -107,7 +107,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "token",
-			Usage: "transfer from token",
+			Usage: "transfer from tokens, it's a comma sperated token list. for example 0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d,0x56d05806656D3Ea8F2142a2FF2eA6dFE5D625254 ",
 		},
 		cli.StringFlag{
 			Name:  "target",
@@ -147,7 +147,15 @@ func mainctx(ctx *cli.Context) {
 	err := debug.Setup(ctx)
 	if err != nil {
 		log.Error(fmt.Sprintf("setup err=%s", err))
+		return
 	}
+	tokens := strings.Split(ctx.String("token"), ",")
+	if len(tokens) == 0 {
+		log.Error(fmt.Sprintf("token arg error"))
+		return
+	}
+	log.Info(fmt.Sprintf("tokens=%s", tokens))
+	tokensNumber := len(tokens)
 	number := ctx.Int("number")
 	wg := sync.WaitGroup{}
 	wg.Add(number)
@@ -159,7 +167,7 @@ func mainctx(ctx *cli.Context) {
 			wg.Done()
 			wg.Wait()
 			start2 := time.Now()
-			result, err := transfer(ctx.String("photon"), ctx.String("token"), ctx.String("target"), index, index, ctx.Bool("direct"))
+			result, err := transfer(ctx.String("photon"), tokens[index%tokensNumber], ctx.String("target"), index, index, ctx.Bool("direct"))
 			end := time.Now()
 			if err != nil {
 				log.Error(fmt.Sprintf("transfer:%d finished err=%s, result=%s, take time=%s", index, err, result, end.Sub(start2)))
