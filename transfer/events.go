@@ -35,6 +35,7 @@ type EventTransferSentSuccess struct {
 	Target            common.Address
 	ChannelIdentifier common.Hash
 	Token             common.Address
+	Data              string
 }
 
 /*
@@ -64,6 +65,7 @@ type EventTransferReceivedSuccess struct {
 	Amount            *big.Int
 	Initiator         common.Address
 	ChannelIdentifier common.Hash
+	Data              string
 }
 
 func init() {

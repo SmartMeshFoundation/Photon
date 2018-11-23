@@ -24,6 +24,7 @@ type TransferData struct {
 	Fee            *big.Int `json:"fee,omitempty"`
 	IsDirect       bool     `json:"is_direct,omitempty"`
 	Sync           bool     `json:"sync,omitempty"` //是否同步
+	Data           string   `json:"data"`           // 交易附加信息,长度不超过256
 }
 
 /*
@@ -110,11 +111,15 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, "Invalid secret", http.StatusBadRequest)
 		return
 	}
+	if len(req.Data) > params.MaxTransferDataLen {
+		rest.Error(w, "Invalid data, length must < 256", http.StatusBadRequest)
+		return
+	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect)
+		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data)
 	} else {
-		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect)
+		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data)
 	}
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)

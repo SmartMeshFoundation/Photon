@@ -345,8 +345,8 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //Transfer transfer and wait
-func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer)
+func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer, data)
 	if err != nil {
 		return
 	}
@@ -364,8 +364,8 @@ func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, targ
 }
 
 // TransferAsync :
-func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer)
+func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
 	if err != nil {
 		return
 	}
@@ -379,7 +379,7 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *b
 }
 
 //TransferInternal :
-func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool) (result *utils.AsyncResult, err error) {
+func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
 	tokens := r.Tokens()
 	found := false
 	for _, t := range tokens {
@@ -410,7 +410,7 @@ func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee
 	}
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s",
 		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String()))
-	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer)
+	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
 	return
 }
 

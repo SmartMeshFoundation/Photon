@@ -120,6 +120,8 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 			Sender:         state.OurAddress,
 		}
 		events = append(events, reveal)
+		// 保留data字段
+		tr.Data = string(st.Message.Data)
 	} else {
 		// TODO: event for byzantine behavior
 	}
@@ -206,6 +208,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			Amount:            state.FromTransfer.Amount,
 			Initiator:         state.FromTransfer.Initiator,
 			ChannelIdentifier: state.FromRoute.ChannelIdentifier,
+			Data:              state.FromTransfer.Data,
 		}
 		unlockSuccess := &mediatedtransfer.EventWithdrawSuccess{
 			LockSecretHash: state.FromTransfer.LockSecretHash,

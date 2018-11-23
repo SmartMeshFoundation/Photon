@@ -78,6 +78,7 @@ type EventSendRevealSecret struct {
 	Token          common.Address
 	Receiver       common.Address
 	Sender         common.Address
+	Data           string
 }
 
 /*

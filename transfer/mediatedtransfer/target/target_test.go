@@ -7,6 +7,7 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -152,6 +153,9 @@ func TestHandleSecretReveal(t *testing.T) {
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{
 		Secret: secret,
 		Sender: initiator,
+		Message: &encoding.RevealSecret{
+			Data: []byte("123"),
+		},
 	}
 	//use mediatedTransfer to implement direct transfer
 	//it := handleSecretReveal(state, stateChange)

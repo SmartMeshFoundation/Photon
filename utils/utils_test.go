@@ -42,3 +42,22 @@ func TestShaSecret(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteVarInt(t *testing.T) {
+	buf := new(bytes.Buffer)
+	data := uint64(0xffffffffff)
+	err := WriteVarInt(buf, data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	d1, err := ReadVarInt(buf)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if d1 != data {
+		t.Error("not equal")
+		return
+	}
+}

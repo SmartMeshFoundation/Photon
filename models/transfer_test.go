@@ -14,7 +14,7 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	taddr := utils.NewRandomAddress()
 	caddr := utils.NewRandomHash()
 	lockSecertHash := utils.NewRandomHash()
-	m.NewReceivedTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash)
+	m.NewReceivedTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
 	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
 	r, err := m.GetReceivedTransfer(key)
 	if err != nil {
@@ -25,8 +25,8 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	assert.Equal(t, r.ChannelIdentifier, caddr)
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
-	m.NewReceivedTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash)
-	m.NewReceivedTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash)
+	m.NewReceivedTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
+	m.NewReceivedTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
 
 	trs, err := m.GetReceivedTransferInBlockRange(0, 3)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 	taddr := utils.NewRandomAddress()
 	caddr := utils.NewRandomHash()
 	lockSecertHash := utils.NewRandomHash()
-	m.NewSentTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash)
+	m.NewSentTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
 	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
 	r, err := m.GetSentTransfer(key)
 	if err != nil {
@@ -67,9 +67,9 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
 
 	lockSecertHash = utils.NewRandomHash()
-	m.NewSentTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash)
+	m.NewSentTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
 	lockSecertHash = utils.NewRandomHash()
-	m.NewSentTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash)
+	m.NewSentTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
 
 	trs, err := m.GetSentTransferInBlockRange(0, 3)
 	if err != nil {

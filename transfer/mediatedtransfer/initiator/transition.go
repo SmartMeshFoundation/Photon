@@ -127,6 +127,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		LockSecretHash: state.LockSecretHash,
 		Secret:         state.Secret,
 		Fee:            tryRoute.TotalFee,
+		Data:           state.Transfer.Data,
 	}
 	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
 	if len(state.Routes.CanceledRoutes) > 0 {
@@ -139,7 +140,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	state.Route = tryRoute
 	state.Transfer = tr
 	state.Message = msg
-	log.Trace(fmt.Sprintf("send mediated transfer id=%s,amount=%s,token=%s,target=%s,secret=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String()))
+	log.Trace(fmt.Sprintf("send mediated transfer id=%s,amount=%s,token=%s,target=%s,secret=%s,data=%s", utils.HPex(tr.LockSecretHash), tr.Amount, utils.APex(tr.Token), utils.APex(tr.Target), tr.Secret.String(), tr.Data))
 	events := []transfer.Event{msg}
 	return &transfer.TransitionResult{
 		NewState: state,
@@ -244,6 +245,7 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 			Token:          tr.Token,
 			Receiver:       tr.Target,
 			Sender:         state.OurAddress,
+			Data:           tr.Data,
 		}
 		state.RevealSecret = revealSecret
 		return &transfer.TransitionResult{
@@ -318,6 +320,7 @@ func transferSuccessEvents(state *mt.InitiatorState) (events []transfer.Event) {
 		Target:            tr.Target,
 		ChannelIdentifier: state.Route.ChannelIdentifier,
 		Token:             tr.Token,
+		Data:              tr.Data,
 	}
 	unlockSuccess := &mt.EventUnlockSuccess{
 		LockSecretHash: tr.LockSecretHash,

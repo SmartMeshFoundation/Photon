@@ -449,6 +449,7 @@ type RevealSecret struct {
 	SignedMessage
 	LockSecret     common.Hash
 	lockSecretHash common.Hash
+	Data           []byte // used to transfer custom message, length should < 256
 }
 
 //NewRevealSecret create RevealSecret
@@ -480,6 +481,12 @@ func (rs *RevealSecret) Pack() []byte {
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, binary.LittleEndian, rs.CmdID) //only one byte.
 	_, err = buf.Write(rs.LockSecret[:])
+	// write data
+	dataLen := uint64(len(rs.Data))
+	err = utils.WriteVarInt(buf, dataLen)
+	if dataLen > 0 {
+		_, err = buf.Write(rs.Data)
+	}
 	_, err = buf.Write(rs.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("RevealSecret Pack err %s", err))
@@ -498,6 +505,18 @@ func (rs *RevealSecret) UnPack(data []byte) error {
 		return fmt.Errorf("RevealSecret Unpack cmdid should be  11,but get %d", t)
 	}
 	_, err = buf.Read(rs.LockSecret[:])
+	// readData
+	dataLen, err := utils.ReadVarInt(buf)
+	if err != nil {
+		return err
+	}
+	if dataLen > 0 {
+		rs.Data = make([]byte, dataLen)
+		err = binary.Read(buf, binary.LittleEndian, &rs.Data)
+		if err != nil {
+			return errors.New("RevealSecret unpack data error")
+		}
+	}
 	rs.Signature = make([]byte, signatureLength)
 	n, err := buf.Read(rs.Signature)
 	if err != nil {
@@ -809,6 +828,7 @@ Args:
 */
 type DirectTransfer struct {
 	EnvelopMessage
+	Data               []byte      // used to transfer custom message, length should < 256
 	FakeLockSecretHash common.Hash // used when save transfer status to db, do not be used when message pack/unpack
 }
 
@@ -832,6 +852,15 @@ func (m *DirectTransfer) Pack() []byte {
 	if err != nil {
 		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
 	}
+	// write data
+	dataLen := uint64(len(m.Data))
+	err = utils.WriteVarInt(buf, dataLen)
+	if dataLen > 0 {
+		_, err = buf.Write(m.Data)
+	}
+	if err != nil {
+		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
+	}
 	m.EnvelopMessage.pack(buf)
 	return buf.Bytes()
 }
@@ -842,8 +871,23 @@ func (m *DirectTransfer) UnPack(data []byte) error {
 	m.CmdID = DirectTransferCmdID
 	buf := bytes.NewBuffer(data)
 	err := binary.Read(buf, binary.LittleEndian, &t)
+	if err != nil {
+		return err
+	}
 	if t != m.CmdID {
 		return errors.New("DirectTransfer unpack cmdid error")
+	}
+	// readData
+	dataLen, err := utils.ReadVarInt(buf)
+	if err != nil {
+		return err
+	}
+	if dataLen > 0 {
+		m.Data = make([]byte, dataLen)
+		err = binary.Read(buf, binary.LittleEndian, &m.Data)
+		if err != nil {
+			return errors.New("DirectTransfer unpack data error")
+		}
 	}
 	err = m.EnvelopMessage.unpack(buf)
 	if err != nil {
