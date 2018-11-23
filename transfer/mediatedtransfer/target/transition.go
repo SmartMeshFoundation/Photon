@@ -111,6 +111,10 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 		tr := state.FromTransfer
 		route := state.FromRoute
 		state.State = mediatedtransfer.StateRevealSecret
+		// 仅在第一次收到reveal secret消息的时候,保留data字段
+		if tr.Secret == utils.EmptyHash {
+			tr.Data = string(st.Message.Data)
+		}
 		tr.Secret = st.Secret
 		reveal := &mediatedtransfer.EventSendRevealSecret{
 			LockSecretHash: tr.LockSecretHash,
@@ -120,8 +124,6 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 			Sender:         state.OurAddress,
 		}
 		events = append(events, reveal)
-		// 保留data字段
-		tr.Data = string(st.Message.Data)
 	} else {
 		// TODO: event for byzantine behavior
 	}
