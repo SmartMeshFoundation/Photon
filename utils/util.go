@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"math"
 	"math/rand"
 	"os"
@@ -28,7 +29,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/kataras/iris/core/errors"
 )
 
 // BytesToString accepts bytes and returns their string presentation
