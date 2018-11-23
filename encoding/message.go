@@ -510,6 +510,9 @@ func (rs *RevealSecret) UnPack(data []byte) error {
 	if err != nil {
 		return err
 	}
+	if dataLen > params.UDPMaxMessageSize {
+		return fmt.Errorf("RevealSecret unpack data error, too large data, maby attack")
+	}
 	if dataLen > 0 {
 		rs.Data = make([]byte, dataLen)
 		err = binary.Read(buf, binary.LittleEndian, &rs.Data)
@@ -881,6 +884,9 @@ func (m *DirectTransfer) UnPack(data []byte) error {
 	dataLen, err := utils.ReadVarInt(buf)
 	if err != nil {
 		return err
+	}
+	if dataLen > params.UDPMaxMessageSize {
+		return fmt.Errorf("RevealSecret unpack data error, too large data, maby attack")
 	}
 	if dataLen > 0 {
 		m.Data = make([]byte, dataLen)
