@@ -26,6 +26,7 @@ type LockedTransferState struct {
 	LockSecretHash common.Hash    // The hashlock.
 	Secret         common.Hash    //The secret that unlocks the lock, may be None.
 	Fee            *big.Int       // how much fee left for other hop node.
+	Data           string
 }
 
 //AlmostEqual if two state equals?

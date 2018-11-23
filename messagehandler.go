@@ -419,6 +419,7 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		Amount:            amount,
 		Initiator:         msg.Sender,
 		ChannelIdentifier: msg.ChannelIdentifier,
+		Data:              string(msg.Data),
 	}
 	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.photon.StateMachineEventHandler.OnEvent(receiveSuccess, nil)

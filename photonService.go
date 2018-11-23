@@ -706,7 +706,7 @@ Do a direct tranfer with target.
        are required to complete the transfer (from the payer's perspective),
        whereas the mediated transfer requires 6 messages.
 */
-func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amount *big.Int) (result *utils.AsyncResult) {
+func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amount *big.Int, data string) (result *utils.AsyncResult) {
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	directChannel := g.GetPartenerAddress2Channel(target)
 	result = utils.NewAsyncResult()
@@ -719,6 +719,7 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		result.Result <- err
 		return
 	}
+	tr.Data = []byte(data)
 	err = tr.Sign(rs.PrivateKey, tr)
 	err = directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
 	if err != nil {
@@ -732,6 +733,7 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		Target:            target,
 		ChannelIdentifier: directChannel.ChannelIdentifier.ChannelIdentifier,
 		Token:             tokenAddress,
+		Data:              data,
 	}
 	/*
 		对于DirectTransfer,生成一个假的LockSecretHash,
@@ -788,7 +790,7 @@ Calls:
  *			2.1 taker should contain lockSecretHash, but no secret.
  *			2.2 maker should contain lockSecretHash and secret.
  */
-func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash, data string) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	var availableRoutes []*route.State
 	var err error
 	targetAmount := new(big.Int).Sub(amount, fee)
@@ -830,6 +832,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		LockSecretHash: lockSecretHash,
 		Secret:         secret,
 		Fee:            utils.BigInt0,
+		Data:           data,
 	}
 	/*
 		发起方每次切换路径不再切换密码,不切换依然可以保证安全
@@ -861,7 +864,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 1. user start a mediated transfer
 2. user start a mediated transfer with secret
 */
-func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash) (result *utils.AsyncResult) {
+func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash, data string) (result *utils.AsyncResult) {
 	lockSecretHash := utils.EmptyHash
 	if secret != utils.EmptyHash {
 		lockSecretHash = utils.ShaSecret(secret.Bytes())
@@ -891,7 +894,7 @@ func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, am
 		发起方在这里记录发起的交易状态,后续UpdateTransferStatus会更新DB中的值
 	*/
 	rs.db.NewTransferStatus(tokenAddress, lockSecretHash)
-	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret)
+	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret, data)
 	result.LockSecretHash = lockSecretHash
 	return
 }
@@ -1321,7 +1324,7 @@ func (rs *Service) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResu
 	}
 	rs.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	rs.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret)
+	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret, "")
 	return
 }
 
@@ -1375,7 +1378,7 @@ func (rs *Service) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokensw
 		taker and maker may have direct channels on these two tokens.
 	*/
 	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
-	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash)
+	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "")
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return false
@@ -1537,9 +1540,9 @@ func (rs *Service) handleReq(req *apiReq) {
 	case transferReqName: //mediated transfer only
 		r := req.Req.(*transferReq)
 		if r.IsDirectTransfer {
-			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount)
+			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount, r.Data)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret, r.Data)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)

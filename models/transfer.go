@@ -22,6 +22,7 @@ type SentTransfer struct {
 	TokenAddress      common.Address `json:"token_address"`
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
+	Data              string         `json:"data"`
 }
 
 //ReceivedTransfer tokens I have received and where it comes from
@@ -34,12 +35,13 @@ type ReceivedTransfer struct {
 	FromAddress       common.Address `json:"from_address"`
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
+	Data              string         `json:"data"`
 }
 
 /*
 NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash) *SentTransfer {
+func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *SentTransfer {
 	if lockSecretHash == utils.EmptyHash {
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
@@ -53,6 +55,7 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 		ToAddress:         toAddr,
 		Nonce:             nonce,
 		Amount:            amount,
+		Data:              data,
 	}
 	if ost, err := model.GetSentTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
@@ -67,7 +70,7 @@ func (model *ModelDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash) *ReceivedTransfer {
+func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *ReceivedTransfer {
 	if lockSecretHash == utils.EmptyHash {
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
@@ -81,6 +84,7 @@ func (model *ModelDB) NewReceivedTransfer(blockNumber int64, channelIdentifier c
 		FromAddress:       fromAddr,
 		Nonce:             nonce,
 		Amount:            amount,
+		Data:              data,
 	}
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",

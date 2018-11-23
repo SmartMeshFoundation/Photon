@@ -151,15 +151,17 @@ func TestDirectTransfer(t *testing.T) {
 		Locksroot:         utils.EmptyHash,
 	}
 	d1 := NewDirectTransfer(bp)
+	d1.Data = []byte("123")
 	d1.Sign(GetTestPrivKey(), d1)
 	d2 := new(DirectTransfer)
 	err := d2.UnPack(d1.Pack())
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	assert.EqualValues(t, d1, d2)
-	t.Logf("d1=%s\n", utils.StringInterface(d1, 3))
-	t.Logf("d2=%s\n", utils.StringInterface(d2, 3))
+	t.Logf("d1=%s data=%s\n", utils.StringInterface(d1, 3), string(d1.Data))
+	t.Logf("d2=%s data=%s\n", utils.StringInterface(d2, 3), string(d2.Data))
 }
 
 func TestMediatedTransfer(t *testing.T) {
@@ -243,6 +245,7 @@ func TestNewSecret(t *testing.T) {
 
 func TestNewRevealSecret(t *testing.T) {
 	s1 := NewRevealSecret(utils.ShaSecret([]byte("xxx")))
+	s1.Data = []byte("123")
 	s1.Sign(GetTestPrivKey(), s1)
 	data := s1.Pack()
 	s2 := new(RevealSecret)

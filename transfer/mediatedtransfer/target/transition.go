@@ -111,6 +111,10 @@ func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfe
 		tr := state.FromTransfer
 		route := state.FromRoute
 		state.State = mediatedtransfer.StateRevealSecret
+		// 仅在第一次收到reveal secret消息的时候,保留data字段
+		if tr.Secret == utils.EmptyHash {
+			tr.Data = string(st.Message.Data)
+		}
 		tr.Secret = st.Secret
 		reveal := &mediatedtransfer.EventSendRevealSecret{
 			LockSecretHash: tr.LockSecretHash,
@@ -206,6 +210,7 @@ func clearIfFinalized(previt *transfer.TransitionResult) (it *transfer.Transitio
 			Amount:            state.FromTransfer.Amount,
 			Initiator:         state.FromTransfer.Initiator,
 			ChannelIdentifier: state.FromRoute.ChannelIdentifier,
+			Data:              state.FromTransfer.Data,
 		}
 		unlockSuccess := &mediatedtransfer.EventWithdrawSuccess{
 			LockSecretHash: state.FromTransfer.LockSecretHash,

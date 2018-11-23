@@ -90,6 +90,8 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	eh.photon.conditionQuit("EventSendRevealSecretBefore")
 	eh.photon.registerSecret(event.Secret)
 	revealMessage := encoding.NewRevealSecret(event.Secret)
+	// 带上交易附加信息
+	revealMessage.Data = []byte(event.Data)
 	err = revealMessage.Sign(eh.photon.PrivateKey, revealMessage)
 	err = eh.photon.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
@@ -363,7 +365,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		st := eh.photon.db.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash)
+		st := eh.photon.db.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
@@ -379,7 +381,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		rt := eh.photon.db.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash)
+		rt := eh.photon.db.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:

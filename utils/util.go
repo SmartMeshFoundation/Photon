@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math"
 	"math/rand"
 	"os"
 	"reflect"
@@ -22,9 +23,12 @@ import (
 
 	"encoding/base32"
 
+	"encoding/binary"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kataras/iris/core/errors"
 )
 
 // BytesToString accepts bytes and returns their string presentation
@@ -173,4 +177,95 @@ func SystemExit(code int) {
 	}
 	time.Sleep(time.Second * 2)
 	os.Exit(code)
+}
+
+// ReadVarInt reads a variable length integer from r and returns it as a uint64.
+func ReadVarInt(r io.Reader) (uint64, error) {
+	var discriminant uint8
+	err := binary.Read(r, binary.LittleEndian, &discriminant)
+	if err != nil {
+		return 0, err
+	}
+	var rv uint64
+	switch discriminant {
+	case 0xff:
+		var sv uint64
+		err := binary.Read(r, binary.LittleEndian, &sv)
+		if err != nil {
+			return 0, err
+		}
+		rv = sv
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0x100000000)
+		if rv < min {
+			return 0, errors.New("ReadVarInt wrong")
+		}
+
+	case 0xfe:
+		var sv uint32
+		err := binary.Read(r, binary.LittleEndian, &sv)
+		if err != nil {
+			return 0, err
+		}
+		rv = uint64(sv)
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0x10000)
+		if rv < min {
+			return 0, errors.New("ReadVarInt wrong")
+		}
+
+	case 0xfd:
+		var sv uint16
+		err := binary.Read(r, binary.LittleEndian, &sv)
+		if err != nil {
+			return 0, err
+		}
+		rv = uint64(sv)
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0xfd)
+		if rv < min {
+			return 0, errors.New("ReadVarInt wrong")
+		}
+
+	default:
+		rv = uint64(discriminant)
+	}
+
+	return rv, nil
+}
+
+// WriteVarInt serializes val to w using a variable number of bytes depending
+// on its value.
+func WriteVarInt(w io.Writer, val uint64) error {
+	if val < 0xfd {
+		return binary.Write(w, binary.LittleEndian, uint8(val))
+	}
+
+	if val <= math.MaxUint16 {
+		err := binary.Write(w, binary.LittleEndian, uint8(0xfd))
+		if err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, uint16(val))
+	}
+
+	if val <= math.MaxUint32 {
+		err := binary.Write(w, binary.LittleEndian, uint8(0xfe))
+		if err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, uint32(val))
+	}
+
+	err := binary.Write(w, binary.LittleEndian, uint8(0xff))
+	if err != nil {
+		return err
+	}
+	return binary.Write(w, binary.LittleEndian, val)
 }

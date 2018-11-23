@@ -642,10 +642,10 @@ transfer:
 
 the caller should call GetTransferStatus periodically to query this transfer's latest status.
 */
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error) {
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (transfer string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v,\nout transfer=\n%s,err=%v",
-			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, transfer, err,
+		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s \nout transfer=\n%s,err=%v",
+			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, transfer, err,
 		))
 	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
@@ -660,6 +660,10 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = errors.New("invalid secret")
 		return
 	}
+	if len(data) > params.MaxTransferDataLen {
+		err = errors.New("invalid data, data len must < 256")
+		return
+	}
 	amount, _ := new(big.Int).SetString(amountstr, 0)
 	fee, _ := new(big.Int).SetString(feestr, 0)
 	secret := common.HexToHash(secretStr)
@@ -667,7 +671,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = errors.New("amount should be positive")
 		return
 	}
-	result, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect)
+	result, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -680,6 +684,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	req.Amount = amount
 	req.Secret = secretStr
 	req.Fee = fee
+	req.Data = data
 	return marshal(req)
 }
 
