@@ -59,6 +59,7 @@ type Config struct {
 	RegistryAddress           common.Address
 	DataDir                   string
 	MyAddress                 common.Address
+	Debug                     bool
 	DebugCrash                bool          //for test only,work with conditionQuit
 	ConditionQuit             ConditionQuit //for test only
 	NetworkMode               NetworkMode

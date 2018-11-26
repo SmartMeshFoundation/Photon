@@ -36,6 +36,11 @@ Start the restful server
 func Start() {
 
 	api := rest.NewApi()
+	if Config.Debug {
+		api.Use(rest.DefaultDevStack...)
+	} else {
+		api.Use(rest.DefaultProdStack...)
+	}
 	api.Use(rest.DefaultDevStack...)
 	if HTTPUsername != "" && HTTPPassword != "" {
 		api.Use(&rest.AuthBasicMiddleware{

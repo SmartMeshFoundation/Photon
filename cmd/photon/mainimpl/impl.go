@@ -396,6 +396,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	databasePath := filepath.Join(userDbPath, "log.db")
+	config.Debug = ctx.Bool("debug")
 	config.DataBasePath = databasePath
 	if ctx.Bool("debugcrash") {
 		config.DebugCrash = true
