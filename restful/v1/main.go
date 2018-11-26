@@ -24,6 +24,9 @@ should be set before start restful server
 */
 var Config *params.Config
 
+// HTTPUsername is username needed when call http api
+var HTTPUsername = ""
+
 // HTTPPassword is password needed when call http api
 var HTTPPassword = ""
 
@@ -34,7 +37,14 @@ func Start() {
 
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
-	api.Use(&HTTPPasswordCheckMiddleWare{})
+	if HTTPUsername != "" && HTTPPassword != "" {
+		api.Use(&rest.AuthBasicMiddleware{
+			Realm: "please input username and password",
+			Authenticator: func(userId string, password string) bool {
+				return userId == HTTPUsername && password == HTTPPassword
+			},
+		})
+	}
 	router, err := rest.MakeRouter(
 
 		/*
