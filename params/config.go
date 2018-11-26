@@ -59,6 +59,7 @@ type Config struct {
 	RegistryAddress           common.Address
 	DataDir                   string
 	MyAddress                 common.Address
+	Debug                     bool
 	DebugCrash                bool          //for test only,work with conditionQuit
 	ConditionQuit             ConditionQuit //for test only
 	NetworkMode               NetworkMode
@@ -68,6 +69,7 @@ type Config struct {
 	XMPPServer                string
 	IsMeshNetwork             bool   //is mesh now?
 	PfsHost                   string // pathfinder server host
+	HTTPUsername              string
 	HTTPPassword              string
 }
 

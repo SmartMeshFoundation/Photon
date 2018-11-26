@@ -168,8 +168,12 @@ func StartMain() (*photon.API, error) {
 			Usage: "enable fork confirm when receive events from chain",
 		},
 		cli.StringFlag{
+			Name:  "http-username",
+			Usage: "the username needed when call http api,only work with http-password",
+		},
+		cli.StringFlag{
 			Name:  "http-password",
-			Usage: "the password needed when call http api",
+			Usage: "the password needed when call http api,only work with http-username",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
@@ -392,6 +396,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	databasePath := filepath.Join(userDbPath, "log.db")
+	config.Debug = ctx.Bool("debug")
 	config.DataBasePath = databasePath
 	if ctx.Bool("debugcrash") {
 		config.DebugCrash = true
@@ -442,7 +447,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		log.Info("fork-confirm enable...")
 		params.EnableForkConfirm = true
 	}
-	config.HTTPPassword = ctx.String("http-password")
+	if ctx.IsSet("http-username") && ctx.IsSet("http-password") {
+		config.HTTPUsername = ctx.String("http-username")
+		config.HTTPPassword = ctx.String("http-password")
+	}
 	return
 }
 

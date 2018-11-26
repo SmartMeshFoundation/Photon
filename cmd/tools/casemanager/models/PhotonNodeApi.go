@@ -164,6 +164,29 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 }
 
+// SendTrans send a transfer, should be instead of Transfer
+func (node *PhotonNode) SendTransSync(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
+	p, err := json.Marshal(TransferPayload{
+		Amount:   amount,
+		Fee:      0,
+		IsDirect: isDirect,
+		Sync:     true,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 180,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
+	}
+}
+
 // SendTransWithData send a transfer, should be instead of Transfer
 func (node *PhotonNode) SendTransWithData(tokenAddress string, amount int32, targetAddress string, isDirect bool, data string) {
 	p, err := json.Marshal(TransferPayload{
