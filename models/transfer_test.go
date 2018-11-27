@@ -98,19 +98,19 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 
 func TestBatchWriteDb(t *testing.T) {
 	m := setupDb(t)
-	//caddr := utils.NewRandomHash()
-	//taddr := utils.NewRandomAddress()
-	//lockSecertHash := utils.NewRandomHash()
+	caddr := utils.NewRandomHash()
+	taddr := utils.NewRandomAddress()
+	lockSecertHash := utils.NewRandomHash()
 	number := float64(10000)
 	wg := sync.WaitGroup{}
 	wg.Add(int(number))
 	begin := time.Now()
 	for i := uint64(0); i < uint64(number); i++ {
 		go func(index uint64) {
-			b := time.Now()
-			m.SaveLatestBlockNumber(111)
-			//m.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
-			fmt.Println("use ", time.Since(b).Seconds())
+			//b := time.Now()
+			//m.SaveLatestBlockNumber(111)
+			m.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
+			//fmt.Println("use ", time.Since(b).Seconds())
 			wg.Done()
 		}(i)
 	}
