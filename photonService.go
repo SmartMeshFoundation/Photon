@@ -708,6 +708,10 @@ Do a direct tranfer with target.
 */
 func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amount *big.Int, data string) (result *utils.AsyncResult) {
 	g := rs.getToken2ChannelGraph(tokenAddress)
+	if g == nil {
+		result.Result <- errors.New("token not exist")
+		return
+	}
 	directChannel := g.GetPartenerAddress2Channel(target)
 	result = utils.NewAsyncResult()
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
@@ -803,6 +807,10 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		}
 	} else {
 		g := rs.getToken2ChannelGraph(tokenAddress)
+		if g == nil {
+			result.Result <- errors.New("token not exist")
+			return
+		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
 	if len(availableRoutes) <= 0 {
