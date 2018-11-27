@@ -5,6 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	"time"
+
+	"sync"
+
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -90,4 +94,28 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 		return
 	}
 	assert.EqualValues(t, len(trs), 0)
+}
+
+func TestBatchWriteDb(t *testing.T) {
+	m := setupDb(t)
+	//caddr := utils.NewRandomHash()
+	//taddr := utils.NewRandomAddress()
+	//lockSecertHash := utils.NewRandomHash()
+	number := float64(10000)
+	wg := sync.WaitGroup{}
+	wg.Add(int(number))
+	begin := time.Now()
+	for i := uint64(0); i < uint64(number); i++ {
+		go func(index uint64) {
+			b := time.Now()
+			m.SaveLatestBlockNumber(111)
+			//m.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
+			fmt.Println("use ", time.Since(b).Seconds())
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	total := time.Since(begin).Seconds()
+	fmt.Println("total use seconds ", total)
+	fmt.Println("avg use seconds ", total/number)
 }

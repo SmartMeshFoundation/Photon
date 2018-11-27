@@ -389,7 +389,6 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 		result = msgState.AsyncResult
 		return
 	}
-	p.mapLock.Unlock()
 	msgState = &SentMessageState{
 		AsyncResult:     utils.NewAsyncResult(),
 		ReceiverAddress: receiver,
@@ -399,6 +398,7 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 		EchoHash:        echohash,
 	}
 	p.SentHashesToChannel[echohash] = msgState
+	p.mapLock.Unlock()
 	result = msgState.AsyncResult
 	channelIdentifier, openBlockNumber := getMessageChannelIdentifier(msg)
 	p.processSentMessageState(receiver, channelIdentifier, openBlockNumber, msgState)
