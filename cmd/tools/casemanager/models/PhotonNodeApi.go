@@ -164,7 +164,7 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 }
 
-// SendTrans send a transfer, should be instead of Transfer
+// SendTransSync send a transfer, should be instead of Transfer
 func (node *PhotonNode) SendTransSync(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
@@ -194,6 +194,7 @@ func (node *PhotonNode) SendTransWithData(tokenAddress string, amount int32, tar
 		Fee:      0,
 		IsDirect: isDirect,
 		Data:     data,
+		Sync:     true,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,

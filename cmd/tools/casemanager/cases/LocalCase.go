@@ -42,7 +42,8 @@ func (cm *CaseManager) LocalCase() (err error) {
 			wg.Done()
 			wg.Wait()
 			bt := time.Now()
-			N0.SendTransSync(tokenAddress, transAmount, N1.Address, true)
+			//N0.SendTransSync(tokenAddress, transAmount, N1.Address, true)
+			N0.SendTransWithData(tokenAddress, transAmount, N1.Address, true, "123")
 			fmt.Println("transfer ", index, "use  ", time.Since(bt).Seconds())
 			wg2.Done()
 		}(i)
@@ -50,10 +51,10 @@ func (cm *CaseManager) LocalCase() (err error) {
 	wg2.Wait()
 	total := time.Since(begin).Seconds()
 	fmt.Println("total=", total)
-	fmt.Println("tps=", 1000/total)
+	fmt.Println("tps=", float64(number)/total)
 	//time.Sleep(10 * time.Second)
 	//N1.Close(channel.ChannelIdentifier)
-	time.Sleep(1000 * time.Second)
+	//time.Sleep(1000 * time.Second)
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }
