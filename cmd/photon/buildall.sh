@@ -3,7 +3,6 @@ export CGO_ENABLED=0
 export GOOS=linux
 export GOARCH=arm
 export GOARM=5
-export VERSION=0.91
 go env
 ./build.sh
 mv photon photon_linux_arm_$VERSION
