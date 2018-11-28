@@ -451,23 +451,34 @@ When channel state is `open` with sufficient funds, participants can make transf
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`
 **PAYLOAD :**  
 ```json
-{
-    "amount":20,
-    "is_direct":false // whether it is a direct transfer
-
+ 
+ {
+    "amount":200000,
+    "fee":0,
+    "is_direct":false, //whether it is a direct transfer
+    "Sync":false,
+    "data":"hello word"
 }
 ```
 **Example Response :**  
 ```json
 {
-    "initiator_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
-    "target_address": "0xf2234A51c827196ea779a440df610F9091ffd570",
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "amount": 20,
-    "secret": "",
-    "is_direct": false
+    "initiator_address": "0x151E62a787d0d8d9EfFac182Eae06C559d1B68C2",
+    "target_address": "0x10b256b3C83904D524210958FA4E7F9cAFFB76c6",
+    "token_address": "0x3e9f443405072BA0147F06708E9c0b4663D1D645",
+    "amount": 200000,
+    "lockSecretHash": "0x98c04dd2a7e479f72b54af90728742f59f40ff89339c18ebe19846969009c883",
+    "data": "hello word"
 }
 ```
+**Request parameters**    
+- `amount`：Transfer amount  
+- `fee`： Handling fee    
+- `is_direct`：whether it is a direct transfer. The default is false  
+- `Sync`：whether it is a sync . The default is false   
+- `data`： Incidental information . The length is not more than 256.  
+
+
 Send transfers with specified `secret`.
 
 **Example Request :**  
