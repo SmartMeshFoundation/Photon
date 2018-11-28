@@ -9,6 +9,8 @@ import (
 
 	"sync"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -98,9 +100,10 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 
 func TestBatchWriteDb(t *testing.T) {
 	m := setupDb(t)
-	caddr := utils.NewRandomHash()
+	//caddr := utils.NewRandomHash()
 	taddr := utils.NewRandomAddress()
 	lockSecertHash := utils.NewRandomHash()
+	m.NewTransferStatus(taddr, lockSecertHash)
 	number := float64(10000)
 	wg := sync.WaitGroup{}
 	wg.Add(int(number))
@@ -109,7 +112,8 @@ func TestBatchWriteDb(t *testing.T) {
 		go func(index uint64) {
 			//b := time.Now()
 			//m.SaveLatestBlockNumber(111)
-			m.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
+			m.UpdateTransferStatusMessage(taddr, lockSecertHash, strconv.Itoa(int(index)))
+			//m.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
 			//fmt.Println("use ", time.Since(b).Seconds())
 			wg.Done()
 		}(i)
@@ -118,4 +122,7 @@ func TestBatchWriteDb(t *testing.T) {
 	total := time.Since(begin).Seconds()
 	fmt.Println("total use seconds ", total)
 	fmt.Println("avg use seconds ", total/number)
+	tt, _ := m.GetTransferStatus(taddr, lockSecertHash)
+	fmt.Println(tt.Key)
+	fmt.Println(tt.StatusMessage)
 }
