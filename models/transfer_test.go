@@ -104,7 +104,7 @@ func TestBatchWriteDb(t *testing.T) {
 	taddr := utils.NewRandomAddress()
 	lockSecertHash := utils.NewRandomHash()
 	m.NewTransferStatus(taddr, lockSecertHash)
-	number := float64(10000)
+	number := float64(1000)
 	wg := sync.WaitGroup{}
 	wg.Add(int(number))
 	begin := time.Now()
@@ -122,7 +122,4 @@ func TestBatchWriteDb(t *testing.T) {
 	total := time.Since(begin).Seconds()
 	fmt.Println("total use seconds ", total)
 	fmt.Println("avg use seconds ", total/number)
-	tt, _ := m.GetTransferStatus(taddr, lockSecertHash)
-	fmt.Println(tt.Key)
-	fmt.Println(tt.StatusMessage)
 }
