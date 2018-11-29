@@ -491,6 +491,26 @@ Send transfers with specified `secret`.
     "secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1"
 }
 ```
+##  Post /api/1/transfers/allowrevealsecret
+AllowRevealSecret : used when clients send a transfer with specific secrets.That secret will not receive SecretRequest before invoking this function to unlock.
+
+So the sender must actively call the `allowrevealsecret` interface to register secret when carrying out the transaction with scret, so that the transaction can succeed.
+
+**PAYLOAD :**  
+
+```json
+{
+	"lock_secret_hash":"0xd575975dc6fe745b4abee09804b8b97c16dc9842035d39cf474041315374ef02",
+	"token_address":"0x37346b78de60f4F5C6f6dF6f0d2b4C0425087a06"
+}
+
+```
+**Request parameters**   
+- `lock_secret_hash`: Refers to the `lock_secret_hash` corresponding to `Secret` in the send Secret transaction.  
+- `token_address`: Token of transactions
+
+
+
 ## GET /api/1/querysenttransfer
 Query the transaction record that is sent successfully and return all successful transactions list.  
 **Example Response :**  
