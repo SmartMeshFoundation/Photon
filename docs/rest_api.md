@@ -451,23 +451,34 @@ When channel state is `open` with sufficient funds, participants can make transf
 `POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`
 **PAYLOAD :**  
 ```json
-{
-    "amount":20,
-    "is_direct":false // whether it is a direct transfer
-
+ 
+ {
+    "amount":200000,
+    "fee":0,
+    "is_direct":false, //whether it is a direct transfer
+    "Sync":false,
+    "data":"hello word"
 }
 ```
 **Example Response :**  
 ```json
 {
-    "initiator_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
-    "target_address": "0xf2234A51c827196ea779a440df610F9091ffd570",
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "amount": 20,
-    "secret": "",
-    "is_direct": false
+    "initiator_address": "0x151E62a787d0d8d9EfFac182Eae06C559d1B68C2",
+    "target_address": "0x10b256b3C83904D524210958FA4E7F9cAFFB76c6",
+    "token_address": "0x3e9f443405072BA0147F06708E9c0b4663D1D645",
+    "amount": 200000,
+    "lockSecretHash": "0x98c04dd2a7e479f72b54af90728742f59f40ff89339c18ebe19846969009c883",
+    "data": "hello word"
 }
 ```
+**Request parameters**    
+- `amount`：Transfer amount  
+- `fee`： Handling fee    
+- `is_direct`：whether it is a direct transfer. The default is false  
+- `Sync`：whether it is a sync . The default is false   
+- `data`： Incidental information . The length is not more than 256.  
+
+
 Send transfers with specified `secret`.
 
 **Example Request :**  
@@ -480,6 +491,26 @@ Send transfers with specified `secret`.
     "secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1"
 }
 ```
+##  Post /api/1/transfers/allowrevealsecret
+AllowRevealSecret : used when clients send a transfer with specific secrets.That secret will not receive SecretRequest before invoking this function to unlock.
+
+So the sender must actively call the `allowrevealsecret` interface to register secret when carrying out the transaction with scret, so that the transaction can succeed.
+
+**PAYLOAD :**  
+
+```json
+{
+	"lock_secret_hash":"0xd575975dc6fe745b4abee09804b8b97c16dc9842035d39cf474041315374ef02",
+	"token_address":"0x37346b78de60f4F5C6f6dF6f0d2b4C0425087a06"
+}
+
+```
+**Request parameters**   
+- `lock_secret_hash`: Refers to the `lock_secret_hash` corresponding to `Secret` in the send Secret transaction.  
+- `token_address`: Token of transactions
+
+
+
 ## GET /api/1/querysenttransfer
 Query the transaction record that is sent successfully and return all successful transactions list.  
 **Example Response :**  
