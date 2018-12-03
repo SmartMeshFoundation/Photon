@@ -8,20 +8,20 @@ import (
 
 //AckHelper save ack for sent and recevied  message
 type AckHelper struct {
-	db *models.ModelDB
+	dao models.Dao
 }
 
 //NewAckHelper create ack
-func NewAckHelper(db *models.ModelDB) *AckHelper {
-	return &AckHelper{db}
+func NewAckHelper(dao models.Dao) *AckHelper {
+	return &AckHelper{dao}
 }
 
 //GetAck return a message's ack
 func (ah *AckHelper) GetAck(echohash common.Hash) []byte {
-	return ah.db.GetAck(echohash)
+	return ah.dao.GetAck(echohash)
 }
 
-//SaveAck save ack to db
+//SaveAck save ack to dao
 func (ah *AckHelper) SaveAck(echohash common.Hash, msg encoding.Messager, ack []byte) {
-	ah.db.SaveAckNoTx(echohash, ack)
+	ah.dao.SaveAckNoTx(echohash, ack)
 }

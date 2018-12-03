@@ -108,16 +108,16 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
 		options: xmpp.Options{
-			Host:     ServerURL,
-			User:     fmt.Sprintf("%s%s", strings.ToLower(User.String()), nameSuffix),
-			Password: passwordFn.GetPassWord(),
-			NoTLS:    true,
+			Host:                         ServerURL,
+			User:                         fmt.Sprintf("%s%s", strings.ToLower(User.String()), nameSuffix),
+			Password:                     passwordFn.GetPassWord(),
+			NoTLS:                        true,
 			InsecureAllowUnencryptedAuth: true,
-			Debug:         false,
-			Session:       false,
-			Status:        "xa",
-			StatusMessage: name,
-			Resource:      deviceType,
+			Debug:                        false,
+			Session:                      false,
+			Status:                       "xa",
+			StatusMessage:                name,
+			Resource:                     deviceType,
 		},
 		client:         nil,
 		waitersMutex:   sync.RWMutex{},
@@ -487,7 +487,7 @@ type XMPPDb interface {
 	XMPPIsAddrSubed(addr common.Address) bool
 	XMPPMarkAddrSubed(addr common.Address)
 	GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error)
-	RegisterNewChannellCallback(f cb.ChannelCb)
+	RegisterNewChannelCallback(f cb.ChannelCb)
 	RegisterChannelStateCallback(f cb.ChannelCb)
 	RegisterChannelSettleCallback(f cb.ChannelCb)
 	XMPPUnMarkAddr(addr common.Address)
@@ -511,7 +511,7 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 			db.XMPPMarkAddrSubed(addr)
 		}
 	}
-	db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
+	db.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
 		if x.status == netshare.Closed {
 			return true
 		}

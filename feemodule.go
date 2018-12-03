@@ -27,21 +27,21 @@ func (n *NoFeePolicy) GetNodeChargeFee(nodeAddress, tokenAddress common.Address,
 
 // FeeModule :
 type FeeModule struct {
-	db        *models.ModelDB
+	dao       models.Dao
 	pfsProxy  pfsproxy.PfsProxy
 	feePolicy *models.FeePolicy
 	lock      sync.Mutex
 }
 
 // NewFeeModule :
-func NewFeeModule(db *models.ModelDB, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, err error) {
-	if db == nil {
-		panic("need init db first")
+func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, err error) {
+	if dao == nil {
+		panic("need init dao first")
 	}
 	fm = &FeeModule{
-		db:        db,
+		dao:       dao,
 		pfsProxy:  pfsProxy,
-		feePolicy: db.GetFeePolicy(),
+		feePolicy: dao.GetFeePolicy(),
 	}
 	if fm.pfsProxy != nil {
 		log.Info("init fee module with pfs success")
@@ -75,11 +75,11 @@ func (fm *FeeModule) SetFeePolicy(fp *models.FeePolicy) (err error) {
 			return
 		}
 	}
-	// set fee policy to db
-	err = fm.db.SaveFeePolicy(fp)
+	// set fee policy to dao
+	err = fm.dao.SaveFeePolicy(fp)
 	if err != nil {
 		if fm.pfsProxy != nil {
-			log.Error("save fee policy to db err,may cause different fee policy between photon and pfs")
+			log.Error("save fee policy to dao err,may cause different fee policy between photon and pfs")
 		}
 		return
 	}
@@ -100,7 +100,7 @@ func (fm *FeeModule) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, 
 	var feeSetting *models.FeeSetting
 	var ok bool
 	// 优先channel
-	c, err := fm.db.GetChannel(tokenAddress, nodeAddress)
+	c, err := fm.dao.GetChannel(tokenAddress, nodeAddress)
 	if c != nil && err == nil {
 		feeSetting, ok = fm.feePolicy.ChannelFeeMap[c.ChannelIdentifier.ChannelIdentifier]
 		if ok {

@@ -1,4 +1,4 @@
-package models
+package stormdb
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
@@ -14,7 +15,7 @@ import (
 )
 
 // NewChannel save a just created channel to db
-func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
+func (model *StormDB) NewChannel(c *channeltype.Serialization) error {
 	//log.Trace(fmt.Sprintf("new channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	//notify new channel added
@@ -26,7 +27,7 @@ func (model *ModelDB) NewChannel(c *channeltype.Serialization) error {
 }
 
 //UpdateChannelNoTx update channel status without a Tx
-func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
+func (model *StormDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 	//log.Trace(fmt.Sprintf("save channel %s", utils.StringInterface(c, 2)))
 	err := model.db.Save(c)
 	if err != nil {
@@ -36,7 +37,7 @@ func (model *ModelDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 }
 
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
-func (model *ModelDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
+func (model *StormDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
 	tx := model.StartTx()
 	defer func() {
 		if err != nil {
@@ -52,7 +53,7 @@ func (model *ModelDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echo
 	err = tx.Commit()
 	return
 }
-func (model *ModelDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
+func (model *StormDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
 	var cbs []*cb.ChannelCb
 	model.mlock.Lock()
 	for f := range m {
@@ -68,7 +69,7 @@ func (model *ModelDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channel
 }
 
 //UpdateChannelContractBalance update channel balance
-func (model *ModelDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+func (model *StormDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -79,7 +80,7 @@ func (model *ModelDB) UpdateChannelContractBalance(c *channeltype.Serialization)
 }
 
 //UpdateChannel update channel status in a Tx
-func (model *ModelDB) UpdateChannel(c *channeltype.Serialization, tx storm.Node) error {
+func (model *StormDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
 	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
 	err := tx.Save(c)
 	if err != nil {
@@ -89,7 +90,7 @@ func (model *ModelDB) UpdateChannel(c *channeltype.Serialization, tx storm.Node)
 }
 
 //UpdateChannelState update channel state ,close settle
-func (model *ModelDB) UpdateChannelState(c *channeltype.Serialization) error {
+func (model *StormDB) UpdateChannelState(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return err
@@ -100,7 +101,7 @@ func (model *ModelDB) UpdateChannelState(c *channeltype.Serialization) error {
 }
 
 //RemoveChannel a settled channel from db
-func (model *ModelDB) RemoveChannel(c *channeltype.Serialization) error {
+func (model *StormDB) RemoveChannel(c *channeltype.Serialization) error {
 	if c.State != channeltype.StateSettled {
 		panic("only can remove a settled channel")
 	}
@@ -109,7 +110,7 @@ func (model *ModelDB) RemoveChannel(c *channeltype.Serialization) error {
 }
 
 //GetChannel return a channel queried by (token,partner),this channel must not settled
-func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error) {
+func (model *StormDB) GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error) {
 	var cs []*channeltype.Serialization
 	if token == utils.EmptyAddress {
 		panic("token is empty")
@@ -131,7 +132,7 @@ func (model *ModelDB) GetChannel(token, partner common.Address) (c *channeltype.
 }
 
 //GetChannelByAddress return a channel queried by channel address
-func (model *ModelDB) GetChannelByAddress(ChannelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+func (model *StormDB) GetChannelByAddress(ChannelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
 	var c2 channeltype.Serialization
 	err = model.db.One("Key", ChannelIdentifier[:], &c2)
 	if err == nil {
@@ -142,7 +143,7 @@ func (model *ModelDB) GetChannelByAddress(ChannelIdentifier common.Hash) (c *cha
 
 //GetChannelList returns all related channels
 //one of token and partner must be empty
-func (model *ModelDB) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
+func (model *StormDB) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
 	if token == utils.EmptyAddress && partner == utils.EmptyAddress {
 		err = model.db.All(&cs)
 	} else if token == utils.EmptyAddress {
@@ -163,7 +164,7 @@ const bucketWithDraw = "bucketWithdraw"
 /*
 IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 */
-func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
+func (model *StormDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:])
 	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
@@ -179,7 +180,7 @@ func (model *ModelDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common
 /*
 UnlockThisLock marks that I have withdrawed this secret on channel.
 */
-func (model *ModelDB) UnlockThisLock(channel common.Hash, lockHash common.Hash) {
+func (model *StormDB) UnlockThisLock(channel common.Hash, lockHash common.Hash) {
 	key := utils.Sha3(channel[:], lockHash[:])
 	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
 	if err != nil {
@@ -192,7 +193,7 @@ const bucketExpiredHashlock = "expiredHashlock"
 /*
 IsThisLockRemoved return true when  a expired hashlock has been removed from channel status.
 */
-func (model *ModelDB) IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool {
+func (model *StormDB) IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:], sender[:])
 	err := model.db.Get(bucketExpiredHashlock, key.Bytes(), &result)
@@ -208,7 +209,7 @@ func (model *ModelDB) IsThisLockRemoved(channel common.Hash, sender common.Addre
 /*
 RemoveLock remember this lock has been removed from channel status.
 */
-func (model *ModelDB) RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash) {
+func (model *StormDB) RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash) {
 	key := utils.Sha3(channel[:], lockHash[:], sender[:])
 	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {

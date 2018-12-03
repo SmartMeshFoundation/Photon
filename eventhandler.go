@@ -95,7 +95,7 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	err = revealMessage.Sign(eh.photon.PrivateKey, revealMessage)
 	err = eh.photon.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
-		eh.photon.db.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+		eh.photon.dao.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
 	}
 	return err
 }
@@ -109,7 +109,7 @@ func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransf
 	}
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendSecretRequest %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		stateManager.LastReceivedMessage = nil
@@ -135,7 +135,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		if stateManager.Name != initiator.NameInitiatorTransition {
 			log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
 		}
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		var fromCh *channel.Channel
 		fromCh, err = eh.photon.findChannelByIdentifier(event.FromChannel)
@@ -145,10 +145,10 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		t, _ := stateManager.LastReceivedMessage.Tag().(*transfer.MessageTag)
 		echohash := t.EchoHash
 		ack := eh.photon.Protocol.CreateAck(echohash)
-		tx := eh.photon.db.StartTx()
-		eh.photon.db.SaveAck(echohash, ack.Pack(), tx)
-		err = eh.photon.db.UpdateChannel(channel.NewChannelSerialization(ch), tx)
-		err = eh.photon.db.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
+		tx := eh.photon.dao.StartTx()
+		eh.photon.dao.SaveAck(echohash, ack.Pack(), tx)
+		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
 			// database cache fault, impossible to happen.
@@ -161,7 +161,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	err = eh.photon.sendAsync(receiver, mtr)
 	if err == nil {
-		eh.photon.db.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+		eh.photon.dao.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -179,10 +179,10 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 		return
 	}
 	eh.photon.conditionQuit("EventSendUnlockBefore")
-	err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(receiver, tr)
 	if err == nil {
-		eh.photon.db.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+		eh.photon.dao.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -199,13 +199,13 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	if err != nil {
 		return
 	}
-	err = eh.photon.db.MarkLockSecretHashDisposed(event.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier)
+	err = eh.photon.dao.MarkLockSecretHashDisposed(event.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return
 	}
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendAnnounceDisposed %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		//有可能同一个消息会引发两个 event send, 比如收到 中间节点EventAnnouceDisposed
@@ -234,7 +234,7 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	eh.photon.conditionQuit("EventSendAnnouncedDisposedResponseBefore")
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendAnnounceDisposedResponse %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		stateManager.LastReceivedMessage = nil
@@ -312,25 +312,25 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		return
 	}
 	eh.photon.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
-	err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(ch.PartnerState.Address, tr)
-	eh.photon.db.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
+	eh.photon.dao.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	return
 }
 
 func (eh *stateMachineEventHandler) eventSaveFeeChargeRecord(e *mediatedtransfer.EventSaveFeeChargeRecord) (err error) {
-	r := &models.FeeChargerRecordSerialization{
-		LockSecretHash: e.LockSecretHash[:],
-		TokenAddress:   e.TokenAddress[:],
-		TransferFrom:   e.TransferFrom[:],
-		TransferTo:     e.TransferTo[:],
+	r := &models.FeeChargeRecord{
+		LockSecretHash: e.LockSecretHash,
+		TokenAddress:   e.TokenAddress,
+		TransferFrom:   e.TransferFrom,
+		TransferTo:     e.TransferTo,
 		TransferAmount: e.TransferAmount,
-		InChannel:      e.InChannel[:],
-		OutChannel:     e.OutChannel[:],
+		InChannel:      e.InChannel,
+		OutChannel:     e.OutChannel,
 		Fee:            e.Fee,
 		Timestamp:      e.Timestamp,
 	}
-	return eh.photon.db.SaveFeeChargeRecord(r)
+	return eh.photon.dao.SaveFeeChargeRecord(r)
 }
 
 func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *transfer.StateManager) (err error) {
@@ -361,15 +361,15 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
 		}
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		st := eh.photon.db.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
+		st := eh.photon.dao.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
-		eh.photon.db.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
+		eh.photon.dao.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:
 		ch, err = eh.photon.findChannelByIdentifier(e2.ChannelIdentifier)
@@ -377,11 +377,11 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
 		}
-		err = eh.photon.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		rt := eh.photon.db.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash, e2.Data)
+		rt := eh.photon.dao.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:
@@ -449,7 +449,7 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	tokenAddress := st.TokenAddress
 	tokenNetworkAddress := st.TokenNetworkAddress
 	log.Info(fmt.Sprintf("NewTokenAdd token=%s,tokennetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
-	err := eh.photon.db.AddToken(st.TokenAddress, st.TokenNetworkAddress)
+	err := eh.photon.dao.AddToken(st.TokenAddress, st.TokenNetworkAddress)
 	if err != nil {
 		return err
 	}
@@ -472,7 +472,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 	))
 	g := eh.photon.getToken2ChannelGraph(tokenAddress)
 	g.AddPath(participant1, participant2)
-	err := eh.photon.db.NewNonParticipantChannel(tokenAddress, st.ChannelIdentifier.ChannelIdentifier, participant1, participant2)
+	err := eh.photon.dao.NewNonParticipantChannel(tokenAddress, st.ChannelIdentifier.ChannelIdentifier, participant1, participant2)
 	if err != nil {
 		log.Error(err.Error())
 		return err
@@ -507,7 +507,7 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	err = eh.photon.db.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
 	return nil
 }
 
@@ -520,19 +520,19 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
-			p1, p2 := eh.photon.db.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
+			p1, p2 := eh.photon.dao.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
 			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
 				g.RemovePath(p1, p2)
 			}
 		}
-		err = eh.photon.db.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
+		err = eh.photon.dao.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
 		return err
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	err = eh.photon.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
 
@@ -555,15 +555,15 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	g := eh.photon.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
 	g.RemoveChannel(ch)
 	cs := channel.NewChannelSerialization(ch)
-	err := eh.photon.db.RemoveChannel(cs)
+	err := eh.photon.dao.RemoveChannel(cs)
 	if err != nil {
 		return err
 	}
-	err = eh.photon.db.NewSettledChannel(cs)
+	err = eh.photon.dao.NewSettledChannel(cs)
 	if err != nil {
 		return err
 	}
-	err = eh.photon.db.RemoveNonParticipantChannel(ch.TokenAddress, ch.ChannelIdentifier.ChannelIdentifier)
+	err = eh.photon.dao.RemoveNonParticipantChannel(ch.TokenAddress, ch.ChannelIdentifier.ChannelIdentifier)
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
@@ -592,12 +592,12 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
-			p1, p2 := eh.photon.db.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
+			p1, p2 := eh.photon.dao.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
 			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
 				g.RemovePath(p1, p2)
 			}
 		}
-		return eh.photon.db.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
+		return eh.photon.dao.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
@@ -621,7 +621,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 		return err
 	}
-	err = eh.photon.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
 	// nofity all statemanager with pending locks, and send announce disposed or try new route.
 	eh.dispatchByPendingLocksInChannel(ch, st)
@@ -649,7 +649,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 	//对方解锁我发出去的交易,考虑可否惩罚
 	// my partner unlock transfer I sent, consider punish him?
 	if eh.photon.NodeAddress == st.Participant {
-		ad := eh.photon.db.GetReceiviedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
+		ad := eh.photon.dao.GetReceivedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
 		if ad != nil {
 			result := ch.ExternState.PunishObsoleteUnlock(common.BytesToHash(ad.LockHash), ad.AdditionalHash, ad.Signature)
 			go func() {
@@ -661,7 +661,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 			}()
 		}
 	}
-	err = eh.photon.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
@@ -675,7 +675,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 		log.Error(fmt.Sprintf("handle punish ChannelStateTransition err=%s", err))
 		return err
 	}
-	err = eh.photon.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
@@ -685,7 +685,7 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
-	err = eh.photon.db.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {

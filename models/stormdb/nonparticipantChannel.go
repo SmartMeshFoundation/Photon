@@ -1,32 +1,15 @@
-package models
+package stormdb
 
 import (
 	"fmt"
 
 	"bytes"
 
-	"math/big"
-
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-/*
-NonParticipantChannel 所有的通道信息在本地的存储
-因为合约不提供直接查询通道信息,只能通过事件获取,所以需要在本地保存一份,以便查询
-*/
-/*
- *	NonParticipantChannel : structure for back up of channel information at local storage.
- *	Because contract does not provide direct check for channel information, so we need to backup at local storage.
- */
-type NonParticipantChannel struct {
-	Participant1        common.Address
-	Participant2        common.Address
-	Participant1Balance *big.Int
-	Participant2Balance *big.Int
-}
 
 func participant2bytes(p1, p2 common.Address) []byte {
 	b := make([]byte, len(p1)*2)
@@ -57,7 +40,7 @@ type ChannelParticipantMap map[common.Hash][]byte
 const bucketChannel = "bucketChannel"
 
 //NewNonParticipantChannel 需要保存 channel identifier, 通道的事件都是与此有关系的
-func (model *ModelDB) NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error {
+func (model *StormDB) NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error {
 	var m ChannelParticipantMap
 	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,participant1=%s,participant2=%s",
 		utils.APex2(token),
@@ -94,7 +77,7 @@ func (model *ModelDB) NewNonParticipantChannel(token common.Address, channel com
 }
 
 //RemoveNonParticipantChannel a channel is settled
-func (model *ModelDB) RemoveNonParticipantChannel(token common.Address, channel common.Hash) error {
+func (model *StormDB) RemoveNonParticipantChannel(token common.Address, channel common.Hash) error {
 	var m ChannelParticipantMap
 	err := model.db.Get(bucketChannel, token[:], &m)
 	if err != nil {
@@ -115,7 +98,7 @@ func (model *ModelDB) RemoveNonParticipantChannel(token common.Address, channel 
 }
 
 //GetAllNonParticipantChannel returna all channel on this `token`
-func (model *ModelDB) GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error) {
+func (model *StormDB) GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error) {
 	var m ChannelParticipantMap
 	err = model.db.Get(bucketChannel, token[:], &m)
 	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))
@@ -131,7 +114,7 @@ func (model *ModelDB) GetAllNonParticipantChannel(token common.Address) (edges [
 }
 
 // GetParticipantAddressByTokenAndChannel :
-func (model *ModelDB) GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address) {
+func (model *StormDB) GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address) {
 	var m ChannelParticipantMap
 	err := model.db.Get(bucketChannel, token[:], &m)
 	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))

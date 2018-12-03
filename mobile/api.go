@@ -938,12 +938,12 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				handler.OnError(32, err.Error())
 			case s := <-a.api.Photon.EthConnectionStatus:
 				cs.EthStatus = s
-				cs.LastBlockTime = a.api.Photon.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
+				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
-				cs.LastBlockTime = a.api.Photon.GetDb().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
+				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
 			case t, ok := <-a.api.Photon.NotifyHandler.GetSentTransferChan():
@@ -1011,7 +1011,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 		log.Error(err.Error())
 		return
 	}
-	ts, err := a.api.Photon.GetDb().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
+	ts, err := a.api.Photon.GetDao().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
 	if err != nil {
 		log.Error(fmt.Sprintf("err =%s", err))
 		return

@@ -1,4 +1,4 @@
-package models
+package daotest
 
 import (
 	"math/big"
@@ -6,6 +6,7 @@ import (
 
 	"math/rand"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestModelDB_NewSentEnvelopMessager(t *testing.T) {
-	m := setupDb(t)
+	m := codefortest.NewTestDB("")
 	bp := &encoding.BalanceProof{
 		Nonce:             11,
 		ChannelIdentifier: utils.Sha3([]byte("123")),
@@ -37,7 +38,7 @@ func TestModelDB_NewSentEnvelopMessager(t *testing.T) {
 }
 
 func TestModelDB_NewSentEnvelopMessager2(t *testing.T) {
-	m := setupDb(t)
+	m := codefortest.NewTestDB("")
 	msgs := m.GetAllOrderedSentEnvelopMessager()
 	assert.EqualValues(t, len(msgs), 0)
 	m.DeleteEnvelopMessager(utils.NewRandomHash())
@@ -46,7 +47,7 @@ func TestModelDB_NewSentEnvelopMessager2(t *testing.T) {
 }
 
 func TestModelDB_NewSentEnvelopMessager3(t *testing.T) {
-	m := setupDb(t)
+	m := codefortest.NewTestDB("")
 	var msgs []*encoding.DirectTransfer
 	total := 10
 	var min uint64 = math.MaxUint64

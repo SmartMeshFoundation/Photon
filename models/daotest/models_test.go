@@ -1,10 +1,8 @@
-package models
+package daotest
 
 import (
 	"os"
 	"testing"
-
-	"path"
 
 	"reflect"
 
@@ -15,7 +13,9 @@ import (
 
 	"encoding/hex"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,58 +26,43 @@ func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
-var dbPath string
-
-func setupDb(t *testing.T) (model *ModelDB) {
-	dbPath = path.Join(os.TempDir(), "testxxxx.db")
-	os.Remove(dbPath)
-	os.Remove(dbPath + ".lock")
-	model, err := OpenDb(dbPath)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Log(model.db)
-	return
-}
-
 func TestToken(t *testing.T) {
-	model := setupDb(t)
+	dao := codefortest.NewTestDB("")
 	defer func() {
-		model.CloseDB()
+		dao.CloseDB()
 	}()
 	var cbtokens []common.Address
 	funcb := func(token common.Address) bool {
 		cbtokens = append(cbtokens, token)
 		return false
 	}
-	ts, err := model.GetAllTokens()
+	ts, err := dao.GetAllTokens()
 	if len(ts) > 0 {
 		t.Error("should not found")
 	}
 	if len(ts) != 0 {
 		t.Error("should be empty")
 	}
-	var am = make(AddressMap)
+	var am = make(models.AddressMap)
 	t1 := utils.NewRandomAddress()
 	am[t1] = utils.NewRandomAddress()
-	model.RegisterNewTokenCallback(funcb)
-	err = model.AddToken(t1, am[t1])
+	dao.RegisterNewTokenCallback(funcb)
+	err = dao.AddToken(t1, am[t1])
 	if err != nil {
 		t.Error(err)
 	}
-	am2, _ := model.GetAllTokens()
+	am2, _ := dao.GetAllTokens()
 	assert.EqualValues(t, am, am2)
 	t2 := utils.NewRandomAddress()
 	am[t2] = utils.NewRandomAddress()
-	err = model.AddToken(t2, am[t2])
+	err = dao.AddToken(t2, am[t2])
 	if err != nil {
 		t.Error(err)
 	}
 	if len(cbtokens) != 2 && cbtokens[0] != t1 {
 		t.Error("add token error")
 	}
-	am2, _ = model.GetAllTokens()
+	am2, _ = dao.GetAllTokens()
 	assert.EqualValues(t, am, am2)
 
 }
@@ -114,7 +99,7 @@ func TestGob(t *testing.T) {
 
 }
 func TestGobAddressMap(t *testing.T) {
-	am := make(AddressMap)
+	am := make(models.AddressMap)
 	k1 := utils.NewRandomAddress()
 	am[k1] = utils.NewRandomAddress()
 	am[utils.NewRandomAddress()] = utils.NewRandomAddress()
@@ -127,7 +112,7 @@ func TestGobAddressMap(t *testing.T) {
 	}
 	encodedData := buf.Bytes()
 	dec := gob.NewDecoder(bytes.NewBuffer(encodedData))
-	var am2 AddressMap
+	var am2 models.AddressMap
 	err = dec.Decode(&am2)
 	if err != nil {
 		t.Error(err)
@@ -156,24 +141,24 @@ func TestGob2(t *testing.T) {
 }
 func TestWithdraw(t *testing.T) {
 
-	model := setupDb(t)
+	dao := codefortest.NewTestDB("")
 	defer func() {
-		model.CloseDB()
+		dao.CloseDB()
 	}()
 	channel := utils.NewRandomHash()
 	secret := utils.ShaSecret(channel[:])
-	r := model.IsThisLockHasUnlocked(channel, secret)
+	r := dao.IsThisLockHasUnlocked(channel, secret)
 	if r == true {
 		t.Error("should be false")
 		return
 	}
-	model.UnlockThisLock(channel, secret)
-	r = model.IsThisLockHasUnlocked(channel, secret)
+	dao.UnlockThisLock(channel, secret)
+	r = dao.IsThisLockHasUnlocked(channel, secret)
 	if r == false {
 		t.Error("should be true")
 		return
 	}
-	r = model.IsThisLockHasUnlocked(utils.NewRandomHash(), secret)
+	r = dao.IsThisLockHasUnlocked(utils.NewRandomHash(), secret)
 	if r == true {
 		t.Error("shoulde be false")
 		return
@@ -181,20 +166,20 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestModelDB_IsThisLockRemoved(t *testing.T) {
-	model := setupDb(t)
+	dao := codefortest.NewTestDB("")
 	defer func() {
-		model.CloseDB()
+		dao.CloseDB()
 	}()
 	channel := utils.NewRandomHash()
 	secret := utils.ShaSecret(channel[:])
 	sender := utils.NewRandomAddress()
-	r := model.IsThisLockRemoved(channel, sender, secret)
+	r := dao.IsThisLockRemoved(channel, sender, secret)
 	if r {
 		t.Error("should be false")
 		return
 	}
-	model.RemoveLock(channel, sender, secret)
-	r = model.IsThisLockRemoved(channel, sender, secret)
+	dao.RemoveLock(channel, sender, secret)
+	r = dao.IsThisLockRemoved(channel, sender, secret)
 	if !r {
 		t.Error("should be true")
 		return

@@ -1,10 +1,11 @@
-package models
+package daotest
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -12,9 +13,9 @@ import (
 )
 
 func TestChannel(t *testing.T) {
-	model := setupDb(t)
+	dao := codefortest.NewTestDB("")
 	defer func() {
-		model.CloseDB()
+		dao.CloseDB()
 	}()
 	newchannelcb := func(c *channeltype.Serialization) bool {
 
@@ -28,9 +29,9 @@ func TestChannel(t *testing.T) {
 
 		return true
 	}
-	model.RegisterNewChannellCallback(newchannelcb)
-	model.RegisterChannelDepositCallback(updateContractBalancechannelcb)
-	model.RegisterChannelStateCallback(UpdateChannelStatecb)
+	dao.RegisterNewChannelCallback(newchannelcb)
+	dao.RegisterChannelDepositCallback(updateContractBalancechannelcb)
+	dao.RegisterChannelStateCallback(UpdateChannelStatecb)
 	h := utils.NewRandomHash()
 	a1 := utils.NewRandomAddress()
 	a2 := utils.NewRandomAddress()
@@ -56,72 +57,72 @@ func TestChannel(t *testing.T) {
 		TokenAddressBytes:   a21[:],
 		PartnerAddressBytes: a22[:],
 	}
-	err := model.NewChannel(ch1)
+	err := dao.NewChannel(ch1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = model.NewChannel(ch2)
+	err = dao.NewChannel(ch2)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	chs, err := model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, err := dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil || len(chs) != 2 {
 		t.Error(err)
 		t.Log(fmt.Sprintf("chs=%v", utils.StringInterface(chs, 2)))
 		return
 	}
 	//log.Trace(fmt.Sprintf("ch1=%s,ch2=%s", utils.StringInterface(ch1, 3), utils.StringInterface(ch2, 3)))
-	ch, err := model.GetChannel(c.TokenAddress(), c.PartnerAddress())
+	ch, err := dao.GetChannel(c.TokenAddress(), c.PartnerAddress())
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, c, ch)
-	ch, err = model.GetChannelByAddress(common.BytesToHash(c.Key))
+	ch, err = dao.GetChannelByAddress(common.BytesToHash(c.Key))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, c, ch)
-	err = model.UpdateChannelNoTx(c)
+	err = dao.UpdateChannelNoTx(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	chs2, err := model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs2, err := dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	assert.EqualValues(t, err == nil, true)
 	assert.EqualValues(t, chs, chs2)
 	//log.Trace(fmt.Sprintf("chs=%s", utils.StringInterface(chs, 3)))
-	err = model.UpdateChannelContractBalance(c)
+	err = dao.UpdateChannelContractBalance(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = model.UpdateChannelContractBalance(c)
+	err = dao.UpdateChannelContractBalance(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = model.UpdateChannelState(c)
+	err = dao.UpdateChannelState(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = model.UpdateChannelState(c)
+	err = dao.UpdateChannelState(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	c.State = channeltype.StateSettled
-	err = model.RemoveChannel(c)
+	err = dao.RemoveChannel(c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	chs, err = model.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+	chs, err = dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil || len(chs) != 1 {
 		t.Error(err)
 		t.Log(fmt.Sprintf("chs=%v", utils.StringInterface(chs, 2)))
@@ -135,9 +136,9 @@ func TestChannelTwice(t *testing.T) {
 }
 
 func TestModelDB_NewSettledChannel(t *testing.T) {
-	model := setupDb(t)
+	dao := codefortest.NewTestDB("")
 	defer func() {
-		model.CloseDB()
+		dao.CloseDB()
 	}()
 	h := utils.NewRandomHash()
 	a1 := utils.NewRandomAddress()
@@ -165,31 +166,31 @@ func TestModelDB_NewSettledChannel(t *testing.T) {
 		PartnerAddressBytes: a22[:],
 		State:               channeltype.StateSettled,
 	}
-	err := model.NewSettledChannel(ch1)
+	err := dao.NewSettledChannel(ch1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	ch, err := model.GetSettledChannel(ch1.ChannelIdentifier.ChannelIdentifier, ch1.ChannelIdentifier.OpenBlockNumber)
+	ch, err := dao.GetSettledChannel(ch1.ChannelIdentifier.ChannelIdentifier, ch1.ChannelIdentifier.OpenBlockNumber)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, ch, ch1)
-	ch, err = model.GetSettledChannel(ch1.ChannelIdentifier.ChannelIdentifier, 32)
+	ch, err = dao.GetSettledChannel(ch1.ChannelIdentifier.ChannelIdentifier, 32)
 	assert.EqualValues(t, err != nil, true)
-	chs, err := model.GetAllSettledChannel()
+	chs, err := dao.GetAllSettledChannel()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, chs[0], ch1)
-	err = model.NewSettledChannel(ch2)
+	err = dao.NewSettledChannel(ch2)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	chs, err = model.GetAllSettledChannel()
+	chs, err = dao.GetAllSettledChannel()
 	if err != nil {
 		t.Error(err)
 		return

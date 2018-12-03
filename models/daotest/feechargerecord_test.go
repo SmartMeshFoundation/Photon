@@ -1,4 +1,4 @@
-package models
+package daotest
 
 import (
 	"testing"
@@ -6,34 +6,32 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestModelDB_FeeChargeRecord(t *testing.T) {
-	model, err := newTestDb()
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
+	dao := codefortest.NewTestDB("")
 	lockSecretHash1 := utils.NewRandomHash()
 	lockSecretHash2 := utils.NewRandomHash()
-	r1 := &FeeChargeRecord{
+	r1 := &models.FeeChargeRecord{
 		Fee:            big.NewInt(1),
 		LockSecretHash: lockSecretHash1,
 	}
 
-	all, err := model.GetAllFeeChargeRecord()
+	all, err := dao.GetAllFeeChargeRecord()
 	if err != nil {
 		t.Errorf(err.Error())
 		return
 	}
 
-	err = model.SaveFeeChargeRecord(r1.ToSerialized())
+	err = dao.SaveFeeChargeRecord(r1)
 	if err != nil {
 		t.Errorf(err.Error())
 		return
 	}
-	all, err = model.GetAllFeeChargeRecord()
+	all, err = dao.GetAllFeeChargeRecord()
 	if err != nil {
 		t.Errorf(err.Error())
 		return
@@ -50,12 +48,12 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 	r1.Fee = big.NewInt(2)
 	r1.LockSecretHash = lockSecretHash2
 
-	err = model.SaveFeeChargeRecord(r1.ToSerialized())
+	err = dao.SaveFeeChargeRecord(r1)
 	if err != nil {
 		t.Errorf(err.Error())
 		return
 	}
-	all, err = model.GetAllFeeChargeRecord()
+	all, err = dao.GetAllFeeChargeRecord()
 	fmt.Println(len(all))
 	if err != nil {
 		t.Errorf(err.Error())
@@ -69,7 +67,7 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 		fmt.Println(r.ToString())
 	}
 
-	all, err = model.GetFeeChargeRecordByLockSecretHash(lockSecretHash2)
+	all, err = dao.GetFeeChargeRecordByLockSecretHash(lockSecretHash2)
 	if err != nil {
 		t.Errorf(err.Error())
 		return

@@ -1,4 +1,4 @@
-package models
+package stormdb
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ const bucketChainID = "bucketChainID"
 const keyChainID = "chainID"
 
 //GetChainID :
-func (model *ModelDB) GetChainID() int64 {
+func (model *StormDB) GetChainID() int64 {
 	var chainID int64
 	err := model.db.Get(bucketChainID, keyChainID, &chainID)
 	if err != nil {
@@ -20,7 +20,7 @@ func (model *ModelDB) GetChainID() int64 {
 }
 
 //SaveChainID :
-func (model *ModelDB) SaveChainID(chainID int64) {
+func (model *StormDB) SaveChainID(chainID int64) {
 	err := model.db.Set(bucketChainID, keyChainID, chainID)
 	if err != nil {
 		log.Error(fmt.Sprintf("models SaveChainId err=%s", err))

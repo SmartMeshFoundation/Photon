@@ -31,6 +31,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
@@ -212,16 +213,17 @@ func mainCtx(ctx *cli.Context) (err error) {
 		err = nil
 	}
 	// open db
-	db, err := models.OpenDb(cfg.DataBasePath)
+	var dao models.Dao
+	dao, err = stormdb.OpenDb(cfg.DataBasePath)
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
 		client.Close()
 		return
 	}
-	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, db, client)
+	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, dao, client)
 	if err != nil {
 		client.Close()
-		db.CloseDB()
+		dao.CloseDB()
 		return
 	}
 
@@ -229,33 +231,33 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if isFirstStartUp {
 		if !hasConnectedChain {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
-			db.CloseDB()
+			dao.CloseDB()
 			client.Close()
 			return
 		}
 		params.ChainID, err = client.NetworkID(context.Background())
 		if err != nil {
-			db.CloseDB()
+			dao.CloseDB()
 			client.Close()
 			return
 		}
-		db.SaveChainID(params.ChainID.Int64())
+		dao.SaveChainID(params.ChainID.Int64())
 	} else {
-		params.ChainID = big.NewInt(db.GetChainID())
+		params.ChainID = big.NewInt(dao.GetChainID())
 	}
 
 	// init blockchain module
 	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
 	if err != nil {
-		db.CloseDB()
+		dao.CloseDB()
 		client.Close()
 		return
 	}
 	if isFirstStartUp {
 		err = verifyContractCode(bcs)
 		if err != nil {
-			db.SaveRegistryAddress(utils.EmptyAddress) // return to first start up
-			db.CloseDB()
+			dao.SaveRegistryAddress(utils.EmptyAddress) // return to first start up
+			dao.CloseDB()
 			client.Close()
 			return
 		}
@@ -263,13 +265,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
-		db.CloseDB()
+		dao.CloseDB()
 		client.Close()
 		return
 	}
-	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notify.NewNotifyHandler(), db)
+	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notify.NewNotifyHandler(), dao)
 	if err != nil {
-		db.CloseDB()
+		dao.CloseDB()
 		client.Close()
 		transport.Stop()
 		return
@@ -484,8 +486,8 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	return crypto.ToECDSA(keyBin)
 }
 
-func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
-	dbRegistryAddress := db.GetRegistryAddress()
+func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
+	dbRegistryAddress := dao.GetRegistryAddress()
 	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
 	hasConnectedChain = client.Status == netshare.Connected
 	if isFirstStartUp && !hasConnectedChain {
@@ -506,7 +508,7 @@ func getRegistryAddress(config *params.Config, db *models.ModelDB, client *helpe
 		} else {
 			registryAddress = config.RegistryAddress
 		}
-		db.SaveRegistryAddress(registryAddress)
+		dao.SaveRegistryAddress(registryAddress)
 	} else {
 		registryAddress = dbRegistryAddress
 	}

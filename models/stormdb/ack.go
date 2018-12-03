@@ -1,9 +1,10 @@
-package models
+package stormdb
 
 import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
@@ -12,7 +13,7 @@ import (
 const bucketAck = "ack"
 
 //GetAck get message related ack message
-func (model *ModelDB) GetAck(echohash common.Hash) []byte {
+func (model *StormDB) GetAck(echohash common.Hash) []byte {
 	var data []byte
 	err := model.db.Get(bucketAck, echohash[:], &data)
 	if err != nil && err != storm.ErrNotFound {
@@ -23,7 +24,7 @@ func (model *ModelDB) GetAck(echohash common.Hash) []byte {
 }
 
 //SaveAck save a new ack to db
-func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
+func (model *StormDB) SaveAck(echohash common.Hash, ack []byte, tx models.TX) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echohash)))
 	err := tx.Set(bucketAck, echohash[:], ack)
 	if err != nil {
@@ -32,7 +33,7 @@ func (model *ModelDB) SaveAck(echohash common.Hash, ack []byte, tx storm.Node) {
 }
 
 //SaveAckNoTx save a ack to db
-func (model *ModelDB) SaveAckNoTx(echohash common.Hash, ack []byte) {
+func (model *StormDB) SaveAckNoTx(echohash common.Hash, ack []byte) {
 	err := model.db.Set(bucketAck, echohash[:], ack)
 	if err != nil {
 		log.Error(fmt.Sprintf("save ack to db err %s", err))

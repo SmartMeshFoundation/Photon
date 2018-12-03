@@ -1,21 +1,17 @@
-package models
+package daotest
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"math/big"
+
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 )
 
 func TestModelDB_FeePolicy(t *testing.T) {
-	model, err := newTestDb()
-	if err != nil {
-		t.Error(err.Error())
-		return
-	}
+	dao := codefortest.NewTestDB("")
 
-	defaultFp := model.GetFeePolicy()
+	defaultFp := dao.GetFeePolicy()
 	if defaultFp.AccountFee.FeeConstant.Int64() != 0 {
 		t.Error("wrong fee constant")
 		return
@@ -28,7 +24,7 @@ func TestModelDB_FeePolicy(t *testing.T) {
 	defaultFp.AccountFee.FeeConstant = big.NewInt(5)
 	defaultFp.AccountFee.FeePercent = 50000
 
-	err = model.SaveFeePolicy(defaultFp)
+	err := dao.SaveFeePolicy(defaultFp)
 	if err != nil {
 		t.Error(err)
 		return
@@ -42,12 +38,4 @@ func TestModelDB_FeePolicy(t *testing.T) {
 		t.Error("wrong fee rate")
 		return
 	}
-}
-
-// newTestDb :
-func newTestDb() (model *ModelDB, err error) {
-	dbPath := path.Join(os.TempDir(), "testxxxx.db")
-	err = os.Remove(dbPath)
-	err = os.Remove(dbPath + ".lock")
-	return OpenDb(dbPath)
 }

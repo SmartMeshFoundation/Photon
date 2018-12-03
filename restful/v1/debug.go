@@ -127,7 +127,7 @@ func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	c := API.Photon.Chain
 	cs := &ConnectionStatus{
 		XMPPStatus:    netshare.Disconnected,
-		LastBlockTime: API.Photon.GetDb().GetLastBlockNumberTime().Format(BlockTimeFormat),
+		LastBlockTime: API.Photon.GetDao().GetLastBlockNumberTime().Format(BlockTimeFormat),
 	}
 	if c != nil && c.Client.Status == netshare.Connected {
 		cs.EthStatus = netshare.Connected

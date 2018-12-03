@@ -49,7 +49,7 @@ func (db *MockDb) XMPPMarkAddrSubed(addr common.Address) {
 func (db *MockDb) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
 	return db.channels, nil
 }
-func (db *MockDb) RegisterNewChannellCallback(f cb.ChannelCb) {
+func (db *MockDb) RegisterNewChannelCallback(f cb.ChannelCb) {
 
 }
 func (db *MockDb) RegisterChannelStateCallback(f cb.ChannelCb) {

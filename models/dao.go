@@ -12,7 +12,10 @@ import (
 
 // TX :
 type TX interface {
+	Set(table string, key interface{}, value interface{}) error
+	Save(v interface{}) error
 	Commit() error
+	Rollback() error
 }
 
 // AckDao :
@@ -46,7 +49,7 @@ type ChannelDao interface {
 	UpdateChannelNoTx(c *channeltype.Serialization) error
 	UpdateChannelState(c *channeltype.Serialization) error
 	// mix update
-	UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error)
+	UpdateChannelAndSaveAck(c *channeltype.Serialization, echoHash common.Hash, ack []byte) (err error)
 	UpdateChannelContractBalance(c *channeltype.Serialization) error
 	//query
 	GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error)
@@ -100,15 +103,15 @@ type FeePolicyDao interface {
 
 // NonParticipantChannelDao :
 type NonParticipantChannelDao interface {
-	NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error
-	RemoveNonParticipantChannel(token common.Address, channel common.Hash) error
+	NewNonParticipantChannel(token common.Address, channelIdentifier common.Hash, participant1, participant2 common.Address) error
+	RemoveNonParticipantChannel(token common.Address, channelIdentifier common.Hash) error
 	GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error)
 	GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address)
 }
 
 // SentAnnounceDisposedDao :
 type SentAnnounceDisposedDao interface {
-	MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error
+	MarkLockSecretHashDisposed(lockSecretHash common.Hash, channelIdentifier common.Hash) error
 	IsLockSecretHashDisposed(lockSecretHash common.Hash) bool
 	IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool
 }
@@ -190,7 +193,7 @@ type Dao interface {
 	CloseDB()
 
 	RegisterNewTokenCallback(f cb.NewTokenCb)
-	RegisterNewChannellCallback(f cb.ChannelCb)
+	RegisterNewChannelCallback(f cb.ChannelCb)
 	RegisterChannelDepositCallback(f cb.ChannelCb)
 	RegisterChannelStateCallback(f cb.ChannelCb)
 	RegisterChannelSettleCallback(f cb.ChannelCb)

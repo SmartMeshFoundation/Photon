@@ -1,4 +1,4 @@
-package models
+package stormdb
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ const keyBlockNumber = "blocknumber"
 const keyBlockTime = "blockTime"
 
 //GetLatestBlockNumber lastest block number
-func (model *ModelDB) GetLatestBlockNumber() int64 {
+func (model *StormDB) GetLatestBlockNumber() int64 {
 	var number int64
 	err := model.db.Get(bucketBlockNumber, keyBlockNumber, &number)
 	if err != nil {
@@ -23,7 +23,7 @@ func (model *ModelDB) GetLatestBlockNumber() int64 {
 }
 
 //SaveLatestBlockNumber block numer has been processed
-func (model *ModelDB) SaveLatestBlockNumber(blockNumber int64) {
+func (model *StormDB) SaveLatestBlockNumber(blockNumber int64) {
 	err := model.db.Set(bucketBlockNumber, keyBlockNumber, blockNumber)
 	if err != nil {
 		log.Error(fmt.Sprintf("models SaveLatestBlockNumber err=%s", err))
@@ -35,7 +35,7 @@ func (model *ModelDB) SaveLatestBlockNumber(blockNumber int64) {
 }
 
 //GetLastBlockNumberTime return when last block received
-func (model *ModelDB) GetLastBlockNumberTime() time.Time {
+func (model *StormDB) GetLastBlockNumberTime() time.Time {
 	var t time.Time
 	err := model.db.Get(bucketBlockNumber, keyBlockTime, &t)
 	if err != nil {

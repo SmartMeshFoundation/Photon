@@ -1,15 +1,11 @@
 package models
 
 import (
-	"fmt"
 	"math/big"
 
+	"encoding/gob"
 	"encoding/json"
 
-	"time"
-
-	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -84,48 +80,7 @@ func (r *FeeChargeRecord) ToSerialized() *FeeChargerRecordSerialization {
 	}
 }
 
-// SaveFeeChargeRecord :
-func (model *ModelDB) SaveFeeChargeRecord(r *FeeChargerRecordSerialization) (err error) {
-	if r.Key == nil || common.BytesToHash(r.Key) == utils.EmptyHash {
-		key := utils.NewRandomHash()
-		r.Key = key[:]
-	}
-	if r.Timestamp <= 0 {
-		r.Timestamp = time.Now().Unix()
-	}
-	err = model.db.Save(r)
-	if err != nil {
-		err = fmt.Errorf("SaveFeeChargeRecord err %s", err)
-		return
-	}
-	log.Trace(fmt.Sprintf("charge for transfer:%s", r.ToFeeChargeRecord().ToString()))
-	return
-}
-
-// GetAllFeeChargeRecord :
-func (model *ModelDB) GetAllFeeChargeRecord() (records []*FeeChargeRecord, err error) {
-	var rs []*FeeChargerRecordSerialization
-	err = model.db.All(&rs)
-	if err != nil {
-		err = fmt.Errorf("GetAllFeeChargeRecord err %s", err)
-		return
-	}
-	for _, r := range rs {
-		records = append(records, r.ToFeeChargeRecord())
-	}
-	return
-}
-
-// GetFeeChargeRecordByLockSecretHash :
-func (model *ModelDB) GetFeeChargeRecordByLockSecretHash(lockSecretHash common.Hash) (records []*FeeChargeRecord, err error) {
-	var rs []*FeeChargerRecordSerialization
-	err = model.db.Find("LockSecretHash", lockSecretHash[:], &rs)
-	if err != nil {
-		err = fmt.Errorf("GetAllFeeChargeRecordByLockSecretHash err %s", err)
-		return
-	}
-	for _, r := range rs {
-		records = append(records, r.ToFeeChargeRecord())
-	}
-	return
+func init() {
+	gob.Register(&FeeChargeRecord{})
+	gob.Register(&FeeChargerRecordSerialization{})
 }

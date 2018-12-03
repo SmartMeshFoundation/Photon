@@ -116,11 +116,11 @@ var (
 // NewMatrixTransport init matrix
 func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
 	mtr := &MatrixTransport{
-		running:       false,
-		stopreceiving: false,
-		NodeAddress:   crypto.PubkeyToAddress(key.PublicKey),
-		key:           key,
-		Peers:         make(map[common.Address]*MatrixPeer),
+		running:               false,
+		stopreceiving:         false,
+		NodeAddress:           crypto.PubkeyToAddress(key.PublicKey),
+		key:                   key,
+		Peers:                 make(map[common.Address]*MatrixPeer),
 		temporaryAddress2Room: make(map[common.Address]string),
 		temporaryPeers:        newMatrixTemporaryPeers(),
 		NodeDeviceType:        devicetype,
@@ -194,7 +194,7 @@ func (m *MatrixTransport) collectChannelInfo(db xmpptransport.XMPPDb) error {
 	for _, c := range cs {
 		m.addPeerIfNotExist(c.PartnerAddress(), true)
 	}
-	db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
+	db.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
 		if m.addPeerIfNotExist(c.PartnerAddress(), true) {
 			m.lock.RLock()
 			p := m.Peers[c.PartnerAddress()]

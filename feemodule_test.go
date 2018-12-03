@@ -11,13 +11,14 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestFeeModule_Local(t *testing.T) {
-	db, err := newTestDb()
+	db, err := newTestStormDb()
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -61,8 +62,8 @@ func TestFeeModule_WithPFS(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	// db
-	db, err := newTestDb()
+	// dao
+	db, err := newTestStormDb()
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -110,10 +111,10 @@ func TestFeeModule_WithPFS(t *testing.T) {
 	}
 }
 
-// newTestDb :
-func newTestDb() (model *models.ModelDB, err error) {
-	dbPath := path.Join(os.TempDir(), "testxxxx.db")
+// newTestStormDb :
+func newTestStormDb() (dao models.Dao, err error) {
+	dbPath := path.Join(os.TempDir(), "testxxxx.dao")
 	err = os.Remove(dbPath)
 	err = os.Remove(dbPath + ".lock")
-	return models.OpenDb(dbPath)
+	return stormdb.OpenDb(dbPath)
 }

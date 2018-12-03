@@ -1,37 +1,37 @@
-package models
+package stormdb
 
 import "github.com/SmartMeshFoundation/Photon/models/cb"
 
 // RegisterNewTokenCallback register a new token callback
-func (model *ModelDB) RegisterNewTokenCallback(f cb.NewTokenCb) {
+func (model *StormDB) RegisterNewTokenCallback(f cb.NewTokenCb) {
 	model.mlock.Lock()
 	model.newTokenCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
-// RegisterNewChannellCallback register a new channel callback
-func (model *ModelDB) RegisterNewChannellCallback(f cb.ChannelCb) {
+// RegisterNewChannelCallback register a new channel callback
+func (model *StormDB) RegisterNewChannelCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.newChannelCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
 //RegisterChannelDepositCallback register channel deposit callback
-func (model *ModelDB) RegisterChannelDepositCallback(f cb.ChannelCb) {
+func (model *StormDB) RegisterChannelDepositCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.channelDepositCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
 //RegisterChannelStateCallback notify when channel closed
-func (model *ModelDB) RegisterChannelStateCallback(f cb.ChannelCb) {
+func (model *StormDB) RegisterChannelStateCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.channelStateCallbacks[&f] = true
 	model.mlock.Unlock()
 }
 
 //RegisterChannelSettleCallback notify when channel settled
-func (model *ModelDB) RegisterChannelSettleCallback(f cb.ChannelCb) {
+func (model *StormDB) RegisterChannelSettleCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	model.channelSettledCallbacks[&f] = true
 	model.mlock.Unlock()
@@ -40,22 +40,22 @@ func (model *ModelDB) RegisterChannelSettleCallback(f cb.ChannelCb) {
 /*
 do we need remove a callback?
 */
-func (model *ModelDB) unRegisterNewTokenCallback(f cb.NewTokenCb) {
+func (model *StormDB) unRegisterNewTokenCallback(f cb.NewTokenCb) {
 	model.mlock.Lock()
 	delete(model.newTokenCallbacks, &f)
 	model.mlock.Unlock()
 }
-func (model *ModelDB) unRegisterNewChannellCallback(f cb.ChannelCb) {
+func (model *StormDB) unRegisterNewChannelCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	delete(model.newChannelCallbacks, &f)
 	model.mlock.Unlock()
 }
-func (model *ModelDB) unRegisterChannelDepositCallback(f cb.ChannelCb) {
+func (model *StormDB) unRegisterChannelDepositCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	delete(model.channelDepositCallbacks, &f)
 	model.mlock.Unlock()
 }
-func (model *ModelDB) unRegisterChannelStateCallback(f cb.ChannelCb) {
+func (model *StormDB) unRegisterChannelStateCallback(f cb.ChannelCb) {
 	model.mlock.Lock()
 	delete(model.channelStateCallbacks, &f)
 	model.mlock.Unlock()

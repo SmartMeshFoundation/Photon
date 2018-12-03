@@ -1,4 +1,4 @@
-package models
+package stormdb
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func unmarshal(b []byte, v interface{}) error {
 }
 
 //NewSettledChannel save a settled channel to db
-func (model *ModelDB) NewSettledChannel(c *channeltype.Serialization) error {
+func (model *StormDB) NewSettledChannel(c *channeltype.Serialization) error {
 	if c.State != channeltype.StateSettled {
 		panic("only settled channel can saved to settledChannel")
 	}
@@ -34,7 +34,7 @@ func (model *ModelDB) NewSettledChannel(c *channeltype.Serialization) error {
 }
 
 //GetAllSettledChannel returns all settled channel
-func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, err error) {
+func (model *StormDB) GetAllSettledChannel() (chs []*channeltype.Serialization, err error) {
 	err = model.db.Bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketSettledChannel))
 		err = b.ForEach(func(k, v []byte) error {
@@ -57,7 +57,7 @@ func (model *ModelDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 
 //GetSettledChannel 返回某个指定的已经 settle 的 channel
 // GetSettledChannel : function to return a specific settled channel.
-func (model *ModelDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumber int64) (c *channeltype.Serialization, err error) {
+func (model *StormDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumber int64) (c *channeltype.Serialization, err error) {
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)
 	err = model.db.Get(bucketSettledChannel, key, c)

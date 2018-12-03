@@ -1,11 +1,8 @@
 package models
 
 import (
-	"fmt"
+	"encoding/gob"
 
-	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/utils"
-	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -47,71 +44,6 @@ type TransferStatus struct {
 	StatusMessage  string
 }
 
-// NewTransferStatus :
-func (model *ModelDB) NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) {
-	ts := &TransferStatus{
-		Key:            utils.Sha3(tokenAddress[:], lockSecretHash[:]).String(),
-		LockSecretHash: lockSecretHash,
-		TokenAddress:   tokenAddress,
-		Status:         TransferStatusInit,
-		StatusMessage:  "",
-	}
-	err := model.db.Save(ts)
-	if err != nil {
-		log.Error(fmt.Sprintf("NewTransferStatus key=%s, err %s", ts.Key, err))
-		return
-	}
-	log.Trace(fmt.Sprintf("NewTransferStatus key=%s lockSecertHash=%s", ts.Key, lockSecretHash.String()))
-}
-
-// UpdateTransferStatus :
-func (model *ModelDB) UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string) {
-	var ts TransferStatus
-	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &ts)
-	if err == storm.ErrNotFound {
-		return
-	}
-	if err != nil {
-		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
-		return
-	}
-	ts.Status = status
-	ts.StatusMessage = fmt.Sprintf("%s%s\n", ts.StatusMessage, statusMessage)
-	err = model.db.Save(&ts)
-	if err != nil {
-		log.Error(fmt.Sprintf("UpdateTransferStatus err %s", err))
-		return
-	}
-	log.Trace(fmt.Sprintf("UpdateTransferStatus key=%s lockSecretHash=%s %s", key, lockSecretHash.String(), statusMessage))
-}
-
-// UpdateTransferStatusMessage :
-func (model *ModelDB) UpdateTransferStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) {
-	var ts TransferStatus
-	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &ts)
-	if err == storm.ErrNotFound {
-		return
-	}
-	if err != nil {
-		log.Error(fmt.Sprintf("UpdateTransferStatusMessage err %s", err))
-		return
-	}
-	ts.StatusMessage = fmt.Sprintf("%s%s\n", ts.StatusMessage, statusMessage)
-	err = model.db.Save(&ts)
-	if err != nil {
-		log.Error(fmt.Sprintf("UpdateTransferStatusMessage err %s", err))
-		return
-	}
-	log.Trace(fmt.Sprintf("UpdateTransferStatusMessage key=%s lockSecretHash=%s %s", key, lockSecretHash.String(), statusMessage))
-}
-
-// GetTransferStatus :
-func (model *ModelDB) GetTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) (*TransferStatus, error) {
-	var ts TransferStatus
-	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &ts)
-	log.Trace(fmt.Sprintf("GetTransferStatus key=%s lockSecretHash=%s err=%s", key, lockSecretHash.String(), err))
-	return &ts, err
+func init() {
+	gob.Register(&TransferStatus{})
 }
