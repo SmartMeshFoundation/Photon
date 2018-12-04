@@ -3,6 +3,162 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "f52/JIlhd4rTOc6SESFUNU2V3Dk=",
+			"path": "gitee.com/johng/gf/g/container/glist",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "MDKqvfvu7sEZjRyLH6Qp8YqqJYk=",
+			"path": "gitee.com/johng/gf/g/container/gmap",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "6iiDyQdW21013dD/AZhediR8Mi4=",
+			"path": "gitee.com/johng/gf/g/container/gpool",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "jDt5c0sieUTcvlukapPss/ZmEC4=",
+			"path": "gitee.com/johng/gf/g/container/gqueue",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "JTkuuGY/gZAmTjOZN82NpRgLTp4=",
+			"path": "gitee.com/johng/gf/g/container/gset",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "DLVqSSxSzuAgnMOgyX7LFshyIzo=",
+			"path": "gitee.com/johng/gf/g/container/gtype",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "xeuRFuebb3cnAn9fLg/SiRVIHlg=",
+			"path": "gitee.com/johng/gf/g/container/internal/rwmutex",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "D+AN5xu/SVQsKbforuI9YnC2Yfw=",
+			"path": "gitee.com/johng/gf/g/encoding/gbinary",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "3bDgHdjze7bxrgrQMbfww+jvnWM=",
+			"path": "gitee.com/johng/gf/g/encoding/ghash",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "j17M5lrbt0O+UAP08OHsioPqfzw=",
+			"path": "gitee.com/johng/gf/g/os/gcache",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "ZzOQQrtVKXiQ2954ppare1yWibk=",
+			"path": "gitee.com/johng/gf/g/os/gfile",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "ZWBAsRE1VLjIquc6sAi+69LGVs0=",
+			"path": "gitee.com/johng/gf/g/os/gfpool",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "d+VCe7MSirPrFXBXF1SZcVW66Hw=",
+			"path": "gitee.com/johng/gf/g/os/gfsnotify",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "a2NxYqmWizdIvI53czMAYbDKT60=",
+			"path": "gitee.com/johng/gf/g/os/glog",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "xZONmq6ua2klwgfICzK8iDvfAlU=",
+			"path": "gitee.com/johng/gf/g/os/gmlock",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "C/rxNjex/M8+ergQomp4aOi2GVY=",
+			"path": "gitee.com/johng/gf/g/os/grpool",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "vFPUzdcxwI2hRicIkwvfFLQgeqo=",
+			"path": "gitee.com/johng/gf/g/os/gtime",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "XBmsLnOcRm2Ndpwx3/2olka0mTw=",
+			"path": "gitee.com/johng/gf/g/util/gconv",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "WpKja28OOyhjkiAA2x2DPCIsTp4=",
+			"path": "gitee.com/johng/gf/g/util/gregex",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "86j+Pp2dj0mHEn/arHnu9FaVrSo=",
+			"path": "gitee.com/johng/gf/g/util/gstr",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "IK/e15xFjuW4rCgf1pk6zdggCzE=",
+			"path": "gitee.com/johng/gf/third/github.com/fatih/structs",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "Xzs6ft9TyCmszAI/85xfClJk0v4=",
+			"path": "gitee.com/johng/gf/third/github.com/fsnotify/fsnotify",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "gFeFVzxAPji2z8BJWKExhZarK9E=",
+			"path": "gitee.com/johng/gf/third/golang.org/x/sys/unix",
+			"revision": "830476995366823d71befeae7660459e2273f51b",
+			"revisionTime": "2018-11-27T12:37:57Z"
+		},
+		{
+			"checksumSHA1": "U6BLz/nYdMcgRDNkZxyhrDe5kvM=",
+			"path": "gitee.com/johng/gkvdb/gkvdb",
+			"revision": "2d7db2f363831dadf428ac4cf9453df190f3eb01",
+			"revisionTime": "2018-10-22T10:19:41Z"
+		},
+		{
+			"checksumSHA1": "J0VHw2DL0slGiH+RMfIxJSrmWWA=",
+			"path": "gitee.com/johng/gkvdb/gkvdb/gbtree",
+			"revision": "2d7db2f363831dadf428ac4cf9453df190f3eb01",
+			"revisionTime": "2018-10-22T10:19:41Z"
+		},
+		{
+			"checksumSHA1": "XGcJlHGmX/UB82uDj3qU7L1pnCg=",
+			"path": "gitee.com/johng/gkvdb/gkvdb/gfilespace",
+			"revision": "2d7db2f363831dadf428ac4cf9453df190f3eb01",
+			"revisionTime": "2018-10-22T10:19:41Z"
+		},
+		{
 			"checksumSHA1": "ikun7kHxccRy44xCFinVkp845pc=",
 			"path": "github.com/RyanCarrier/dijkstra-1",
 			"revision": "0e5801a263459e02258f74b5038eddfe8118c035",
@@ -118,6 +274,12 @@
 			"path": "github.com/deckarep/golang-set",
 			"revision": "b2c644ffb5c283a171ddf3889693673939917541",
 			"revisionTime": "2018-08-21T19:56:54Z"
+		},
+		{
+			"checksumSHA1": "Vr4pdj86XQIUumdmxR45J+9e/Tg=",
+			"path": "github.com/dvyukov/go-fuzz/gen",
+			"revision": "383a81f6d0483dde9dcf3e9b8169ba0c30aafeba",
+			"revisionTime": "2018-11-05T18:30:28Z"
 		},
 		{
 			"checksumSHA1": "gWcGaIIDrjEUFAKOsZD1sX9EsXk=",
@@ -1198,5 +1360,5 @@
 			"revisionTime": "2017-08-11T01:42:03Z"
 		}
 	],
-	"rootPath": "github.com/SmartMeshFoundation/SmartRaiden"
+	"rootPath": "github.com/SmartMeshFoundation/Photon"
 }
