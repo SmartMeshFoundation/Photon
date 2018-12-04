@@ -1,4 +1,4 @@
-package stormdb
+package gkvdb
 
 import (
 	"fmt"
@@ -6,15 +6,14 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 //GetAck get message related ack message
-func (model *StormDB) GetAck(echoHash common.Hash) []byte {
+func (dao *GkvDB) GetAck(echoHash common.Hash) []byte {
 	var data []byte
-	err := model.db.Get(models.BucketAck, echoHash[:], &data)
-	if err != nil && err != storm.ErrNotFound {
+	err := dao.getKeyValueToBucket(models.BucketAck, echoHash[:], &data)
+	if err != nil && err != ErrorNotFound {
 		panic(fmt.Sprintf("GetAck err %s", err))
 	}
 	log.Trace(fmt.Sprintf("get ack %s from db,result=%d", utils.HPex(echoHash), len(data)))
@@ -22,7 +21,7 @@ func (model *StormDB) GetAck(echoHash common.Hash) []byte {
 }
 
 //SaveAck save a new ack to db
-func (model *StormDB) SaveAck(echoHash common.Hash, ack []byte, tx models.TX) {
+func (dao *GkvDB) SaveAck(echoHash common.Hash, ack []byte, tx models.TX) {
 	log.Trace(fmt.Sprintf("save ack %s to db", utils.HPex(echoHash)))
 	err := tx.Set(models.BucketAck, echoHash[:], ack)
 	if err != nil {
@@ -31,8 +30,8 @@ func (model *StormDB) SaveAck(echoHash common.Hash, ack []byte, tx models.TX) {
 }
 
 //SaveAckNoTx save a ack to db
-func (model *StormDB) SaveAckNoTx(echoHash common.Hash, ack []byte) {
-	err := model.db.Set(models.BucketAck, echoHash[:], ack)
+func (dao *GkvDB) SaveAckNoTx(echoHash common.Hash, ack []byte) {
+	err := dao.saveKeyValueToBucket(models.BucketAck, echoHash[:], ack)
 	if err != nil {
 		log.Error(fmt.Sprintf("save ack to db err %s", err))
 	}

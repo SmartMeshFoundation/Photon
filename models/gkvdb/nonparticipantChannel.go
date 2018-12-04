@@ -1,4 +1,4 @@
-package stormdb
+package gkvdb
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -32,16 +31,16 @@ func participantKey(p1, p2 common.Address) common.Address {
 }
 
 //NewNonParticipantChannel 需要保存 channel identifier, 通道的事件都是与此有关系的
-func (model *StormDB) NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error {
+func (dao *GkvDB) NewNonParticipantChannel(token common.Address, channel common.Hash, participant1, participant2 common.Address) error {
 	var m models.ChannelParticipantMap
 	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,participant1=%s,participant2=%s",
 		utils.APex2(token),
 		utils.APex2(participant1),
 		utils.APex2(participant2),
 	))
-	err := model.db.Get(models.BucketChannel, token[:], &m)
+	err := dao.getKeyValueToBucket(models.BucketChannel, token[:], &m)
 	if err != nil {
-		if err == storm.ErrNotFound {
+		if err == ErrorNotFound {
 			m = make(models.ChannelParticipantMap)
 		} else {
 			return err
@@ -64,16 +63,15 @@ func (model *StormDB) NewNonParticipantChannel(token common.Address, channel com
 	m[key] = participant2bytes(participant1, participant2)
 	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,p1=%s,p2=%s,len(m)=%d", utils.APex2(token),
 		utils.APex2(participant1), utils.APex2(participant2), len(m)))
-	err = model.db.Set(models.BucketChannel, token[:], m)
-	return err
+	return dao.saveKeyValueToBucket(models.BucketChannel, token[:], m)
 }
 
 //RemoveNonParticipantChannel a channel is settled
-func (model *StormDB) RemoveNonParticipantChannel(token common.Address, channel common.Hash) error {
+func (dao *GkvDB) RemoveNonParticipantChannel(token common.Address, channel common.Hash) error {
 	var m models.ChannelParticipantMap
-	err := model.db.Get(models.BucketChannel, token[:], &m)
+	err := dao.getKeyValueToBucket(models.BucketChannel, token[:], &m)
 	if err != nil {
-		if err == storm.ErrNotFound {
+		if err == ErrorNotFound {
 			return nil
 		}
 		return err
@@ -85,16 +83,15 @@ func (model *StormDB) RemoveNonParticipantChannel(token common.Address, channel 
 	delete(m, channel)
 	log.Trace(fmt.Sprintf("RemoveNonParticipantChannel token=%s,channel=%s", utils.APex2(token),
 		utils.HPex(channel)))
-	err = model.db.Set(models.BucketChannel, token[:], m)
-	return err
+	return dao.saveKeyValueToBucket(models.BucketChannel, token[:], m)
 }
 
 //GetAllNonParticipantChannel returna all channel on this `token`
-func (model *StormDB) GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error) {
+func (dao *GkvDB) GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error) {
 	var m models.ChannelParticipantMap
-	err = model.db.Get(models.BucketChannel, token[:], &m)
+	err = dao.getKeyValueToBucket(models.BucketChannel, token[:], &m)
 	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))
-	if err == storm.ErrNotFound {
+	if err == ErrorNotFound {
 		err = nil
 		return
 	}
@@ -106,11 +103,11 @@ func (model *StormDB) GetAllNonParticipantChannel(token common.Address) (edges [
 }
 
 // GetParticipantAddressByTokenAndChannel :
-func (model *StormDB) GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address) {
+func (dao *GkvDB) GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address) {
 	var m models.ChannelParticipantMap
-	err := model.db.Get(models.BucketChannel, token[:], &m)
+	err := dao.getKeyValueToBucket(models.BucketChannel, token[:], &m)
 	log.Trace(fmt.Sprintf("GetAllNonParticipantChannel,token=%s,err=%v", utils.APex2(token), err))
-	if err == storm.ErrNotFound {
+	if err == ErrorNotFound {
 		return
 	}
 	for key, data := range m {

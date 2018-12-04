@@ -10,10 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// KeyGetter :
+type KeyGetter interface {
+	GetKey() []byte
+}
+
 // TX :
 type TX interface {
 	Set(table string, key interface{}, value interface{}) error
-	Save(v interface{}) error
+	Save(v KeyGetter) error
 	Commit() error
 	Rollback() error
 }
@@ -189,7 +194,7 @@ type Dao interface {
 	TransferStatusDao
 	XMPPSubDao
 
-	StartTx() (tx TX)
+	StartTx(bucketName string) (tx TX)
 	CloseDB()
 
 	RegisterNewTokenCallback(f cb.NewTokenCb)

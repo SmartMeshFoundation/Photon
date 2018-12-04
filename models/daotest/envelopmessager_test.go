@@ -15,6 +15,7 @@ import (
 
 func TestModelDB_NewSentEnvelopMessager(t *testing.T) {
 	m := codefortest.NewTestDB("")
+	defer m.CloseDB()
 	bp := &encoding.BalanceProof{
 		Nonce:             11,
 		ChannelIdentifier: utils.Sha3([]byte("123")),
@@ -48,6 +49,7 @@ func TestModelDB_NewSentEnvelopMessager2(t *testing.T) {
 
 func TestModelDB_NewSentEnvelopMessager3(t *testing.T) {
 	m := codefortest.NewTestDB("")
+	defer m.CloseDB()
 	var msgs []*encoding.DirectTransfer
 	total := 10
 	var min uint64 = math.MaxUint64

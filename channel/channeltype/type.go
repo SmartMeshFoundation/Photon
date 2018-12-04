@@ -58,6 +58,11 @@ type Serialization struct {
 	SettleTimeout          int
 }
 
+// GetKey : impl dao.KeyGetter
+func (s *Serialization) GetKey() []byte {
+	return s.Key
+}
+
 //ChannleAddress address of channel
 func (s *Serialization) ChannleAddress() common.Hash {
 	return common.BytesToHash(s.Key)

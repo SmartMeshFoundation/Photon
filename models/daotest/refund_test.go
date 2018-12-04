@@ -11,9 +11,7 @@ import (
 
 func TestModelDB_MarkLockSecretHashDisposed(t *testing.T) {
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	lock1 := utils.NewRandomHash()
 	lock2 := utils.NewRandomHash()
 	ch := utils.NewRandomHash()
@@ -36,9 +34,7 @@ func TestNewReceivedAnnounceDisposed(t *testing.T) {
 	channel := utils.NewRandomHash()
 	r := models.NewReceivedAnnounceDisposed(lockHash, channel, utils.NewRandomHash(), 3, nil)
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	err := dao.MarkLockHashCanPunish(r)
 	if err != nil {
 		t.Error(err)

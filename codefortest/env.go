@@ -12,6 +12,7 @@ import (
 
 	accountModule "github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
@@ -135,19 +136,26 @@ func GetAccountsByAddress(address common.Address) (account TestAccount, err erro
 }
 
 // NewTestDB :
-func NewTestDB(dbPath string) models.Dao {
+func NewTestDB(dbPath string) (dao models.Dao) {
 	if dbPath == "" {
 		dbPath = path.Join(os.TempDir(), "testxxxx.db")
-		err := os.Remove(dbPath)
-		err = os.Remove(dbPath + ".lock")
+		err := os.RemoveAll(dbPath)
+		err = os.RemoveAll(dbPath + ".lock")
 		if err != nil {
 			fmt.Println(err)
 		}
 	}
 	var err error
-	db, err := stormdb.OpenDb(dbPath)
-	if err != nil {
-		panic(err)
+	if os.Getenv("PHOTON_DB") == "gkv" {
+		dao, err = gkvdb.OpenDb(dbPath)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		dao, err = stormdb.OpenDb(dbPath)
+		if err != nil {
+			panic(err)
+		}
 	}
-	return db
+	return
 }

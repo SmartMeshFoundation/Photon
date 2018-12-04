@@ -13,6 +13,7 @@ import (
 
 func TestModelDB_FeeChargeRecord(t *testing.T) {
 	dao := codefortest.NewTestDB("")
+	defer dao.CloseDB()
 	lockSecretHash1 := utils.NewRandomHash()
 	lockSecretHash2 := utils.NewRandomHash()
 	r1 := &models.FeeChargeRecord{

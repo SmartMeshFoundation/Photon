@@ -1,4 +1,4 @@
-package stormdb
+package gkvdb
 
 import (
 	"fmt"
@@ -7,15 +7,14 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 //GetAllTokens returna all tokens on this registry contract
-func (model *StormDB) GetAllTokens() (tokens models.AddressMap, err error) {
-	err = model.db.Get(models.BucketToken, models.KeyToken, &tokens)
+func (dao *GkvDB) GetAllTokens() (tokens models.AddressMap, err error) {
+	err = dao.getKeyValueToBucket(models.BucketToken, models.KeyToken, &tokens)
 	if err != nil {
-		if err == storm.ErrNotFound {
+		if err == ErrorNotFound {
 			tokens = make(models.AddressMap)
 		}
 	}
@@ -23,9 +22,9 @@ func (model *StormDB) GetAllTokens() (tokens models.AddressMap, err error) {
 }
 
 //AddToken add a new token to db,
-func (model *StormDB) AddToken(token common.Address, tokenNetworkAddress common.Address) error {
+func (dao *GkvDB) AddToken(token common.Address, tokenNetworkAddress common.Address) error {
 	var m models.AddressMap
-	err := model.db.Get(models.BucketToken, models.KeyToken, &m)
+	err := dao.getKeyValueToBucket(models.BucketToken, models.KeyToken, &m)
 	if err != nil {
 		return err
 	}
@@ -35,13 +34,13 @@ func (model *StormDB) AddToken(token common.Address, tokenNetworkAddress common.
 		return nil
 	}
 	m[token] = tokenNetworkAddress
-	err = model.db.Set(models.BucketToken, models.KeyToken, m)
-	model.handleTokenCallback(model.newTokenCallbacks, token)
+	err = dao.saveKeyValueToBucket(models.BucketToken, models.KeyToken, m)
+	dao.handleTokenCallback(dao.newTokenCallbacks, token)
 	return err
 }
-func (model *StormDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
+func (dao *GkvDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
 	var cbs []*cb.NewTokenCb
-	model.mlock.Lock()
+	dao.mlock.Lock()
 	for f := range m {
 		remove := (*f)(token)
 		if remove {
@@ -51,17 +50,17 @@ func (model *StormDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token commo
 	for _, f := range cbs {
 		delete(m, f)
 	}
-	model.mlock.Unlock()
+	dao.mlock.Unlock()
 }
 
 //UpdateTokenNodes update all nodes that open channel
-func (model *StormDB) UpdateTokenNodes(token common.Address, nodes []common.Address) error {
-	return model.db.Set(models.BucketTokenNodes, token[:], nodes)
+func (dao *GkvDB) UpdateTokenNodes(token common.Address, nodes []common.Address) error {
+	return dao.saveKeyValueToBucket(models.BucketTokenNodes, token[:], nodes)
 }
 
 //GetTokenNodes return all nodes has channel with me
-func (model *StormDB) GetTokenNodes(token common.Address) (nodes []common.Address) {
-	err := model.db.Get(models.BucketTokenNodes, token[:], &nodes)
+func (dao *GkvDB) GetTokenNodes(token common.Address) (nodes []common.Address) {
+	err := dao.getKeyValueToBucket(models.BucketTokenNodes, token[:], &nodes)
 	if err != nil {
 		log.Warn(fmt.Sprintf("GetTokenNodes for %s err=%s", token.String(), err))
 	}

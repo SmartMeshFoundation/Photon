@@ -43,7 +43,7 @@ func testUniqueArray(t *testing.T, dbPath string) {
 }
 func TestTwice(t *testing.T) {
 	dbpath := path.Join(os.TempDir(), "testxxxx.db")
-	os.Remove(dbpath)
+	os.RemoveAll(dbpath)
 	testUniqueArray(t, dbpath)
 	//testUniqueArray(t, dbpath)
 	//testUniqueArray(t, dbpath)

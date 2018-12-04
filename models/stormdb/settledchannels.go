@@ -7,16 +7,10 @@ import (
 	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-/*
-保留 settle 的通道信息,
-供查询需要
-*/
-// buffer information of settled channel for future query.
-const bucketSettledChannel = "settled_channel"
 
 func unmarshal(b []byte, v interface{}) error {
 	r := bytes.NewReader(b)
@@ -30,13 +24,13 @@ func (model *StormDB) NewSettledChannel(c *channeltype.Serialization) error {
 		panic("only settled channel can saved to settledChannel")
 	}
 	key := fmt.Sprintf("%s-%d", c.ChannelIdentifier.ChannelIdentifier.String(), c.ChannelIdentifier.OpenBlockNumber)
-	return model.db.Set(bucketSettledChannel, key, c)
+	return model.db.Set(models.BucketSettledChannel, key, c)
 }
 
 //GetAllSettledChannel returns all settled channel
 func (model *StormDB) GetAllSettledChannel() (chs []*channeltype.Serialization, err error) {
 	err = model.db.Bolt.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketSettledChannel))
+		b := tx.Bucket([]byte(models.BucketSettledChannel))
 		err = b.ForEach(func(k, v []byte) error {
 			if string(k) == "__storm_metadata" {
 				return nil
@@ -60,6 +54,6 @@ func (model *StormDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 func (model *StormDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumber int64) (c *channeltype.Serialization, err error) {
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)
-	err = model.db.Get(bucketSettledChannel, key, c)
+	err = model.db.Get(models.BucketSettledChannel, key, c)
 	return
 }

@@ -10,6 +10,7 @@ import (
 
 func TestModelDB_FeePolicy(t *testing.T) {
 	dao := codefortest.NewTestDB("")
+	defer dao.CloseDB()
 
 	defaultFp := dao.GetFeePolicy()
 	if defaultFp.AccountFee.FeeConstant.Int64() != 0 {

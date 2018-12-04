@@ -1,4 +1,4 @@
-package stormdb
+package gkvdb
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 )
 
 //GetChainID :
-func (model *StormDB) GetChainID() int64 {
+func (dao *GkvDB) GetChainID() int64 {
 	var chainID int64
-	err := model.db.Get(models.BucketChainID, models.KeyChainID, &chainID)
+	err := dao.getKeyValueToBucket(models.BucketChainID, models.KeyChainID, &chainID)
 	if err != nil {
 		log.Error(fmt.Sprintf("models GetChainId err=%s", err))
 	}
@@ -18,8 +18,8 @@ func (model *StormDB) GetChainID() int64 {
 }
 
 //SaveChainID :
-func (model *StormDB) SaveChainID(chainID int64) {
-	err := model.db.Set(models.BucketChainID, models.KeyChainID, chainID)
+func (dao *GkvDB) SaveChainID(chainID int64) {
+	err := dao.saveKeyValueToBucket(models.BucketChainID, models.KeyChainID, chainID)
 	if err != nil {
 		log.Error(fmt.Sprintf("models SaveChainId err=%s", err))
 	}

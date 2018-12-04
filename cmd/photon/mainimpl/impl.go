@@ -31,6 +31,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
@@ -176,6 +177,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "http-password",
 			Usage: "the password needed when call http api,only work with http-username",
 		},
+		cli.StringFlag{
+			Name:  "db",
+			Usage: "use --db=gkv when need photon run with gkvdb",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -214,7 +219,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	// open db
 	var dao models.Dao
-	dao, err = stormdb.OpenDb(cfg.DataBasePath)
+	if ctx.IsSet("db") && ctx.String("db") == "gkv" {
+		dao, err = gkvdb.OpenDb(cfg.DataBasePath)
+	} else {
+		dao, err = stormdb.OpenDb(cfg.DataBasePath)
+	}
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
 		client.Close()

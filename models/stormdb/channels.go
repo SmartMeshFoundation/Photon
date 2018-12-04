@@ -38,7 +38,7 @@ func (model *StormDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
 func (model *StormDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
-	tx := model.StartTx()
+	tx := model.StartTx(models.BucketChannelSerialization)
 	defer func() {
 		if err != nil {
 			err = tx.Rollback()
@@ -159,15 +159,13 @@ func (model *StormDB) GetChannelList(token, partner common.Address) (cs []*chann
 	return
 }
 
-const bucketWithDraw = "bucketWithdraw"
-
 /*
 IsThisLockHasUnlocked return ture when  lockhash has unlocked on channel?
 */
 func (model *StormDB) IsThisLockHasUnlocked(channel common.Hash, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:])
-	err := model.db.Get(bucketWithDraw, key.Bytes(), &result)
+	err := model.db.Get(models.BucketWithDraw, key.Bytes(), &result)
 	if err != nil {
 		return false
 	}
@@ -182,13 +180,11 @@ UnlockThisLock marks that I have withdrawed this secret on channel.
 */
 func (model *StormDB) UnlockThisLock(channel common.Hash, lockHash common.Hash) {
 	key := utils.Sha3(channel[:], lockHash[:])
-	err := model.db.Set(bucketWithDraw, key.Bytes(), true)
+	err := model.db.Set(models.BucketWithDraw, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
 	}
 }
-
-const bucketExpiredHashlock = "expiredHashlock"
 
 /*
 IsThisLockRemoved return true when  a expired hashlock has been removed from channel status.
@@ -196,7 +192,7 @@ IsThisLockRemoved return true when  a expired hashlock has been removed from cha
 func (model *StormDB) IsThisLockRemoved(channel common.Hash, sender common.Address, lockHash common.Hash) bool {
 	var result bool
 	key := utils.Sha3(channel[:], lockHash[:], sender[:])
-	err := model.db.Get(bucketExpiredHashlock, key.Bytes(), &result)
+	err := model.db.Get(models.BucketExpiredHashlock, key.Bytes(), &result)
 	if err != nil {
 		return false
 	}
@@ -211,7 +207,7 @@ RemoveLock remember this lock has been removed from channel status.
 */
 func (model *StormDB) RemoveLock(channel common.Hash, sender common.Address, lockHash common.Hash) {
 	key := utils.Sha3(channel[:], lockHash[:], sender[:])
-	err := model.db.Set(bucketExpiredHashlock, key.Bytes(), true)
+	err := model.db.Set(models.BucketExpiredHashlock, key.Bytes(), true)
 	if err != nil {
 		log.Error(fmt.Sprintf("UnlockThisLock write %s to db err %s", hex.EncodeToString(key.Bytes()), err))
 	}

@@ -28,9 +28,7 @@ func init() {
 
 func TestToken(t *testing.T) {
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	var cbtokens []common.Address
 	funcb := func(token common.Address) bool {
 		cbtokens = append(cbtokens, token)
@@ -142,9 +140,7 @@ func TestGob2(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	channel := utils.NewRandomHash()
 	secret := utils.ShaSecret(channel[:])
 	r := dao.IsThisLockHasUnlocked(channel, secret)
@@ -167,9 +163,7 @@ func TestWithdraw(t *testing.T) {
 
 func TestModelDB_IsThisLockRemoved(t *testing.T) {
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	channel := utils.NewRandomHash()
 	secret := utils.ShaSecret(channel[:])
 	sender := utils.NewRandomAddress()

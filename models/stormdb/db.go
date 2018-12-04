@@ -33,10 +33,6 @@ type StormDB struct {
 	Name                    string
 }
 
-var bucketMeta = "meta"
-
-const dbVersion = 1
-
 func newStormDB() (db *StormDB) {
 	return &StormDB{
 		newTokenCallbacks:       make(map[*cb.NewTokenCb]bool),
@@ -62,12 +58,12 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 	}
 	model.Name = dbPath
 	if needCreateDb {
-		err = model.db.Set(bucketMeta, "version", dbVersion)
+		err = model.db.Set(models.BucketMeta, models.KeyVersion, models.DbVersion)
 		if err != nil {
 			log.Crit(fmt.Sprintf("unable to create db "))
 			return
 		}
-		err = model.db.Set(bucketToken, keyToken, make(models.AddressMap))
+		err = model.db.Set(models.BucketToken, models.KeyToken, make(models.AddressMap))
 		if err != nil {
 			log.Crit(fmt.Sprintf("unable to create db "))
 			return
@@ -75,16 +71,16 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 		model.initDb()
 		model.MarkDbOpenedStatus()
 	} else {
-		err = model.db.Get(bucketMeta, "version", &ver)
+		err = model.db.Get(models.BucketMeta, models.KeyVersion, &ver)
 		if err != nil {
 			log.Crit(fmt.Sprintf("wrong db file format "))
 			return
 		}
-		if ver != dbVersion {
+		if ver != models.DbVersion {
 			log.Crit("db version not match")
 		}
 		var closeFlag bool
-		err = model.db.Get(bucketMeta, "close", &closeFlag)
+		err = model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 		if err != nil {
 			log.Crit(fmt.Sprintf("db meta data error"))
 		}
@@ -96,16 +92,6 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 	return
 }
 
-//StartTx start a new tx of db
-func (model *StormDB) StartTx() (tx models.TX) {
-	var err error
-	tx, err = model.db.Begin(true)
-	if err != nil {
-		panic(fmt.Sprintf("start transaction error %s", err))
-	}
-	return
-}
-
 /*
 MarkDbOpenedStatus First step   open the database
 Second step detection for normal closure IsDbCrashedLastTime
@@ -113,7 +99,7 @@ Third step  recovers the data according to the second step
 Fourth step mark the database for processing the data normally. MarkDbOpenedStatus
 */
 func (model *StormDB) MarkDbOpenedStatus() {
-	err := model.db.Set(bucketMeta, "close", false)
+	err := model.db.Set(models.BucketMeta, models.KeyCloseFlag, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
@@ -122,7 +108,7 @@ func (model *StormDB) MarkDbOpenedStatus() {
 //IsDbCrashedLastTime return true when quit but  db not closed
 func (model *StormDB) IsDbCrashedLastTime() bool {
 	var closeFlag bool
-	err := model.db.Get(bucketMeta, "close", &closeFlag)
+	err := model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 	if err != nil {
 		log.Crit(fmt.Sprintf("db meta data error"))
 	}
@@ -132,7 +118,7 @@ func (model *StormDB) IsDbCrashedLastTime() bool {
 //CloseDB close db
 func (model *StormDB) CloseDB() {
 	model.lock.Lock()
-	err := model.db.Set(bucketMeta, "close", true)
+	err := model.db.Set(models.BucketMeta, models.KeyCloseFlag, true)
 	err = model.db.Close()
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
@@ -142,7 +128,7 @@ func (model *StormDB) CloseDB() {
 
 //SaveRegistryAddress save registry address to db
 func (model *StormDB) SaveRegistryAddress(registryAddress common.Address) {
-	err := model.db.Set(bucketMeta, "registry", registryAddress)
+	err := model.db.Set(models.BucketMeta, models.KeyRegistry, registryAddress)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
@@ -151,7 +137,7 @@ func (model *StormDB) SaveRegistryAddress(registryAddress common.Address) {
 //GetRegistryAddress returns registry address in db
 func (model *StormDB) GetRegistryAddress() common.Address {
 	var registry common.Address
-	err := model.db.Get(bucketMeta, "registry", &registry)
+	err := model.db.Get(models.BucketMeta, models.KeyRegistry, &registry)
 	if err != nil && err != storm.ErrNotFound {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
@@ -160,7 +146,7 @@ func (model *StormDB) GetRegistryAddress() common.Address {
 
 //SaveSecretRegistryAddress save secret registry contract address to db
 func (model *StormDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
-	err := model.db.Set(bucketMeta, "secretregistry", secretRegistryAddress)
+	err := model.db.Set(models.BucketMeta, models.KeySecretRegistry, secretRegistryAddress)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
@@ -169,7 +155,7 @@ func (model *StormDB) SaveSecretRegistryAddress(secretRegistryAddress common.Add
 //GetSecretRegistryAddress return secret registry contract address
 func (model *StormDB) GetSecretRegistryAddress() common.Address {
 	var secretRegistry common.Address
-	err := model.db.Get(bucketMeta, "secretregistry", &secretRegistry)
+	err := model.db.Get(models.BucketMeta, models.KeySecretRegistry, &secretRegistry)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
@@ -182,7 +168,7 @@ func init() {
 func (model *StormDB) initDb() {
 	err := model.db.Init(&models.SentTransfer{})
 	err = model.db.Init(&models.ReceivedTransfer{})
-	err = model.db.Set(bucketBlockNumber, keyBlockNumber, 0)
+	err = model.db.Set(models.BucketBlockNumber, models.KeyBlockNumber, 0)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}

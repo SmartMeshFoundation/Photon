@@ -15,9 +15,7 @@ var token common.Address
 
 func TestModelDB_NewNonParticipantChannel(t *testing.T) {
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	token = utils.NewRandomAddress()
 	p1 := utils.NewRandomAddress()
 	p2 := utils.NewRandomAddress()
@@ -50,9 +48,7 @@ func TestModelDB_NewNonParticipantChannel(t *testing.T) {
 func TestReadDbAgain(t *testing.T) {
 	TestModelDB_NewNonParticipantChannel(t)
 	dao := codefortest.NewTestDB("")
-	defer func() {
-		dao.CloseDB()
-	}()
+	defer dao.CloseDB()
 	edges, err := dao.GetAllNonParticipantChannel(token)
 	if err != nil {
 		t.Error(err)

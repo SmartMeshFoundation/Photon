@@ -1,25 +1,25 @@
-package stormdb
+package gkvdb
 
 import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/asdine/storm"
 )
 
 // SaveFeePolicy :
-func (model *StormDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
+func (dao *GkvDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
 	fp.Key = models.KeyFeePolicy
-	err = model.db.Save(fp)
-	return
+	return dao.saveKeyValueToBucket(models.BucketFeePolicy, fp.Key, fp)
 }
 
 // GetFeePolicy :
-func (model *StormDB) GetFeePolicy() (fp *models.FeePolicy) {
-	fp = &models.FeePolicy{}
-	err := model.db.One("Key", models.KeyFeePolicy, fp)
-	if err == storm.ErrNotFound {
+func (dao *GkvDB) GetFeePolicy() (fp *models.FeePolicy) {
+	if fp == nil {
+		fp = &models.FeePolicy{}
+	}
+	err := dao.getKeyValueToBucket(models.BucketFeePolicy, models.KeyFeePolicy, &fp)
+	if err == ErrorNotFound {
 		return models.NewDefaultFeePolicy()
 	}
 	if err != nil {

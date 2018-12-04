@@ -200,7 +200,7 @@ func (node *PhotonNode) SendTransWithData(tokenAddress string, amount int32, tar
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 60,
+		Timeout: time.Second * 300,
 	}
 	statusCode, _, err := req.Invoke()
 	if err != nil {

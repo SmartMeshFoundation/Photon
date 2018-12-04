@@ -6,13 +6,15 @@ import (
 	"reflect"
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestAckDao(t *testing.T) {
 	dao := codefortest.NewTestDB("")
+	defer dao.CloseDB()
 	echoHash := utils.NewRandomHash()
-	tx := dao.StartTx()
+	tx := dao.StartTx(models.BucketAck)
 	// save with tx and get
 	dao.SaveAck(echoHash, echoHash.Bytes(), tx)
 	tx.Commit()

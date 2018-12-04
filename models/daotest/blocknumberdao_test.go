@@ -10,6 +10,7 @@ import (
 
 func TestBlockNumberDao(t *testing.T) {
 	dao := codefortest.NewTestDB("")
+	defer dao.CloseDB()
 	bn := int64(500)
 	dao.SaveLatestBlockNumber(bn)
 	bn1 := dao.GetLatestBlockNumber()

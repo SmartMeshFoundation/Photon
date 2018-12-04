@@ -145,7 +145,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		t, _ := stateManager.LastReceivedMessage.Tag().(*transfer.MessageTag)
 		echohash := t.EchoHash
 		ack := eh.photon.Protocol.CreateAck(echohash)
-		tx := eh.photon.dao.StartTx()
+		tx := eh.photon.dao.StartTx(models.BucketChannelSerialization)
 		eh.photon.dao.SaveAck(echohash, ack.Pack(), tx)
 		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
