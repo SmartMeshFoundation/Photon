@@ -34,7 +34,7 @@ func (rs *Service) restore() {
 	rs.reSendEnvelopMessage()
 }
 func (rs *Service) reSendEnvelopMessage() {
-	msgs := rs.db.GetAllOrderedSentEnvelopMessager()
+	msgs := rs.dao.GetAllOrderedSentEnvelopMessager()
 	for _, msg := range msgs {
 		/*
 			todo 存在问题:

@@ -151,7 +151,7 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	ts, err := API.Photon.GetDb().GetTransferStatus(tokenAddr, lockSecretHash)
+	ts, err := API.Photon.GetDao().GetTransferStatus(tokenAddr, lockSecretHash)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return

@@ -55,7 +55,7 @@ func (r *API) Address() common.Address {
 
 //Tokens Return a list of the tokens registered with the default registry.
 func (r *API) Tokens() (addresses []common.Address) {
-	tokens, err := r.Photon.db.GetAllTokens()
+	tokens, err := r.Photon.dao.GetAllTokens()
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 		return
@@ -81,12 +81,12 @@ Args:
             KeyError: An error occurred when the token address is unknown to the node.
 */
 func (r *API) GetChannelList(tokenAddress common.Address, partnerAddress common.Address) (cs []*channeltype.Serialization, err error) {
-	return r.Photon.db.GetChannelList(tokenAddress, partnerAddress)
+	return r.Photon.dao.GetChannelList(tokenAddress, partnerAddress)
 }
 
 //GetChannel get channel by address
 func (r *API) GetChannel(ChannelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
-	return r.Photon.db.GetChannelByAddress(ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(ChannelIdentifier)
 }
 
 /*
@@ -143,7 +143,7 @@ func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, r
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.db.RegisterNewChannellCallback(func(c *channeltype.Serialization) (remove bool) {
+	r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
 		if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
 			wg.Done()
 			return true
@@ -157,7 +157,7 @@ func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, r
 	}
 	//wait
 	wg.Wait()
-	ch, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err == nil {
 		//must be success, no need to wait event and register a callback
 		if deposit != nil {
@@ -187,7 +187,7 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         execution.
 */
 func (r *API) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
 	}
@@ -212,7 +212,7 @@ func (r *API) Deposit(tokenAddress, partnerAddress common.Address, amount *big.I
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.db.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
+	r.Photon.dao.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		if bytes.Equal(c2.Key, c.Key) {
 			wg.Done()
 			return true
@@ -230,7 +230,7 @@ func (r *API) Deposit(tokenAddress, partnerAddress common.Address, amount *big.I
 	*/
 	wg.Wait()
 	//reload data from database,
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 /*
@@ -252,12 +252,12 @@ func (r *API) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, ma
 
 func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int, secret string) (result *utils.AsyncResult, err error) {
-	chs, err := r.Photon.db.GetChannelList(takerToken, utils.EmptyAddress)
+	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
 		return
 	}
-	chs, err = r.Photon.db.GetChannelList(makerToken, utils.EmptyAddress)
+	chs, err = r.Photon.dao.GetChannelList(makerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown maker token")
 		return
@@ -286,12 +286,12 @@ ExpectTokenSwap Register an expected transfer for this node.
 */
 func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
 	makerAmount, takerAmount *big.Int) (err error) {
-	chs, err := r.Photon.db.GetChannelList(takerToken, utils.EmptyAddress)
+	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown taker token")
 		return
 	}
-	chs, err = r.Photon.db.GetChannelList(makerToken, utils.EmptyAddress)
+	chs, err = r.Photon.dao.GetChannelList(makerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = errors.New("unkown maker token")
 		return
@@ -322,7 +322,7 @@ func (r *API) StartHealthCheckFor(nodeAddress common.Address) (deviceType string
 
 //GetTokenList returns all available tokens
 func (r *API) GetTokenList() (tokens []common.Address) {
-	tokensmap, err := r.Photon.db.GetAllTokens()
+	tokensmap, err := r.Photon.dao.GetAllTokens()
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 	}
@@ -334,7 +334,7 @@ func (r *API) GetTokenList() (tokens []common.Address) {
 
 //GetTokenTokenNetorks return all tokens and token networks
 func (r *API) GetTokenTokenNetorks() (tokens []string) {
-	tokenMap, err := r.Photon.db.GetAllTokens()
+	tokenMap, err := r.Photon.dao.GetAllTokens()
 	if err != nil {
 		log.Error(fmt.Sprintf("GetAllTokens err %s", err))
 	}
@@ -394,7 +394,7 @@ func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee
 	//}
 	//if isDirectTransfer {
 	//	var c *channeltype.Serialization
-	//	c, err = r.Photon.db.GetChannel(tokenAddress, target)
+	//	c, err = r.Photon.dao.GetChannel(tokenAddress, target)
 	//	if err != nil {
 	//		err = fmt.Errorf("no direct channel token:%s,partner:%s", tokenAddress.String(), target.String())
 	//		return
@@ -505,13 +505,13 @@ func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAdd
 
 //Close a channel opened with `partner_address` for the given `token_address`. return when state has been +d to database
 func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.db.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
+	r.Photon.dao.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
 		if bytes.Equal(c2.Key, c.Key) {
@@ -528,19 +528,19 @@ func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype
 	}
 	wg.Wait()
 	//reload data from database,
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //Settle a closed channel with `partner_address` for the given `token_address`.return when state has been updated to database
 func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State == channeltype.StateOpened {
 		err = rerr.InvalidState("channel is still open")
 		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.db.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
+	r.Photon.dao.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
 		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
 			c.ChannelIdentifier, c2.ChannelIdentifier))
 		if bytes.Equal(c2.Key, c.Key) {
@@ -558,12 +558,12 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	}
 	wg.Wait()
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
+	return r.Photon.dao.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
 }
 
 //CooperativeSettle a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
 func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForCooperativeSettle {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -576,12 +576,12 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //PrepareForCooperativeSettle  mark a channel prepared for settle,  return when state has been updated to database
 func (r *API) PrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -594,12 +594,12 @@ func (r *API) PrepareForCooperativeSettle(tokenAddress, partnerAddress common.Ad
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //CancelPrepareForCooperativeSettle  cancel a mark. return when state has been updated to database
 func (r *API) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StatePrepareForCooperativeSettle {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -612,12 +612,12 @@ func (r *API) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress com
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //Withdraw on a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
 func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.Int) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -634,12 +634,12 @@ func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //PrepareForWithdraw  mark a channel prepared for withdraw,  return when state has been updated to database
 func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -652,12 +652,12 @@ func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //CancelPrepareForWithdraw  cancel a mark. return when state has been updated to database
 func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.db.GetChannel(tokenAddress, partnerAddress)
+	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StatePrepareForWithdraw {
 		err = rerr.InvalidState("channel must be  open")
 		return
@@ -670,7 +670,7 @@ func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Addre
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.db.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //GetTokenNetworkEvents return events about this token
@@ -692,7 +692,7 @@ func (r *API) GetTokenNetworkEvents(tokenAddress common.Address, fromBlock, toBl
 	//	Participant2   string `json:"participant2"`
 	//	TokenAddress   string `json:"token_address"`
 	//}
-	//tokens, err := r.Photon.db.GetAllTokens()
+	//tokens, err := r.Photon.dao.GetAllTokens()
 	//if err != nil {
 	//	return
 	//}
@@ -789,7 +789,7 @@ func (r *API) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock
 	//}
 	//
 	//var photonEvents []*models.InternalEvent
-	//photonEvents, err = r.Photon.db.GetEventsInBlockRange(fromBlock, toBlock)
+	//photonEvents, err = r.Photon.dao.GetEventsInBlockRange(fromBlock, toBlock)
 	//if err != nil {
 	//	return
 	//}
@@ -823,17 +823,17 @@ func (r *API) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock
 }
 
 /*
-GetSentTransfers query sent transfers from db
+GetSentTransfers query sent transfers from dao
 */
 func (r *API) GetSentTransfers(from, to int64) ([]*models.SentTransfer, error) {
-	return r.Photon.db.GetSentTransferInBlockRange(from, to)
+	return r.Photon.dao.GetSentTransferInBlockRange(from, to)
 }
 
 /*
-GetReceivedTransfers query received transfers from db
+GetReceivedTransfers query received transfers from dao
 */
 func (r *API) GetReceivedTransfers(from, to int64) ([]*models.ReceivedTransfer, error) {
-	return r.Photon.db.GetReceivedTransferInBlockRange(from, to)
+	return r.Photon.dao.GetReceivedTransferInBlockRange(from, to)
 }
 
 //Stop stop for mobile app
@@ -926,7 +926,7 @@ func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, third
 	}
 	c3.Unlocks = ws
 	var ps []*punish
-	for _, annouceDisposed := range r.Photon.db.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
+	for _, annouceDisposed := range r.Photon.dao.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
 		//跳过历史 channel
 		// omit history channel
 		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
@@ -1236,7 +1236,7 @@ func (r *API) GetAllFeeChargeRecord() (resp *dto.APIResponse) {
 	}
 	var data responce
 	var err error
-	data.Details, err = r.Photon.db.GetAllFeeChargeRecord()
+	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord()
 	if err != nil {
 		return dto.NewExceptionAPIResponse(err)
 	}
@@ -1289,8 +1289,8 @@ func (r *API) SystemStatus() (resp *dto.APIResponse) {
 	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
 	// TokenToTokenNetwork
 	data.TokenToTokenNetwork = r.Photon.Token2TokenNetwork
-	data.LastBlockNumber = r.Photon.db.GetLatestBlockNumber()
-	data.LastBlockNumberTime = r.Photon.db.GetLastBlockNumberTime()
+	data.LastBlockNumber = r.Photon.dao.GetLatestBlockNumber()
+	data.LastBlockNumberTime = r.Photon.dao.GetLastBlockNumberTime()
 	data.IsMobileMode = params.MobileMode
 	// network type
 	switch r.Photon.Transport.(type) {
@@ -1307,7 +1307,7 @@ func (r *API) SystemStatus() (resp *dto.APIResponse) {
 	}
 	// FeePolicy
 	if r.Photon.Config.EnableMediationFee {
-		data.FeePolicy = r.Photon.db.GetFeePolicy()
+		data.FeePolicy = r.Photon.dao.GetFeePolicy()
 	} else {
 		data.FeePolicy = nil
 	}

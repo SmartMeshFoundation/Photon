@@ -8,10 +8,10 @@ import (
 
 	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -61,29 +61,8 @@ func (fp *FeePolicy) Sign(key *ecdsa.PrivateKey) {
 
 const defaultKey string = "feePolicy"
 
-// SaveFeePolicy :
-func (model *ModelDB) SaveFeePolicy(fp *FeePolicy) (err error) {
-	fp.Key = defaultKey
-	err = model.db.Save(fp)
-	return
-}
-
-// GetFeePolicy :
-func (model *ModelDB) GetFeePolicy() (fp *FeePolicy) {
-	fp = &FeePolicy{}
-	err := model.db.One("Key", defaultKey, fp)
-	if err == storm.ErrNotFound {
-		return newDefaultFeePolicy()
-	}
-	if err != nil {
-		log.Error(fmt.Sprintf("GetFeePolicy err %s, use default fee policy", err))
-		return newDefaultFeePolicy()
-	}
-	return
-}
-
-// 默认手续费万分之一
-func newDefaultFeePolicy() *FeePolicy {
+// NewDefaultFeePolicy : 默认手续费万分之一
+func NewDefaultFeePolicy() *FeePolicy {
 	return &FeePolicy{
 		AccountFee: &FeeSetting{
 			FeeConstant: big.NewInt(0),
@@ -92,4 +71,8 @@ func newDefaultFeePolicy() *FeePolicy {
 		TokenFeeMap:   make(map[common.Address]*FeeSetting),
 		ChannelFeeMap: make(map[common.Hash]*FeeSetting),
 	}
+}
+
+func init() {
+	gob.Register(&FeePolicy{})
 }

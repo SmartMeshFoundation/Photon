@@ -122,10 +122,10 @@ func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	sender := msg.Sender
 	mh.photon.registerSecret(secret)
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{Secret: secret, Sender: sender, Message: msg}
-	// save log to db
+	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash())
 	for _, c := range channels {
-		mh.photon.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
@@ -152,10 +152,10 @@ func (mh *photonMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 		Sender:         msg.Sender,
 		Message:        msg,
 	}
-	// save log to db
+	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash)
 	for _, c := range channels {
-		mh.photon.db.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
@@ -306,7 +306,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		return
 	}
 	punish := models.NewReceivedAnnounceDisposed(msg.Lock.Hash(), msg.ChannelIdentifier, msg.GetAdditionalHash(), msg.OpenBlockNumber, msg.Signature)
-	err = mh.photon.db.MarkLockHashCanPunish(punish)
+	err = mh.photon.dao.MarkLockHashCanPunish(punish)
 	if err != nil {
 		err = fmt.Errorf("MarkLockHashCanPunish %s err %s", utils.StringInterface(punish, 2), err)
 		return
@@ -318,7 +318,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Message: msg,
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
-	mh.photon.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
+	mh.photon.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 
@@ -360,7 +360,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 		必须验证我确实发送过这个Dispose
 	*/
 	// must check that I actually send this Dispose
-	b := mh.photon.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
+	b := mh.photon.dao.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, msg.ChannelIdentifier)
 	if !b {
 		return fmt.Errorf("maybe a attack, receive a announce disposed response,but i never send announce disposed,msg=%s", msg)
 	}

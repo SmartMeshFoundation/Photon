@@ -3,11 +3,6 @@ package models
 import (
 	"encoding/gob"
 
-	"github.com/asdine/storm"
-
-	"fmt"
-
-	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -48,40 +43,6 @@ func init() {
 	gob.Register(&ReceivedAnnounceDisposed{})
 }
 
-//MarkLockSecretHashDisposed mark `locksecrethash` disposed on channel `ChannelIdentifier`
-func (model *ModelDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error {
-	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
-	err := model.db.Save(&SentAnnounceDisposed{
-		Key:               key[:],
-		LockSecretHash:    lockSecretHash[:],
-		ChannelIdentifier: ChannelIdentifier,
-	})
-	return err
-}
-
-//IsLockSecretHashDisposed this lockSecretHash has Announced Disposed
-func (model *ModelDB) IsLockSecretHashDisposed(lockSecretHash common.Hash) bool {
-	sad := new(SentAnnounceDisposed)
-	err := model.db.One("LockSecretHash", lockSecretHash[:], sad)
-	if err != nil {
-		return false
-	}
-	//log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
-	return true
-}
-
-//IsLockSecretHashChannelIdentifierDisposed `lockSecretHash` and `ChannelIdentifier` is the id of AnnounceDisposed
-func (model *ModelDB) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
-	sad := new(SentAnnounceDisposed)
-	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
-	err := model.db.One("Key", key[:], sad)
-	if err != nil {
-		return false
-	}
-	//log.Trace(fmt.Sprintf("Find SentAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
-	return true
-}
-
 //NewReceivedAnnounceDisposed create ReceivedAnnounceDisposed
 func NewReceivedAnnounceDisposed(LockHash, ChannelIdentifier, additionalHash common.Hash, openBlockNumber int64, signature []byte) *ReceivedAnnounceDisposed {
 	key := utils.Sha3(LockHash[:], ChannelIdentifier[:])
@@ -95,54 +56,7 @@ func NewReceivedAnnounceDisposed(LockHash, ChannelIdentifier, additionalHash com
 	}
 }
 
-//MarkLockHashCanPunish 收到了一个放弃声明,需要保存,在收到 unlock 事件的时候进行 punish
-/*
- *	MarkLockHashCanPunish : Once receiving an AnnounceDisposed message, we need to store it
- * 	and submit it to enforce punishment procedure while receiving unlock.
- */
-func (model *ModelDB) MarkLockHashCanPunish(r *ReceivedAnnounceDisposed) error {
-	return model.db.Save(r)
-}
-
-//IsLockHashCanPunish can punish this unlock?
-func (model *ModelDB) IsLockHashCanPunish(lockHash, channelIdentifier common.Hash) bool {
-	sad := new(ReceivedAnnounceDisposed)
-	key := utils.Sha3(lockHash[:], channelIdentifier[:])
-	err := model.db.One("Key", key[:], sad)
-	if err != nil {
-		return false
-	}
-	//log.Trace(fmt.Sprintf("Find ReceivedAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
-	return true
-}
-
-//GetReceiviedAnnounceDisposed return a ReceivedAnnounceDisposed ,if not  exist,return nil
-func (model *ModelDB) GetReceiviedAnnounceDisposed(lockHash, channelIdentifier common.Hash) *ReceivedAnnounceDisposed {
-	sad := new(ReceivedAnnounceDisposed)
-	key := utils.Sha3(lockHash[:], channelIdentifier[:])
-	err := model.db.One("Key", key[:], sad)
-	if err != nil {
-		return nil
-	}
-	//log.Trace(fmt.Sprintf("Find ReceivedAnnounceDisposed=%s", utils.StringInterface(sad, 2)))
-	return sad
-}
-
-/*
-GetChannelAnnounceDisposed 获取指定 channel中对方声明放弃的锁,
-*/
-/*
- *	GetChannelAnnounceDisposed : function to receive disposed locks claimed by channel partner in specific channel
- */
-func (model *ModelDB) GetChannelAnnounceDisposed(channelIdentifier common.Hash) []*ReceivedAnnounceDisposed {
-	var anns []*ReceivedAnnounceDisposed
-	err := model.db.Find("ChannelIdentifier", channelIdentifier[:], &anns)
-	if err != nil {
-		if err == storm.ErrNotFound {
-			return nil
-		}
-		log.Error(fmt.Sprintf("GetChannelAnnounceDisposed for %s ,err %s", channelIdentifier.String(), err))
-		return nil
-	}
-	return anns
+func init() {
+	gob.Register(&SentAnnounceDisposed{})
+	gob.Register(&ReceivedAnnounceDisposed{})
 }

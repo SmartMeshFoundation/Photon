@@ -13,6 +13,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
@@ -40,8 +41,8 @@ func newTestPhotonWithPolicy(feePolicy fee.Charger) *Service {
 	if config.DataDir == "" {
 		config.DataDir = path.Join(os.TempDir(), utils.RandomString(10))
 	}
-	config.DataBasePath = path.Join(config.DataDir, "log.db")
-	db, err := models.OpenDb(config.DataBasePath)
+	config.DataBasePath = path.Join(config.DataDir, "log.dao")
+	db, err := stormdb.OpenDb(config.DataBasePath)
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +91,7 @@ func testGetnextValidAccount() (*ecdsa.PrivateKey, common.Address) {
 	}
 	return privkey, crypto.PubkeyToAddress(privkey.PublicKey)
 }
-func newTestBlockChainService(db *models.ModelDB) *rpc.BlockChainService {
+func newTestBlockChainService(dao models.Dao) *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))

@@ -17,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -88,7 +89,7 @@ type withDraw struct {
 	PrivateKey                *ecdsa.PrivateKey
 	DbPath                    string
 	bcs                       *rpc.BlockChainService
-	db                        *models.ModelDB
+	db                        models.Dao
 	WithDrawChannelIdentifier common.Hash
 	Secret                    common.Hash
 	ChannelIdentifier2Channel map[common.Hash]*channel.Channel
@@ -156,7 +157,7 @@ func mainctx(ctx *cli.Context) error {
 
 func (w *withDraw) openDb() {
 	var err error
-	w.db, err = models.OpenDb(w.DbPath)
+	w.db, err = stormdb.OpenDb(w.DbPath)
 	if err != nil {
 		log.Crit("cannot open db")
 	}

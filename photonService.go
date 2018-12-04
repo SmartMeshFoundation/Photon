@@ -82,7 +82,7 @@ type Service struct {
 	MessageHandler           *photonMessageHandler
 	StateMachineEventHandler *stateMachineEventHandler
 	BlockChainEvents         *blockchain.Events
-	db                       *models.ModelDB
+	dao                      models.Dao
 	FeePolicy                fee.Charger //Mediation fee
 	NotifyHandler            *notify.Handler
 	PfsProxy                 pfsproxy.PfsProxy
@@ -134,14 +134,14 @@ type Service struct {
 }
 
 //NewPhotonService create photon service
-func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, db *models.ModelDB) (rs *Service, err error) {
+func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, dao models.Dao) (rs *Service, err error) {
 	rs = &Service{
 		NotifyHandler:                         notifyHandler,
 		Chain:                                 chain,
 		PrivateKey:                            privateKey,
 		Config:                                config,
 		Transport:                             transport,
-		db:                                    db,
+		dao:                                   dao,
 		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
 		TokenNetwork2Token:                    make(map[common.Address]common.Address),
@@ -171,12 +171,12 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	//todo fixme MatrixTransport should have a better contructor function
 	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
 	if ok {
-		err = mtransport.SetMatrixDB(rs.db)
+		err = mtransport.SetMatrixDB(rs.dao)
 		if err != nil {
 			return
 		}
 	}
-	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.db))
+	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.dao))
 	/*
 		only one instance for one data directory
 	*/
@@ -188,7 +188,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	log.Info(fmt.Sprintf("create photon service registry=%s,node=%s", rs.Chain.GetRegistryAddress().String(), rs.NodeAddress.String()))
 
-	rs.Token2TokenNetwork, err = rs.db.GetAllTokens()
+	rs.Token2TokenNetwork, err = rs.dao.GetAllTokens()
 	if err != nil {
 		return
 	}
@@ -202,7 +202,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	// fee module
 	if config.EnableMediationFee {
-		rs.FeePolicy, err = NewFeeModule(db, rs.PfsProxy)
+		rs.FeePolicy, err = NewFeeModule(dao, rs.PfsProxy)
 		if err != nil {
 			return
 		}
@@ -219,7 +219,7 @@ func (rs *Service) Start() (err error) {
 		事先从DB里面获取最后的blocknumber,以免重启后因为超时而拒绝掉之前的MediatedTransfer消息
 		Get the last block number from the DB beforehand to avoid rejecting the previous MeditatedTransfer message after restart because of timeout
 	*/
-	n := rs.db.GetLatestBlockNumber()
+	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
 
 	rs.registerRegistry()
@@ -292,7 +292,7 @@ func (rs *Service) Stop() {
 	rs.Chain.Client.Close()
 	rs.NotifyHandler.Stop()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
-	rs.db.CloseDB()
+	rs.dao.CloseDB()
 	//anther instance cann run now
 	err := rs.FileLocker.Unlock()
 	if err != nil {
@@ -345,7 +345,7 @@ func (rs *Service) loop() {
 					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
 				}
 				if ok2 {
-					rs.db.SaveLatestBlockNumber(blockStateChange.BlockNumber)
+					rs.dao.SaveLatestBlockNumber(blockStateChange.BlockNumber)
 					if rs.ChanHistoryContractEventsDealComplete != nil {
 						close(rs.ChanHistoryContractEventsDealComplete)
 						rs.ChanHistoryContractEventsDealComplete = nil
@@ -389,11 +389,11 @@ func (rs *Service) loop() {
 	}
 }
 
-//for init,read db history,只要是我还没处理的链上事件,都还在队列中等着发给我.
-// for init, read db history,
+//for init,read dao history,只要是我还没处理的链上事件,都还在队列中等着发给我.
+// for init, read dao history,
 // all on-chain events I have not handled should wait in queue.
 func (rs *Service) registerRegistry() {
-	token2TokenNetworks, err := rs.db.GetAllTokens()
+	token2TokenNetworks, err := rs.dao.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
@@ -429,7 +429,7 @@ func (rs *Service) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, toke
 	ourState := channel.NewChannelEndState(rs.NodeAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 	partenerState := channel.NewChannelEndState(partnerAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 
-	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, rs.PrivateKey, rs.Chain.Client, rs.db, 0, rs.NodeAddress, partnerAddress)
+	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, rs.PrivateKey, rs.Chain.Client, rs.dao, 0, rs.NodeAddress, partnerAddress)
 	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelIdentifier, rs.Config.RevealTimeout, settleTimeout)
 	return
 }
@@ -454,7 +454,7 @@ func (rs *Service) handleBlockNumber(blocknumber int64) {
 			}
 		}
 	}
-	rs.db.SaveLatestBlockNumber(blocknumber)
+	rs.dao.SaveLatestBlockNumber(blocknumber)
 	return
 }
 
@@ -504,7 +504,7 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 	}
 	envelopMessager, ok := msg.(encoding.EnvelopMessager)
 	if ok && envelopMessager != nil {
-		rs.db.NewSentEnvelopMessager(envelopMessager, recipient)
+		rs.dao.NewSentEnvelopMessager(envelopMessager, recipient)
 	}
 	result := rs.Protocol.SendAsync(recipient, msg)
 	go func() {
@@ -546,7 +546,7 @@ func (rs *Service) registerSecret(secret common.Hash) {
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
-			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier.String(), err))
@@ -563,7 +563,7 @@ func (rs *Service) registerRevealedLockSecretHash(lockSecretHash, secret common.
 	for _, hashchannel := range rs.Token2Hashlock2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {
 			err := ch.RegisterRevealedSecretHash(lockSecretHash, secret, blockNumber)
-			err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(lockSecretHash), ch.ChannelIdentifier.String(), err))
@@ -600,7 +600,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
 	ExternState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
 		c.ChannelIdentifier, rs.PrivateKey,
-		rs.Chain.Client, rs.db, c.ClosedBlock,
+		rs.Chain.Client, rs.dao, c.ClosedBlock,
 		c.OurAddress, c.PartnerAddress())
 	ch, err = channel.NewChannel(OurState, PartnerState, ExternState, c.TokenAddress(), c.ChannelIdentifier, c.RevealTimeout, c.SettleTimeout)
 	if err != nil {
@@ -619,10 +619,10 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 	return
 }
 
-//read a token network info from db
+//read a token network info from dao
 func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
 	tokenNetwork, err := rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
-	edges, err := rs.db.GetAllNonParticipantChannel(tokenAddress)
+	edges, err := rs.dao.GetAllNonParticipantChannel(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -631,7 +631,7 @@ func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
 	//add channel I participant
-	css, err := rs.db.GetChannelList(tokenAddress, utils.EmptyAddress)
+	css, err := rs.dao.GetChannelList(tokenAddress, utils.EmptyAddress)
 
 	for _, cs := range css {
 		//跳过已经 settle 的 channel 加入没有任何意义.
@@ -677,7 +677,7 @@ func (rs *Service) registerChannel(tokenNetworkAddress common.Address, partnerAd
 		log.Error(err.Error())
 		return
 	}
-	err = rs.db.NewChannel(channel.NewChannelSerialization(g.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
+	err = rs.dao.NewChannel(channel.NewChannelSerialization(g.ChannelIdentifier2Channel[ch.ChannelIdentifier.ChannelIdentifier]))
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -745,13 +745,13 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	*/
 	tr.FakeLockSecretHash = utils.NewRandomHash()
 	log.Trace(fmt.Sprintf("send direct transfer, use fake lockSecertHash %s to trace transfer status", tr.FakeLockSecretHash.String()))
-	rs.db.NewTransferStatus(tokenAddress, tr.FakeLockSecretHash)
+	rs.dao.NewTransferStatus(tokenAddress, tr.FakeLockSecretHash)
 	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
 	if err != nil {
 		result.Result <- err
 		return
 	}
-	rs.db.UpdateTransferStatusMessage(tokenAddress, tr.FakeLockSecretHash, "DirectTransfer 正在发送")
+	rs.dao.UpdateTransferStatusMessage(tokenAddress, tr.FakeLockSecretHash, "DirectTransfer 正在发送")
 	/*
 		Transfer is success
 		whenever partner receive this transfer  or not
@@ -853,7 +853,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		BlockNumber:    rs.GetBlockNumber(),
 		Secret:         secret,
 		LockSecretHash: lockSecretHash,
-		Db:             rs.db,
+		Db:             rs.dao,
 	}
 	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, lockSecretHash, transferState.Token)
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
@@ -863,7 +863,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	}
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.Transfer2Result[smkey] = result
-	//rs.db.AddStateManager(stateManager)
+	//rs.dao.AddStateManager(stateManager)
 	rs.StateMachineEventHandler.dispatch(stateManager, initInitiator)
 	return
 }
@@ -901,7 +901,7 @@ func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, am
 	/*
 		发起方在这里记录发起的交易状态,后续UpdateTransferStatus会更新DB中的值
 	*/
-	rs.db.NewTransferStatus(tokenAddress, lockSecretHash)
+	rs.dao.NewTransferStatus(tokenAddress, lockSecretHash)
 	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret, data)
 	result.LockSecretHash = lockSecretHash
 	return
@@ -922,7 +922,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 	 *	We need to check if I have ever abandoned this secret, if so, handle it carefully.
 	 *	Locks can be duplicated, like in token swap.
 	 */
-	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+	if rs.dao.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
 		// do nothing.
@@ -969,10 +969,10 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			FromRoute:   fromRoute,
 			BlockNumber: blockNumber,
 			Message:     msg,
-			Db:          rs.db,
+			Db:          rs.dao,
 		}
 		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
-		//rs.db.AddStateManager(stateManager)
+		//rs.dao.AddStateManager(stateManager)
 		rs.Transfer2StateManager[smkey] = stateManager //for path A-B-C-F-B-D-E ,node B will have two StateManagers for one identifier
 		rs.StateMachineEventHandler.dispatch(stateManager, initMediator)
 	}
@@ -992,7 +992,7 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	 *	todo We need to check if I have ever abandoned this secret, if so, handle it carefully.
 	 * 	Locks might be duplicate, like in toke swap.
 	 */
-	if rs.db.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+	if rs.dao.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
 		//忽略,什么都不做
 		// do nothing
@@ -1017,10 +1017,10 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 		FromTranfer: fromTransfer,
 		BlockNumber: rs.GetBlockNumber(),
 		Message:     msg,
-		Db:          rs.db,
+		Db:          rs.dao,
 	}
 	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
-	//rs.db.AddStateManager(stateManager)
+	//rs.dao.AddStateManager(stateManager)
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
 	// notify upper
@@ -1060,9 +1060,9 @@ func (rs *Service) startSubscribeNeighborStatus() error {
 	var err error
 	switch t := rs.Transport.(type) {
 	case *network.MixTransport:
-		err = t.SubscribeNeighbor(rs.db)
+		err = t.SubscribeNeighbor(rs.dao)
 	case *network.MatrixMixTransport:
-		err = t.SetMatrixDB(rs.db)
+		err = t.SetMatrixDB(rs.dao)
 	default:
 		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
 	}
@@ -1165,7 +1165,7 @@ process user's close or settle channel request
 */
 func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
 		return
 	}
@@ -1180,7 +1180,7 @@ func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string
 func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
@@ -1196,7 +1196,7 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 		return
 	}
 	c.State = channeltype.StateCooprativeSettle
-	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1208,7 +1208,7 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
@@ -1218,14 +1218,14 @@ func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash
 		result.Result <- err
 		return
 	}
-	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
 func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
@@ -1235,7 +1235,7 @@ func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIde
 		result.Result <- err
 		return
 	}
-	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1243,7 +1243,7 @@ func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIde
 func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
@@ -1259,7 +1259,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	c.State = channeltype.StateWithdraw
-	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1271,7 +1271,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil { //settled channel can be queried from db.
+	if err != nil { //settled channel can be queried from dao.
 		result.Result <- errors.New("channel not exist")
 		return
 	}
@@ -1281,7 +1281,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 		result.Result <- err
 		return
 	}
-	err = rs.db.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1429,7 +1429,7 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 		result.Result <- errors.New("you can only cancel transfers you send")
 		return
 	}
-	transferStatus, err := rs.db.GetTransferStatus(req.TokenAddress, req.LockSecretHash)
+	transferStatus, err := rs.dao.GetTransferStatus(req.TokenAddress, req.LockSecretHash)
 	if err != nil {
 		result.Result <- errors.New("can not found transfer status")
 		return
@@ -1442,7 +1442,7 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 		LockSecretHash: req.LockSecretHash,
 	}
 	rs.StateMachineEventHandler.dispatch(manager, stateChange)
-	rs.db.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	rs.dao.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
 	result.Result <- nil
 	return
 }
@@ -1453,7 +1453,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 	echohash := utils.Sha3(data, sentMessage.receiver[:])
 	_, ok2 := sentMessage.Message.(encoding.EnvelopMessager)
 	if ok2 {
-		rs.db.DeleteEnvelopMessager(echohash)
+		rs.dao.DeleteEnvelopMessager(echohash)
 	}
 	switch msg := sentMessage.Message.(type) {
 	case *encoding.DirectTransfer:
@@ -1465,31 +1465,31 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		if r, ok := rs.Transfer2Result[smkey]; ok {
 			r.Result <- nil
 		}
-		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
+		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}
-		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "MediatedTransfer 发送成功")
+		rs.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "MediatedTransfer 发送成功")
 	case *encoding.RevealSecret:
-		// save log to db
+		// save log to dao
 		channels := rs.findAllChannelsByLockSecretHash(msg.LockSecretHash())
 		for _, c := range channels {
-			rs.db.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), "RevealSecret 发送成功")
+			rs.dao.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), "RevealSecret 发送成功")
 		}
 	case *encoding.UnLock:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}
-		rs.db.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
 		}
-		rs.db.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "AnnounceDisposedResponse 发送成功")
+		rs.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "AnnounceDisposedResponse 发送成功")
 	}
 	rs.conditionQuitWhenReceiveAck(sentMessage.Message)
 	//log.Trace(fmt.Sprintf("msg receive ack :%s", utils.StringInterface(sentMessage, 2)))
@@ -1514,10 +1514,10 @@ func (rs *Service) conditionQuit(eventName string) {
 }
 
 /*
-GetDb return photon's db
+GetDao return photon's dao
 */
-func (rs *Service) GetDb() *models.ModelDB {
-	return rs.db
+func (rs *Service) GetDao() models.Dao {
+	return rs.dao
 }
 
 /*
@@ -1527,7 +1527,7 @@ func (rs *Service) handleEthRPCConnectionOK() {
 	/*
 		events before lastHandledBlockNumber must have been processed, so we start from  lastHandledBlockNumber-1
 	*/
-	rs.BlockChainEvents.Start(rs.db.GetLatestBlockNumber())
+	rs.BlockChainEvents.Start(rs.dao.GetLatestBlockNumber())
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.
@@ -1609,7 +1609,7 @@ func (rs *Service) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) 
 	}
 	echohash := t.EchoHash
 	ack := rs.Protocol.CreateAck(echohash)
-	err := rs.db.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	err := rs.dao.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}

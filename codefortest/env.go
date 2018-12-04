@@ -12,6 +12,8 @@ import (
 
 	accountModule "github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models/gkvdb"
+	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -133,10 +135,27 @@ func GetAccountsByAddress(address common.Address) (account TestAccount, err erro
 	return
 }
 
-// GetDb :
-func GetDb() (model *models.ModelDB, err error) {
-	dbPath := path.Join(os.TempDir(), "testxxxx.db")
-	err = os.Remove(dbPath)
-	err = os.Remove(dbPath + ".lock")
-	return models.OpenDb(dbPath)
+// NewTestDB :
+func NewTestDB(dbPath string) (dao models.Dao) {
+	if dbPath == "" {
+		dbPath = path.Join(os.TempDir(), "testxxxx.db")
+		err := os.RemoveAll(dbPath)
+		err = os.RemoveAll(dbPath + ".lock")
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	var err error
+	if os.Getenv("PHOTON_DB") == "gkv" {
+		dao, err = gkvdb.OpenDb(dbPath)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		dao, err = stormdb.OpenDb(dbPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return
 }
