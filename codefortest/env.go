@@ -147,11 +147,13 @@ func NewTestDB(dbPath string) (dao models.Dao) {
 	}
 	var err error
 	if os.Getenv("PHOTON_DB") == "gkv" {
+		fmt.Println("use gkv db")
 		dao, err = gkvdb.OpenDb(dbPath)
 		if err != nil {
 			panic(err)
 		}
 	} else {
+		fmt.Println("use storm db")
 		dao, err = stormdb.OpenDb(dbPath)
 		if err != nil {
 			panic(err)

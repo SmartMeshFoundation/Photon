@@ -33,10 +33,12 @@ func (gtx *GkvTX) Rollback() error {
 
 //StartTx start a new tx of db
 func (dao *GkvDB) StartTx(bucketName string) (tx models.TX) {
+	var gtx *gkvdb.Transaction
 	if bucketName == "" {
-		return nil
+		gtx = dao.db.Begin()
+	} else {
+		gtx = dao.db.Begin(bucketName)
 	}
-	gtx := dao.db.Begin(bucketName)
 	return &GkvTX{
 		tx: gtx,
 	}
