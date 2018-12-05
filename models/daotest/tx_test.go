@@ -29,10 +29,9 @@ func TestTX(t *testing.T) {
 	tx2 := dao.StartTx()
 	echoHash = utils.NewRandomHash()
 	dao.SaveAck(echoHash, echoHash.Bytes(), tx2)
-	err = tx.Rollback()
+	err = tx2.Rollback()
 	if err != nil {
-		t.Error(err)
-		return
+		panic(err)
 	}
 	r2 := dao.GetAck(echoHash)
 	if r2 != nil {
