@@ -626,7 +626,11 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 //read a token network info from dao
 func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
 	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s,tokenNetworkAddress=%s", tokenAddress.String(), tokenNetworkAddress.String()))
-	tokenNetwork, err := rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
+	var tokenNetwork *rpc.TokenNetworkProxy
+	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
+	if err != nil {
+		return
+	}
 	edges, err := rs.dao.GetAllNonParticipantChannel(tokenAddress)
 	if err != nil {
 		return
@@ -636,7 +640,11 @@ func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common
 	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
 	//add channel I participant
-	css, err := rs.dao.GetChannelList(tokenAddress, utils.EmptyAddress)
+	var css []*channeltype.Serialization
+	css, err = rs.dao.GetChannelList(tokenAddress, utils.EmptyAddress)
+	if err != nil {
+		return
+	}
 
 	for _, cs := range css {
 		//跳过已经 settle 的 channel 加入没有任何意义.

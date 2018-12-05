@@ -174,7 +174,6 @@ func (dao *GkvDB) GetChannelList(token, partner common.Address) (cs []*channelty
 	}
 	buf := tb.Values(-1)
 	if buf == nil || len(buf) == 0 {
-		err = ErrorNotFound
 		return
 	}
 	var cst []*channeltype.Serialization
