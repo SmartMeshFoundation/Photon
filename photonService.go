@@ -222,7 +222,10 @@ func (rs *Service) Start() (err error) {
 	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
 
-	rs.registerRegistry()
+	err = rs.registerRegistry()
+	if err != nil {
+		return
+	}
 	rs.Protocol.Start()
 	rs.restore()
 
@@ -392,7 +395,7 @@ func (rs *Service) loop() {
 //for init,read dao history,只要是我还没处理的链上事件,都还在队列中等着发给我.
 // for init, read dao history,
 // all on-chain events I have not handled should wait in queue.
-func (rs *Service) registerRegistry() {
+func (rs *Service) registerRegistry() (err error) {
 	token2TokenNetworks, err := rs.dao.GetAllTokens()
 	if err != nil {
 		err = fmt.Errorf("registerRegistry err:%s", err)
@@ -405,6 +408,7 @@ func (rs *Service) registerRegistry() {
 			return
 		}
 	}
+	return nil
 }
 
 /*
@@ -621,6 +625,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 
 //read a token network info from dao
 func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
+	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s,tokenNetworkAddress=%s", tokenAddress.String(), tokenNetworkAddress.String()))
 	tokenNetwork, err := rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
 	edges, err := rs.dao.GetAllNonParticipantChannel(tokenAddress)
 	if err != nil {
