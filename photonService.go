@@ -707,13 +707,13 @@ Do a direct tranfer with target.
        whereas the mediated transfer requires 6 messages.
 */
 func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amount *big.Int, data string) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	if g == nil {
 		result.Result <- errors.New("token not exist")
 		return
 	}
 	directChannel := g.GetPartenerAddress2Channel(target)
-	result = utils.NewAsyncResult()
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- errors.New("no available direct channel")
 		return
