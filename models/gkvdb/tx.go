@@ -17,7 +17,7 @@ func (gtx *GkvTX) Set(table string, key interface{}, value interface{}) error {
 
 // Save :
 func (gtx *GkvTX) Save(v models.KeyGetter) error {
-	panic("should not use this")
+	panic("should not use this, tx.Save() does't work with gkv db")
 }
 
 // Commit :
