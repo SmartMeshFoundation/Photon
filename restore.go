@@ -69,8 +69,11 @@ func (rs *Service) restoreLocks() {
 	var locks []*lockInfo
 	//收集所有的锁,
 	// collect all locks.
+	//log.Trace(fmt.Sprintf("Token2TokenNetwork=%s", utils.StringInterface(rs.Token2TokenNetwork, 7)))
+	//log.Trace(fmt.Sprintf("Token2ChannelGraph=%s", utils.StringInterface(rs.Token2ChannelGraph, 7)))
 	for token := range rs.Token2TokenNetwork {
 		g := rs.Token2ChannelGraph[token]
+		//log.Trace(fmt.Sprintf("process token=%s", token.String()))
 		for _, ch := range g.ChannelIdentifier2Channel {
 			for _, l := range ch.OurState.Lock2PendingLocks {
 				locks = append(locks, &lockInfo{
