@@ -177,6 +177,7 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--db=gkv")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
 	}

@@ -145,9 +145,16 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		t, _ := stateManager.LastReceivedMessage.Tag().(*transfer.MessageTag)
 		echohash := t.EchoHash
 		ack := eh.photon.Protocol.CreateAck(echohash)
-		tx := eh.photon.dao.StartTx("")
+		tx := eh.photon.dao.StartTx()
 		eh.photon.dao.SaveAck(echohash, ack.Pack(), tx)
 		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		if err != nil {
+			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
+			// database cache fault, impossible to happen.
+			// If occurs, then throw this to upper layer.
+			//err=tx.Rollback()
+			panic(fmt.Sprintf("update channel err %s", err))
+		}
 		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.

@@ -36,7 +36,7 @@ func (dao *GkvDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
 func (dao *GkvDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
 	// 这里是多表操作,不传表名
-	tx := dao.StartTx("")
+	tx := dao.StartTx()
 	defer func() {
 		if err != nil {
 			err = tx.Rollback()
@@ -80,7 +80,7 @@ func (dao *GkvDB) UpdateChannelContractBalance(c *channeltype.Serialization) err
 //UpdateChannel update channel status in a Tx
 func (dao *GkvDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
 	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
-	err := tx.Save(c)
+	err := tx.Set(models.BucketChannelSerialization, c.GetKey(), c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
 	}
