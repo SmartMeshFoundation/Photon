@@ -1,6 +1,8 @@
 package cases
 
 import (
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
@@ -34,6 +36,7 @@ func (cm *CaseManager) CaseFee() (err error) {
 	C12 := N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	C23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
+	time.Sleep(1 * time.Second)
 	C01new := N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	C12new := N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	C23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
