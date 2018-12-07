@@ -12,7 +12,9 @@ import (
 )
 
 func TestGKV(t *testing.T) {
-
+	if testing.Short() {
+		return
+	}
 	dbPath := path.Join(os.TempDir(), "testxxxx.db")
 	err := os.RemoveAll(dbPath)
 	err = os.RemoveAll(dbPath + ".lock")
@@ -38,7 +40,7 @@ func TestGKV(t *testing.T) {
 			tx := db.Begin("TestTable")
 			err2 := tx.Set(key[:], value[:])
 			err2 = tx.Commit(true)
-			//err2 := table.Set(key[:], value[:]) // 不管是使用table.Set还是手动事务并在commit时添加sync=true参数,都无法避免下面的异常发生
+			err2 = table.Set(key[:], value[:]) // 不管是使用table.Set还是手动事务并在commit时添加sync=true参数,都无法避免下面的异常发生
 			if err2 != nil {
 				fmt.Println("errr", err2)
 			}
