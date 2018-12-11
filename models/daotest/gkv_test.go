@@ -86,7 +86,6 @@ func TestGkv_Remove(t *testing.T) {
 		t.Error("should have one record")
 		return
 	}
-	fmt.Println(m)
 	fmt.Println("删除...")
 	err = table.Remove(key[:])
 	if err != nil {
@@ -94,7 +93,7 @@ func TestGkv_Remove(t *testing.T) {
 		return
 	}
 	//err = db.RemoveFrom(key[:], "TestTable")
-	//time.Sleep(time.Second)
+	time.Sleep(time.Second)
 	m = table.Items(-1)
 	fmt.Println(m)
 	if len(m) != 0 {
