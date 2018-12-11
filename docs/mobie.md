@@ -347,7 +347,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error)
 Convenient App query history transaction, return data is an array of `SenTransfer`
 ## Transaction/Channel related interface, asynchronous
 ### Initiating a transaction
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error)
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (transfer string, err error)
 
 Initiate a transaction, asynchronous interface, use the token_address + lockSecretHash returned to call the GetTransferStatus interface to query the transaction status
 
@@ -358,6 +358,7 @@ parameter:
 * `feestr string` – the amount of the fee
 * `secretStr string` – the transaction password, which can be ""
 * `isDirect string` – whether direct channel trading
+* `data` -  Incidental information . The length is not more than 256.
 
 Return example:
 ```json
