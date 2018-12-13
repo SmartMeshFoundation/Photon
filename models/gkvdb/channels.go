@@ -200,8 +200,5 @@ func (dao *GkvDB) GetChannelList(token, partner common.Address) (cs []*channelty
 	} else {
 		panic("one of token and partner must be empty")
 	}
-	if len(cs) == 0 {
-		err = ErrorNotFound
-	}
 	return
 }
