@@ -32,7 +32,7 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeClose")
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
-	time.Sleep(3 * time.Second)
+	time.Sleep(10 * time.Second)
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
 	time.Sleep(10 * time.Second)
