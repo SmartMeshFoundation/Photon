@@ -1,11 +1,7 @@
 package cases
 
 import (
-	"time"
-
-	"sync"
-
-	"fmt"
+	"strconv"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
@@ -24,37 +20,33 @@ func (cm *CaseManager) LocalCase() (err error) {
 	// 源数据
 	transAmount := int32(1)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
-	number := 1000
-	N0, N1, _ := env.Nodes[0], env.Nodes[1], env.Nodes[2]
+	//number := 1000
+	N0, N1 := env.Nodes[0], env.Nodes[1]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点,让节点0在收到
-	N0.Start(env)
-	N1.Start(env)
-	//N2.Start(env)
-	//channel := N1.GetChannelWith(N0, tokenAddress)
-	begin := time.Now()
-	wg := sync.WaitGroup{}
-	wg.Add(number)
-	wg2 := sync.WaitGroup{}
-	wg2.Add(number)
-	for i := 0; i < number; i++ {
-		go func(index int) {
-			wg.Done()
-			wg.Wait()
-			bt := time.Now()
-			//N0.SendTransSync(tokenAddress, transAmount, N1.Address, true)
-			N0.SendTransWithData(tokenAddress, transAmount, N1.Address, false, "123")
-			fmt.Println("transfer ", index, "use  ", time.Since(bt).Seconds())
-			wg2.Done()
-		}(i)
+	times := 0
+	name0 := N0.Name
+	name1 := N1.Name
+	for {
+		if times > 100 {
+			break
+		}
+		N0.Name = name0 + "-" + strconv.Itoa(times+1)
+		N1.Name = name1 + "-" + strconv.Itoa(times+1)
+		// 启动节点,让节点0在收到
+		N0.Start(env)
+		N1.Start(env)
+		c01 := N0.GetChannelWith(N1, tokenAddress)
+		N0.SendTransWithData(tokenAddress, transAmount, N1.Address, false, "123")
+		c01new := N0.GetChannelWith(N1, tokenAddress)
+		if !c01new.CheckPartnerBalance(c01.PartnerBalance + transAmount) {
+			return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+		}
+		N0.Shutdown(env)
+		N1.Shutdown(env)
+		c01new.PrintDataAfterTransfer()
+		models.Logger.Printf("============== time %d done\n", times+1)
+		times++
 	}
-	wg2.Wait()
-	total := time.Since(begin).Seconds()
-	fmt.Println("total=", total)
-	fmt.Println("tps=", float64(number)/total)
-	//time.Sleep(10 * time.Second)
-	//N1.Close(channel.ChannelIdentifier)
-	time.Sleep(1000 * time.Second)
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }

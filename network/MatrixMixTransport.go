@@ -131,3 +131,13 @@ func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
 	t.matirx.setDB(db)
 	return nil
 }
+
+// RegisterWakeUpChan :
+func (t *MatrixMixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
+	t.matirx.RegisterWakeUpChan(addr, c)
+}
+
+// UnRegisterWakeUpChan :
+func (t *MatrixMixTransport) UnRegisterWakeUpChan(addr common.Address) {
+	t.matirx.UnRegisterWakeUpChan(addr)
+}

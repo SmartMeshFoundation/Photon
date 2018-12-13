@@ -43,7 +43,7 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 
 	// 节点2向节点6转账20token
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 10)
 	//  崩溃判断
 	if N6.IsRunning() {
 		msg = "Node " + N6.Name + " should be exited,but it still running, FAILED !!!"
@@ -65,7 +65,7 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 
 	// 重启节点6，交易自动继续
 	N6.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * 40)
 
 	// 查询重启后数据
 	models.Logger.Println("------------ Data After Restart ------------")

@@ -33,7 +33,7 @@ func (stx *StormTx) Rollback() error {
 }
 
 //StartTx start a new tx of db
-func (model *StormDB) StartTx(bucketName string) (tx models.TX) {
+func (model *StormDB) StartTx() (tx models.TX) {
 	stx, err := model.db.Begin(true)
 	if err != nil {
 		panic(fmt.Sprintf("start transaction error %s", err))
