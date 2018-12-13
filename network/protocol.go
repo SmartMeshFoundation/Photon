@@ -317,8 +317,7 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier 
 			// 向transport注册wakeUpChan
 			transport.RegisterWakeUpChan(receiver, wakeUpChan)
 			// 挂起并等待对方上线
-			t := <-wakeUpChan
-			fmt.Printf("================= 对方上线,收到唤醒消息 %d\n", t)
+			<-wakeUpChan
 			// 继续发送并注销wakeUpChan
 			transport.UnRegisterWakeUpChan(receiver)
 		}
