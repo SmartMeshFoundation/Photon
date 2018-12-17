@@ -12,7 +12,7 @@ import (
 
 // CaseBenchMark : only for local test
 func (cm *CaseManager) CaseBenchMark() (err error) {
-	env, err := models.NewTestEnv("./cases/LocalCase.ENV")
+	env, err := models.NewTestEnv("./cases/CaseBenchmark.ENV")
 	if err != nil {
 		return
 	}
