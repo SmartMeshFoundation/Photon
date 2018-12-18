@@ -106,8 +106,10 @@ func handleSecretRegisteredOnChain(state *mediatedtransfer.TargetState, st *medi
 // Validate and handle a ReceiveSecretReveal state change.
 func handleSecretReveal(state *mediatedtransfer.TargetState, st *mediatedtransfer.ReceiveSecretRevealStateChange) (it *transfer.TransitionResult) {
 	validSecret := utils.ShaSecret(st.Secret[:]) == state.FromTransfer.LockSecretHash
+	// 判断是否超时,如果已经该锁已经超时,不发送secret给上家
+	isExpired := state.BlockNumber > state.FromTransfer.Expiration
 	var events []transfer.Event
-	if validSecret {
+	if validSecret && !isExpired {
 		tr := state.FromTransfer
 		route := state.FromRoute
 		state.State = mediatedtransfer.StateRevealSecret

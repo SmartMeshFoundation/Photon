@@ -19,6 +19,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -221,4 +222,9 @@ func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 		return bcs.SecretRegistryProxy.Address
 	}
 	return utils.EmptyAddress
+}
+
+// SyncProgress :
+func (bcs *BlockChainService) SyncProgress() (sp *ethereum.SyncProgress, err error) {
+	return bcs.Client.SyncProgress(context.Background())
 }
