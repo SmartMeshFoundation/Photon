@@ -1363,7 +1363,7 @@ func (r *API) checkSmcStatus() error {
 		log.Error(err.Error())
 		return err
 	}
-	if sp != nil && sp.HighestBlock-sp.CurrentBlock >= 0 {
+	if sp != nil && sp.HighestBlock-sp.CurrentBlock > 3 {
 		err = fmt.Errorf("smc block number error : HighestBlock=%d but CurrentBlock=%d", sp.HighestBlock, sp.CurrentBlock)
 		log.Error(err.Error())
 		return err
