@@ -308,19 +308,6 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier 
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
 	for {
-		// 如果是matrix且对方不在线,挂起并等待唤醒
-		_, isOnline := p.Transport.NodeStatus(receiver)
-		transport, ok1 := p.Transport.(*MatrixMixTransport)
-		if ok1 && !isOnline && transport != nil {
-			log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
-			wakeUpChan := make(chan int)
-			// 向transport注册wakeUpChan
-			transport.RegisterWakeUpChan(receiver, wakeUpChan)
-			// 挂起并等待对方上线
-			<-wakeUpChan
-			// 继续发送并注销wakeUpChan
-			transport.UnRegisterWakeUpChan(receiver)
-		}
 		if !p.messageCanBeSent(msgState.Message, channelIdentifier, openBlockNumber) {
 			msgState.AsyncResult.Result <- errExpired
 			return
@@ -342,6 +329,19 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier 
 			}
 			return
 		case <-timeout: //retry
+			// 如果是matrix且对方不在线,挂起并等待唤醒
+			_, isOnline := p.Transport.NodeStatus(receiver)
+			transport, ok1 := p.Transport.(*MatrixMixTransport)
+			if ok1 && !isOnline && transport != nil {
+				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
+				wakeUpChan := make(chan int)
+				// 向transport注册wakeUpChan
+				transport.RegisterWakeUpChan(receiver, wakeUpChan)
+				// 挂起并等待对方上线
+				<-wakeUpChan
+				// 继续发送并注销wakeUpChan
+				transport.UnRegisterWakeUpChan(receiver)
+			}
 		case <-p.quitChan:
 			return
 		}

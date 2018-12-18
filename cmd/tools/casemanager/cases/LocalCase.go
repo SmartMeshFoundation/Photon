@@ -36,7 +36,7 @@ func (cm *CaseManager) LocalCase() (err error) {
 		N0.Start(env)
 		N1.Start(env)
 		c01 := N0.GetChannelWith(N1, tokenAddress)
-		N0.SendTransWithData(tokenAddress, transAmount, N1.Address, false, "123")
+		N0.SendTransWithData(tokenAddress, transAmount, N1.Address, true, "123")
 		c01new := N0.GetChannelWith(N1, tokenAddress)
 		if !c01new.CheckPartnerBalance(c01.PartnerBalance + transAmount) {
 			return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
