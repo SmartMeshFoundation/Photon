@@ -773,16 +773,26 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 		}
 		m.log.Trace(fmt.Sprintf("receive invite, event=%s", utils.StringInterface(event, 5)))
 		go func() {
-			//todo fixme why need sleep, otherwise join will faile because of forbidden
-			if strings.Contains(event.RoomID, m.servername) {
-				time.Sleep(time.Second)
-			} else {
-				// 如果房间不在我连接的matrix服务器上,给服务器留出足够的时间同步房间信息,以免join失败
-				log.Warn(fmt.Sprintf("wait 30 seconds ,then join room %s", event.RoomID))
-				time.Sleep(30 * time.Second)
-			}
+			////todo fixme why need sleep, otherwise join will faile because of forbidden
+			//if strings.Contains(event.RoomID, m.servername) {
+			//	time.Sleep(time.Second)
+			//} else {
+			//	// 如果房间不在我连接的matrix服务器上,给服务器留出足够的时间同步房间信息,以免join失败
+			//	log.Warn(fmt.Sprintf("wait 10 seconds ,then join room %s", event.RoomID))
+			//	time.Sleep(30 * time.Second)
+			//}
 			//one must join to be able to get room alias
-			_, err := m.matrixcli.JoinRoom(event.RoomID, "", nil)
+			var err error
+			for i := 0; i < 5; i++ {
+				_, err = m.matrixcli.JoinRoom(event.RoomID, "", nil)
+				if err != nil {
+					m.log.Error(fmt.Sprintf("JoinRoom %s ,err %s, sleep 5 seconds and retry", event.RoomID, err))
+					time.Sleep(5 * time.Second)
+					continue
+				} else {
+					break
+				}
+			}
 			if err != nil {
 				m.log.Error(fmt.Sprintf("JoinRoom %s ,err %s", event.RoomID, err))
 				return
@@ -1411,6 +1421,7 @@ func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
 		m.log.Error(err.Error())
 		return
 	}
+	m.log.Info(fmt.Sprintf("Join Discovery room %s success", discoveryRoomAliasFull))
 	return nil
 }
 
