@@ -119,6 +119,9 @@ func (r *API) RegisterToken(tokenAddress common.Address) (tokenNetworkAddress co
 		err = errors.New("TokenNetworkAddres already registered")
 		return
 	}
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
 	if err == rerr.ErrNoTokenManager {
 		return r.Photon.Chain.RegistryProxy.AddToken(tokenAddress)
@@ -139,6 +142,9 @@ func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, r
 	}
 	if settleTimeout <= revealTimeout {
 		err = rerr.ErrInvalidSettleTimeout
+		return
+	}
+	if err = r.checkSmcStatus(); err != nil {
 		return
 	}
 	wg := sync.WaitGroup{}
@@ -187,6 +193,9 @@ Deposit `amount` in the channel with the peer at `partner_address` and the
         execution.
 */
 func (r *API) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (c *channeltype.Serialization, err error) {
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
@@ -505,6 +514,9 @@ func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAdd
 
 //Close a channel opened with `partner_address` for the given `token_address`. return when state has been +d to database
 func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err != nil {
 		return
@@ -533,6 +545,9 @@ func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype
 
 //Settle a closed channel with `partner_address` for the given `token_address`.return when state has been updated to database
 func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State == channeltype.StateOpened {
 		err = rerr.InvalidState("channel is still open")
@@ -563,6 +578,9 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 
 //CooperativeSettle a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
 func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForCooperativeSettle {
 		err = rerr.InvalidState("channel must be  open")
@@ -617,6 +635,9 @@ func (r *API) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress com
 
 //Withdraw on a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
 func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.Int) (c *channeltype.Serialization, err error) {
+	if err = r.checkSmcStatus(); err != nil {
+		return
+	}
 	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
 		err = rerr.InvalidState("channel must be  open")
@@ -1333,4 +1354,19 @@ func (r *API) SystemStatus() (resp *dto.APIResponse) {
 	}
 
 	return dto.NewSuccessAPIResponse(data)
+}
+
+func (r *API) checkSmcStatus() error {
+	sp, err := r.Photon.Chain.SyncProgress()
+	if err != nil {
+		err = fmt.Errorf("call smc SyncProgress err %s", err)
+		log.Error(err.Error())
+		return err
+	}
+	if sp != nil && sp.HighestBlock-sp.CurrentBlock >= 0 {
+		err = fmt.Errorf("smc block number error : HighestBlock=%d but CurrentBlock=%d", sp.HighestBlock, sp.CurrentBlock)
+		log.Error(err.Error())
+		return err
+	}
+	return nil
 }
