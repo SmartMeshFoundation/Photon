@@ -1357,6 +1357,15 @@ func (r *API) SystemStatus() (resp *dto.APIResponse) {
 }
 
 func (r *API) checkSmcStatus() error {
+	var err error
+	// 1. 校验最新块的时间
+	lastBlockNumberTime := r.Photon.dao.GetLastBlockNumberTime()
+	if time.Since(lastBlockNumberTime) > 60*time.Second {
+		err = fmt.Errorf("has't receive new block from smc since %s, maybe something wrong with smc", lastBlockNumberTime.String())
+		log.Error(err.Error())
+		return err
+	}
+	// 2. 校验smc节点同步情况
 	sp, err := r.Photon.Chain.SyncProgress()
 	if err != nil {
 		err = fmt.Errorf("call smc SyncProgress err %s", err)
