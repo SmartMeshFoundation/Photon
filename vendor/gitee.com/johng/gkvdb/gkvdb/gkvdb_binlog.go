@@ -39,7 +39,7 @@ func newBinLog(db *DB) (*BinLog, error) {
 	binlog := &BinLog{
 		db:              db,
 		queue:           glist.New(),
-		syncEvents:      make(chan struct{}, math.MaxUint32),
+		syncEvents:      make(chan struct{}, math.MaxInt32),
 		closeEvents:     make(chan struct{}, 2),
 		limitFreeEvents: make(chan struct{}, 0),
 	}
