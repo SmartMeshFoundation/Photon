@@ -99,11 +99,11 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 	go req.Invoke()
 	time.Sleep(10 * time.Second)
 	node.Running = false
-	for _, n := range env.Nodes {
-		if n.Running {
-			n.UpdateMeshNetworkNodes(env.Nodes...)
-		}
-	}
+	//for _, n := range env.Nodes {
+	//	if n.Running {
+	//		n.UpdateMeshNetworkNodes(env.Nodes...)
+	//	}
+	//}
 	return
 }
 
@@ -202,12 +202,12 @@ func (node *PhotonNode) SendTransWithData(tokenAddress string, amount int32, tar
 		Payload: string(p),
 		Timeout: time.Second * 300,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s body=%s", err, string(body)))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d body=%s", statusCode, string(body)))
 	}
 }
 

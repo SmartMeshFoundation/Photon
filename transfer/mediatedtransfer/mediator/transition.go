@@ -537,13 +537,15 @@ Reveal the secret backwards.
  *   All these transfersPair are mediated transfers I involve in.
  *	 If the time is near reveal timeout set by previous node, does this leads to interlock effect that all participants register secret on-chain?
  */
-func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState, ourAddress common.Address) (events []transfer.Event) {
+func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState, ourAddress common.Address, blockNumber int64) (events []transfer.Event) {
 	for j := len(transfersPair) - 1; j >= 0; j-- {
 		pair := transfersPair[j]
 		isPayeeSecretKnown := stateSecretKnownMaps[pair.PayeeState]
 		isPayerSecretKnown := stateSecretKnownMaps[pair.PayerState]
+		// 判断是否超时,如果已经该锁已经超时,不发送secret给上家
+		isExpired := blockNumber > pair.PayerTransfer.Expiration
 		tr := pair.PayerTransfer
-		if isPayeeSecretKnown && !isPayerSecretKnown {
+		if isPayeeSecretKnown && !isPayerSecretKnown && !isExpired {
 			pair.PayerState = mediatedtransfer.StatePayerSecretRevealed
 			revealSecret := &mediatedtransfer.EventSendRevealSecret{
 				LockSecretHash: tr.LockSecretHash,
@@ -666,7 +668,7 @@ func secretLearned(state *mediatedtransfer.MediatorState, secret common.Hash, pa
 	}
 	var events []transfer.Event
 	eventsWrongOrder := setPayeeStateAndCheckRevealOrder(state.TransfersPair, payeeAddress, newPayeeState)
-	eventsSecretReveal := eventsForRevealSecret(state.TransfersPair, state.OurAddress)
+	eventsSecretReveal := eventsForRevealSecret(state.TransfersPair, state.OurAddress, state.BlockNumber)
 	eventBalanceProof := eventsForBalanceProof(state.TransfersPair, state.BlockNumber)
 	eventsRegisterSecretEvent := eventsForRegisterSecret(state.TransfersPair, state.BlockNumber)
 	events = append(events, eventsWrongOrder...)

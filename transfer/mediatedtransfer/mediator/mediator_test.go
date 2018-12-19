@@ -432,7 +432,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 	secret := utest.UnitSecret
 	ourAddress := utest.ADDR
 	pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4}, utest.HOP6, 10, utest.UnitSecret, 0, utest.UnitRevealTimeout)
-	events := eventsForRevealSecret(pairs, ourAddress)
+	events := eventsForRevealSecret(pairs, ourAddress, 0)
 	/*
 			   the secret is known by this node, but no other payee is at a secret known
 		    state, do nothing
@@ -442,7 +442,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 	lastPair := pairs[1]
 
 	lastPair.PayeeState = mediatedtransfer.StatePayeeSecretRevealed
-	events = eventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress, 0)
 	/*
 			  the last known hop sent a secret reveal message, this node learned the
 		     secret and now must reveal to the payer node from the transfer pair
@@ -454,14 +454,14 @@ func TestEventsForRevealSecret(t *testing.T) {
 	assert(t, ev.Receiver, lastPair.PayerRoute.HopNode())
 	assert(t, lastPair.PayerState, mediatedtransfer.StatePayerSecretRevealed)
 
-	events = eventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress, 0)
 	/*
 			   the payeee from the first_pair did not send a secret reveal message, do
 		     nothing
 	*/
 	assert(t, len(events), 0)
 	firstPair.PayeeState = mediatedtransfer.StatePayeeSecretRevealed
-	events = eventsForRevealSecret(pairs, ourAddress)
+	events = eventsForRevealSecret(pairs, ourAddress, 0)
 	assert(t, len(events), 1)
 	ev, ok = events[0].(*mediatedtransfer.EventSendRevealSecret)
 	assert(t, ok, true)
@@ -473,7 +473,7 @@ func TestEventsForRevealSecret(t *testing.T) {
 // When the secret is not know there is nothing to do.
 func TestEventsForRevealSecretSecretUnkown(t *testing.T) {
 	pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3, utest.HOP4}, utest.HOP6, 10, utils.EmptyHash, 0, utest.UnitRevealTimeout)
-	events := eventsForRevealSecret(pairs, utest.ADDR)
+	events := eventsForRevealSecret(pairs, utest.ADDR, 0)
 	assert(t, len(events), 0)
 
 }
@@ -488,7 +488,7 @@ func TestEventsForRevealSecretAllStates(t *testing.T) {
 		pairs := makeTransfersPair(utest.HOP1, []common.Address{utest.HOP2, utest.HOP3}, utest.HOP6, 10, secret, 0, utest.UnitRevealTimeout)
 		pair := pairs[0]
 		pair.PayeeState = state
-		events := eventsForRevealSecret(pairs, ourAddress)
+		events := eventsForRevealSecret(pairs, ourAddress, 0)
 		ev, ok := events[0].(*mediatedtransfer.EventSendRevealSecret)
 		assert(t, ok, true)
 		assert(t, ev.Secret, secret)

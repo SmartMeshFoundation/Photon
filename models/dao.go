@@ -194,7 +194,7 @@ type Dao interface {
 	TransferStatusDao
 	XMPPSubDao
 
-	StartTx(bucketName string) (tx TX)
+	StartTx() (tx TX)
 	CloseDB()
 
 	RegisterNewTokenCallback(f cb.NewTokenCb)

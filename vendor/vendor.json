@@ -141,6 +141,12 @@
 			"revisionTime": "2018-11-27T12:37:57Z"
 		},
 		{
+			"checksumSHA1": "0xAKjl6zaAPgGjiqDnRz8+A8+HU=",
+			"path": "gitee.com/johng/gkvdb",
+			"revision": "352e54470394e8962ea47c2d2e909d89a4134fe5",
+			"revisionTime": "2018-12-06T12:56:56Z"
+		},
+		{
 			"checksumSHA1": "U6BLz/nYdMcgRDNkZxyhrDe5kvM=",
 			"path": "gitee.com/johng/gkvdb/gkvdb",
 			"revision": "2d7db2f363831dadf428ac4cf9453df190f3eb01",

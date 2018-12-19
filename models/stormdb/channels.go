@@ -38,7 +38,7 @@ func (model *StormDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
 func (model *StormDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash common.Hash, ack []byte) (err error) {
-	tx := model.StartTx(models.BucketChannelSerialization)
+	tx := model.StartTx()
 	defer func() {
 		if err != nil {
 			err = tx.Rollback()

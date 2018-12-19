@@ -54,11 +54,11 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	for _, n := range env.Nodes {
-		if n.Running {
-			n.UpdateMeshNetworkNodes(env.Nodes...)
-		}
-	}
+	//for _, n := range env.Nodes {
+	//	if n.Running {
+	//		n.UpdateMeshNetworkNodes(env.Nodes...)
+	//	}
+	//}
 }
 
 // StartWithParams start a photon node with --fee
@@ -147,7 +147,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
-	param = append(param, "--nonetwork")
+	//param = append(param, "--nonetwork")
 	param = append(param, "--db=gkv")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
@@ -177,6 +177,7 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--db=gkv")
 	if env.XMPPServer != "" {
 		param = append(param, "--xmpp-server="+env.XMPPServer)
 	}

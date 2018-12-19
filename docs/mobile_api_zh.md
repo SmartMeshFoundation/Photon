@@ -394,7 +394,7 @@ func (a *API) GetSentTransfers(from, to int64) (r string, err error)
 方便App查询历史交易,返回数据是`SenTransfer`的数组
 ## 交易/通道相关接口,异步
 ### 发起一笔交易
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool) (transfer string, err error)
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (transfer string, err error)
 
 发起一笔交易,异步接口,使用返回里面的token_address + lockSecretHash调用GetTransferStatus接口查询交易状态
 
@@ -405,6 +405,8 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 * `feestr string` – 手续费金额
 * `secretStr string` – 交易密码,可为""
 * `isDirect string` – 是否直接通道交易
+* `data` -  发送交易附带的消息
+
 
 返回示例:
 ```json
