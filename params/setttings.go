@@ -14,10 +14,10 @@ import (
 //InitialPort listening port for communication bewtween nodes
 const InitialPort = 40001
 
-//GasLimit max gas usage for photon tx
-const GasLimit = 3141592 //den's gasLimit.
-//GasPrice from ethereum
-const GasPrice = params.Shannon * 20
+//DefaultGasLimit max gas usage for photon tx
+const DefaultGasLimit = 3141592 //den's gasLimit.
+//DefaultGasPrice from ethereum
+const DefaultGasPrice = params.Shannon * 20
 
 //defaultProtocolRetiesBeforeBackoff
 const defaultProtocolRetiesBeforeBackoff = 5
@@ -75,7 +75,7 @@ var TestLogServer = "http://transport01.smartmesh.cn:8008"
 //DefaultTestXMPPServer xmpp server for test only
 const DefaultTestXMPPServer = "193.112.248.133:5222" //"182.254.155.208:5222"
 //ContractSignaturePrefix for EIP191 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-191.md
-var ContractSignaturePrefix = []byte("\x19Ethereum Signed Message:\n")
+var ContractSignaturePrefix = []byte("\x19Spectrum Signed Message:\n")
 
 const (
 	//ContractBalanceProofMessageLength balance proof  length
@@ -93,7 +93,7 @@ const (
 )
 
 func init() {
-	gasLimitHex = fmt.Sprintf("0x%x", GasLimit)
+	gasLimitHex = fmt.Sprintf("0x%x", DefaultGasLimit)
 }
 
 /*
@@ -167,7 +167,7 @@ var TestPrivateChainID int64 = 8888
 var EthRPCTimeout = 3 * time.Second
 
 // ContractVersionPrefix :
-var ContractVersionPrefix = "0.4"
+var ContractVersionPrefix = "0.5"
 
 // EnableForkConfirm : 事件延迟确认开关
 var EnableForkConfirm = false

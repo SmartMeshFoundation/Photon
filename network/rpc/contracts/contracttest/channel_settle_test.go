@@ -57,12 +57,12 @@ func runNoBpSettleTest(a1 *Account, a2 *Account, t *testing.T, count *int) {
 	testSettleTimeout := TestSettleTimeoutMin + 1
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// close
-	tx, err := env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
+	tx, err := env.TokenNetwork.PrepareSettle(a1.Auth, env.TokenAddress, a2.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for settle
 	waitToSettle(a1, a2)
 	// settle
-	tx, err = env.TokenNetwork.SettleChannel(a1.Auth, a1.Address, big.NewInt(0), utils.EmptyHash, a2.Address, big.NewInt(0), utils.EmptyHash)
+	tx, err = env.TokenNetwork.Settle(a1.Auth, env.TokenAddress, a1.Address, big.NewInt(0), utils.EmptyHash, a2.Address, big.NewInt(0), utils.EmptyHash)
 	assertTxSuccess(t, count, tx, err)
 	// get token balance after settle
 	tokenBalanceA1, tokenBalanceA2 := getTokenBalance(a1), getTokenBalance(a2)
@@ -87,13 +87,13 @@ func runReceiverSettleAfterSingleTransferTest(a1 *Account, a2 *Account, t *testi
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// a1 close
 	bf2 := createPartnerBalanceProof(a1, a2, transferAmountA2, utils.EmptyHash, utils.EmptyHash, 1)
-	tx, err := env.TokenNetwork.CloseChannel(
-		a1.Auth, a2.Address, bf2.TransferAmount, bf2.LocksRoot, bf2.Nonce, bf2.AdditionalHash, bf2.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(
+		a1.Auth, env.TokenAddress, a2.Address, bf2.TransferAmount, bf2.LocksRoot, bf2.Nonce, bf2.AdditionalHash, bf2.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for settle
 	waitToSettle(a1, a2)
 	// a1 settle
-	tx, err = env.TokenNetwork.SettleChannel(a1.Auth,
+	tx, err = env.TokenNetwork.Settle(a1.Auth, env.TokenAddress,
 		a1.Address, big.NewInt(0), utils.EmptyHash,
 		a2.Address, transferAmountA2, utils.EmptyHash)
 	assertTxSuccess(t, count, tx, err)
@@ -119,17 +119,17 @@ func runPayerSettleAfterSingleTransferTest(a1 *Account, a2 *Account, t *testing.
 	testSettleTimeout := TestSettleTimeoutMin + 1
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// a2 close
-	tx, err := env.TokenNetwork.CloseChannel(
-		a2.Auth, a1.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
+	tx, err := env.TokenNetwork.PrepareSettle(
+		a2.Auth, env.TokenAddress, a1.Address, big.NewInt(0), utils.EmptyHash, 0, utils.EmptyHash, nil)
 	assertTxSuccess(t, nil, tx, err)
 	// a1 updateProof
 	bf := createPartnerBalanceProof(a1, a2, transferAmountA2, utils.EmptyHash, utils.EmptyHash, 1)
-	tx, err = env.TokenNetwork.UpdateBalanceProof(a1.Auth, a2.Address, bf.TransferAmount, bf.LocksRoot, bf.Nonce, bf.AdditionalHash, bf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(a1.Auth, env.TokenAddress, a2.Address, bf.TransferAmount, bf.LocksRoot, bf.Nonce, bf.AdditionalHash, bf.Signature)
 	assertTxSuccess(t, count, tx, err)
 	// wait for settle
 	waitToSettle(a1, a2)
 	// a1 settle
-	tx, err = env.TokenNetwork.SettleChannel(a1.Auth,
+	tx, err = env.TokenNetwork.Settle(a1.Auth, env.TokenAddress,
 		a1.Address, big.NewInt(0), utils.EmptyHash,
 		a2.Address, transferAmountA2, utils.EmptyHash)
 	assertTxSuccess(t, count, tx, err)
@@ -157,17 +157,17 @@ func runSettleWithUnregisteredLock(a1 *Account, a2 *Account, t *testing.T, count
 	openChannelAndDeposit(a1, a2, depositA1, depositA2, testSettleTimeout)
 	// a1提交proof并close, 收到a2共20个token
 	bp1 := createPartnerBalanceProof(a1, a2, transferAmountA2, utils.EmptyHash, utils.EmptyHash, 1)
-	tx, err := env.TokenNetwork.CloseChannel(a1.Auth, a2.Address, bp1.TransferAmount, bp1.LocksRoot, bp1.Nonce, bp1.AdditionalHash, bp1.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(a1.Auth, env.TokenAddress, a2.Address, bp1.TransferAmount, bp1.LocksRoot, bp1.Nonce, bp1.AdditionalHash, bp1.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// a2提交proof,锁定a1共10个token
 	locks, _ := createLock(getLatestBlockNumber().Number.Int64()+10, lockAmountA1)
 	bp2 := createPartnerBalanceProof(a2, a1, big.NewInt(0), mtree.NewMerkleTree(locks).MerkleRoot(), utils.EmptyHash, 1)
-	tx, err = env.TokenNetwork.UpdateBalanceProof(a2.Auth, a1.Address, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(a2.Auth, env.TokenAddress, a1.Address, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait to settle
 	waitToSettle(a1, a2)
 	// a1 settle
-	tx, err = env.TokenNetwork.SettleChannel(a1.Auth,
+	tx, err = env.TokenNetwork.Settle(a1.Auth, env.TokenAddress,
 		a1.Address, big.NewInt(0), mtree.NewMerkleTree(locks).MerkleRoot(),
 		a2.Address, transferAmountA2, utils.EmptyHash)
 	assertTxSuccess(t, count, tx, err)

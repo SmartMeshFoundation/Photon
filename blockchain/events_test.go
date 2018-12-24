@@ -15,7 +15,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
-	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 type fakeRPCModule struct {
@@ -79,7 +78,7 @@ func TestEvents_QueryAllStateChanges(t *testing.T) {
 		panic(err)
 	}
 	logs, err := rpc.EventsGetInternal(
-		rpc.GetQueryConext(), nil, ethrpc.BlockNumber(50000), ethrpc.BlockNumber(40000), client)
+		rpc.GetQueryConext(), nil, 50000, 40000, client)
 	fmt.Println(logs, err)
 	if err != nil {
 		return

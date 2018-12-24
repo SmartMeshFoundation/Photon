@@ -73,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
+	tokenNetworkAddress = common.HexToAddress("0x8075Bb0A8C38F9445C32ff65dB99B1617529c378")
 	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
 	if err != nil {
 		panic(err)
@@ -82,10 +82,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokenAddress, err = tokenNetwork.Token(nil)
-	if err != nil {
-		panic(err)
-	}
+	tokenAddress = common.HexToAddress("0x24F37E44C12501564F17c5CA9c6082c17524f94e")
 	token, err = contracts.NewToken(tokenAddress, client)
 	if err != nil {
 		panic(err)
@@ -141,48 +138,27 @@ creatAChannelAndDeposit create a channel
 func creatAChannelAndDeposit(account1, account2 common.Address, key1 *ecdsa.PrivateKey, amount int64, conn *ethclient.Client) error {
 	log.Trace(fmt.Sprintf("createchannel between %s-%s,tokenNetwork=%s\n", account1.String(), account2.String(), tokenNetworkAddress.String()))
 	auth1 := bind.NewKeyedTransactor(key1)
-	tx, err := tokenNetwork.OpenChannel(auth1, account1, account2, uint64(settleTimeout))
+
+	tx, err := tokenNetwork.Deposit(auth1, tokenAddress, account1, account2, big.NewInt(amount), 30)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String()))
-	}
-	ctx := context.Background()
-	r, err := bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		return fmt.Errorf("failed to NewChannel when mining :%v", err)
-	}
-	log.Info(fmt.Sprintf("OpenChannel gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	channelID, _, _, state, settleBlock, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
-	if err != nil {
-		return fmt.Errorf("GetChannelInfo %s-%s err %s", utils.APex2(account1), utils.APex2(account2), err)
-	}
-	log.Trace(fmt.Sprintf("create channel gas %s:%d,channel identifier=0x%s,tokennetworkaddress=%s\n", tx.Hash().String(), tx.Gas(), hex.EncodeToString(channelID[:]), tokenNetworkAddress.String()))
-	log.Info("NewChannel complete...\n")
-	if settleBlock != uint64(settleTimeout) {
-		return fmt.Errorf("settleBlock err expect=%d,got=%d", settleTimeout, settleBlock)
-	}
-	if state != 1 {
-		return fmt.Errorf("")
-	}
-	tx, err = tokenNetwork.Deposit(auth1, account1, account2, big.NewInt(amount))
-	if err != nil {
-		return fmt.Errorf("Failed to Deposit1: %v", err)
+		return fmt.Errorf("failed to Deposit1: %s", err)
 
 	}
 	log.Trace(fmt.Sprintf("deposit gas %s:%d\n", tx.Hash().String(), tx.Gas()))
-	ctx = context.Background()
+	ctx := context.Background()
 	_, err = bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		return fmt.Errorf("failed to Deposit when mining :%v", err)
 	}
 	log.Info("Deposit1 complete...\n")
 
-	tx, err = tokenNetwork.Deposit(auth1, account2, account1, big.NewInt(amount))
+	tx, err = tokenNetwork.Deposit(auth1, tokenAddress, account2, account1, big.NewInt(amount), 600)
 	if err != nil {
-		return fmt.Errorf("Failed to Deposit2: %v", err)
+		return fmt.Errorf("failed to Deposit2: %s", err)
 
 	}
 	ctx = context.Background()
-	r, err = bind.WaitMined(ctx, conn, tx)
+	r, err := bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		return fmt.Errorf("failed to Deposit when mining :%v", err)
 	}
@@ -190,47 +166,6 @@ func creatAChannelAndDeposit(account1, account2 common.Address, key1 *ecdsa.Priv
 	return nil
 }
 
-/*
-open and deposit 一起,希望能够节省一点 gas
-*/
-func creatAChannelAndDeposit2(account1, account2 common.Address, key1 *ecdsa.PrivateKey, amount int64, conn *ethclient.Client) error {
-	log.Trace(fmt.Sprintf("createchannel between %s-%s,tokenNetwork=%s\n", account1.String(), account2.String(), tokenNetworkAddress.String()))
-	auth1 := bind.NewKeyedTransactor(key1)
-	tx, err := tokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, uint64(settleTimeout), big.NewInt(amount))
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String()))
-	}
-	ctx := context.Background()
-	r, err := bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		return fmt.Errorf("failed to NewChannel when mining :%v", err)
-	}
-	log.Info(fmt.Sprintf("OpenChannelWithDeposit gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	channelID, _, _, state, settleBlock, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
-	if err != nil {
-		return fmt.Errorf("GetChannelInfo %s-%s err %s", utils.APex2(account1), utils.APex2(account2), err)
-	}
-	log.Trace(fmt.Sprintf("create channel gas %s:%d,channel identifier=0x%s,tokennetworkaddress=%s\n", tx.Hash().String(), tx.Gas(), hex.EncodeToString(channelID[:]), tokenNetworkAddress.String()))
-	log.Info("NewChannel complete...\n")
-	if settleBlock != uint64(settleTimeout) {
-		return fmt.Errorf("settleBlock err expect=%d,got=%d", settleTimeout, settleBlock)
-	}
-	if state != 1 {
-		return fmt.Errorf("")
-	}
-	tx, err = tokenNetwork.Deposit(auth1, account2, account1, big.NewInt(amount))
-	if err != nil {
-		return fmt.Errorf("Failed to Deposit2: %v", err)
-
-	}
-	ctx = context.Background()
-	r, err = bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		return fmt.Errorf("failed to Deposit when mining :%v", err)
-	}
-	log.Info(fmt.Sprintf("Deposit2 complete...,gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	return nil
-}
 func testApprove(t *testing.T) {
 	tx, err := token.Approve(auth, tokenNetworkAddress, big.NewInt(50000000))
 	if err != nil {
@@ -264,7 +199,7 @@ func getTestOpenChannel(t *testing.T) (channelID contracts.ChannelIdentifier, pa
 		t.Error(err)
 		return
 	}
-	channelID, settleBlockNumber, openBlockNumber, state, _, err = tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, settleBlockNumber, openBlockNumber, state, _, err = tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -273,7 +208,7 @@ func getTestOpenChannel(t *testing.T) (channelID contracts.ChannelIdentifier, pa
 		err = fmt.Errorf("channel state err expect=%d,got=%d", contracts.ChannelStateOpened, state)
 		return
 	}
-	t.Logf("channelID=%s,settleblockNumber=%d,state=%d,err=%s", hex.EncodeToString(channelID[:]), settleBlockNumber, state, err)
+	t.Logf("channelID=%s,settleblockNumber=%d,state=%d,err=%s", common.Hash(channelID).String(), settleBlockNumber, state, err)
 	return
 }
 func TestOpenChannel(t *testing.T) {
@@ -282,28 +217,7 @@ func TestOpenChannel(t *testing.T) {
 		t.Error(err)
 	}
 }
-func TestOpenChannel2(t *testing.T) {
-	var settleBlockNumber uint64
-	var state uint8
-	testApprove(t)
-	_, partnerAddr := utils.MakePrivateKeyAddress()
-	err := creatAChannelAndDeposit2(auth.From, partnerAddr, TestPrivKey, totalAmount/2, client)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	channelID, settleBlockNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if state != contracts.ChannelStateOpened {
-		err = fmt.Errorf("channel state err expect=%d,got=%d", contracts.ChannelStateOpened, state)
-		return
-	}
-	t.Logf("channelID=%s,settleblockNumber=%d,state=%d,err=%s", hex.EncodeToString(channelID[:]), settleBlockNumber, state, err)
-	return
-}
+
 func TestCloseChannel1(t *testing.T) {
 	_, partnerAddr, _, err := getTestOpenChannel(t)
 	if err != nil {
@@ -311,7 +225,7 @@ func TestCloseChannel1(t *testing.T) {
 		return
 	}
 
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, utils.BigInt0, utils.EmptyHash, 0, utils.EmptyHash, nil)
+	tx, err := tokenNetwork.PrepareSettle(auth, tokenAddress, partnerAddr, utils.BigInt0, utils.EmptyHash, 0, utils.EmptyHash, nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -322,7 +236,7 @@ func TestCloseChannel1(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 	}
 	log.Info(fmt.Sprintf("CloseChannel no evidence gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
@@ -422,13 +336,13 @@ func TestCloseChannel2(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
-	log.Info(fmt.Sprintf("openblocknumber=%d,tokennetwork=%s", bp.OpenBlockNumber, bp.TokenNetworkAddress.String()))
+	log.Info(fmt.Sprintf("bp=%s", utils.StringInterface(bp, 3)))
 	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d,addhash=%s,signature=%s",
 		partnerAddr.String(),
 		bp.TransferAmount,
@@ -437,7 +351,7 @@ func TestCloseChannel2(t *testing.T) {
 		bp.AdditionalHash.String(),
 		hex.EncodeToString(bp.Signature),
 	))
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err := tokenNetwork.PrepareSettle(auth, tokenAddress, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -448,7 +362,7 @@ func TestCloseChannel2(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 	}
 	log.Info(fmt.Sprintf("CloseChannel with evidence gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
@@ -497,7 +411,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -512,7 +426,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		bp.AdditionalHash.String(),
 		hex.EncodeToString(bp.Signature),
 	))
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err := tokenNetwork.PrepareSettle(auth, tokenAddress, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -523,13 +437,13 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	/*
 	   updatebalanceproof delegate 只能在结算时间的后半段
 	*/
-	_, settleBlockNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	_, settleBlockNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -545,14 +459,15 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		if h.Number.Int64() >= int64(settleBlockNumber-uint64(settleTimeout)/2) {
+		if h.Number.Int64() > int64(settleBlockNumber-uint64(settleTimeout)/2) {
 			//could updatebalance proof
 			break
 		}
 		time.Sleep(time.Second)
 	}
 	bp2 := NewBalanceProofDelegateForContracts(TestPrivKey, partnerKey, channelID)
-	fmt.Printf("UpdateBalanceProofDelegate closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
+	fmt.Printf("UpdateBalanceProofDelegate  token=%s,closing_participant=%s,\nnon_closing_participant=%s,\ntransferred_amount=%s,\nlocksroot=%s,\nnonce=%d,\nold_transferred_amount=%s,\nold_locksroot=%s,\nold_nonce=%d,\nadditional_hash=%s\n,closing_signature=%s\nnon_closing_signature=%s\n",
+		tokenAddress.String(),
 		auth.From.String(),
 		partnerAddr.String(),
 		bp2.TransferAmount.String(),
@@ -563,8 +478,11 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		hex.EncodeToString(bp2.Signature),
 		hex.EncodeToString(bp2.NonClosingSignature),
 	)
-
-	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
+	fmt.Printf(`args="%s","%s", "%s",%s,"%s",%d,"%s","0x%s","0x%s"`,
+		tokenAddress.String(), auth.From.String(), partnerAddr.String(), bp2.TransferAmount, bp2.LocksRoot.String(), bp2.Nonce, bp2.AdditionalHash.String(),
+		hex.EncodeToString(bp2.Signature),
+		hex.EncodeToString(bp2.NonClosingSignature))
+	tx, err = tokenNetwork.UpdateBalanceProofDelegate(auth, tokenAddress, auth.From, partnerAddr, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature, bp2.NonClosingSignature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -575,7 +493,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
@@ -602,8 +520,9 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		bp.Nonce, bp2.Nonce,
 		bp.BalanceData.Hash().String(), bp2.BalanceData.Hash().String(),
 	))
-	tx, err = tokenNetwork.SettleChannel(
+	tx, err = tokenNetwork.Settle(
 		auth,
+		tokenAddress,
 		partnerAddr,
 		bp.TransferAmount,
 		bp.LocksRoot,
@@ -621,7 +540,7 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("SettleChannel gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
@@ -648,7 +567,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		bp.LocksRoot,
 		bp.Nonce,
 	))
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err := tokenNetwork.PrepareSettle(auth, tokenAddress, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -659,7 +578,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	//log.Trace(fmt.Sprintf("bp=\n%s", utils.StringInterface(bp, 3)))
@@ -674,7 +593,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		hex.EncodeToString(bp2.Signature),
 		bp2.BalanceData.Hash().String(),
 	))
-	tx, err = tokenNetwork.UpdateBalanceProof(partnerAuth, auth.From, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
+	tx, err = tokenNetwork.UpdateBalanceProof(partnerAuth, tokenAddress, auth.From, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -685,11 +604,11 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProof gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
-	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -714,8 +633,9 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 	log.Trace(fmt.Sprintf("SettleChannel arg,p1=%s,p1.amount=%s,p1.lock=%s,p1.nonce=%d,p2=%s,p2.amount=%s,p2.lock=%s,p2.nonce=%d",
 		partnerAddr.String(), bp.TransferAmount, bp.LocksRoot.String(), bp.Nonce, auth.From.String(), bp2.TransferAmount, bp2.LocksRoot.String(), bp2.Nonce,
 	))
-	tx, err = tokenNetwork.SettleChannel(
+	tx, err = tokenNetwork.Settle(
 		auth,
+		tokenAddress,
 		partnerAddr,
 		bp.TransferAmount,
 		bp.LocksRoot,
@@ -733,7 +653,7 @@ func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("SettleChannel gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
@@ -787,6 +707,7 @@ func TestCooperateSettleChannel(t *testing.T) {
 	//log.Trace(fmt.Sprintf("cs=\n%s", utils.StringInterface(cs, 3)))
 	tx, err := tokenNetwork.CooperativeSettle(
 		auth,
+		tokenAddress,
 		cs.Particiant1,
 		cs.Participant1Balance,
 		cs.Participant2,
@@ -804,7 +725,7 @@ func TestCooperateSettleChannel(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 	}
 	log.Info(fmt.Sprintf("CooperativeSettle gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
 }
@@ -832,7 +753,7 @@ func TestRegisterSecret(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	block, err := secretRegistry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
@@ -855,12 +776,12 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	partnerAuth := bind.NewKeyedTransactor(partnerKey)
-	partnerBalance, err := token.BalanceOf(nil, partnerAddr)
+	myBalance, err := token.BalanceOf(nil, auth.From)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	log.Info(fmt.Sprintf("before settle partner balance=%s", partnerBalance))
+	log.Info(fmt.Sprintf("before settle my balance=%s", myBalance))
 	secretRegistAddress, err := tokenNetwork.SecretRegistry(nil)
 	if err != nil {
 		t.Error(err)
@@ -876,14 +797,16 @@ func TestUnlock(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	expiredBlock := h.Number.Int64() + 40
-	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	expiredBlock := h.Number.Int64() + 4000
+	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	//我给对方的
+	bp := createPartnerBalanceProof(TestPrivKey, contracts.ChannelIdentifier(channelID))
+	//对方关闭通道
+	tx, err := tokenNetwork.PrepareSettle(partnerAuth, tokenAddress, auth.From, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -894,12 +817,12 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("close channel successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
-	//锁最多是2两个,三个就会失败
-	bp2, locks, secrets := NewBalanceProofUpdateForContractsWithLocks(TestPrivKey, partnerKey, channelID, totalLockNumber, expiredBlock)
+	//对方给我带锁交易
+	bp2, locks, secrets := NewBalanceProofUpdateForContractsWithLocks(partnerKey, TestPrivKey, channelID, totalLockNumber, expiredBlock)
 	//注册密码
 	maxLocks := 5
 	for i := 0; i < len(secrets); i++ {
@@ -918,7 +841,7 @@ func TestUnlock(t *testing.T) {
 			return
 		}
 		if r.Status != types.ReceiptStatusSuccessful {
-			t.Errorf("receipient err ,r=%s", r)
+			t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 			return
 		}
 	}
@@ -926,9 +849,10 @@ func TestUnlock(t *testing.T) {
 		maxLocks = len(secrets)
 	}
 	log.Info(fmt.Sprintf("locksroot=%s", bp2.BalanceData.LocksRoot.String()))
-	//提交对方的证据,必须是通道参与方才可以
-	tx, err = tokenNetwork.UpdateBalanceProof(partnerAuth,
-		auth.From,
+	//我去提交对方给我带锁交易的证据
+	tx, err = tokenNetwork.UpdateBalanceProof(auth,
+		tokenAddress,
+		partnerAddr,
 		bp2.TransferAmount,
 		bp2.LocksRoot,
 		bp2.Nonce,
@@ -944,11 +868,11 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProof successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
-	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, auth.From, partnerAddr)
+	_, blokNumber, _, state, _, err := tokenNetwork.GetChannelInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -962,9 +886,19 @@ func TestUnlock(t *testing.T) {
 	proof := mp.MakeProof(lock.Hash())
 	log.Info(fmt.Sprintf("unlockarg,partnerAddr=%s,part2=%s,lock=%s,merkle_proof=%s", partnerAddr.String(),
 		auth.From.String(), locks[0], hex.EncodeToString(mtree.Proof2Bytes(proof))))
+	log.Info(fmt.Sprintf(`args="%s","%s",%s,%d,%s,"%s","0x%x"`,
+		tokenAddress.String(),
+		partnerAddr.String(),
+		bp2.TransferAmount,
+		lock.Expiration,
+		lock.Amount,
+		lock.LockSecretHash.String(),
+		hex.EncodeToString(mtree.Proof2Bytes(proof)),
+	))
 	tx, err = tokenNetwork.Unlock(
-		partnerAuth,
-		auth.From,
+		auth,
+		tokenAddress,
+		partnerAddr,
 		bp2.TransferAmount,
 		big.NewInt(lock.Expiration),
 		lock.Amount,
@@ -981,16 +915,16 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("unlock success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
-	partnerBalance, err = token.BalanceOf(nil, partnerAddr)
+	myBalance, err = token.BalanceOf(nil, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Logf("after unlock partner balance balance=%s", partnerBalance)
+	t.Logf("after unlock partner balance balance=%s", myBalance)
 	log.Info("waiting settle...")
 	for {
 		var h *types.Header
@@ -1005,12 +939,13 @@ func TestUnlock(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	tx, err = tokenNetwork.SettleChannel(
-		auth,
-		partnerAddr,
+	tx, err = tokenNetwork.Settle(
+		partnerAuth,
+		tokenAddress,
+		auth.From,
 		bp.TransferAmount,
 		bp.LocksRoot,
-		auth.From,
+		partnerAddr,
 		//要用更新后的 transfer amount 了.
 		bp2.TransferAmount.Add(bp2.TransferAmount, big.NewInt(int64(1))),
 		bp2.LocksRoot,
@@ -1025,16 +960,16 @@ func TestUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("settle channel complete ,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
-	partnerBalance, err = token.BalanceOf(nil, partnerAddr)
+	myBalance, err = token.BalanceOf(nil, auth.From)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Logf("after settle partner balance=%s", partnerBalance)
+	t.Logf("after settle partner balance=%s", myBalance)
 
 }
 
@@ -1104,6 +1039,7 @@ func TestWithdraw(t *testing.T) {
 	))
 	tx, err := tokenNetwork.WithDraw(
 		auth,
+		tokenAddress,
 		w2.Participant1,
 		partnerAddr,
 		w2.Participant1Deposit,
@@ -1121,7 +1057,7 @@ func TestWithdraw(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 	}
 	log.Info(fmt.Sprintf("WithDraw complete.. gasLimit=%d,gasUsed=%d", r.GasUsed, tx.Gas()))
 }
@@ -1237,7 +1173,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 	}
 	expiredBlock := h.Number.Int64() + 40
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
-	tx, err := tokenNetwork.CloseChannel(auth, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
+	tx, err := tokenNetwork.PrepareSettle(auth, tokenAddress, partnerAddr, bp.TransferAmount, bp.LocksRoot, bp.Nonce, bp.AdditionalHash, bp.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1248,7 +1184,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("close channel successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
@@ -1272,13 +1208,13 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 			return
 		}
 		if r.Status != types.ReceiptStatusSuccessful {
-			t.Errorf("receipient err ,r=%s", r)
+			t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 			return
 		}
 	}
 	log.Info(fmt.Sprintf("locksroot=%s", bp2.LocksRoot.String()))
 	//提交对方的证据
-	tx, err = tokenNetwork.UpdateBalanceProof(bind.NewKeyedTransactor(partnerKey), auth.From, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
+	tx, err = tokenNetwork.UpdateBalanceProof(bind.NewKeyedTransactor(partnerKey), tokenAddress, auth.From, bp2.TransferAmount, bp2.LocksRoot, bp2.Nonce, bp2.AdditionalHash, bp2.Signature)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1289,7 +1225,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateBalanceProofDelegate successful,gasused=%d,gasLimit=%d", r.GasUsed, tx.Gas()))
@@ -1320,6 +1256,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		hex.EncodeToString(uf.sign(partnerKey)),
 	))
 	tx, err = tokenNetwork.UnlockDelegate(auth,
+		tokenAddress,
 		auth.From,
 		partnerAddr,
 		bp2.TransferAmount,
@@ -1339,7 +1276,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("unlockdelegate gasLimit=%d,gasUsed=%d", tx.Gas(), r.GasUsed))
@@ -1358,6 +1295,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		auth.From.String(), ou.LockHash.String()))
 	tx, err = tokenNetwork.PunishObsoleteUnlock(
 		auth,
+		tokenAddress,
 		auth.From,
 		partnerAddr,
 		lockhash,
@@ -1374,11 +1312,11 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("PunishObsoleteUnlock success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
-	deposit, balancehash, nonce, err := tokenNetwork.GetChannelParticipantInfo(nil, auth.From, partnerAddr)
+	deposit, balancehash, nonce, err := tokenNetwork.GetChannelParticipantInfo(nil, tokenAddress, auth.From, partnerAddr)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1388,18 +1326,7 @@ func TestPunishObsoleteUnlock(t *testing.T) {
 
 func TestTokenFallback(t *testing.T) {
 	var err error
-	setup()
-	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
-	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
-	if err != nil {
-		panic(err)
-	}
-	ChainID, err = tokenNetwork.ChainId(nil)
-	if err != nil {
-		panic(err)
-	}
-	tokenAddress, err = tokenNetwork.Token(nil)
+	tokenAddress = common.HexToAddress("0x5B424714F106FFab5D56cC572C98460ef33ffD11")
 	if err != nil {
 		panic(err)
 	}
@@ -1412,8 +1339,8 @@ func TestTokenFallback(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	partnerAddr := testOpenChannelAndDepositFallback(t)
-	testDepositFallback(t, partnerAddr)
+	testOpenChannelAndDepositFallback(t)
+
 }
 func to32bytes(src []byte) []byte {
 	dst := common.BytesToHash(src)
@@ -1422,7 +1349,6 @@ func to32bytes(src []byte) []byte {
 func testOpenChannelAndDepositFallback(t *testing.T) (partnerAddr common.Address) {
 	buf := new(bytes.Buffer)
 	_, partnerAddr = utils.MakePrivateKeyAddress()
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(1)))
 	buf.Write(to32bytes(auth.From[:]))
 	buf.Write(to32bytes(partnerAddr[:]))
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(300))) //settle_timeout
@@ -1436,7 +1362,7 @@ func testOpenChannelAndDepositFallback(t *testing.T) (partnerAddr common.Address
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
@@ -1444,46 +1370,10 @@ func testOpenChannelAndDepositFallback(t *testing.T) (partnerAddr common.Address
 	return
 }
 
-func testDepositFallback(t *testing.T, partnerAddr common.Address) {
-	buf := new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2)))
-	buf.Write(to32bytes(auth.From[:]))
-	buf.Write(to32bytes(partnerAddr[:]))
-	log.Info(fmt.Sprintf("channel=%s,%s", auth.From.String(), partnerAddr.String()))
-	tx, err := token.Transfer(auth, tokenNetworkAddress, big.NewInt(61), buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	r, err := bind.WaitMined(context.Background(), client, tx)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
-		return
-	}
-	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
-	log.Info(fmt.Sprintf("deposit by tokenFallback success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
-}
-
 func TestApproveAndCall(t *testing.T) {
 	var err error
 	setup()
-	//tokenNetworkAddress = common.HexToAddress(os.Getenv("ERC223TOKENNETWORK"))
-	tokenNetworkAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
-	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, client)
-	if err != nil {
-		panic(err)
-	}
-	ChainID, err = tokenNetwork.ChainId(nil)
-	if err != nil {
-		panic(err)
-	}
-	tokenAddress, err = tokenNetwork.Token(nil)
-	if err != nil {
-		panic(err)
-	}
+	tokenAddress = common.HexToAddress("0x61b84B072f57a0A74294477271abef69c80F9F51")
 	token, err = contracts.NewToken(tokenAddress, client)
 	if err != nil {
 		panic(err)
@@ -1493,14 +1383,12 @@ func TestApproveAndCall(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	partnerAddr := testOpenChannelAndDepositApproveCall(t)
-	testDepositApproveCall(t, partnerAddr)
+	testOpenChannelAndDepositApproveCall(t)
 }
 
 func testOpenChannelAndDepositApproveCall(t *testing.T) (partnerAddr common.Address) {
 	buf := new(bytes.Buffer)
 	_, partnerAddr = utils.MakePrivateKeyAddress()
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(1)))
 	buf.Write(to32bytes(auth.From[:]))
 	buf.Write(to32bytes(partnerAddr[:]))
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(300))) //settle_timeout
@@ -1517,33 +1405,10 @@ func testOpenChannelAndDepositApproveCall(t *testing.T) (partnerAddr common.Addr
 		return
 	}
 	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
+		t.Errorf("receipient err ,r=%s", utils.StringInterface(r, 3))
 		return
 	}
 	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
 	log.Info(fmt.Sprintf("open channel and deposit by ApproveAndCall success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
 	return
-}
-
-func testDepositApproveCall(t *testing.T, partnerAddr common.Address) {
-	buf := new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2)))
-	buf.Write(to32bytes(auth.From[:]))
-	buf.Write(to32bytes(partnerAddr[:]))
-	log.Info(fmt.Sprintf("channel=%s,%s", auth.From.String(), partnerAddr.String()))
-	tx, err := token.ApproveAndCall(auth, tokenNetworkAddress, big.NewInt(61), buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	r, err := bind.WaitMined(context.Background(), client, tx)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if r.Status != types.ReceiptStatusSuccessful {
-		t.Errorf("receipient err ,r=%s", r)
-		return
-	}
-	log.Info(fmt.Sprintf("channel=\"%s\",\"%s\"", auth.From.String(), partnerAddr.String()))
-	log.Info(fmt.Sprintf("deposit by ApproveAndCall success,gasUsed=%d,gasLimit=%d,txhash=%s", r.GasUsed, tx.Gas(), tx.Hash().String()))
 }

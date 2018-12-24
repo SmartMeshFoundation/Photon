@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"encoding/hex"
-
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum"
@@ -56,28 +54,21 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 	return nil
 }
 
+var settTimeout uint64 = 100
+
 //CreatAChannelAndDeposit create a channel
-func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres common.Address, token *contracts.Token, conn *ethclient.Client) {
+func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres, tokenAddress common.Address, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
+	token, err := contracts.NewToken(tokenAddress, conn)
+	if err != nil {
+		log.Fatalf("new token for %s , err %s", tokenAddress.String(), err)
+	}
 	tokenNetwork, err := contracts.NewTokenNetwork(tokenNetworkAddres, conn)
 	if err != nil {
-		log.Fatalf("newtoken network for %s ,err %s", tokenNetworkAddres.String(), err)
+		log.Fatalf("new token network for %s ,err %s", tokenNetworkAddres.String(), err)
 	}
-	tx, err := tokenNetwork.OpenChannel(auth1, account1, account2, 100)
-	if err != nil {
-		log.Printf("Failed to NewChannel: %v,%s,%s", err, auth1.From.String(), account2.String())
-		return
-	}
-	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to NewChannel when mining :%v", err)
-	}
-	channelID, _, _, _, _, err := tokenNetwork.GetChannelInfo(nil, account1, account2)
-	log.Printf("create channel gas %s:%d,channel identifier=0x%s,tokennetworkaddress=%s\n", tx.Hash().String(), tx.Gas(), hex.EncodeToString(channelID[:]), tokenNetworkAddres.String())
-	fmt.Printf("NewChannel complete...\n")
 	//step 2 deopsit
 	//step 2.1 aprove
 	wg2 := sync.WaitGroup{}
@@ -91,13 +82,13 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 			log.Fatalf("Failed to Approve: %v", err)
 		}
 		log.Printf("approve gas %s:%d\n", tx.Hash().String(), tx.Gas())
-		ctx = context.Background()
+		ctx := context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.Deposit(auth1, account1, account2, amount)
+		tx, err = tokenNetwork.Deposit(auth1, tokenAddress, account1, account2, amount, settTimeout)
 		if err != nil {
 			log.Fatalf("Failed to Deposit1: %v", err)
 		}
@@ -118,13 +109,13 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 		if err != nil {
 			log.Fatalf("Failed to Approve: %v", err)
 		}
-		ctx = context.Background()
+		ctx := context.Background()
 		_, err = bind.WaitMined(ctx, conn, tx)
 		if err != nil {
 			log.Fatalf("failed to Approve when mining :%v", err)
 		}
 		fmt.Printf("Approve complete...\n")
-		tx, err = tokenNetwork.Deposit(auth2, account2, account1, amount)
+		tx, err = tokenNetwork.Deposit(auth2, tokenAddress, account2, account1, amount, settTimeout)
 		if err != nil {
 			log.Fatalf("Failed to Deposit2: %v", err)
 		}

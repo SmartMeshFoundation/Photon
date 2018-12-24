@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity >=0.4.0 <0.6.0;
 
 library ECVerify {
 

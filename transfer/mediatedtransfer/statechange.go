@@ -245,12 +245,12 @@ func (e *ContractBalanceStateChange) GetBlockNumber() int64 {
 
 //ContractNewChannelStateChange new channel created on block chain
 type ContractNewChannelStateChange struct {
-	ChannelIdentifier   *contracts.ChannelUniqueID
-	Participant1        common.Address
-	Participant2        common.Address
-	SettleTimeout       int
-	TokenNetworkAddress common.Address
-	BlockNumber         int64
+	ChannelIdentifier *contracts.ChannelUniqueID
+	Participant1      common.Address
+	Participant2      common.Address
+	SettleTimeout     int
+	TokenAddress      common.Address // which token
+	BlockNumber       int64
 }
 
 //GetBlockNumber return when this event occur
@@ -260,9 +260,8 @@ func (e *ContractNewChannelStateChange) GetBlockNumber() int64 {
 
 //ContractTokenAddedStateChange a new token registered
 type ContractTokenAddedStateChange struct {
-	RegistryAddress     common.Address
-	TokenAddress        common.Address
 	TokenNetworkAddress common.Address
+	TokenAddress        common.Address
 	BlockNumber         int64
 }
 

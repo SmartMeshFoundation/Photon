@@ -71,7 +71,9 @@ func StartMain() (*photon.API, error) {
 	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version)
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
-		return nil, fmt.Errorf("photon must build use makefile")
+		if os.Getenv("ISTEST") == "" {
+			return nil, fmt.Errorf("photon must build use makefile")
+		}
 	}
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
@@ -378,6 +380,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		err = fmt.Errorf("privkey error: %s", err)
 		return
 	}
+	log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
 	config.MyAddress = crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
 	log.Info(fmt.Sprintf("Start with account %s", config.MyAddress.String()))
 	registAddrStr := ctx.String("registry-contract-address")

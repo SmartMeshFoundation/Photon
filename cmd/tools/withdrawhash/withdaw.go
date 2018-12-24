@@ -189,13 +189,7 @@ func (w *withDraw) channelSerilization2Channel(c *channeltype.Serialization, tok
 	return
 }
 func (w *withDraw) getTokenNetworkProxy(tokenAddress common.Address) (tokenNetwork *rpc.TokenNetworkProxy, err error) {
-	registryAddress := w.db.GetRegistryAddress()
-	r := w.bcs.Registry(registryAddress, true)
-	tokenNetworkAddr, err := r.TokenNetworkByToken(tokenAddress)
-	if err != nil {
-		return
-	}
-	tokenNetwork, err = w.bcs.TokenNetwork(tokenNetworkAddr)
+	tokenNetwork, err = w.bcs.TokenNetwork(tokenAddress)
 	return
 }
 func (w *withDraw) restoreChannel() error {

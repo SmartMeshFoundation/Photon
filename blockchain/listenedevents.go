@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkRegistryTokenNetworkCreated, err error) {
-	event = &contracts.TokenNetworkRegistryTokenNetworkCreated{}
-	err = UnpackLog(&tokenNetworkRegistryAbi, event, params.NameTokenNetworkCreated, el)
+func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkTokenNetworkCreated, err error) {
+	event = &contracts.TokenNetworkTokenNetworkCreated{}
+	err = UnpackLog(&tokenNetworkAbi, event, params.NameTokenNetworkCreated, el)
 	if err != nil {
 		return
 	}
@@ -16,16 +16,6 @@ func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkRe
 	return
 }
 
-func newEventChannelOpen(el *types.Log) (event *contracts.TokenNetworkChannelOpened, err error) {
-	event = &contracts.TokenNetworkChannelOpened{}
-	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelOpened, el)
-	if err != nil {
-		return
-	}
-	event.Raw = *el
-	//log.Trace(fmt.Sprintf("newEventChannelOpen el=%s, event=%s", utils.StringInterface(el, 3), utils.StringInterface(event, 3)))
-	return
-}
 func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
 	event = &contracts.TokenNetworkChannelOpenedAndDeposit{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelOpenedAndDeposit, el)

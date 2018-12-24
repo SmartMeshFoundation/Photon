@@ -450,29 +450,25 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	}
 }
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
-	if st.RegistryAddress != eh.photon.Chain.RegistryProxy.Address {
+	if st.TokenNetworkAddress != eh.photon.Chain.RegistryProxy.Address {
 		panic("unkown registry")
 	}
 	tokenAddress := st.TokenAddress
-	tokenNetworkAddress := st.TokenNetworkAddress
-	log.Info(fmt.Sprintf("NewTokenAdd token=%s,tokennetwork=%s", tokenAddress.String(), tokenNetworkAddress.String()))
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s,tokennetwork=%s", tokenAddress.String(), st.TokenNetworkAddress.String()))
 	err := eh.photon.dao.AddToken(st.TokenAddress, st.TokenNetworkAddress)
 	if err != nil {
 		return err
 	}
 	g := graph.NewChannelGraph(eh.photon.NodeAddress, st.TokenAddress, nil)
-	eh.photon.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
-	eh.photon.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
+	eh.photon.Token2TokenNetwork[tokenAddress] = st.TokenNetworkAddress
 	eh.photon.Token2ChannelGraph[tokenAddress] = g
 	return nil
 }
 func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.ContractNewChannelStateChange) error {
-	tokenNetworkAddress := st.TokenNetworkAddress
 	participant1 := st.Participant1
 	participant2 := st.Participant2
-	tokenAddress := eh.photon.TokenNetwork2Token[tokenNetworkAddress]
-	log.Info(fmt.Sprintf("NewChannel tokenNetwork=%s,token=%s,participant1=%s,participant2=%s",
-		utils.APex2(tokenNetworkAddress),
+	tokenAddress := st.TokenAddress
+	log.Info(fmt.Sprintf("NewChannel token=%s,participant1=%s,participant2=%s",
 		utils.APex2(tokenAddress),
 		utils.APex2(participant1),
 		utils.APex2(participant2),
@@ -490,7 +486,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		partner = st.Participant2
 	}
 	if isParticipant {
-		eh.photon.registerChannel(tokenNetworkAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
+		eh.photon.registerChannel(tokenAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
 		other := participant2
 		if other == eh.photon.NodeAddress {
 			other = participant1
@@ -524,15 +520,17 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 	if err != nil {
 		//i'm not a participant
 		// 如果不是自己参与的channel,移除路由中的path
-		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
+		token, p1, p2, err2 := eh.photon.dao.GetNonParticipantChannelByID(st.ChannelIdentifier)
+		if err2 != nil {
+			return err2
+		}
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
-			p1, p2 := eh.photon.dao.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
 			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
 				g.RemovePath(p1, p2)
 			}
 		}
-		err = eh.photon.dao.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
+		err = eh.photon.dao.RemoveNonParticipantChannel(st.ChannelIdentifier)
 		return err
 	}
 	err = eh.ChannelStateTransition(ch, st)
@@ -570,7 +568,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	if err != nil {
 		return err
 	}
-	err = eh.photon.dao.RemoveNonParticipantChannel(ch.TokenAddress, ch.ChannelIdentifier.ChannelIdentifier)
+	err = eh.photon.dao.RemoveNonParticipantChannel(ch.ChannelIdentifier.ChannelIdentifier)
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
@@ -596,15 +594,17 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 	if err != nil {
 		//i'm not a participant
 		// 如果不是自己参与的channel,移除路由中的path
-		token := eh.photon.TokenNetwork2Token[st.TokenNetworkAddress]
+		token, p1, p2, err2 := eh.photon.dao.GetNonParticipantChannelByID(st.ChannelIdentifier)
+		if err2 != nil {
+			return err2
+		}
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
-			p1, p2 := eh.photon.dao.GetParticipantAddressByTokenAndChannel(token, st.ChannelIdentifier)
 			if p1 != utils.EmptyAddress && p2 != utils.EmptyAddress {
 				g.RemovePath(p1, p2)
 			}
 		}
-		return eh.photon.dao.RemoveNonParticipantChannel(token, st.ChannelIdentifier)
+		return eh.photon.dao.RemoveNonParticipantChannel(st.ChannelIdentifier)
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {

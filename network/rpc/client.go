@@ -49,14 +49,14 @@ type BlockChainService struct {
 	//PrivKey of this node, todo remove this
 	PrivKey *ecdsa.PrivateKey
 	//NodeAddress is address of this node
-	NodeAddress common.Address
-	//RegistryAddress registy contract address
-	RegistryProxy       *RegistryProxy
+	NodeAddress         common.Address
+	tokenNetworkAddress common.Address
 	SecretRegistryProxy *SecretRegistryProxy
 	//Client if eth rpc client
 	Client          *helper.SafeEthClient
 	addressTokens   map[common.Address]*TokenProxy
 	addressChannels map[common.Address]*TokenNetworkProxy
+	RegistryProxy   *RegistryProxy
 	//Auth needs by call on blockchain todo remove this
 	Auth *bind.TransactOpts
 }
@@ -64,16 +64,17 @@ type BlockChainService struct {
 //NewBlockChainService create BlockChainService
 func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) (bcs *BlockChainService, err error) {
 	bcs = &BlockChainService{
-		PrivKey:         privateKey,
-		NodeAddress:     crypto.PubkeyToAddress(privateKey.PublicKey),
-		Client:          client,
-		addressTokens:   make(map[common.Address]*TokenProxy),
-		addressChannels: make(map[common.Address]*TokenNetworkProxy),
-		Auth:            bind.NewKeyedTransactor(privateKey),
+		PrivKey:             privateKey,
+		NodeAddress:         crypto.PubkeyToAddress(privateKey.PublicKey),
+		Client:              client,
+		addressTokens:       make(map[common.Address]*TokenProxy),
+		addressChannels:     make(map[common.Address]*TokenNetworkProxy),
+		Auth:                bind.NewKeyedTransactor(privateKey),
+		tokenNetworkAddress: registryAddress,
 	}
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
-	bcs.Auth.GasPrice = big.NewInt(params.GasPrice)
+	bcs.Auth.GasPrice = big.NewInt(params.DefaultGasPrice)
 
 	bcs.Registry(registryAddress, client.Status == netshare.Connected)
 	return bcs, nil
@@ -139,55 +140,39 @@ func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy,
 }
 
 //TokenNetwork return a proxy to interact with a NettingChannelContract.
-func (bcs *BlockChainService) TokenNetwork(address common.Address) (t *TokenNetworkProxy, err error) {
-	_, ok := bcs.addressChannels[address]
+func (bcs *BlockChainService) TokenNetwork(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
+	_, ok := bcs.addressChannels[tokenAddress]
 	if !ok {
-		var tokenNetwork *contracts.TokenNetwork
-		tokenNetwork, err = contracts.NewTokenNetwork(address, bcs.Client)
-		if err != nil {
-			log.Error(fmt.Sprintf("NewNettingChannelContract %s err %s", address.String(), err))
-			return
-		}
-		if !bcs.contractExist(address) {
-			return nil, fmt.Errorf("no code at %s", address.String())
-		}
-		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: tokenNetwork}
+		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
 	}
-	return bcs.addressChannels[address], nil
+	return bcs.addressChannels[tokenAddress], nil
 }
 
 //TokenNetworkWithoutCheck return a proxy to interact with a NettingChannelContract,don't check this address is valid or not
-func (bcs *BlockChainService) TokenNetworkWithoutCheck(address common.Address) (t *TokenNetworkProxy, err error) {
-	_, ok := bcs.addressChannels[address]
+func (bcs *BlockChainService) TokenNetworkWithoutCheck(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
+	_, ok := bcs.addressChannels[tokenAddress]
 	if !ok {
-		var ch *contracts.TokenNetwork
-		ch, err = contracts.NewTokenNetwork(address, bcs.Client)
-		if err != nil {
-			log.Error(fmt.Sprintf("NewNettingChannelContract %s err %s", address.String(), err))
-			return
-		}
-		bcs.addressChannels[address] = &TokenNetworkProxy{Address: address, bcs: bcs, ch: ch}
+		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
 	}
-	return bcs.addressChannels[address], nil
+	return bcs.addressChannels[tokenAddress], nil
 }
 
 // Registry Return a proxy to interact with Registry.
 func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain bool) (t *RegistryProxy) {
-	if bcs.RegistryProxy != nil && bcs.RegistryProxy.registry != nil {
+	if bcs.RegistryProxy != nil && bcs.RegistryProxy.ch != nil {
 		return bcs.RegistryProxy
 	}
 	r := &RegistryProxy{
 		Address: address,
-		bcs:     bcs,
 	}
 	if hasConnectChain {
-		reg, err := contracts.NewTokenNetworkRegistry(address, bcs.Client)
+		reg, err := contracts.NewTokenNetwork(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
 			return
 		}
-		r.registry = reg
-		secAddr, err := r.registry.SecretRegistryAddress(nil)
+		r.ch = reg
+		secAddr, err := r.ch.SecretRegistry(nil)
 		if err != nil {
 			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
 			return

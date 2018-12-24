@@ -2,20 +2,15 @@ package testfilter
 
 import (
 	"testing"
-
-	"fmt"
-
-	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestStruct(t *testing.T) {
-	tt := contracts.TokenNetworkRegistryTokenNetworkCreated{
-		TokenAddress: utils.NewRandomAddress(),
-	}
-	t2 := tt
-	t2.TokenAddress = utils.NewRandomAddress()
-	t.Logf(fmt.Sprintf("tt=%s,t2=%s", tt.TokenAddress.String(), t2.TokenAddress.String()))
+	//tt := contracts.TokenNetworkRegistryTokenNetworkCreated{
+	//	TokenAddress: utils.NewRandomAddress(),
+	//}
+	//t2 := tt
+	//t2.TokenAddress = utils.NewRandomAddress()
+	//t.Logf(fmt.Sprintf("tt=%s,t2=%s", tt.TokenAddress.String(), t2.TokenAddress.String()))
 }
 
 func TestFilter1(t *testing.T) {

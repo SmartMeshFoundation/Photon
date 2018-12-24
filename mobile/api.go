@@ -199,7 +199,7 @@ func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error
 }
 
 /*
-OpenChannel try to open a new channel on contract with
+Deposit try to open a new channel on contract with
 partnerAddress . the settleTimeout is the settle time of
 the new channel. if  balanceStr is
 an integer and bigger than zero, the amount of `balanceStr` token
@@ -221,12 +221,12 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error) {
+func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error) {
 	callID = utils.NewRandomHash().String()
 	result := newResult()
 	a.callID2result[callID] = result
 	go func() {
-		r, e := a.openChannel(partnerAddress, tokenAddress, settleTimeout, balanceStr)
+		r, e := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr)
 		result.Result = r
 		result.Err = e
 		result.Done = true
@@ -235,9 +235,9 @@ func (a *API) OpenChannel(partnerAddress, tokenAddress string, settleTimeout int
 	return
 }
 
-func (a *API) openChannel(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
+func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api OpenChannel in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
+		log.Trace(fmt.Sprintf("Api Deposit in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
 		))
 	}()
@@ -250,7 +250,7 @@ func (a *API) openChannel(partnerAddress, tokenAddress string, settleTimeout int
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.Open(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance)
+	c, err := a.api.DepositAndOpenChannel(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -412,73 +412,6 @@ func (a *API) settleChannel(channelIdentifier string) (channel string, err error
 	return
 }
 
-/*
-DepositChannel deposit balance to a channel
-
-example returns
-{
-    "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
-    "open_block_number": 2560271,
-    "partner_address": "0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5",
-    "balance": 50,
-    "partner_balance": 0,
-    "locked_amount": 0,
-    "partner_locked_amount": 0,
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "state": 1,
-    "StateString": "opened",
-    "settle_timeout": 150,
-    "reveal_timeout": 0
-}
-*/
-func (a *API) DepositChannel(channelIdentifier string, balanceStr string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
-	go func() {
-		r, e := a.depositChannel(channelIdentifier, balanceStr)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
-	}()
-	return
-}
-func (a *API) depositChannel(channelIdentifier string, balanceStr string) (channel string, err error) {
-	defer func() {
-		log.Trace(fmt.Sprintf("Api DepositChannel channelIdentifier=%s,balanceStr=%s,out channel=\n%s,err=%v",
-			channelIdentifier, balanceStr, channel, err,
-		))
-	}()
-	channelIdentifierHash := common.HexToHash(channelIdentifier)
-	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.GetChannel(channelIdentifierHash)
-	if err != nil {
-		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifierHash), err))
-		return
-	}
-	c, err = a.api.Deposit(c.TokenAddress(), c.PartnerAddress(), balance, params.DefaultPollTimeout)
-	if err != nil {
-		log.Error(fmt.Sprintf("Deposit to %s:%s err %s", utils.APex(c.TokenAddress()),
-			utils.APex(c.PartnerAddress()), err))
-		return
-	}
-
-	d := &v1.ChannelData{
-		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-	}
-	channel, err = marshal(d)
-	return
-}
-
 // Deprecated
 func (a *API) networkEvent(fromBlock, toBlock int64) (eventsString string, err error) {
 	events, err := a.api.GetNetworkEvents(fromBlock, toBlock)
@@ -580,44 +513,6 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 	}
 	channels, err = marshal(datas)
 	return
-}
-
-/*
-RegisterToken  Registering a new Token to smart photon
-returns the new token's corresponding TokenNetwork Contract address.
-for example:
-tokenNetworkAddress: 0xBb1e95363b0181De7bBf394f18eaC7D4230e391A
-err: nil
-*/
-func (a *API) RegisterToken(tokenAddress string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
-	go func() {
-		r, e := a.registerToken(tokenAddress)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
-	}()
-	return
-}
-func (a *API) registerToken(tokenAddress string) (tokenNetworkAddress string, err error) {
-	defer func() {
-		log.Trace(fmt.Sprintf("Api RegisterToken tokenAddress=%s,tokenNetworkAddress=%s,err=%v",
-			tokenAddress, tokenNetworkAddress, err,
-		))
-	}()
-	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
-	if err != nil {
-		return
-	}
-	mgr, err := a.api.RegisterToken(tokenAddr)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	return mgr.String(), err
 }
 
 /*

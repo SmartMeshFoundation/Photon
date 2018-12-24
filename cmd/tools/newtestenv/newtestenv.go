@@ -130,10 +130,6 @@ func mainctx(ctx *cli.Context) error {
 	if ctx.Bool("not-create-token") {
 		return nil
 	}
-	registry, err := contracts.NewTokenNetworkRegistry(registryAddress, conn)
-	if err != nil {
-		return err
-	}
 	wg := sync.WaitGroup{}
 	wg.Add(tokenNumber)
 	lock := &sync.Mutex{}
@@ -141,22 +137,22 @@ func mainctx(ctx *cli.Context) error {
 		switch i {
 		case 0:
 			go func() {
-				createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223Approve, lock)
+				createTokenAndChannels(key, conn, registryAddress, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223Approve, lock)
 				wg.Done()
 			}()
 		case 3:
 			go func() {
-				createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223, lock)
+				createTokenAndChannels(key, conn, registryAddress, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223, lock)
 				wg.Done()
 			}()
 		case 2:
 			go func() {
-				createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenStandard, lock)
+				createTokenAndChannels(key, conn, registryAddress, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenStandard, lock)
 				wg.Done()
 			}()
 		case 1:
 			go func() {
-				createTokenAndChannels(key, conn, registry, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223, lock)
+				createTokenAndChannels(key, conn, registryAddress, ctx.String("keystore-path"), !ctx.Bool("not-create-channel"), tokenERC223, lock)
 				wg.Done()
 			}()
 		}
@@ -192,45 +188,31 @@ func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.Private
 	}
 	return
 }
-func deployContract(key *ecdsa.PrivateKey, conn *helper.SafeEthClient) (tokenNetworkRegistryAddress common.Address) {
+func deployContract(key *ecdsa.PrivateKey, conn *helper.SafeEthClient) (tokenNetworkAddress common.Address) {
 	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
 		log.Fatalf("failed get chain id :%s", chainID)
 	}
 	fmt.Printf("current chain Id=%s\n", chainID)
 	auth := bind.NewKeyedTransactor(key)
-	//Deploy SecretRegistry
-	SecretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
-	if err != nil {
-		log.Fatalf("Failed to Deploy SecretRegistry : %v", err)
-	}
-	ctx := context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("deploy SecretRegistry[%s] complete...\n", SecretRegistryAddress.String())
-	//Deploy TokenNetorkRegistry
-	//auth.GasLimit = 4000000 //最大gas
-	//auth.GasPrice = big.NewInt(2000)
-	tokenNetworkRegistryAddress, tx, _, err = contracts.DeployTokenNetworkRegistry(auth, conn, SecretRegistryAddress, chainID)
+	tokenNetworkAddress, tx, _, err := contracts.DeployTokenNetwork(auth, conn, chainID)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}
-	fmt.Printf("tokenNetworkRegistryAddress=%s, txhash=%s\n", tokenNetworkRegistryAddress.String(), tx.Hash().String())
-	ctx = context.Background()
+	fmt.Printf("tokenNetworkRegistryAddress=%s, txhash=%s\n", tokenNetworkAddress.String(), tx.Hash().String())
+	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
 	fmt.Printf("Deploy tokenNetworkRegistry complete...\n")
 
-	fmt.Printf("tokenNetworkRegistryAddress=%s\n", tokenNetworkRegistryAddress.String())
+	fmt.Printf("tokenNetworkRegistryAddress=%s\n", tokenNetworkAddress.String())
 	return
 }
-func createTokenAndChannels(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contracts.TokenNetworkRegistry, keystorepath string, createchannel bool, tokenType string, lock *sync.Mutex) {
+func createTokenAndChannels(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, tokenNetworkAddress common.Address, keystorepath string, createchannel bool, tokenType string, lock *sync.Mutex) {
 	lock.Lock()
-	tokenNetworkAddress, tokenAddress := newToken(key, conn, registry, tokenType)
+	tokenAddress := newToken(key, conn, tokenType)
 	//tokenAddress := common.HexToAddress("0xD29A9Cbf2Ca88981D0794ce94e68495c4bC16F28")
 	//tokenNetworkAddress, _ := registry.Token_to_token_networks(nil, tokenAddress)
 	token, err := contracts.NewToken(tokenAddress, conn)
@@ -269,11 +251,11 @@ func createTokenAndChannels(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, r
 	//fmt.Printf("key=%s\n", key)
 	transferMoneyForAccounts(key, conn, localAccounts[1:], keys[1:], token)
 	if createchannel {
-		createChannels(conn.Client, localAccounts, keys, tokenNetworkAddress, token)
+		createChannels(conn.Client, localAccounts, keys, tokenNetworkAddress, tokenAddress)
 	}
 }
 
-func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contracts.TokenNetworkRegistry, tokenType string) (tokenNetworkAddress common.Address, tokenAddr common.Address) {
+func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, tokenType string) (tokenAddr common.Address) {
 	var tx *types.Transaction
 	var err error
 	auth := bind.NewKeyedTransactor(key)
@@ -299,18 +281,6 @@ func newToken(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, registry *contr
 	}
 	auth.Value = nil // ether will modify auth
 	fmt.Printf("Deploy %s  %s complete...\n", tokenType, tokenAddr.String())
-	tx, err = registry.CreateERC20TokenNetwork(auth, tokenAddr)
-	if err != nil {
-		log.Fatalf("Failed to AddToken: %v", err)
-	}
-	log.Printf("CreateERC20TokenNetwork tx=%s", tx.Hash().String())
-	ctx = context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to AddToken when mining :%v", err)
-	}
-	tokenNetworkAddress, err = registry.TokenToTokenNetworks(nil, tokenAddr)
-	fmt.Printf("Deploy %s complete... %s,tokennetwork=%s\n", tokenType, tokenAddr.String(), tokenNetworkAddress.String())
 	return
 }
 func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *helper.SafeEthClient, accounts []common.Address, keys []*ecdsa.PrivateKey, token *contracts.Token) {
@@ -366,7 +336,7 @@ func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *helper.SafeEthClient,
 }
 
 //path A-B-C-F-B-D-G-E
-func createChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token *contracts.Token) {
+func createChannels(conn *ethclient.Client, accounts []common.Address, keys []*ecdsa.PrivateKey, tokenNetworkAddress common.Address, token common.Address) {
 	if len(accounts) < 6 {
 		panic("need 6 accounts")
 	}

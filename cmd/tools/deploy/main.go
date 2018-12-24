@@ -72,32 +72,19 @@ func mainctx(ctx *cli.Context) error {
 }
 func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	auth := bind.NewKeyedTransactor(key)
-	//Deploy Secret Registry
-	secretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
+	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to deploy new token contract: %v", err)
+		log.Fatalf("failed to get network id %s", err)
+	}
+	tokenNetworkAddress, tx, _, err := contracts.DeployTokenNetwork(auth, conn, chainID)
+	if err != nil {
+		log.Fatalf("failed to deploy registry %s", err)
 	}
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("Deploy Secret Registry complete...\n")
-	chainID, err := conn.NetworkID(context.Background())
-	if err != nil {
-		log.Fatalf("failed to get network id %s", err)
-	}
-	registryAddress, tx, _, err := contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainID)
-	if err != nil {
-		log.Fatalf("failed to deploy registry %s", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
 	fmt.Printf("deploy registry complete...\n")
-	fmt.Printf("RegistryAddress=%s\nSecretyRegistryAddress=%s\n", registryAddress.String(), secretRegistryAddress.String())
-	//RegistryAddress=0x1026a4441921EcF88aaF13014d96aF90f735a02c
-	//EndpointRegistryAddress=0xB85b8b57e2b701d5E918D7d9027A7330472a663a
+	fmt.Printf("RegistryAddress=%s\n \n", tokenNetworkAddress.String())
 }

@@ -84,11 +84,11 @@ func TestChannelUnlockDelegate(t *testing.T) {
 	registrySecrets(self, secretsPartner)
 	// self close channel with partner's lock
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mpPartner.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// partner update proof with self's lock
 	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(0), mpSelf.MerkleRoot(), utils.EmptyHash, 4)
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// partner' lock
 	partnerTransferAmount := bpPartner.TransferAmount
@@ -104,7 +104,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 			MerkleProof:       mtree.Proof2Bytes(mpPartner.MakeProof(lock.Hash())),
 		}
 		// third unlock partner's lock on behalf of partner with partner's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			self.Address,
 			partner.Address,
 			partnerTransferAmount,
@@ -116,7 +116,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock partner's lock on behalf of partner with self's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			self.Address,
 			partner.Address,
 			partnerTransferAmount,
@@ -128,7 +128,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock partner's lock on behalf of self with partner's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			partner.Address,
 			self.Address,
 			partnerTransferAmount,
@@ -140,7 +140,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock partner's lock on behalf of self with self's sig, MUST SUCCESS
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			partner.Address,
 			self.Address,
 			partnerTransferAmount,
@@ -167,7 +167,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 			MerkleProof:       mtree.Proof2Bytes(mpSelf.MakeProof(lock.Hash())),
 		}
 		// third unlock self's lock on behalf of self with self's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			partner.Address,
 			self.Address,
 			selfTransferAmount,
@@ -179,7 +179,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock self's lock on behalf of self with partner's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			partner.Address,
 			self.Address,
 			selfTransferAmount,
@@ -191,7 +191,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock self's lock on behalf of partner with self's sig, MUST FAIL
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			self.Address,
 			partner.Address,
 			selfTransferAmount,
@@ -203,7 +203,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 		)
 		assertTxFail(t, &count, tx, err)
 		// third unlock self's lock on behalf of partner with partner's sig, MUST SUCCESS
-		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth,
+		tx, err = env.TokenNetwork.UnlockDelegate(third.Auth, env.TokenAddress,
 			self.Address,
 			partner.Address,
 			selfTransferAmount,
@@ -219,7 +219,7 @@ func TestChannelUnlockDelegate(t *testing.T) {
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
@@ -263,19 +263,19 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 
 	// self close channel with partner's lock
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mpPartner.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner update proof with self's lock
 	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(0), mpSelf.MerkleRoot(), utils.EmptyHash, 4)
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// self unlock with partner's lock -------Case1
 	partnerTransferAmount := bpPartner.TransferAmount
 	for _, lock := range locksPartner {
 		proof := mpPartner.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, partnerTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, partnerTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxSuccess(t, count, tx, err)
 		partnerTransferAmount = partnerTransferAmount.Add(partnerTransferAmount, lock.Amount)
 	}
@@ -284,7 +284,7 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 	selfTransferAmount := bpSelf.TransferAmount
 	for _, lock := range locksSelf {
 		proof := mpSelf.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, selfTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, selfTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxSuccess(t, count, tx, err)
 		selfTransferAmount = selfTransferAmount.Add(selfTransferAmount, lock.Amount)
 	}
@@ -292,13 +292,13 @@ func runRightUnlockTest(self, partner *Account, t *testing.T, count *int) {
 	// partner unlock with self's lock repeat -------Case2
 	for _, lock := range locksSelf {
 		proof := mpSelf.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, selfTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, selfTransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, selfTransferAmount, bpSelf.LocksRoot, partner.Address, partnerTransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	// get token balance
@@ -335,19 +335,19 @@ func runUnlockWithWrongLocksrootTest(self, partner *Account, t *testing.T, count
 	registrySecrets(self, secrets)
 	// self close channel with right locks
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mp.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// unlock with wrong locks -------Case1
 	fakeLocks, fakeSecrets := createLockByArray(expireBlockNumber, fakeLockAmount)
 	registrySecrets(self, fakeSecrets)
 	for _, lock := range fakeLocks {
 		proof := mp.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
@@ -359,7 +359,7 @@ func runUnlockWithWrongLocksrootTest(self, partner *Account, t *testing.T, count
 	// unlock after settle -------Case2
 	mp = mtree.NewMerkleTree(locks)
 	proof := mp.MakeProof(locks[0].Hash())
-	tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, bpPartner.TransferAmount, big.NewInt(locks[0].Expiration), locks[0].Amount, locks[0].LockSecretHash, mtree.Proof2Bytes(proof))
+	tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, big.NewInt(locks[0].Expiration), locks[0].Amount, locks[0].LockSecretHash, mtree.Proof2Bytes(proof))
 	assertTxFail(t, count, tx, err)
 }
 
@@ -384,19 +384,19 @@ func runUnlockAfterExpirationTest(self, partner *Account, t *testing.T, count *i
 	registrySecrets(self, secrets)
 	// self close channel with right locks
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mp.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for lock to expiration
 	waitByBlocknum(uint64(3))
 	// unlock with right locks
 	for _, lock := range locks {
 		proof := mp.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
@@ -429,23 +429,23 @@ func runUnlockWithTamperedProofTest(self, partner *Account, t *testing.T, count 
 	registrySecrets(self, secrets)
 	// self close channel with right locks
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mp.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// partner unlock on behalf of partner -------Case1
 	proof := mp.MakeProof(locks[0].Hash())
-	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpPartner.TransferAmount, big.NewInt(locks[0].Expiration), locks[0].Amount, locks[0].LockSecretHash, mtree.Proof2Bytes(proof))
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, bpPartner.TransferAmount, big.NewInt(locks[0].Expiration), locks[0].Amount, locks[0].LockSecretHash, mtree.Proof2Bytes(proof))
 	assertTxFail(t, count, tx, err)
 	// self unlock after change secret -------Case2
 	locks, secrets = createLockByArray(expireBlockNumber, lockAmounts)
 	mp = mtree.NewMerkleTree(locks)
 	for _, lock := range locks {
 		proof := mp.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)
@@ -477,17 +477,17 @@ func runUnlockAfterSettleTimeoutTest(self, partner *Account, t *testing.T, count
 	registrySecrets(self, secrets)
 	// self close channel with right locks
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), mp.MerkleRoot(), utils.EmptyHash, 3)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// wait for settleTimeout
 	waitToSettle(self, partner)
 	// unlock with right locks
 	for _, lock := range locks {
 		proof := mp.MakeProof(lock.Hash())
-		tx, err = env.TokenNetwork.Unlock(self.Auth, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+		tx, err = env.TokenNetwork.Unlock(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 		assertTxFail(t, count, tx, err)
 	}
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 	// get token balance
 	tokenBalanceSelf, tokenBalancePartner := getTokenBalance(self), getTokenBalance(partner)

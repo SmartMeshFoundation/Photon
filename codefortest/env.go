@@ -32,7 +32,7 @@ var TestKeystorePath = os.Getenv("KEYSTORE")
 var TestPassword = "123"
 
 // DeployRegistryContract :
-func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokenNetworkRegistry, secretRegistryAddress common.Address, err error) {
+func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokenNetwork, secretRegistryAddress common.Address, err error) {
 	var tx *types.Transaction
 	conn, err := GetEthClient()
 	if err != nil {
@@ -46,30 +46,16 @@ func DeployRegistryContract() (registryAddress common.Address, registry *contrac
 	}
 	key := accounts[0].PrivateKey
 	auth := bind.NewKeyedTransactor(key)
-
-	//Deploy Secret Registry
-	secretRegistryAddress, tx, _, err = contracts.DeploySecretRegistry(auth, conn)
-	if err != nil {
-		err = fmt.Errorf("failed to deploy SecretRegistry contract: %v", err)
-		return
-	}
-	ctx := context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		err = fmt.Errorf("failed to deploy contact when mining :%v", err)
-		return
-	}
-	fmt.Printf("Deploy SecretRegistry complete...\n")
 	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
 		log.Fatalf("failed to get network id %s", err)
 	}
-	registryAddress, tx, registry, err = contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainID)
+	registryAddress, tx, registry, err = contracts.DeployTokenNetwork(auth, conn, chainID)
 	if err != nil {
 		err = fmt.Errorf("failed to deploy TokenNetworkRegistry %s", err)
 		return
 	}
-	ctx = context.Background()
+	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		err = fmt.Errorf("failed to deploy contact when mining :%v", err)

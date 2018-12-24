@@ -20,7 +20,7 @@ import (
 )
 
 //PrivateRopstenRegistryAddress test registry address, todo use env
-var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
+var PrivateRopstenRegistryAddress = common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 
 //TestRPCEndpoint test eth rpc url, todo use env
 var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
@@ -84,11 +84,11 @@ func TestGetTokenNetworkAddress() common.Address {
 
 //TestGetTokenNetworkRegistryAddress for test only
 func TestGetTokenNetworkRegistryAddress() common.Address {
-	addr := common.HexToAddress(os.Getenv("TOKEN_NETWORK_REGISTRY"))
+	addr := common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	if addr == utils.EmptyAddress {
 		panic("REGISTRY env error")
 	}
-	log.Info(fmt.Sprintf("TOKEN_NETWORK_REGISTRY=%s", addr.String()))
+	log.Info(fmt.Sprintf("TOKEN_NETWORK=%s", addr.String()))
 	return addr
 }
 

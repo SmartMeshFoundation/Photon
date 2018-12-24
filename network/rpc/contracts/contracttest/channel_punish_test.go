@@ -35,7 +35,7 @@ func TestChannelPunishRight(t *testing.T) {
 
 	// self close channel
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(1), utils.EmptyHash, utils.EmptyHash, 1)
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner update proof with locks
@@ -43,13 +43,13 @@ func TestChannelPunishRight(t *testing.T) {
 	registrySecrets(self, secretsSelf)
 	mpSelf := mtree.NewMerkleTree(locksSelf)
 	bpSelf := createPartnerBalanceProof(partner, self, big.NewInt(3), mpSelf.MerkleRoot(), utils.EmptyHash, 2)
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner unlock
 	lock := locksSelf[0]
 	proof := mpSelf.MakeProof(lock.Hash())
-	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 	assertTxSuccess(t, nil, tx, err)
 
 	// self punish partner
@@ -62,12 +62,12 @@ func TestChannelPunishRight(t *testing.T) {
 		AdditionalHash:     utils.EmptyHash,
 		MerkleProof:        mtree.Proof2Bytes(proof),
 	}
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxSuccess(t, &count, tx, err)
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	// get token balance after settle
@@ -117,32 +117,32 @@ func TestChannelPunishException(t *testing.T) {
 	}
 
 	// 1. self punish partner on open channel, MUST FAIL
-	tx, err := env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err := env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// self close channel
-	tx, err = env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err = env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// 2. self punish partner without partner update balance proof,MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// partner update proof with locks
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// 3. self punish partner without partner unlock,MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	// 4. self punish partner after settled,MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	t.Log(endMsg("ChannelPunish 异常调用测试", count))
@@ -175,15 +175,15 @@ func TestChannelPunishEdge(t *testing.T) {
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), utils.EmptyHash, utils.EmptyHash, 0)
 
 	// self close channel
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner update proof with locks
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner unlock
-	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 	assertTxSuccess(t, nil, tx, err)
 
 	// create right param
@@ -196,51 +196,51 @@ func TestChannelPunishEdge(t *testing.T) {
 		AdditionalHash:     utils.EmptyHash,
 	}
 	// self punish partner with EmptyAddress, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, EmptyAccountAddress, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, EmptyAccountAddress, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, EmptyAccountAddress, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, EmptyAccountAddress, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// self punish partner with wrong AdditionalHash, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, common.HexToHash("0x123"), ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, common.HexToHash("0x123"), ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// self punish partner with another BeneficiaryAddress, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, partner.Address, self.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, partner.Address, self.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// wrong signature
 	// self punish partner with wrong ChannelIdentifier, MUST FAIL
 	ou.ChannelIdentifier = contracts.ChannelIdentifier(utils.EmptyHash)
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 	ou.ChannelIdentifier = bpSelf.ChannelIdentifier
 
 	// self punish partner with wrong OpenBlockNumber, MUST FAIL
 	ou.OpenBlockNumber = 123
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 	ou.OpenBlockNumber = bpSelf.OpenBlockNumber
 
 	// self punish partner with another ChainId, MUST FAIL
 	ou.ChainID = big.NewInt(99999)
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 	ou.ChainID = bpSelf.ChainID
 
 	// self punish partner with wrong LockHash, MUST FAIL
 	ou.LockHash = locksSelf[1].Hash()
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 	ou.LockHash = locksSelf[0].Hash()
 
 	// self punish partner with wrong signer, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(self.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(self.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, bpSelf.TransferAmount.Add(bpSelf.TransferAmount, lock.Amount), bpSelf.LocksRoot, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount.Add(bpSelf.TransferAmount, lock.Amount), bpSelf.LocksRoot, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	t.Log(endMsg("ChannelPunish 边界测试", count))
@@ -273,15 +273,15 @@ func TestChannelPunishAttack(t *testing.T) {
 	bpPartner := createPartnerBalanceProof(self, partner, big.NewInt(0), utils.EmptyHash, utils.EmptyHash, 0)
 
 	// self close channel
-	tx, err := env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
+	tx, err := env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot, bpPartner.Nonce, bpPartner.AdditionalHash, bpPartner.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner update proof with locks
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, bpSelf.LocksRoot, bpSelf.Nonce, bpSelf.AdditionalHash, bpSelf.Signature)
 	assertTxSuccess(t, nil, tx, err)
 
 	// partner unlock
-	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, bpSelf.TransferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, mtree.Proof2Bytes(proof))
 	assertTxSuccess(t, nil, tx, err)
 
 	// self punish partner
@@ -292,12 +292,12 @@ func TestChannelPunishAttack(t *testing.T) {
 		LockHash:          lock.Hash(),
 		AdditionalHash:    utils.EmptyHash,
 	}
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxSuccess(t, nil, tx, err)
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, big.NewInt(0), utils.EmptyHash, partner.Address, bpPartner.TransferAmount, bpPartner.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	// reopen
@@ -313,26 +313,26 @@ func TestChannelPunishAttack(t *testing.T) {
 	bpSelfNew := createPartnerBalanceProof(partner, self, big.NewInt(3), mpSelfNew.MerkleRoot(), utils.EmptyHash, 2)
 	// self close channel
 	bpPartnerNew := createPartnerBalanceProof(self, partner, big.NewInt(0), utils.EmptyHash, utils.EmptyHash, 0)
-	tx, err = env.TokenNetwork.CloseChannel(self.Auth, partner.Address, bpPartnerNew.TransferAmount, bpPartnerNew.LocksRoot, bpPartnerNew.Nonce, bpPartnerNew.AdditionalHash, bpPartnerNew.Signature)
+	tx, err = env.TokenNetwork.PrepareSettle(self.Auth, env.TokenAddress, partner.Address, bpPartnerNew.TransferAmount, bpPartnerNew.LocksRoot, bpPartnerNew.Nonce, bpPartnerNew.AdditionalHash, bpPartnerNew.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// partner update proof with locks
-	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, self.Address, bpSelfNew.TransferAmount, bpSelfNew.LocksRoot, bpSelfNew.Nonce, bpSelfNew.AdditionalHash, bpSelfNew.Signature)
+	tx, err = env.TokenNetwork.UpdateBalanceProof(partner.Auth, env.TokenAddress, self.Address, bpSelfNew.TransferAmount, bpSelfNew.LocksRoot, bpSelfNew.Nonce, bpSelfNew.AdditionalHash, bpSelfNew.Signature)
 	assertTxSuccess(t, nil, tx, err)
 	// partner unlock
-	tx, err = env.TokenNetwork.Unlock(partner.Auth, self.Address, bpSelfNew.TransferAmount, big.NewInt(lockNew.Expiration), lockNew.Amount, lockNew.LockSecretHash, mtree.Proof2Bytes(proofNew))
+	tx, err = env.TokenNetwork.Unlock(partner.Auth, env.TokenAddress, self.Address, bpSelfNew.TransferAmount, big.NewInt(lockNew.Expiration), lockNew.Amount, lockNew.LockSecretHash, mtree.Proof2Bytes(proofNew))
 	assertTxSuccess(t, nil, tx, err)
 
 	// 1. self punish partner with old signature on old lock, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, ou.LockHash, ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// 2. self punish partner with old signature on new lock, MUST FAIL
-	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, self.Address, partner.Address, lockNew.Hash(), ou.AdditionalHash, ou.sign(partner.Key))
+	tx, err = env.TokenNetwork.PunishObsoleteUnlock(self.Auth, env.TokenAddress, self.Address, partner.Address, lockNew.Hash(), ou.AdditionalHash, ou.sign(partner.Key))
 	assertTxFail(t, &count, tx, err)
 
 	// settled for cases after this
 	waitToSettle(self, partner)
-	tx, err = env.TokenNetwork.SettleChannel(partner.Auth, self.Address, bpSelfNew.TransferAmount.Add(bpSelfNew.TransferAmount, lockNew.Amount), bpSelfNew.LocksRoot, partner.Address, bpPartnerNew.TransferAmount, bpPartnerNew.LocksRoot)
+	tx, err = env.TokenNetwork.Settle(partner.Auth, env.TokenAddress, self.Address, bpSelfNew.TransferAmount.Add(bpSelfNew.TransferAmount, lockNew.Amount), bpSelfNew.LocksRoot, partner.Address, bpPartnerNew.TransferAmount, bpPartnerNew.LocksRoot)
 	assertTxSuccess(t, nil, tx, err)
 
 	t.Log(endMsg("ChannelPunish 恶意调用测试", count))

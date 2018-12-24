@@ -32,24 +32,24 @@ func TestModelDB_NewNonParticipantChannel(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	edges, err := dao.GetAllNonParticipantChannel(token)
+	edges, err := dao.GetAllNonParticipantChannelByToken(token)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, len(edges), 4)
-	err = dao.RemoveNonParticipantChannel(token, utils.NewRandomHash())
+	err = dao.RemoveNonParticipantChannel(utils.NewRandomHash())
 	assert.EqualValues(t, err != nil, true)
-	err = dao.RemoveNonParticipantChannel(token, channel2)
-	assert.EqualValues(t, err == nil, true)
-	edges, err = dao.GetAllNonParticipantChannel(token)
+	err = dao.RemoveNonParticipantChannel(channel2)
+	assert.EqualValues(t, err, nil)
+	edges, err = dao.GetAllNonParticipantChannelByToken(token)
 	assert.EqualValues(t, len(edges), 2)
 }
 func TestReadDbAgain(t *testing.T) {
 	TestModelDB_NewNonParticipantChannel(t)
 	dao := codefortest.NewTestDB("")
 	defer dao.CloseDB()
-	edges, err := dao.GetAllNonParticipantChannel(token)
+	edges, err := dao.GetAllNonParticipantChannelByToken(token)
 	if err != nil {
 		t.Error(err)
 		return

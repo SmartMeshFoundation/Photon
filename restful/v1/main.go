@@ -86,7 +86,7 @@ func Start() {
 		*/
 		rest.Get("/api/1/channels/:channel", SpecifiedChannel),
 		rest.Get("/api/1/channels", GetChannelList),
-		rest.Put("/api/1/channels", OpenChannel),
+		rest.Put("/api/1/channels", Deposit),
 		rest.Patch("/api/1/channels/:channel", CloseSettleDepositChannel),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
 		rest.Get("/api/1/pfs/:channel", BalanceUpdateForPFS),
@@ -95,7 +95,6 @@ func Start() {
 		*/
 		rest.Get("/api/1/tokens", Tokens),
 		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
-		rest.Put("/api/1/tokens/:token", RegisterToken),
 		/*
 			utils
 		*/

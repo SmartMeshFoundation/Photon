@@ -40,7 +40,6 @@ const cancelPrepareForCooperativeSettleReqName = "cancel mark cooperative settle
 const withdrawReqName = "withdraw"
 const prepareWithdrawReqName = "mark withdraw"
 const cancelPrepareWithdrawReqName = "cancel mark withdraw"
-const depositChannelReqName = "deposit"
 const tokenSwapMakerReqName = "tokenswapmaker"
 const tokenSwapTakerReqName = "tokenswaptaker"
 const cancelTransfer = "canceltransfer"
@@ -66,6 +65,7 @@ type newChannelReq struct {
 	partnerAddress common.Address
 	settleTimeout  int
 	amount         *big.Int
+	isNewChannel   bool
 }
 
 /*
@@ -155,7 +155,7 @@ func (rs *Service) sendReqClient(req *apiReq) *utils.AsyncResult {
 	ar := <-req.result
 	return ar
 }
-func (rs *Service) newChannelClient(token, partner common.Address, settleTimeout int, deposit *big.Int) *utils.AsyncResult {
+func (rs *Service) depositAndOpenChannel(token, partner common.Address, settleTimeout int, deposit *big.Int, isNewChannel bool) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  newChannelReqName,
@@ -164,17 +164,7 @@ func (rs *Service) newChannelClient(token, partner common.Address, settleTimeout
 			partnerAddress: partner,
 			settleTimeout:  settleTimeout,
 			amount:         deposit,
-		},
-	}
-	return rs.sendReqClient(req)
-}
-func (rs *Service) depositChannelClient(channelIdentifier common.Hash, amount *big.Int) *utils.AsyncResult {
-	req := &apiReq{
-		ReqID: utils.RandomString(10),
-		Name:  depositChannelReqName,
-		Req: &depositChannelReq{
-			addr:   channelIdentifier,
-			amount: amount,
+			isNewChannel:   isNewChannel,
 		},
 	}
 	return rs.sendReqClient(req)
