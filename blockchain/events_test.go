@@ -35,7 +35,7 @@ func TestNewBlockChainEvents(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	be := NewBlockChainEvents(client, &fakeRPCModule{}, nil)
+	be := NewBlockChainEvents(client, &fakeRPCModule{})
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}
@@ -48,7 +48,7 @@ func TestEvents_Start(t *testing.T) {
 	}
 	be := NewBlockChainEvents(client, &fakeRPCModule{
 		RegistryAddress: rpc.TestGetTokenNetworkRegistryAddress(),
-	}, nil)
+	})
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}

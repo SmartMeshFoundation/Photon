@@ -145,12 +145,11 @@ func (e *ContractSecretRevealOnChainStateChange) GetBlockNumber() int64 {
 
 //ContractUnlockStateChange unlock event of contract
 type ContractUnlockStateChange struct {
-	ChannelIdentifier   common.Hash
-	BlockNumber         int64
-	TokenNetworkAddress common.Address
-	LockHash            common.Hash //hash of the lock, not secret hash
-	Participant         common.Address
-	TransferAmount      *big.Int
+	ChannelIdentifier common.Hash
+	BlockNumber       int64
+	LockHash          common.Hash //hash of the lock, not secret hash
+	Participant       common.Address
+	TransferAmount    *big.Int
 }
 
 //GetBlockNumber return when this event occur
@@ -168,7 +167,6 @@ type ContractChannelWithdrawStateChange struct {
 	Participant1Balance *big.Int
 	Participant2        common.Address
 	Participant2Balance *big.Int
-	TokenNetworkAddress common.Address
 	BlockNumber         int64
 }
 
@@ -179,12 +177,11 @@ func (e *ContractChannelWithdrawStateChange) GetBlockNumber() int64 {
 
 //ContractClosedStateChange a channel was closed
 type ContractClosedStateChange struct {
-	ChannelIdentifier   common.Hash
-	ClosingAddress      common.Address
-	ClosedBlock         int64 //block number when close
-	LocksRoot           common.Hash
-	TransferredAmount   *big.Int
-	TokenNetworkAddress common.Address
+	ChannelIdentifier common.Hash
+	ClosingAddress    common.Address
+	ClosedBlock       int64 //block number when close
+	LocksRoot         common.Hash
+	TransferredAmount *big.Int
 }
 
 //GetBlockNumber return when this event occur
@@ -194,9 +191,8 @@ func (e *ContractClosedStateChange) GetBlockNumber() int64 {
 
 //ContractSettledStateChange a channel was settled
 type ContractSettledStateChange struct {
-	ChannelIdentifier   common.Hash
-	SettledBlock        int64
-	TokenNetworkAddress common.Address
+	ChannelIdentifier common.Hash
+	SettledBlock      int64
 }
 
 //GetBlockNumber return when this event occur
@@ -206,9 +202,8 @@ func (e *ContractSettledStateChange) GetBlockNumber() int64 {
 
 //ContractCooperativeSettledStateChange a channel was cooperatively settled
 type ContractCooperativeSettledStateChange struct {
-	ChannelIdentifier   common.Hash
-	SettledBlock        int64
-	TokenNetworkAddress common.Address
+	ChannelIdentifier common.Hash
+	SettledBlock      int64
 }
 
 //GetBlockNumber return when this event occur
@@ -218,10 +213,9 @@ func (e *ContractCooperativeSettledStateChange) GetBlockNumber() int64 {
 
 //ContractPunishedStateChange punished events on channel
 type ContractPunishedStateChange struct {
-	ChannelIdentifier   common.Hash
-	TokenNetworkAddress common.Address
-	Beneficiary         common.Address
-	BlockNumber         int64
+	ChannelIdentifier common.Hash
+	Beneficiary       common.Address
+	BlockNumber       int64
 }
 
 //GetBlockNumber return when this event occur
@@ -231,11 +225,10 @@ func (e *ContractPunishedStateChange) GetBlockNumber() int64 {
 
 //ContractBalanceStateChange new deposit on channel
 type ContractBalanceStateChange struct {
-	ChannelIdentifier   common.Hash
-	ParticipantAddress  common.Address
-	Balance             *big.Int
-	TokenNetworkAddress common.Address
-	BlockNumber         int64
+	ChannelIdentifier  common.Hash
+	ParticipantAddress common.Address
+	Balance            *big.Int
+	BlockNumber        int64
 }
 
 //GetBlockNumber return when this event occur
@@ -271,12 +264,11 @@ func (e *ContractTokenAddedStateChange) GetBlockNumber() int64 {
 
 //ContractBalanceProofUpdatedStateChange contrct TransferUpdated event
 type ContractBalanceProofUpdatedStateChange struct {
-	ChannelIdentifier   common.Hash
-	Participant         common.Address
-	LocksRoot           common.Hash
-	TransferAmount      *big.Int
-	TokenNetworkAddress common.Address
-	BlockNumber         int64
+	ChannelIdentifier common.Hash
+	Participant       common.Address
+	LocksRoot         common.Hash
+	TransferAmount    *big.Int
+	BlockNumber       int64
 }
 
 //GetBlockNumber return when this event occur

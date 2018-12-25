@@ -397,7 +397,7 @@ func (rs *Service) registerRegistry() (err error) {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
-	for token, _ := range token2TokenNetworks {
+	for token := range token2TokenNetworks {
 		err = rs.registerTokenNetwork(token)
 		if err != nil {
 			err = fmt.Errorf("registerTokenNetwork err:%s", err)
