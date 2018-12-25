@@ -450,17 +450,14 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 	}
 }
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
-	if st.TokenNetworkAddress != eh.photon.Chain.RegistryProxy.Address {
-		panic("unkown registry")
-	}
 	tokenAddress := st.TokenAddress
-	log.Info(fmt.Sprintf("NewTokenAdd token=%s,tokennetwork=%s", tokenAddress.String(), st.TokenNetworkAddress.String()))
-	err := eh.photon.dao.AddToken(st.TokenAddress, st.TokenNetworkAddress)
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddress.String()))
+	err := eh.photon.dao.AddToken(st.TokenAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
 	}
 	g := graph.NewChannelGraph(eh.photon.NodeAddress, st.TokenAddress, nil)
-	eh.photon.Token2TokenNetwork[tokenAddress] = st.TokenNetworkAddress
+	eh.photon.Token2TokenNetwork[tokenAddress] = utils.EmptyAddress
 	eh.photon.Token2ChannelGraph[tokenAddress] = g
 	return nil
 }

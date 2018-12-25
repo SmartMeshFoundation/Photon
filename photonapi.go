@@ -793,13 +793,13 @@ type punish struct {
 
 //ChannelFor3rd is for 3rd party to call update transfer
 type ChannelFor3rd struct {
-	ChannelIdentifier  common.Hash    `json:"channel_identifier"`
-	OpenBlockNumber    int64          `json:"open_block_number"`
-	TokenNetworkAddrss common.Address `json:"token_network_address"`
-	PartnerAddress     common.Address `json:"partner_address"`
-	UpdateTransfer     updateTransfer `json:"update_transfer"`
-	Unlocks            []*unlock      `json:"unlocks"`
-	Punishes           []*punish      `json:"punishes"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
+	OpenBlockNumber   int64          `json:"open_block_number"`
+	TokenAddrss       common.Address `json:"token_address"`
+	PartnerAddress    common.Address `json:"partner_address"`
+	UpdateTransfer    updateTransfer `json:"update_transfer"`
+	Unlocks           []*unlock      `json:"unlocks"`
+	Punishes          []*punish      `json:"punishes"`
 }
 
 /*
@@ -814,7 +814,7 @@ func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, third
 	c3 := new(ChannelFor3rd)
 	c3.ChannelIdentifier = ChannelIdentifier
 	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	c3.TokenNetworkAddrss = r.Photon.Token2TokenNetwork[c.TokenAddress()]
+	c3.TokenAddrss = c.TokenAddress()
 	c3.PartnerAddress = c.PartnerAddress()
 	if c.PartnerBalanceProof == nil {
 		result = c3
@@ -998,7 +998,7 @@ func (r *API) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.H
 	if channel == nil {
 		return fmt.Errorf("can not find channel %s", channelIdentifier.String())
 	}
-	tokenNetwork, err := r.Photon.Chain.TokenNetwork(r.Photon.Token2TokenNetwork[channel.TokenAddress])
+	tokenNetwork, err := r.Photon.Chain.TokenNetwork(channel.TokenAddress)
 	if err != nil {
 		return
 	}

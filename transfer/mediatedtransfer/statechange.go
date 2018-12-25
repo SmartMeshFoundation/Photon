@@ -260,9 +260,8 @@ func (e *ContractNewChannelStateChange) GetBlockNumber() int64 {
 
 //ContractTokenAddedStateChange a new token registered
 type ContractTokenAddedStateChange struct {
-	TokenNetworkAddress common.Address
-	TokenAddress        common.Address
-	BlockNumber         int64
+	TokenAddress common.Address
+	BlockNumber  int64
 }
 
 //GetBlockNumber return when this event occur

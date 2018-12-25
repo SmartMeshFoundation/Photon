@@ -57,9 +57,7 @@ func init() {
 Events handles all contract events from blockchain
 */
 type Events struct {
-	StateChangeChannel chan transfer.StateChange
-
-	tokenNetworks       map[common.Address]bool
+	StateChangeChannel  chan transfer.StateChange
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
@@ -69,19 +67,12 @@ type Events struct {
 }
 
 //NewBlockChainEvents create BlockChainEvents
-func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCModuleDependency,
-	token2TokenNetwork map[common.Address]common.Address) *Events {
+func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCModuleDependency) *Events {
 	be := &Events{
 		StateChangeChannel:  make(chan transfer.StateChange, 10),
-		tokenNetworks:       make(map[common.Address]bool),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
 		txDone:              make(map[common.Hash]uint64),
-	}
-	if token2TokenNetwork != nil {
-		for _, tn := range token2TokenNetwork {
-			be.tokenNetworks[tn] = true
-		}
 	}
 	return be
 }
@@ -247,9 +238,6 @@ func (be *Events) getLogsFromChain(fromBlock int64, toBlock int64) (logs []types
 	contractAddresses := []common.Address{
 		be.rpcModuleDependency.GetRegistryAddress(),
 		be.rpcModuleDependency.GetSecretRegistryAddress(),
-	}
-	for tokenNetworkAddress := range be.tokenNetworks {
-		contractAddresses = append(contractAddresses, tokenNetworkAddress)
 	}
 	logs, err = rpc.EventsGetInternal(
 		rpc.GetQueryConext(), contractAddresses, fromBlock, toBlock, be.client)
@@ -430,9 +418,8 @@ func eventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw)
 //eventTokenNetworkCreated2StateChange to statechange
 func eventTokenNetworkCreated2StateChange(ev *contracts.TokenNetworkTokenNetworkCreated) *mediatedtransfer.ContractTokenAddedStateChange {
 	return &mediatedtransfer.ContractTokenAddedStateChange{
-		TokenNetworkAddress: ev.Raw.Address,
-		TokenAddress:        ev.TokenAddress,
-		BlockNumber:         int64(ev.Raw.BlockNumber),
+		TokenAddress: ev.TokenAddress,
+		BlockNumber:  int64(ev.Raw.BlockNumber),
 	}
 }
 

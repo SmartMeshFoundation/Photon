@@ -135,14 +135,15 @@ type Service struct {
 //NewPhotonService create photon service
 func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, dao models.Dao) (rs *Service, err error) {
 	rs = &Service{
-		NotifyHandler:                         notifyHandler,
-		Chain:                                 chain,
-		PrivateKey:                            privateKey,
-		Config:                                config,
-		Transport:                             transport,
-		dao:                                   dao,
-		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
+		NotifyHandler:      notifyHandler,
+		Chain:              chain,
+		PrivateKey:         privateKey,
+		Config:             config,
+		Transport:          transport,
+		dao:                dao,
+		NodeAddress:        crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph: make(map[common.Address]*graph.ChannelGraph),
+		//todo fixme Token2TokenNetwork 应该是一个token的数组,表示已经注册的token.目前k,v中的v必须是空地址
 		Token2TokenNetwork:                    make(map[common.Address]common.Address),
 		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
 		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
@@ -190,7 +191,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	if err != nil {
 		return
 	}
-	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.Token2TokenNetwork)
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain)
 	// pathfinder
 	if config.PfsHost != "" {
 		rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
@@ -396,8 +397,8 @@ func (rs *Service) registerRegistry() (err error) {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
-	for token, tokenNetwork := range token2TokenNetworks {
-		err = rs.registerTokenNetwork(token, tokenNetwork)
+	for token, _ := range token2TokenNetworks {
+		err = rs.registerTokenNetwork(token)
 		if err != nil {
 			err = fmt.Errorf("registerTokenNetwork err:%s", err)
 			return
@@ -619,8 +620,8 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 }
 
 //read a token network info from dao
-func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
-	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s,tokenNetworkAddress=%s", tokenAddress.String(), tokenNetworkAddress.String()))
+func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error) {
+	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s ", tokenAddress.String()))
 	var tokenNetwork *rpc.TokenNetworkProxy
 	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenAddress)
 	if err != nil {
@@ -631,7 +632,7 @@ func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common
 		return
 	}
 	g := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
-	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
+	rs.Token2TokenNetwork[tokenAddress] = utils.EmptyAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
 	//add channel I participant
 	var css []*channeltype.Serialization
@@ -1135,7 +1136,7 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 			}
 		}
 	}
-	tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
+	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
 		result = utils.NewAsyncResultWithError(err)
 		return

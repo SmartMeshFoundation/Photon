@@ -63,10 +63,14 @@ func (t *TokenNetworkProxy) newChannelAndDepositByFallback(token *TokenProxy, pa
 	return token.TransferWithFallback(t.Address, amount, data)
 }
 func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+	//log.Trace(fmt.Sprintf("newChannelAndDepositByApprove participant=%s,partner=%s,settletimeout=%d,amount=%s,token=%s",
+	//	utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount, utils.APex2(t.token),
+	//))
 	err = token.Approve(t.Address, amount)
 	if err != nil {
 		return err
 	}
+	//log.Trace(fmt.Sprintf("approve pass..."))
 	tx, err := t.GetContract().Deposit(t.bcs.Auth, t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout))
 	if err != nil {
 		return
@@ -86,6 +90,9 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 
 //NewChannelAndDeposit create new channel ,block until a new channel create
 func (t *TokenNetworkProxy) NewChannelAndDeposit(participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+	log.Trace(fmt.Sprintf("NewChannelAndDeposit participant=%s,partner=%s,settletimeout=%d,amount=%s",
+		utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount,
+	))
 	tokenAddr := t.token
 	if err != nil {
 		return

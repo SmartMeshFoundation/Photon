@@ -25,6 +25,11 @@ func TestModelDB_NewNonParticipantChannel(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	err = dao.NewNonParticipantChannel(token, channel, p1, p2)
+	if err == nil {
+		t.Error("must report duplicate")
+		return
+	}
 	p3 := utils.NewRandomAddress()
 	channel2 := utils.Sha3(p1[:], p3[:], token[:])
 	err = dao.NewNonParticipantChannel(token, channel2, p1, p3)
@@ -43,7 +48,7 @@ func TestModelDB_NewNonParticipantChannel(t *testing.T) {
 	err = dao.RemoveNonParticipantChannel(channel2)
 	assert.EqualValues(t, err, nil)
 	edges, err = dao.GetAllNonParticipantChannelByToken(token)
-	assert.EqualValues(t, len(edges), 2)
+	assert.EqualValues(t, 2, len(edges))
 }
 func TestReadDbAgain(t *testing.T) {
 	TestModelDB_NewNonParticipantChannel(t)
