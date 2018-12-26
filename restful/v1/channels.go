@@ -227,15 +227,15 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
-CloseSettleDepositChannel can do the following jobs:
+CloseSettleChannel can do the following jobs:
 close channel
 settle channel
 deposit to channel
 */
-func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
+func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 	var err error
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> CloseSettleDepositChannel ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> CloseSettleChannel ,err=%v", err))
 	}()
 	chstr := r.PathParam("channel")
 	if len(chstr) != len(utils.EmptyHash.String()) {

@@ -117,20 +117,31 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
-		if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-			wg.Done()
-			return true
-		}
-		return false
-	})
+	if newChannel {
+		r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
+			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
+				wg.Done()
+				return true
+			}
+			return false
+		})
+	} else {
+		r.Photon.dao.RegisterChannelDepositCallback(func(c *channeltype.Serialization) (remove bool) {
+			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
+				wg.Done()
+				return true
+			}
+			return false
+		})
+	}
+
 	result := r.Photon.depositAndOpenChannel(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
-	//wait
 	wg.Wait()
+
 	ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err == nil {
 		//must be success, no need to wait event and register a callback
