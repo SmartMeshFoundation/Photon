@@ -1232,6 +1232,10 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		result.Result <- errors.New("channel not exist")
 		return
 	}
+	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
+		result.Result <- errors.New("can not withdraw now.")
+		return
+	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
@@ -1260,7 +1264,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
+	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s,and status=%s\n", utils.HPex(channelIdentifier), c.State))
 	err = c.PrepareForWithdraw()
 	if err != nil {
 		result.Result <- err
