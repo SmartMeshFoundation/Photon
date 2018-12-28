@@ -4,7 +4,7 @@ pragma solidity ^0.4.24;
 contract SecretRegistry {
 
     /** A string literal denoting the version of this contract. */
-    string constant public contract_version = "0.5._";
+    string constant public contract_version = "0.6._";
 
     // secrethash => block number at which the secret was revealed
     mapping(bytes32 => uint256) public secrethash_to_block;

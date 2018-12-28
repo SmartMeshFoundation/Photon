@@ -167,7 +167,7 @@ var TestPrivateChainID int64 = 8888
 var EthRPCTimeout = 3 * time.Second
 
 // ContractVersionPrefix :
-var ContractVersionPrefix = "0.5"
+var ContractVersionPrefix = "0.6"
 
 // EnableForkConfirm : 事件延迟确认开关
 var EnableForkConfirm = false

@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 /// @title Utility Contract
 /// @notice a general set of utility functions included into this contract.
 contract Utils {
-    string constant public contract_version = "0.5._";
+    string constant public contract_version = "0.6._";
 
     /// @notice Check if a contract exists
     /// @param contract_address The address to check whether a contract is deployed or not

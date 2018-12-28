@@ -11,7 +11,7 @@ import "./SecretRegistry.sol";
 /// @notice into one single contract, instead of dividing them into every single channel.
 contract TokenNetwork is Utils {
 
-    string constant public contract_version = "0.5._";
+    string constant public contract_version = "0.6._";
     string public constant signature_prefix = '\x19Spectrum Signed Message:\n';
 
 
