@@ -19,7 +19,7 @@ import (
 //RegistryProxy 只是为了表达方便,兼容以前代码,todo 完全去掉registry信息
 type RegistryProxy struct {
 	Address common.Address
-	ch      *contracts.TokenNetwork
+	ch      *contracts.TokensNetwork
 }
 
 //TokenNetworkByToken get token
@@ -143,7 +143,7 @@ func (t *TokenNetworkProxy) GetChannelParticipantInfo(participant, partner commo
 }
 
 //GetContract return contract
-func (t *TokenNetworkProxy) GetContract() *contracts.TokenNetwork {
+func (t *TokenNetworkProxy) GetContract() *contracts.TokensNetwork {
 	return t.ch
 }
 

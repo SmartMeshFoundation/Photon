@@ -34,7 +34,7 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("secretRegistryAbi parse err %s", err))
 	}
-	tokenNetworkAbi, err = abi.JSON(strings.NewReader(contracts.TokenNetworkABI))
+	tokenNetworkAbi, err = abi.JSON(strings.NewReader(contracts.TokensNetworkABI))
 	if err != nil {
 		panic(fmt.Sprintf("tokenNetworkAbi parse err %s", err))
 	}
@@ -364,7 +364,7 @@ func needConfirm(eventName string) bool {
 }
 
 //eventChannelSettled2StateChange to stateChange
-func eventChannelSettled2StateChange(ev *contracts.TokenNetworkChannelSettled) *mediatedtransfer.ContractSettledStateChange {
+func eventChannelSettled2StateChange(ev *contracts.TokensNetworkChannelSettled) *mediatedtransfer.ContractSettledStateChange {
 	return &mediatedtransfer.ContractSettledStateChange{
 		ChannelIdentifier: common.Hash(ev.ChannelIdentifier),
 		SettledBlock:      int64(ev.Raw.BlockNumber),
@@ -372,7 +372,7 @@ func eventChannelSettled2StateChange(ev *contracts.TokenNetworkChannelSettled) *
 }
 
 //eventChannelCooperativeSettled2StateChange to stateChange
-func eventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChannelCooperativeSettled) *mediatedtransfer.ContractCooperativeSettledStateChange {
+func eventChannelCooperativeSettled2StateChange(ev *contracts.TokensNetworkChannelCooperativeSettled) *mediatedtransfer.ContractCooperativeSettledStateChange {
 	return &mediatedtransfer.ContractCooperativeSettledStateChange{
 		ChannelIdentifier: common.Hash(ev.ChannelIdentifier),
 		SettledBlock:      int64(ev.Raw.BlockNumber),
@@ -380,7 +380,7 @@ func eventChannelCooperativeSettled2StateChange(ev *contracts.TokenNetworkChanne
 }
 
 //eventChannelPunished2StateChange to stateChange
-func eventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished) *mediatedtransfer.ContractPunishedStateChange {
+func eventChannelPunished2StateChange(ev *contracts.TokensNetworkChannelPunished) *mediatedtransfer.ContractPunishedStateChange {
 	return &mediatedtransfer.ContractPunishedStateChange{
 		ChannelIdentifier: common.Hash(ev.ChannelIdentifier),
 		Beneficiary:       ev.Beneficiary,
@@ -389,7 +389,7 @@ func eventChannelPunished2StateChange(ev *contracts.TokenNetworkChannelPunished)
 }
 
 //eventChannelWithdraw2StateChange to stateChange
-func eventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw) *mediatedtransfer.ContractChannelWithdrawStateChange {
+func eventChannelWithdraw2StateChange(ev *contracts.TokensNetworkChannelWithdraw) *mediatedtransfer.ContractChannelWithdrawStateChange {
 	c := &mediatedtransfer.ContractChannelWithdrawStateChange{
 		ChannelIdentifier: &contracts.ChannelUniqueID{
 
@@ -412,7 +412,7 @@ func eventChannelWithdraw2StateChange(ev *contracts.TokenNetworkChannelWithdraw)
 }
 
 //eventTokenNetworkCreated2StateChange to statechange
-func eventTokenNetworkCreated2StateChange(ev *contracts.TokenNetworkTokenNetworkCreated) *mediatedtransfer.ContractTokenAddedStateChange {
+func eventTokenNetworkCreated2StateChange(ev *contracts.TokensNetworkTokenNetworkCreated) *mediatedtransfer.ContractTokenAddedStateChange {
 	return &mediatedtransfer.ContractTokenAddedStateChange{
 		TokenAddress: ev.TokenAddress,
 		BlockNumber:  int64(ev.Raw.BlockNumber),
@@ -420,22 +420,22 @@ func eventTokenNetworkCreated2StateChange(ev *contracts.TokenNetworkTokenNetwork
 }
 
 //注意与合约上计算方式保持完全一致.
-func calcChannelID(token, p1, p2 common.Address) common.Hash {
+func calcChannelID(token, tokensNetwork, p1, p2 common.Address) common.Hash {
 	var channelID common.Hash
 	//log.Trace(fmt.Sprintf("p1=%s,p2=%s,tokennetwork=%s", p1.String(), p2.String(), tokenNetwork.String()))
 	if bytes.Compare(p1[:], p2[:]) < 0 {
-		channelID = utils.Sha3(p1[:], p2[:], token[:])
+		channelID = utils.Sha3(p1[:], p2[:], token[:], tokensNetwork[:])
 	} else {
-		channelID = utils.Sha3(p2[:], p1[:], token[:])
+		channelID = utils.Sha3(p2[:], p1[:], token[:], tokensNetwork[:])
 	}
 	return channelID
 }
 
 //eventChannelOpenAndDeposit2StateChange to statechange
-func eventChannelOpenAndDeposit2StateChange(ev *contracts.TokenNetworkChannelOpenedAndDeposit) (ch1 *mediatedtransfer.ContractNewChannelStateChange, ch2 *mediatedtransfer.ContractBalanceStateChange) {
+func eventChannelOpenAndDeposit2StateChange(ev *contracts.TokensNetworkChannelOpenedAndDeposit) (ch1 *mediatedtransfer.ContractNewChannelStateChange, ch2 *mediatedtransfer.ContractBalanceStateChange) {
 	ch1 = &mediatedtransfer.ContractNewChannelStateChange{
 		ChannelIdentifier: &contracts.ChannelUniqueID{
-			ChannelIdentifier: calcChannelID(ev.Token, ev.Participant, ev.Partner),
+			ChannelIdentifier: calcChannelID(ev.Token, ev.Raw.Address, ev.Participant, ev.Partner),
 			OpenBlockNumber:   int64(ev.Raw.BlockNumber),
 		},
 		Participant1:  ev.Participant,
@@ -454,7 +454,7 @@ func eventChannelOpenAndDeposit2StateChange(ev *contracts.TokenNetworkChannelOpe
 }
 
 //eventChannelNewDeposit2StateChange to statechange
-func eventChannelNewDeposit2StateChange(ev *contracts.TokenNetworkChannelNewDeposit) *mediatedtransfer.ContractBalanceStateChange {
+func eventChannelNewDeposit2StateChange(ev *contracts.TokensNetworkChannelNewDeposit) *mediatedtransfer.ContractBalanceStateChange {
 	return &mediatedtransfer.ContractBalanceStateChange{
 		ChannelIdentifier:  ev.ChannelIdentifier,
 		ParticipantAddress: ev.Participant,
@@ -464,7 +464,7 @@ func eventChannelNewDeposit2StateChange(ev *contracts.TokenNetworkChannelNewDepo
 }
 
 //eventChannelClosed2StateChange to statechange
-func eventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *mediatedtransfer.ContractClosedStateChange {
+func eventChannelClosed2StateChange(ev *contracts.TokensNetworkChannelClosed) *mediatedtransfer.ContractClosedStateChange {
 	c := &mediatedtransfer.ContractClosedStateChange{
 		ChannelIdentifier: ev.ChannelIdentifier,
 		ClosingAddress:    ev.ClosingParticipant,
@@ -479,7 +479,7 @@ func eventChannelClosed2StateChange(ev *contracts.TokenNetworkChannelClosed) *me
 }
 
 //eventBalanceProofUpdated2StateChange to statechange
-func eventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProofUpdated) *mediatedtransfer.ContractBalanceProofUpdatedStateChange {
+func eventBalanceProofUpdated2StateChange(ev *contracts.TokensNetworkBalanceProofUpdated) *mediatedtransfer.ContractBalanceProofUpdatedStateChange {
 	c := &mediatedtransfer.ContractBalanceProofUpdatedStateChange{
 		ChannelIdentifier: ev.ChannelIdentifier,
 		LocksRoot:         ev.Locksroot,
@@ -494,7 +494,7 @@ func eventBalanceProofUpdated2StateChange(ev *contracts.TokenNetworkBalanceProof
 }
 
 //eventChannelUnlocked2StateChange to statechange
-func eventChannelUnlocked2StateChange(ev *contracts.TokenNetworkChannelUnlocked) *mediatedtransfer.ContractUnlockStateChange {
+func eventChannelUnlocked2StateChange(ev *contracts.TokensNetworkChannelUnlocked) *mediatedtransfer.ContractUnlockStateChange {
 	c := &mediatedtransfer.ContractUnlockStateChange{
 		ChannelIdentifier: ev.ChannelIdentifier,
 		BlockNumber:       int64(ev.Raw.BlockNumber),

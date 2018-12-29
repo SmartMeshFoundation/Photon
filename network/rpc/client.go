@@ -166,7 +166,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		Address: address,
 	}
 	if hasConnectChain {
-		reg, err := contracts.NewTokenNetwork(address, bcs.Client)
+		reg, err := contracts.NewTokensNetwork(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
 			return

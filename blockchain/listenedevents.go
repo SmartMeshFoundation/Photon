@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkTokenNetworkCreated, err error) {
-	event = &contracts.TokenNetworkTokenNetworkCreated{}
+func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokensNetworkTokenNetworkCreated, err error) {
+	event = &contracts.TokensNetworkTokenNetworkCreated{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameTokenNetworkCreated, el)
 	if err != nil {
 		return
@@ -16,8 +16,8 @@ func newEventTokenNetworkCreated(el *types.Log) (event *contracts.TokenNetworkTo
 	return
 }
 
-func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokenNetworkChannelOpenedAndDeposit, err error) {
-	event = &contracts.TokenNetworkChannelOpenedAndDeposit{}
+func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokensNetworkChannelOpenedAndDeposit, err error) {
+	event = &contracts.TokensNetworkChannelOpenedAndDeposit{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelOpenedAndDeposit, el)
 	if err != nil {
 		return
@@ -25,8 +25,8 @@ func newEventChannelOpenAndDeposit(el *types.Log) (event *contracts.TokenNetwork
 	event.Raw = *el
 	return
 }
-func newEventChannelNewDeposit(el *types.Log) (event *contracts.TokenNetworkChannelNewDeposit, err error) {
-	event = &contracts.TokenNetworkChannelNewDeposit{}
+func newEventChannelNewDeposit(el *types.Log) (event *contracts.TokensNetworkChannelNewDeposit, err error) {
+	event = &contracts.TokensNetworkChannelNewDeposit{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelNewDeposit, el)
 	if err != nil {
 		return
@@ -35,8 +35,8 @@ func newEventChannelNewDeposit(el *types.Log) (event *contracts.TokenNetworkChan
 	return
 }
 
-func newEventChannelClosed(el *types.Log) (event *contracts.TokenNetworkChannelClosed, err error) {
-	event = &contracts.TokenNetworkChannelClosed{}
+func newEventChannelClosed(el *types.Log) (event *contracts.TokensNetworkChannelClosed, err error) {
+	event = &contracts.TokensNetworkChannelClosed{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelClosed, el)
 	if err != nil {
 		return
@@ -45,8 +45,8 @@ func newEventChannelClosed(el *types.Log) (event *contracts.TokenNetworkChannelC
 	return
 }
 
-func newEventChannelWithdraw(el *types.Log) (event *contracts.TokenNetworkChannelWithdraw, err error) {
-	event = &contracts.TokenNetworkChannelWithdraw{}
+func newEventChannelWithdraw(el *types.Log) (event *contracts.TokensNetworkChannelWithdraw, err error) {
+	event = &contracts.TokensNetworkChannelWithdraw{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelWithdraw, el)
 	if err != nil {
 		return
@@ -54,8 +54,8 @@ func newEventChannelWithdraw(el *types.Log) (event *contracts.TokenNetworkChanne
 	event.Raw = *el
 	return
 }
-func newEventChannelUnlocked(el *types.Log) (event *contracts.TokenNetworkChannelUnlocked, err error) {
-	event = &contracts.TokenNetworkChannelUnlocked{}
+func newEventChannelUnlocked(el *types.Log) (event *contracts.TokensNetworkChannelUnlocked, err error) {
+	event = &contracts.TokensNetworkChannelUnlocked{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelUnlocked, el)
 	if err != nil {
 		return
@@ -63,8 +63,8 @@ func newEventChannelUnlocked(el *types.Log) (event *contracts.TokenNetworkChanne
 	event.Raw = *el
 	return
 }
-func newEventBalanceProofUpdated(el *types.Log) (event *contracts.TokenNetworkBalanceProofUpdated, err error) {
-	event = &contracts.TokenNetworkBalanceProofUpdated{}
+func newEventBalanceProofUpdated(el *types.Log) (event *contracts.TokensNetworkBalanceProofUpdated, err error) {
+	event = &contracts.TokensNetworkBalanceProofUpdated{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameBalanceProofUpdated, el)
 	if err != nil {
 		return
@@ -73,8 +73,8 @@ func newEventBalanceProofUpdated(el *types.Log) (event *contracts.TokenNetworkBa
 	return
 }
 
-func newEventChannelSettled(el *types.Log) (event *contracts.TokenNetworkChannelSettled, err error) {
-	event = &contracts.TokenNetworkChannelSettled{}
+func newEventChannelSettled(el *types.Log) (event *contracts.TokensNetworkChannelSettled, err error) {
+	event = &contracts.TokensNetworkChannelSettled{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelSettled, el)
 	if err != nil {
 		return
@@ -92,8 +92,8 @@ func newEventSecretRevealed(el *types.Log) (event *contracts.SecretRegistrySecre
 	return
 }
 
-func newEventChannelCooperativeSettled(el *types.Log) (event *contracts.TokenNetworkChannelCooperativeSettled, err error) {
-	event = &contracts.TokenNetworkChannelCooperativeSettled{}
+func newEventChannelCooperativeSettled(el *types.Log) (event *contracts.TokensNetworkChannelCooperativeSettled, err error) {
+	event = &contracts.TokensNetworkChannelCooperativeSettled{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelCooperativeSettled, el)
 	if err != nil {
 		return
@@ -102,8 +102,8 @@ func newEventChannelCooperativeSettled(el *types.Log) (event *contracts.TokenNet
 	return
 }
 
-func newEventChannelPunished(el *types.Log) (event *contracts.TokenNetworkChannelPunished, err error) {
-	event = &contracts.TokenNetworkChannelPunished{}
+func newEventChannelPunished(el *types.Log) (event *contracts.TokensNetworkChannelPunished, err error) {
+	event = &contracts.TokensNetworkChannelPunished{}
 	err = UnpackLog(&tokenNetworkAbi, event, params.NameChannelPunished, el)
 	if err != nil {
 		return
