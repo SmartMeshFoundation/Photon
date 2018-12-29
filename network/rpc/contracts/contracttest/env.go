@@ -27,7 +27,7 @@ type Env struct {
 	TokenAddress          common.Address
 	Token                 *contracts.Token
 	TokenNetworkAddress   common.Address
-	TokenNetwork          *contracts.TokenNetwork
+	TokenNetwork          *contracts.TokensNetwork
 	Client                *ethclient.Client
 	SecretRegistryAddress common.Address
 	SecretRegistry        *contracts.SecretRegistry
@@ -81,7 +81,7 @@ func InitEnv(t *testing.T, configFilePath string) {
 		// Deploy a new token_network contract
 	} else {
 		env.TokenNetworkAddress = common.HexToAddress(tokenNetworkAddress)
-		env.TokenNetwork, err = contracts.NewTokenNetwork(env.TokenNetworkAddress, env.Client)
+		env.TokenNetwork, err = contracts.NewTokensNetwork(env.TokenNetworkAddress, env.Client)
 		if err != nil {
 			panic(err)
 		}

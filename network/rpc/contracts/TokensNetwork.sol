@@ -9,7 +9,7 @@ import "./SecretRegistry.sol";
 /// @author SmartMeshFoundation
 /// @notice In our Photon version 1.0, we prefer an alternative method that just store all tokens in the channel network
 /// @notice into one single contract, instead of dividing them into every single channel.
-contract TokenNetwork is Utils {
+contract TokensNetwork is Utils {
 
     string constant public contract_version = "0.6._";
     string public constant signature_prefix = '\x19Spectrum Signed Message:\n';
@@ -978,11 +978,11 @@ contract TokenNetwork is Utils {
     /// @param participant1 The address of one of the channel participant
     /// @param participant2 The address of the other channel participant
     /// @return a 32-byte long channel identifier
-    function getChannelIdentifier(address token, address participant1, address participant2) pure internal returns (bytes32){
+    function getChannelIdentifier(address token, address participant1, address participant2) view internal returns (bytes32){
         if (participant1 < participant2) {
-            return keccak256(abi.encodePacked(participant1, participant2, token));
+            return keccak256(abi.encodePacked(participant1, participant2, token,address(this))); //必须包含this,否则会存在重放攻击问题
         } else {
-            return keccak256(abi.encodePacked(participant2, participant1, token));
+            return keccak256(abi.encodePacked(participant2, participant1, token,address(this)));
         }
     }
 
