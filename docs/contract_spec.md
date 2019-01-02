@@ -102,7 +102,7 @@ signature|bytes|Elliptic Curve 256k1 signature on the above data
 
 ## Project Specification 
 ###  Feature Highlight
-####Cooperative Settling Channel
+#### Cooperative Settling Channel
 Under most circumstances, both channel participants are Cooperative. Hence, any channel participant attempting to unilaterally close the channel will boost the time consuming and cost. In order to minimize cost, photon adds up a feature to cooperative settling the channel in which both channel participants have no need to submit their most recent pre-signed balance proof on-chain, just to sign the signature to show the agreement to the final state. If approved, channel settle can be immediately processed, normally within 20 secs, tokens will be allocated accordingly to accounts of this channel participants.
 
 ####  Withdraw without closing the channel
