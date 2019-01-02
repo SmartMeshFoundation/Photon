@@ -42,7 +42,7 @@ All the data requested by Photon contract when updating payment channels, channe
 ```soldity
 ecdsa_recoverable(privkey, keccak256(channel_identifier || transferred_amount || locksroot || nonce || additional_hash || channel.open_block_number || chain_id)
 ```
-####Fields    
+#### Fields    
 Field Names|Field Types   |Description
 -----------|--------------|-----------
 channel_identifier|bytes32|Channel identifier inside the TokenNetwork contract
@@ -59,7 +59,7 @@ signature|bytes|Elliptic Curve 256k1 signature can be used to all above data
  Balance_hash = keccak256(transferred_amount || locksroot)
 ```
 
-####Fields
+#### Fields
 
 Field Names|Field Types|Description
 -----------|-----------|--------
