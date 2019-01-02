@@ -143,7 +143,7 @@ func DeployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenNetwork
 	if err != nil {
 		log.Fatalf("failed to get network id %s", err)
 	}
-	tokenNetworkAddress, tx, _, err := contracts.DeployTokenNetwork(auth, conn, chainID)
+	tokenNetworkAddress, tx, _, err := contracts.DeployTokensNetwork(auth, conn, chainID)
 	if err != nil {
 		log.Fatalf("failed to deploy registry %s", err)
 	}

@@ -1233,7 +1233,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
-		result.Result <- errors.New("can not withdraw now.")
+		result.Result <- errors.New("can not withdraw now")
 		return
 	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)

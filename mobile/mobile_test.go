@@ -55,7 +55,7 @@ func TestMobile(t *testing.T) {
 	}
 
 	partnerAddr := utils.NewRandomAddress()
-	callID, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 30, "3")
+	callID, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 30, "3", true)
 	if err != nil {
 		t.Error(err)
 		return

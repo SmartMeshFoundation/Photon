@@ -181,7 +181,7 @@ type depositReq struct {
 	//如果NewChannel为 false
 	//  SettleTimeout 必须为0,表示只是存款,一定不要创建通道
 	SettleTimeout int  `json:"settle_timeout"`
-	NewChannel    bool `json:"new_channel"'` //此次行为是创建通道并存款还是只存款
+	NewChannel    bool `json:"new_channel"` //此次行为是创建通道并存款还是只存款
 }
 
 /*
@@ -239,9 +239,6 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
-	return
-
-	rest.Error(w, "argument error", http.StatusBadRequest)
 	return
 }
 

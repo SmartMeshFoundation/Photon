@@ -32,7 +32,7 @@ var TestKeystorePath = os.Getenv("KEYSTORE")
 var TestPassword = "123"
 
 // DeployRegistryContract :
-func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokenNetwork, secretRegistryAddress common.Address, err error) {
+func DeployRegistryContract() (registryAddress common.Address, registry *contracts.TokensNetwork, secretRegistryAddress common.Address, err error) {
 	var tx *types.Transaction
 	conn, err := GetEthClient()
 	if err != nil {
@@ -50,7 +50,7 @@ func DeployRegistryContract() (registryAddress common.Address, registry *contrac
 	if err != nil {
 		log.Fatalf("failed to get network id %s", err)
 	}
-	registryAddress, tx, registry, err = contracts.DeployTokenNetwork(auth, conn, chainID)
+	registryAddress, tx, registry, err = contracts.DeployTokensNetwork(auth, conn, chainID)
 	if err != nil {
 		err = fmt.Errorf("failed to deploy TokenNetworkRegistry %s", err)
 		return
