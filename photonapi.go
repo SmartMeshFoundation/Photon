@@ -95,13 +95,15 @@ DepositAndOpenChannel a channel with the peer at `partner_address`
 deposit必须大于0
 settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如果大于0,表示希望完全创建通道.
 */
-func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int) (ch *channeltype.Serialization, err error) {
-	newChannel := true
+func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
 		revealTimeout = r.Photon.Config.RevealTimeout
 	}
+	if !newChannel && settleTimeout != 0 {
+		err = errors.New("settleTimeout must be zero when newChannel is false ")
+		return
+	}
 	if settleTimeout <= 0 {
-		newChannel = false
 		settleTimeout = r.Photon.Config.SettleTimeout
 	}
 	if settleTimeout <= revealTimeout {

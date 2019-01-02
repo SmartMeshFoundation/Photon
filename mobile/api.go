@@ -200,10 +200,16 @@ func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error
 
 /*
 Deposit try to open a new channel on contract with
-partnerAddress . the settleTimeout is the settle time of
-the new channel. if  balanceStr is
-an integer and bigger than zero, the amount of `balanceStr` token
-will be deposited to this new channel.
+`partnerAddress` . the `settleTimeout` is the settle time of
+the new channel.  `balanceStr` is the token to deposit to this channel and it  must be positive
+ if `NewChannel` is true,  a new channel must be created and if `settleTimeout` is zero then it will be set as default
+settle timeout.
+if `NewChannel` is false, `settleTimeout` must be zero.
+
+	//如果NewChannel为true
+	//  SettleTimeout表示新建通道的结算窗口,如果SettleTimeout为0,则用系统默认计算窗口
+	//如果NewChannel为 false
+	//  SettleTimeout 必须为0
 
 example returns:
 {
@@ -221,12 +227,12 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (callID string, err error) {
+func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (callID string, err error) {
 	callID = utils.NewRandomHash().String()
 	result := newResult()
 	a.callID2result[callID] = result
 	go func() {
-		r, e := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr)
+		r, e := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr, newChannel)
 		result.Result = r
 		result.Err = e
 		result.Done = true
@@ -235,7 +241,7 @@ func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 	return
 }
 
-func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string) (channel string, err error) {
+func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newcChannel bool) (channel string, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api Deposit in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
@@ -250,7 +256,7 @@ func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.DepositAndOpenChannel(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance)
+	c, err := a.api.DepositAndOpenChannel(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance, newcChannel)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -276,7 +282,8 @@ func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 
 /*
 CloseChannel close the  channel
-
+如果force 为false,则表示希望双方协商关闭通道,
+如果force为true,则表示希望直接连上关闭通道,不需要对方同意.
 example returns:
 {
     "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
@@ -349,7 +356,7 @@ func (a *API) closeChannel(channelIdentifier string, force bool) (channel string
 
 /*
 SettleChannel settle a channel
-
+在通道已经关闭的情况下,过了结算窗口期以后,用户可以在合约上进行结算.
 example returns:
 {
     "channel_identifier": "0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1",
@@ -480,7 +487,7 @@ type partnersData struct {
 
 /*
 TokenPartners  Get all the channel partners of this token.
-
+获取我在`token`上与其他所有节点的通道.
 for example:
 [
     {
@@ -523,7 +530,7 @@ targetAddress is address of the receipt of the transfer
 amountstr is integer amount string
 feestr is  always 0 now
 isDirect is this should be True when no internet connection,otherwise false.
-
+data: the info
 example returns for a correct call:
 transfer:
 {
@@ -586,6 +593,10 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 /*
 TokenSwap token swap for maker for two Photon nodes
 the role should only be  "maker" or "taker".
+`role` only maker or taker, if i'm a taker ,I must call TokenSwap first,then maker call his TokenSwap
+`lockSecretHash` if i'm taker,I only know lockSecretHash, I must specify a valid hash
+`SecretStr` if i'm a maker, I know secret and also secret's hash, I must specify the `SecretStr` and can ignore `lockSecretHash`
+
 */
 func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error) {
 	callID = utils.NewRandomHash().String()

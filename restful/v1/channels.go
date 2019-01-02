@@ -100,6 +100,9 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 /*
 ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
+/api/1/thirdparty/:channel/:3rd
+channel:  channel identifier
+3rd: the account that MS used to send transaction on blockchain
 */
 func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
@@ -167,16 +170,32 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
-Deposit open a channel with partner.
+depositReq 用户存款请求
+*/
+type depositReq struct {
+	PartnerAddrses string   `json:"partner_address"` //通道对方地址
+	TokenAddress   string   `json:"token_address"`   //哪种token
+	Balance        *big.Int `json:"balance"`         //存入金额,一定大于0
+	//如果NewChannel为true
+	//  SettleTimeout表示新建通道的结算窗口,如果SettleTimeout为0,则用系统默认计算窗口
+	//如果NewChannel为 false
+	//  SettleTimeout 必须为0,表示只是存款,一定不要创建通道
+	SettleTimeout int  `json:"settle_timeout"`
+	NewChannel    bool `json:"new_channel"'` //此次行为是创建通道并存款还是只存款
+}
+
+/*
+Deposit open a channel with partner if channel not exists  and deposit `balance` token to this channel.
 token must exist
 partner maybe an invalid address
+Balance must be positive
 */
 func Deposit(w rest.ResponseWriter, r *rest.Request) {
 	var err error
 	defer func() {
 		log.Trace(fmt.Sprintf("Restful Api Call ----> Deposit ,err=%v", err))
 	}()
-	req := &ChannelData{}
+	req := &depositReq{}
 	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
@@ -195,33 +214,33 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.State == 0 { //open channel
-		c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance)
-		if err != nil {
-			log.Error(err.Error())
-			rest.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		d := &ChannelData{
-			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
-			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-			PartnerAddrses:      c.PartnerAddress().String(),
-			Balance:             c.OurBalance(),
-			PartnerBalance:      c.PartnerBalance(),
-			State:               c.State,
-			StateString:         c.State.String(),
-			SettleTimeout:       c.SettleTimeout,
-			TokenAddress:        c.TokenAddress().String(),
-			LockedAmount:        c.OurAmountLocked(),
-			PartnerLockedAmount: c.PartnerAmountLocked(),
-			RevealTimeout:       c.RevealTimeout,
-		}
-		err = w.WriteJson(d)
-		if err != nil {
-			log.Warn(fmt.Sprintf("writejson err %s", err))
-		}
+
+	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	err = w.WriteJson(d)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+	return
+
 	rest.Error(w, "argument error", http.StatusBadRequest)
 	return
 }
