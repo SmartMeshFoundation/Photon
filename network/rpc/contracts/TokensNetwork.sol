@@ -229,8 +229,6 @@ contract TokensNetwork is Utils {
             if (!registered_token[token]) {
                 validAndUpdateToken(token);
             }
-            // make sure that this channel has not been created.
-            require(channel.state == 0);
 
             // Store channel information
             channel.settle_timeout = settle_timeout;
