@@ -71,7 +71,7 @@ This newly-released contract allows for users to withdraw tokens while channel i
 ```soldity
  ecdsa_recoverable(privkey, sha3_keccak(participant || participant_balance || participant_withdraw || channel_identifier || channel.open_block_number ||  chain_id)
 ```
-####Fields
+#### Fields
 
 Field Names|Field Types|Description
 ----------|--------------|----------
@@ -88,7 +88,7 @@ Our contract allows for both channel participants immediately to close and settl
 ```soldity
 ecdsa_recoverable(privkey, sha3_keccak(participant1 || participant1_balance || participant2 || participant2_balance || channel_identifier || open_block_number || chain_id)
 ```
-####Fields
+#### Fields
 Field Names|Field Types|Description
 -----------|-----------|-----------
 participant1|address|One of the channel participants
