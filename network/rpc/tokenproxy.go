@@ -119,7 +119,7 @@ func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, ext
 		log.Info(fmt.Sprintf("TransferWithFallback failed %s,receipt=%s", utils.APex(t.Address), receipt))
 		return errors.New("TransferWithFallback tx execution failed")
 	}
-	log.Info(fmt.Sprintf("TransferWithFallback success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(to), value))
+	log.Info(fmt.Sprintf("TransferWithFallback success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(to), value, tx.Hash().String()))
 	return nil
 }
 
@@ -137,6 +137,6 @@ func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extr
 		log.Info(fmt.Sprintf("ApproveAndCall failed %s,receipt=%s", utils.APex(t.Address), receipt))
 		return errors.New("ApproveAndCall tx execution failed")
 	}
-	log.Info(fmt.Sprintf("ApproveAndCall success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(spender), value))
+	log.Info(fmt.Sprintf("ApproveAndCall success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(spender), value, tx.Hash().String()))
 	return nil
 }

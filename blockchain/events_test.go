@@ -1,7 +1,10 @@
 package blockchain
 
 import (
+	"os"
 	"testing"
+
+	"github.com/SmartMeshFoundation/Photon/log"
 
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 
@@ -16,6 +19,10 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 
 type fakeRPCModule struct {
 	RegistryAddress       common.Address
@@ -83,4 +90,37 @@ func TestEvents_QueryAllStateChanges(t *testing.T) {
 	if err != nil {
 		return
 	}
+}
+
+func TestEvents_QueryAllStateChanges2(t *testing.T) {
+	client, err := codefortest.GetEthClient()
+	if err != nil {
+		panic(err)
+	}
+	logs, err := rpc.EventsGetInternal(
+		rpc.GetQueryConext(), []common.Address{common.HexToAddress("0x71849b4f2fd77146f17298a363c1a750a14fc2ba")}, 13362235, 13362235, client)
+	log.Trace(fmt.Sprintf("logs=%s", utils.StringInterface(logs, 5)))
+	if err != nil {
+		return
+	}
+}
+
+func TestEvents_Start2(t *testing.T) {
+	client, err := codefortest.GetEthClient()
+	if err != nil {
+		panic(err)
+	}
+	be := NewBlockChainEvents(client, &fakeRPCModule{
+		RegistryAddress: common.HexToAddress("0x71849b4f2fd77146f17298a363c1a750a14fc2ba"),
+	})
+	if be == nil {
+		t.Error("NewBlockChainEvents failed")
+	}
+	params.ChainID = big.NewInt(8888)
+	chs, err := be.queryAllStateChange(13362234, 13362238)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("chs=%s", utils.StringInterface(chs, 5))
 }

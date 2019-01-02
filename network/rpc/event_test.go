@@ -1,14 +1,20 @@
 package rpc
 
 import (
+	"os"
 	"testing"
 
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 func TestEventsGetInternal(t *testing.T) {
 	registryAddress := common.HexToAddress("0x7B25494cF297D63eA2AF72d43Fc133408674c43a")
 	tokenNetworkAddress := common.HexToAddress("0x06bE91b5DdA5a0459C0FF7Bc016A2D21E276C2e4")

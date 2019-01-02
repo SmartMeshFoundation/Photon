@@ -84,7 +84,7 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 		log.Warn(fmt.Sprintf("OpenChannelWithDeposit failed %s", receipt))
 		return errors.New("OpenChannelWithDeposit tx execution failed")
 	}
-	log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s ", utils.APex(t.Address)))
+	log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s txhash=%s", utils.APex(t.Address), tx.Hash().String()))
 	return nil
 }
 

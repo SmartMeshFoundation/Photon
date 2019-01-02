@@ -53,6 +53,15 @@ func init() {
 
 }
 
+type eventID [25]byte //txHash+logIndex
+//假定一个tx中事件不可能超过256
+func makeEventID(l *types.Log) eventID {
+	var e eventID
+	copy(e[:], l.TxHash[:])
+	e[24] = byte(l.Index)
+	return e
+}
+
 /*
 Events handles all contract events from blockchain
 */
@@ -61,9 +70,9 @@ type Events struct {
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
-	pollPeriod          time.Duration          // 轮询周期,必须与公链出块间隔一致
-	stopChan            chan int               // has stopped?
-	txDone              map[common.Hash]uint64 // 该map记录最近30块内处理的events流水,用于事件去重
+	pollPeriod          time.Duration      // 轮询周期,必须与公链出块间隔一致
+	stopChan            chan int           // has stopped?
+	txDone              map[eventID]uint64 // 该map记录最近30块内处理的events流水,用于事件去重
 }
 
 //NewBlockChainEvents create BlockChainEvents
@@ -72,7 +81,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 		StateChangeChannel:  make(chan transfer.StateChange, 10),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
-		txDone:              make(map[common.Hash]uint64),
+		txDone:              make(map[eventID]uint64),
 	}
 	return be
 }
@@ -252,7 +261,7 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 		eventName := topicToEventName[l.Topics[0]]
 
 		// 根据已处理流水去重
-		if doneBlockNumber, ok := be.txDone[l.TxHash]; ok {
+		if doneBlockNumber, ok := be.txDone[makeEventID(&l)]; ok {
 			if doneBlockNumber == l.BlockNumber {
 				//log.Trace(fmt.Sprintf("get event txhash=%s repeated,ignore...", l.TxHash.String()))
 				continue
@@ -348,7 +357,7 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", utils.StringInterface(l, 3)))
 		}
 		// 记录处理流水
-		be.txDone[l.TxHash] = l.BlockNumber
+		be.txDone[makeEventID(&l)] = l.BlockNumber
 	}
 	return
 }
