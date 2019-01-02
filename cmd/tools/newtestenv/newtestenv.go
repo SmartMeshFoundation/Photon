@@ -195,7 +195,7 @@ func deployContract(key *ecdsa.PrivateKey, conn *helper.SafeEthClient) (tokenNet
 	}
 	fmt.Printf("current chain Id=%s\n", chainID)
 	auth := bind.NewKeyedTransactor(key)
-	tokenNetworkAddress, tx, _, err := contracts.DeployTokenNetwork(auth, conn, chainID)
+	tokenNetworkAddress, tx, _, err := contracts.DeployTokensNetwork(auth, conn, chainID)
 	if err != nil {
 		log.Fatalf("Failed to deploy new token contract: %v", err)
 	}

@@ -65,7 +65,7 @@ func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecds
 	if err != nil {
 		log.Fatalf("new token for %s , err %s", tokenAddress.String(), err)
 	}
-	tokenNetwork, err := contracts.NewTokenNetwork(tokenNetworkAddres, conn)
+	tokenNetwork, err := contracts.NewTokensNetwork(tokenNetworkAddres, conn)
 	if err != nil {
 		log.Fatalf("new token network for %s ,err %s", tokenNetworkAddres.String(), err)
 	}
