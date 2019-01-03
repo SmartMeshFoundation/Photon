@@ -390,7 +390,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		err = fmt.Errorf("privkey error: %s", err)
 		return
 	}
-	log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
+	//log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
 	config.MyAddress = crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
 	log.Info(fmt.Sprintf("Start with account %s", config.MyAddress.String()))
 	registAddrStr := ctx.String("registry-contract-address")
@@ -572,6 +572,7 @@ func checkDbMeta(dbPath, dbType string) (err error) {
 		}
 	} else {
 		var info []byte
+		//#nosec#
 		info, err = ioutil.ReadFile(dbInfo)
 		if err != nil {
 			return
