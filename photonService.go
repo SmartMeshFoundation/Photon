@@ -441,10 +441,6 @@ it's the core of HTLC
 func (rs *Service) handleBlockNumber(blocknumber int64) {
 	statechange := &transfer.BlockStateChange{BlockNumber: blocknumber}
 	rs.BlockNumber.Store(blocknumber)
-	/*
-		todo when to remove statemanager ?
-			when currentState==nil && StateManager.ManagerState!=StateManagerStateInit ,should delete rs statemanager.
-	*/
 	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, c := range cg.ChannelIdentifier2Channel {
@@ -689,6 +685,10 @@ func (rs *Service) registerChannel(tokenAddress common.Address, partnerAddress c
 		log.Error(err.Error())
 		return
 	}
+	//if true {
+	//	g := rs.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
+	//	log.Trace(fmt.Sprintf("receive new channel g=%s", utils.StringInterface(g, 3)))
+	//}
 	return
 }
 
@@ -862,6 +862,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		LockSecretHash: lockSecretHash,
 		Db:             rs.dao,
 	}
+	//log.Trace(fmt.Sprintf("start mediated transfer availableRoutes=%s", utils.StringInterface(availableRoutes, 2)))
 	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, lockSecretHash, transferState.Token)
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]

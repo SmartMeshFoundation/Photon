@@ -121,10 +121,13 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer g=%s", utils.StringInterface(g, 3)))
+	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer ch=%s", utils.StringInterface(ch, 2)))
 	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, event.Fee, event.Amount, event.Expiration, event.LockSecretHash)
 	if err != nil {
 		return
 	}
+	//log.Trace(fmt.Sprintf("mtr=%s", utils.StringInterface(mtr, 5)))
 	err = mtr.Sign(eh.photon.PrivateKey, mtr)
 	err = ch.RegisterTransfer(eh.photon.GetBlockNumber(), mtr)
 	if err != nil {
@@ -609,6 +612,10 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 		return err
 	}
 	err = eh.removeSettledChannel(ch)
+	//if true {
+	//	g := eh.photon.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
+	//	log.Trace(fmt.Sprintf("after settle g=%s", utils.StringInterface(g, 3)))
+	//}
 	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
 	// notify all statemanager with pending locks, then we can send announcedisposed and try another route.
 	eh.dispatchByPendingLocksInChannel(ch, st)
