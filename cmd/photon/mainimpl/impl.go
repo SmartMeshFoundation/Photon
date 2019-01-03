@@ -2,7 +2,9 @@ package mainimpl
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 
@@ -222,8 +224,16 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// open db
 	var dao models.Dao
 	if ctx.IsSet("db") && ctx.String("db") == "gkv" {
+		err = checkDbMeta(cfg.DataBasePath, "gkv")
+		if err != nil {
+			return
+		}
 		dao, err = gkvdb.OpenDb(cfg.DataBasePath)
 	} else {
+		err = checkDbMeta(cfg.DataBasePath, "boltdb")
+		if err != nil {
+			return
+		}
 		dao, err = stormdb.OpenDb(cfg.DataBasePath)
 	}
 	if err != nil {
@@ -551,4 +561,25 @@ func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
 		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
 	return
+}
+func checkDbMeta(dbPath, dbType string) (err error) {
+	//make sure db type not change since first start .
+	dbInfo := fmt.Sprintf("%s.%s", dbPath, "info")
+	if !common.FileExist(dbInfo) {
+		err = ioutil.WriteFile(dbInfo, []byte(dbType), os.ModePerm)
+		if err != nil {
+			return
+		}
+	} else {
+		var info []byte
+		info, err = ioutil.ReadFile(dbInfo)
+		if err != nil {
+			return
+		}
+		if string(info) != dbType {
+			err = errors.New("doesn't support switch db type right now")
+			return
+		}
+	}
+	return nil
 }
