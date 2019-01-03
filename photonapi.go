@@ -120,6 +120,11 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	if newChannel {
+		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		if err == nil {
+			err = errors.New("channel already exist")
+			return
+		}
 		r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
 			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
 				wg.Done()
@@ -128,6 +133,11 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			return false
 		})
 	} else {
+		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		if err != nil {
+			err = errors.New("channel not exist")
+			return
+		}
 		r.Photon.dao.RegisterChannelDepositCallback(func(c *channeltype.Serialization) (remove bool) {
 			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
 				wg.Done()
