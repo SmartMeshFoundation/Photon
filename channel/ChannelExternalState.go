@@ -183,7 +183,7 @@ func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int,
 
 //Deposit call deposit of contract
 func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (result *utils.AsyncResult) {
-	result = e.TokenNetwork.DepositAsync(e.MyAddress, e.PartnerAddress, amount)
+	result = e.TokenNetwork.NewChannelAndDepositAsync(e.MyAddress, e.PartnerAddress, 0, amount)
 	return
 }
 

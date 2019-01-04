@@ -12,7 +12,6 @@ import (
 	"os"
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
-	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -24,21 +23,10 @@ func init() {
 	spew.Config.MaxDepth = 7
 }
 
-func TestAddToken(t *testing.T) {
-	bcs := MakeTestBlockChainService()
-	reg := bcs.Registry(bcs.RegistryProxy.Address, true)
-	tokenAddress := utils.EmptyAddress
-	_, err := reg.AddToken(tokenAddress)
-	if err == nil {
-		t.Errorf("should fail for invalid token")
-		return
-	}
-}
-
 func TestCodeAt(t *testing.T) {
 	bcs := MakeTestBlockChainService()
 	addrNotExist := common.HexToAddress("0x0000000000000000000000000000000000000000")
-	addrHasContract := common.HexToAddress(os.Getenv("REGISTRY"))
+	addrHasContract := common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	t.Logf("token network registry=%s\n", addrHasContract.String())
 	code, err := bcs.Client.CodeAt(context.Background(), addrNotExist, nil)
 	if err != nil {

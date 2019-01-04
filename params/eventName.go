@@ -3,9 +3,6 @@ package params
 //NameTokenNetworkCreated event TokenNetworkCreated(address indexed token_address, address indexed token_network_address);
 const NameTokenNetworkCreated = "TokenNetworkCreated"
 
-//NameChannelOpened new channel event of token network
-const NameChannelOpened = "ChannelOpened"
-
 //NameChannelOpenedAndDeposit new channel and deposit event of token network
 const NameChannelOpenedAndDeposit = "ChannelOpenedAndDeposit"
 

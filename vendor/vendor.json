@@ -882,6 +882,12 @@
 			"tree": true
 		},
 		{
+			"checksumSHA1": "oOOoWMOCyOoZ594DKzopz9w9kew=",
+			"path": "github.com/kataras/go-errors",
+			"revision": "0f977b82cc78d5d31bb75fb6f903ad9e852c8bbd",
+			"revisionTime": "2016-09-18T10:12:19Z"
+		},
+		{
 			"checksumSHA1": "tfUlv23rUGmU3pWi76tcaSfOHdg=",
 			"path": "github.com/kataras/iris/utils",
 			"revision": "39f58fe286fe3f3344e3d62acdb333f8e9388b3a",

@@ -23,7 +23,6 @@ func TestTokenFallbackRight(t *testing.T) {
 
 	// a1 openAndDeposit by fall back
 	buf := new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(1)))   // func code of openAndDeposit
 	buf.Write(to32bytes(a1.Address[:]))               // participant
 	buf.Write(to32bytes(a2.Address[:]))               // partner
 	buf.Write(utils.BigIntTo32Bytes(big.NewInt(100))) //settle_timeout
@@ -32,46 +31,46 @@ func TestTokenFallbackRight(t *testing.T) {
 
 	// a2 deposit by fall back
 	buf = new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2))) // func code of deposit
-	buf.Write(to32bytes(a2.Address[:]))             // participant
-	buf.Write(to32bytes(a1.Address[:]))             // partner
+	buf.Write(to32bytes(a2.Address[:]))               // participant
+	buf.Write(to32bytes(a1.Address[:]))               // partner
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(100))) //settle_timeout
 	tx, err = env.Token.Transfer(a2.Auth, env.TokenNetworkAddress, depositAmountA2, buf.Bytes())
 	assertTxSuccess(t, &count, tx, err)
 
 	// a1 deposit 10 by approve and call
 	depositAmount := big.NewInt(10)
 	buf = new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2))) // func code of deposit
 	buf.Write(to32bytes(a1.Address[:]))
 	buf.Write(to32bytes(a2.Address[:]))
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(100))) //settle_timeout
 	tx, err = env.Token.ApproveAndCall(a1.Auth, env.TokenNetworkAddress, depositAmount, buf.Bytes())
 	assertTxSuccess(t, &count, tx, err)
 	depositAmountA1.Add(depositAmountA1, depositAmount)
 
 	// a2 deposit 10 by approve and call
 	buf = new(bytes.Buffer)
-	buf.Write(utils.BigIntTo32Bytes(big.NewInt(2))) // func code of deposit
 	buf.Write(to32bytes(a2.Address[:]))
 	buf.Write(to32bytes(a1.Address[:]))
+	buf.Write(utils.BigIntTo32Bytes(big.NewInt(100))) //settle_timeout
 	tx, err = env.Token.ApproveAndCall(a2.Auth, env.TokenNetworkAddress, depositAmount, buf.Bytes())
 	assertTxSuccess(t, &count, tx, err)
 	depositAmountA2.Add(depositAmountA2, depositAmount)
 
 	// check state
 	// 查询通道
-	_, settleBlockNumber, _, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
+	_, settleBlockNumber, _, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, env.TokenAddress, a1.Address, a2.Address)
 	assertSuccess(t, nil, err)
 	assertEqual(t, &count, ChannelStateOpened, state)
 	assertEqual(t, nil, 0, settleBlockNumber)
 	assertEqual(t, nil, settleTimeout, settleTimeout)
 	// 查询通道双方信息
-	deposit, balanceHash, nonce, err := env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
+	deposit, balanceHash, nonce, err := env.TokenNetwork.GetChannelParticipantInfo(nil, env.TokenAddress, a1.Address, a2.Address)
 	assertSuccess(t, &count, err)
 	assertEqual(t, nil, depositAmountA1, deposit)
 	assertEqual(t, nil, 0, nonce)
 	assertEqual(t, nil, EmptyBalanceHash, hex.EncodeToString(balanceHash[:]))
 
-	deposit, balanceHash, nonce, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
+	deposit, balanceHash, nonce, err = env.TokenNetwork.GetChannelParticipantInfo(nil, env.TokenAddress, a2.Address, a1.Address)
 	assertSuccess(t, &count, err)
 	assertEqual(t, nil, depositAmountA2, deposit)
 	assertEqual(t, nil, 0, nonce)

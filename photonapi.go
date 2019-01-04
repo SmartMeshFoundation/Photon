@@ -90,52 +90,18 @@ func (r *API) GetChannel(ChannelIdentifier common.Hash) (c *channeltype.Serializ
 }
 
 /*
-TokenAddressIfTokenRegistered return the channel manager address,If the token is registered then
-Also make sure that the channel manager is registered with the node.
-*/
-func (r *API) TokenAddressIfTokenRegistered(tokenAddress common.Address) (mgrAddr common.Address, err error) {
-	if r.Photon.Chain.RegistryProxy == nil {
-		err = errEthConnectionNotReady
-		return
-	}
-	mgrAddr, err = r.Photon.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
-	if err != nil {
-		return
-	}
-	return
-}
-
-/*
-RegisterToken Will register the token at `token_address` with photon. If it's already
-    registered, will throw an exception.
-*/
-func (r *API) RegisterToken(tokenAddress common.Address) (tokenNetworkAddress common.Address, err error) {
-	if r.Photon.Chain.RegistryProxy == nil {
-		err = errEthConnectionNotReady
-		return
-	}
-	tokenNetworkAddress, err = r.Photon.Chain.RegistryProxy.TokenNetworkByToken(tokenAddress)
-	if err == nil && tokenNetworkAddress != utils.EmptyAddress {
-		err = errors.New("TokenNetworkAddres already registered")
-		return
-	}
-	if err = r.checkSmcStatus(); err != nil {
-		return
-	}
-	//for non exist tokenaddress, ChannelManagerByToken will return a error: `abi : unmarshalling empty output`
-	if err == rerr.ErrNoTokenManager {
-		return r.Photon.Chain.RegistryProxy.AddToken(tokenAddress)
-	}
-	return
-}
-
-/*
-Open a channel with the peer at `partner_address`
+DepositAndOpenChannel a channel with the peer at `partner_address`
     with the given `token_address`.
+deposit必须大于0
+settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如果大于0,表示希望完全创建通道.
 */
-func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int) (ch *channeltype.Serialization, err error) {
+func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
 		revealTimeout = r.Photon.Config.RevealTimeout
+	}
+	if !newChannel && settleTimeout != 0 {
+		err = errors.New("settleTimeout must be zero when newChannel is false ")
+		return
 	}
 	if settleTimeout <= 0 {
 		settleTimeout = r.Photon.Config.SettleTimeout
@@ -144,25 +110,50 @@ func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, r
 		err = rerr.ErrInvalidSettleTimeout
 		return
 	}
+	if deposit.Cmp(utils.BigInt0) <= 0 {
+		err = rerr.ErrInvalidAmount
+		return
+	}
 	if err = r.checkSmcStatus(); err != nil {
 		return
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
-		if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-			wg.Done()
-			return true
+	if newChannel {
+		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		if err == nil {
+			err = errors.New("channel already exist")
+			return
 		}
-		return false
-	})
-	result := r.Photon.newChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit)
+		r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
+			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
+				wg.Done()
+				return true
+			}
+			return false
+		})
+	} else {
+		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		if err != nil {
+			err = errors.New("channel not exist")
+			return
+		}
+		r.Photon.dao.RegisterChannelDepositCallback(func(c *channeltype.Serialization) (remove bool) {
+			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
+				wg.Done()
+				return true
+			}
+			return false
+		})
+	}
+
+	result := r.Photon.depositAndOpenChannel(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
-	//wait
 	wg.Wait()
+
 	ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 	if err == nil {
 		//must be success, no need to wait event and register a callback
@@ -173,73 +164,6 @@ func (r *API) Open(tokenAddress, partnerAddress common.Address, settleTimeout, r
 		}
 	}
 	return
-}
-
-/*
-Deposit `amount` in the channel with the peer at `partner_address` and the
-    given `token_address` in order to be able to do transfers.
-
-    Raises:
-        InvalidAddress: If either token_address or partner_address is not
-        20 bytes long.
-        TransactionThrew: May happen for multiple reasons:
-            - If the token approval fails, e.g. the token may validate if
-              account has enough balance for the allowance.
-            - The deposit failed, e.g. the allowance did not set the token
-              aside for use and the user spent it before deposit was called.
-            - The channel was closed/settled between the allowance call and
-              the deposit call.
-        AddressWithoutCode: The channel was settled during the deposit
-        execution.
-*/
-func (r *API) Deposit(tokenAddress, partnerAddress common.Address, amount *big.Int, pollTimeout time.Duration) (c *channeltype.Serialization, err error) {
-	if err = r.checkSmcStatus(); err != nil {
-		return
-	}
-	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
-	if err != nil {
-		return
-	}
-	token, err := r.Photon.Chain.Token(tokenAddress)
-	if err != nil {
-		return
-	}
-	balance, err := token.BalanceOf(r.Photon.NodeAddress)
-	if err != nil {
-		return
-	}
-	/*
-			 Checking the balance is not helpful since r requires multiple
-		     transactions that can race, e.g. the deposit check succeed but the
-		     user spent his balance before deposit.
-	*/
-	if balance.Cmp(amount) < 0 {
-		err = fmt.Errorf("not enough balance to deposit. %s Available=%d Tried=%d", tokenAddress.String(), balance, amount)
-		log.Error(err.Error())
-		err = rerr.ErrInsufficientFunds
-		return
-	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	r.Photon.dao.RegisterChannelDepositCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		if bytes.Equal(c2.Key, c.Key) {
-			wg.Done()
-			return true
-		}
-		return false
-	})
-	//deposit move ... todo
-	result := r.Photon.depositChannelClient(c.ChannelIdentifier.ChannelIdentifier, amount)
-	err = <-result.Result
-	if err != nil {
-		return
-	}
-	/*
-	 Wait until the `ChannelNewBalance` event is processed.
-	*/
-	wg.Wait()
-	//reload data from database,
-	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 /*
@@ -892,13 +816,13 @@ type punish struct {
 
 //ChannelFor3rd is for 3rd party to call update transfer
 type ChannelFor3rd struct {
-	ChannelIdentifier  common.Hash    `json:"channel_identifier"`
-	OpenBlockNumber    int64          `json:"open_block_number"`
-	TokenNetworkAddrss common.Address `json:"token_network_address"`
-	PartnerAddress     common.Address `json:"partner_address"`
-	UpdateTransfer     updateTransfer `json:"update_transfer"`
-	Unlocks            []*unlock      `json:"unlocks"`
-	Punishes           []*punish      `json:"punishes"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"`
+	OpenBlockNumber   int64          `json:"open_block_number"`
+	TokenAddrss       common.Address `json:"token_address"`
+	PartnerAddress    common.Address `json:"partner_address"`
+	UpdateTransfer    updateTransfer `json:"update_transfer"`
+	Unlocks           []*unlock      `json:"unlocks"`
+	Punishes          []*punish      `json:"punishes"`
 }
 
 /*
@@ -913,7 +837,7 @@ func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, third
 	c3 := new(ChannelFor3rd)
 	c3.ChannelIdentifier = ChannelIdentifier
 	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	c3.TokenNetworkAddrss = r.Photon.Token2TokenNetwork[c.TokenAddress()]
+	c3.TokenAddrss = c.TokenAddress()
 	c3.PartnerAddress = c.PartnerAddress()
 	if c.PartnerBalanceProof == nil {
 		result = c3
@@ -1097,7 +1021,7 @@ func (r *API) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.H
 	if channel == nil {
 		return fmt.Errorf("can not find channel %s", channelIdentifier.String())
 	}
-	tokenNetwork, err := r.Photon.Chain.TokenNetwork(r.Photon.Token2TokenNetwork[channel.TokenAddress])
+	tokenNetwork, err := r.Photon.Chain.TokenNetwork(channel.TokenAddress)
 	if err != nil {
 		return
 	}

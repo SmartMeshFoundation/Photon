@@ -378,7 +378,7 @@ func (cg *ChannelGraph) AllNodes() (nodes []common.Address) {
 func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *channel.Channel) {
 	c = cg.PartenerAddress2Channel[address]
 	if c == nil {
-		//log.Error(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(cg.TokenAddress)))
+		log.Trace(fmt.Sprintf("no channel with %s on token %s", utils.APex(address), utils.APex(cg.TokenAddress)))
 	}
 	return
 }

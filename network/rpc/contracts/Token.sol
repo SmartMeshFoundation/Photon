@@ -7,9 +7,9 @@ interface Token {
     /*string public name;                   //fancy name: eg Simon Bucks
     uint8 public decimals;                //How many decimals to show.
     string public symbol;                 //An identifier: eg SBX*/
-    function decimals() public view returns (uint8);
-    function name() public view returns (string);
-    function symbol() public view returns (string);
+    function decimals() external view returns (uint8);
+    function name() external view returns (string);
+    function symbol() external view returns (string);
     /// @return total amount of tokens
     function totalSupply() external view returns (uint256 supply);
 

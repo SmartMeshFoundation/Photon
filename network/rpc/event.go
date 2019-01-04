@@ -13,9 +13,12 @@ import (
 )
 
 //EventsGetInternal get events of history
-func EventsGetInternal(ctx context.Context, contractsAddress []common.Address, fromBlock rpc.BlockNumber,
-	toBlock rpc.BlockNumber, client *helper.SafeEthClient) ([]types.Log, error) {
-	q, err := buildQueryBatch(contractsAddress, fromBlock, toBlock)
+func EventsGetInternal(ctx context.Context, contractsAddress []common.Address, fromBlock,
+	toBlock int64, client *helper.SafeEthClient) ([]types.Log, error) {
+	//log.Trace(fmt.Sprintf("from=%d,to=%d,contractsaddress=%s",
+	//	fromBlock, toBlock, utils.StringInterface(contractsAddress, 3),
+	//))
+	q, err := buildQueryBatch(contractsAddress, rpc.BlockNumber(fromBlock), rpc.BlockNumber(toBlock))
 	if err != nil {
 		return nil, err
 	}

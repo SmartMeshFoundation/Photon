@@ -1,144 +1,82 @@
 GOROOT=/usr/local/go #gosetup
-GOPATH=/Volumes/dev/smdev2:/Volumes/dev/godev #gosetup
-/usr/local/go/bin/go test -c -i -o /private/var/folders/tk/flszp4gs7sq4wrknn0y19jzr0000gn/T/___contracts_test_go github.com/SmartMeshFoundation/SmartRaiden/network/rpc/contracts/contractstest #gosetup
-/usr/local/go/bin/go tool test2json -t /private/var/folders/tk/flszp4gs7sq4wrknn0y19jzr0000gn/T/___contracts_test_go -test.v -test.run "^TestApprove|TestOpenChannel|TestOpenChannel2|TestCloseChannel1|TestCloseChannel2|TestCloseChannelAndUpdateBalanceProofDelegateAndSettle|TestCloseChannelAndUpdateBalanceProofAndSettle|TestCooperateSettleChannel|TestRegisterSecret|TestUnlock|TestWithdraw|TestSignature|TestPunishObsoleteUnlock|TestTokenFallback|TestApproveAndCall$" #gosetup
-INFO [08-03|11:47:47.852] tokenAddr=0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541 fn=contracts_test.go:setup:92
+GOPATH=/Volumes/dev/ethbaifork:/Volumes/dev/godev #gosetup
+/usr/local/go/bin/go test -c -o /private/var/folders/tk/flszp4gs7sq4wrknn0y19jzr0000gn/T/___smoke_test_go github.com/SmartMeshFoundation/Photon/network/rpc/contracts/contractsmoketest #gosetup
+/usr/local/go/bin/go tool test2json -t /private/var/folders/tk/flszp4gs7sq4wrknn0y19jzr0000gn/T/___smoke_test_go -test.v -test.run "^TestApprove|TestOpenChannel|TestCloseChannel1|TestCloseChannel2|TestCloseChannelAndUpdateBalanceProofDelegateAndSettle|TestCloseChannelAndUpdateBalanceProofAndSettle|TestCooperateSettleChannel|TestRegisterSecret|TestUnlock|TestWithdraw|TestSignature|TestPunishObsoleteUnlock|TestTokenFallback|TestApproveAndCall$" #gosetup
+INFO [12-29|11:11:03.659] tokenAddr=0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74 fn=smoke_test.go:setup:90
 === RUN   TestApprove
---- PASS: TestApprove (2.01s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=45418,gasLimit=45418
+--- PASS: TestApprove (2.11s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
 === RUN   TestOpenChannel
-TRACE[08-03|11:47:51.873] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xc330C46698e17c66ddA2D2DC3A47B51A4DB01455,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:47:54.886] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:47:54.887] create channel gas 0x6855f9555970e6a87285034944f8f27a4819636c4ae06585ae122d712ad3a6da:48913,channel identifier=0xfdda8c29a7b721d32e3ce33909b3509f51d59094afa99f54913e33c43c7b41ec,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:47:54.887] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:47:54.899] deposit gas 0x1ae8996779ab920737ce0b8763ad7b57d1e7ac2d4db6b09f63495bb8de342aeb:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:47:56.904] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:47:58.918] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
---- PASS: TestOpenChannel (9.06s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=fdda8c29a7b721d32e3ce33909b3509f51d59094afa99f54913e33c43c7b41ec,settleblockNumber=0,state=1,err=%!s(<nil>)
-=== RUN   TestOpenChannel2
-TRACE[08-03|11:48:00.932] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xe283844ae53C696fF80f0BE5392cBB63B4deAa24,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit2:196
-INFO [08-03|11:48:02.949] OpenChannelWithDeposit gasLimit=91618,gasUsed=91618 fn=contracts_test.go:creatAChannelAndDeposit2:207
-TRACE[08-03|11:48:02.95] create channel gas 0x1b2a38513c02f8f17ab4c72877203da15f2150bb56131ada1254d3e003cca6cb:91618,channel identifier=0x7569882fc48045ea89c4e5a122273db27a406cfe76ed1f08b0924cbf651b7acf,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit2:212
-INFO [08-03|11:48:02.95] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit2:213
-INFO [08-03|11:48:04.97] Deposit2 complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit2:230
---- PASS: TestOpenChannel2 (6.05s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:312: channelID=7569882fc48045ea89c4e5a122273db27a406cfe76ed1f08b0924cbf651b7acf,settleblockNumber=0,state=1,err=%!s(<nil>)
+TRACE[12-29|11:11:07.886] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xA79780f0a08ba0Ed1D6569D8335A7A79D101896D,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:11:07.999] deposit gas 0xc89fc11e2d7d6b39b2dfc895897116284dc9fb11cc24663d6551401a78f51112:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:11:10.001] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:11:12.116] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+--- PASS: TestOpenChannel (6.34s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0x063d13dee8c69958992e5c728da33ce9a928045877a105b0b47b844be76e9e1f,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestCloseChannel1
-TRACE[08-03|11:48:06.981] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x89Deb2649d1CF8816A2a37f367Bd56183B8C4E86,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:48:09.996] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:48:09.997] create channel gas 0xf79c427e9a095440211fcdce0d94eabc41f1d96b4a611bdb7ac7b6c5c2b75f94:48913,channel identifier=0x880562c797a1fbbc93f366897ad1dc37c4e77583e8e0917366fe0cd8fd43ad88,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:48:09.997] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:48:10.009] deposit gas 0x741ffcac64b994c442e03defbc09fe36566ee541bf69fea92d9ce41b21140d28:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:48:13.012] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:48:16.025] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:48:19.039] CloseChannel no evidence gasLimit=32891,gasUsed=32891 fn=contracts_test.go:TestCloseChannel1:334
---- PASS: TestCloseChannel1 (14.07s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=880562c797a1fbbc93f366897ad1dc37c4e77583e8e0917366fe0cd8fd43ad88,settleblockNumber=0,state=1,err=%!s(<nil>)
+TRACE[12-29|11:11:15.227] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x931D73bCEaE96AF4caAC806f2f4476Db70F2A3E7,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:11:15.341] deposit gas 0x350c14f2b0757fedc00efd834fe81a0002c41a03bdb72d098829601bb839c2e2:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:11:18.347] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:11:20.463] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:11:23.581] CloseChannel no evidence gasLimit=33762,gasUsed=33762 fn=smoke_test.go:TestCloseChannel1:241
+--- PASS: TestCloseChannel1 (11.47s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0xd64289b02237089c1548951e5e5d3b697fdb17bb8abb7adf689e71374a60c39f,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestCloseChannel2
-TRACE[08-03|11:48:22.053] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x664Cee7B7ce4BCA0D8B1484B3652E437B8eD781D,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:48:25.067] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:48:25.068] create channel gas 0xb52f665500c06b03e6da6dd4a886d60561a55a7effe552bd545bab9ae89e70a9:48913,channel identifier=0x3018b7f7f84bb224e628b5614a5a6c53533c0af76e91c89c360d94222073e860,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:48:25.068] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:48:25.08] deposit gas 0x6707caf7e04f8e1a8bcaf8c09d6b2a73abc405666e1106b9a08ce62d9dc431f5:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:48:28.085] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:48:31.101] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:48:34.124] CloseChannel with evidence gasLimit=66694,gasUsed=66694 fn=contracts_test.go:TestCloseChannel2:448
---- PASS: TestCloseChannel2 (15.08s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=3018b7f7f84bb224e628b5614a5a6c53533c0af76e91c89c360d94222073e860,settleblockNumber=0,state=1,err=%!s(<nil>)
-=== RUN   TestCloseChannelAndUpdateBalanceProofDelegateAndSettle
-TRACE[08-03|11:48:37.133] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xc76001D5f6cA4997264FDA186383C8b172EAbb4E,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:48:40.146] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:48:40.147] create channel gas 0x3f7192eeb84877d528b2e0c7abc0ad2aa82f285e4922027d2942af7a8a73ff1e:48913,channel identifier=0x32e2df40fb192e6615a1aae92b99124c509f551d2555997a3dcd1495600e7deb,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:48:40.147] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:48:40.159] deposit gas 0xda87d5f766416605f0a8cba6e29e53efefecca5c94b46095bc4d5e43adaf86a9:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:48:43.161] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:48:46.174] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:49:03.252] UpdateBalanceProofDelegate closing_participant=0x292650fee408320D888e06ed89D938294Ea42f99,
-non_closing_participant=0xc76001D5f6cA4997264FDA186383C8b172EAbb4E,
-transferred_amount=10,
-locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
-nonce=3,
-old_transferred_amount=0,
-old_locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
-old_nonce=0,
-additional_hash=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107
-,closing_signature=97c4aff2124eaac49867c368bb15af73c5aea1c9b8ecce4cd0af4e2a537514cf12c156d64dd42096eb51a25a2eadd9b6d911eea9bd0b697f423ce1f01ee400181b
-non_closing_signature=c66e5170f5e81e291e2ffdb9c7effaf215d29f5e979289912f8a1040f00124b23baa6374c7486067456f3caf054deb1f439f81355e2de52b83a5051b9b1b86e61b
- fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:535
-INFO [08-03|11:49:06.276] UpdateBalanceProofDelegate gasLimit=75791,gasUsed=75791 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:561
-INFO [08-03|11:49:25.35] SettleChannel arg p1=0xc76001D5f6cA4997264FDA186383C8b172EAbb4E,p2=0x292650fee408320D888e06ed89D938294Ea42f99,p1.transferAmount=10,p2.transferAmount=10,p1.locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,p2.locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,p1.nonce=3,p2.nonce=3,bp1.balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3,bp2.balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:576
-INFO [08-03|11:49:28.367] SettleChannel gasLimit=103347,gasUsed=51674 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:607
---- PASS: TestCloseChannelAndUpdateBalanceProofDelegateAndSettle (54.24s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=32e2df40fb192e6615a1aae92b99124c509f551d2555997a3dcd1495600e7deb,settleblockNumber=0,state=1,err=%!s(<nil>)
-=== RUN   TestCloseChannelAndUpdateBalanceProofAndSettle
-TRACE[08-03|11:49:31.376] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x7F44d28dC475878F2B6BB83d35a3d3A9f40B9887,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:49:33.39] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:49:33.39] create channel gas 0x9c9f6e5224d9fdb4c54a82d5a3a71260ae479aa46ba871a50206f58685880858:48913,channel identifier=0x30ae709321badf6f567869495e26bd6112a40bbea67d7a8f7732b1a98ba74403,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:49:33.39] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:49:33.402] deposit gas 0xf3749477ae83fc67524bfe9ba76fe8d4fee92927009149657d6c18f1183f071c:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:49:36.406] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:49:39.419] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:49:39.422] gasLimit=21000,gasPrice=18000000000      fn=contracts_test.go:TransferTo:117
-transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0x7F44d28dC475878F2B6BB83d35a3d3A9f40B9887 amount=1000000000000000000
-TRACE[08-03|11:49:45.445] bp=
-(*contractstest.BalanceProofForContract)(0xc420284580)({
+TRACE[12-29|11:11:25.698] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x95b9F6d3571016c306C4C43B49e678BdaCd84272,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:11:25.812] deposit gas 0xf141a7edeaf5b6bea3c0ed6b4b4998ea08c1317ee2bbd08c2f98ff7ee2cad856:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:11:27.814] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:11:29.931] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:11:29.933] bp=(*contractsmoketest.BalanceProofForContract)(0xc00063e370)({
  AdditionalHash: (common.Hash) (len=32 cap=32) 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107,
  ChannelIdentifier: (contracts.ChannelIdentifier) (len=32 cap=32) {
-  00000000  30 ae 70 93 21 ba df 6f  56 78 69 49 5e 26 bd 61  |0.p.!..oVxiI^&.a|
-  00000010  12 a4 0b be a6 7d 7a 8f  77 32 b1 a9 8b a7 44 03  |.....}z.w2....D.|
+  00000000  76 76 9f ed c3 79 cd 4d  1c cc a6 5b 7d 47 23 dd  |vv...y.M...[}G#.|
+  00000010  f0 b6 19 ff 29 1a 44 01  b1 8c 87 01 d8 e0 fc ff  |....).D.........|
  },
- TokenNetworkAddress: (common.Address) (len=20 cap=20) 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,
- ChainID: (*big.Int)(0xc42032e220)(8888),
+ TokenNetworkAddress: (common.Address) (len=20 cap=20) 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,
+ ChainID: (*big.Int)(0xc00026c080)(8888),
  Signature: ([]uint8) (len=65 cap=65) {
-  00000000  d8 61 59 56 a6 b8 7e c2  c0 9f 63 25 fb 4c 28 a0  |.aYV..~...c%.L(.|
-  00000010  88 74 a6 76 8e 6d 4f f8  d4 52 c1 da 06 20 16 5b  |.t.v.mO..R... .[|
-  00000020  48 61 40 e7 8e a3 bb 7c  c7 85 67 bc d8 85 79 6b  |Ha@....|..g...yk|
-  00000030  ae 9d ac 64 30 29 41 2b  2b 4d d3 ea f4 0e eb d5  |...d0)A++M......|
-  00000040  1b                                                |.|
+  00000000  91 c9 65 fc 9c 33 8d e6  20 02 51 44 83 1b 36 46  |..e..3.. .QD..6F|
+  00000010  b4 e9 93 a0 dd 4b fd 91  bb 6f 76 fe 1e 72 74 d6  |.....K...ov..rt.|
+  00000020  38 68 16 47 86 3e e0 ba  40 a1 9e 2e b6 f5 16 01  |8h.G.>..@.......|
+  00000030  da 16 20 25 a1 be ae fc  cd 65 ca 21 fc 9f d3 80  |.. %.....e.!....|
+  00000040  1c                                                |.|
  },
- OpenBlockNumber: (uint64) 232190,
+ OpenBlockNumber: (uint64) 13002578,
  Nonce: (uint64) 3,
- BalanceData: (contractstest.BalanceData) {
-  TransferAmount: (*big.Int)(0xc4205e68c0)(10),
+ BalanceData: (contractsmoketest.BalanceData) {
+  TransferAmount: (*big.Int)(0xc000244680)(10),
   LocksRoot: (common.Hash) (len=32 cap=32) 0x0000000000000000000000000000000000000000000000000000000000000000
  }
 })
- fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:638
-INFO [08-03|11:49:45.446] UpdateBalanceProof closing_participant=0x292650fee408320D888e06ed89D938294Ea42f99,
+ fn=smoke_test.go:TestCloseChannel2:345
+INFO [12-29|11:11:29.933] close channel partner=0x95b9F6d3571016c306C4C43B49e678BdaCd84272,transferAmount=10,locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,nonce=3,addhash=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107,signature=91c965fc9c338de620025144831b3646b4e993a0dd4bfd91bb6f76fe1e7274d638681647863ee0ba40a19e2eb6f51601da162025a1beaefccd65ca21fc9fd3801c fn=smoke_test.go:TestCloseChannel2:346
+INFO [12-29|11:11:32.055] CloseChannel with evidence gasLimit=67929,gasUsed=67929 fn=smoke_test.go:TestCloseChannel2:367
+--- PASS: TestCloseChannel2 (8.47s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0x76769fedc379cd4d1ccca65b7d4723ddf0b619ff291a4401b18c8701d8e0fcff,settleblockNumber=0,state=1,err=%!s(<nil>)
+=== RUN   TestCloseChannelAndUpdateBalanceProofDelegateAndSettle
+TRACE[12-29|11:11:35.168] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xC76F9b0aDcC0bC02a63Bda1e803E61c92fe24e98,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:11:35.281] deposit gas 0xe22bc64a00c54998904e8b9b3461db2487ff4bab9c790cf57beef28576d5eae6:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:11:37.286] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:11:40.403] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:11:40.405] openblocknumber=13002588,tokennetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:420
+INFO [12-29|11:11:40.405] close channel partner=0xC76F9b0aDcC0bC02a63Bda1e803E61c92fe24e98,transferAmount=10,locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,nonce=3,addhash=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107,signature=0c7684ffecdb1e551f1f084ff1e51b352015c9755ebddd1d20ee479eb30b7b5a565c9e30938e58be15b30557d6d4c7692b4f8f4702daf1730e93cdc4d8bca2061c fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:421
+UpdateBalanceProofDelegate  token=0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49,closing_participant=0x292650fee408320D888e06ed89D938294Ea42f99,
+non_closing_participant=0xC76F9b0aDcC0bC02a63Bda1e803E61c92fe24e98,
 transferred_amount=10,
 locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
 nonce=3,
@@ -146,179 +84,132 @@ old_transferred_amount=0,
 old_locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
 old_nonce=0,
 additional_hash=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107
-,closing_signature=01d9fe0101f34f648bb4f3e9f758169445a624ba7a9ef5de40a17c420ddd1f7c3d70f9ec446e3ae110d3690cb42734754d0b36db20622c3e7ab1100d922d60cb1b
-,balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:640
-INFO [08-03|11:49:48.468] UpdateBalanceProof gasLimit=62046,gasUsed=62046 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:664
-TRACE[08-03|11:50:21.589] SettleChannel arg,p1=0x7F44d28dC475878F2B6BB83d35a3d3A9f40B9887,p1.amount=10,p1.lock=0x0000000000000000000000000000000000000000000000000000000000000000,p1.nonce=3,p2=0x292650fee408320D888e06ed89D938294Ea42f99,p2.amount=10,p2.lock=0x0000000000000000000000000000000000000000000000000000000000000000,p2.nonce=3 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:687
-INFO [08-03|11:50:23.607] SettleChannel gasLimit=103347,gasUsed=51674 fn=contracts_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:712
---- PASS: TestCloseChannelAndUpdateBalanceProofAndSettle (55.24s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=30ae709321badf6f567869495e26bd6112a40bbea67d7a8f7732b1a98ba74403,settleblockNumber=0,state=1,err=%!s(<nil>)
+,closing_signature=fa85d549349c7bcbd0ec6ec97fcc2a679e9d3c4833f2d57f940055092a1acbcd74579613d282e8600880655997303129a97b4e1c3070ebf7bf78109f441b51ad1b
+non_closing_signature=0f196a9e60ca90f1a46d2e7f675b2eff0362906fd3bb677cc80798f62e6f49632a828b40ae5dd513d5e05372afb8993e2472b7b8b8c092118f24f378a25e170e1c
+args="0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49","0x292650fee408320D888e06ed89D938294Ea42f99", "0xC76F9b0aDcC0bC02a63Bda1e803E61c92fe24e98",10,"0x0000000000000000000000000000000000000000000000000000000000000000",3,"0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107","0xfa85d549349c7bcbd0ec6ec97fcc2a679e9d3c4833f2d57f940055092a1acbcd74579613d282e8600880655997303129a97b4e1c3070ebf7bf78109f441b51ad1b","0x0f196a9e60ca90f1a46d2e7f675b2eff0362906fd3bb677cc80798f62e6f49632a828b40ae5dd513d5e05372afb8993e2472b7b8b8c092118f24f378a25e170e1c"INFO [12-29|11:12:00.705] UpdateBalanceProofDelegate gasLimit=76705,gasUsed=76705 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:499
+INFO [12-29|11:12:18.758] SettleChannel arg p1=0xC76F9b0aDcC0bC02a63Bda1e803E61c92fe24e98,p2=0x292650fee408320D888e06ed89D938294Ea42f99,p1.transferAmount=10,p2.transferAmount=10,p1.locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,p2.locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,p1.nonce=3,p2.nonce=3,bp1.balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3,bp2.balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:514
+INFO [12-29|11:12:20.878] SettleChannel gasLimit=102704,gasUsed=51352 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofDelegateAndSettle:546
+--- PASS: TestCloseChannelAndUpdateBalanceProofDelegateAndSettle (48.82s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0xf33328e287b136279265905243e260279e1c07284bd1704e40ea1578ce01ec62,settleblockNumber=0,state=1,err=%!s(<nil>)
+=== RUN   TestCloseChannelAndUpdateBalanceProofAndSettle
+TRACE[12-29|11:12:22.991] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xe1e21452e880E1858064A1e1092B93c80e72Ed7B,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:12:23.102] deposit gas 0x17773ae84534108181c3a178886ad2e55fa9643fa60565cdd8b0948367fe2305:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:12:25.107] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:12:27.222] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:12:27.231] gasLimit=21000,gasPrice=1000000000       fn=smoke_test.go:TransferTo:115
+transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0xe1e21452e880E1858064A1e1092B93c80e72Ed7B amount=1000000000000000000
+INFO [12-29|11:12:30.234] close channel partner=0xe1e21452e880E1858064A1e1092B93c80e72Ed7B,transferAmount=10,locksroot=                                ,nonce=3 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:564
+INFO [12-29|11:12:32.356] UpdateBalanceProof closing_participant=0x292650fee408320D888e06ed89D938294Ea42f99,
+transferred_amount=10,
+locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
+nonce=3,
+old_transferred_amount=0,
+old_locksroot=0x0000000000000000000000000000000000000000000000000000000000000000,
+old_nonce=0,
+additional_hash=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107
+,closing_signature=75d276e032a327f125e51b145329af98773d4f30f41adafa0b9027d22a35cd0711a7ab78dbcbad2f4bc8bf0257d31c4c873204285c6640bf4b11d7bab8885f571b
+,balance_hash=0x13da86008ba1c6922daee3e07db95305ef49ebced9f5467a0b8613fcc6b343e3 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:586
+INFO [12-29|11:12:35.479] UpdateBalanceProof gasLimit=63160,gasUsed=63160 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:610
+TRACE[12-29|11:13:08.596] SettleChannel arg,p1=0xe1e21452e880E1858064A1e1092B93c80e72Ed7B,p1.amount=10,p1.lock=0x0000000000000000000000000000000000000000000000000000000000000000,p1.nonce=3,p2=0x292650fee408320D888e06ed89D938294Ea42f99,p2.amount=10,p2.lock=0x0000000000000000000000000000000000000000000000000000000000000000,p2.nonce=3 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:633
+INFO [12-29|11:13:10.711] SettleChannel gasLimit=102704,gasUsed=51352 fn=smoke_test.go:TestCloseChannelAndUpdateBalanceProofAndSettle:659
+--- PASS: TestCloseChannelAndUpdateBalanceProofAndSettle (49.83s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0xdd81ba7548d584007055dbb9fba5e2e7f36345c83b564211df7d19d547b53ec1,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestCooperateSettleChannel
-TRACE[08-03|11:50:26.615] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xE010b4274C7837D0c858A9D9F953F10D26E11265,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:50:29.626] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:50:29.627] create channel gas 0x72878058d6e05c19b4f9142f8f32ad35cb2e1889c0ee41a6e05ba2bfb84c42d1:48913,channel identifier=0x6e0f39b1d4db86edce6e8d311cfc64b6de55ec9673dab24b7871fd2859238668,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:50:29.627] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:50:29.639] deposit gas 0x05352a803088228fdb7f49c52c193c50077a9f0bc47bc8487353de1397a72a48:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:50:32.645] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:50:35.661] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-TRACE[08-03|11:50:35.662] cs=
-(*contractstest.CoOperativeSettleForContracts)(0xc420232000)({
- Particiant1: (common.Address) (len=20 cap=20) 0x292650fee408320D888e06ed89D938294Ea42f99,
- Participant2: (common.Address) (len=20 cap=20) 0xE010b4274C7837D0c858A9D9F953F10D26E11265,
- Participant1Balance: (*big.Int)(0xc42000cf80)(3),
- Participant2Balance: (*big.Int)(0xc42000cfa0)(47),
- ChannelIdentifier: (contracts.ChannelIdentifier) (len=32 cap=32) {
-  00000000  6e 0f 39 b1 d4 db 86 ed  ce 6e 8d 31 1c fc 64 b6  |n.9......n.1..d.|
-  00000010  de 55 ec 96 73 da b2 4b  78 71 fd 28 59 23 86 68  |.U..s..Kxq.(Y#.h|
- },
- OpenBlockNumber: (uint64) 232245,
- TokenNetworkAddress: (common.Address) (len=20 cap=20) 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,
- ChainID: (*big.Int)(0xc42032e220)(8888)
-})
- fn=contracts_test.go:TestCooperateSettleChannel:758
-INFO [08-03|11:50:37.695] CooperativeSettle gasLimit=122570,gasUsed=77570 fn=contracts_test.go:TestCooperateSettleChannel:780
---- PASS: TestCooperateSettleChannel (14.09s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=6e0f39b1d4db86edce6e8d311cfc64b6de55ec9673dab24b7871fd2859238668,settleblockNumber=0,state=1,err=%!s(<nil>)
+TRACE[12-29|11:13:12.825] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xc358fe2525F5a925a85BF441552e609dB9A5422e,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:13:12.939] deposit gas 0x083a644fbaa0cb7a17cdc9a801f799a6f379231baa94c2d3f59a80faeb7d8ab5:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:13:14.942] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:13:17.056] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:13:19.188] CooperativeSettle gasLimit=123174,gasUsed=78174 fn=smoke_test.go:TestCooperateSettleChannel:730
+--- PASS: TestCooperateSettleChannel (8.48s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0x084bdfe0960d8555143cc2ab9c4586c3400cc39a1aab3f17e2172aac86c13330,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestRegisterSecret
---- PASS: TestRegisterSecret (3.01s)
-	contracts_test.go:794: secret=0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107
-	contracts_test.go:814: register block=232256
+--- PASS: TestRegisterSecret (3.12s)
+    smoke_test.go:744: secret=0x11b20a99015a10612a17770258c4de185a2f3d2e97645e6a29df39b2b8d57b15
+    smoke_test.go:764: register block=13002692
 === RUN   TestUnlock
-TRACE[08-03|11:50:43.718] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x68781615D070D5b3CFc41dD8F140b9A6c4204926,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:50:46.729] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:50:46.73] create channel gas 0x832a45bb58352225b3e36ea14b559e50c33c0a7779a48e473d7186bb4438f8a7:48913,channel identifier=0xb53a2dea6c167102c39f60a1b49c474ac1447ce118a651f31b066e1d4318df9d,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:50:46.73] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:50:46.742] deposit gas 0xd5a945a503899f0661b4086f370fb21c2dfb56877981fbbb69118e0bf3e8695b:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:50:49.747] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:50:52.762] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:50:52.766] gasLimit=21000,gasPrice=18000000000      fn=contracts_test.go:TransferTo:117
-transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0x68781615D070D5b3CFc41dD8F140b9A6c4204926 amount=1000000000000000000
-INFO [08-03|11:50:54.77] before settle partner balance=0          fn=contracts_test.go:TestUnlock:834
-INFO [08-03|11:50:57.79] close channel successful,gasused=66758,gasLimit=66758 fn=contracts_test.go:TestUnlock:870
-INFO [08-03|11:51:06.824] locksroot=0x545bc055c5c6381a3761467557f6e8959a53997cbb6511de18307ff87b4a62e1 fn=contracts_test.go:TestUnlock:898
-INFO [08-03|11:51:08.846] UpdateBalanceProof successful,gasused=64103,gasLimit=64103 fn=contracts_test.go:TestUnlock:920
-INFO [08-03|11:51:08.847] unlockarg,partnerAddr=0x68781615D070D5b3CFc41dD8F140b9A6c4204926,part2=0x292650fee408320D888e06ed89D938294Ea42f99,lock={expiration=232311,amount=1,secrethash=1032},merkle_proof=947baec4f3a8eb9afd0a698a9efc567634b0d498c4e8b8e073518ad23576073c2e1119f4336fa581fbee168dcd0cec52a18128cd0868e4966ad5e495d23804d0 fn=contracts_test.go:TestUnlock:933
-INFO [08-03|11:51:10.863] unlock success,gasUsed=67664,gasLimit=67664,txhash=0x4c21fbc6d9e18e1b7607e6a31b5b7c9a8b82421a38c2ad52de3bdf481ee3d5c3 fn=contracts_test.go:TestUnlock:957
-INFO [08-03|11:51:10.863] waiting settle...                        fn=contracts_test.go:TestUnlock:964
-INFO [08-03|11:51:34.971] settle channel complete ,gasused=52694,gasLimit=105387 fn=contracts_test.go:TestUnlock:1001
---- PASS: TestUnlock (54.27s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=b53a2dea6c167102c39f60a1b49c474ac1447ce118a651f31b066e1d4318df9d,settleblockNumber=0,state=1,err=%!s(<nil>)
-	contracts_test.go:963: after unlock partner balance balance=0
-	contracts_test.go:1007: after settle partner balance=26
+TRACE[12-29|11:13:25.424] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xB9746739A891Be7961e0B2062DDDdee547950111,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:13:25.539] deposit gas 0x3776ca10163322623ae91b54cbab7622f52c2fed208ee9f3a7955ef307d15adf:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:13:28.543] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:13:31.667] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:13:31.678] gasLimit=21000,gasPrice=1000000000       fn=smoke_test.go:TransferTo:115
+transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0xB9746739A891Be7961e0B2062DDDdee547950111 amount=1000000000000000000
+INFO [12-29|11:13:34.684] before settle my balance=4999993999999999899999999999999999323 fn=smoke_test.go:TestUnlock:784
+INFO [12-29|11:13:36.806] close channel successful,gasused=67915,gasLimit=67915 fn=smoke_test.go:TestUnlock:823
+INFO [12-29|11:13:43.147] locksroot=0xb55e639f79a973b780ad0787aec1a2bf0bd59957b3614248f9bfac19741bd888 fn=smoke_test.go:TestUnlock:851
+INFO [12-29|11:13:45.267] UpdateBalanceProof successful,gasused=65203,gasLimit=65203 fn=smoke_test.go:TestUnlock:874
+INFO [12-29|11:13:45.268] unlockarg,partnerAddr=0xB9746739A891Be7961e0B2062DDDdee547950111,part2=0x292650fee408320D888e06ed89D938294Ea42f99,lock={expiration=13006705,amount=1,secrethash=a078},merkle_proof=9946bd7366132f8a444c00a780bf7cecd457d141dc946cd8a0ba7d5422445c39ce7b0bded5d58e2191e89da0fda6cc0813961130d1066f28e37b5332766b2bdf fn=smoke_test.go:TestUnlock:887
+INFO [12-29|11:13:45.268] args="0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49","0xB9746739A891Be7961e0B2062DDDdee547950111",10,13006705,1,"0xa078ae9fc26987898e6927a4476f86e523ee038011275d58a778b7064f3aaab1","0x3939343662643733363631333266386134343463303061373830626637636563643435376431343164633934366364386130626137643534323234343563333963653762306264656435643538653231393165383964613066646136636330383133393631313330643130363666323865333762353333323736366232626466" fn=smoke_test.go:TestUnlock:889
+INFO [12-29|11:13:48.389] unlock success,gasUsed=68585,gasLimit=68585,txhash=0x46923485193e9ea2140149cf05a91e1f517c3a416f6e3fe28f0f787775a4129b fn=smoke_test.go:TestUnlock:921
+INFO [12-29|11:13:48.39] waiting settle...                        fn=smoke_test.go:TestUnlock:928
+INFO [12-29|11:14:16.587] settle channel complete ,gasused=52371,gasLimit=104741 fn=smoke_test.go:TestUnlock:966
+--- PASS: TestUnlock (54.28s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0x998463ce3012dddc71b64e656e608188125857ad9314ea671a963c3f0e9ca2f8,settleblockNumber=0,state=1,err=%!s(<nil>)
+    smoke_test.go:927: after unlock partner balance balance=0
+    smoke_test.go:972: after settle partner balance=4999993999999999899999999999999999349
 === RUN   TestWithdraw
-TRACE[08-03|11:51:36.98] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x4Ea4a96a71Ca8E8Dc4cB3B185CBC2F39AF866896,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:51:38.992] OpenChannel gasLimit=48913,gasUsed=48913 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:51:38.992] create channel gas 0xe8b981f400226497de50ff4355653475a92a4e3fcb86b37f52bef0696520e177:48913,channel identifier=0xb5c46178c1dd6515ad9d9f65fbd387559ac7addfc43f05e862a241f71c85cd5d,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:51:38.992] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:51:39.004] deposit gas 0xd698b48eaa32ad2b4e5480d6ac948d2cf5e37307319560b26788fdaa4e6c0a0b:69950
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:51:42.007] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:51:45.022] Deposit complete...,gasLimit=69956,gasUsed=69956 fn=contracts_test.go:creatAChannelAndDeposit:188
-TRACE[08-03|11:51:45.023] w1=
-(*contractstest.WithDraw1ForContract)(0xc4204141b0)({
- Participant1: (common.Address) (len=20 cap=20) 0x292650fee408320D888e06ed89D938294Ea42f99,
- Participant2: (common.Address) (len=20 cap=20) 0x4Ea4a96a71Ca8E8Dc4cB3B185CBC2F39AF866896,
- Participant1Deposit: (*big.Int)(0xc42000c680)(25),
- Participant2Deposit: (*big.Int)(0xc42000c6a0)(25),
- Participant1Withdraw: (*big.Int)(0xc42000c640)(1),
- ChannelIdentifier: (contracts.ChannelIdentifier) (len=32 cap=32) {
-  00000000  b5 c4 61 78 c1 dd 65 15  ad 9d 9f 65 fb d3 87 55  |..ax..e....e...U|
-  00000010  9a c7 ad df c4 3f 05 e8  62 a2 41 f7 1c 85 cd 5d  |.....?..b.A....]|
- },
- OpenBlockNumber: (uint64) 232315,
- TokenNetworkAddress: (common.Address) (len=20 cap=20) 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,
- ChainID: (*big.Int)(0xc42032e220)(8888)
-})
- fn=contracts_test.go:TestWithdraw:1101
-TRACE[08-03|11:51:45.023] w2=
-(*contractstest.WithDraw2ForContract)(0xc420414240)({
- Participant1: (common.Address) (len=20 cap=20) 0x292650fee408320D888e06ed89D938294Ea42f99,
- Participant2: (common.Address) (len=20 cap=20) 0x4Ea4a96a71Ca8E8Dc4cB3B185CBC2F39AF866896,
- Participant1Deposit: (*big.Int)(0xc42000c700)(25),
- Participant2Deposit: (*big.Int)(0xc42000c720)(25),
- Participant1Withdraw: (*big.Int)(0xc42000c6c0)(1),
- Participant2Withdraw: (*big.Int)(0xc42000c6e0)(1),
- ChannelIdentifier: (contracts.ChannelIdentifier) (len=32 cap=32) {
-  00000000  b5 c4 61 78 c1 dd 65 15  ad 9d 9f 65 fb d3 87 55  |..ax..e....e...U|
-  00000010  9a c7 ad df c4 3f 05 e8  62 a2 41 f7 1c 85 cd 5d  |.....?..b.A....]|
- },
- OpenBlockNumber: (uint64) 232315,
- TokenNetworkAddress: (common.Address) (len=20 cap=20) 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,
- ChainID: (*big.Int)(0xc42032e220)(8888)
-})
- fn=contracts_test.go:TestWithdraw:1102
-TRACE[08-03|11:51:45.025] WithDraw call, participant1=0x292650fee408320D888e06ed89D938294Ea42f99,participant2=0x4Ea4a96a71Ca8E8Dc4cB3B185CBC2F39AF866896,p1deposit=25,p2deposit=25,p1withdarw=1,p2withdraw=1,p1sig=0xc92afce4ca52c8dfefd74d2e114381c0d2c55bd7b0e967e62f5ea778cadcc524095ae173cff0d2fa9dfcbbc082a18c638199a1dca21fb6e30481ac437c99d1c41c,p2sig=0xea0b4cd1e048a6b704a950fe765f292901464c504b23d60de29b87adf50f96c101f67bab344c7e9878fef6c826b2645d873b85b9f4d115f02a311eab82a758ed1b  fn=contracts_test.go:TestWithdraw:1103
-INFO [08-03|11:51:48.053] WithDraw complete.. gasLimit=114905,gasUsed=114905 fn=contracts_test.go:TestWithdraw:1138
---- PASS: TestWithdraw (13.08s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=b5c46178c1dd6515ad9d9f65fbd387559ac7addfc43f05e862a241f71c85cd5d,settleblockNumber=0,state=1,err=%!s(<nil>)
+TRACE[12-29|11:14:19.702] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0xd83DC3fb3Dcaa544A1f8C283624164CAD7389aE2,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:14:19.815] deposit gas 0x63481a3bdf9702e8f5e9cfd8300a0c8973714cf59058e91e116015243d83e02f:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:14:23.82] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:14:26.938] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+TRACE[12-29|11:14:26.94] WithDraw call, participant=0x292650fee408320D888e06ed89D938294Ea42f99,partner=0xd83DC3fb3Dcaa544A1f8C283624164CAD7389aE2,p1deposit=25, p1withdarw=1,p1sig=0x36fe0bb93699fec803f560a87b00b270c27c76af4750a162bb2c7362b2385a4e6d4a57e0ce4513a2bbd3e549a25eba41acb5367494e0c66d2677ed336b6cd6661b,p2sig=0xc345cf64fd5d439dfdf6c7e3cff5f8b09a00c3c912bc911870584e992b402e17288cd4f5eff215732993e3cdd3d4a8b63b761fa3c8bbe20ec2a565689f01129e1b  fn=smoke_test.go:TestWithdraw:1030
+INFO [12-29|11:14:29.068] WithDraw complete.. gasLimit=83213,gasUsed=83213 fn=smoke_test.go:TestWithdraw:1062
+--- PASS: TestWithdraw (12.48s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0x46f78361116440aa2adea43ff69b434d9a2b72d19cb253cbe0e559e9cacc1ca9,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestSignature
-TRACE[08-03|11:51:48.054] sig=[250 166 23 81 96 92 180 28 28 103 143 195 219 117 229 210 122 69 180 93 12 250 171 228 137 173 2 110 217 229 139 23 49 16 136 146 54 204 110 179 127 154 86 173 220 143 195 58 72 54 165 149 15 41 77 89 12 3 42 11 103 85 14 254 27] fn=contracts_test.go:TestSignature:1149
-TRACE[08-03|11:51:48.054] from=0x292650fee408320D888e06ed89D938294Ea42f99,sig=faa61751605cb41c1c678fc3db75e5d27a45b45d0cfaabe489ad026ed9e58b173110889236cc6eb37f9a56addc8fc33a4836a5950f294d590c032a0b67550efe1b fn=contracts_test.go:TestSignature:1150
+TRACE[12-29|11:14:29.068] sig=[250 166 23 81 96 92 180 28 28 103 143 195 219 117 229 210 122 69 180 93 12 250 171 228 137 173 2 110 217 229 139 23 49 16 136 146 54 204 110 179 127 154 86 173 220 143 195 58 72 54 165 149 15 41 77 89 12 3 42 11 103 85 14 254 27] fn=smoke_test.go:TestSignature:1073
+TRACE[12-29|11:14:29.068] from=0x292650fee408320D888e06ed89D938294Ea42f99,sig=faa61751605cb41c1c678fc3db75e5d27a45b45d0cfaabe489ad026ed9e58b173110889236cc6eb37f9a56addc8fc33a4836a5950f294d590c032a0b67550efe1b fn=smoke_test.go:TestSignature:1074
 --- PASS: TestSignature (0.00s)
 === RUN   TestPunishObsoleteUnlock
-TRACE[08-03|11:51:51.067] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x00AFF655416dE71f5A3040db792fBD2cd564daeA,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:141
-INFO [08-03|11:51:54.082] OpenChannel gasLimit=48855,gasUsed=48855 fn=contracts_test.go:creatAChannelAndDeposit:152
-TRACE[08-03|11:51:54.083] create channel gas 0x2af4d9cb8c0143587d5cbc16c00de83b70da02be5f1ccf20289ac23c0f8dafc3:48855,channel identifier=0x22295bb2f3a5fa9b93e9566e1272224c9cc4a755d3d2a9f78297226555125b42,tokennetworkaddress=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541
- fn=contracts_test.go:creatAChannelAndDeposit:157
-INFO [08-03|11:51:54.083] NewChannel complete...
-                  fn=contracts_test.go:creatAChannelAndDeposit:158
-TRACE[08-03|11:51:54.094] deposit gas 0x234e0e2829411365a9b1bc7dcdaffad18752843baa20f940ece5c1790e219c6b:69892
- fn=contracts_test.go:creatAChannelAndDeposit:170
-INFO [08-03|11:51:57.096] Deposit1 complete...
-                    fn=contracts_test.go:creatAChannelAndDeposit:176
-INFO [08-03|11:52:00.112] Deposit complete...,gasLimit=69886,gasUsed=69886 fn=contracts_test.go:creatAChannelAndDeposit:188
-INFO [08-03|11:52:00.116] gasLimit=21000,gasPrice=18000000000      fn=contracts_test.go:TransferTo:117
-transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0x00AFF655416dE71f5A3040db792fBD2cd564daeA amount=1000000000000000000
-INFO [08-03|11:52:03.123] before settle partner balance=0          fn=contracts_test.go:TestPunishObsoleteUnlock:1230
-INFO [08-03|11:52:06.141] close channel successful,gasused=66683,gasLimit=66683 fn=contracts_test.go:TestPunishObsoleteUnlock:1261
-INFO [08-03|11:52:15.174] locksroot=0xfc6371473d790c677fcdda228f47525693662479a9a3370b44be7388cd4414e7 fn=contracts_test.go:TestPunishObsoleteUnlock:1286
-INFO [08-03|11:52:18.194] UpdateBalanceProofDelegate successful,gasused=64092,gasLimit=64092 fn=contracts_test.go:TestPunishObsoleteUnlock:1302
-INFO [08-03|11:52:18.195] UnlockDelegate arg ,participant=0x292650fee408320D888e06ed89D938294Ea42f99,delegator=0x00AFF655416dE71f5A3040db792fBD2cd564daeA,transferAmount=10,expiration=232379,amount=1,locksecret=0xe4a160bb947be9b21f0a81d01f75efc5c017815d3c16a423eb332d6da666fe8d,merkleproof=521b520c2a3d9f88969b3913a02fa47a7b884da63b039b8ed09aed6e234c729cd25520f8e094793cf0ccca1fa59d697e99b6c9cd516ffa533d53c56414b2c619,signature=d9b7fcf2de05e4f163b642001303e7a837a85166d179afc65092f796facd8dd95f3a8e639d09bbc7d93ab9de4a157bfa077479515560ce7e7426b30a3d8767c11b fn=contracts_test.go:TestPunishObsoleteUnlock:1318
-INFO [08-03|11:52:21.219] unlockdelegate gasLimit=81159,gasUsed=81159 fn=contracts_test.go:TestPunishObsoleteUnlock:1352
-INFO [08-03|11:52:21.219] PunishObsoleteUnlock,channelid=0x22295bb2f3a5fa9b93e9566e1272224c9cc4a755d3d2a9f78297226555125b42,partnerAddr=0x00AFF655416dE71f5A3040db792fBD2cd564daeA,part2=0x292650fee408320D888e06ed89D938294Ea42f99,locksroot=0x0795bc92064cf6df4526928e7c812ed45ac03136c9fdd14c36bb34c03ee00c37 fn=contracts_test.go:TestPunishObsoleteUnlock:1364
-INFO [08-03|11:52:24.24] PunishObsoleteUnlock success,gasUsed=39064,gasLimit=69064,txhash=0xb40b5bdf3f47db32d09bd4491ae5a7beb24570457f137901824f36ff6efc1aed fn=contracts_test.go:TestPunishObsoleteUnlock:1387
-INFO [08-03|11:52:24.241] beneficiary deposit=50,nonce=18446744073709551615,balance_hash=ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2 fn=contracts_test.go:TestPunishObsoleteUnlock:1393
---- PASS: TestPunishObsoleteUnlock (36.19s)
-	contracts_test.go:248: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701 for 0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541,gasUsed=30418,gasLimit=30418
-	contracts_test.go:284: channelID=22295bb2f3a5fa9b93e9566e1272224c9cc4a755d3d2a9f78297226555125b42,settleblockNumber=0,state=1,err=%!s(<nil>)
+TRACE[12-29|11:14:32.185] createchannel between 0x292650fee408320D888e06ed89D938294Ea42f99-0x68C802B5dc28c344B7041C07FBE8d7452Ae87Ec7,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74
+ fn=smoke_test.go:creatAChannelAndDeposit:139
+TRACE[12-29|11:14:32.306] deposit gas 0x787cb4a7d297ebeaca9cb302ff7c1a0df92d04a7121e2840b53fe8ee8751f9f8:92425
+ fn=smoke_test.go:creatAChannelAndDeposit:147
+INFO [12-29|11:14:35.307] Deposit1 complete...
+                    fn=smoke_test.go:creatAChannelAndDeposit:153
+INFO [12-29|11:14:38.426] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
+INFO [12-29|11:14:38.437] gasLimit=21000,gasPrice=1000000000       fn=smoke_test.go:TransferTo:115
+transfer from 0x292650fee408320D888e06ed89D938294Ea42f99 to 0x68C802B5dc28c344B7041C07FBE8d7452Ae87Ec7 amount=1000000000000000000
+INFO [12-29|11:14:40.443] before settle partner balance=0          fn=smoke_test.go:TestPunishObsoleteUnlock:1158
+INFO [12-29|11:14:43.565] close channel successful,gasused=67912,gasLimit=67912 fn=smoke_test.go:TestPunishObsoleteUnlock:1190
+INFO [12-29|11:14:50.907] locksroot=0x87c22968d4b2057834caf2fc15c5e311b154cfab7c3081883197effd959a8dee fn=smoke_test.go:TestPunishObsoleteUnlock:1215
+INFO [12-29|11:14:53.027] UpdateBalanceProofDelegate successful,gasused=65153,gasLimit=65153 fn=smoke_test.go:TestPunishObsoleteUnlock:1231
+INFO [12-29|11:14:53.028] UnlockDelegate arg ,participant=0x292650fee408320D888e06ed89D938294Ea42f99,delegator=0x68C802B5dc28c344B7041C07FBE8d7452Ae87Ec7,transferAmount=10,expiration=13002811,amount=1,locksecret=0xe1041e013ced6d64a4f61f411b2386bf14c720b7d11dad7dfd53a781f29f2c99,merkleproof=5922e052a2a32c9f9cfb5c619b2db88e0439e2e1bcfb61ff5df792825a98f687d44ff14d53df832df29dd54f98d2b822d54d26b95060a4ec7705f529b78bc2eb,signature=36818b5c5bd67751b3a0a71a90aafbb14518dcfa316d27c4e4e75455e7cb37c0538677e9ab56ee168b9c55bacb54f258d1c5f374405b9500c9a6ef48a20d43dd1b fn=smoke_test.go:TestPunishObsoleteUnlock:1247
+INFO [12-29|11:14:55.155] unlockdelegate gasLimit=82129,gasUsed=82129 fn=smoke_test.go:TestPunishObsoleteUnlock:1282
+INFO [12-29|11:14:55.155] PunishObsoleteUnlock,channelid=0xafa54e9b2b45275e1f780cc567e8f917ae9b127df434b5844e58e117861ea865,partnerAddr=0x68C802B5dc28c344B7041C07FBE8d7452Ae87Ec7,part2=0x292650fee408320D888e06ed89D938294Ea42f99,locksroot=0x96ff60b83f7076b4fd74793f57985f25ea95d1c1d1c318a9ab4f53b299b08739 fn=smoke_test.go:TestPunishObsoleteUnlock:1294
+INFO [12-29|11:14:57.279] PunishObsoleteUnlock success,gasUsed=34448,gasLimit=64448,txhash=0xa8ee7be3ccb6059edee8a18d5a8931b63f4712e15dc1aeb3ab4845f5de8cf8ec fn=smoke_test.go:TestPunishObsoleteUnlock:1318
+INFO [12-29|11:14:57.28] beneficiary deposit=50,nonce=18446744073709551615,balance_hash=000000000000000000000000000000000000000000000000 fn=smoke_test.go:TestPunishObsoleteUnlock:1324
+--- PASS: TestPunishObsoleteUnlock (28.21s)
+    smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
+    smoke_test.go:211: channelID=0xafa54e9b2b45275e1f780cc567e8f917ae9b127df434b5844e58e117861ea865,settleblockNumber=0,state=1,err=%!s(<nil>)
 === RUN   TestTokenFallback
-INFO [08-03|11:52:24.243] tokenAddr=0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541 fn=contracts_test.go:setup:92
-INFO [08-03|11:52:24.247] tokenAddr=0x2072Cf75464BFB31640c13f25bd2f9ea3364820A,tokenNetwork=0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B fn=contracts_test.go:TestTokenFallback:1417
-INFO [08-03|11:52:27.262] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0xaA6463F4E0D572E3d6BDabc1349eAB1250e970eE" fn=contracts_test.go:testOpenChannelAndDepositFallback:1449
-INFO [08-03|11:52:27.262] open channel and deposit by tokenFallback success,gasUsed=88910,gasLimit=88910,txhash=0x75a123813063755884f209d7932cd72a390415bc9681462895ab124e99e75cda fn=contracts_test.go:testOpenChannelAndDepositFallback:1450
-INFO [08-03|11:52:27.262] channel=0x292650fee408320D888e06ed89D938294Ea42f99,0xaA6463F4E0D572E3d6BDabc1349eAB1250e970eE fn=contracts_test.go:testDepositFallback:1459
-INFO [08-03|11:52:30.279] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0xaA6463F4E0D572E3d6BDabc1349eAB1250e970eE" fn=contracts_test.go:testDepositFallback:1473
-INFO [08-03|11:52:30.279] deposit by tokenFallback success,gasUsed=52572,gasLimit=52572,txhash=0x91b2ab383284fc5dec5b8828df83720c2c83f23cee174e326edcac92081686ff fn=contracts_test.go:testDepositFallback:1474
---- PASS: TestTokenFallback (6.04s)
+INFO [12-29|11:14:57.28] tokenAddr=0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74 fn=smoke_test.go:TestTokenFallback:1337
+INFO [12-29|11:14:59.405] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0xcc39F5a764a1Ee84545eCB7D07b0ff112789c15B" fn=smoke_test.go:testOpenChannelAndDepositFallback:1368
+INFO [12-29|11:14:59.405] open channel and deposit by tokenFallback success,gasUsed=88062,gasLimit=88062,txhash=0x600411726da351ede36a14c54f0c1b036744e0298e495d3cf3f7d74af87208b3 fn=smoke_test.go:testOpenChannelAndDepositFallback:1369
+--- PASS: TestTokenFallback (2.13s)
 === RUN   TestApproveAndCall
-INFO [08-03|11:52:30.282] tokenAddr=0x7314c3E027d1AA6AB9dCb40A39b4e57659e44701,tokenNetwork=0xDF638ec99EeeF249Ffa68aadB4E3B8A7121B8541 fn=contracts_test.go:setup:92
-INFO [08-03|11:52:30.286] tokenAddr=0x2072Cf75464BFB31640c13f25bd2f9ea3364820A,tokenNetwork=0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B fn=contracts_test.go:TestApproveAndCall:1498
-INFO [08-03|11:52:30.286] ApproveAndCall tokenNetworkAddress=0xe55a0C639D01D1D6E93f3d9b31Fd1cF9d477C61B,value=10,extra=0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000292650fee408320d888e06ed89d938294ea42f990000000000000000000000002baa434b1c118aa532acdeb0c55d7cf80aedf03f000000000000000000000000000000000000000000000000000000000000012c fn=contracts_test.go:testOpenChannelAndDepositApproveCall:1514
-INFO [08-03|11:52:33.304] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0x2Baa434B1c118Aa532AcDeb0C55d7Cf80AEDF03f" fn=contracts_test.go:testOpenChannelAndDepositApproveCall:1530
-INFO [08-03|11:52:33.304] open channel and deposit by ApproveAndCall success,gasUsed=104098,gasLimit=120065,txhash=0x01fbcc7caa6064e2a1bd02c542f94d157bb4dc4f98e492946a005a07d805ccf5 fn=contracts_test.go:testOpenChannelAndDepositApproveCall:1531
-INFO [08-03|11:52:33.304] channel=0x292650fee408320D888e06ed89D938294Ea42f99,0x2Baa434B1c118Aa532AcDeb0C55d7Cf80AEDF03f fn=contracts_test.go:testDepositApproveCall:1540
-INFO [08-03|11:52:35.323] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0x2Baa434B1c118Aa532AcDeb0C55d7Cf80AEDF03f" fn=contracts_test.go:testDepositApproveCall:1554
-INFO [08-03|11:52:35.323] deposit by ApproveAndCall success,gasUsed=67702,gasLimit=83097,txhash=0xb77104c7f77106b416d60ac26b8278a42ad5db814c26aee055244671fa6fab97 fn=contracts_test.go:testDepositApproveCall:1555
---- PASS: TestApproveAndCall (5.04s)
+INFO [12-29|11:14:59.407] tokenAddr=0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74 fn=smoke_test.go:setup:90
+INFO [12-29|11:14:59.408] tokenAddr=0xE96daE09F48f7a9a36C6BB5a5C7F590E82fFc209,tokenNetwork=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74 fn=smoke_test.go:TestApproveAndCall:1381
+INFO [12-29|11:14:59.409] ApproveAndCall tokensNetworkAddress=0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,value=10,extra=000000000000000000000000292650fee408320d888e06ed89d938294ea42f990000000000000000000000009290c3fba7587bfb53094ddc9cd27f04c0cd77a7000000000000000000000000000000000000000000000000000000000000012c fn=smoke_test.go:testOpenChannelAndDepositApproveCall:1395
+INFO [12-29|11:15:02.532] channel="0x292650fee408320D888e06ed89D938294Ea42f99","0x9290c3fbA7587BFB53094DdC9Cd27f04C0CD77a7" fn=smoke_test.go:testOpenChannelAndDepositApproveCall:1411
+INFO [12-29|11:15:02.532] open channel and deposit by ApproveAndCall success,gasUsed=102572,gasLimit=118605,txhash=0x14fe3957b9e4902ad8a5385ab67cdec0fa82c37e48df7dc850f684d40022439d fn=smoke_test.go:testOpenChannelAndDepositApproveCall:1412
+--- PASS: TestApproveAndCall (3.13s)
 PASS
 
 Process finished with exit code 0
