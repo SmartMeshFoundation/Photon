@@ -42,6 +42,7 @@ type TestEnv struct {
 	XMPPServer              string
 	EthRPCEndpoint          string
 	RegistryContractAddress string
+	UseMatrix               bool
 	Verbosity               int
 	Debug                   bool
 	Nodes                   []*PhotonNode
@@ -69,7 +70,7 @@ func (t *logTee) Write(p []byte) (n int, err error) {
 }
 
 // NewTestEnv default contractor
-func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
+func NewTestEnv(configFilePath string, useMatrix bool) (env *TestEnv, err error) {
 	c, err := config.ReadDefault(configFilePath)
 	if err != nil {
 		log.Println("Load config error:", err)
@@ -85,12 +86,13 @@ func NewTestEnv(configFilePath string) (env *TestEnv, err error) {
 	}
 	Logger = log.New(&logTee{logFile, os.Stderr}, "", log.LstdFlags|log.Lshortfile)
 	Logger.Println("Start to prepare env for " + env.CaseName + "...")
+	env.UseMatrix = useMatrix
 	env.Main = c.RdString("COMMON", "main", "photon")
 	env.DataDir = c.RdString("COMMON", "data_dir", ".photon")
 	env.KeystorePath = c.RdString("COMMON", "keystore_path", "../../../testdata/casemanager-keystore")
 	env.PasswordFile = c.RdString("COMMON", "password_file", "../../../testdata/casemanager-keystore/pass")
 	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "")
-	env.EthRPCEndpoint = c.RdString("COMMON", "eth_rpc_endpoint", "ws://127.0.0.1:9000")
+	env.EthRPCEndpoint = c.RdString("COMMON", "eth_rpc_endpoint", "ws://182.254.155.208:30306")
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
 	env.Debug = c.RdBool("COMMON", "debug", false)
 	// Create an IPC based RPC connection to a remote node and an authorized transactor

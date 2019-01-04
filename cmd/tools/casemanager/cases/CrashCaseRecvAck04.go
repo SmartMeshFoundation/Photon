@@ -13,7 +13,7 @@ import (
 //节点2向节点6发送45个token,节点3崩。节点2、节点3各锁定45，走路由2，4，5，6成功；
 //转账成功;重启后，2，3节点锁定45未解除。未完成。正常。
 func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck04.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck04.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

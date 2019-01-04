@@ -14,7 +14,7 @@ import (
 // 节点1向节点6发送45个token，（提前进行两次转账，降低部分余额，节点3和节点7余额： 30 90），
 // 因此，节点3要回退节点2，节点2崩；节点1锁定45，节点2，节点3锁定45，节点6未锁定；重启节点2后，重启转账失败，cd12,23,27全锁定，cd36无锁定
 func (cm *CaseManager) CrashCaseRecv04() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv04.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv04.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

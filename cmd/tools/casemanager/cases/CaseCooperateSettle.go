@@ -9,7 +9,7 @@ import (
 
 // CaseCooperateSettle :
 func (cm *CaseManager) CaseCooperateSettle() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseCooperateSettle.ENV")
+	env, err := models.NewTestEnv("./cases/CaseCooperateSettle.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

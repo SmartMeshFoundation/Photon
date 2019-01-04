@@ -13,7 +13,7 @@ import (
 // 节点2向节点6转账20token,发送revealsecret后，节点2崩，路由走2-3-6，查询节点6，节点3，交易未完成，锁定节点3 20个token,节点2 20个token，
 // 重启后，节点3和节点6的交易完成，节点2和节点3交易完成，交易成功
 func (cm *CaseManager) CrashCaseSend02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseSend02.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseSend02.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

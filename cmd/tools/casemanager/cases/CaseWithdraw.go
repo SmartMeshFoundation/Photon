@@ -8,7 +8,7 @@ import (
 
 // CaseWithdraw :
 func (cm *CaseManager) CaseWithdraw() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseWithdraw.ENV")
+	env, err := models.NewTestEnv("./cases/CaseWithdraw.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

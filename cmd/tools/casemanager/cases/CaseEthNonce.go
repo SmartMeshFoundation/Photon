@@ -11,7 +11,7 @@ import (
 
 // CaseEthNonce :
 func (cm *CaseManager) CaseEthNonce() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseEthNonce.ENV")
+	env, err := models.NewTestEnv("./cases/CaseEthNonce.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

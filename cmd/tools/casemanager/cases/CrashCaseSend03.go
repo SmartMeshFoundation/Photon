@@ -14,7 +14,7 @@ import (
 // 节点2向节点6转账20 token,发送balanceProof后，节点2崩，路由走2-3-6，查询节点3，节点6，节点3和6之间交易完成。
 // 节点2、3交易未完成，节点2锁定20token。重启节点2后，节点2、3交易完成，实现转账继续。
 func (cm *CaseManager) CrashCaseSend03() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseSend03.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseSend03.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

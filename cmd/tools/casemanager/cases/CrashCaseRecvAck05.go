@@ -12,7 +12,7 @@ import (
 // CrashCaseRecvAck05 场景五：RevealSecretRecevieAck
 // 节点2向节点6发送20个token，节点2崩，节点2和节点3之间通道节点2锁定20 token，节点3和节点6之间转账完成；重启后，节点2锁定20解除，完成转账。
 func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck05.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck05.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

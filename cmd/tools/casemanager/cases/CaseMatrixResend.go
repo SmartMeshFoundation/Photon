@@ -11,7 +11,7 @@ func (cm *CaseManager) CaseMatrixResend() (err error) {
 	if cm.IsAutoRun {
 		return
 	}
-	env, err := models.NewTestEnv("./cases/CaseMatrixResend.ENV")
+	env, err := models.NewTestEnv("./cases/CaseMatrixResend.ENV", true)
 	if err != nil {
 		return
 	}

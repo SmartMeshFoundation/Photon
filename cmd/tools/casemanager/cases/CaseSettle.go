@@ -8,7 +8,7 @@ import (
 
 // CaseSettle :
 func (cm *CaseManager) CaseSettle() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseSettle.ENV")
+	env, err := models.NewTestEnv("./cases/CaseSettle.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

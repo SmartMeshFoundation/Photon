@@ -13,7 +13,7 @@ import (
 // 收到mtr后崩,它是接收方
 // 从节点2向节点6发送45个token，节点6崩后，节点2 锁定45token，节点3锁定45token，转帐失败；重启后，转账继续。
 func (cm *CaseManager) CrashCaseRecv01() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv01.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv01.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}
