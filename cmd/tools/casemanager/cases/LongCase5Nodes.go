@@ -62,22 +62,22 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 3 : N0 N1 N2 N3 make a deposit of 100 to their channels
 	models.Logger.Println("step 3 ---->")
-	err = N1.Deposit(C01.ChannelIdentifier, depositAmount)
+	err = N1.Deposit(N0.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	err = N2.Deposit(C12.ChannelIdentifier, depositAmount)
+	err = N2.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	err = N3.Deposit(C23.ChannelIdentifier, depositAmount)
+	err = N3.Deposit(N2.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
 
 	// step 4 : N4 tries to make a deposit to a channel that does not exist (fail channel with N3 does not exist)
 	models.Logger.Println("step 4 ---->")
-	err = N4.Deposit(utils.NewRandomHash().String(), depositAmount)
+	err = N4.Deposit(N0.Address, utils.NewRandomAddress().String(), depositAmount)
 	if err == nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -101,7 +101,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 10 : N2 deposits 50 tokens to the channel (N2 - N4)
 	models.Logger.Println("step 10 ---->")
 	depositAmount = 50
-	err = N2.Deposit(C24.ChannelIdentifier, depositAmount)
+	err = N2.Deposit(N4.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -123,7 +123,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 13 : N4 deposits 25 tokens to N0<->N4 channel
 	models.Logger.Println("step 13 ---->")
 	depositAmount = 25
-	err = N4.Deposit(C04.ChannelIdentifier, depositAmount)
+	err = N4.Deposit(N0.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -259,7 +259,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 24 : N0 deposits 160 tokens on his channel with N1
 	models.Logger.Println("step 24 ---->")
 	depositAmount = 160
-	err = N0.Deposit(C01.ChannelIdentifier, depositAmount)
+	err = N0.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -312,7 +312,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 29 : N2 tries to make a deposit in the channel that is being closed (fail 409)
 	models.Logger.Println("step 29 ---->")
-	err = N2.Deposit(C24.ChannelIdentifier, depositAmount)
+	err = N2.Deposit(N4.Address, tokenAddress, depositAmount)
 	if err == nil {
 		return cm.caseFail(env.CaseName)
 	}

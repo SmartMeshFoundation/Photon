@@ -310,15 +310,17 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 		TokenAddress   string `json:"token_address"`
 		Balance        int64  `json:"balance"`
 		SettleTimeout  int64  `json:"settle_timeout"`
+		NewChannel     bool   `json:"new_channel"`
 	}
 	p, err := json.Marshal(OpenChannelPayload{
 		PartnerAddress: partnerAddress,
 		TokenAddress:   tokenAddress,
 		Balance:        balance,
 		SettleTimeout:  settleTimeout,
+		NewChannel:     true,
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/channels",
+		FullURL: node.Host + "/api/1/deposit",
 		Method:  http.MethodPut,
 		Payload: string(p),
 		Timeout: time.Second * 60,
@@ -336,15 +338,23 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 }
 
 // Deposit :
-func (node *PhotonNode) Deposit(channelIdentifier string, balance int64) error {
-	type DepostitPayload struct {
-		Balance int64 `json:"balance"`
+func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int64) error {
+	type OpenChannelPayload struct {
+		PartnerAddress string `json:"partner_address"`
+		TokenAddress   string `json:"token_address"`
+		Balance        int64  `json:"balance"`
+		SettleTimeout  int64  `json:"settle_timeout"`
+		NewChannel     bool   `json:"new_channel"`
 	}
-	p, err := json.Marshal(DepostitPayload{
-		Balance: balance,
+	p, err := json.Marshal(OpenChannelPayload{
+		PartnerAddress: partnerAddress,
+		TokenAddress:   tokenAddress,
+		Balance:        balance,
+		SettleTimeout:  0,
+		NewChannel:     false,
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/channels/" + channelIdentifier,
+		FullURL: node.Host + "/api/1/deposit",
 		Method:  http.MethodPatch,
 		Payload: string(p),
 		Timeout: time.Second * 20,

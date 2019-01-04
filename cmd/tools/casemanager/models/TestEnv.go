@@ -328,6 +328,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	wg.Add(len(options))
 	for _, o := range options {
 		go func(option string) {
+			defer wg.Done()
 			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 			_, token := env.GetTokenByName(s[2])
 			if env.UseOldToken {
@@ -345,7 +346,6 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 				panic(err)
 			}
 			creatAChannelAndDeposit(env, account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
-			wg.Done()
 		}(o)
 	}
 	wg.Wait()
