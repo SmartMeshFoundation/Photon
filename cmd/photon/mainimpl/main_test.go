@@ -63,6 +63,7 @@ func TestStart(t *testing.T) {
 	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", "127.0.0.1:2000"))
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", "127.0.0.1:20000"))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
+	os.Args = append(os.Args, fmt.Sprintf("--registry-contract-address=%s", os.Getenv("TOKEN_NETWORK")))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	params.MobileMode = true
 	GitCommit = utils.NewRandomAddress().String()[2:]
