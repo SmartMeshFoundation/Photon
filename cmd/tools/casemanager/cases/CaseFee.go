@@ -8,7 +8,7 @@ import (
 
 // CaseFee : test for fee module
 func (cm *CaseManager) CaseFee() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseFee.ENV")
+	env, err := models.NewTestEnv("./cases/CaseFee.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

@@ -14,7 +14,7 @@ import (
 // 此种情况下，转账成功，崩溃不影响交易。
 // 继续转账，转账成功。
 func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck01.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck01.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

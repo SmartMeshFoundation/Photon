@@ -2,7 +2,7 @@ package cases
 
 // CasePunish : test for punish
 func (cm *CaseManager) CasePunish() (err error) {
-	//env, err := models.NewTestEnv("./cases/CasePunish.ENV")
+	//env, err := models.NewTestEnv("./cases/CasePunish.ENV",cm.UseMatrix)
 	//if err != nil {
 	//	return
 	//}

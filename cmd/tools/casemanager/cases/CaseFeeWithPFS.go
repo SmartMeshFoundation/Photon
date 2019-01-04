@@ -11,7 +11,7 @@ func (cm *CaseManager) CaseFeeWithPFS() (err error) {
 	if cm.IsAutoRun {
 		return
 	}
-	env, err := models.NewTestEnv("./cases/CaseFeeWithPFS.ENV")
+	env, err := models.NewTestEnv("./cases/CaseFeeWithPFS.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

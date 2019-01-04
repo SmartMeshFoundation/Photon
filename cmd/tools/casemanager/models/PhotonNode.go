@@ -54,11 +54,13 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	//for _, n := range env.Nodes {
-	//	if n.Running {
-	//		n.UpdateMeshNetworkNodes(env.Nodes...)
-	//	}
-	//}
+	if !env.UseMatrix {
+		for _, n := range env.Nodes {
+			if n.Running {
+				n.UpdateMeshNetworkNodes(env.Nodes...)
+			}
+		}
+	}
 }
 
 // StartWithParams start a photon node with --fee
@@ -91,6 +93,13 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
+	if !env.UseMatrix {
+		for _, n := range env.Nodes {
+			if n.Running {
+				n.UpdateMeshNetworkNodes(env.Nodes...)
+			}
+		}
+	}
 }
 
 // StartWithFee start a photon node with --fee
@@ -123,9 +132,11 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	for _, n := range env.Nodes {
-		if n.Running {
-			n.UpdateMeshNetworkNodes(env.Nodes...)
+	if !env.UseMatrix {
+		for _, n := range env.Nodes {
+			if n.Running {
+				n.UpdateMeshNetworkNodes(env.Nodes...)
+			}
 		}
 	}
 }
@@ -147,11 +158,14 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
-	//param = append(param, "--nonetwork")
-	param = append(param, "--db=gkv")
-	if env.XMPPServer != "" {
-		param = append(param, "--xmpp-server="+env.XMPPServer)
+	if !env.UseMatrix {
+		if env.XMPPServer != "" {
+			param = append(param, "--xmpp-server="+env.XMPPServer)
+		} else {
+			param = append(param, "--nonetwork")
+		}
 	}
+	param = append(param, "--db=gkv")
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
 	if env.Debug == true {
@@ -178,8 +192,10 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
 	param = append(param, "--db=gkv")
-	if env.XMPPServer != "" {
-		param = append(param, "--xmpp-server="+env.XMPPServer)
+	if !env.UseMatrix {
+		if env.XMPPServer != "" {
+			param = append(param, "--xmpp-server="+env.XMPPServer)
+		}
 	}
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))

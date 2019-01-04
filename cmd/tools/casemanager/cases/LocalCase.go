@@ -8,7 +8,7 @@ import (
 
 // LocalCase : only for local test
 func (cm *CaseManager) LocalCase() (err error) {
-	env, err := models.NewTestEnv("./cases/LocalCase.ENV")
+	env, err := models.NewTestEnv("./cases/LocalCase.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

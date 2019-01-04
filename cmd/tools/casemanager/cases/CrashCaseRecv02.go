@@ -14,7 +14,7 @@ import (
 // 节点1向节点6发送20个token,节点6向节点1发送secretrequest请求，节点1收到崩,
 // 节点1、节点2、节点3各锁定20个token；重启节点1后，节点锁定token解锁，转账成功。
 func (cm *CaseManager) CrashCaseRecv02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv02.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv02.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

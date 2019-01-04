@@ -14,7 +14,7 @@ import (
 // 节点2向节点6转账20 token,节点6发送Secretrequest后，节点6崩。
 // 查询节点2，节点3，节点2锁定20 token,节点3锁定20token,交易未完成。重启节点6后，交易完成，实现转账继续。
 func (cm *CaseManager) CrashCaseSend04() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseSend04.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseSend04.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

@@ -17,7 +17,7 @@ func main() {
 			Name:  "caselist",
 			Usage: "list all cases",
 			Action: func(*cli.Context) error {
-				cases.NewCaseManager(false)
+				cases.NewCaseManager(false, false)
 				return nil
 			},
 		},
@@ -36,6 +36,10 @@ func main() {
 			Name:  "auto",
 			Usage: "true if auto run",
 		},
+		cli.BoolFlag{
+			Name:  "matrix",
+			Usage: "true if run with matrix",
+		},
 	}
 	app.Action = Main
 	app.Name = "case-manager"
@@ -52,7 +56,7 @@ func Main(ctx *cli.Context) (err error) {
 	fmt.Println(caseName)
 	if caseName != "" {
 		// load all cases
-		caseManager := cases.NewCaseManager(ctx.Bool("auto"))
+		caseManager := cases.NewCaseManager(ctx.Bool("auto"), ctx.Bool("matrix"))
 		fmt.Println("Start Casemanager Test...")
 		// run case
 		if caseName == "all" {

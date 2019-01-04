@@ -13,7 +13,7 @@ import (
 // 节点2向节点6发送45个token，节点2崩，节点2，3各锁定45 token
 // 重启后，节点2、3token解锁，成功转账节点6。
 func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck03.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck03.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

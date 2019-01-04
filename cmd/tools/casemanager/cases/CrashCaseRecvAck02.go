@@ -14,7 +14,7 @@ import (
 // 转账成功，没有锁定token,重启后，节点2扣钱。
 // 此种情况下，崩溃不影响交易。
 func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck02.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck02.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}

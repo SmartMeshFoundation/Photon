@@ -15,7 +15,7 @@ import (
 // 节点6成功。重启节点1后，节点1锁定解锁，转账成功。
 // 此种情况下，转账继续，不影响使用。
 func (cm *CaseManager) CrashCaseRecv06() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv06.ENV")
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv06.ENV", cm.UseMatrix)
 	if err != nil {
 		return
 	}
