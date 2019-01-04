@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Channel photon chainnode
+// Channel atmosphere chainnode
 type Channel struct {
 	Name                string `json:"name"`
 	SelfAddress         string `json:"self_address"`

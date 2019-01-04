@@ -18,7 +18,7 @@ type CaseManager struct {
 }
 
 // NewCaseManager constructor
-func NewCaseManager(isAutoRun, useMatrix bool) (caseManager *CaseManager) {
+func NewCaseManager(isAutoRun bool, useMatrix bool) (caseManager *CaseManager) {
 	caseManager = new(CaseManager)
 	caseManager.IsAutoRun = isAutoRun
 	caseManager.UseMatrix = useMatrix
@@ -51,10 +51,8 @@ func (c *CaseManager) RunAll(skip string) {
 	errorMsg := ""
 	for _, k := range keys {
 		v := c.Cases[k]
-		fmt.Println("----------------------------->Start to run case " + k + "...")
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
-			fmt.Printf("%s SUCCESS\n", k)
 		} else {
 			err := rs[0].Interface().(error)
 			if err == nil {

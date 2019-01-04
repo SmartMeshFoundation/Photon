@@ -14,7 +14,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 )
 
-// PhotonNode a photon node
+// PhotonNode a atmosphere node
 type PhotonNode struct {
 	Host          string
 	Address       string
@@ -26,7 +26,7 @@ type PhotonNode struct {
 	Running       bool
 }
 
-// Start start a photon node
+// Start start a atmosphere node
 func (node *PhotonNode) Start(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
@@ -43,7 +43,7 @@ func (node *PhotonNode) Start(env *TestEnv) {
 			} else {
 				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start photon node TIMEOUT")
+			panic("Start atmosphere node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -54,7 +54,7 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	if !env.UseMatrix {
+	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
 			if n.Running {
 				n.UpdateMeshNetworkNodes(env.Nodes...)
@@ -63,7 +63,7 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 }
 
-// StartWithParams start a photon node with --fee
+// StartWithParams start a atmosphere node with --fee
 func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStrWithoutNoNetwork(env)
@@ -82,7 +82,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 			} else {
 				Logger.Printf("NODE %s %s StartWithParams TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start photon node TIMEOUT")
+			panic("Start atmosphere node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -93,7 +93,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	if !env.UseMatrix {
+	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
 			if n.Running {
 				n.UpdateMeshNetworkNodes(env.Nodes...)
@@ -102,7 +102,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	}
 }
 
-// StartWithFee start a photon node with --fee
+// StartWithFee start a atmosphere node with --fee
 func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStr(env)
@@ -121,7 +121,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 			} else {
 				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start photon node TIMEOUT")
+			panic("Start atmosphere node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -132,7 +132,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	if !env.UseMatrix {
+	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
 			if n.Running {
 				n.UpdateMeshNetworkNodes(env.Nodes...)
@@ -141,7 +141,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	}
 }
 
-// ReStartWithoutConditionquit : Restart start a photon node
+// ReStartWithoutConditionquit : Restart start a atmosphere node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
 	node.ConditionQuit = nil
@@ -156,7 +156,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--listen-address="+node.ListenAddress)
 	param = append(param, "--address="+node.Address)
 	param = append(param, "--keystore-path="+env.KeystorePath)
-	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
 	if !env.UseMatrix {
 		if env.XMPPServer != "" {
@@ -165,7 +165,6 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 			param = append(param, "--nonetwork")
 		}
 	}
-	param = append(param, "--db=gkv")
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
 	if env.Debug == true {
@@ -189,12 +188,13 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	param = append(param, "--listen-address="+node.ListenAddress)
 	param = append(param, "--address="+node.Address)
 	param = append(param, "--keystore-path="+env.KeystorePath)
-	param = append(param, "--registry-contract-address="+env.RegistryContractAddress)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
-	param = append(param, "--db=gkv")
 	if !env.UseMatrix {
 		if env.XMPPServer != "" {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
+		} else {
+			param = append(param, "--nonetwork")
 		}
 	}
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
@@ -213,7 +213,7 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	return param
 }
 
-// StartWithConditionQuit start a photon node whit condition quit
+// StartWithConditionQuit start a atmosphere node whit condition quit
 func (node *PhotonNode) StartWithConditionQuit(env *TestEnv, c *params.ConditionQuit) {
 	node.ConditionQuit = c
 	node.DebugCrash = true

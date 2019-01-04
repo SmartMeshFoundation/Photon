@@ -47,7 +47,7 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	cd56 := N5.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	// 4. 崩溃判断
 	if N3.IsRunning() {
 		msg = "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"

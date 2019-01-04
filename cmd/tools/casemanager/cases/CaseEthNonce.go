@@ -33,7 +33,7 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 	// 获取channel信息
 	for i := 0; i < 100; i++ {
 		go func() {
-			err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 0, settleTimeout)
+			err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, settleTimeout)
 			if err != nil {
 				fmt.Printf("----------err : %s \n", err.Error())
 			}

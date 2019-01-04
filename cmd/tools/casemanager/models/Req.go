@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Req a photon api http request
+// Req a atmosphere api http request
 type Req struct {
 	APIName string        `json:"api_name"`
 	FullURL string        `json:"url"`

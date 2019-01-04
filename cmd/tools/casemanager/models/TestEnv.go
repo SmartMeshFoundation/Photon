@@ -34,21 +34,23 @@ import (
 
 // TestEnv env manager for test
 type TestEnv struct {
-	CaseName                string
-	Main                    string
-	DataDir                 string
-	KeystorePath            string
-	PasswordFile            string
-	XMPPServer              string
-	EthRPCEndpoint          string
-	RegistryContractAddress string
-	UseMatrix               bool
-	Verbosity               int
-	Debug                   bool
-	Nodes                   []*PhotonNode
-	Tokens                  []*Token
-	Channels                []*Channel
-	Keys                    []*ecdsa.PrivateKey `json:"-"`
+	CaseName            string
+	Main                string
+	DataDir             string
+	KeystorePath        string
+	PasswordFile        string
+	XMPPServer          string
+	EthRPCEndpoint      string
+	TokenNetwork        *contracts.TokensNetwork
+	TokenNetworkAddress string
+	UseMatrix           bool
+	Verbosity           int
+	Debug               bool
+	Nodes               []*PhotonNode
+	Tokens              []*Token
+	Channels            []*Channel
+	Keys                []*ecdsa.PrivateKey `json:"-"`
+	UseOldToken         bool
 }
 
 // Logger : global case logger
@@ -95,16 +97,18 @@ func NewTestEnv(configFilePath string, useMatrix bool) (env *TestEnv, err error)
 	env.EthRPCEndpoint = c.RdString("COMMON", "eth_rpc_endpoint", "ws://182.254.155.208:30306")
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
 	env.Debug = c.RdBool("COMMON", "debug", false)
+	env.UseOldToken = false
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
 		Logger.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
 	_, key := promptAccount(env.KeystorePath)
-	registryAddress, registry := loadTokenNetworkContract(c, conn, key)
-	env.RegistryContractAddress = registryAddress.String()
+	tokenNetworkAddress, tokenNetwork := loadTokenNetworkContract(c, conn, key)
+	env.TokenNetwork = tokenNetwork
+	env.TokenNetworkAddress = tokenNetworkAddress.String()
 	env.Nodes = loadNodes(c)
-	env.Tokens = loadTokenAddrs(c, env, conn, key, registry)
+	env.Tokens = loadTokenAddrs(c, env, conn, key)
 	env.Channels = loadAndBuildChannels(c, env, conn)
 	env.KillAllPhotonNodes()
 	env.ClearHistoryData()
@@ -113,15 +117,14 @@ func NewTestEnv(configFilePath string, useMatrix bool) (env *TestEnv, err error)
 	return
 }
 
-func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (registryAddress common.Address, registry *contracts.TokenNetworkRegistry) {
-	addr := c.RdString("COMMON", "registry_contract_address", "new")
+func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (tokenNetworkAddress common.Address, tokenNetwork *contracts.TokensNetwork) {
+	addr := c.RdString("COMMON", "token_network_address", "new")
 	if addr == "new" {
-		registryAddress, registry = deployRegistryContract(conn, key)
-		Logger.Printf("New RegistryAddress : %s\n", registryAddress.String())
+		tokenNetworkAddress, tokenNetwork = deployTokenNetworkContract(conn, key)
 	} else {
 		var err error
-		registryAddress = common.HexToAddress(addr)
-		registry, err = contracts.NewTokenNetworkRegistry(registryAddress, conn)
+		tokenNetworkAddress = common.HexToAddress(addr)
+		tokenNetwork, err = contracts.NewTokensNetwork(tokenNetworkAddress, conn)
 		if err != nil {
 			panic(err)
 		}
@@ -129,34 +132,23 @@ func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecd
 	Logger.Println("Load RegistryAddress SUCCESS")
 	return
 }
-func deployRegistryContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (registryAddress common.Address, registry *contracts.TokenNetworkRegistry) {
+func deployTokenNetworkContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (tokenNetworkAddress common.Address, tokenNetwork *contracts.TokensNetwork) {
 	auth := bind.NewKeyedTransactor(key)
-	//Deploy Secret Registry
-	secretRegistryAddress, tx, _, err := contracts.DeploySecretRegistry(auth, conn)
+	var tx *types.Transaction
+	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to deploy SecretRegistry contract: %v", err)
+		log.Fatalf("failed to get network id %s", err)
+	}
+	tokenNetworkAddress, tx, tokenNetwork, err = contracts.DeployTokensNetwork(auth, conn, chainID)
+	if err != nil {
+		log.Fatalf("failed to deploy TokenNetworkRegistry %s", err)
 	}
 	ctx := context.Background()
 	_, err = bind.WaitDeployed(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("Deploy SecretRegistry complete...\n")
-	chainID, err := conn.NetworkID(context.Background())
-	if err != nil {
-		log.Fatalf("failed to get network id %s", err)
-	}
-	registryAddress, tx, registry, err = contracts.DeployTokenNetworkRegistry(auth, conn, secretRegistryAddress, chainID)
-	if err != nil {
-		log.Fatalf("failed to deploy TokenNetworkRegistry %s", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
-	}
-	fmt.Printf("deploy TokenNetworkRegistry complete...\n")
-	fmt.Printf("TokenNetworkRegistry=%s\n", registryAddress.String())
+	fmt.Printf("deploy TokenNetwork complete... TokenNetworkAddress=%s\n", tokenNetworkAddress.String())
 	return
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {
@@ -213,7 +205,7 @@ func loadNodes(c *config.Config) (nodes []*PhotonNode) {
 	return
 }
 
-func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.TokenNetworkRegistry) (tokens []*Token) {
+func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (tokens []*Token) {
 	options, err := c.Options("TOKEN")
 	if err != nil {
 		panic(err)
@@ -222,32 +214,33 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 	for _, option := range options {
 		addr := c.RdString("TOKEN", option, "")
 		if addr == "new" {
-			tokenNetwork, tokenNetworkAddress, token, tokenAddress := deployNewToken(env, conn, key, registry)
-			Logger.Printf("New TokenAddress %s : token=%s token_network=%s", option, tokenAddress.String(), tokenNetworkAddress.String())
-			tokens = append(tokens, &Token{
-				Name:                option,
-				Token:               token,
-				TokenAddress:        tokenAddress,
-				TokenNetwork:        tokenNetwork,
-				TokenNetworkAddress: tokenNetworkAddress,
-			})
-		} else {
+			token, tokenAddress := deployNewToken(env, conn, key)
+			Logger.Printf("New Token =%s\n", tokenAddress.String())
 			tokens = append(tokens, &Token{
 				Name:         option,
-				TokenAddress: common.HexToAddress(addr),
+				Token:        token,
+				TokenAddress: tokenAddress,
+			})
+		} else {
+			env.UseOldToken = true
+			tokenAddress := common.HexToAddress(addr)
+			token, err := contracts.NewToken(tokenAddress, conn)
+			if err != nil {
+				panic(err)
+			}
+			tokens = append(tokens, &Token{
+				Name:         option,
+				Token:        token,
+				TokenAddress: tokenAddress,
 			})
 		}
 	}
 	Logger.Println("Load Tokens SUCCESS")
 	return
 }
-func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey, registry *contracts.TokenNetworkRegistry) (tokenNetwork *contracts.TokenNetwork, tokenNetworkAddress common.Address, token *contracts.Token, tokenAddress common.Address) {
+func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
 	var err error
-	tokenNetworkAddress, tokenAddress = newToken(key, conn, registry)
-	tokenNetwork, err = contracts.NewTokenNetwork(tokenNetworkAddress, conn)
-	if err != nil {
-		panic(fmt.Sprintf("err for NewChannelManagerContract %s", err))
-	}
+	tokenAddress = newToken(key, conn)
 	token, err = contracts.NewToken(tokenAddress, conn)
 	if err != nil {
 		panic(fmt.Sprintf("err for newtoken err %s", err))
@@ -270,7 +263,7 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey,
 	transferMoneyForAccounts(key, conn, accounts, token)
 	return
 }
-func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contracts.TokenNetworkRegistry) (tokenNetworkAddr common.Address, tokenAddr common.Address) {
+func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
 	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(50000000000), "test symoble", 0)
 	if err != nil {
@@ -282,18 +275,7 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetwork *contr
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("DeployHumanStandardToken complete...\n")
-	tx, err = tokenNetwork.CreateERC20TokenNetwork(auth, tokenAddr)
-	if err != nil {
-		log.Fatalf("Failed to AddToken: %v", err)
-	}
-	ctx = context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to AddToken when mining :%v", err)
-	}
-	tokenNetworkAddr, err = tokenNetwork.TokenToTokenNetworks(nil, tokenAddr)
-	fmt.Printf("DeployHumanStandardToken complete... %s,token_network_address=%s\n", tokenAddr.String(), tokenNetworkAddr.String())
+	fmt.Printf("DeployHumanStandardToken complete... tokenAddress=%s\n", tokenAddr.String())
 	return
 }
 
@@ -348,9 +330,8 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 		go func(option string) {
 			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 			_, token := env.GetTokenByName(s[2])
-			if token.Token == nil {
+			if env.UseOldToken {
 				fmt.Println("use old token , do not create channel...")
-				wg.Done()
 				return
 			}
 			index1, account1 := env.GetNodeAddressByName(s[0])
@@ -363,7 +344,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 			if err != nil {
 				panic(err)
 			}
-			creatAChannelAndDeposit(account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
+			creatAChannelAndDeposit(env, account1, account2, key1, key2, big.NewInt(amount1), big.NewInt(amount2), settledTimeout, token, conn)
 			wg.Done()
 		}(o)
 	}
@@ -372,28 +353,26 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	return nil
 }
 
-func creatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
+func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
 	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
 	var tx *types.Transaction
 	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
-		approveAccountIfNeeded(token.Token, auth1, token.TokenNetworkAddress, amount1, conn)
-		tx, err = token.TokenNetwork.OpenChannelWithDeposit(auth1, account1, account2, settledTimeout, amount1)
-	} else {
-		tx, err = token.TokenNetwork.OpenChannel(auth1, account1, account2, settledTimeout)
-	}
-	if err != nil {
-		panic(err)
-	}
-	_, err = bind.WaitMined(context.Background(), conn, tx)
-	if err != nil {
-		panic(err)
+		approveAccountIfNeeded(token.Token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
+		tx, err = env.TokenNetwork.Deposit(auth1, token.TokenAddress, account1, account2, amount1, settledTimeout)
+		if err != nil {
+			panic(err)
+		}
+		_, err = bind.WaitMined(context.Background(), conn, tx)
+		if err != nil {
+			panic(err)
+		}
 	}
 	if amount2.Int64() > 0 {
-		approveAccountIfNeeded(token.Token, auth2, token.TokenNetworkAddress, amount2, conn)
-		tx, err = token.TokenNetwork.Deposit(auth2, account2, account1, amount2)
+		approveAccountIfNeeded(token.Token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
+		tx, err = env.TokenNetwork.Deposit(auth2, token.TokenAddress, account2, account1, amount2, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
@@ -436,21 +415,21 @@ func approveAccountIfNeeded(token *contracts.Token, auth *bind.TransactOpts, tok
 	approveMap[key] = approveAmt.Int64()
 }
 
-// KillAllPhotonNodes kill all photon node
+// KillAllPhotonNodes kill all atmosphere node
 func (env *TestEnv) KillAllPhotonNodes() {
 	var pstr2 []string
 	//kill the old process
 	if runtime.GOOS == "windows" {
 		pstr2 = append(pstr2, "-F")
 		pstr2 = append(pstr2, "-IM")
-		pstr2 = append(pstr2, "photon*")
+		pstr2 = append(pstr2, "atmosphere*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
 		pstr2 = append(pstr2, "-9")
-		pstr2 = append(pstr2, "photon")
+		pstr2 = append(pstr2, "atmosphere")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
-	Logger.Println("Kill all photon nodes SUCCESS")
+	Logger.Println("Kill all atmosphere nodes SUCCESS")
 }
 
 // ClearHistoryData :

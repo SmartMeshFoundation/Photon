@@ -7,9 +7,7 @@ import (
 
 // Token name and address
 type Token struct {
-	Name                string
-	Token               *contracts.Token
-	TokenAddress        common.Address
-	TokenNetwork        *contracts.TokenNetwork
-	TokenNetworkAddress common.Address
+	Name         string
+	Token        *contracts.Token
+	TokenAddress common.Address
 }

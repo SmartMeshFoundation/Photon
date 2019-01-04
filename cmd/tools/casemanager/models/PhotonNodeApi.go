@@ -7,14 +7,13 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
-	models2 "github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // GetChannelWith :
 func (node *PhotonNode) GetChannelWith(partnerNode *PhotonNode, tokenAddr string) *Channel {
-	req := &models.Req{
+	req := &Req{
 		FullURL: node.Host + "/api/1/channels",
 		Method:  http.MethodGet,
 		Payload: "",
@@ -44,7 +43,7 @@ func (node *PhotonNode) GetChannelWith(partnerNode *PhotonNode, tokenAddr string
 
 // GetChannels :
 func (node *PhotonNode) GetChannels(tokenAddr string) []*Channel {
-	req := &models.Req{
+	req := &Req{
 		FullURL: node.Host + "/api/1/channels",
 		Method:  http.MethodGet,
 		Payload: "",
@@ -99,11 +98,11 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 	go req.Invoke()
 	time.Sleep(10 * time.Second)
 	node.Running = false
-	//for _, n := range env.Nodes {
-	//	if n.Running {
-	//		n.UpdateMeshNetworkNodes(env.Nodes...)
-	//	}
-	//}
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(env.Nodes...)
+		}
+	}
 	return
 }
 
@@ -114,7 +113,6 @@ type TransferPayload struct {
 	IsDirect bool   `json:"is_direct"`
 	Secret   string `json:"secret"`
 	Sync     bool   `json:"sync"`
-	Data     string `json:"data"`
 }
 
 // Transfer send a transfer
@@ -161,53 +159,6 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 	if statusCode != 200 {
 		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
-	}
-}
-
-// SendTransSync send a transfer, should be instead of Transfer
-func (node *PhotonNode) SendTransSync(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
-	p, err := json.Marshal(TransferPayload{
-		Amount:   amount,
-		Fee:      0,
-		IsDirect: isDirect,
-		Sync:     true,
-	})
-	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
-		Method:  http.MethodPost,
-		Payload: string(p),
-		Timeout: time.Second * 180,
-	}
-	statusCode, _, err := req.Invoke()
-	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
-	}
-}
-
-// SendTransWithData send a transfer, should be instead of Transfer
-func (node *PhotonNode) SendTransWithData(tokenAddress string, amount int32, targetAddress string, isDirect bool, data string) {
-	p, err := json.Marshal(TransferPayload{
-		Amount:   amount,
-		Fee:      0,
-		IsDirect: isDirect,
-		Data:     data,
-		Sync:     true,
-	})
-	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
-		Method:  http.MethodPost,
-		Payload: string(p),
-		Timeout: time.Second * 300,
-	}
-	statusCode, body, err := req.Invoke()
-	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s body=%s", err, string(body)))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d body=%s", statusCode, string(body)))
 	}
 }
 
@@ -447,7 +398,7 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 }
 
 // SetFeePolicy :
-func (node *PhotonNode) SetFeePolicy(fp *models2.FeePolicy) error {
+func (node *PhotonNode) SetFeePolicy(fp *models.FeePolicy) error {
 	req := &Req{
 		FullURL: node.Host + "/api/1/fee_policy",
 		Method:  http.MethodPost,

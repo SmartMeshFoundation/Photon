@@ -24,7 +24,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2, N3, N4 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// step 1 : Start 5 Photon nodes
+	// step 1 : Start 5 Atmosphere nodes
 	models.Logger.Println("step 1 ---->")
 	N0.Start(env)
 	N1.Start(env)
@@ -32,9 +32,10 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	N3.Start(env)
 	N4.Start(env)
 
-	// step 2 : Create the following channels: N0 - N1, N1 - N2, N2 - N3 with 0 deposit
+	// step 2 : Create the following channels: N0 - N1, N1 - N2, N2 - N3 with 100 deposit
 	models.Logger.Println("step 2 ---->")
-	err = N0.OpenChannel(N1.Address, tokenAddress, 0, settleTimeout)
+	depositAmount := int64(100)
+	err = N0.OpenChannel(N1.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -42,7 +43,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if C01 == nil {
 		return cm.caseFail(env.CaseName)
 	}
-	err = N1.OpenChannel(N2.Address, tokenAddress, 0, settleTimeout)
+	err = N1.OpenChannel(N2.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -50,7 +51,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if C12 == nil {
 		return cm.caseFail(env.CaseName)
 	}
-	err = N2.OpenChannel(N3.Address, tokenAddress, 0, settleTimeout)
+	err = N2.OpenChannel(N3.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -61,24 +62,11 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 3 : N0 N1 N2 N3 make a deposit of 100 to their channels
 	models.Logger.Println("step 3 ---->")
-	depositAmount := int64(100)
-	err = N0.Deposit(C01.ChannelIdentifier, depositAmount)
-	if err != nil {
-		return cm.caseFail(env.CaseName)
-	}
 	err = N1.Deposit(C01.ChannelIdentifier, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	err = N1.Deposit(C12.ChannelIdentifier, depositAmount)
-	if err != nil {
-		return cm.caseFail(env.CaseName)
-	}
 	err = N2.Deposit(C12.ChannelIdentifier, depositAmount)
-	if err != nil {
-		return cm.caseFail(env.CaseName)
-	}
-	err = N2.Deposit(C23.ChannelIdentifier, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -96,29 +84,16 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	err = nil
 
 	// step 5 : N1 makes a deposit of 50 tokens on both of his channels (skip)
-	// step 6 : N1 tries to open a channel with N0, but it already has a channel (fail)
-	models.Logger.Println("step 5 ---->")
-	err = N1.OpenChannel(N0.Address, tokenAddress, 0, settleTimeout)
-	if err == nil {
-		return cm.caseFail(env.CaseName)
-	}
-	err = nil
-
+	// step 6 : N1 tries to open a channel with N0, but it already has a channel (skip)
 	// step 7 : N2 opens a channel with N4 (0 tokens)
-	models.Logger.Println("step 7 ---->")
-	err = N2.OpenChannel(N4.Address, tokenAddress, 0, settleTimeout)
+	// step 8 : N2 makes a deposit of 100 tokens
+	models.Logger.Println("step 8 ---->")
+	err = N2.OpenChannel(N4.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
 	C24 := N2.GetChannelWith(N4, tokenAddress)
 	if C24 == nil {
-		return cm.caseFail(env.CaseName)
-	}
-
-	// step 8 : N2 makes a deposit of 100 tokens
-	models.Logger.Println("step 8 ---->")
-	err = N2.Deposit(C24.ChannelIdentifier, depositAmount)
-	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
 
@@ -134,7 +109,8 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 11 : N0 tries to open a channel with an initial deposit that is bigger then the Red Eyes Limit (skip)
 	// step 12 : N0 opens a channel with N4 (initial deposit of 10)
 	models.Logger.Println("step 12 ---->")
-	err = N0.OpenChannel(N4.Address, tokenAddress, 0, settleTimeout)
+	depositAmount = 10
+	err = N0.OpenChannel(N4.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -250,12 +226,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C24new.Name)
 	}
 
-	// step 20 : N0 tries to open a channel with N1 (fail - it already has a channel with N1)
-	models.Logger.Println("step 20 ---->")
-	err = N0.OpenChannel(N1.Address, tokenAddress, 0, settleTimeout)
-	if err == nil {
-		return cm.caseFail(env.CaseName)
-	}
+	// step 20 : N0 tries to open a channel with N1 (fail - it already has a channel with N1)(skip)
 
 	// step 21 : N0 tries to make a payment to N1 (Node is offline - fails)
 	models.Logger.Println("step 21 ---->")
