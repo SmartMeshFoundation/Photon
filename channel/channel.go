@@ -1431,8 +1431,8 @@ func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncR
 
 // String fmt.Stringer
 func (c *Channel) String() string {
-	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s}",
-		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount())
+	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s,channelid=%s}",
+		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount(), &c.ChannelIdentifier)
 }
 
 // NewChannelSerialization serialize the channel to save to database

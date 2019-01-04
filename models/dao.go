@@ -109,9 +109,10 @@ type FeePolicyDao interface {
 // NonParticipantChannelDao :
 type NonParticipantChannelDao interface {
 	NewNonParticipantChannel(token common.Address, channelIdentifier common.Hash, participant1, participant2 common.Address) error
-	RemoveNonParticipantChannel(token common.Address, channelIdentifier common.Hash) error
-	GetAllNonParticipantChannel(token common.Address) (edges []common.Address, err error)
-	GetParticipantAddressByTokenAndChannel(token common.Address, channel common.Hash) (p1, p2 common.Address)
+	RemoveNonParticipantChannel(channel common.Hash) error
+	GetAllNonParticipantChannelByToken(token common.Address) (edges []common.Address, err error)
+	GetNonParticipantChannelByID(channelIdentifierForQuery common.Hash) (
+		tokenAddress common.Address, participant1, participant2 common.Address, err error)
 }
 
 // SentAnnounceDisposedDao :

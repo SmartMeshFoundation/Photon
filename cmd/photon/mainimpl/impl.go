@@ -2,7 +2,9 @@ package mainimpl
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 
@@ -71,7 +73,9 @@ func StartMain() (*photon.API, error) {
 	fmt.Printf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version)
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
-		return nil, fmt.Errorf("photon must build use makefile")
+		if os.Getenv("ISTEST") == "" {
+			return nil, fmt.Errorf("photon must build use makefile")
+		}
 	}
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
@@ -92,7 +96,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "registry-contract-address",
-			Usage: `hex encoded address of the registry contract.`,
+			Usage: `hex encoded address of the registry contract.it's the token network contract address '`,
 		},
 		cli.StringFlag{
 			Name:  "listen-address",
@@ -115,7 +119,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "debugcrash",
-			Usage: "enable debug crash feature",
+			Usage: "enable debug crash feature,only for test",
 		},
 		cli.StringFlag{
 			Name:  "conditionquit",
@@ -124,15 +128,15 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "nonetwork",
-			Usage: "disable network, for example ,when we want to settle all channels",
+			Usage: "disable network, for example ,when we want to settle all channels,only for test, should not be used in production",
 		},
 		cli.BoolFlag{
 			Name:  "fee",
-			Usage: "enable mediation fee",
+			Usage: "enable mediation fee,default charge fee is 0.01%",
 		},
 		cli.BoolFlag{
 			Name:  "xmpp",
-			Usage: "use xmpp as transport",
+			Usage: "use xmpp as transport,default is matrix, if two nodes use different transport,they cannot send message to each other",
 		},
 		cli.StringFlag{
 			Name:  "xmpp-server",
@@ -154,7 +158,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "matrix",
-			Usage: "use matrix as transport",
+			Usage: "use matrix as transport,default is matrix",
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
@@ -163,11 +167,11 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "pfs",
-			Usage: "pathfinder service host,example http://127.0.0.1:9000",
+			Usage: "pathfinder service host,example http://transport01.smartmesh.cn:7000,default ",
 		},
 		cli.BoolFlag{
 			Name:  "enable-fork-confirm",
-			Usage: "enable fork confirm when receive events from chain",
+			Usage: "enable fork confirm when receive events from chain,default is false",
 		},
 		cli.StringFlag{
 			Name:  "http-username",
@@ -179,7 +183,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "db",
-			Usage: "use --db=gkv when need photon run with gkvdb",
+			Usage: "use --db=gkv when need photon run with gkvdb,default db is boltdb,photon doesn't support change db type once db is created.",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
@@ -220,8 +224,16 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// open db
 	var dao models.Dao
 	if ctx.IsSet("db") && ctx.String("db") == "gkv" {
+		err = checkDbMeta(cfg.DataBasePath, "gkv")
+		if err != nil {
+			return
+		}
 		dao, err = gkvdb.OpenDb(cfg.DataBasePath)
 	} else {
+		err = checkDbMeta(cfg.DataBasePath, "boltdb")
+		if err != nil {
+			return
+		}
 		dao, err = stormdb.OpenDb(cfg.DataBasePath)
 	}
 	if err != nil {
@@ -378,6 +390,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		err = fmt.Errorf("privkey error: %s", err)
 		return
 	}
+	//log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
 	config.MyAddress = crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
 	log.Info(fmt.Sprintf("Start with account %s", config.MyAddress.String()))
 	registAddrStr := ctx.String("registry-contract-address")
@@ -548,4 +561,26 @@ func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
 		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
 	return
+}
+func checkDbMeta(dbPath, dbType string) (err error) {
+	//make sure db type not change since first start .
+	dbInfo := fmt.Sprintf("%s.%s", dbPath, "info")
+	if !common.FileExist(dbInfo) {
+		err = ioutil.WriteFile(dbInfo, []byte(dbType), os.ModePerm)
+		if err != nil {
+			return
+		}
+	} else {
+		var info []byte
+		//#nosec#
+		info, err = ioutil.ReadFile(dbInfo)
+		if err != nil {
+			return
+		}
+		if string(info) != dbType {
+			err = errors.New("doesn't support switch db type right now")
+			return
+		}
+	}
+	return nil
 }

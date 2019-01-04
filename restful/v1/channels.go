@@ -9,7 +9,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -101,6 +100,9 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 /*
 ChannelFor3rdParty generate info for 3rd party use,
 for update transfer and withdraw.
+/api/1/thirdparty/:channel/:3rd
+channel:  channel identifier
+3rd: the account that MS used to send transaction on blockchain
 */
 func ChannelFor3rdParty(w rest.ResponseWriter, r *rest.Request) {
 	ch := r.PathParam("channel")
@@ -168,16 +170,32 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
-OpenChannel open a channel with partner.
+depositReq 用户存款请求
+*/
+type depositReq struct {
+	PartnerAddrses string   `json:"partner_address"` //通道对方地址
+	TokenAddress   string   `json:"token_address"`   //哪种token
+	Balance        *big.Int `json:"balance"`         //存入金额,一定大于0
+	//如果NewChannel为true
+	//  SettleTimeout表示新建通道的结算窗口,如果SettleTimeout为0,则用系统默认计算窗口
+	//如果NewChannel为 false
+	//  SettleTimeout 必须为0,表示只是存款,一定不要创建通道
+	SettleTimeout int  `json:"settle_timeout"`
+	NewChannel    bool `json:"new_channel"` //此次行为是创建通道并存款还是只存款
+}
+
+/*
+Deposit open a channel with partner if channel not exists  and deposit `balance` token to this channel.
 token must exist
 partner maybe an invalid address
+Balance must be positive
 */
-func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
+func Deposit(w rest.ResponseWriter, r *rest.Request) {
 	var err error
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> OpenChannel ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> Deposit ,err=%v", err))
 	}()
-	req := &ChannelData{}
+	req := &depositReq{}
 	err = r.DecodeJsonPayload(req)
 	if err != nil {
 		log.Error(err.Error())
@@ -196,47 +214,44 @@ func OpenChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.State == 0 { //open channel
-		c, err := API.Open(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance)
-		if err != nil {
-			log.Error(err.Error())
-			rest.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		d := &ChannelData{
-			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
-			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-			PartnerAddrses:      c.PartnerAddress().String(),
-			Balance:             c.OurBalance(),
-			PartnerBalance:      c.PartnerBalance(),
-			State:               c.State,
-			StateString:         c.State.String(),
-			SettleTimeout:       c.SettleTimeout,
-			TokenAddress:        c.TokenAddress().String(),
-			LockedAmount:        c.OurAmountLocked(),
-			PartnerLockedAmount: c.PartnerAmountLocked(),
-			RevealTimeout:       c.RevealTimeout,
-		}
-		err = w.WriteJson(d)
-		if err != nil {
-			log.Warn(fmt.Sprintf("writejson err %s", err))
-		}
+
+	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
+	if err != nil {
+		log.Error(err.Error())
+		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	rest.Error(w, "argument error", http.StatusBadRequest)
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	err = w.WriteJson(d)
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
 	return
 }
 
 /*
-CloseSettleDepositChannel can do the following jobs:
+CloseSettleChannel can do the following jobs:
 close channel
 settle channel
 deposit to channel
 */
-func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
+func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 	var err error
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> CloseSettleDepositChannel ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> CloseSettleChannel ,err=%v", err))
 	}()
 	chstr := r.PathParam("channel")
 	if len(chstr) != len(utils.EmptyHash.String()) {
@@ -262,50 +277,43 @@ func CloseSettleDepositChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	if req.Balance != nil && req.Balance.Cmp(utils.BigInt0) > 0 { //deposit
-		c, err = API.Deposit(c.TokenAddress(), c.PartnerAddress(), req.Balance, params.DefaultPollTimeout)
-		if err != nil {
-			rest.Error(w, err.Error(), http.StatusRequestTimeout)
-			return
-		}
-	} else {
-		if req.State == "closed" {
-			req.StateInt = channeltype.StateClosed
-		} else if req.State == "settled" {
-			req.StateInt = channeltype.StateSettled
-		} else {
-			req.StateInt = channeltype.StateError
-		}
-		//close or settle
-		if req.StateInt != channeltype.StateClosed && req.StateInt != channeltype.StateSettled {
-			rest.Error(w, "argument error", http.StatusBadRequest)
-			return
-		}
-		if req.StateInt == channeltype.StateClosed {
-			if req.Force {
-				c, err = API.Close(c.TokenAddress(), c.PartnerAddress())
-				if err != nil {
-					log.Error(err.Error())
-					rest.Error(w, err.Error(), http.StatusConflict)
-					return
-				}
-			} else {
-				//cooperative settle channel
-				c, err = API.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
-				if err != nil {
-					log.Error(err.Error())
-					rest.Error(w, err.Error(), http.StatusConflict)
-					return
-				}
-			}
 
-		} else if req.StateInt == channeltype.StateSettled {
-			c, err = API.Settle(c.TokenAddress(), c.PartnerAddress())
+	if req.State == "closed" {
+		req.StateInt = channeltype.StateClosed
+	} else if req.State == "settled" {
+		req.StateInt = channeltype.StateSettled
+	} else {
+		req.StateInt = channeltype.StateError
+	}
+	//close or settle
+	if req.StateInt != channeltype.StateClosed && req.StateInt != channeltype.StateSettled {
+		rest.Error(w, "argument error", http.StatusBadRequest)
+		return
+	}
+	if req.StateInt == channeltype.StateClosed {
+		if req.Force {
+			c, err = API.Close(c.TokenAddress(), c.PartnerAddress())
 			if err != nil {
 				log.Error(err.Error())
 				rest.Error(w, err.Error(), http.StatusConflict)
 				return
 			}
+		} else {
+			//cooperative settle channel
+			c, err = API.CooperativeSettle(c.TokenAddress(), c.PartnerAddress())
+			if err != nil {
+				log.Error(err.Error())
+				rest.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+		}
+
+	} else if req.StateInt == channeltype.StateSettled {
+		c, err = API.Settle(c.TokenAddress(), c.PartnerAddress())
+		if err != nil {
+			log.Error(err.Error())
+			rest.Error(w, err.Error(), http.StatusConflict)
+			return
 		}
 	}
 	d := &ChannelData{

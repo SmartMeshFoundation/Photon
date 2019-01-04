@@ -89,6 +89,7 @@ func cooperativeSettleChannelIfExists(a1 *Account, a2 *Account) {
 	}
 	tx, err := env.TokenNetwork.CooperativeSettle(
 		a1.Auth,
+		env.TokenAddress,
 		a1.Address, cs.Participant1Balance,
 		a2.Address, cs.Participant2Balance,
 		cs.sign(a1.Key),
@@ -141,11 +142,11 @@ func getCooperativeSettleParams(a1, a2 *Account, balanceA1, balanceA2 *big.Int) 
 		return nil
 	}
 	if state == ChannelStateOpened {
-		balanceA1, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a1.Address, a2.Address)
+		balanceA1, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, env.TokenAddress, a1.Address, a2.Address)
 		if err != nil {
 			panic(err)
 		}
-		balanceA2, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, a2.Address, a1.Address)
+		balanceA2, _, _, err = env.TokenNetwork.GetChannelParticipantInfo(nil, env.TokenAddress, a2.Address, a1.Address)
 		if err != nil {
 			panic(err)
 		}
@@ -167,19 +168,17 @@ func openChannelAndDeposit(a1, a2 *Account, depositA1, depositA2 *big.Int, settl
 	var tx *types.Transaction
 	var err error
 	if depositA1.Int64() > 0 {
-		tx, err = env.TokenNetwork.OpenChannelWithDeposit(a1.Auth, a1.Address, a2.Address, settleTimeout, depositA1)
-	} else {
-		tx, err = env.TokenNetwork.OpenChannel(a1.Auth, a1.Address, a2.Address, settleTimeout)
-	}
-	if err != nil {
-		panic(err)
-	}
-	_, err = bind.WaitMined(context.Background(), env.Client, tx)
-	if err != nil {
-		panic(err)
+		tx, err = env.TokenNetwork.Deposit(a1.Auth, env.TokenAddress, a1.Address, a2.Address, depositA1, settleTimeout)
+		if err != nil {
+			panic(err)
+		}
+		_, err = bind.WaitMined(context.Background(), env.Client, tx)
+		if err != nil {
+			panic(err)
+		}
 	}
 	if depositA2.Int64() > 0 {
-		tx, err = env.TokenNetwork.Deposit(a2.Auth, a2.Address, a1.Address, depositA2)
+		tx, err = env.TokenNetwork.Deposit(a2.Auth, env.TokenAddress, a2.Address, a1.Address, depositA2, settleTimeout)
 		if err != nil {
 			panic(err)
 		}
@@ -204,6 +203,7 @@ func withdraw(a1 *Account, depositA1, withdrawA1 *big.Int, a2 *Account) {
 	}
 	tx, err := env.TokenNetwork.WithDraw(
 		a2.Auth,
+		env.TokenAddress,
 		param1.Participant1,
 		param1.Participant2,
 		param1.Participant1Deposit,
@@ -393,7 +393,7 @@ func registrySecrets(account *Account, secrets []common.Hash) {
 }
 
 func getChannelInfo(a1 *Account, a2 *Account) (channelID [32]byte, settleBlockNum uint64, openBlockNumber uint64, state uint8, settleTimeout uint64, ChainID *big.Int) {
-	channelID, settleBlockNum, openBlockNumber, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, a1.Address, a2.Address)
+	channelID, settleBlockNum, openBlockNumber, state, settleTimeout, err := env.TokenNetwork.GetChannelInfo(nil, env.TokenAddress, a1.Address, a2.Address)
 	if err != nil {
 		panic(err)
 	}

@@ -92,7 +92,6 @@ type Service struct {
 	PrivateKey            *ecdsa.PrivateKey
 	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
-	TokenNetwork2Token    map[common.Address]common.Address
 	Token2TokenNetwork    map[common.Address]common.Address
 	Transfer2StateManager map[common.Hash]*transfer.StateManager
 	Transfer2Result       map[common.Hash]*utils.AsyncResult
@@ -136,15 +135,15 @@ type Service struct {
 //NewPhotonService create photon service
 func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, dao models.Dao) (rs *Service, err error) {
 	rs = &Service{
-		NotifyHandler:                         notifyHandler,
-		Chain:                                 chain,
-		PrivateKey:                            privateKey,
-		Config:                                config,
-		Transport:                             transport,
-		dao:                                   dao,
-		NodeAddress:                           crypto.PubkeyToAddress(privateKey.PublicKey),
-		Token2ChannelGraph:                    make(map[common.Address]*graph.ChannelGraph),
-		TokenNetwork2Token:                    make(map[common.Address]common.Address),
+		NotifyHandler:      notifyHandler,
+		Chain:              chain,
+		PrivateKey:         privateKey,
+		Config:             config,
+		Transport:          transport,
+		dao:                dao,
+		NodeAddress:        crypto.PubkeyToAddress(privateKey.PublicKey),
+		Token2ChannelGraph: make(map[common.Address]*graph.ChannelGraph),
+		//todo fixme Token2TokenNetwork 应该是一个token的数组,表示已经注册的token.目前k,v中的v必须是空地址
 		Token2TokenNetwork:                    make(map[common.Address]common.Address),
 		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
 		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
@@ -192,10 +191,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	if err != nil {
 		return
 	}
-	for t, tn := range rs.Token2TokenNetwork {
-		rs.TokenNetwork2Token[tn] = t
-	}
-	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.Token2TokenNetwork)
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain)
 	// pathfinder
 	if config.PfsHost != "" {
 		rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
@@ -401,8 +397,8 @@ func (rs *Service) registerRegistry() (err error) {
 		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
-	for token, tokenNetwork := range token2TokenNetworks {
-		err = rs.registerTokenNetwork(token, tokenNetwork)
+	for token := range token2TokenNetworks {
+		err = rs.registerTokenNetwork(token)
 		if err != nil {
 			err = fmt.Errorf("registerTokenNetwork err:%s", err)
 			return
@@ -445,10 +441,6 @@ it's the core of HTLC
 func (rs *Service) handleBlockNumber(blocknumber int64) {
 	statechange := &transfer.BlockStateChange{BlockNumber: blocknumber}
 	rs.BlockNumber.Store(blocknumber)
-	/*
-		todo when to remove statemanager ?
-			when currentState==nil && StateManager.ManagerState!=StateManagerStateInit ,should delete rs statemanager.
-	*/
 	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, c := range cg.ChannelIdentifier2Channel {
@@ -624,20 +616,19 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 }
 
 //read a token network info from dao
-func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common.Address) (err error) {
-	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s,tokenNetworkAddress=%s", tokenAddress.String(), tokenNetworkAddress.String()))
+func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error) {
+	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s ", tokenAddress.String()))
 	var tokenNetwork *rpc.TokenNetworkProxy
-	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenNetworkAddress)
+	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenAddress)
 	if err != nil {
 		return
 	}
-	edges, err := rs.dao.GetAllNonParticipantChannel(tokenAddress)
+	edges, err := rs.dao.GetAllNonParticipantChannelByToken(tokenAddress)
 	if err != nil {
 		return
 	}
 	g := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
-	rs.TokenNetwork2Token[tokenNetworkAddress] = tokenAddress
-	rs.Token2TokenNetwork[tokenAddress] = tokenNetworkAddress
+	rs.Token2TokenNetwork[tokenAddress] = utils.EmptyAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
 	//add channel I participant
 	var css []*channeltype.Serialization
@@ -666,15 +657,14 @@ func (rs *Service) registerTokenNetwork(tokenAddress, tokenNetworkAddress common
 /*
 found new channel on blockchain when running...
 */
-func (rs *Service) registerChannel(tokenNetworkAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) {
-	tokenNetwork, err := rs.Chain.TokenNetwork(tokenNetworkAddress)
+func (rs *Service) registerChannel(tokenAddress common.Address, partnerAddress common.Address, channelIdentifier *contracts.ChannelUniqueID, settleTimeout int) {
+	tokenNetwork, err := rs.Chain.TokenNetwork(tokenAddress)
 	if err != nil {
 		log.Error(fmt.Sprintf("receive new channel %s-%s,but cannot create tokennetwork err %s",
-			utils.APex2(tokenNetworkAddress), utils.APex2(partnerAddress), err,
+			utils.APex2(tokenAddress), utils.APex2(partnerAddress), err,
 		))
 		return
 	}
-	tokenAddress := rs.TokenNetwork2Token[tokenNetworkAddress]
 	if rs.getChannel(tokenAddress, partnerAddress) != nil {
 		log.Error(fmt.Sprintf("receive new channel %s-%s,but this channel already exist, maybe a duplicate channel event", utils.APex2(tokenAddress), utils.APex2(partnerAddress)))
 		return
@@ -695,6 +685,10 @@ func (rs *Service) registerChannel(tokenNetworkAddress common.Address, partnerAd
 		log.Error(err.Error())
 		return
 	}
+	//if true {
+	//	g := rs.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
+	//	log.Trace(fmt.Sprintf("receive new channel g=%s", utils.StringInterface(g, 3)))
+	//}
 	return
 }
 
@@ -868,6 +862,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		LockSecretHash: lockSecretHash,
 		Db:             rs.dao,
 	}
+	//log.Trace(fmt.Sprintf("start mediated transfer availableRoutes=%s", utils.StringInterface(availableRoutes, 2)))
 	stateManager = transfer.NewStateManager(initiator.StateTransition, nil, initiator.NameInitiatorTransition, lockSecretHash, transferState.Token)
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]
@@ -1133,43 +1128,21 @@ func (rs *Service) getChannel(tokenAddr, partnerAddr common.Address) *channel.Ch
 /*
 Process user's new channel request
 */
-func (rs *Service) newChannel(token, partner common.Address, settleTimeout int) (result *utils.AsyncResult) {
-	tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
-	if err != nil {
-		result = utils.NewAsyncResultWithError(err)
-		return
+func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) (result *utils.AsyncResult) {
+	if isNewChannel {
+		g := rs.Token2ChannelGraph[token]
+		if g != nil {
+			if g.GetPartenerAddress2Channel(partner) != nil {
+				return utils.NewAsyncResultWithError(errors.New("channel already exists"))
+			}
+		}
 	}
-	result = tokenNetwork.NewChannelAsync(rs.NodeAddress, partner, settleTimeout)
-	return
-}
-
-/*
-Process user's new channel request
-*/
-func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int) (result *utils.AsyncResult) {
-	tokenNetwork, err := rs.Chain.TokenNetwork(rs.Token2TokenNetwork[token])
+	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
 		result = utils.NewAsyncResultWithError(err)
 		return
 	}
 	result = tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount)
-	return
-}
-
-/*
-process user's deposit request
-*/
-func (rs *Service) depositChannel(channelIdentifier common.Hash, amount *big.Int) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	c, err := rs.findChannelByIdentifier(channelIdentifier)
-	if err != nil {
-		result.Result <- err
-		return
-	}
-	if c.State != channeltype.StateOpened {
-		result.Result <- errors.New("channel can deposit only when at open state")
-	}
-	result = c.ExternState.Deposit(c.TokenAddress, amount)
 	return
 }
 
@@ -1260,6 +1233,10 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		result.Result <- errors.New("channel not exist")
 		return
 	}
+	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
+		result.Result <- errors.New("can not withdraw now")
+		return
+	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
 		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
@@ -1288,7 +1265,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 		result.Result <- errors.New("channel not exist")
 		return
 	}
-	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
+	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s,and status=%s\n", utils.HPex(channelIdentifier), c.State))
 	err = c.PrepareForWithdraw()
 	if err != nil {
 		result.Result <- err
@@ -1568,13 +1545,10 @@ func (rs *Service) handleReq(req *apiReq) {
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
 		if r.amount != nil && r.amount.Cmp(utils.BigInt0) > 0 {
-			result = rs.newChannelAndDeposit(r.tokenAddress, r.partnerAddress, r.settleTimeout, r.amount)
+			result = rs.newChannelAndDeposit(r.tokenAddress, r.partnerAddress, r.settleTimeout, r.amount, r.isNewChannel)
 		} else {
-			result = rs.newChannel(r.tokenAddress, r.partnerAddress, r.settleTimeout)
+			panic("amount must biggner than zero")
 		}
-	case depositChannelReqName:
-		r := req.Req.(*depositChannelReq)
-		result = rs.depositChannel(r.addr, r.amount)
 	case closeChannelReqName:
 		r := req.Req.(*closeSettleChannelReq)
 		result = rs.closeOrSettleChannel(r.addr, req.Name)

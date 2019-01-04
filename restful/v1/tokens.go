@@ -64,35 +64,3 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
-
-/*
-RegisterToken register a new token to the photon network.
-this address must be a valid ERC20 token
-*/
-func RegisterToken(w rest.ResponseWriter, r *rest.Request) {
-	var err error
-	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterToken ,err=%v", err))
-	}()
-	type Ret struct {
-		TokenNetworkAddress string `json:"token_network_address"`
-	}
-	token := r.PathParam("token")
-	tokenAddr, err := utils.HexToAddress(token)
-	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	tokenNetworkAddress, err := API.RegisterToken(tokenAddr)
-	if err != nil {
-		log.Error(fmt.Sprintf("RegisterToken %s err:%s", tokenAddr.String(), err))
-		rest.Error(w, err.Error(), http.StatusConflict)
-	} else {
-		ret := &Ret{TokenNetworkAddress: tokenNetworkAddress.String()}
-		err = w.WriteJson(ret)
-		if err != nil {
-			log.Warn(fmt.Sprintf("writejson err %s", err))
-		}
-	}
-}

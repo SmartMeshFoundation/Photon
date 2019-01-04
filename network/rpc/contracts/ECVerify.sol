@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.24;
 
 /// @title ECVerify Library
 /// @notice A reusable library for verifying whether a message is from a specific participant.
@@ -9,7 +9,7 @@ library ECVerify {
     /// @param hash                 a 32-byte hash value to be verified
     /// @param signature            a dynamic sized bytes of signature
     /// @return signature_address   a 20-byte signature address.
-    function ecverify(bytes32 hash, bytes signature)
+    function ecverify(bytes32 hash, bytes memory signature)
         internal
         pure
         returns (address signature_address)

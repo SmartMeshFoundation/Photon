@@ -1,10 +1,10 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 /// @title contract for registering secret to unlock transferred transactions.
 contract SecretRegistry {
 
     /** A string literal denoting the version of this contract. */
-    string constant public contract_version = "0.3._";
+    string constant public contract_version = "0.6._";
 
     // secrethash => block number at which the secret was revealed
     mapping(bytes32 => uint256) public secrethash_to_block;

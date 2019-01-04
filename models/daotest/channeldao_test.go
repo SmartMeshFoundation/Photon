@@ -67,7 +67,6 @@ func TestChannel1(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
 	chs, err := dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil || len(chs) != 2 {
 		t.Error(err)

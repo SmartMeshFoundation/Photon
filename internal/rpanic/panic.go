@@ -55,8 +55,9 @@ func PanicRecover(ctx string) {
 		if params.MobileMode {
 			errChan <- err2
 		} else {
-			log.Error("panic info....")
-			panic(err2)
+			log.Error(fmt.Sprintf("panic info.... %s", err2))
+			log.Error(string(utils.Stack()))
+			//panic(err2)
 		}
 
 	}

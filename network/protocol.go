@@ -224,7 +224,10 @@ func (p *PhotonProtocol) SendPing(receiver common.Address) error {
  *	Note that once this channel gets removed, those pending message should also be securely removed,
  *	otherwise new channel can't be created.
  */
-func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifier common.Hash, openBlockNumber int64) bool {
+func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager) bool {
+	var channelIdentifier common.Hash
+	var openBlockNumber int64
+	channelIdentifier, openBlockNumber = getMessageChannelIdentifier(msg)
 	if channelIdentifier != utils.EmptyHash {
 		status, localOpenBlockNumber := p.ChannelStatusGetter.GetChannelStatus(channelIdentifier)
 		if status == channeltype.StateInValid {
@@ -244,11 +247,11 @@ func (p *PhotonProtocol) messageCanBeSent(msg encoding.Messager, channelIdentifi
 此函数保证不阻塞
 此函数启动的goroutine会自动处理退出问题
 */
-func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channelIdentifier common.Hash, openBlockNumber int64, msgState *SentMessageState) {
+func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channelIdentifier common.Hash, msgState *SentMessageState) {
 	if channelIdentifier == utils.EmptyHash {
 		// 不带balance proof的消息,单独发送,不使用队列
 		log.Trace(fmt.Sprintf("send message EchoHash=%s without SendingQueue", utils.HPex(msgState.EchoHash)))
-		go p.sendMessage(receiver, channelIdentifier, openBlockNumber, msgState)
+		go p.sendMessage(receiver, msgState)
 		return
 	}
 	key := fmt.Sprintf("%s-%s", receiver.String(), channelIdentifier.String())
@@ -298,17 +301,17 @@ func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channe
 			msg := ql.messages[0]
 			ql.messages = ql.messages[1:]
 			p.mapLock.Unlock()
-			p.sendMessage(receiver, channelIdentifier, openBlockNumber, msg)
+			p.sendMessage(receiver, msg)
 		}
 	}()
 }
 
-func (p *PhotonProtocol) sendMessage(receiver common.Address, channelIdentifier common.Hash, openBlockNumber int64, msgState *SentMessageState) {
+func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMessageState) {
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
 	for {
-		if !p.messageCanBeSent(msgState.Message, channelIdentifier, openBlockNumber) {
+		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
 			return
 		}
@@ -413,8 +416,8 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	p.SentHashesToChannel[echohash] = msgState
 	p.mapLock.Unlock()
 	result = msgState.AsyncResult
-	channelIdentifier, openBlockNumber := getMessageChannelIdentifier(msg)
-	p.processSentMessageState(receiver, channelIdentifier, openBlockNumber, msgState)
+	channelIdentifier, _ := getMessageChannelIdentifier(msg)
+	p.processSentMessageState(receiver, channelIdentifier, msgState)
 	return
 }
 
