@@ -31,7 +31,7 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 	N0.Start(env)
 
 	// 获取channel信息
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		go func() {
 			err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, settleTimeout)
 			if err != nil {
@@ -39,12 +39,14 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 			}
 		}()
 	}
-	time.Sleep(100 * time.Second)
-	channels := N0.GetChannels(tokenAddress)
-	if len(channels) != 100 {
-		fmt.Println("channel num :", len(channels))
-		return cm.caseFail(env.CaseName)
+	for i := 0; i < 11; i++ {
+		time.Sleep(10 * time.Second)
+		channels := N0.GetChannels(tokenAddress)
+		if len(channels) >= 10 {
+			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+			return
+		}
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
+
 }

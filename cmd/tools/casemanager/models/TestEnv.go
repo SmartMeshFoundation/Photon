@@ -73,6 +73,7 @@ func (t *logTee) Write(p []byte) (n int, err error) {
 
 // NewTestEnv default contractor
 func NewTestEnv(configFilePath string, useMatrix bool) (env *TestEnv, err error) {
+	bind.ReInitNonceMap()
 	c, err := config.ReadDefault(configFilePath)
 	if err != nil {
 		log.Println("Load config error:", err)
@@ -283,15 +284,15 @@ func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.A
 func transferMoneyForAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address, token *contracts.Token) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(accounts))
-	auth := bind.NewKeyedTransactor(key)
-	nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
-	if err != nil {
-		panic(err)
-	}
+	//auth := bind.NewKeyedTransactor(key)
+	//nonce, err := conn.PendingNonceAt(context.Background(), auth.From)
+	//if err != nil {
+	//	panic(err)
+	//}
 	for index, account := range accounts {
 		go func(account common.Address, i int) {
 			auth2 := bind.NewKeyedTransactor(key)
-			auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
+			//auth2.Nonce = big.NewInt(int64(nonce) + int64(i))
 			tx, err := token.Transfer(auth2, account, big.NewInt(5000000), nil)
 			if tx == nil {
 				panic("transfer should use approve and transfer from instead")
@@ -415,21 +416,21 @@ func approveAccountIfNeeded(token *contracts.Token, auth *bind.TransactOpts, tok
 	approveMap[key] = approveAmt.Int64()
 }
 
-// KillAllPhotonNodes kill all atmosphere node
+// KillAllPhotonNodes kill all photon node
 func (env *TestEnv) KillAllPhotonNodes() {
 	var pstr2 []string
 	//kill the old process
 	if runtime.GOOS == "windows" {
 		pstr2 = append(pstr2, "-F")
 		pstr2 = append(pstr2, "-IM")
-		pstr2 = append(pstr2, "atmosphere*")
+		pstr2 = append(pstr2, "photon*")
 		ExecShell("taskkill", pstr2, "./log/killall.log", true)
 	} else {
 		pstr2 = append(pstr2, "-9")
-		pstr2 = append(pstr2, "atmosphere")
+		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
-	Logger.Println("Kill all atmosphere nodes SUCCESS")
+	Logger.Println("Kill all photon nodes SUCCESS")
 }
 
 // ClearHistoryData :

@@ -150,6 +150,7 @@ func Start() {
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
 		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
 		rest.Post("/api/1/debug/notify_network_down", NotifyNetworkDown), // notify photon network down
+		rest.Get("/api/1/debug/secret", GenerateSecret),
 		rest.Get("/api/1/debug/shutdown", func(writer rest.ResponseWriter, request *rest.Request) {
 			API.Photon.Stop()
 			utils.SystemExit(0)

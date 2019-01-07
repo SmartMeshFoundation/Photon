@@ -22,7 +22,8 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"time"
+
+	"github.com/SmartMeshFoundation/Photon/log"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -184,6 +185,16 @@ func (c *BoundContract) Transfer(opts *TransactOpts) (*types.Transaction, error)
 
 var lock = sync.Mutex{}
 
+//防止出现并发transaction调用,nonce重用现象. 假定前提是此账户在运行过程中只会在这一个地方使用.
+var nonceMap = make(map[common.Address]uint64)
+
+//ReInitNonceMap todo 以后如果有更好的办法,应该弃用. 只提供给casemanager使用,他和photon会共用一套账号,分别发起Tx
+func ReInitNonceMap() {
+	lock.Lock()
+	nonceMap = make(map[common.Address]uint64)
+	lock.Unlock()
+}
+
 // transact executes an actual transaction invocation, first deriving any missing
 // authorization fields, and then scheduling the transaction for execution.
 func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, input []byte) (*types.Transaction, error) {
@@ -197,13 +208,28 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	}
 	var nonce uint64
 	if opts.Nonce == nil {
-		nonce, err = c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.From)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+		if nonceMap[opts.From] == 0 {
+			nonce, err = c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.From)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+			}
+			log.Trace(fmt.Sprintf("first tx after  start up for %s,nonce=%d,this account should be only used by this application only ", opts.From.String(), nonce))
+			nonceMap[opts.From] = nonce - 1
 		}
+		nonce = nonceMap[opts.From]
+		nonce++
+		defer func() {
+			if err != nil {
+				//发生了错误
+				log.Info(fmt.Sprintf("%s nonce=%d Tx fail %s", opts.From.String(), nonce, err))
+				nonce--
+			}
+			nonceMap[opts.From] = nonce
+		}()
 	} else {
 		nonce = opts.Nonce.Uint64()
 	}
+	log.Trace(fmt.Sprintf("start tx addr=%s,nonce=%d", opts.From.String(), nonce))
 	// Figure out the gas allowance and gas price values
 	gasPrice := opts.GasPrice
 	if gasPrice == nil {
@@ -216,7 +242,8 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if gasLimit == 0 {
 		// Gas estimation cannot succeed without code for method invocations
 		if contract != nil {
-			if code, err := c.transactor.PendingCodeAt(ensureContext(opts.Context), c.address); err != nil {
+			var code []byte
+			if code, err = c.transactor.PendingCodeAt(ensureContext(opts.Context), c.address); err != nil {
 				return nil, err
 			} else if len(code) == 0 {
 				return nil, ErrNoCode
@@ -240,30 +267,31 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
-	networkID, err := c.transactor.NetworkID(ensureContext(opts.Context))
+	var networkID *big.Int
+	networkID, err = c.transactor.NetworkID(ensureContext(opts.Context))
 	if err != nil {
 		return nil, err
 	}
 
 	// special dealing for specrum main net
 	var head *types.Header
-	head,err = c.transactor.HeaderByNumber(ensureContext(opts.Context),big.NewInt(1))
-	if err!=nil{
-		return nil,err
-	}
-	if  head != nil && head.Hash() == common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d") {
-		fmt.Printf("change chainid to 20180430\n")
-		networkID = big.NewInt(20180430)
-	}
-
-	signedTx, err := opts.Signer(types.NewEIP155Signer(networkID), opts.From, rawTx)
+	head, err = c.transactor.HeaderByNumber(ensureContext(opts.Context), big.NewInt(1))
 	if err != nil {
 		return nil, err
 	}
-	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
+	if head != nil && head.Hash() == common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d") {
+		fmt.Printf("change chainid to 20180430\n")
+		networkID = big.NewInt(20180430)
+	}
+	var signedTx *types.Transaction
+	signedTx, err = opts.Signer(types.NewEIP155Signer(networkID), opts.From, rawTx)
+	if err != nil {
 		return nil, err
 	}
-	time.Sleep(100 * time.Millisecond)
+	if err = c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
+		return nil, err
+	}
+	//time.Sleep(100 * time.Millisecond)
 	return signedTx, nil
 }
 

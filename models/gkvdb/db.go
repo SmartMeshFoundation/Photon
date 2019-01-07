@@ -122,7 +122,7 @@ func OpenDb(dbPath string) (dao *GkvDB, err error) {
 	} else {
 		err = dao.getKeyValueToBucket(models.BucketMeta, models.KeyVersion, &ver)
 		if err != nil {
-			log.Error("get version error %s", err)
+			log.Error(fmt.Sprintf("get version error %s", err))
 			return
 		}
 		if ver != models.DbVersion {

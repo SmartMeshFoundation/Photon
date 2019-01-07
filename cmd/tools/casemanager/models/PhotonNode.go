@@ -14,7 +14,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 )
 
-// PhotonNode a atmosphere node
+// PhotonNode a photon node
 type PhotonNode struct {
 	Host          string
 	Address       string
@@ -26,7 +26,7 @@ type PhotonNode struct {
 	Running       bool
 }
 
-// Start start a atmosphere node
+// Start start a photon node
 func (node *PhotonNode) Start(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
@@ -43,7 +43,7 @@ func (node *PhotonNode) Start(env *TestEnv) {
 			} else {
 				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start atmosphere node TIMEOUT")
+			panic("Start photon node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -63,7 +63,7 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	}
 }
 
-// StartWithParams start a atmosphere node with --fee
+// StartWithParams start a photon node with --fee
 func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStrWithoutNoNetwork(env)
@@ -82,7 +82,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 			} else {
 				Logger.Printf("NODE %s %s StartWithParams TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start atmosphere node TIMEOUT")
+			panic("Start photon node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -102,7 +102,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	}
 }
 
-// StartWithFee start a atmosphere node with --fee
+// StartWithFee start a photon node with --fee
 func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStr(env)
@@ -121,7 +121,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 			} else {
 				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start atmosphere node TIMEOUT")
+			panic("Start photon node TIMEOUT")
 		}
 	}
 	used := time.Since(t)
@@ -141,7 +141,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	}
 }
 
-// ReStartWithoutConditionquit : Restart start a atmosphere node
+// ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
 	node.ConditionQuit = nil
@@ -213,7 +213,7 @@ func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
 	return param
 }
 
-// StartWithConditionQuit start a atmosphere node whit condition quit
+// StartWithConditionQuit start a photon node whit condition quit
 func (node *PhotonNode) StartWithConditionQuit(env *TestEnv, c *params.ConditionQuit) {
 	node.ConditionQuit = c
 	node.DebugCrash = true

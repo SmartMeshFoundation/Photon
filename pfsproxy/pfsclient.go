@@ -210,6 +210,7 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	if err != nil {
 		panic(err)
 	}
+	log.Trace(fmt.Sprintf("resp=%s", string(body)))
 	return
 }
 

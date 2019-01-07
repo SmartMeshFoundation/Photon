@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/log"
+
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // GetChannelWith :
@@ -56,6 +57,7 @@ func (node *PhotonNode) GetChannels(tokenAddr string) []*Channel {
 	var nodeChannels []Channel
 	err = json.Unmarshal(body, &nodeChannels)
 	if err != nil {
+		log.Info(fmt.Sprintf("bodylen=%d,body=%s", len(body), string(body)))
 		panic(err)
 	}
 	var channels []*Channel
@@ -191,7 +193,7 @@ func (node *PhotonNode) SendTransWithSecret(tokenAddress string, amount int32, t
 		Amount:   amount,
 		Fee:      0,
 		IsDirect: false,
-		Secret:   utils.Sha3([]byte(secretSeed)).String(),
+		Secret:   secretSeed,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
@@ -355,7 +357,7 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/deposit",
-		Method:  http.MethodPatch,
+		Method:  http.MethodPut,
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
@@ -432,4 +434,60 @@ func marshal(v interface{}) string {
 		panic(err)
 	}
 	return string(p)
+}
+
+// AllowSecret :
+func (node *PhotonNode) AllowSecret(secret, token string) {
+	type AllowRevealSecretPayload struct {
+		LockSecretHash string `json:"lock_secret_hash"`
+		TokenAddress   string `json:"token_address"`
+	}
+	p, err := json.Marshal(AllowRevealSecretPayload{
+		LockSecretHash: secret,
+		TokenAddress:   token,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/allowrevealsecret",
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+	}
+}
+
+// GenerateSecret :
+func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) {
+	type resp struct {
+		Secret     string
+		SecretHash string
+	}
+	rs := resp{}
+	req := &Req{
+		FullURL: node.Host + "/api/1/debug/secret",
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("debug/secret err :%s", err))
+		return
+	}
+	if statusCode != 200 {
+		Logger.Println(fmt.Sprintf("debug/secret err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &rs)
+	if err != nil {
+		return
+	}
+	secret = rs.Secret
+	secretHash = rs.SecretHash
+	return
 }

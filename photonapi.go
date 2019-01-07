@@ -365,7 +365,7 @@ func (r *API) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.
 		return rerr.InvalidState("wrong lock_secret_hash")
 	}
 	delete(r.Photon.SecretRequestPredictorMap, lockSecretHash)
-	log.Trace(fmt.Sprintf("Remove SecretRequestPredictor for lockSecretHash="))
+	log.Trace(fmt.Sprintf("Remove SecretRequestPredictor for lockSecretHash=%s", lockSecretHash.String()))
 	return
 }
 
@@ -1296,7 +1296,11 @@ func (r *API) checkSmcStatus() error {
 		log.Error(err.Error())
 		return err
 	}
-	if sp != nil && sp.HighestBlock-sp.CurrentBlock > 3 {
+	var defaultSyncBlock uint64 = 3
+	if params.ChainID.Uint64() == 8888 { //测试私链一秒一块,时间太短是不行的
+		defaultSyncBlock = 30
+	}
+	if sp != nil && sp.HighestBlock-sp.CurrentBlock > defaultSyncBlock {
 		err = fmt.Errorf("smc block number error : HighestBlock=%d but CurrentBlock=%d", sp.HighestBlock, sp.CurrentBlock)
 		log.Error(err.Error())
 		return err

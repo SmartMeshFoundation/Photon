@@ -58,7 +58,8 @@ type BlockChainService struct {
 	addressChannels map[common.Address]*TokenNetworkProxy
 	RegistryProxy   *RegistryProxy
 	//Auth needs by call on blockchain todo remove this
-	Auth *bind.TransactOpts
+	Auth  *bind.TransactOpts
+	mlock sync.Mutex
 }
 
 //NewBlockChainService create BlockChainService
@@ -126,6 +127,8 @@ func (bcs *BlockChainService) nextBlock() (currentBlock *big.Int, err error) {
 
 // Token return a proxy to interact with a token.
 func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy, err error) {
+	bcs.mlock.Lock()
+	defer bcs.mlock.Unlock()
 	_, ok := bcs.addressTokens[tokenAddress]
 	if !ok {
 		token, err := contracts.NewToken(tokenAddress, bcs.Client)
@@ -141,6 +144,8 @@ func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy,
 
 //TokenNetwork return a proxy to interact with a NettingChannelContract.
 func (bcs *BlockChainService) TokenNetwork(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
+	bcs.mlock.Lock()
+	defer bcs.mlock.Unlock()
 	_, ok := bcs.addressChannels[tokenAddress]
 	if !ok {
 		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
@@ -150,6 +155,8 @@ func (bcs *BlockChainService) TokenNetwork(tokenAddress common.Address) (t *Toke
 
 //TokenNetworkWithoutCheck return a proxy to interact with a NettingChannelContract,don't check this address is valid or not
 func (bcs *BlockChainService) TokenNetworkWithoutCheck(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
+	bcs.mlock.Lock()
+	defer bcs.mlock.Unlock()
 	_, ok := bcs.addressChannels[tokenAddress]
 	if !ok {
 		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
