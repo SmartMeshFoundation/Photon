@@ -435,10 +435,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
 	if ctx.Bool("nonetwork") {
 		config.NetworkMode = params.NoNetwork
-	} else if ctx.Bool("xmpp") {
-		config.NetworkMode = params.MixUDPXMPP
-	} else {
+	} else if ctx.Bool("matrix") {
 		config.NetworkMode = params.MixUDPMatrix
+	} else {
+		config.NetworkMode = params.MixUDPXMPP //默认用xmpp做通信,matrix不太稳定
 	}
 	if ctx.Bool("fee") {
 		config.EnableMediationFee = true
