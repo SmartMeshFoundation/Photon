@@ -7,7 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
-// CaseCooperateSettle :
+// CaseSendTransferOnReOpenedChannel :
 func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	env, err := models.NewTestEnv("./cases/CaseSendTransferOnReOpenedChannel.ENV", cm.UseMatrix)
 	if err != nil {
