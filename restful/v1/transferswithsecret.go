@@ -17,7 +17,7 @@ import (
 func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
 	var err error
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecret ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> AllowRevealSecret ,err=%v", err))
 	}()
 	type AllowRevealSecretPayload struct {
 		LockSecretHash string `json:"lock_secret_hash"`
