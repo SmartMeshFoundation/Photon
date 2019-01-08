@@ -40,7 +40,7 @@ func InitiatingTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 		CaseName:     "DirectTransfer A-B isDirect=true",
 		PrepareData:  prepareDataForDirectTransfer,
 		IsDirect:     true,
-		TargetStatus: 200,
+		TargetStatus: http.StatusOK,
 	})
 	testTransfer(&testTransferParams{
 		Env:          env,
@@ -48,7 +48,7 @@ func InitiatingTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 		CaseName:     "DirectTransfer A-B isDirect=false",
 		PrepareData:  prepareDataForDirectTransfer,
 		IsDirect:     false,
-		TargetStatus: 200,
+		TargetStatus: http.StatusOK,
 	})
 	// test transfer between two nodes who doesn't have direct opened channel
 	testTransfer(&testTransferParams{
@@ -57,7 +57,7 @@ func InitiatingTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 		CaseName:     "IndirectTransfer A-B-C isDirect=true",
 		PrepareData:  prepareDataForIndirectTransfer,
 		IsDirect:     true,
-		TargetStatus: 409,
+		TargetStatus: http.StatusConflict,
 	})
 	// test transfer between two nodes who doesn't have direct opened channel
 	testTransfer(&testTransferParams{
@@ -66,7 +66,7 @@ func InitiatingTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 		CaseName:     "IndirectTransfer A-B-C isDirect=false",
 		PrepareData:  prepareDataForIndirectTransfer,
 		IsDirect:     false,
-		TargetStatus: 200,
+		TargetStatus: http.StatusOK,
 	})
 }
 
