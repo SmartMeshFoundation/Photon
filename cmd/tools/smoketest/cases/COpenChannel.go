@@ -14,27 +14,37 @@ type OpenChannelPayload struct {
 	TokenAddress   string `json:"token_address"`
 	Balance        int32  `json:"balance"`
 	SettleTimeout  int32  `json:"settle_timeout"`
+	NewChannel     bool   `json:"new_channel"`
+}
+
+func newOpenChannelPayload(partnerAddress, tokenAddress string, balance, settleTimeout int32, newChannel bool) []byte {
+	var n OpenChannelPayload
+	n.PartnerAddress = partnerAddress
+	n.TokenAddress = tokenAddress
+	n.Balance = balance
+	n.SettleTimeout = settleTimeout
+	n.NewChannel = newChannel
+	payload, err := json.Marshal(n)
+	if err != nil {
+		panic(err)
+	}
+	return payload
 }
 
 // OpenChannelTest : test case for open channel
 func OpenChannelTest(env *models.PhotonEnvReader, allowFail bool) {
 	// prepare data
-	var newchannel OpenChannelPayload
-	newchannel.PartnerAddress = "0x000000000000000000000000000000000FfffFfF"
-	newchannel.TokenAddress = env.RandomToken().Address
-	//newchannel.Balance = 50
-	newchannel.SettleTimeout = 35
-	payload, err := json.Marshal(newchannel)
-	if err != nil {
-		panic(err)
-	}
+	payload := newOpenChannelPayload("0x000000000000000000000000000000000FfffFfF",
+		env.RandomToken().Address,
+		50,
+		350, true)
 	// run case
 	case1 := &APITestCase{
 		CaseName:  "OpenChannel",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "OpenChannel",
-			FullURL: env.RandomNode().Host + "/api/1/channels",
+			FullURL: env.RandomNode().Host + "/api/1/deposit",
 			Method:  http.MethodPut,
 			Payload: string(payload),
 			Timeout: time.Second * 180,

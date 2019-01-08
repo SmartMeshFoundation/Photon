@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/utils"
+
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
@@ -22,14 +24,15 @@ func Deposit2ChannelTest(env *models.PhotonEnvReader, allowFail bool) {
 }
 
 func testDepositToNotExistChannel(env *models.PhotonEnvReader, allowFail bool) {
+	payload := newOpenChannelPayload(utils.NewRandomAddress().String(), utils.NewRandomAddress().String(), 30, 0, false)
 	case1 := &APITestCase{
 		CaseName:  "Deposit to not-exist channel",
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: " Deposit2Channel",
-			FullURL: env.RandomNode().Host + "/api/1/channels/0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107",
-			Method:  http.MethodPatch,
-			Payload: "{\"balance\":5}",
+			FullURL: env.RandomNode().Host + "/api/1/deposit",
+			Method:  http.MethodPut,
+			Payload: string(payload),
 			Timeout: time.Second * 180,
 		},
 		TargetStatusCode: 409,
@@ -58,15 +61,17 @@ func testDepositToChannelByState(env *models.PhotonEnvReader, allowFail bool, ch
 		}
 		return
 	}
+	c := channels[0]
+	payload := newOpenChannelPayload(c.PartnerAddress, c.TokenAddress, 5, 0, false)
 	// run case
 	case1 := &APITestCase{
 		CaseName:  caseName,
 		AllowFail: allowFail,
 		Req: &models.Req{
 			APIName: "Deposit2Channel",
-			FullURL: node.Host + "/api/1/channels/" + channels[0].ChannelIdentifier,
-			Method:  http.MethodPatch,
-			Payload: "{\"balance\":5}",
+			FullURL: node.Host + "/api/1/deposit",
+			Method:  http.MethodPut,
+			Payload: string(payload),
 			Timeout: time.Second * 180,
 		},
 		TargetStatusCode: targetStatusCode,
