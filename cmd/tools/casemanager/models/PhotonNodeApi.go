@@ -85,6 +85,7 @@ func (node *PhotonNode) IsRunning() bool {
 	}
 	if statusCode != 200 {
 		Logger.Printf("Exception response:%d\n", statusCode)
+		return false
 	}
 	return true
 }
@@ -123,6 +124,7 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 		Amount:   amount,
 		Fee:      0,
 		IsDirect: isDirect,
+		Sync:     true,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
@@ -148,6 +150,7 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		Amount:   amount,
 		Fee:      0,
 		IsDirect: isDirect,
+		Sync:     true,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
@@ -194,6 +197,7 @@ func (node *PhotonNode) SendTransWithSecret(tokenAddress string, amount int32, t
 		Fee:      0,
 		IsDirect: false,
 		Secret:   secretSeed,
+		Sync:     true,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
@@ -437,13 +441,13 @@ func marshal(v interface{}) string {
 }
 
 // AllowSecret :
-func (node *PhotonNode) AllowSecret(secret, token string) {
+func (node *PhotonNode) AllowSecret(secretHash, token string) {
 	type AllowRevealSecretPayload struct {
 		LockSecretHash string `json:"lock_secret_hash"`
 		TokenAddress   string `json:"token_address"`
 	}
 	p, err := json.Marshal(AllowRevealSecretPayload{
-		LockSecretHash: secret,
+		LockSecretHash: secretHash,
 		TokenAddress:   token,
 	})
 	req := &Req{
