@@ -2,7 +2,7 @@
 # 0. install all tools
 
 
-1. create a private ethereum
+# 1. create a private ethereum
 cd  cmd/tools/deploygeth
 ./deploygeth.sh
 cd -
