@@ -1,14 +1,14 @@
 #!/bin/sh
 wd=`pwd`
 echo $wd 
-mkdir gethworkdir
+mkdir -p  gethworkdir/src/github.com/ethereum/
 export GOPATH=$wd/gethworkdir
 export PATH=$GOPATH/bin:$PATH
 #  下载自定义版本geth
 cd $GOPATH/src/github.com/ethereum/
 git clone https://github.com/nkbai/go-ethereum.git
 cd go-ethereum
-# go get ./...
+go get ./...
 git pull
 cd cmd/geth
 go install
