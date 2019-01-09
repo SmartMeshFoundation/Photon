@@ -27,6 +27,10 @@ func (model *StormDB) NewNonParticipantChannel(token common.Address, channel com
 	if participant1 == participant2 {
 		return fmt.Errorf("channel error, p1 andf p2 is the same,token=%s,participant=%s", token.String(), participant1.String())
 	}
+	_, _, _, err := model.GetNonParticipantChannelByID(channel)
+	if err == nil {
+		return fmt.Errorf("channel %s already exists", channel.String())
+	}
 	return model.db.Save(&NonParticipantChannel{
 		ChannelIdentifierBytes: channel[:],
 		TokenAddressBytes:      token[:],
