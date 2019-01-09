@@ -22,6 +22,8 @@ func TestChannelConcurrentQuery(t *testing.T) {
 	}
 	_, p1 := TestGetParticipant1()
 	_, p2 := TestGetParticipant2()
+	t.Logf("p1=%s", p1.String())
+	t.Logf("p2=%s", p2.String())
 	_, s, _, _, _, err := tn.GetChannelInfo(p1, p2)
 	if err != nil {
 		t.Error(err)

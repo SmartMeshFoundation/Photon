@@ -172,7 +172,7 @@ func TestEndState(t *testing.T) {
 }
 func makeExternState() *ExternalState {
 	bcs := newTestBlockChainService()
-	ch := common.HexToHash(os.Getenv("CHANNEL"))
+	ch := common.HexToHash(os.Getenv("TOKEN_NETWORK"))
 	//must provide a valid netting channel address
 	tokenNetwork, _ := bcs.TokenNetwork(common.HexToAddress(os.Getenv("TOKEN_NETWORK")))
 	return NewChannelExternalState(testFuncRegisterChannelForHashlock,
