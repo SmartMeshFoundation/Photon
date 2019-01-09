@@ -208,7 +208,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	}
 	var nonce uint64
 	if opts.Nonce == nil {
-		if nonceMap[opts.From] == 0 {
+		if _, exist := nonceMap[opts.From]; !exist {
 			nonce, err = c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.From)
 			if err != nil {
 				return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)

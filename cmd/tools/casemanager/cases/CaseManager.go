@@ -15,13 +15,15 @@ type CaseManager struct {
 	FailedCaseNames []string
 	IsAutoRun       bool
 	UseMatrix       bool
+	EthEndPoint     string
 }
 
 // NewCaseManager constructor
-func NewCaseManager(isAutoRun bool, useMatrix bool) (caseManager *CaseManager) {
+func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string) (caseManager *CaseManager) {
 	caseManager = new(CaseManager)
 	caseManager.IsAutoRun = isAutoRun
 	caseManager.UseMatrix = useMatrix
+	caseManager.EthEndPoint = ethEndPoint
 	caseManager.Cases = make(map[string]reflect.Value)
 	// use reflect to load all cases
 	fmt.Println("load cases...")
@@ -117,4 +119,13 @@ func (c *CaseManager) logSeparatorLine(s string) {
 	models.Logger.Println("===============================================>")
 	models.Logger.Println(s)
 	models.Logger.Println("===============================================>")
+}
+
+func (c *CaseManager) checkNodesStartComplete(nodes []*models.PhotonNode) bool {
+	for i := 0; i < len(nodes); i++ {
+		if !nodes[i].IsRunning() {
+			return false
+		}
+	}
+	return true
 }

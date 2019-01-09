@@ -7,7 +7,8 @@ cd $GOPATH/src/github.com/SmartMeshFoundation/Photon/cmd/photon
 chmod +x ./build.sh
 ./build.sh
 cp photon $GOPATH/bin
-
+echo "eth rpc endpoint"
+echo $ETHRPCENDPOINT
 # 2. build envinit and run
 cd ../tools/smoketest/envinit
 go build

@@ -14,7 +14,7 @@ import (
 // 节点1向节点6发送20个token,节点6向节点1发送secretrequest请求，节点1收到崩,
 // 节点1、节点2、节点3各锁定20个token；重启节点1后，节点锁定token解锁，转账成功。
 func (cm *CaseManager) CrashCaseRecv02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv02.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -73,32 +73,35 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 
 	// 重启节点1，交易自动继续
 	N1.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second * 1)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
-	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
-	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
+		cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+		cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd21new.CheckEqualByPartnerNode(env) || !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
-	}
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd21new.CheckEqualByPartnerNode(env) || !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+			continue
+		}
 
-	// 查询cd21，锁定对方20
-	if !cd21new.CheckLockPartner(transAmount) {
-		return cm.caseFail(env.CaseName)
+		// 查询cd21，锁定对方20
+		if !cd21new.CheckLockPartner(transAmount) {
+			continue
+		}
+		// 查询cd23，锁定20
+		if !cd23new.CheckLockSelf(transAmount) {
+			continue
+		}
+		// 查询cd36，锁定20
+		if !cd36new.CheckLockSelf(transAmount) {
+			continue
+		}
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	// 查询cd23，锁定20
-	if !cd23new.CheckLockSelf(transAmount) {
-		return cm.caseFail(env.CaseName)
-	}
-	// 查询cd36，锁定20
-	if !cd36new.CheckLockSelf(transAmount) {
-		return cm.caseFail(env.CaseName)
-	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

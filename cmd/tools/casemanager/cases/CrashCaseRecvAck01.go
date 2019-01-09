@@ -14,7 +14,7 @@ import (
 // 此种情况下，转账成功，崩溃不影响交易。
 // 继续转账，转账成功。
 func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck01.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -65,27 +65,30 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N6.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
-	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+		cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
-	}
-	// 校验cd23，无锁
-	if !cd23new.CheckNoLock() {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
-	}
-	// 校验cd36，无锁
-	if !cd36new.CheckNoLock() {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
-	}
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		// 校验cd23，无锁
+		if !cd23new.CheckNoLock() {
+			continue
+		}
+		// 校验cd36，无锁
+		if !cd36new.CheckNoLock() {
+			continue
+		}
 
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
+	}
+	return cm.caseFail(env.CaseName)
 }

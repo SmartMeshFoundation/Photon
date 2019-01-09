@@ -144,6 +144,9 @@ func TestGetJoinedRoomAlias(t *testing.T) {
 	//}
 }
 func TestInvite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, m1, m2, m3 := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()

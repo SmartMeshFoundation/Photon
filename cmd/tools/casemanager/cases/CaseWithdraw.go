@@ -8,7 +8,7 @@ import (
 
 // CaseWithdraw :
 func (cm *CaseManager) CaseWithdraw() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseWithdraw.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseWithdraw.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -35,14 +35,17 @@ func (cm *CaseManager) CaseWithdraw() (err error) {
 
 	// withdraw
 	N0.Withdraw(c01.ChannelIdentifier, withdrawAmount)
-	time.Sleep(10 * time.Second)
-	// 验证
-	// verify
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterWithdraw")
+	//time.Sleep(10 * time.Second)
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		// 验证
+		// verify
+		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterWithdraw")
 
-	if !c01new.CheckSelfBalance(c01.Balance - withdrawAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+		if c01new.CheckSelfBalance(c01.Balance - withdrawAmount) {
+			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+			return
+		}
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 }

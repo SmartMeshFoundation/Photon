@@ -452,8 +452,16 @@ func (eh *stateMachineEventHandler) finishOneTransfer(ev transfer.Event) {
 		delete(eh.photon.Transfer2Result, smkey)
 	}
 }
+
+//1. 必须能够正确处理重复的ContractTokenAddedStateChange事件
 func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.ContractTokenAddedStateChange) error {
 	tokenAddress := st.TokenAddress
+	if eh.photon.Token2ChannelGraph[tokenAddress] != nil {
+		log.Warn(fmt.Sprintf("receive duplicate ContractTokenAddedStateChange=%s",
+			utils.StringInterface(st, 3),
+		))
+		return nil
+	}
 	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddress.String()))
 	err := eh.photon.dao.AddToken(st.TokenAddress, utils.EmptyAddress)
 	if err != nil {
@@ -464,6 +472,8 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	eh.photon.Token2ChannelGraph[tokenAddress] = g
 	return nil
 }
+
+//1. 必须能够正确处理重复的newchannel 事件.
 func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.ContractNewChannelStateChange) error {
 	participant1 := st.Participant1
 	participant2 := st.Participant2
@@ -486,6 +496,13 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		partner = st.Participant2
 	}
 	if isParticipant {
+		c := g.GetPartenerAddress2Channel(partner)
+		if c != nil {
+			log.Warn(fmt.Sprintf("receive duplicate ContractNewChannelStateChange, c=%s,\n,statechange=%s",
+				utils.StringInterface(c, 5), utils.StringInterface(st, 3),
+			))
+			return nil
+		}
 		eh.photon.registerChannel(tokenAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
 		other := participant2
 		if other == eh.photon.NodeAddress {
@@ -498,6 +515,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 	return nil
 }
 
+//1. 重复的ContractBalanceStateChange没有什么大的影响
 func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractBalanceStateChange) error {
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
@@ -514,6 +532,7 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 	return nil
 }
 
+//1. 必须能够正确处理重复的ContractClosedStateChange
 func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractClosedStateChange) error {
 	channelIdentifier := st.ChannelIdentifier
 	ch, err := eh.photon.findChannelByIdentifier(channelIdentifier)
@@ -522,7 +541,10 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 		// 如果不是自己参与的channel,移除路由中的path
 		token, p1, p2, err2 := eh.photon.dao.GetNonParticipantChannelByID(st.ChannelIdentifier)
 		if err2 != nil {
-			return err2
+			log.Warn(fmt.Sprintf("receive ContractClosedStateChange=%s,but channel not found ",
+				utils.StringInterface(st, 3),
+			))
+			return nil
 		}
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
@@ -532,6 +554,12 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 		}
 		err = eh.photon.dao.RemoveNonParticipantChannel(st.ChannelIdentifier)
 		return err
+	}
+	if ch.State == channeltype.StateClosed {
+		log.Warn(fmt.Sprintf("receive duplicate ContractClosedStateChange=%s,channel already closed",
+			utils.StringInterface(st, 3),
+		))
+		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
@@ -588,6 +616,7 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 //大部分与 settle 相同,是否可以合并呢?或者合约上干脆合并了?
 // Most part of this is same as settle
 // can we just combine them?
+//1. 必须能够正确处理重复的事件
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
@@ -596,7 +625,10 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 		// 如果不是自己参与的channel,移除路由中的path
 		token, p1, p2, err2 := eh.photon.dao.GetNonParticipantChannelByID(st.ChannelIdentifier)
 		if err2 != nil {
-			return err2
+			log.Warn(fmt.Sprintf("receive ContractCooperativeSettledStateChange,but channel not found %s",
+				utils.StringInterface(st, 3),
+			))
+			return nil
 		}
 		g := eh.photon.getToken2ChannelGraph(token)
 		if g != nil {
@@ -621,10 +653,18 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 	eh.dispatchByPendingLocksInChannel(ch, st)
 	return err
 }
+
+//1. 必须能够处理重复的ContractChannelWithdrawStateChange
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
 	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
+		return nil
+	}
+	if ch.ChannelIdentifier.OpenBlockNumber == st.BlockNumber {
+		log.Warn(fmt.Sprintf("receive duplicate ContractChannelWithdrawStateChange=%s",
+			utils.StringInterface(st, 3),
+		))
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
@@ -645,7 +685,8 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
  *
  *	Note that if case is that my partner unlocks locks of mine, then maybe I need to punish my partner,
  *	even if that's not the case, when channel settle, I still need to use the the locksroot and transferAmount on chain
- */
+1. 重复的unlock没什么影响,只要保证后续的事件按序抵达即可
+*/
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
 	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
@@ -675,10 +716,15 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
+
+//必须能够处理重复的punish事件,因为重复的punish只是更新通道状态,所以重复也没什么影响
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
 	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
+		log.Warn(fmt.Sprintf("receive ContractPunishedStateChange,but cannot found channel %s",
+			utils.StringInterface(st, 3),
+		))
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
@@ -689,6 +735,8 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
+
+//1. 必须正确处理重复的ContractBalanceProofUpdatedStateChange,这里只是更新相关参与方的状态,所以重复的事件并不影响
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
 	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
@@ -699,6 +747,11 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
+
+//1. 必须能够正确处理重复的ContractSecretRevealOnChainStateChange,
+//todo 这里有一个潜在的问题A给B发交易,A收到ContractSecretRevealOnChainStateChange,然后会给B发unlock消息,
+// 这时候A崩溃,等A重启以后,会再次处理ContractSecretRevealOnChainStateChange,从而导致unlock消息发送两次.
+// 但是两次unlock消息nonce不同,从而导致通道不可用.
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	// 这里需要注册密码,否则unlock消息无法正常发送
 	// we need register secret here, otherwise we can not send unlock.

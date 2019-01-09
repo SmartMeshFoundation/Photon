@@ -341,8 +341,8 @@ func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee
 	//	err = rerr.ErrInvalidAmount
 	//	return
 	//}
-	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s",
-		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String()))
+	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
+		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
 	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
 	return
 }

@@ -13,7 +13,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -56,20 +55,6 @@ func MakeTestBlockChainService() *BlockChainService {
 		panic(err)
 	}
 	return bcs
-}
-
-//GetTestChannelUniqueID for test only,get from env
-func GetTestChannelUniqueID() *contracts.ChannelUniqueID {
-
-	cu := &contracts.ChannelUniqueID{
-		OpenBlockNumber: 3,
-	}
-	b, err := hex.DecodeString(os.Getenv("CHANNEL"))
-	if err != nil || len(b) != len(cu.ChannelIdentifier) {
-		panic("CHANNEL env error")
-	}
-	copy(cu.ChannelIdentifier[:], b)
-	return cu
 }
 
 //TestGetTokenNetworkAddress for test only

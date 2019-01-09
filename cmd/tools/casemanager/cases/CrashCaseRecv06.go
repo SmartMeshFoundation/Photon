@@ -15,7 +15,7 @@ import (
 // 节点6成功。重启节点1后，节点1锁定解锁，转账成功。
 // 此种情况下，转账继续，不影响使用。
 func (cm *CaseManager) CrashCaseRecv06() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecv06.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecv06.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -46,7 +46,7 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点1向节点6转账20token
 	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 3)
+	//time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	if N1.IsRunning() {
 		msg = "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
@@ -73,19 +73,22 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N1.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
-	N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
-	N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
+		N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+		N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd21new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd21new.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

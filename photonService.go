@@ -1498,6 +1498,8 @@ for debug only,quit if eventName exactly match
 func (rs *Service) conditionQuit(eventName string) {
 	if strings.ToLower(eventName) == strings.ToLower(rs.Config.ConditionQuit.QuitEvent) && rs.Config.DebugCrash {
 		log.Error(fmt.Sprintf("quitevent=%s\n", eventName))
+		log.Trace(fmt.Sprintf("tokengraph=%s", utils.StringInterface(rs.Token2ChannelGraph, 7)))
+		log.Trace(fmt.Sprintf("Transfer2StateManager=%s", utils.StringInterface(rs.Transfer2StateManager, 7)))
 		debug.PrintStack()
 		os.Exit(111)
 	}

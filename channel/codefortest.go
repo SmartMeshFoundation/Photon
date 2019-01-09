@@ -41,7 +41,7 @@ func makeTestExternState() *ExternalState {
 	if err != nil {
 		panic(err)
 	}
-	channelID := common.HexToHash(os.Getenv("CHANNEL"))
+	channelID := utils.NewRandomHash()
 	channelIdentifer := &contracts.ChannelUniqueID{
 		ChannelIdentifier: channelID,
 		OpenBlockNumber:   3,

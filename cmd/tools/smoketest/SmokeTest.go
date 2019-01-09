@@ -18,7 +18,6 @@ func SmokeTest() {
 	caseLogger.Println("==================================================")
 	rand.Seed(time.Now().UnixNano())
 	start := time.Now()
-
 	runSmokeCases()
 
 	duration := time.Since(start)

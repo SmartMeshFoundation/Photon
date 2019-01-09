@@ -138,6 +138,9 @@ func (be *Events) startAlarmTask() {
 			if params.ChainID.Int64() == params.TestPrivateChainID {
 				be.pollPeriod = params.DefaultEthRPCPollPeriodForTest
 				logPeriod = 10
+			} else if params.ChainID.Int64() == params.TestPrivateChainID2 {
+				be.pollPeriod = params.DefaultEthRPCPollPeriodForTest / 10
+				logPeriod = 1000
 			} else {
 				be.pollPeriod = params.DefaultEthRPCPollPeriod
 			}

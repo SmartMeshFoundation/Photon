@@ -79,6 +79,8 @@ func Main(ctx *cli.Context) error {
 	tokenNetworkAddress := DeployContract(key, conn)
 	env.RemoveOption(paramsSection, "registry_contract_address")
 	env.AddOption(paramsSection, "registry_contract_address", tokenNetworkAddress.String())
+	env.RemoveOption(paramsSection, "eth_rpc_endpoint")
+	env.AddOption(paramsSection, "eth_rpc_endpoint", ctx.String("eth-rpc-endpoint"))
 	//tokenNetworkAddress := common.HexToAddress("0x7CCBe22b9A5edCc87163EF3014277F027d542D39")
 	wg := sync.WaitGroup{}
 	wg.Add(2)

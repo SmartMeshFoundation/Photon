@@ -34,10 +34,10 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	count := 0
 	t := time.Now()
 	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to start, sleep 3s...\n", node.Name)
-		time.Sleep(time.Second * 3)
+		Logger.Printf("waiting for %s to start, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
 		count++
-		if count > 40 {
+		if count > 400 {
 			if node.ConditionQuit != nil {
 				Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
 			} else {
@@ -52,7 +52,6 @@ func (node *PhotonNode) Start(env *TestEnv) {
 	} else {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
-	time.Sleep(10 * time.Second)
 	node.Running = true
 	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
@@ -73,10 +72,10 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	count := 0
 	t := time.Now()
 	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithParams, sleep 3s...\n", node.Name)
-		time.Sleep(time.Second * 3)
+		Logger.Printf("waiting for %s to StartWithParams, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
 		count++
-		if count > 40 {
+		if count > 400 {
 			if node.ConditionQuit != nil {
 				Logger.Printf("NODE %s %s StartWithParams with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
 			} else {
@@ -112,10 +111,10 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	count := 0
 	t := time.Now()
 	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithFee, sleep 3s...\n", node.Name)
-		time.Sleep(time.Second * 3)
+		Logger.Printf("waiting for %s to StartWithFee, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
 		count++
-		if count > 40 {
+		if count > 400 {
 			if node.ConditionQuit != nil {
 				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
 			} else {

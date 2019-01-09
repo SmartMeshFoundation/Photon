@@ -142,6 +142,6 @@ func StartPhotonNode(RegistryAddress string) {
 		go ExecShell(exepath, pstr, logfile, false)
 	}
 	log.Println("Sleep 60 seconds to wait photon nodes start ...")
-	time.Sleep(60 * time.Second)
+	time.Sleep(10 * time.Second)
 	log.Println("Photon nodes start done")
 }

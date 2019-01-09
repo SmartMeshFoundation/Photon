@@ -29,6 +29,9 @@ func (rs *Service) restore() {
 	//1. 处理未完成的锁
 	// 1. handle incomplete locks
 	rs.restoreLocks()
+	//打印回复后的通道信息
+	//log.Trace(fmt.Sprintf("tokengraph=%s", utils.StringInterface(rs.Token2ChannelGraph, 7)))
+	//log.Trace(fmt.Sprintf("Transfer2StateManager=%s", utils.StringInterface(rs.Transfer2StateManager, 7)))
 	//2. 为发送成功的 EnvelopMessage 继续发送
 	// 2. keep sending EnvelopMessage that failed previously.
 	rs.reSendEnvelopMessage()

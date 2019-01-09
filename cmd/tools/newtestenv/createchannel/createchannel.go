@@ -54,7 +54,7 @@ func TransferTo(conn *ethclient.Client, from *ecdsa.PrivateKey, to common.Addres
 	return nil
 }
 
-var settTimeout uint64 = 100
+var settTimeout uint64 = 1000
 
 //CreatAChannelAndDeposit create a channel
 func CreatAChannelAndDeposit(account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount *big.Int, tokenNetworkAddres, tokenAddress common.Address, conn *ethclient.Client) {

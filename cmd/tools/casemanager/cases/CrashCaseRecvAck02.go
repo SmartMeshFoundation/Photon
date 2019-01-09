@@ -14,7 +14,7 @@ import (
 // 转账成功，没有锁定token,重启后，节点2扣钱。
 // 此种情况下，崩溃不影响交易。
 func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck02.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -65,27 +65,30 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
-	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
+		cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		//// 校验cd32，交易成功
+		//if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
+		//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
+		//}
+		// 校验cd36，交易成功
+		if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
+			continue
+		}
+
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	//// 校验cd32，交易成功
-	//if !cd32new.CheckSelfBalance(cd32.Balance + transAmount) {
-	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
-	//}
-	// 校验cd36，交易成功
-	if !cd36new.CheckPartnerBalance(cd36.PartnerBalance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
-	}
-
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

@@ -163,6 +163,9 @@ var DefaultEthRPCPollPeriod = 7500 * time.Millisecond
 // TestPrivateChainID :
 var TestPrivateChainID int64 = 8888
 
+// TestPrivateChainID2 : for travis fast test
+var TestPrivateChainID2 int64 = 7888
+
 // EthRPCTimeout :
 var EthRPCTimeout = 3 * time.Second
 
