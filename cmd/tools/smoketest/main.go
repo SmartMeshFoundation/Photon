@@ -1,13 +1,20 @@
 package main
 
 import (
+	"os"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/cases"
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/smoketest/models"
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 var env *models.PhotonEnvReader
 var allowFail = true
 
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 func main() {
 	// 1. init log
 	cases.InitCaseLogger("./log/smoketest.log")
