@@ -51,6 +51,9 @@ func (t *testDataHandler) DataHandler(from common.Address, data []byte) {
 	t.data <- data
 }
 func TestSubscribe(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
 	key2, _ := crypto.GenerateKey()
@@ -123,6 +126,9 @@ func TestSubscribe(t *testing.T) {
 
 }
 func BenchmarkNewXmpp(b *testing.B) {
+	if testing.Short() {
+		return
+	}
 	b.N = 10
 	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
@@ -145,6 +151,9 @@ func BenchmarkNewXmpp(b *testing.B) {
 	}
 }
 func TestSend(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
 	x1, err := NewConnection(params.DefaultTestXMPPServer, addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10))
