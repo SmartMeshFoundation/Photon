@@ -23,13 +23,13 @@ cd -
 newtestenv --keystore-path ./cmd/tools/deploygeth/privnet/keystore/ --eth-rpc-endpoint $ETHRPCENDPOINT --base 18 --tokennum 2
 if [ $? -ne 0 ]; then
    echo "newtestenv failed"
-   exit -1
+   exit 1
 fi
 # 3. go test
 go test -v  -failfast -timeout 10m -short `go list ./... | grep -v contracts |grep -v casemanager |grep -v gethworkdir`
 if [ $? -ne 0 ]; then
     echo "go test failed"
-    exit -1
+    exit 1
 fi
 
 # 4. smoke test
@@ -37,17 +37,18 @@ chmod +x smoketest.sh
 ./smoketest.sh
 if [ $? -ne 0 ]; then
     echo "smoketest failed"
-    exit -1
+    exit 1
 fi
 
 # 5. casemanager
 cd cmd/tools/casemanager
+mkdir log
 go build
 #指定部署私链的rpc
 ./casemanager --case=all --auto --eth-rpc-endpoint  $ETHRPCENDPOINT
 if [ $? -ne 0 ]; then
     echo "casemanager run failed"
-    exit -1
+    exit 1
 fi
 cd -
 
