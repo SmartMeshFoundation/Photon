@@ -13,7 +13,7 @@ import (
 // 节点1向节点2发送MTR后，节点1崩溃，此时，节点2默认收到MTR，但由于没有ACK确认，没发生转账，余额不变。节点2没收到转账token.
 // 重启节点1后，继续转账，转账成功。
 func (cm *CaseManager) CrashCaseSend01() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseSend01.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseSend01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -52,16 +52,19 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 
 	// 6. 重启节点1，自动发送之前中断的交易
 	N1.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 30)
+	for i := 0; i < 30; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd21new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd21new.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

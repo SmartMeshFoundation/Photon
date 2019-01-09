@@ -8,7 +8,7 @@ import (
 
 // CaseTransferWithSecret :
 func (cm *CaseManager) CaseTransferWithSecret() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseTransferWithSecret.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseTransferWithSecret.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (cm *CaseManager) CaseTransferWithSecret() (err error) {
 	// 获取channel信息
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeSendTransWithSecret")
-	N0.SendTransWithSecret(tokenAddress, 1, N1.Address, secret)
+	go N0.SendTransWithSecret(tokenAddress, 1, N1.Address, secret)
 	time.Sleep(3 * time.Second)
 
 	//没有发送密码允许,对方肯定接收不到

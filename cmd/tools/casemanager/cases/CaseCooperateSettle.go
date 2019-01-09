@@ -3,13 +3,12 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 // CaseCooperateSettle :
 func (cm *CaseManager) CaseCooperateSettle() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseCooperateSettle.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseCooperateSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -30,19 +29,21 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 
 	// 获取channel信息
 	// get channel info
-	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeClose")
+	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before cooperative settle")
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
-	time.Sleep(3 * time.Second)
+
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
-	time.Sleep(10 * time.Second)
-	// 验证
-	// verify
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		// 验证
+		// verify
+		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
 
-	if c01new != nil && c01new.State != channeltype.StateCooprativeSettle {
-		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+		if c01new == nil {
+			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+			return
+		}
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 }

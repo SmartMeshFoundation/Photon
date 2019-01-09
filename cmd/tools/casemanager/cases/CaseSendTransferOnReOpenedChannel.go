@@ -3,13 +3,12 @@ package cases
 import (
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
-// CaseSendTransferOnReOpenedChannel :
+// CaseSendTransferOnReOpenedChannel : ??!!dsldtodo todo cuowu
 func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseSendTransferOnReOpenedChannel.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseSendTransferOnReOpenedChannel.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -35,22 +34,26 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	//time.Sleep(3 * time.Second)
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
-	time.Sleep(10 * time.Second)
-	// 验证
-	// verify
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
-
-	if c01new != nil && c01new.State != channeltype.StateCooprativeSettle {
-		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+	i := 0
+	for i = 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		// 验证
+		// verify
+		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
+		if c01new == nil {
+			break
+		}
 	}
-
+	if i == 10 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
+	}
 	//重新创建通道,并交易
 	err = N0.OpenChannel(N1.Address, tokenAddress, int64(c01.Balance), int64(c01.SettleTimeout))
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
 	N0.SendTrans(tokenAddress, 1, N1.Address, true)
-	c01new = N0.GetChannelWith(N1, tokenAddress).Println("after Reopen channel")
+	c01new := N0.GetChannelWith(N1, tokenAddress).Println("after Reopen channel")
 	if !c01new.CheckSelfBalance(c01.Balance - 1) {
 		return cm.caseFail(env.CaseName)
 	}

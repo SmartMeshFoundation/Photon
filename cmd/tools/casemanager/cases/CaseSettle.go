@@ -8,7 +8,10 @@ import (
 
 // CaseSettle :
 func (cm *CaseManager) CaseSettle() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseSettle.ENV", cm.UseMatrix)
+	if cm.IsAutoRun {
+		return nil
+	}
+	env, err := models.NewTestEnv("./cases/CaseSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -31,21 +34,22 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeClose")
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
-	time.Sleep(3 * time.Second)
+	//time.Sleep(3 * time.Second)
 	// Close
 	N0.Close(c01.ChannelIdentifier)
 	N0.GetChannelWith(N1, tokenAddress).Println("AfterClose")
 	// Settle
 	time.Sleep(time.Duration(c01.SettleTimeout+257+10) * time.Second)
 	N0.Settle(c01.ChannelIdentifier)
-	time.Sleep(10 * time.Second)
-	// 验证
-	// verify
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
-
-	if c01new != nil {
-		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second)
+		// 验证
+		// verify
+		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
+		if c01new == nil {
+			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+			return
+		}
 	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 }

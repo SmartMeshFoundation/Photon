@@ -13,7 +13,7 @@ import (
 // 节点2向节点6发送45个token，节点2崩，节点2，3各锁定45 token
 // 重启后，节点2、3token解锁，成功转账节点6。
 func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck03.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck03.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -64,26 +64,29 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
-	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd32new := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterRestart()
+		cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd32new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		// 校验cd32，2锁定45
+		if !cd32new.CheckLockPartner(transAmount) {
+			continue
+		}
+		// 校验cd36，3锁定45
+		if !cd36new.CheckLockSelf(transAmount) {
+			continue
+		}
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	// 校验cd32，2锁定45
-	if !cd32new.CheckLockPartner(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32new.Name)
-	}
-	// 校验cd36，3锁定45
-	if !cd36new.CheckLockSelf(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd36new.Name)
-	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

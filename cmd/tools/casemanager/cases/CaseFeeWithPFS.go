@@ -11,7 +11,7 @@ func (cm *CaseManager) CaseFeeWithPFS() (err error) {
 	if cm.IsAutoRun {
 		return
 	}
-	env, err := models.NewTestEnv("./cases/CaseFeeWithPFS.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseFeeWithPFS.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -67,7 +67,7 @@ func (cm *CaseManager) CaseFeeWithPFS() (err error) {
 	if !C15new.CheckPartnerBalance(C15.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C15new.Name)
 	}
-	time.Sleep(1000 * time.Second)
+	time.Sleep(1 * time.Second)
 	//cm.logSeparatorLine("Test 1 : transfer with fee 0, should FAIL")
 	//transferAmount = 10000
 	//fee = 0

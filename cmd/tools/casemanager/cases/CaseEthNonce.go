@@ -11,7 +11,7 @@ import (
 
 // CaseEthNonce :
 func (cm *CaseManager) CaseEthNonce() (err error) {
-	env, err := models.NewTestEnv("./cases/CaseEthNonce.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CaseEthNonce.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -40,7 +40,7 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 		}()
 	}
 	for i := 0; i < 11; i++ {
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Second)
 		channels := N0.GetChannels(tokenAddress)
 		if len(channels) >= 10 {
 			models.Logger.Println(env.CaseName + " END ====> SUCCESS")

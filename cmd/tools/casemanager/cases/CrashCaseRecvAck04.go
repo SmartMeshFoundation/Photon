@@ -13,7 +13,7 @@ import (
 //节点2向节点6发送45个token,节点3崩。节点2、节点3各锁定45，走路由2，4，5，6成功；
 //转账成功;重启后，2，3节点锁定45未解除。未完成。正常。
 func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
-	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck04.ENV", cm.UseMatrix)
+	env, err := models.NewTestEnv("./cases/CrashCaseRecvAck04.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -85,43 +85,46 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 
 	// 6. 重启节点3，交易自动继续
 	N3.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second * 15)
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
 
-	// 查询重启后数据
-	models.Logger.Println("------------ Data After Restart ------------")
-	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
-	cd63new := N6.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
-	cd24new := N2.GetChannelWith(N4, tokenAddress).PrintDataAfterRestart()
-	cd45new := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterRestart()
-	cd56new := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+		// 查询重启后数据
+		models.Logger.Println("------------ Data After Restart ------------")
+		cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+		cd63new := N6.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+		cd24new := N2.GetChannelWith(N4, tokenAddress).PrintDataAfterRestart()
+		cd45new := N4.GetChannelWith(N5, tokenAddress).PrintDataAfterRestart()
+		cd56new := N5.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
 
-	// 校验对等
-	models.Logger.Println("------------ Data After Fail ------------")
-	if !cd23new.CheckEqualByPartnerNode(env) || !cd63new.CheckEqualByPartnerNode(env) || !cd24new.CheckEqualByPartnerNode(env) ||
-		!cd45new.CheckEqualByPartnerNode(env) || !cd56new.CheckEqualByPartnerNode(env) {
-		return cm.caseFail(env.CaseName)
-	}
+		// 校验对等
+		models.Logger.Println("------------ Data After Fail ------------")
+		if !cd23new.CheckEqualByPartnerNode(env) || !cd63new.CheckEqualByPartnerNode(env) || !cd24new.CheckEqualByPartnerNode(env) ||
+			!cd45new.CheckEqualByPartnerNode(env) || !cd56new.CheckEqualByPartnerNode(env) {
+			continue
+		}
 
-	// 校验cd23, 无锁定
-	if !cd23new.CheckNoLock() {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd23new.Name)
+		// 校验cd23, 无锁定
+		if !cd23new.CheckNoLock() {
+			continue
+		}
+		// 校验cd36，无锁定
+		if !cd63new.CheckNoLock() {
+			continue
+		}
+		// 校验cd24，交易成功
+		if !cd24new.CheckPartnerBalance(cd24.PartnerBalance + transAmount) {
+			continue
+		}
+		// 校验cd45，交易成功
+		if !cd45new.CheckPartnerBalance(cd45.PartnerBalance + transAmount) {
+			continue
+		}
+		// 校验cd56，交易成功
+		if !cd56new.CheckPartnerBalance(cd56.PartnerBalance + transAmount) {
+			continue
+		}
+		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+		return
 	}
-	// 校验cd36，无锁定
-	if !cd63new.CheckNoLock() {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd63new.Name)
-	}
-	// 校验cd24，交易成功
-	if !cd24new.CheckPartnerBalance(cd24.PartnerBalance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd24new.Name)
-	}
-	// 校验cd45，交易成功
-	if !cd45new.CheckPartnerBalance(cd45.PartnerBalance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd45new.Name)
-	}
-	// 校验cd56，交易成功
-	if !cd56new.CheckPartnerBalance(cd56.PartnerBalance + transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd56new.Name)
-	}
-	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return cm.caseFail(env.CaseName)
 }

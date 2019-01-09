@@ -16,8 +16,8 @@ func main() {
 		{
 			Name:  "caselist",
 			Usage: "list all cases",
-			Action: func(*cli.Context) error {
-				cases.NewCaseManager(false, false)
+			Action: func(ctx *cli.Context) error {
+				cases.NewCaseManager(false, false, ctx.String("eth-rpc-endpoint"))
 				return nil
 			},
 		},
@@ -40,6 +40,11 @@ func main() {
 			Name:  "matrix",
 			Usage: "true if run with matrix",
 		},
+		cli.StringFlag{
+			Name:  "eth-rpc-endpoint",
+			Usage: "eth rpc end point like : http://127.0.0.1:8545",
+			Value: "http://127.0.0.1:30307",
+		},
 	}
 	app.Action = Main
 	app.Name = "case-manager"
@@ -56,7 +61,7 @@ func Main(ctx *cli.Context) (err error) {
 	fmt.Println(caseName)
 	if caseName != "" {
 		// load all cases
-		caseManager := cases.NewCaseManager(ctx.Bool("auto"), ctx.Bool("matrix"))
+		caseManager := cases.NewCaseManager(ctx.Bool("auto"), ctx.Bool("matrix"), ctx.String("eth-rpc-endpoint"))
 		fmt.Println("Start Casemanager Test...")
 		// run case
 		if caseName == "all" {
