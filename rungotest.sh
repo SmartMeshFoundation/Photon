@@ -41,16 +41,16 @@ if [ $? -ne 0 ]; then
 fi
 
 # 5. casemanager
-cd cmd/tools/casemanager
-mkdir log
-go build
-#指定部署私链的rpc
-./casemanager --case=all --auto --eth-rpc-endpoint  $ETHRPCENDPOINT
-if [ $? -ne 0 ]; then
-    echo "casemanager run failed"
-    exit 1
-fi
-cd -
+# cd cmd/tools/casemanager
+# mkdir log
+# go build
+# #指定部署私链的rpc
+# ./casemanager --case=all --auto --eth-rpc-endpoint  $ETHRPCENDPOINT
+# if [ $? -ne 0 ]; then
+#     echo "casemanager run failed"
+#     exit 1
+# fi
+# cd -
 
 # 6. kill geth
 pkill geth
