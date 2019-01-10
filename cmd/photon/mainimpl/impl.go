@@ -136,7 +136,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "xmpp",
-			Usage: "use xmpp as transport,default is matrix, if two nodes use different transport,they cannot send message to each other",
+			Usage: "use xmpp as transport,default is xmpp, if two nodes use different transport,they cannot send message to each other",
 		},
 		cli.StringFlag{
 			Name:  "xmpp-server",
@@ -158,7 +158,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "matrix",
-			Usage: "use matrix as transport,default is matrix",
+			Usage: "use matrix as transport,default is xmpp",
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
@@ -553,6 +553,7 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 */
 func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
 	var contractVersion string
+	log.Trace(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
 	contractVersion, err = bcs.RegistryProxy.GetContractVersion()
 	if err != nil {
 		return
