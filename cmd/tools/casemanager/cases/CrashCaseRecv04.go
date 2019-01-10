@@ -80,7 +80,7 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 
 	// 6. 重启节点2
 	N2.ReStartWithoutConditionquit(env)
-	for i := 0; i < 30; i++ {
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 查询重启后数据
 		models.Logger.Println("------------ Data After Restart ------------")

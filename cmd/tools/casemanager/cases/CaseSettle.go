@@ -41,7 +41,7 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	// Settle
 	time.Sleep(time.Duration(c01.SettleTimeout+257+10) * time.Second)
 	N0.Settle(c01.ChannelIdentifier)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify

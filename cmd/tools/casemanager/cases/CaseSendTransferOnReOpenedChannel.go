@@ -35,7 +35,7 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
 	i := 0
-	for i = 0; i < 10; i++ {
+	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify

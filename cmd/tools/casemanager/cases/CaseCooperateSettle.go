@@ -34,7 +34,7 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify

@@ -11,11 +11,14 @@ import (
 
 // CaseManager include env and cases
 type CaseManager struct {
-	Cases           map[string]reflect.Value
-	FailedCaseNames []string
-	IsAutoRun       bool
-	UseMatrix       bool
-	EthEndPoint     string
+	Cases                 map[string]reflect.Value
+	FailedCaseNames       []string
+	IsAutoRun             bool
+	UseMatrix             bool
+	EthEndPoint           string
+	LowWaitSeconds        int
+	MediumWaitSeconds     int
+	HighMediumWaitSeconds int
 }
 
 // NewCaseManager constructor
@@ -24,6 +27,9 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string) (caseMan
 	caseManager.IsAutoRun = isAutoRun
 	caseManager.UseMatrix = useMatrix
 	caseManager.EthEndPoint = ethEndPoint
+	caseManager.LowWaitSeconds = 10
+	caseManager.MediumWaitSeconds = 50
+	caseManager.HighMediumWaitSeconds = 300
 	caseManager.Cases = make(map[string]reflect.Value)
 	// use reflect to load all cases
 	fmt.Println("load cases...")
@@ -51,10 +57,12 @@ func (c *CaseManager) RunAll(skip string) {
 	}
 	sort.Strings(keys)
 	errorMsg := ""
+	success := 0
 	for _, k := range keys {
 		v := c.Cases[k]
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
+			success++
 		} else {
 			err := rs[0].Interface().(error)
 			if err == nil {
@@ -68,9 +76,10 @@ func (c *CaseManager) RunAll(skip string) {
 				}
 			}
 		}
+
 	}
 	fmt.Println("Casemanager Result:")
-	fmt.Printf("Cases num : %d\n", len(keys))
+	fmt.Printf("Cases num : %d,successed=%d\n", len(keys), success)
 	fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
 	for _, v := range c.FailedCaseNames {
 		fmt.Println(v)

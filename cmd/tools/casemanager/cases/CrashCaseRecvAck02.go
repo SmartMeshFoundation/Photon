@@ -65,7 +65,7 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
-	for i := 0; i < 15; i++ {
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 
 		// 查询重启后数据

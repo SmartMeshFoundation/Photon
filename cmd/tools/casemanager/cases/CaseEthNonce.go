@@ -29,22 +29,23 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 	// 启动节点2，3
 	// start node 2, 3
 	N0.Start(env)
-
+	time.Sleep(time.Second * 3)
 	// 获取channel信息
 	for i := 0; i < 10; i++ {
 		go func() {
-			err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, settleTimeout)
-			if err != nil {
-				fmt.Printf("----------err : %s \n", err.Error())
+			err2 := N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, settleTimeout)
+			if err2 != nil {
+				fmt.Printf("----------err : %s \n", err2.Error())
 			}
 		}()
 	}
-	for i := 0; i < 11; i++ {
+	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		channels := N0.GetChannels(tokenAddress)
 		if len(channels) >= 10 {
+			//time.Sleep(time.Second * 5)
 			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-			return
+			return nil
 		}
 	}
 	return cm.caseFail(env.CaseName)

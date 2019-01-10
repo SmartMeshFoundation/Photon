@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/cases"
 	"github.com/urfave/cli"
@@ -56,6 +57,7 @@ func main() {
 
 // Main crash test
 func Main(ctx *cli.Context) (err error) {
+	start := time.Now()
 	// init env
 	caseName := ctx.String("case")
 	fmt.Println(caseName)
@@ -69,6 +71,8 @@ func Main(ctx *cli.Context) (err error) {
 		} else {
 			caseManager.RunOne(caseName)
 		}
+		end := time.Now()
+		log.Printf("casemanager time use:%s", end.Sub(start))
 		return
 	}
 	err = cli.ShowAppHelp(ctx)
