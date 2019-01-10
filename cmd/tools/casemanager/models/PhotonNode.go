@@ -27,9 +27,13 @@ type PhotonNode struct {
 }
 
 // Start start a photon node
-func (node *PhotonNode) Start(env *TestEnv) {
+func (node *PhotonNode) Start(env *TestEnv, pprof ...bool) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
+	dopprof := false
+	if len(pprof) > 0 {
+		dopprof = pprof[0]
+	}
+	go ExecShell(env.Main, node.getParamStr(env, dopprof), logfile, true)
 
 	count := 0
 	t := time.Now()
@@ -104,7 +108,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 // StartWithFee start a photon node with --fee
 func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStr(env)
+	params := node.getParamStr(env, false)
 	params = append(params, "--fee")
 	go ExecShell(env.Main, params, logfile, true)
 
@@ -148,7 +152,7 @@ func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.Start(env)
 }
 
-func (node *PhotonNode) getParamStr(env *TestEnv) []string {
+func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 	var param []string
 	param = append(param, "--datadir="+env.DataDir)
 	param = append(param, "--api-address="+node.APIAddress)
@@ -157,6 +161,9 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
+	if pprof {
+		param = append(param, "--pprof")
+	}
 	if !env.UseMatrix {
 		if env.XMPPServer != "" {
 			param = append(param, "--xmpp-server="+env.XMPPServer)

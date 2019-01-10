@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 
 	"fmt"
@@ -388,7 +390,7 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		return
 	}
 	for _, n := range nodes {
-		if n.Running {
+		if true {
 			payloads = append(payloads, UpdateMeshNetworkNodesPayload{
 				Address: n.Address,
 				IPPort:  n.Host[7:] + "0",
@@ -467,23 +469,23 @@ func (node *PhotonNode) AllowSecret(secretHash, token string) {
 
 // GenerateSecret :
 func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) {
-	type resp struct {
-		Secret     string
-		SecretHash string
+	type SecretPair struct {
+		LockSecretHash string `json:"lock_secret_hash"`
+		Secret         string `json:"secret"`
 	}
-	rs := resp{}
+	rs := SecretPair{}
 	req := &Req{
-		FullURL: node.Host + "/api/1/debug/secret",
+		FullURL: node.Host + "/api/1/secret",
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("debug/secret err :%s", err))
+		Logger.Println(fmt.Sprintf("secret err :%s", err))
 		return
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("debug/secret err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("secret err : http status=%d", statusCode))
 		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
@@ -492,6 +494,236 @@ func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) 
 		return
 	}
 	secret = rs.Secret
-	secretHash = rs.SecretHash
+	secretHash = rs.LockSecretHash
 	return
+}
+
+//GetSentTransfers query node's sent transfer
+func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err error) {
+	req := &Req{
+		FullURL: node.Host + "/api/1/querysenttransfer",
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("GetSentTransfers err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("GetSentTransfers err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &trs)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//GetReceivedTransfers query node's received transfer
+func (node *PhotonNode) GetReceivedTransfers() (trs []*models.ReceivedTransfer, err error) {
+	req := &Req{
+		FullURL: node.Host + "/api/1/queryreceivedtransfer",
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("GetReceivedTransfers err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("GetReceivedTransfers err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &trs)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//GetTransferStatus :
+func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status *models.TransferStatus, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/transferstatus/%s/%s", token, locksecrethash),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("GetTransferStatus err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("GetTransferStatus err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &status)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//CancelTransfer cancel a on transfer which secret is not revealed
+func (node *PhotonNode) CancelTransfer(token, locksecrethash string) (err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/transfercancel/%s/%s", token, locksecrethash),
+		Method:  http.MethodPost,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("CancelTransfer err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("CancelTransfer err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d,body=%s", statusCode, string(body))
+		return
+	}
+	return nil
+}
+
+//GetUnfinishedReceivedTransfer query unfinished received transfers
+func (node *PhotonNode) GetUnfinishedReceivedTransfer(token, locksecrethash string) (resp *photon.TransferDataResponse, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/getunfinishedreceivedtransfer/%s/%s", token, locksecrethash),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("GetUnfinishedReceivedTransfer err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("GetUnfinishedReceivedTransfer err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//Tokens : query registered tokens
+func (node *PhotonNode) Tokens() (tokens []string, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host + "/api/1/tokens"),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("Tokens err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("Tokens err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &tokens)
+	if err != nil {
+		return
+	}
+	return
+
+}
+
+//PartnersDataResponse query by token
+type PartnersDataResponse struct {
+	PartnerAddress string `json:"partner_address"`
+	Channel        string `json:"channel"`
+}
+
+//TokenPartners query token partners
+func (node *PhotonNode) TokenPartners(token string) (partners []*PartnersDataResponse, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/tokens/%s/partners", token),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &partners)
+	if err != nil {
+		return
+	}
+	return
+
+}
+
+//PrepareUpdate query token partners
+func (node *PhotonNode) PrepareUpdate() (err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host + "/api/1/prepare-update"),
+		Method:  http.MethodPost,
+		Timeout: time.Second * 20,
+	}
+	statusCode, _, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("PrepareUpdate err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("PrepareUpdate err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	return
+
+}
+
+// TokenSwap send a transfer
+func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivingtoken, role, secret string,
+	sendingAmount, receivingAmount int) error {
+	type TokenSwapPayload struct {
+		Role            string `json:"role"`
+		SendingAmount   int    `json:"sending_amount"`
+		SendingToken    string `json:"sending_token"`
+		ReceivingAmount int    `json:"receiving_amount"`
+		ReceivingToken  string `json:"receiving_token"`
+		Secret          string `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+	}
+	p, err := json.Marshal(TokenSwapPayload{
+		Role:            role,
+		SendingAmount:   sendingAmount,
+		SendingToken:    sendingtoken,
+		ReceivingAmount: receivingAmount,
+		ReceivingToken:  receivingtoken,
+		Secret:          secret,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/token_swaps/" + target + "/" + locksecrethash,
+		Method:  http.MethodPut,
+		Payload: string(p),
+		Timeout: time.Second * 30,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("TransferApi %s err :%s", req.FullURL, err))
+		return err
+	}
+	if statusCode != http.StatusCreated {
+		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d", req.FullURL, statusCode))
+		return fmt.Errorf("TransferApi err : http status=%d,body=%s", statusCode, string(body))
+	}
+	return nil
 }

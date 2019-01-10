@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
@@ -105,7 +107,7 @@ func (c *CaseManager) RunOne(caseName string) {
 			if err == nil {
 				fmt.Printf("%s SUCCESS\n", caseName)
 			} else {
-				fmt.Printf("%s FAILED!!!\n", caseName)
+				fmt.Printf("%s FAILED!!! err=%s\n", caseName, err)
 			}
 		}
 	} else {
@@ -140,4 +142,22 @@ func (c *CaseManager) checkNodesStartComplete(nodes []*models.PhotonNode) bool {
 		}
 	}
 	return true
+}
+
+func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNode) {
+	n := len(nodes)
+	wg := sync.WaitGroup{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(index int) {
+			dopprof := false
+			if index == 0 {
+				dopprof = true
+			}
+			nodes[index].Start(env, dopprof)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	time.Sleep(time.Second)
 }

@@ -97,7 +97,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.XMPPServer = c.RdString("COMMON", "xmpp-server", "")
 	env.EthRPCEndpoint = ethEndPoint
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
-	env.Debug = c.RdBool("COMMON", "debug", false)
+	env.Debug = c.RdBool("COMMON", "debug", true)
 	env.UseOldToken = false
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
@@ -328,7 +328,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	wg := sync.WaitGroup{}
 	wg.Add(len(options))
 	for _, o := range options {
-		go func(option string) {
+		func(option string) {
 			defer wg.Done()
 			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 			_, token := env.GetTokenByName(s[2])
@@ -355,13 +355,13 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 }
 
 func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
-	log.Printf("createchannel between %s-%s\n", utils.APex(account1), utils.APex(account2))
+	log.Printf("createchannel between %s-%s,token=%s\n", utils.APex(account1), utils.APex(account2), utils.APex(token.TokenAddress))
 	var tx *types.Transaction
 	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
-		approveAccountIfNeeded(token.Token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
+		approveAccountIfNeeded(token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
 		tx, err = env.TokenNetwork.Deposit(auth1, token.TokenAddress, account1, account2, amount1, settledTimeout)
 		if err != nil {
 			panic(err)
@@ -372,7 +372,7 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 		}
 	}
 	if amount2.Int64() > 0 {
-		approveAccountIfNeeded(token.Token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
+		approveAccountIfNeeded(token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
 		tx, err = env.TokenNetwork.Deposit(auth2, token.TokenAddress, account2, account1, amount2, settledTimeout)
 		if err != nil {
 			panic(err)
@@ -402,15 +402,15 @@ func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetwor
 var approveMap = make(map[common.Hash]int64)
 var approveMapLock = sync.Mutex{}
 
-func approveAccountIfNeeded(token *contracts.Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
-	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:])
+func approveAccountIfNeeded(token *Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
+	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:], token.TokenAddress[:])
 	m, ok := approveMap[key]
 	if ok && m > amount.Int64() {
 		return
 	}
 	approveMapLock.Lock()
 	defer approveMapLock.Unlock()
-	approveAccount(token, auth, tokenNetworkAddress, amount, conn)
+	approveAccount(token.Token, auth, tokenNetworkAddress, amount, conn)
 	approveAmt := new(big.Int)
 	approveAmt = approveAmt.Mul(amount, big.NewInt(100))
 	approveMap[key] = approveAmt.Int64()
