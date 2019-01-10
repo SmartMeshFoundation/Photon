@@ -15,6 +15,8 @@ type CaseManager struct {
 	FailedCaseNames       []string
 	IsAutoRun             bool
 	UseMatrix             bool
+	RunSlow               bool //是否运行哪些长时间运行的case
+	RunThisCaseOnly       bool // 针对性测试,设置为true,表明只是想运行这一个case
 	EthEndPoint           string
 	LowWaitSeconds        int
 	MediumWaitSeconds     int
@@ -22,7 +24,7 @@ type CaseManager struct {
 }
 
 // NewCaseManager constructor
-func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string) (caseManager *CaseManager) {
+func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow bool) (caseManager *CaseManager) {
 	caseManager = new(CaseManager)
 	caseManager.IsAutoRun = isAutoRun
 	caseManager.UseMatrix = useMatrix
@@ -30,6 +32,7 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string) (caseMan
 	caseManager.LowWaitSeconds = 10
 	caseManager.MediumWaitSeconds = 50
 	caseManager.HighMediumWaitSeconds = 300
+	caseManager.RunSlow = runSlow
 	caseManager.Cases = make(map[string]reflect.Value)
 	// use reflect to load all cases
 	fmt.Println("load cases...")

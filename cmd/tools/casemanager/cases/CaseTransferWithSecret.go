@@ -46,7 +46,7 @@ func (cm *CaseManager) CaseTransferWithSecret() (err error) {
 	}
 	N0.AllowSecret(SecretHash, tokenAddress)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		c01new = N0.GetChannelWith(N1, tokenAddress).Println("after  allow reveal secret")
 		time.Sleep(time.Second) //保证photon在十秒之内会尝试发送一次消息
 		if !c01new.CheckSelfBalance(c01.Balance - 1) {

@@ -15,7 +15,7 @@ import (
 // 节点1、节点2、节点3各锁定20个token；重启节点1后，转账失败,各自锁定相应的token
 //等待锁过期以后,相关节点都不应该持有任何锁
 func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
-	if cm.IsAutoRun {
+	if !cm.RunSlow {
 		return //等待时间太长,忽略
 	}
 	env, err := models.NewTestEnv("./cases/CrashCaseRemoveExpiredHashLock.ENV", cm.UseMatrix, cm.EthEndPoint)

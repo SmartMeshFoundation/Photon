@@ -10,7 +10,7 @@ import (
 
 // LongCase5Nodes :
 func (cm *CaseManager) LongCase5Nodes() (err error) {
-	if cm.IsAutoRun {
+	if !cm.RunSlow {
 		return
 	}
 	env, err := models.NewTestEnv("./cases/LongCase5Nodes.ENV", cm.UseMatrix, cm.EthEndPoint)
