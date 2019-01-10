@@ -32,6 +32,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 4. build photon
+cd cmd/photon 
+./build.sh
+cp photon $GOPATH/bin 
+cd -
 # 4. smoke test
 # chmod +x smoketest.sh
 # ./smoketest.sh
