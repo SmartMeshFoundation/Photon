@@ -33,12 +33,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # 4. smoke test
-chmod +x smoketest.sh
-./smoketest.sh
-if [ $? -ne 0 ]; then
-    echo "smoketest failed"
-    exit 1
-fi
+# chmod +x smoketest.sh
+# ./smoketest.sh
+# if [ $? -ne 0 ]; then
+#     echo "smoketest failed"
+#     exit 1
+# fi
 
 # 5. casemanager
 cd cmd/tools/casemanager
@@ -53,4 +53,5 @@ fi
 cd -
 
 # 6. kill geth
-pkill geth
+gethpid=`ps -ef | grep geth  |grep 7888| grep -v grep | awk '{print $2}'`
+pkill -9 $gethpid

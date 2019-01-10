@@ -15,7 +15,11 @@ go install
 
 cd $wd 
 
-
+#有可能上一个节点还在运行着没有退出 kill它
+lastpid=`ps -ef | grep geth  |grep 7888| grep -v grep | awk '{print $2}'`
+echo "lastpid"
+echo $lastpid
+kill -9 $lastpid
 ## 准备搭建私链
 geth version
 rm -rf privnet/geth 
