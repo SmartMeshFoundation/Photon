@@ -898,7 +898,7 @@ func (c *Channel) RegisterAnnouceDisposed(tr *encoding.AnnounceDisposed) (err er
 		state = c.OurState
 	}
 	mlock := tr.Lock
-	lock := state.getLockByHashlock(mlock.LockSecretHash)
+	lock := state.GetUnkownSecretLockByHashlock(mlock.LockSecretHash)
 	if lock == nil || mlock.LockSecretHash != lock.LockSecretHash ||
 		mlock.Expiration != lock.Expiration ||
 		mlock.Amount.Cmp(lock.Amount) != 0 {

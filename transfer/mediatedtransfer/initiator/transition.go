@@ -173,7 +173,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
 		// 超时
 		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
-		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,发送remove expired,然后移除state manager
+		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,可不可以发送RemoveExpiredHashlock,由通道自己决定.然后移除state manager
 		// timeout
 		// If I have not sent secret, then just send removeExpiredLock, and remove stateManager.
 		// If I have already sent secret, then assume transfer timeout failure, send remove expired, and remove state manager.
@@ -227,9 +227,8 @@ func handleSecretRequest(state *mt.InitiatorState, stateChange *mt.ReceiveSecret
 	isValid := stateChange.Sender == state.Transfer.Target &&
 		stateChange.LockSecretHash == state.Transfer.LockSecretHash &&
 		stateChange.Amount.Cmp(state.Transfer.TargetAmount) == 0
-	//isInvalid := stateChange.Sender == state.Transfer.Target &&
-	//	stateChange.LockSecretHash == state.Transfer.LockSecretHash && !isValid
-	if isValid && !state.CancelByExceptionSecretRequest {
+	//如果收到secret request时候已经过期了,应该让这个交易失败,而不是告诉对方密码
+	if isValid && !state.CancelByExceptionSecretRequest && state.BlockNumber < state.Transfer.Expiration {
 		/*
 		   Reveal the secret to the target node and wait for its confirmation,
 		   at this point the transfer is not cancellable anymore either the lock

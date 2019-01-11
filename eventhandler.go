@@ -310,6 +310,9 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		return
 	}
 	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.HPex(e2.ChannelIdentifier), utils.HPex(e2.LockSecretHash)))
+	/*
+		unlock 失败,谨慎起见, 只有在对方不知道密码的情况下,才可能成功移除锁.
+	*/
 	tr, err := ch.CreateRemoveExpiredHashLockTransfer(e2.LockSecretHash, eh.photon.GetBlockNumber())
 	if err != nil {
 		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s", err))
