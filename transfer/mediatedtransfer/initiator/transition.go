@@ -148,7 +148,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	}
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
-	if state.BlockNumber > state.Transfer.Expiration {
+	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
 		if state.Route != nil && !state.Db.IsThisLockRemoved(state.Route.ChannelIdentifier, state.OurAddress, state.Transfer.LockSecretHash) {
 			unlockFailed := &mt.EventUnlockFailed{
 				LockSecretHash:    state.Transfer.LockSecretHash,

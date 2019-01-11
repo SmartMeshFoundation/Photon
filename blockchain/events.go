@@ -280,7 +280,7 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			log.Info(fmt.Sprintf("event %s tx=%s happened at %d, confirmed at %d", eventName, l.TxHash.String(), l.BlockNumber, be.lastBlockNumber))
 		}
 		// registry secret事件延迟确认,否则在出现恶意分叉的情况下,中间节点有损失资金的风险
-		if eventName == params.NameSecretRevealed {
+		if eventName == params.NameSecretRevealed && params.EnableForkConfirm {
 			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
 				continue
 			}
