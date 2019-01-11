@@ -9,6 +9,9 @@ import (
 )
 
 func TestXMPPTransport(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	key1, _ := utils.MakePrivateKeyAddress()
 	key2, _ := utils.MakePrivateKeyAddress()
 	x1 := MakeTestXMPPTransport("x1", key1)

@@ -108,10 +108,16 @@ func newFourTestMatrixTransport() (m0, m1, m2, m3 *MatrixTransport) {
 }
 
 func TestCreateMatrixTransport(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	m1 := newTestMatrixTransport("mrand", params.MatrixServerConfig)
 	m1.Stop()
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	cfg1, _, _ := getMatrixEnvConfig()
 	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
 	m1.setDB(&MockDb{})
@@ -123,6 +129,9 @@ func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 }
 
 func TestGetJoinedRoomAlias(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
 	m1.setDB(&MockDb{})
 	m1.setTrustServers(testTrustedServers)

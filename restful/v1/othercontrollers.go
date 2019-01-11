@@ -172,21 +172,3 @@ func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
 	}
 }
-
-// GenerateSecret : generate debug secret for test
-func GenerateSecret(w rest.ResponseWriter, r *rest.Request) {
-	type resp struct {
-		Secret     string
-		SecretHash string
-	}
-
-	secret := utils.NewRandomHash()
-	rs := resp{
-		Secret:     secret.String(),
-		SecretHash: utils.ShaSecret(secret[:]).String(),
-	}
-	err := w.WriteJson(rs)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
-}

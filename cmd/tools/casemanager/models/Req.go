@@ -59,12 +59,14 @@ func (r *Req) Invoke() (int, []byte, error) {
 	req := r.GetReq()
 	resp, err := client.Do(req)
 	defer func() {
+		var err2 error
 		if req.Body != nil {
-			err = req.Body.Close()
+			err2 = req.Body.Close()
 		}
 		if resp != nil && resp.Body != nil {
-			err = resp.Body.Close()
+			err2 = resp.Body.Close()
 		}
+		_ = err2
 	}()
 	if err != nil {
 		return 0, nil, err

@@ -36,7 +36,7 @@ func (cm *CaseManager) CaseWithdraw() (err error) {
 	// withdraw
 	N0.Withdraw(c01.ChannelIdentifier, withdrawAmount)
 	//time.Sleep(10 * time.Second)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify

@@ -57,7 +57,7 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 	// 重启节点6，自动发送之前中断的交易
 	N6.ReStartWithoutConditionquit(env)
 
-	for i := 0; i < 30; i++ {
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 
 		// 查询重启后数据

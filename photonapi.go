@@ -371,6 +371,7 @@ func (r *API) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.
 
 // RegisterSecret :
 func (r *API) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
+	//todo fix 用req重新实现.
 	lockSecretHash := utils.ShaSecret(secret.Bytes())
 	//在channel 中注册密码
 	// register secret in channel

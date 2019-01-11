@@ -114,7 +114,7 @@ func getPendingTransferPairs(pairs []*mediatedtransfer.MediationPairState) (pend
 
 func getExpiredTransferPairs(pairs []*mediatedtransfer.MediationPairState) (pendingPairs []*mediatedtransfer.MediationPairState) {
 	for _, pair := range pairs {
-		if pair.PayeeState == mediatedtransfer.StatePayerExpired {
+		if pair.PayeeState == mediatedtransfer.StatePayeeExpired {
 			pendingPairs = append(pendingPairs, pair)
 		}
 	}
@@ -389,9 +389,9 @@ payer的 expiration>=payee 的 expiration 可以相等
  *	set the state of expired transfers, and return the failed events.
  *	According to current rule, that expiration between payer and payee can be equal.
  */
-func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event, hasNotExpired bool) {
+func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, blockNumber int64) (events []transfer.Event, allExpired bool) {
 	pendingTransfersPairs := getPendingTransferPairs(transfersPairs)
-	hasNotExpired = len(pendingTransfersPairs) > 0
+	allExpired = len(pendingTransfersPairs) == 0
 	for _, pair := range pendingTransfersPairs {
 		if blockNumber > pair.PayerTransfer.Expiration {
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
@@ -411,7 +411,14 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 				events = append(events, withdrawFailed)
 			}
 		}
-		if blockNumber > pair.PayeeTransfer.Expiration {
+		/*
+			考虑到分叉攻击,延迟一定块数之后才发送remove
+			这里需要考虑如下问题:
+			1. 本该过期之后,收到payee的reveal secret,这时候肯定不能给对方发送BalanceProof
+			2. 本该过期之后,收到payee的AnnouceDisposed, 这时候谨慎起见,忽略这种消息
+			3. 本该过期之后,收到链上的密码注册事件,因为链上事件给出的块数已经过期了,所以会被忽略
+		*/
+		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
 			/*
 			   For safety, the correct behavior is:
 
@@ -433,27 +440,27 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			}
 			if pair.PayeeState != mediatedtransfer.StatePayeeExpired {
 				pair.PayeeState = mediatedtransfer.StatePayeeExpired
-				//unlockFailed := &mediatedtransfer.EventUnlockFailed{
-				//	LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
-				//	ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
-				//	Reason:            "lock expired",
-				//}
-				//events = append(events, unlockFailed)
+				unlockFailed := &mediatedtransfer.EventUnlockFailed{
+					LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
+					ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+					Reason:            "lock expired",
+				}
+				events = append(events, unlockFailed)
 			}
 		}
 	}
-	// 考虑到分叉攻击,延迟一定块数之后才发送remove
-	expiredPairs := getExpiredTransferPairs(transfersPairs)
-	for _, pair := range expiredPairs {
-		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
-			unlockFailed := &mediatedtransfer.EventUnlockFailed{
-				LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
-				ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
-				Reason:            "lock expired",
-			}
-			events = append(events, unlockFailed)
-		}
-	}
+	//// 考虑到分叉攻击,延迟一定块数之后才发送remove
+	//expiredPairs := getExpiredTransferPairs(transfersPairs)
+	//for _, pair := range expiredPairs {
+	//	if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
+	//		unlockFailed := &mediatedtransfer.EventUnlockFailed{
+	//			LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
+	//			ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,
+	//			Reason:            "lock expired",
+	//		}
+	//		events = append(events, unlockFailed)
+	//	}
+	//}
 	return
 }
 
@@ -814,11 +821,11 @@ func handleBlock(state *mediatedtransfer.MediatorState, st *transfer.BlockStateC
 	}
 	state.BlockNumber = blockNumber
 	closeEvents := eventsForRegisterSecret(state.TransfersPair, blockNumber)
-	unlockfailEvents, hasNotExpired := setExpiredPairs(state.TransfersPair, blockNumber)
+	unlockfailEvents, allExpired := setExpiredPairs(state.TransfersPair, blockNumber)
 	var events []transfer.Event
 	events = append(events, closeEvents...)
 	events = append(events, unlockfailEvents...)
-	if !hasNotExpired {
+	if allExpired {
 		//所有的mediatedtransfer 都已经过期了,放心移除这个 stateManager 吧
 		// All mediatedTransfers are expired, feel safe to remove this StateManager.
 		events = append(events, &mediatedtransfer.EventRemoveStateManager{
@@ -851,7 +858,7 @@ Validate and handle a ReceiveTransferRefund state change.
     Returns:
         TransitionResult: The resulting iteration.
 */
-func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
+func handleAnnouceDisposed(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	it := &transfer.TransitionResult{
 		NewState: state,
 		Events:   nil,
@@ -872,13 +879,19 @@ func handleRefundTransfer(state *mediatedtransfer.MediatorState, st *mediatedtra
 	transferPair := state.TransfersPair[l-1]
 	payeeTransfer := transferPair.PayeeTransfer
 	payeeRoute := transferPair.PayeeRoute
+
 	/*
-		todo A-B-C-F-B-G-D
-		B首先收到了来自 C 的refund 怎么处理?网络错误?网络攻击?
+			todo A-B-C-F-B-G-D
+			B首先收到了来自 C 的refund 怎么处理?网络错误?网络攻击?
+
+		考虑支持分叉,有可能在锁过期之后收到来自payee的AnnounceDisposed,
+		这时候虽然可以尝试找其他路径,但是更安全的做法是忽略,当然即使不忽略也不应该有安全问题.
+		这里采取更安全的做法: 如果payee的锁已经过期,直接忽略.
+
 	*/
 	// todo A-B-C-F-B-G-D
 	// If B first receives refund of C, how to deal with that?
-	if IsValidRefund(payeeTransfer, payeeRoute, st) {
+	if IsValidRefund(payeeTransfer, payeeRoute, st) && payeeTransfer.Expiration < state.BlockNumber {
 		/*
 					假定队列中的是
 				AB BC
@@ -1059,7 +1072,7 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			it = handleBlock(state, st2)
 		case *mediatedtransfer.ReceiveAnnounceDisposedStateChange:
 			if state.Secret == utils.EmptyHash {
-				it = handleRefundTransfer(state, st2)
+				it = handleAnnouceDisposed(state, st2)
 			} else {
 				log.Error(fmt.Sprintf("mediator state manager ,already knows secret,but recevied announce disposed, must be a error"))
 			}

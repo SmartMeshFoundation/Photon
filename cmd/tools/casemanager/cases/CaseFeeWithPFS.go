@@ -8,8 +8,8 @@ import (
 
 // CaseFeeWithPFS : test for fee module with pfs
 func (cm *CaseManager) CaseFeeWithPFS() (err error) {
-	if cm.IsAutoRun {
-		return
+	if !cm.RunThisCaseOnly {
+		return //需要pfs支持,所以跳过
 	}
 	env, err := models.NewTestEnv("./cases/CaseFeeWithPFS.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

@@ -51,7 +51,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	// 3. 节点1向节点6转账45token
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	i := 0
-	for i = 0; i < 10; i++ {
+	for i = 0; i < cm.LowWaitSeconds; i++ {
 		time.Sleep(time.Second * 1)
 		// 4. 崩溃判断
 		if N2.IsRunning() {
@@ -98,7 +98,7 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	}
 	// 6. 重启节点2，交易失败
 	N2.ReStartWithoutConditionquit(env)
-	for i = 0; i < 10; i++ {
+	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second * 1)
 
 		// 查询重启后数据

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/cases"
 	"github.com/urfave/cli"
@@ -17,7 +18,7 @@ func main() {
 			Name:  "caselist",
 			Usage: "list all cases",
 			Action: func(ctx *cli.Context) error {
-				cases.NewCaseManager(false, false, ctx.String("eth-rpc-endpoint"))
+				cases.NewCaseManager(false, false, ctx.String("eth-rpc-endpoint"), false)
 				return nil
 			},
 		},
@@ -45,6 +46,10 @@ func main() {
 			Usage: "eth rpc end point like : http://127.0.0.1:8545",
 			Value: "http://127.0.0.1:30307",
 		},
+		cli.BoolFlag{
+			Name:  "slow",
+			Usage: "for long test,run every case",
+		},
 	}
 	app.Action = Main
 	app.Name = "case-manager"
@@ -56,19 +61,23 @@ func main() {
 
 // Main crash test
 func Main(ctx *cli.Context) (err error) {
+	start := time.Now()
 	// init env
 	caseName := ctx.String("case")
 	fmt.Println(caseName)
 	if caseName != "" {
 		// load all cases
-		caseManager := cases.NewCaseManager(ctx.Bool("auto"), ctx.Bool("matrix"), ctx.String("eth-rpc-endpoint"))
+		caseManager := cases.NewCaseManager(ctx.Bool("auto"), ctx.Bool("matrix"), ctx.String("eth-rpc-endpoint"), ctx.Bool("slow"))
 		fmt.Println("Start Casemanager Test...")
 		// run case
 		if caseName == "all" {
 			caseManager.RunAll(ctx.String("skip"))
 		} else {
+			caseManager.RunThisCaseOnly = true
 			caseManager.RunOne(caseName)
 		}
+		end := time.Now()
+		log.Printf("casemanager time use:%s", end.Sub(start))
 		return
 	}
 	err = cli.ShowAppHelp(ctx)
