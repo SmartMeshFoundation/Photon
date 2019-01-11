@@ -13,6 +13,9 @@ import (
 
 // CaseSmoke :
 func (cm *CaseManager) CaseSmoke() (err error) {
+	if !cm.RunSlow {
+		return
+	}
 	env, err := models.NewTestEnv("./cases/CaseSmoke.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
