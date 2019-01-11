@@ -118,15 +118,15 @@ func (c *CaseManager) RunOne(caseName string) {
 
 // caseFail :
 func (c *CaseManager) caseFail(caseName string) error {
-	models.Logger.Println(caseName + " END ====> FAILED")
-	return fmt.Errorf("Case [%s] FAILED", caseName)
+	models.Logger.Println(caseName + " END ====> TFAILED")
+	return fmt.Errorf("Case [%s] TFAILED", caseName)
 }
 
 // caseFail :
 func (c *CaseManager) caseFailWithWrongChannelData(caseName string, channelName string) error {
 	models.Logger.Println(channelName + " data wrong !!!")
-	models.Logger.Println(caseName + " END ====> FAILED")
-	return fmt.Errorf("Case [%s] FAILED", caseName)
+	models.Logger.Println(caseName + " END ====> TFAILED")
+	return fmt.Errorf("Case [%s] TFAILED", caseName)
 }
 
 func (c *CaseManager) logSeparatorLine(s string) {
