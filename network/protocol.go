@@ -160,6 +160,7 @@ func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		ChannelStatusGetter:       channelStatusGetter,
 		quitChan:                  make(chan struct{}),
 		receiveChan:               make(chan []byte, 200),
+		mapLock:                   sync.Mutex{},
 	}
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
@@ -402,6 +403,7 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	p.mapLock.Lock()
 	msgState, ok := p.SentHashesToChannel[echohash]
 	if ok {
+		p.mapLock.Unlock()
 		result = msgState.AsyncResult
 		return
 	}

@@ -27,13 +27,16 @@ if [ $? -ne 0 ]; then
 fi
 cp photon $GOPATH/bin/
 
+cd ../tools/deploygeth/
+./deploygeth.sh
+
 # build casemaneger
-cd ../tools/casemanager
+cd ../casemanager
 go build
 rm log/*
 
 # run casemanager
-./casemanager --case=all --auto
+./casemanager --case=all --slow
 if [ $? -ne 0 ]; then
     echo "casemanager run failed"
     tar -cvf /home/gotest/tmp/casemanager.log.tar /home/gotest/casemanage.log /home/gotest/goproj/src/github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/log

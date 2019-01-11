@@ -1501,6 +1501,10 @@ func (rs *Service) conditionQuit(eventName string) {
 		log.Trace(fmt.Sprintf("tokengraph=%s", utils.StringInterface(rs.Token2ChannelGraph, 7)))
 		log.Trace(fmt.Sprintf("Transfer2StateManager=%s", utils.StringInterface(rs.Transfer2StateManager, 7)))
 		debug.PrintStack()
+		//After是发送消息之后,为了确保消息发送成功,主线程sleep100ms
+		if strings.Index(eventName, "After") > 0 {
+			time.Sleep(time.Millisecond * 100)
+		}
 		os.Exit(111)
 	}
 }

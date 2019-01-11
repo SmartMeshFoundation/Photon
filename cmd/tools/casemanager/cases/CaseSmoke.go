@@ -13,6 +13,9 @@ import (
 
 // CaseSmoke :
 func (cm *CaseManager) CaseSmoke() (err error) {
+	if !cm.RunSlow {
+		return
+	}
 	env, err := models.NewTestEnv("./cases/CaseSmoke.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -31,65 +34,8 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	// start node 2, 3
 	cm.startNodes(env, n0, n1, n2, n3)
 
-	//第四类 tokenswap
-	// 直接通道的tokenswap
-	models.Logger.Println("start direct token swap.")
-	secret2, secrethash2, err := n0.GenerateSecret()
-	if err != nil {
-		return
-	}
-	token2 := env.Tokens[1].TokenAddress.String()
-	c01t0 := n0.GetChannelWith(n1, tokenAddress)
-	c01t1 := n0.GetChannelWith(n1, token2)
-	err = n0.TokenSwap(n1.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
-	if err != nil {
-		return fmt.Errorf("direct token swap taker err=%s", err)
-	}
-	err = n1.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
-	if err != nil {
-		models.Logger.Println("direct token swap fail")
-		time.Sleep(time.Minute * 10000)
-		return fmt.Errorf("direct token sdwap maker err=%s", err)
-	}
-	//time.Sleep(time.Second)
-	c01t0new := n0.GetChannelWith(n1, tokenAddress)
-	c01t1new := n0.GetChannelWith(n1, token2)
-	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
-		return fmt.Errorf("direct token swap check sending banlance 0 err")
-	}
-	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
-		return fmt.Errorf("direct token swap check receiving banlance 0 err")
-	}
-
-	models.Logger.Println("start  token swap.")
-	secret2, secrethash2, err = n0.GenerateSecret()
-	if err != nil {
-		return
-	}
-	token2 = env.Tokens[1].TokenAddress.String()
-	c01t0 = n0.GetChannelWith(n1, tokenAddress)
-	c01t1 = n0.GetChannelWith(n1, token2)
-	err = n0.TokenSwap(n2.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
-	if err != nil {
-		return fmt.Errorf(" token swap taker err=%s", err)
-	}
-	err = n2.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
-	if err != nil {
-		models.Logger.Println("token swap fail")
-		time.Sleep(time.Minute * 10000)
-		return fmt.Errorf(" token sdwap maker err=%s", err)
-	}
-	time.Sleep(time.Second * 3) //必须多等一会儿,否则查到的信息不准确.
-	c01t0new = n0.GetChannelWith(n1, tokenAddress)
-	c01t1new = n0.GetChannelWith(n1, token2)
-	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
-		return fmt.Errorf(" token swap check sending banlance 0 err")
-	}
-	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
-		return fmt.Errorf(" token swap check receiving banlance 0 err")
-	}
-
 	//第一类 升级api
+	models.Logger.Println("start api class1..")
 	err = n3.PrepareUpdate()
 	if err != nil {
 		return
@@ -100,6 +46,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	}
 
 	//第二类 基本交易相关api
+	models.Logger.Println("start api class2..")
 	// get channel info
 	c01 := n0.GetChannelWith(n1, tokenAddress).Println("before transfer")
 	err = n0.Transfer(env.Tokens[0].TokenAddress.String(), 1, n1.Address, false)
@@ -187,6 +134,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	//这个锁只能等待过期才会自动消失.
 
 	//第三类 基本查询
+	models.Logger.Println("start api class3..")
 	ts, err := n0.Tokens()
 	if err != nil || len(ts) != 2 {
 		return fmt.Errorf("Tokens err ts=%s,err=%s", utils.StringInterface(ts, 2), err)
@@ -194,6 +142,63 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	ps, err := n0.TokenPartners(tokenAddress)
 	if err != nil || len(ps) != 1 {
 		return fmt.Errorf("TokenPartners err,ps=%s,err=%s", utils.StringInterface(ps, 2), err)
+	}
+
+	//第四类 tokenswap
+	// 直接通道的tokenswap
+	models.Logger.Println("start api class4..")
+	models.Logger.Println("start direct token swap.")
+	secret2, secrethash2, err := n0.GenerateSecret()
+	if err != nil {
+		return
+	}
+	token2 := env.Tokens[1].TokenAddress.String()
+	c01t0 := n0.GetChannelWith(n1, tokenAddress)
+	c01t1 := n0.GetChannelWith(n1, token2)
+	err = n0.TokenSwap(n1.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
+	if err != nil {
+		return fmt.Errorf("direct token swap taker err=%s", err)
+	}
+	err = n1.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
+	if err != nil {
+		models.Logger.Println("direct token swap fail")
+		return fmt.Errorf("direct token sdwap maker err=%s", err)
+	}
+	//time.Sleep(time.Second)
+	c01t0new := n0.GetChannelWith(n1, tokenAddress)
+	c01t1new := n0.GetChannelWith(n1, token2)
+	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
+		return fmt.Errorf("direct token swap check sending banlance 0 err")
+	}
+	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
+		return fmt.Errorf("direct token swap check receiving banlance 0 err")
+	}
+
+	models.Logger.Println("start  token swap.")
+	secret2, secrethash2, err = n0.GenerateSecret()
+	if err != nil {
+		return
+	}
+	token2 = env.Tokens[1].TokenAddress.String()
+	c01t0 = n0.GetChannelWith(n1, tokenAddress)
+	c01t1 = n0.GetChannelWith(n1, token2)
+	err = n0.TokenSwap(n2.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
+	if err != nil {
+		return fmt.Errorf(" token swap taker err=%s", err)
+	}
+	err = n2.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
+	if err != nil {
+		models.Logger.Println("token swap fail")
+		return fmt.Errorf(" token sdwap maker err=%s", err)
+	}
+	time.Sleep(time.Second * 3) //必须多等一会儿,否则查到的信息不准确.
+	c01t0new = n0.GetChannelWith(n1, tokenAddress)
+	c01t1new = n0.GetChannelWith(n1, token2)
+	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
+		return fmt.Errorf(" token swap check sending banlance 0 err")
+	}
+	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
+		return fmt.Errorf(" token swap check receiving banlance 0 err")
 	}
 
 	return nil

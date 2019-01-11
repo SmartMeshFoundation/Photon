@@ -88,7 +88,20 @@ func (eh *stateMachineEventHandler) dispatch(stateManager *transfer.StateManager
  */
 func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfer.EventSendRevealSecret, stateManager *transfer.StateManager) (err error) {
 	eh.photon.conditionQuit("EventSendRevealSecretBefore")
+	/*
+			有三种情况发送RevealSecret
+			1.我是交易发起方,我需要给target发送密码
+			2.我是交易接收方,我需要给上家发送密码,换取unlock
+			3.我是中间结点,我需要给上家发送密码,换区unlock
+			这时候的崩溃处理就有点麻烦,
+			假设1-2-3交易,3发送SecretRequest后崩溃,
+			这时候实际上3重启以后,因为没收到reveal secret,所以2-3之间锁是可以移除的.同样1-2之间也是可以移除的.
+		但是因为这里使用的是registerSecret,导致1-2之间无法移除,
+		之所以采用向所有通道注册密码而不是只向指定通道注册密码,那是考虑到token swap的时候,maker需要在这里通知所有通道知道密码.
+		todo 暂时采用这种方式,后续token swap maker应该自行处理通知相关通道密码而不是放在这里.
+	*/
 	eh.photon.registerSecret(event.Secret)
+
 	revealMessage := encoding.NewRevealSecret(event.Secret)
 	// 带上交易附加信息
 	revealMessage.Data = []byte(event.Data)
@@ -310,6 +323,9 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		return
 	}
 	log.Info(fmt.Sprintf("remove expired hashlock channel=%s,hashlock=%s ", utils.HPex(e2.ChannelIdentifier), utils.HPex(e2.LockSecretHash)))
+	/*
+		unlock 失败,谨慎起见, 只有在对方不知道密码的情况下,才可能成功移除锁.
+	*/
 	tr, err := ch.CreateRemoveExpiredHashLockTransfer(e2.LockSecretHash, eh.photon.GetBlockNumber())
 	if err != nil {
 		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s", err))

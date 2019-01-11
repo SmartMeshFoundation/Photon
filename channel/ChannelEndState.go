@@ -183,6 +183,15 @@ func (node *EndState) getLockByHashlock(lockSecretHash common.Hash) *mtree.Lock 
 	return nil
 }
 
+//GetUnkownSecretLockByHashlock returns the hash corresponding Lock,nil if not found
+func (node *EndState) GetUnkownSecretLockByHashlock(lockSecretHash common.Hash) *mtree.Lock {
+	lock, ok := node.Lock2PendingLocks[lockSecretHash]
+	if ok {
+		return lock.Lock
+	}
+	return nil
+}
+
 /*
 getSecretByLockSecretHash get secret by secret's hash
 */
@@ -249,13 +258,13 @@ func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTran
 RegisterRemoveExpiredHashlockTransfer register a RemoveExpiredHashlockTransfer
 this message may be sent out from this node or received from partner
 */
-func (node *EndState) registerRemoveExpiredHashlockTransfer(removeExpiredHashlockTransfer *encoding.RemoveExpiredHashlockTransfer) error {
-	return node.registerRemoveLock(removeExpiredHashlockTransfer, removeExpiredHashlockTransfer.LockSecretHash)
-}
+//func (node *EndState) registerRemoveExpiredHashlockTransfer(removeExpiredHashlockTransfer *encoding.RemoveExpiredHashlockTransfer) error {
+//	return node.registerRemoveLock(removeExpiredHashlockTransfer, removeExpiredHashlockTransfer.LockSecretHash)
+//}
 
-func (node *EndState) registerAnnounceDisdposedTransferResponse(response *encoding.AnnounceDisposedResponse) error {
-	return node.registerRemoveLock(response, response.LockSecretHash)
-}
+//func (node *EndState) registerAnnounceDisdposedTransferResponse(response *encoding.AnnounceDisposedResponse) error {
+//	return node.registerRemoveLock(response, response.LockSecretHash)
+//}
 
 func (node *EndState) registerRemoveLock(msg encoding.EnvelopMessager, lockSecretHash common.Hash) error {
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
@@ -365,7 +374,8 @@ func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (e
 TryRemoveHashLock try to remomve a expired hashlock
 */
 func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber int64, mustExpired bool) (lock *mtree.Lock, newtree *mtree.Merkletree, newlocksroot common.Hash, err error) {
-	lock = node.getLockByHashlock(lockSecretHash)
+	//知道密码的锁是一定不能移除的,只要对方知道了密码,无论什么原因都不能移除此锁.
+	lock = node.GetUnkownSecretLockByHashlock(lockSecretHash)
 	if lock == nil {
 		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
 		return

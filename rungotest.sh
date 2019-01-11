@@ -58,5 +58,4 @@ fi
 cd -
 
 # 6. kill geth
-gethpid=`ps -ef | grep geth  |grep 7888| grep -v grep | awk '{print $2}'`
-pkill -9 $gethpid
+#ps -ef | grep geth  |grep 7888| grep -v grep | awk '{print $2}' |xargs kill -9
