@@ -245,6 +245,10 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		return fmt.Errorf("GetPartenerAddress2Channel returns nil ,but %s should have channel with %s on token %s",
+			utils.APex2(g.OurAddress), utils.APex2(receiver), utils.APex2(g.TokenAddress))
+	}
 	mtr, err := ch.CreateAnnounceDisposedResponse(event.LockSecretHash, eh.photon.GetBlockNumber())
 	if err != nil {
 		return
@@ -391,7 +395,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		st := eh.photon.dao.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
+		st := eh.photon.dao.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.ChannelIdentifier.OpenBlockNumber, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
@@ -407,7 +411,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		rt := eh.photon.dao.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash, e2.Data)
+		rt := eh.photon.dao.NewReceivedTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.ChannelIdentifier.OpenBlockNumber, ch.TokenAddress, e2.Initiator, ch.PartnerState.BalanceProofState.Nonce, e2.Amount, e2.LockSecretHash, e2.Data)
 		eh.photon.NotifyHandler.NotifyReceiveTransfer(rt)
 	case *mediatedtransfer.EventUnlockSuccess:
 	case *mediatedtransfer.EventWithdrawFailed:

@@ -3,6 +3,7 @@ package stormdb
 import (
 	"math"
 	"math/big"
+	"time"
 
 	"fmt"
 
@@ -16,12 +17,12 @@ import (
 /*
 NewSentTransfer save a new sent transfer to db,this transfer must be success
 */
-func (model *StormDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.SentTransfer {
+func (model *StormDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.SentTransfer {
 	if lockSecretHash == utils.EmptyHash {
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
 	}
-	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
+	key := fmt.Sprintf("%s-%d-%d", channelIdentifier.String(), openBlockNumber, nonce)
 	st := &models.SentTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
@@ -31,6 +32,8 @@ func (model *StormDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 		Nonce:             nonce,
 		Amount:            amount,
 		Data:              data,
+		OpenBlockNumber:   openBlockNumber,
+		TimeStamp:         time.Now().Format(time.RFC3339),
 	}
 	if ost, err := model.GetSentTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
@@ -45,12 +48,12 @@ func (model *StormDB) NewSentTransfer(blockNumber int64, channelIdentifier commo
 }
 
 //NewReceivedTransfer save a new received transfer to db
-func (model *StormDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.ReceivedTransfer {
+func (model *StormDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.ReceivedTransfer {
 	if lockSecretHash == utils.EmptyHash {
 		// direct transfer, use fakeLockSecretHash
 		lockSecretHash = utils.NewRandomHash()
 	}
-	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), nonce)
+	key := fmt.Sprintf("%s-%d-%d", channelIdentifier.String(), openBlockNumber, nonce)
 	st := &models.ReceivedTransfer{
 		Key:               key,
 		BlockNumber:       blockNumber,
@@ -60,6 +63,8 @@ func (model *StormDB) NewReceivedTransfer(blockNumber int64, channelIdentifier c
 		Nonce:             nonce,
 		Amount:            amount,
 		Data:              data,
+		OpenBlockNumber:   openBlockNumber,
+		TimeStamp:         time.Now().Format(time.RFC3339),
 	}
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",
@@ -111,6 +116,28 @@ func (model *StormDB) GetReceivedTransferInBlockRange(fromBlock, toBlock int64) 
 		toBlock = math.MaxInt64
 	}
 	err = model.db.Range("BlockNumber", fromBlock, toBlock, &transfers)
+	if err == storm.ErrNotFound { //ingore not found error
+		err = nil
+	}
+	return
+}
+
+//GetSentTransferInTimeRange returns the sent transfer between from and to blocks
+func (model *StormDB) GetSentTransferInTimeRange(from, to time.Time) (transfers []*models.SentTransfer, err error) {
+	fromStr := from.Format(time.RFC3339)
+	toStr := to.Format(time.RFC3339)
+	err = model.db.Range("TimeStamp", fromStr, toStr, &transfers)
+	if err == storm.ErrNotFound { //ingore not found error
+		err = nil
+	}
+	return
+}
+
+//GetReceivedTransferInTimeRange returns the received transfer between from and to blocks
+func (model *StormDB) GetReceivedTransferInTimeRange(from, to time.Time) (transfers []*models.ReceivedTransfer, err error) {
+	fromStr := from.Format(time.RFC3339)
+	toStr := to.Format(time.RFC3339)
+	err = model.db.Range("TimeStamp", fromStr, toStr, &transfers)
 	if err == storm.ErrNotFound { //ingore not found error
 		err = nil
 	}
