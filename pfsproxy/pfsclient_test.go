@@ -120,7 +120,7 @@ func TestPfsClient_FindPath(t *testing.T) {
 	alice, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x10b256b3C83904D524210958FA4E7F9cAFFB76c6"))
 	bob, err := codefortest.GetAccountsByAddress(common.HexToAddress("0x201B20123b3C489b47Fde27ce5b451a0fA55FD60"))
 	c := NewPfsProxy(testPfgHost, alice.PrivateKey)
-	routes, err := c.FindPath(alice.Address, bob.Address, tokenAddress, big.NewInt(20))
+	routes, err := c.FindPath(alice.Address, bob.Address, tokenAddress, big.NewInt(20), true)
 	if err != nil {
 		t.Error(err)
 	}

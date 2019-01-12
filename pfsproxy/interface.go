@@ -20,7 +20,7 @@ type PfsProxy interface {
 	/*
 		find path
 	*/
-	FindPath(peerFrom, peerTo, token common.Address, amount *big.Int) (resp []FindPathResponse, err error)
+	FindPath(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (resp []FindPathResponse, err error)
 
 	/*
 		set fee rate by account

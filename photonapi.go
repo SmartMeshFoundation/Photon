@@ -1167,7 +1167,7 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 		err = errors.New("photon start without param '--pfs', can not calculate total fee")
 		return
 	}
-	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount)
+	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount, true)
 	if err != nil {
 		return
 	}

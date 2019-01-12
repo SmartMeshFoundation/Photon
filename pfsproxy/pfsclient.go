@@ -136,13 +136,14 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 
 // findPathPayload :
 type findPathPayload struct {
-	PeerFrom     common.Address `json:"peer_from"`
-	PeerTo       common.Address `json:"peer_to"`
-	TokenAddress common.Address `json:"token_address"`
-	LimitPaths   int            `json:"limit_paths"`
-	SendAmount   *big.Int       `json:"send_amount"`
-	SortDemand   string         `json:"sort_demand"`
-	Signature    []byte         `json:"signature"`
+	PeerFrom          common.Address `json:"peer_from"`
+	PeerTo            common.Address `json:"peer_to"`
+	TokenAddress      common.Address `json:"token_address"`
+	LimitPaths        int            `json:"limit_paths"`
+	SendAmount        *big.Int       `json:"send_amount"`
+	SortDemand        string         `json:"sort_demand"`
+	Signature         []byte         `json:"signature"`
+	PeerFromChargeFee bool           `json:"peer_from_charge_fee"`
 }
 
 func (p *findPathPayload) sign(key *ecdsa.PrivateKey) []byte {
@@ -154,6 +155,12 @@ func (p *findPathPayload) sign(key *ecdsa.PrivateKey) []byte {
 	err = binary.Write(buf, binary.BigEndian, p.LimitPaths)
 	_, err = buf.Write(utils.BigIntTo32Bytes(p.SendAmount))
 	_, err = buf.Write([]byte(p.SortDemand))
+	if p.PeerFromChargeFee {
+		_, err = buf.Write([]byte{byte(1)})
+	} else {
+		_, err = buf.Write([]byte{byte(0)})
+	}
+
 	if err != nil {
 		log.Error(fmt.Sprintf("signData err %s", err))
 	}
@@ -175,18 +182,19 @@ type FindPathResponse struct {
 /*
 FindPath : find path
 */
-func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *big.Int) (resp []FindPathResponse, err error) {
+func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (resp []FindPathResponse, err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
 		err = ErrNotInit
 		return
 	}
 	payload := &findPathPayload{
-		PeerFrom:     peerFrom,
-		PeerTo:       peerTo,
-		TokenAddress: token,
-		LimitPaths:   1,
-		SendAmount:   amount,
-		SortDemand:   "",
+		PeerFrom:          peerFrom,
+		PeerTo:            peerTo,
+		TokenAddress:      token,
+		LimitPaths:        1,
+		SendAmount:        amount,
+		SortDemand:        "",
+		PeerFromChargeFee: !isInitiator,
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{

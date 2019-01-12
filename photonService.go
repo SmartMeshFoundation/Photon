@@ -807,7 +807,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
 	if rs.PfsProxy != nil {
-		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount)
+		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
 		if err != nil {
 			result.Result <- errors.New("get route from pathfinder failed")
 			return
@@ -960,7 +960,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		var avaiableRoutes []*route.State
 		if rs.PfsProxy != nil {
 			var err error
-			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount)
+			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount, false)
 			if err != nil {
 				log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
 			}
@@ -1665,9 +1665,9 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 	}
 }
 
-func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int) (routes []*route.State, err error) {
+func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (routes []*route.State, err error) {
 	var paths []pfsproxy.FindPathResponse
-	paths, err = rs.PfsProxy.FindPath(peerFrom, peerTo, token, amount)
+	paths, err = rs.PfsProxy.FindPath(peerFrom, peerTo, token, amount, isInitiator)
 	if err != nil {
 		return
 	}
