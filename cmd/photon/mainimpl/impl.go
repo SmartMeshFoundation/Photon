@@ -462,7 +462,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.PfsHost = ctx.String("pfs")
-	if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPMatrix {
+	if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPXMPP {
 		err = fmt.Errorf("photon start with pfs %s, but not use matrix, exit", config.PfsHost)
 		return
 	}
