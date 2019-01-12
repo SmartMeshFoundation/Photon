@@ -88,7 +88,6 @@ func Start() {
 		rest.Get("/api/1/channels", GetChannelList),
 		rest.Patch("/api/1/channels/:channel", CloseSettleChannel),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
-		rest.Get("/api/1/pfs/:channel", BalanceUpdateForPFS),
 
 		/*
 			Deposit
@@ -149,6 +148,7 @@ func Start() {
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
 		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
+		rest.Get("/api/1/debug/pfs/:channel", BalanceUpdateForPFS),
 		rest.Post("/api/1/debug/notify_network_down", NotifyNetworkDown), // notify photon network down
 		rest.Get("/api/1/debug/shutdown", func(writer rest.ResponseWriter, request *rest.Request) {
 			API.Photon.Stop()

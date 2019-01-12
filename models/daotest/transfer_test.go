@@ -19,9 +19,10 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	defer dao.CloseDB()
 	taddr := utils.NewRandomAddress()
 	caddr := utils.NewRandomHash()
+	var openBlockNumber int64 = 3
 	lockSecertHash := utils.NewRandomHash()
-	dao.NewReceivedTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
-	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
+	dao.NewReceivedTransfer(2, caddr, openBlockNumber, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
+	key := fmt.Sprintf("%s-%d-%d", caddr.String(), openBlockNumber, 3)
 	r, err := dao.GetReceivedTransfer(key)
 	if err != nil {
 		t.Error(err)
@@ -31,8 +32,8 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	assert.Equal(t, r.ChannelIdentifier, caddr)
 	assert.EqualValues(t, r.Nonce, 3)
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
-	dao.NewReceivedTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
-	dao.NewReceivedTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
+	dao.NewReceivedTransfer(3, caddr, openBlockNumber, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
+	dao.NewReceivedTransfer(5, caddr, openBlockNumber, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
 
 	trs, err := dao.GetReceivedTransferInBlockRange(0, 3)
 	if err != nil {
@@ -53,6 +54,21 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 		return
 	}
 	assert.EqualValues(t, len(trs), 0)
+	from := time.Now().Add(0 - time.Minute)
+	to := time.Now().Add(time.Minute)
+	trs, err = dao.GetReceivedTransferInTimeRange(from, to)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, len(trs), 3)
+	from = time.Now().Add(time.Second)
+	trs, err = dao.GetReceivedTransferInTimeRange(from, to)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, len(trs), 0)
 }
 
 func TestModelDB_NewSentTransfer(t *testing.T) {
@@ -60,9 +76,10 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 	defer dao.CloseDB()
 	taddr := utils.NewRandomAddress()
 	caddr := utils.NewRandomHash()
+	var openBlockNumber int64 = 3
 	lockSecertHash := utils.NewRandomHash()
-	dao.NewSentTransfer(2, caddr, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
-	key := fmt.Sprintf("%s-%d", caddr.String(), 3)
+	dao.NewSentTransfer(2, caddr, openBlockNumber, taddr, taddr, 3, big.NewInt(10), lockSecertHash, "123")
+	key := fmt.Sprintf("%s-%d-%d", caddr.String(), openBlockNumber, 3)
 	r, err := dao.GetSentTransfer(key)
 	if err != nil {
 		t.Error(err)
@@ -74,9 +91,9 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 	assert.EqualValues(t, r.Amount, big.NewInt(10))
 
 	lockSecertHash = utils.NewRandomHash()
-	dao.NewSentTransfer(3, caddr, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
+	dao.NewSentTransfer(3, caddr, openBlockNumber, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
 	lockSecertHash = utils.NewRandomHash()
-	dao.NewSentTransfer(5, caddr, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
+	dao.NewSentTransfer(5, caddr, openBlockNumber, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
 
 	trs, err := dao.GetSentTransferInBlockRange(0, 3)
 	if err != nil {
@@ -97,12 +114,28 @@ func TestModelDB_NewSentTransfer(t *testing.T) {
 		return
 	}
 	assert.EqualValues(t, len(trs), 0)
+	from := time.Now().Add(0 - time.Minute)
+	to := time.Now().Add(time.Minute)
+	trs, err = dao.GetSentTransferInTimeRange(from, to)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, len(trs), 3)
+	from = time.Now().Add(time.Second)
+	trs, err = dao.GetSentTransferInTimeRange(from, to)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, len(trs), 0)
 }
 
 func TestBatchWriteDb(t *testing.T) {
 	dao := codefortest.NewTestDB("")
 	defer dao.CloseDB()
 	caddr := utils.NewRandomHash()
+	var openBlockNumber int64 = 3
 	taddr := utils.NewRandomAddress()
 	lockSecertHash := utils.NewRandomHash()
 	dao.NewTransferStatus(taddr, lockSecertHash)
@@ -115,7 +148,7 @@ func TestBatchWriteDb(t *testing.T) {
 			//b := time.Now()
 			//dao.SaveLatestBlockNumber(111)
 			//dao.UpdateTransferStatusMessage(taddr, lockSecertHash, strconv.Itoa(int(index)))
-			dao.NewSentTransfer(3, caddr, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
+			dao.NewSentTransfer(3, caddr, openBlockNumber, taddr, taddr, index, big.NewInt(10), lockSecertHash, "123")
 			//fmt.Println("use ", time.Since(b).Seconds())
 			wg.Done()
 		}(i)

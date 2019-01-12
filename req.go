@@ -43,6 +43,10 @@ const cancelPrepareWithdrawReqName = "cancel mark withdraw"
 const tokenSwapMakerReqName = "tokenswapmaker"
 const tokenSwapTakerReqName = "tokenswaptaker"
 const cancelTransfer = "canceltransfer"
+const allowRevealSecretReqName = "AllowRevealSecret"
+const registerSecretReqName = "RegisterSecret"
+const getUnfinishedReceviedTransferReqName = "GetUnfinishedReceivedTransfer"
+const forceUnlockReqName = "ForceUnlock"
 
 /*
 transfer api
@@ -155,7 +159,7 @@ func (rs *Service) sendReqClient(req *apiReq) *utils.AsyncResult {
 	ar := <-req.result
 	return ar
 }
-func (rs *Service) depositAndOpenChannel(token, partner common.Address, settleTimeout int, deposit *big.Int, isNewChannel bool) *utils.AsyncResult {
+func (rs *Service) depositAndOpenChannelClient(token, partner common.Address, settleTimeout int, deposit *big.Int, isNewChannel bool) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  newChannelReqName,
@@ -230,7 +234,7 @@ func (rs *Service) withdrawClient(channelIdentifier common.Hash, amount *big.Int
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *Service) markWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) markWithdrawClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  prepareWithdrawReqName,
@@ -240,7 +244,7 @@ func (rs *Service) markWithdraw(channelIdentifier common.Hash) *utils.AsyncResul
 	}
 	return rs.sendReqClient(req)
 }
-func (rs *Service) cancelMarkWithdraw(channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) cancelMarkWithdrawClient(channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  cancelPrepareWithdrawReqName,
@@ -273,6 +277,76 @@ func (rs *Service) cancelTransferClient(lockSecretHash common.Hash, tokenAddress
 		Req: &cancelTransferReq{
 			LockSecretHash: lockSecretHash,
 			TokenAddress:   tokenAddress,
+		},
+	}
+	return rs.sendReqClient(req)
+}
+
+type allowRevealSecretReq struct {
+	LockSecretHash common.Hash
+	TokenAddress   common.Address
+}
+
+func (rs *Service) allowRevealSecretClient(lockSecretHash common.Hash, tokenAddress common.Address) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  allowRevealSecretReqName,
+		Req: &allowRevealSecretReq{
+			LockSecretHash: lockSecretHash,
+			TokenAddress:   tokenAddress,
+		},
+	}
+	return rs.sendReqClient(req)
+}
+
+type registerSecretReq struct {
+	Secret       common.Hash
+	TokenAddress common.Address
+}
+
+func (rs *Service) registerSecretClient(secret common.Hash, tokenAddress common.Address) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  registerSecretReqName,
+		Req: &registerSecretReq{
+			Secret:       secret,
+			TokenAddress: tokenAddress,
+		},
+	}
+	return rs.sendReqClient(req)
+}
+
+type getUnfinishedReceivedTransferReq struct {
+	LockSecretHash common.Hash
+	TokenAddress   common.Address
+}
+
+func (rs *Service) getUnfinishedReceivedTransferClient(lockSecretHash common.Hash, tokenAddress common.Address) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  getUnfinishedReceviedTransferReqName,
+		Req: &getUnfinishedReceivedTransferReq{
+			LockSecretHash: lockSecretHash,
+			TokenAddress:   tokenAddress,
+		},
+	}
+	return rs.sendReqClient(req)
+}
+
+type forceUnlockReq struct {
+	LockSecretHash    common.Hash
+	Secret            common.Hash
+	ChannelIdentifier common.Hash
+}
+
+func (rs *Service) forceUnlockClient(lockSecretHash, secret, channelIdentifier common.Hash) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  forceUnlockReqName,
+		Req: &forceUnlockReq{
+			LockSecretHash:    lockSecretHash,
+			ChannelIdentifier: channelIdentifier,
+			Secret:            secret,
 		},
 	}
 	return rs.sendReqClient(req)

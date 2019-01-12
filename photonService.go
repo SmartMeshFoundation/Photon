@@ -34,6 +34,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -1017,6 +1018,11 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	}
 	g := rs.getToken2ChannelGraph(ch.TokenAddress)
 	fromChannel := g.GetPartenerAddress2Channel(msg.Sender)
+	if fromChannel == nil {
+		log.Error(fmt.Sprintf("GetPartenerAddress2Channel returns nil ,but %s should have channel with %s on token %s",
+			utils.APex2(g.OurAddress), utils.APex2(msg.Sender), utils.APex2(g.TokenAddress)))
+		return
+	}
 	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
@@ -1588,6 +1594,18 @@ func (rs *Service) handleReq(req *apiReq) {
 	case cancelTransfer:
 		r := req.Req.(*cancelTransferReq)
 		result = rs.cancelTransfer(r)
+	case allowRevealSecretReqName:
+		r := req.Req.(*allowRevealSecretReq)
+		result = rs.allowRevealSecret(r)
+	case registerSecretReqName:
+		r := req.Req.(*registerSecretReq)
+		result = rs.registerSecretFromUser(r)
+	case getUnfinishedReceviedTransferReqName:
+		r := req.Req.(*getUnfinishedReceivedTransferReq)
+		result = rs.getUnfinishedReceivedTransfer(r)
+	case forceUnlockReqName:
+		r := req.Req.(*forceUnlockReq)
+		result = rs.forceUnlock(r)
 	default:
 		panic("unkown req")
 	}
@@ -1685,5 +1703,153 @@ func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, 
 		r.TotalFee = path.Fee
 		routes = append(routes, r)
 	}
+	return
+}
+func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
+	channelIdentifier := req.ChannelIdentifier
+	lockSecretHash := req.LockSecretHash
+	secret := req.Secret
+	channel := rs.getChannelWithAddr(channelIdentifier)
+	if channel == nil {
+		result.Result <- fmt.Errorf("can not find channel %s", channelIdentifier.String())
+		return
+	}
+	tokenNetwork, err := rs.Chain.TokenNetwork(channel.TokenAddress)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	// 获取数据
+	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
+	if lock.Lock == nil {
+		result.Result <- fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
+		return
+	}
+	partnerAddress := channel.PartnerState.Address
+	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
+	contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
+	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
+	nonce := channel.PartnerState.BalanceProofState.Nonce
+	signature := channel.PartnerState.BalanceProofState.Signature
+	addtionalHash := channel.PartnerState.BalanceProofState.MessageHash
+	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
+
+	if channel.State == channeltype.StateOpened {
+		// 自己close
+		log.Trace(fmt.Sprintf("forceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
+			partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature)))
+		err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
+		if err != nil {
+			result.Result <- fmt.Errorf("forceUnlock : close channel fail %s", err.Error())
+			return
+		}
+	}
+	// register
+	err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
+	if err != nil {
+		result.Result <- fmt.Errorf("ForceUnlock : register secret fail %s", err.Error())
+		return
+	}
+	// unlock
+	log.Trace(fmt.Sprintf("forceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
+		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
+		lock.LockHash.String()))
+
+	err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock.Lock, mtree.Proof2Bytes(proof))
+	if err != nil {
+		result.Result <- fmt.Errorf("forceUnlock : unlock failed %s", err.Error())
+		return
+	}
+	log.Info(fmt.Sprintf("forceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
+	result.Result <- nil
+	return
+}
+
+func (rs *Service) getUnfinishedReceivedTransfer(req *getUnfinishedReceivedTransferReq) (result *utils.AsyncResult) {
+	lockSecretHash := req.LockSecretHash
+	tokenAddress := req.TokenAddress
+	result = utils.NewAsyncResult()
+	if rs.SecretRequestPredictorMap[lockSecretHash] != nil {
+		result.Result <- fmt.Errorf("SecretRequestPredictorMap has lockSecretHash") //todo fixme why check?
+		return
+	}
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := rs.Transfer2StateManager[key]
+	if manager == nil {
+		result.Result <- fmt.Errorf("can not find transfer by lock_secret_hash[%s] and token_address[%s]", lockSecretHash.String(), tokenAddress.String())
+		return
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
+	if !ok {
+		// 接收人不是自己
+		// I'm not the recipient
+		result.Result <- fmt.Errorf("i'm not recipient")
+		return
+	}
+	resp := new(TransferDataResponse)
+	resp.Initiator = state.FromTransfer.Initiator.String()
+	resp.Target = state.FromTransfer.Target.String()
+	resp.Token = tokenAddress.String()
+	resp.Amount = state.FromTransfer.Amount
+	resp.LockSecretHash = state.FromTransfer.LockSecretHash.String()
+	resp.Expiration = state.FromTransfer.Expiration - state.BlockNumber
+	result.Tag = resp
+	result.Result <- nil
+	return
+}
+
+func (rs *Service) allowRevealSecret(req *allowRevealSecretReq) (result *utils.AsyncResult) {
+	lockSecretHash := req.LockSecretHash
+	tokenAddress := req.TokenAddress
+	result = utils.NewAsyncResult()
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := rs.Transfer2StateManager[key]
+	if manager == nil {
+		result.Result <- rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
+		return
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.InitiatorState)
+	if !ok {
+		result.Result <- rerr.InvalidState("wrong state")
+		return
+	}
+	if lockSecretHash != state.LockSecretHash || lockSecretHash != utils.ShaSecret(state.Secret.Bytes()) {
+		result.Result <- rerr.InvalidState("wrong lock_secret_hash")
+	}
+	delete(rs.SecretRequestPredictorMap, lockSecretHash)
+	log.Trace(fmt.Sprintf("Remove SecretRequestPredictor for lockSecretHash=%s", lockSecretHash.String()))
+	result.Result <- nil
+	return
+}
+
+func (rs *Service) registerSecretFromUser(req *registerSecretReq) (result *utils.AsyncResult) {
+	secret := req.Secret
+	tokenAddress := req.TokenAddress
+	lockSecretHash := utils.ShaSecret(secret.Bytes())
+	result = utils.NewAsyncResult()
+	//在channel 中注册密码
+	// register secret in channel
+	rs.registerSecret(secret)
+
+	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
+	manager := rs.Transfer2StateManager[key]
+	if manager == nil {
+		result.Result <- rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
+	}
+	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
+	if !ok {
+		result.Result <- rerr.InvalidState("wrong state")
+		return
+	}
+	if lockSecretHash != state.FromTransfer.LockSecretHash {
+		result.Result <- rerr.InvalidState("wrong secret")
+		return
+	}
+	// 在state manager中注册密码
+	// register secret in state manager
+	state.FromTransfer.Secret = secret
+	state.Secret = secret
+	result.Result <- nil
 	return
 }

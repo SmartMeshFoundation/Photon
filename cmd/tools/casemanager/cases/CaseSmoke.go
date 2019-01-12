@@ -153,8 +153,8 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return
 	}
 	token2 := env.Tokens[1].TokenAddress.String()
-	c01t0 := n0.GetChannelWith(n1, tokenAddress)
-	c01t1 := n0.GetChannelWith(n1, token2)
+	c01t0 := n0.GetChannelWith(n1, tokenAddress).Println("before direct token swap")
+	c01t1 := n0.GetChannelWith(n1, token2).Println("before direct token swap")
 	err = n0.TokenSwap(n1.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
 	if err != nil {
 		return fmt.Errorf("direct token swap taker err=%s", err)
@@ -165,8 +165,8 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return fmt.Errorf("direct token sdwap maker err=%s", err)
 	}
 	//time.Sleep(time.Second)
-	c01t0new := n0.GetChannelWith(n1, tokenAddress)
-	c01t1new := n0.GetChannelWith(n1, token2)
+	c01t0new := n0.GetChannelWith(n1, tokenAddress).Println("after direct token swap")
+	c01t1new := n0.GetChannelWith(n1, token2).Println("after direct token swap")
 	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
 		return fmt.Errorf("direct token swap check sending banlance 0 err")
 	}
@@ -180,8 +180,8 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return
 	}
 	token2 = env.Tokens[1].TokenAddress.String()
-	c01t0 = n0.GetChannelWith(n1, tokenAddress)
-	c01t1 = n0.GetChannelWith(n1, token2)
+	c01t0 = n0.GetChannelWith(n1, tokenAddress).Println("before token swap")
+	c01t1 = n0.GetChannelWith(n1, token2).Println("before token swap")
 	err = n0.TokenSwap(n2.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
 	if err != nil {
 		return fmt.Errorf(" token swap taker err=%s", err)
@@ -192,8 +192,8 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return fmt.Errorf(" token sdwap maker err=%s", err)
 	}
 	time.Sleep(time.Second * 3) //必须多等一会儿,否则查到的信息不准确.
-	c01t0new = n0.GetChannelWith(n1, tokenAddress)
-	c01t1new = n0.GetChannelWith(n1, token2)
+	c01t0new = n0.GetChannelWith(n1, tokenAddress).Println("after token swap")
+	c01t1new = n0.GetChannelWith(n1, token2).Println("after token swap")
 	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
 		return fmt.Errorf(" token swap check sending banlance 0 err")
 	}

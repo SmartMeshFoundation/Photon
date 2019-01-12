@@ -30,7 +30,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
-	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -147,7 +146,7 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 		})
 	}
 
-	result := r.Photon.depositAndOpenChannel(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
+	result := r.Photon.depositAndOpenChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
 	if err != nil {
 		return
@@ -352,47 +351,15 @@ func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee
 // 2. check secret matches lockSecretHash or not
 // 3. remove the predictor
 func (r *API) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.Address) (err error) {
-	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
-	manager := r.Photon.Transfer2StateManager[key]
-	if manager == nil {
-		return rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
-	}
-	state, ok := manager.CurrentState.(*mediatedtransfer.InitiatorState)
-	if !ok {
-		return rerr.InvalidState("wrong state")
-	}
-	if lockSecretHash != state.LockSecretHash || lockSecretHash != utils.ShaSecret(state.Secret.Bytes()) {
-		return rerr.InvalidState("wrong lock_secret_hash")
-	}
-	delete(r.Photon.SecretRequestPredictorMap, lockSecretHash)
-	log.Trace(fmt.Sprintf("Remove SecretRequestPredictor for lockSecretHash=%s", lockSecretHash.String()))
+	result := r.Photon.allowRevealSecretClient(lockSecretHash, tokenAddress)
+	err = <-result.Result
 	return
 }
 
 // RegisterSecret :
 func (r *API) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
-	//todo fix 用req重新实现.
-	lockSecretHash := utils.ShaSecret(secret.Bytes())
-	//在channel 中注册密码
-	// register secret in channel
-	r.Photon.registerSecret(secret)
-
-	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
-	manager := r.Photon.Transfer2StateManager[key]
-	if manager == nil {
-		return rerr.InvalidState("can not find transfer by lock_secret_hash and token_address")
-	}
-	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
-	if !ok {
-		return rerr.InvalidState("wrong state")
-	}
-	if lockSecretHash != state.FromTransfer.LockSecretHash {
-		return rerr.InvalidState("wrong secret")
-	}
-	// 在state manager中注册密码
-	// register secret in state manager
-	state.FromTransfer.Secret = secret
-	state.Secret = secret
+	result := r.Photon.registerSecretClient(secret, tokenAddress)
+	err = <-result.Result
 	return
 }
 
@@ -411,30 +378,13 @@ type TransferDataResponse struct {
 
 // GetUnfinishedReceivedTransfer :
 func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAddress common.Address) (resp *TransferDataResponse) {
-
-	if r.Photon.SecretRequestPredictorMap[lockSecretHash] != nil {
-		return
+	result := r.Photon.getUnfinishedReceivedTransferClient(lockSecretHash, tokenAddress)
+	err := <-result.Result
+	if err != nil {
+		log.Error(fmt.Sprintf("GetUnfinishedReceivedTransfer err %s", err))
+		return nil
 	}
-	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
-	manager := r.Photon.Transfer2StateManager[key]
-	if manager == nil {
-		log.Warn(fmt.Sprintf("can not find transfer by lock_secret_hash[%s] and token_address[%s]", lockSecretHash.String(), tokenAddress.String()))
-		return
-	}
-	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
-	if !ok {
-		// 接收人不是自己
-		// I'm not the recipient
-		return
-	}
-	resp = new(TransferDataResponse)
-	resp.Initiator = state.FromTransfer.Initiator.String()
-	resp.Target = state.FromTransfer.Target.String()
-	resp.Token = tokenAddress.String()
-	resp.Amount = state.FromTransfer.Amount
-	resp.LockSecretHash = state.FromTransfer.LockSecretHash.String()
-	resp.Expiration = state.FromTransfer.Expiration - state.BlockNumber
-	return
+	return result.Tag.(*TransferDataResponse)
 }
 
 //Close a channel opened with `partner_address` for the given `token_address`. return when state has been +d to database
@@ -591,7 +541,7 @@ func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c
 		return
 	}
 	//send settle request
-	result := r.Photon.markWithdraw(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.markWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
 	log.Trace(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
@@ -609,7 +559,7 @@ func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Addre
 		return
 	}
 	//send settle request
-	result := r.Photon.cancelMarkWithdraw(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.cancelMarkWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
 	log.Trace(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
@@ -1018,56 +968,9 @@ func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 
 // ForceUnlock : only for debug
 func (r *API) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secret common.Hash) (err error) {
-	channel := r.Photon.getChannelWithAddr(channelIdentifier)
-	if channel == nil {
-		return fmt.Errorf("can not find channel %s", channelIdentifier.String())
-	}
-	tokenNetwork, err := r.Photon.Chain.TokenNetwork(channel.TokenAddress)
-	if err != nil {
-		return
-	}
-	// 获取数据
-	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
-	if lock.Lock == nil {
-		return fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
-	}
-	partnerAddress := channel.PartnerState.Address
-	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
-	contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
-	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
-	nonce := channel.PartnerState.BalanceProofState.Nonce
-	signature := channel.PartnerState.BalanceProofState.Signature
-	addtionalHash := channel.PartnerState.BalanceProofState.MessageHash
-	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
-
-	if channel.State == channeltype.StateOpened {
-		// 自己close
-		fmt.Printf("ForceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
-			partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature))
-		err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
-		if err != nil {
-			fmt.Printf("ForceUnlock : close channel fail %s\n", err.Error())
-			return
-		}
-	}
-	// register
-	err = r.Photon.Chain.SecretRegistryProxy.RegisterSecret(secret)
-	if err != nil {
-		fmt.Printf("ForceUnlock : register secret fail %s\n", err.Error())
-		return
-	}
-	// unlock
-	fmt.Printf("ForceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
-		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
-		lock.LockHash.String())
-
-	err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock.Lock, mtree.Proof2Bytes(proof))
-	if err != nil {
-		fmt.Printf("ForceUnlock : unlock failed %s\n", err.Error())
-		return
-	}
-	log.Info(fmt.Sprintf("ForceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
-	return nil
+	result := r.Photon.forceUnlockClient(lockSecretHash, secret, channelIdentifier)
+	err = <-result.Result
+	return
 }
 
 // CancelTransfer : cancel a transfer when haven't send secret
