@@ -1,12 +1,15 @@
 package cases
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
-// CaseSendTransferOnReOpenedChannel : ??!!dsldtodo todo cuowu
+// CaseSendTransferOnReOpenedChannel :
 func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	env, err := models.NewTestEnv("./cases/CaseSendTransferOnReOpenedChannel.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -31,6 +34,13 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeClose")
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, true)
+	trs, err := N0.GetSentTransfers()
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransfers err %s", err))
+	}
+	if len(trs) != 1 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "trs 1 err")
+	}
 	//time.Sleep(3 * time.Second)
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
@@ -59,6 +69,14 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	}
 	if !c01new.CheckPartnerBalance(1) {
 		return cm.caseFail(env.CaseName)
+	}
+	trs, err = N0.GetSentTransfers()
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransfers 2 err %s", err))
+	}
+	models.Logger.Printf("trs=%s", utils.StringInterface(trs, 3))
+	if len(trs) != 2 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "trs 2 err")
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
