@@ -34,16 +34,24 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 
 	// Cooperate settle
 	N0.CooperateSettle(c01.ChannelIdentifier)
-	for i := 0; i < cm.MediumWaitSeconds; i++ {
+	var i = 0
+	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify
 		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
 
 		if c01new == nil {
-			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-			return
+			break
 		}
 	}
-	return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
+	if i == cm.MediumWaitSeconds {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
+	}
+	err = N0.Transfer(tokenAddress, 1, N1.Address, false)
+	if err == nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "Transfer must failed after cooperate settle")
+	}
+	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+	return nil
 }

@@ -8,9 +8,6 @@ import (
 
 // CaseSettle :
 func (cm *CaseManager) CaseSettle() (err error) {
-	if !cm.RunSlow {
-		return nil
-	}
 	env, err := models.NewTestEnv("./cases/CaseSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -38,18 +35,36 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	// Close
 	N0.Close(c01.ChannelIdentifier)
 	N0.GetChannelWith(N1, tokenAddress).Println("AfterClose")
-	// Settle
-	time.Sleep(time.Duration(c01.SettleTimeout+257+10) * time.Second)
-	N0.Settle(c01.ChannelIdentifier)
-	for i := 0; i < cm.MediumWaitSeconds; i++ {
+	var i = 0
+	for i = 0; i < int(c01.SettleTimeout)+257+10; i++ {
+		time.Sleep(time.Second)
+		N0.Settle(c01.ChannelIdentifier)
+		c := N0.GetChannelWith(N1, tokenAddress)
+		if c == nil {
+			break
+		}
+	}
+	if i == int(c01.SettleTimeout)+257+10 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "failed settle channel")
+	}
+
+	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 验证
 		// verify
 		c01new := N0.GetChannelWith(N1, tokenAddress).Println("AfterSettle")
 		if c01new == nil {
-			models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-			return
+
+			break
 		}
 	}
-	return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
+	if i == cm.MediumWaitSeconds {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
+	}
+	err = N0.Transfer(tokenAddress, 1, N1.Address, false)
+	if err == nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "Transfer must failed after cooperate settle")
+	}
+	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+	return nil
 }
