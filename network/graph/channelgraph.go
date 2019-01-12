@@ -71,8 +71,8 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Add
 		index2address:             make(map[int]common.Address),
 		g:                         dijkstra.NewGraph(),
 	}
-	cg.makeGraph(edges)
-	//cg.printGraph()
+	//cg.makeGraph(edges)
+	cg.printGraph()
 	return cg
 }
 func (cg *ChannelGraph) printGraph() {
@@ -249,7 +249,11 @@ ChannelCanTransfer returns  True if the channel with `partner_address` is open a
         TODO: check if the partner's network is alive
 */
 func (cg *ChannelGraph) ChannelCanTransfer(partenerAddress common.Address) bool {
-	return cg.GetPartenerAddress2Channel(partenerAddress).CanTransfer()
+	c := cg.GetPartenerAddress2Channel(partenerAddress)
+	if c == nil {
+		return false
+	}
+	return c.CanTransfer()
 }
 
 //getNeighbours Get all neighbours adjacent to self.our_address. g is not thread safe
@@ -334,6 +338,11 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 	}
 	for _, nw := range nws {
 		c := cg.GetPartenerAddress2Channel(nw.neighbor)
+		if c == nil {
+			log.Error(fmt.Sprintf("GetPartenerAddress2Channel returns nil ,but %s should have channel with %s on token %s",
+				utils.APex2(cg.OurAddress), utils.APex2(nw.neighbor), utils.APex2(cg.TokenAddress)))
+			continue
+		}
 		//don't send the message backwards
 		if excludeAddresses[nw.neighbor] {
 			continue
