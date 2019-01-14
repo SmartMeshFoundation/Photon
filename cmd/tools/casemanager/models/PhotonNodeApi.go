@@ -103,9 +103,15 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 	go req.Invoke()
 	time.Sleep(10 * time.Second)
 	node.Running = false
+	var nodes []*PhotonNode
 	for _, n := range env.Nodes {
 		if n.Running {
-			n.UpdateMeshNetworkNodes(env.Nodes...)
+			nodes = append(nodes, n)
+		}
+	}
+	for _, n := range env.Nodes {
+		if n.Running {
+			n.UpdateMeshNetworkNodes(nodes...)
 		}
 	}
 	return
@@ -134,13 +140,13 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 		Payload: string(p),
 		Timeout: time.Second * 180,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TransferApi %s err :%s", req.FullURL, err))
 		return err
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d", req.FullURL, statusCode))
+		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
 		return fmt.Errorf("TransferApi err : http status=%d", statusCode)
 	}
 	return nil
@@ -160,12 +166,12 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		Payload: string(p),
 		Timeout: time.Second * 60,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -183,12 +189,12 @@ func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, 
 		Payload: string(p),
 		Timeout: time.Second * 60,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -231,17 +237,17 @@ func (node *PhotonNode) Withdraw(channelIdentifier string, withdrawAmount int32)
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("WithdrawApi err :%s", err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("WithdrawApi err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("WithdrawApi err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
 // Close :
-func (node *PhotonNode) Close(channelIdentifier string) {
+func (node *PhotonNode) Close(channelIdentifier string) (err error) {
 	type ClosePayload struct {
 		State string `json:"state"`
 		Force bool   `json:"force"`
@@ -256,17 +262,18 @@ func (node *PhotonNode) Close(channelIdentifier string) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+		return fmt.Errorf("CloseApi err :%s", err)
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+		return fmt.Errorf("CloseApi err : http status=%d,body=%s", statusCode, string(body))
 	}
+	return nil
 }
 
 // Settle :
-func (node *PhotonNode) Settle(channelIdentifier string) {
+func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
 	type SettlePayload struct {
 		State string `json:"state"`
 	}
@@ -279,17 +286,18 @@ func (node *PhotonNode) Settle(channelIdentifier string) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("SettleApi err :%s", err))
+		return fmt.Errorf("SettleApi err :%s", err)
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SettleApi err : http status=%d", statusCode))
+		return fmt.Errorf("SettleApi err : http status=%d,body=%s", statusCode, string(body))
 	}
+	return nil
 }
 
 // CooperateSettle :
-func (node *PhotonNode) CooperateSettle(channelIdentifier string) {
+func (node *PhotonNode) CooperateSettle(channelIdentifier string) (err error) {
 	type ClosePayload struct {
 		State string `json:"state"`
 	}
@@ -302,13 +310,14 @@ func (node *PhotonNode) CooperateSettle(channelIdentifier string) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+		return fmt.Errorf("CooperateSettle err :%s", err)
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+		return fmt.Errorf("CooperateSettle err : http status=%d,body=%s", statusCode, string(body))
 	}
+	return nil
 }
 
 // OpenChannel :
@@ -367,12 +376,12 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("DepositApi %s err : http status=%d", req.FullURL, statusCode))
+		Logger.Println(fmt.Sprintf("DepositApi %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
 		return fmt.Errorf("http status=%d", statusCode)
 	}
 	return err
@@ -380,6 +389,10 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 
 // UpdateMeshNetworkNodes :
 func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
+	Logger.Printf("UpdateMeshNetworkNodes for %s", node.Name)
+	for _, n := range nodes {
+		Logger.Printf("%s is online", n.Name)
+	}
 	type UpdateMeshNetworkNodesPayload struct {
 		Address    string `json:"address"`
 		IPPort     string `json:"ip_port"`
@@ -390,12 +403,10 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		return
 	}
 	for _, n := range nodes {
-		if true {
-			payloads = append(payloads, UpdateMeshNetworkNodesPayload{
-				Address: n.Address,
-				IPPort:  n.Host[7:] + "0",
-			})
-		}
+		payloads = append(payloads, UpdateMeshNetworkNodesPayload{
+			Address: n.Address,
+			IPPort:  n.Host[7:] + "0",
+		})
 	}
 	p, err := json.Marshal(payloads)
 	req := &Req{
@@ -404,12 +415,12 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		Payload: string(p),
 		Timeout: time.Second * 5,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err :%s", req.FullURL, err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err : http status=%d", req.FullURL, statusCode))
+		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
 		return
 	}
 	return
@@ -423,12 +434,12 @@ func (node *PhotonNode) SetFeePolicy(fp *models.FeePolicy) error {
 		Payload: marshal(fp),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SetFeePolicy %s err :%s", req.FullURL, err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SetFeePolicy %s err : http status=%d", req.FullURL, statusCode))
+		Logger.Println(fmt.Sprintf("SetFeePolicy %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
 		return fmt.Errorf("http status=%d", statusCode)
 	}
 	return err
@@ -458,12 +469,12 @@ func (node *PhotonNode) AllowSecret(secretHash, token string) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("CloseApi err :%s", err))
+		Logger.Println(fmt.Sprintf("AllowSecret err :%s", err))
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("CloseApi err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("AllowSecret err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -481,11 +492,11 @@ func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) 
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("secret err :%s", err))
+		Logger.Println(fmt.Sprintf("GenerateSecret err :%s", err))
 		return
 	}
 	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("secret err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("GenerateSecret err : http status=%d,body=%s", statusCode, string(body)))
 		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
@@ -583,7 +594,7 @@ func (node *PhotonNode) CancelTransfer(token, locksecrethash string) (err error)
 		return
 	}
 	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("CancelTransfer err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("CancelTransfer err : http status=%d,body=%s", statusCode, string(body)))
 		err = fmt.Errorf("errcode=%d,body=%s", statusCode, string(body))
 		return
 	}
@@ -677,13 +688,13 @@ func (node *PhotonNode) PrepareUpdate() (err error) {
 		Method:  http.MethodPost,
 		Timeout: time.Second * 20,
 	}
-	statusCode, _, err := req.Invoke()
+	statusCode, body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("PrepareUpdate err :%s", err))
 		return
 	}
 	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("PrepareUpdate err : http status=%d", statusCode))
+		Logger.Println(fmt.Sprintf("PrepareUpdate err : http status=%d,body=%s", statusCode, string(body)))
 		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}

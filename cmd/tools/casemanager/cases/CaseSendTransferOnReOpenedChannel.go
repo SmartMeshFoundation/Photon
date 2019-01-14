@@ -43,7 +43,10 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	}
 	//time.Sleep(3 * time.Second)
 	// Cooperate settle
-	N0.CooperateSettle(c01.ChannelIdentifier)
+	err = N0.CooperateSettle(c01.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
 	i := 0
 	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)

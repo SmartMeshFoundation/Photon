@@ -161,3 +161,33 @@ func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNod
 	wg.Wait()
 	time.Sleep(time.Second)
 }
+
+type repeatReturnNilSuccessFunc func() error
+
+/*
+在seconds秒内,如果f返回nil直接返回,
+否则一直尝试执行f,
+如果超过seconds秒则返回失败
+*/
+func (c *CaseManager) tryInSeconds(seconds int, f repeatReturnNilSuccessFunc) error {
+	var err error
+	var i = 0
+	for i = 0; i < seconds; i++ {
+		time.Sleep(time.Second)
+		err = f()
+		if err == nil {
+			break
+		}
+	}
+	if i == seconds {
+		return err
+	}
+	return nil
+}
+
+//在seconds秒内结算通道
+func (c *CaseManager) trySettleInSeconds(seconds int, node *models.PhotonNode, channelIdentifier string) error {
+	return c.tryInSeconds(seconds, func() error {
+		return node.Settle(channelIdentifier)
+	})
+}
