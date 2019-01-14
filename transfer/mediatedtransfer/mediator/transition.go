@@ -702,10 +702,10 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	var events []transfer.Event
 
 	timeoutBlocks := int(getTimeoutBlocks(payerRoute, payerTransfer, state.BlockNumber))
-	log.Trace(fmt.Sprintf("timeoutBlocks=%d,payerroute=%s,payertransfer=%s,blocknumber=%d",
-		timeoutBlocks, utils.StringInterface(payerRoute, 3), utils.StringInterface(payerTransfer, 3),
-		state.BlockNumber,
-	))
+	//log.Trace(fmt.Sprintf("timeoutBlocks=%d,payerroute=%s,payertransfer=%s,blocknumber=%d",
+	//	timeoutBlocks, utils.StringInterface(payerRoute, 3), utils.StringInterface(payerTransfer, 3),
+	//	state.BlockNumber,
+	//))
 	if timeoutBlocks > 0 {
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
@@ -896,7 +896,7 @@ func handleAnnouceDisposed(state *mediatedtransfer.MediatorState, st *mediatedtr
 	// todo A-B-C-F-B-G-D
 	// If B first receives refund of C, how to deal with that?
 	if IsValidRefund(payeeTransfer, payeeRoute, st) {
-		if payeeTransfer.Expiration < state.BlockNumber {
+		if payeeTransfer.Expiration > state.BlockNumber {
 			/*
 						假定队列中的是
 					AB BC
