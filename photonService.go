@@ -223,8 +223,6 @@ func (rs *Service) Start() (err error) {
 	if err != nil {
 		return
 	}
-	rs.Protocol.Start()
-	rs.restore()
 
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
@@ -268,6 +266,15 @@ func (rs *Service) Start() (err error) {
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
 	}
+	/*
+		将protocol 启动移到历史事件处理之后,
+		保证不在历史事件处理完毕之前进入事件主循环.
+		发现问题原因:
+		在测试中发现,其他节点启动完毕以后尝试发送消息,如果这时候事件主循环已经启动,那么就会收到消息进行处理.这时候通道状态可能是错的,不匹配的.
+		虽然实际中可能会尝试重发,但是会让测试代码进入一种不确定的等待.
+	*/
+	rs.Protocol.Start()
+	rs.restore()
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -336,21 +343,26 @@ func (rs *Service) loop() {
 			if ok {
 				blockStateChange, ok2 := st.(*transfer.BlockStateChange)
 				if ok2 {
-					rs.BlockNumber.Store(blockStateChange.BlockNumber)
+					rs.handleBlockNumber(blockStateChange)
 				} else {
 					log.Trace(fmt.Sprintf("statechange received :%s", utils.StringInterface(st, 2)))
-				}
-				err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
-				if err != nil {
-					log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
-				}
-				if ok2 {
-					rs.dao.SaveLatestBlockNumber(blockStateChange.BlockNumber)
-					if rs.ChanHistoryContractEventsDealComplete != nil {
-						close(rs.ChanHistoryContractEventsDealComplete)
-						rs.ChanHistoryContractEventsDealComplete = nil
+					_, isHistoryComplete := st.(*mediatedtransfer.ContractHistoryEventCompleteStateChange)
+					if isHistoryComplete {
+						if rs.ChanHistoryContractEventsDealComplete != nil {
+							close(rs.ChanHistoryContractEventsDealComplete)
+							rs.ChanHistoryContractEventsDealComplete = nil
+						} else {
+							panic("only can receive ContractHistoryEventCompleteStateChange once")
+						}
+					} else {
+						err = rs.StateMachineEventHandler.OnBlockchainStateChange(st)
+						if err != nil {
+							log.Error(fmt.Sprintf("stateMachineEventHandler.OnBlockchainStateChange %s", err))
+						}
+
 					}
 				}
+
 			} else {
 				log.Info("Events.StateChangeChannel closed")
 				return
@@ -439,19 +451,18 @@ func (rs *Service) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, toke
 block chain tick,
 it's the core of HTLC
 */
-func (rs *Service) handleBlockNumber(blocknumber int64) {
-	statechange := &transfer.BlockStateChange{BlockNumber: blocknumber}
-	rs.BlockNumber.Store(blocknumber)
-	rs.StateMachineEventHandler.dispatchToAllTasks(statechange)
+func (rs *Service) handleBlockNumber(st *transfer.BlockStateChange) {
+	rs.BlockNumber.Store(st.BlockNumber)
+	rs.StateMachineEventHandler.dispatchToAllTasks(st)
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, c := range cg.ChannelIdentifier2Channel {
-			err := rs.StateMachineEventHandler.ChannelStateTransition(c, statechange)
+			err := rs.StateMachineEventHandler.ChannelStateTransition(c, st)
 			if err != nil {
 				log.Error(fmt.Sprintf("ChannelStateTransition err %s", err))
 			}
 		}
 	}
-	rs.dao.SaveLatestBlockNumber(blocknumber)
+	rs.dao.SaveLatestBlockNumber(st.BlockNumber)
 	return
 }
 
@@ -821,6 +832,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
+	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -967,6 +979,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			}
 		} else {
 			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+			//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
 			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
 		}
 		routesState := route.NewRoutesState(avaiableRoutes)

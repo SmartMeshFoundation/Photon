@@ -702,6 +702,10 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	var events []transfer.Event
 
 	timeoutBlocks := int(getTimeoutBlocks(payerRoute, payerTransfer, state.BlockNumber))
+	//log.Trace(fmt.Sprintf("timeoutBlocks=%d,payerroute=%s,payertransfer=%s,blocknumber=%d",
+	//	timeoutBlocks, utils.StringInterface(payerRoute, 3), utils.StringInterface(payerTransfer, 3),
+	//	state.BlockNumber,
+	//))
 	if timeoutBlocks > 0 {
 		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
@@ -891,31 +895,38 @@ func handleAnnouceDisposed(state *mediatedtransfer.MediatorState, st *mediatedtr
 	*/
 	// todo A-B-C-F-B-G-D
 	// If B first receives refund of C, how to deal with that?
-	if IsValidRefund(payeeTransfer, payeeRoute, st) && payeeTransfer.Expiration < state.BlockNumber {
-		/*
-					假定队列中的是
-				AB BC
-				EB BF
-				这时候收到了来自 F 的 refund, 那么应该是认为 payeeTransfer 无效了,
-				相当于刚刚收到了来自 E 的 transfer, 然后去重新找路径
-				todo 如何保存相关通道呢?
-			todo 长时间崩溃恢复以后会收到这个消息么?
-		*/
-		/*
-		 *	Assume that order in this queue is
-		 *	AB BC EB BF
-		 *	which means we receive refund of F, then we should assume that payeeTransfer invalid,
-		 *  which acts like receiving transfer of E, then begin to find a route again.
-		 *	todo How to store relevant channel
-		 *	todo Do we receive this message after crashed for a long time ?
-		 */
-		it = cancelCurrentRoute(state, st.Message.ChannelIdentifier)
-		ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
-			Token:          state.Token,
-			LockSecretHash: st.Lock.LockSecretHash,
-			Receiver:       st.Sender,
+	if IsValidRefund(payeeTransfer, payeeRoute, st) {
+		if payeeTransfer.Expiration > state.BlockNumber {
+			/*
+						假定队列中的是
+					AB BC
+					EB BF
+					这时候收到了来自 F 的 refund, 那么应该是认为 payeeTransfer 无效了,
+					相当于刚刚收到了来自 E 的 transfer, 然后去重新找路径
+					todo 如何保存相关通道呢?
+				todo 长时间崩溃恢复以后会收到这个消息么?
+			*/
+			/*
+			 *	Assume that order in this queue is
+			 *	AB BC EB BF
+			 *	which means we receive refund of F, then we should assume that payeeTransfer invalid,
+			 *  which acts like receiving transfer of E, then begin to find a route again.
+			 *	todo How to store relevant channel
+			 *	todo Do we receive this message after crashed for a long time ?
+			 */
+			it = cancelCurrentRoute(state, st.Message.ChannelIdentifier)
+			ev := &mediatedtransfer.EventSendAnnounceDisposedResponse{
+				Token:          state.Token,
+				LockSecretHash: st.Lock.LockSecretHash,
+				Receiver:       st.Sender,
+			}
+			it.Events = append(it.Events, ev)
+		} else {
+			log.Warn(fmt.Sprintf("receive expired EventSendAnnounceDisposedResponse,expiration=%d,currentblock=%d,response=%s",
+				payeeTransfer.Expiration, state.BlockNumber, utils.StringInterface(st, 3),
+			))
 		}
-		it.Events = append(it.Events, ev)
+
 	}
 	return it
 }

@@ -275,6 +275,17 @@ type ContractBalanceProofUpdatedStateChange struct {
 func (e *ContractBalanceProofUpdatedStateChange) GetBlockNumber() int64 {
 	return e.BlockNumber
 }
+
+//ContractHistoryEventCompleteStateChange all history event complete after first startup
+type ContractHistoryEventCompleteStateChange struct {
+	BlockNumber int64
+}
+
+//GetBlockNumber return when this event occur
+func (e *ContractHistoryEventCompleteStateChange) GetBlockNumber() int64 {
+	return e.BlockNumber
+}
+
 func init() {
 	gob.Register(&ActionInitInitiatorStateChange{})
 	gob.Register(&ActionInitMediatorStateChange{})

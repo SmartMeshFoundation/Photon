@@ -1431,8 +1431,8 @@ func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncR
 
 // String fmt.Stringer
 func (c *Channel) String() string {
-	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s,channelid=%s}",
-		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount(), &c.ChannelIdentifier)
+	return fmt.Sprintf("{ContractBalance=%s,Balance=%s,Distributable=%s,locked=%s,transferAmount=%s,channelid=%s,partner=%s}",
+		c.ContractBalance(), c.Balance(), c.Distributable(), c.Locked(), c.TransferAmount(), &c.ChannelIdentifier, utils.APex2(c.PartnerState.Address))
 }
 
 // NewChannelSerialization serialize the channel to save to database

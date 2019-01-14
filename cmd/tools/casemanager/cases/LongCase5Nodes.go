@@ -23,17 +23,13 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		}
 	}()
 	// 源数据
-	settleTimeout := int64(120)
+	settleTimeout := int64(500)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2, N3, N4 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// step 1 : Start 5 Atmosphere nodes
 	models.Logger.Println("step 1 ---->")
-	N0.Start(env)
-	N1.Start(env)
-	N2.Start(env)
-	N3.Start(env)
-	N4.Start(env)
+	cm.startNodes(env, N0, N1, N2, N3, N4)
 
 	// step 2 : Create the following channels: N0 - N1, N1 - N2, N2 - N3 with 100 deposit
 	models.Logger.Println("step 2 ---->")
@@ -109,7 +105,6 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 
-	// step 11 : N0 tries to open a channel with an initial deposit that is bigger then the Red Eyes Limit (skip)
 	// step 12 : N0 opens a channel with N4 (initial deposit of 10)
 	models.Logger.Println("step 12 ---->")
 	depositAmount = 10
@@ -121,7 +116,6 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if C04 == nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(5 * time.Second)
 
 	// step 13 : N4 deposits 25 tokens to N0<->N4 channel
 	models.Logger.Println("step 13 ---->")
@@ -141,7 +135,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(6 * time.Second)
+	time.Sleep(1 * time.Second)
 	C01new := N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -162,7 +156,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(6 * time.Second)
+	time.Sleep(1 * time.Second)
 	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	if !C12new.CheckSelfBalance(C12.Balance + C12.PartnerBalance) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
@@ -189,7 +183,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 	}
-	time.Sleep(60 * time.Second)
+	time.Sleep(6 * time.Second)
 	C24new = N2.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C24new.CheckPartnerBalance(C24.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C24new.Name)
@@ -219,7 +213,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(6 * time.Second)
+	time.Sleep(1 * time.Second)
 	C04new = N0.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C04new.CheckPartnerBalance(C04.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C04new.Name)
@@ -253,7 +247,8 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 	}
-	time.Sleep(300 * time.Second)
+	//等30秒,确认100笔交易成功
+	time.Sleep(30 * time.Second)
 	C23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
 	if !C23new.CheckSelfBalance(C23.Balance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
@@ -269,7 +264,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 25 : Assert that route N0->N1->N2->N3 has enough capacity to send 200 tokens from N0 to N3
 	models.Logger.Println("step 25 ---->")
-	transferAmount = 200
+	transferAmount = 190
 	C01 = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	if C01.Balance < transferAmount {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01.Name)
@@ -290,7 +285,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(2 * time.Second)
 	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -306,8 +301,12 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 28 : N4 closes his channel with N2
 	models.Logger.Println("step 28 ---->")
-	N4.Close(C24.ChannelIdentifier)
-	time.Sleep(20 * time.Second)
+	err = cm.tryInSeconds(20, func() error {
+		return N4.Close(C24.ChannelIdentifier)
+	})
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
 	C24 = N2.GetChannelWith(N4, tokenAddress)
 	if C24.State != int(netshare.Closed) {
 		return cm.caseFail(env.CaseName)
@@ -328,7 +327,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(2 * time.Second)
 	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	if !C12new.CheckPartnerBalance(C12.PartnerBalance - transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
@@ -342,7 +341,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(2 * time.Second)
 	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance - transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -358,7 +357,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 	C04new = N0.GetChannelWith(N4, tokenAddress).PrintDataAfterTransfer()
 	if !C04new.CheckSelfBalance(C04.Balance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C04new.Name)
@@ -374,14 +373,26 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 33 : settle all channel
 	models.Logger.Println("step 33 ---->")
-	N0.CooperateSettle(C01.ChannelIdentifier)
-	N0.CooperateSettle(C04.ChannelIdentifier)
-	N1.CooperateSettle(C12.ChannelIdentifier)
-	N2.CooperateSettle(C23.ChannelIdentifier)
-	time.Sleep(time.Duration(settleTimeout+260) * time.Second) // wait to settle C24
-	N2.Settle(C24.ChannelIdentifier)
-	time.Sleep(100 * time.Second) // wait to settle C24
-
+	err = N0.CooperateSettle(C01.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
+	err = N0.CooperateSettle(C04.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
+	err = N1.CooperateSettle(C12.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
+	err = N2.CooperateSettle(C23.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
+	err = cm.trySettleInSeconds(int(settleTimeout+260), N2, C24.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
 	C01 = N0.GetChannelWith(N1, tokenAddress)
 	if C01 != nil {
 		C01.Println("")

@@ -33,7 +33,10 @@ func (cm *CaseManager) CaseCooperateSettle() (err error) {
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
 
 	// Cooperate settle
-	N0.CooperateSettle(c01.ChannelIdentifier)
+	err = N0.CooperateSettle(c01.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
 	var i = 0
 	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
