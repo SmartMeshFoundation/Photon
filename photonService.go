@@ -832,6 +832,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
+	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
 	if len(availableRoutes) <= 0 {
 		result.Result <- errors.New("no available route")
 		return
@@ -978,6 +979,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			}
 		} else {
 			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+			//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
 			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
 		}
 		routesState := route.NewRoutesState(avaiableRoutes)

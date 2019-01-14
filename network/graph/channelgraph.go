@@ -71,19 +71,19 @@ func NewChannelGraph(ourAddress, tokenAddress common.Address, edges []common.Add
 		index2address:             make(map[int]common.Address),
 		g:                         dijkstra.NewGraph(),
 	}
-	//cg.makeGraph(edges)
-	cg.printGraph()
+	cg.makeGraph(edges)
+	//cg.printGraph()
 	return cg
 }
 func (cg *ChannelGraph) printGraph() {
-	fmt.Printf("%s channel graph", utils.APex2(cg.TokenAddress))
+	log.Trace(fmt.Sprintf("%s channel graph", utils.APex2(cg.TokenAddress)))
 	rowheader := fmt.Sprintf("%s", strings.Repeat(" ", 14))
 	for i := 0; i < len(cg.index2address); i++ {
 		rowheader += fmt.Sprintf("     %s:%2d", utils.APex2(cg.index2address[i]), i)
 	}
-	fmt.Println(rowheader)
+	log.Trace(rowheader)
 	for i := 0; i < len(cg.index2address); i++ {
-		fmt.Printf("       %s:%2d", utils.APex2(cg.index2address[i]), i)
+		s := fmt.Sprintf("       %s:%2d", utils.APex2(cg.index2address[i]), i)
 		for j := 0; j < len(cg.index2address); j++ {
 			v, err := cg.g.GetVertex(i)
 			if err != nil {
@@ -91,12 +91,12 @@ func (cg *ChannelGraph) printGraph() {
 			}
 
 			if _, ok := v.GetArc(j); ok {
-				fmt.Printf("%12d", 1)
+				s += fmt.Sprintf("%12d", 1)
 			} else {
-				fmt.Printf("%12d", 0)
+				s += fmt.Sprintf("%12d", 0)
 			}
 		}
-		fmt.Println("")
+		log.Trace(s)
 	}
 }
 
@@ -333,7 +333,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 	*/
 	nws := cg.orderedNeighbours(ourAddress, targetAdress, amount, feeCharger)
 	if len(nws) == 0 {
-		log.Warn(fmt.Sprintf("no routes avaiable from %s to %s", utils.APex(ourAddress), utils.APex(targetAdress)))
+		log.Info(fmt.Sprintf("no routes avaiable from %s to %s", utils.APex(ourAddress), utils.APex(targetAdress)))
 		return
 	}
 	for _, nw := range nws {
