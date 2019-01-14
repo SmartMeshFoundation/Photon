@@ -155,7 +155,13 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 				ChannelIdentifier: state.Route.ChannelIdentifier,
 				Reason:            "lock expired",
 			}
-			events = append(events, unlockFailed)
+			transferFailed := &transfer.EventTransferSentFailed{
+				LockSecretHash: state.Transfer.LockSecretHash,
+				Reason:         "no route available",
+				Target:         state.Transfer.Target,
+				Token:          state.Transfer.Token,
+			}
+			events = append(events, unlockFailed, transferFailed)
 		}
 	}
 	return
@@ -177,11 +183,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 		// timeout
 		// If I have not sent secret, then just send removeExpiredLock, and remove stateManager.
 		// If I have already sent secret, then assume transfer timeout failure, send remove expired, and remove state manager.
-		events = append(events, &mt.EventUnlockFailed{
-			LockSecretHash:    state.Transfer.LockSecretHash,
-			ChannelIdentifier: state.Route.ChannelIdentifier,
-			Reason:            "lock expired",
-		})
+		events = expiredHashLockEvents(state)
 		events = append(events, &mt.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
 		})
