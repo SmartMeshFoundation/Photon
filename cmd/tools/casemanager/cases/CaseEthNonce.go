@@ -38,7 +38,7 @@ func (cm *CaseManager) CaseEthNonce() (err error) {
 		go func() {
 			err2 := N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, settleTimeout)
 			if err2 != nil {
-				fmt.Printf("----------err : %s \n", err2.Error())
+				_, err2 = fmt.Printf("----------err : %s \n", err2.Error())
 			}
 		}()
 	}

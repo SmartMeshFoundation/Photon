@@ -142,7 +142,7 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("TransferApi %s err :%s", req.FullURL, err))
+		Logger.Println(fmt.Sprintf("TransferApi %s err :%s,body=%s", req.FullURL, err, string(body)))
 		return err
 	}
 	if statusCode != 200 {
@@ -168,7 +168,7 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
+		Logger.Println(fmt.Sprintf("SendTransApi err :%s,body=%s", err, string(body)))
 	}
 	if statusCode != 200 {
 		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d,body=%s", statusCode, string(body)))
@@ -737,4 +737,25 @@ func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivin
 		return fmt.Errorf("TransferApi err : http status=%d,body=%s", statusCode, string(body))
 	}
 	return nil
+}
+
+//SwitchNetwork disable mediated transfer
+func (node *PhotonNode) SwitchNetwork(tomesh string) (err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/switch/%s", tomesh),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SwitchNetwork err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("SwitchNetwork err : http status=%d,body=%s", statusCode, string(body)))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	return
+
 }

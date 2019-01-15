@@ -27,6 +27,7 @@ type CaseManager struct {
 
 // NewCaseManager constructor
 func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow bool) (caseManager *CaseManager) {
+	var err error
 	caseManager = new(CaseManager)
 	caseManager.IsAutoRun = isAutoRun
 	caseManager.UseMatrix = useMatrix
@@ -37,23 +38,25 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 	caseManager.RunSlow = runSlow
 	caseManager.Cases = make(map[string]reflect.Value)
 	// use reflect to load all cases
-	fmt.Println("load cases...")
+	_, err = fmt.Println("load cases...")
 	vf := reflect.ValueOf(caseManager)
 	vft := vf.Type()
 	for i := 0; i < vf.NumMethod(); i++ {
 		mName := vft.Method(i).Name
 		if strings.Contains(mName, "Case") {
-			fmt.Println("CaseName:", mName)
+			_, err = fmt.Println("CaseName:", mName)
 			caseManager.Cases[mName] = vf.Method(i)
 		}
 	}
-	fmt.Printf("Total %d cases load success\n", len(caseManager.Cases))
+	_, err = fmt.Printf("Total %d cases load success\n", len(caseManager.Cases))
+	_ = err
 	return
 }
 
 // RunAll run all
 func (c *CaseManager) RunAll(skip string) {
-	fmt.Println("Run all cases...")
+	var err error
+	_, err = fmt.Println("Run all cases...")
 	// 排序
 	// sort
 	var keys []string
@@ -71,10 +74,10 @@ func (c *CaseManager) RunAll(skip string) {
 		} else {
 			err := rs[0].Interface().(error)
 			if err == nil {
-				fmt.Printf("%s SUCCESS\n", k)
+				_, err = fmt.Printf("%s SUCCESS\n", k)
 			} else {
 				errorMsg = fmt.Sprintf("%s FAILED!!!\n", k)
-				fmt.Printf(errorMsg)
+				_, err = fmt.Printf(errorMsg)
 				c.FailedCaseNames = append(c.FailedCaseNames, k)
 				if skip != "true" {
 					break
@@ -83,37 +86,40 @@ func (c *CaseManager) RunAll(skip string) {
 		}
 
 	}
-	fmt.Println("Casemanager Result:")
-	fmt.Printf("Cases num : %d,successed=%d\n", len(keys), success)
-	fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
+	_, err = fmt.Println("Casemanager Result:")
+	_, err = fmt.Printf("Cases num : %d,successed=%d\n", len(keys), success)
+	_, err = fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
 	for _, v := range c.FailedCaseNames {
-		fmt.Println(v)
+		_, err = fmt.Println(v)
 	}
-	fmt.Println("Pelease check log in ./log")
+	_, err = fmt.Println("Pelease check log in ./log")
 	if errorMsg != "" {
 		panic(errorMsg)
 	}
+	_ = err
 }
 
 // RunOne run one
 func (c *CaseManager) RunOne(caseName string) {
+	var err error
 	if v, ok := c.Cases[caseName]; ok {
-		fmt.Println("----------------------------->Start to run case " + caseName + "...")
+		_, err = fmt.Println("----------------------------->Start to run case " + caseName + "...")
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
-			fmt.Printf("%s SUCCESS\n", caseName)
+			_, err = fmt.Printf("%s SUCCESS\n", caseName)
 		} else {
 			err := rs[0].Interface().(error)
 			if err == nil {
-				fmt.Printf("%s SUCCESS\n", caseName)
+				_, err = fmt.Printf("%s SUCCESS\n", caseName)
 			} else {
-				fmt.Printf("%s FAILED!!! err=%s\n", caseName, err)
+				_, err = fmt.Printf("%s FAILED!!! err=%s\n", caseName, err)
 			}
 		}
 	} else {
-		fmt.Printf("%s doesn't exist !!! \n", caseName)
+		_, err = fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}
-	fmt.Println("Pelease check log in ./log")
+	_, err = fmt.Println("Pelease check log in ./log")
+	_ = err
 }
 
 // caseFail :
