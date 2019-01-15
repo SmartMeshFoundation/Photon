@@ -103,18 +103,18 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 }
 
 func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock, smkey common.Hash) {
-	blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
-	balanceProof := &mediatedtransfer.ReceiveUnlockStateChange{
+	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
+	unlockStateChange := &mediatedtransfer.ReceiveUnlockStateChange{
 		LockSecretHash: msg.LockSecretHash(),
 		NodeAddress:    msg.Sender,
-		BalanceProof:   blanceProof,
+		BalanceProof:   balanceProof,
 		Message:        msg,
 	}
 	sm := mh.photon.Transfer2StateManager[smkey]
 	if sm == nil {
 		log.Error(fmt.Sprintf("receive balanceProof,but have no state manager %s", utils.StringInterface(msg, 3)))
 	} else {
-		sm.Dispatch(balanceProof)
+		mh.photon.StateMachineEventHandler.dispatch(sm, unlockStateChange)
 	}
 }
 
@@ -328,7 +328,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	if sm == nil {
 		log.Error(fmt.Sprintf("messageAnnounceDisposed cannot found state manager,msg=%s", utils.StringInterface(msg, 3)))
 	} else {
-		sm.Dispatch(stateChange)
+		mh.photon.StateMachineEventHandler.dispatch(sm, stateChange)
 	}
 	mh.photon.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
