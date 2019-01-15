@@ -193,12 +193,12 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		return
 	}
 	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain)
-	// pathfinder
-	if config.PfsHost != "" {
-		rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
-	}
 	// fee module
 	if config.EnableMediationFee {
+		// pathfinder
+		if config.PfsHost != "" {
+			rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
+		}
 		rs.FeePolicy, err = NewFeeModule(dao, rs.PfsProxy)
 		if err != nil {
 			return
