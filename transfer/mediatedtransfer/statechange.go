@@ -105,7 +105,7 @@ type ReceiveAnnounceDisposedStateChange struct {
 //ReceiveUnlockStateChange A balance proof `identifier` was received.
 type ReceiveUnlockStateChange struct {
 	LockSecretHash common.Hash
-	NodeAddress    common.Address
+	NodeAddress    common.Address //sender of message unlock
 	BalanceProof   *transfer.BalanceProofState
 	Message        encoding.EnvelopMessager //the message trigger this statechange
 }

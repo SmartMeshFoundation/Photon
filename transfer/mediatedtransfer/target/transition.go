@@ -265,7 +265,7 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 			// Maybe we can receive unlock message without receiving secret.
 			it = handleBalanceProof(state, st2)
 		default:
-			log.Error(fmt.Sprintf("target state manager receive unkown state change %s", utils.StringInterface(stateChange, 3)))
+			log.Error(fmt.Sprintf("target state manager receive unkown state change,if this transfer is a token swap ,it's ok.  %s", utils.StringInterface(stateChange, 3)))
 		}
 	}
 	return clearIfFinalized(it)

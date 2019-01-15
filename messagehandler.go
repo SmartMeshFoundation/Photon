@@ -102,7 +102,7 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 	return err
 }
 
-func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock) {
+func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock, smkey common.Hash) {
 	blanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
 	balanceProof := &mediatedtransfer.ReceiveUnlockStateChange{
 		LockSecretHash: msg.LockSecretHash(),
@@ -110,7 +110,12 @@ func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock) {
 		BalanceProof:   blanceProof,
 		Message:        msg,
 	}
-	mh.photon.StateMachineEventHandler.dispatchBySecretHash(balanceProof.LockSecretHash, balanceProof)
+	sm := mh.photon.Transfer2StateManager[smkey]
+	if sm == nil {
+		log.Error(fmt.Sprintf("receive balanceProof,but have no state manager %s", utils.StringInterface(msg, 3)))
+	} else {
+		sm.Dispatch(balanceProof)
+	}
 }
 
 /*
@@ -217,7 +222,8 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	/*
 		验证过消息是有效的,然后通知相应的 stateMana 该结束的结束,
 	*/
-	mh.balanceProof(msg)
+	smkey := utils.Sha3(lockSecretHash[:], ch.TokenAddress[:])
+	mh.balanceProof(msg, smkey)
 	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
@@ -317,7 +323,13 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		Lock:    msg.Lock,
 		Message: msg,
 	}
-	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.Lock.LockSecretHash, stateChange)
+	smkey := utils.Sha3(msg.Lock.LockSecretHash[:], ch.TokenAddress[:])
+	sm := mh.photon.Transfer2StateManager[smkey]
+	if sm == nil {
+		log.Error(fmt.Sprintf("messageAnnounceDisposed cannot found state manager,msg=%s", utils.StringInterface(msg, 3)))
+	} else {
+		sm.Dispatch(stateChange)
+	}
 	mh.photon.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
