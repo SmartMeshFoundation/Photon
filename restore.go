@@ -116,6 +116,8 @@ func (rs *Service) restoreLocks() {
 	//将 lock 转换为ActionInitCrashRestartStateChange
 	// switch lock to ActionInitCrashRestartStateChange
 	for _, l := range locks {
+		//要注册密码,否则链上注册密码事件会找不到相关的通道.
+		rs.registerChannelForHashlock(l.ch, l.l.LockSecretHash)
 		key := utils.Sha3(l.l.LockSecretHash[:], l.token[:])
 		aicr := token2ActionInitCrashRestartStateChange[key]
 		if aicr == nil {
