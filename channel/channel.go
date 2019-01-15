@@ -1437,12 +1437,18 @@ func (c *Channel) String() string {
 
 // NewChannelSerialization serialize the channel to save to database
 func NewChannelSerialization(c *Channel) *channeltype.Serialization {
-	var ourSecrets, partnerSecrets []common.Hash
+	var ourSecrets, partnerSecrets []*channeltype.KnownSecret
 	for _, s := range c.OurState.Lock2UnclaimedLocks {
-		ourSecrets = append(ourSecrets, s.Secret)
+		ourSecrets = append(ourSecrets, &channeltype.KnownSecret{
+			Secret:              s.Secret,
+			IsRegisteredOnChain: s.IsRegisteredOnChain,
+		})
 	}
 	for _, s := range c.PartnerState.Lock2UnclaimedLocks {
-		partnerSecrets = append(partnerSecrets, s.Secret)
+		partnerSecrets = append(partnerSecrets, &channeltype.KnownSecret{
+			Secret:              s.Secret,
+			IsRegisteredOnChain: s.IsRegisteredOnChain,
+		})
 	}
 	s := &channeltype.Serialization{
 		Key:                    c.ChannelIdentifier.ChannelIdentifier[:],

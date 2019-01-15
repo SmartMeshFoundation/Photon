@@ -1011,7 +1011,12 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 // Handle a ReceiveBalanceProof state change.
 func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveUnlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
+	//走到这里,说明密码对了,金额也是对的,balanceProof也是对的,但是我有多个pair,需要找到对应的那个pair
 	for _, pair := range state.TransfersPair {
+		//如果不做检查,假设我是B,比如A-B-C-D-B-E ,那么B收到来自A的unlock消息以后,就会把unlock消息同时发送给C,E,这是错误的.
+		if pair.PayeeRoute.HopNode() != st.NodeAddress {
+			continue
+		}
 		if pair.PayeeState != mediatedtransfer.StatePayeeBalanceProof {
 			/*
 				如果收到unlock的时候,还没有给下家发送unlock,补发
@@ -1030,13 +1035,12 @@ func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtrans
 			}
 			events = append(events, balanceProof, unlockSuccess)
 		}
-		if pair.PayerRoute.HopNode() == st.NodeAddress {
-			withdraw := &mediatedtransfer.EventWithdrawSuccess{
-				LockSecretHash: pair.PayeeTransfer.LockSecretHash,
-			}
-			events = append(events, withdraw)
-			pair.PayerState = mediatedtransfer.StatePayerBalanceProof
+
+		withdraw := &mediatedtransfer.EventWithdrawSuccess{
+			LockSecretHash: pair.PayeeTransfer.LockSecretHash,
 		}
+		events = append(events, withdraw)
+		pair.PayerState = mediatedtransfer.StatePayerBalanceProof
 	}
 	return &transfer.TransitionResult{
 		NewState: state,

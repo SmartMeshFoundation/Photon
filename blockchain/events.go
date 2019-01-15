@@ -133,6 +133,7 @@ func (be *Events) startAlarmTask() {
 	logPeriod := int64(1)
 	retryTime := 0
 	be.stopChan = make(chan int)
+	be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 	for {
 		//get the lastest number imediatelly
 		if be.pollPeriod == 0 {
@@ -202,11 +203,19 @@ func (be *Events) startAlarmTask() {
 		// refresh block number and notify PhotonService
 		currentBlock = lastedBlock
 		be.lastBlockNumber = currentBlock
-
-		be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
-
+		var lastSendBlockNumber int64
 		// notify Photon service
+		//我们需要photon service在处理相关事件的时候知道了对应的块已经发生了,否则可能因为错误的当前块数而出现逻辑错误.
+		//同时也需要以下问题得到有效解决
+		//A-B交易,A发送RevealSecret以后崩溃,然后很久以后重启
+		//如果直接告诉Photon最新块数,那么photon将直接判断该锁过期而发送RemoveExpiredHashLock
+		//但是很有可能B已经在链上注册了密码,这个时候A如果发送RemoveExpiredHashLock,将会导致该通道无法使用.
+		//因为B会拒绝RemoveExpiredHashLock.为了避免这种情况,一定要在处理最新块之前,处理SerecretRevealOnChain
 		for _, sc := range stateChanges {
+			if sc.GetBlockNumber() != lastSendBlockNumber {
+				be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: sc.GetBlockNumber()}
+				lastSendBlockNumber = sc.GetBlockNumber()
+			}
 			be.StateChangeChannel <- sc
 		}
 		if be.firstStart {
@@ -215,6 +224,9 @@ func (be *Events) startAlarmTask() {
 			be.StateChangeChannel <- &mediatedtransfer.ContractHistoryEventCompleteStateChange{
 				BlockNumber: currentBlock,
 			}
+		}
+		if lastSendBlockNumber != currentBlock {
+			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 		}
 		// 清除过期流水
 		for key, blockNumber := range be.txDone {

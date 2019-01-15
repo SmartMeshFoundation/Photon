@@ -189,6 +189,10 @@ func (node *EndState) GetUnkownSecretLockByHashlock(lockSecretHash common.Hash) 
 	if ok {
 		return lock.Lock
 	}
+	plock, ok := node.Lock2UnclaimedLocks[lockSecretHash]
+	if ok && !plock.IsRegisteredOnChain {
+		return plock.Lock
+	}
 	return nil
 }
 
@@ -374,7 +378,7 @@ func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (e
 TryRemoveHashLock try to remomve a expired hashlock
 */
 func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber int64, mustExpired bool) (lock *mtree.Lock, newtree *mtree.Merkletree, newlocksroot common.Hash, err error) {
-	//知道密码的锁是一定不能移除的,只要对方知道了密码,无论什么原因都不能移除此锁.
+	//链上已经注册密码的锁是一定不能移除的,无论什么原因都不能移除此锁.除非是unlock消息
 	lock = node.GetUnkownSecretLockByHashlock(lockSecretHash)
 	if lock == nil {
 		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
@@ -417,20 +421,20 @@ func (node *EndState) RegisterSecret(secret common.Hash) error {
 RegisterRevealedSecretHash a SecretReveal event on chain
 */
 func (node *EndState) RegisterRevealedSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) error {
-	if !node.IsKnown(lockSecretHash) {
+	lock := node.getLockByHashlock(lockSecretHash)
+	if lock == nil {
 		return errors.New("secret does not correspond to any lockSecretHash")
 	}
-	if node.IsLocked(lockSecretHash) {
-		pendingLock := node.Lock2PendingLocks[lockSecretHash]
-		if blockNumber > pendingLock.Lock.Expiration {
-			return fmt.Errorf("secrethash %s  registerred on block chain,but already expired for me", utils.HPex(lockSecretHash))
-		}
-		delete(node.Lock2PendingLocks, lockSecretHash)
-		node.Lock2UnclaimedLocks[lockSecretHash] = channeltype.UnlockPartialProof{
-			Lock:     pendingLock.Lock,
-			LockHash: pendingLock.LockHash,
-			Secret:   secret,
-		}
+	if blockNumber > lock.Expiration {
+		return fmt.Errorf("secrethash %s  registerred on block chain,but already expired for me", utils.HPex(lockSecretHash))
+	}
+	//有可能这个lock已经在Lock2UnclaimedLocks,不过无所谓
+	delete(node.Lock2PendingLocks, lockSecretHash)
+	node.Lock2UnclaimedLocks[lockSecretHash] = channeltype.UnlockPartialProof{
+		Lock:                lock,
+		LockHash:            lock.Hash(),
+		Secret:              secret,
+		IsRegisteredOnChain: true,
 	}
 	return nil
 }

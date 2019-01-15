@@ -109,7 +109,16 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStr(env, false)
-	params = append(params, "--fee")
+	var i = -1
+	//从参数中找到diable-fee,然后删除
+	for i = 0; i < len(params); i++ {
+		if params[i] == "--disable-fee" {
+			break
+		}
+	}
+	if i >= 0 && i < len(params) {
+		params = append(params[:i], params[i+1:]...)
+	}
 	go ExecShell(env.Main, params, logfile, true)
 
 	count := 0
@@ -161,6 +170,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--disable-fee")
 	if pprof {
 		param = append(param, "--pprof")
 	}
@@ -173,9 +183,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 	}
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
-	if env.Debug == true {
-		param = append(param, "--debug")
-	}
+	param = append(param, "--debug")
 	if node.DebugCrash == true {
 		buf, err := json.Marshal(node.ConditionQuit)
 		if err != nil {

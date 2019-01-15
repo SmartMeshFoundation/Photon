@@ -131,8 +131,8 @@ func StartMain() (*photon.API, error) {
 			Usage: "disable network, for example ,when we want to settle all channels,only for test, should not be used in production",
 		},
 		cli.BoolFlag{
-			Name:  "fee",
-			Usage: "enable mediation fee,default charge fee is 0.01%",
+			Name:  "disable-fee",
+			Usage: "disable mediation fee,default charge fee is 0.01%",
 		},
 		cli.BoolFlag{
 			Name:  "xmpp",
@@ -171,7 +171,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "enable-fork-confirm",
-			Usage: "enable fork confirm when receive events from chain,default is false",
+			Usage: "enable fork confirm when receive events from chain,default is false,default is disabled",
 		},
 		cli.StringFlag{
 			Name:  "http-username",
@@ -247,7 +247,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 		dao.CloseDB()
 		return
 	}
-
+	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
+	if cfg.PfsHost == "" {
+		cfg.PfsHost, err = getDefaultPFSByEthClient(client)
+		if err != nil {
+			log.Warn(fmt.Sprintf("getDefaultPFSByEthClient err %s", err))
+		}
+	}
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
@@ -440,8 +446,9 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	} else {
 		config.NetworkMode = params.MixUDPXMPP //默认用xmpp做通信,matrix不太稳定
 	}
-	if ctx.Bool("fee") {
-		config.EnableMediationFee = true
+	config.EnableMediationFee = true
+	if ctx.Bool("disable-fee") {
+		config.EnableMediationFee = false
 	}
 	if ctx.Bool("enable-health-check") {
 		config.EnableHealthCheck = true
@@ -462,10 +469,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.PfsHost = ctx.String("pfs")
-	if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPXMPP {
-		err = fmt.Errorf("photon start with pfs %s, but not use matrix, exit", config.PfsHost)
-		return
-	}
+	//if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPXMPP {
+	//	err = fmt.Errorf("photon start with pfs %s, but not use xmpp, exit", config.PfsHost)
+	//	return
+	//}
 
 	if ctx.Bool("enable-fork-confirm") {
 		log.Info("fork-confirm enable...")
@@ -545,6 +552,16 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 		return
 	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
+	return
+}
+func getDefaultPFSByEthClient(client *helper.SafeEthClient) (pfs string, err error) {
+	var genesisBlockHash common.Hash
+	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	pfs = params.GenesisBlockHashToPFS[genesisBlockHash]
 	return
 }
 

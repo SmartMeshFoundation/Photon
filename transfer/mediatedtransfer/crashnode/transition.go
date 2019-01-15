@@ -73,7 +73,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 			removedReceviedIndex = append(removedReceviedIndex, i)
 			continue
 		}
-		if stateChange.BlockNumber > l.Lock.Expiration {
+		if stateChange.BlockNumber-params.ForkConfirmNumber > l.Lock.Expiration {
 			removedReceviedIndex = append(removedReceviedIndex, i)
 		} else {
 			/*
@@ -81,7 +81,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 			*/
 			// Maybe I received related code after start up
 			secret, found := l.Channel.PartnerState.GetSecret(state.LockSecretHash)
-			if found && l.Lock.Expiration > stateChange.BlockNumber-int64(l.Channel.RevealTimeout) && l.Lock.Expiration < stateChange.BlockNumber {
+			if found && l.Lock.Expiration >= stateChange.BlockNumber && l.Lock.Expiration < stateChange.BlockNumber+int64(l.Channel.RevealTimeout) {
 				//临近过期了,需要通知链上注册
 				events = append(events, &mt.EventContractSendRegisterSecret{
 					Secret: secret,

@@ -1,6 +1,7 @@
 package cases
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
@@ -20,6 +21,8 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	defer func() {
 		if env.Debug == false {
 			env.KillAllPhotonNodes()
+		} else {
+			//time.Sleep(time.Minute * 1000)
 		}
 	}()
 	// 源数据
@@ -241,10 +244,10 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 23 ---->")
 	transferAmount = 100
 	C23 = N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
-	for i := int32(0); i < transferAmount; i++ {
-		err = N3.Transfer(tokenAddress, 1, N2.Address, false)
+	for i := int32(0); i < transferAmount/2; i++ {
+		err = N3.Transfer(tokenAddress, 2, N2.Address, false)
 		if err != nil {
-			return cm.caseFail(env.CaseName)
+			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("mass transfer i=%d,err=%s", i, err.Error()))
 		}
 	}
 	//等30秒,确认100笔交易成功

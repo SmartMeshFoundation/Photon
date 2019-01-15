@@ -34,8 +34,8 @@ func TestPhotonProtocolSendReceive(t *testing.T) {
 	log.Trace("log...")
 	p1 := MakeTestPhotonProtocol("p1")
 	p2 := MakeTestPhotonProtocol("p2")
-	p1.Start()
-	p2.Start()
+	p1.Start(true)
+	p2.Start(true)
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
 	err := p1.SendAndWait(p2.nodeAddr, ping, time.Minute)
@@ -63,7 +63,7 @@ func TestPhotonProtocolSendReceiveTimeout(t *testing.T) {
 	//	t.Error(err)
 	//	return
 	//}
-	p1.Start()
+	p1.Start(true)
 	p2.StopAndWait()
 	ping := encoding.NewPing(32)
 	ping.Sign(p1.privKey, ping)
@@ -80,8 +80,8 @@ func TestPhotonProtocolSendReceiveNormalMessage(t *testing.T) {
 	var msg encoding.SignedMessager
 	p1 := MakeTestPhotonProtocol("p1")
 	p2 := MakeTestPhotonProtocol("p2")
-	p1.Start()
-	p2.Start()
+	p1.Start(true)
+	p2.Start(true)
 	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
@@ -125,8 +125,8 @@ func TestPhotonProtocolSendReceiveNormalMessage2(t *testing.T) {
 	var wg = sync.WaitGroup{}
 	p1 := MakeTestPhotonProtocol("p1")
 	p2 := MakeTestPhotonProtocol("p2")
-	p1.Start()
-	p2.Start()
+	p1.Start(true)
+	p2.Start(true)
 	revealSecretMsg := encoding.NewRevealSecret(utils.ShaSecret([]byte{12}))
 	revealSecretMsg.Sign(p1.privKey, revealSecretMsg)
 	go func() {
@@ -172,7 +172,7 @@ func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 	log.Trace("log...")
 	_, testOpenBlockNumber := (&testChannelStatusGetter{}).GetChannelStatus(utils.EmptyHash)
 	p1 := MakeTestDiscardExpiredTransferPhotonProtocol("p1")
-	p1.Start()
+	p1.Start(true)
 	expiration := 7 //7 second
 	lock := mtree.Lock{
 		Expiration:     int64(expiration),

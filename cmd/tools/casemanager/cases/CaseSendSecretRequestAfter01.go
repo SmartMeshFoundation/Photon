@@ -79,8 +79,7 @@ func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 		if !cd23new.CheckLockSelf(0) {
 			continue
 		}
-		//最终1-2之间的锁都会保留,因为1认为2已经知道了密码,todo 如果eventSendRevealSecret修复了这个问题,那么12之间锁也是可以移除的
-		if !cd12new.CheckLockSelf(transAmount) {
+		if !cd12new.CheckLockSelf(0) {
 			continue
 		}
 		models.Logger.Printf("%s transfer success END ====> SUCCESS", env.CaseName)

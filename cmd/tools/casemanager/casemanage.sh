@@ -39,7 +39,7 @@ rm log/*
 ./casemanager --case=all --slow
 if [ $? -ne 0 ]; then
     echo "casemanager run failed"
-    tar -cvf /home/gotest/tmp/casemanager.log.tar  /home/gotest/casemanage-matrix.log log
+    tar -cvf /home/gotest/tmp/casemanager.log.tar  /home/gotest/casemanage.log log
     nodemailer wuhan_53@163.com,baizhenxuan@qq.com smartraiden@163.com 'casemanager失败,附件为全部日志,请尽快排查问题.场景重现请在服务器193.112.248.133上/home/gotest/goproj/src/github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager目录下执行./casemanager --case=报错case名' -j 'Casenamager场景测试不通过,请尽快排查问题' --attachment '/home/gotest/tmp/casemanager.log.tar' -u smartraiden@163.com -p pass77 -s smtp.163.com
     exit -1
 fi

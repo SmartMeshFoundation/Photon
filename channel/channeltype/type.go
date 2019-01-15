@@ -23,9 +23,10 @@ type PendingLock struct {
 UnlockPartialProof is the lock that I have known the secret ,but haven't receive the Balance proof
 */
 type UnlockPartialProof struct {
-	Lock     *mtree.Lock
-	LockHash common.Hash
-	Secret   common.Hash
+	Lock                *mtree.Lock
+	LockHash            common.Hash
+	Secret              common.Hash
+	IsRegisteredOnChain bool //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
 }
 
 /*
@@ -34,6 +35,12 @@ UnlockProof is the info needs withdraw on blockchain
 type UnlockProof struct {
 	MerkleProof []common.Hash
 	Lock        *mtree.Lock
+}
+
+//KnownSecret is used to save to db
+type KnownSecret struct {
+	Secret              common.Hash
+	IsRegisteredOnChain bool //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
 }
 
 // Serialization is the living channel in the database
@@ -48,8 +55,8 @@ type Serialization struct {
 	PartnerBalanceProof    *transfer.BalanceProofState
 	OurLeaves              []*mtree.Lock
 	PartnerLeaves          []*mtree.Lock
-	OurKnownSecrets        []common.Hash
-	PartnerKnownSecrets    []common.Hash
+	OurKnownSecrets        []*KnownSecret
+	PartnerKnownSecrets    []*KnownSecret
 	State                  State
 	OurContractBalance     *big.Int
 	PartnerContractBalance *big.Int
@@ -123,22 +130,23 @@ func (s *Serialization) PartnerLock2UnclaimedLocks() map[common.Hash]UnlockParti
 	m := make(map[common.Hash]UnlockPartialProof)
 	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
 	for _, l := range s.PartnerLeaves {
-		if m2[l.LockSecretHash] != utils.EmptyHash {
+		if m2[l.LockSecretHash] != nil {
 			//知道密码
 			m[l.LockSecretHash] = UnlockPartialProof{
-				Lock:     l,
-				Secret:   m2[l.LockSecretHash],
-				LockHash: l.Hash(),
+				Lock:                l,
+				Secret:              m2[l.LockSecretHash].Secret,
+				LockHash:            l.Hash(),
+				IsRegisteredOnChain: m2[l.LockSecretHash].IsRegisteredOnChain,
 			}
 		}
 	}
 	return m
 }
 
-func (s *Serialization) getSecretHashMap(secrets []common.Hash) map[common.Hash]common.Hash {
-	m := make(map[common.Hash]common.Hash)
+func (s *Serialization) getSecretHashMap(secrets []*KnownSecret) map[common.Hash]*KnownSecret {
+	m := make(map[common.Hash]*KnownSecret)
 	for _, s := range secrets {
-		m[utils.ShaSecret(s[:])] = s
+		m[utils.ShaSecret(s.Secret[:])] = s
 	}
 	return m
 }
@@ -148,12 +156,13 @@ func (s *Serialization) OurLock2UnclaimedLocks() map[common.Hash]UnlockPartialPr
 	m := make(map[common.Hash]UnlockPartialProof)
 	m2 := s.getSecretHashMap(s.OurKnownSecrets)
 	for _, l := range s.OurLeaves {
-		if m2[l.LockSecretHash] != utils.EmptyHash {
+		if m2[l.LockSecretHash] != nil {
 			//知道密码
 			m[l.LockSecretHash] = UnlockPartialProof{
-				Lock:     l,
-				Secret:   m2[l.LockSecretHash],
-				LockHash: l.Hash(),
+				Lock:                l,
+				Secret:              m2[l.LockSecretHash].Secret,
+				LockHash:            l.Hash(),
+				IsRegisteredOnChain: m2[l.LockSecretHash].IsRegisteredOnChain,
 			}
 		}
 	}
@@ -165,7 +174,7 @@ func (s *Serialization) OurLock2PendingLocks() map[common.Hash]PendingLock {
 	m := make(map[common.Hash]PendingLock)
 	m2 := s.getSecretHashMap(s.OurKnownSecrets)
 	for _, l := range s.OurLeaves {
-		if m2[l.LockSecretHash] == utils.EmptyHash {
+		if m2[l.LockSecretHash] == nil {
 			//不知道密码
 			m[l.LockSecretHash] = PendingLock{
 				Lock:     l,
@@ -181,7 +190,7 @@ func (s *Serialization) PartnerLock2PendingLocks() map[common.Hash]PendingLock {
 	m := make(map[common.Hash]PendingLock)
 	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
 	for _, l := range s.PartnerLeaves {
-		if m2[l.LockSecretHash] == utils.EmptyHash {
+		if m2[l.LockSecretHash] == nil {
 			//不知道密码
 			m[l.LockSecretHash] = PendingLock{
 				Lock:     l,
@@ -203,7 +212,7 @@ func (s *Serialization) MinExpiration(blockNumber int64) int64 {
 	m2 := s.getSecretHashMap(s.PartnerKnownSecrets)
 	var min int64
 	for _, l := range s.PartnerLeaves {
-		if m2[l.LockSecretHash] != utils.EmptyHash {
+		if m2[l.LockSecretHash] != nil {
 			//知道密码
 			if l.Expiration > blockNumber && l.Expiration > min {
 				min = l.Expiration
