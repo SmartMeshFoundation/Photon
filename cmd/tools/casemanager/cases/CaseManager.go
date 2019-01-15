@@ -76,7 +76,7 @@ func (c *CaseManager) RunAll(skip string) {
 			if err == nil {
 				_, err = fmt.Printf("%s SUCCESS\n", k)
 			} else {
-				errorMsg = fmt.Sprintf("%s FAILED!!!\n", k)
+				errorMsg = fmt.Sprintf("%s FAILED!!!,err=%s\n", k, err)
 				_, err = fmt.Printf(errorMsg)
 				c.FailedCaseNames = append(c.FailedCaseNames, k)
 				if skip != "true" {

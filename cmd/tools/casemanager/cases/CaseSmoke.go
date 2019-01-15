@@ -71,6 +71,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if len(trs) != 1 || trs[0].Amount.Uint64() != 1 {
 		return fmt.Errorf("GetSentTransfers err trs=%s", utils.StringInterface(trs, 3))
 	}
+	n1.GetChannelWith(n0, tokenAddress).Println("after transfer")
 	rrs, err := n1.GetReceivedTransfers()
 	if err != nil {
 		return fmt.Errorf("GetReceivedTransfers err %s", err)
