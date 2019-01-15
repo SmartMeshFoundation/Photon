@@ -5,6 +5,10 @@ import (
 	"path"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/SmartMeshFoundation/Photon/channel"
+
 	"math/big"
 
 	"fmt"
@@ -117,4 +121,11 @@ func newTestStormDb() (dao models.Dao, err error) {
 	err = os.Remove(dbPath)
 	err = os.Remove(dbPath + ".lock")
 	return stormdb.OpenDb(dbPath)
+}
+
+func TestUninitMapMap(t *testing.T) {
+	var ts map[common.Address]map[common.Hash][]*channel.Channel
+	ts = make(map[common.Address]map[common.Hash][]*channel.Channel)
+	channelsRegistered := ts[utils.NewRandomAddress()][utils.NewRandomHash()]
+	assert.EqualValues(t, channelsRegistered == nil, true)
 }

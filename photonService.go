@@ -104,9 +104,9 @@ type Service struct {
 			         released/withdrawn but not when the secret is registered.
 		TODO remove this,this design is very weird
 	*/
-	Token2Hashlock2Channels map[common.Address]map[common.Hash][]*channel.Channel
-	FileLocker              *flock.Flock
-	BlockNumber             *atomic.Value
+	Token2LockSecretHash2Channels map[common.Address]map[common.Hash][]*channel.Channel
+	FileLocker                    *flock.Flock
+	BlockNumber                   *atomic.Value
 	/*
 		chan for user request
 	*/
@@ -148,7 +148,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		Token2TokenNetwork:                    make(map[common.Address]common.Address),
 		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
 		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
-		Token2Hashlock2Channels:               make(map[common.Address]map[common.Hash][]*channel.Channel),
+		Token2LockSecretHash2Channels:         make(map[common.Address]map[common.Hash][]*channel.Channel),
 		SwapKey2TokenSwap:                     make(map[swapKey]*TokenSwap),
 		UserReqChan:                           make(chan *apiReq, 10),
 		BlockNumber:                           new(atomic.Value),
@@ -223,7 +223,10 @@ func (rs *Service) Start() (err error) {
 	if err != nil {
 		return
 	}
-
+	//在主循环开启之前,protocol层要准备好,可以发送消息,但是不能接收消息
+	rs.Protocol.Start(false)
+	//restore 一定要在历史事件处理之前进行,比如链上注册密码事件,需要相应的statemanager发送unlock消息
+	rs.restore()
 	go func() {
 		if rs.Config.ConditionQuit.RandomQuit {
 			go func() {
@@ -267,14 +270,15 @@ func (rs *Service) Start() (err error) {
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
 	}
 	/*
-		将protocol 启动移到历史事件处理之后,
+		将protocol接受消息移到历史事件处理之后,
 		保证不在历史事件处理完毕之前进入事件主循环.
 		发现问题原因:
 		在测试中发现,其他节点启动完毕以后尝试发送消息,如果这时候事件主循环已经启动,那么就会收到消息进行处理.这时候通道状态可能是错的,不匹配的.
 		虽然实际中可能会尝试重发,但是会让测试代码进入一种不确定的等待.
+		这么做有可能因为接收到过多的消息,而阻塞接受线程,导致消息丢失.但是因为没有处理,对方一定会反复重新发送.
 	*/
-	rs.Protocol.Start()
-	rs.restore()
+	rs.Protocol.StartReceive()
+
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -551,7 +555,7 @@ Register the secret with any channel that has a hashlock on it.
 */
 func (rs *Service) registerSecret(secret common.Hash) {
 	hashlock := utils.ShaSecret(secret[:])
-	for _, hashchannel := range rs.Token2Hashlock2Channels {
+	for _, hashchannel := range rs.Token2LockSecretHash2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
 			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
@@ -568,9 +572,15 @@ func (rs *Service) registerSecret(secret common.Hash) {
 */
 // The secret of this lock has been registered on-chain.
 func (rs *Service) registerRevealedLockSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) {
-	for _, hashchannel := range rs.Token2Hashlock2Channels {
+	for _, hashchannel := range rs.Token2LockSecretHash2Channels {
 		for _, ch := range hashchannel[lockSecretHash] {
 			err := ch.RegisterRevealedSecretHash(lockSecretHash, secret, blockNumber)
+			if err != nil {
+				log.Error(fmt.Sprintf("RegisterRevealedSecretHash to channel err,locksecrethash=%s,secret=%s,err=%s,ch=%s",
+					utils.HPex(lockSecretHash), utils.HPex(secret), err, ch,
+				))
+				continue
+			}
 			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
@@ -579,9 +589,9 @@ func (rs *Service) registerRevealedLockSecretHash(lockSecretHash, secret common.
 		}
 	}
 }
-func (rs *Service) registerChannelForHashlock(netchannel *channel.Channel, hashlock common.Hash) {
+func (rs *Service) registerChannelForHashlock(netchannel *channel.Channel, lockSecretHash common.Hash) {
 	tokenAddress := netchannel.TokenAddress
-	channelsRegistered := rs.Token2Hashlock2Channels[tokenAddress][hashlock]
+	channelsRegistered := rs.Token2LockSecretHash2Channels[tokenAddress][lockSecretHash]
 	found := false
 	for _, c := range channelsRegistered {
 		//To determine whether the two channel objects are equal, we simply use the address to identify.
@@ -591,13 +601,13 @@ func (rs *Service) registerChannelForHashlock(netchannel *channel.Channel, hashl
 		}
 	}
 	if !found {
-		hashLock2Channels, ok := rs.Token2Hashlock2Channels[tokenAddress]
+		hashLock2Channels, ok := rs.Token2LockSecretHash2Channels[tokenAddress]
 		if !ok {
 			hashLock2Channels = make(map[common.Hash][]*channel.Channel)
-			rs.Token2Hashlock2Channels[tokenAddress] = hashLock2Channels
+			rs.Token2LockSecretHash2Channels[tokenAddress] = hashLock2Channels
 		}
 		channelsRegistered = append(channelsRegistered, netchannel)
-		rs.Token2Hashlock2Channels[tokenAddress][hashlock] = channelsRegistered
+		rs.Token2LockSecretHash2Channels[tokenAddress][lockSecretHash] = channelsRegistered
 	}
 }
 func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tokenNetwork *rpc.TokenNetworkProxy) (ch *channel.Channel, err error) {
@@ -1647,13 +1657,17 @@ func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {
 	case *encoding.RevealSecret:
 		quitName = "ReceiveRevealSecretAck"
 	case *encoding.UnLock:
+		quitName = "ReceiveUnLockAck"
 	case *encoding.DirectTransfer:
+		quitName = "ReceiveDirectTransferAck"
 	case *encoding.MediatedTransfer:
 		quitName = "ReceiveMediatedTransferAck"
 	case *encoding.AnnounceDisposed:
 		quitName = "ReceiveAnnounceDisposedAck"
 	case *encoding.AnnounceDisposedResponse:
+		quitName = "ReceiveAnnounceDisposedResponseAck"
 	case *encoding.RemoveExpiredHashlockTransfer:
+		quitName = "ReceiveRemoveExpiredHashlockTransferAck"
 	case *encoding.SettleRequest:
 	case *encoding.SettleResponse:
 	case *encoding.WithdrawRequest:
@@ -1667,7 +1681,7 @@ func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {
 }
 
 func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (channels []*channel.Channel) {
-	for _, lockSecretHash2Channels := range rs.Token2Hashlock2Channels {
+	for _, lockSecretHash2Channels := range rs.Token2LockSecretHash2Channels {
 		chs := lockSecretHash2Channels[lockSecretHash]
 		if len(chs) > 0 {
 			channels = append(channels, chs...)

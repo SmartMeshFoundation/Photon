@@ -143,6 +143,7 @@ type PhotonProtocol struct {
 	//receive data
 	receiveChan chan []byte
 	log         log.Logger
+	isReceiving bool
 }
 
 // NewPhotonProtocol create PhotonProtocol
@@ -165,7 +166,6 @@ func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
 	rp.log = log.New("name", utils.APex2(rp.nodeAddr))
-	go rp.loop()
 	return rp
 }
 
@@ -464,6 +464,7 @@ func (p *PhotonProtocol) receive(data []byte) {
 }
 
 func (p *PhotonProtocol) loop() {
+	p.isReceiving = true
 	for {
 		select {
 		case <-p.quitChan:
@@ -569,8 +570,19 @@ func (p *PhotonProtocol) StopAndWait() {
 }
 
 // Start photon protocol
-func (p *PhotonProtocol) Start() {
+func (p *PhotonProtocol) Start(receive bool) {
+	if receive {
+		go p.loop()
+	}
 	p.Transport.Start()
+}
+
+//StartReceive start event loop if not start,otherwise crash
+func (p *PhotonProtocol) StartReceive() {
+	if p.isReceiving {
+		panic("can not receive twice")
+	}
+	go p.loop()
 }
 
 // NodeInfo get from user
