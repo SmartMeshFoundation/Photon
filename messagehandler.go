@@ -278,6 +278,12 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 但是存在非原子更新的情况
 1. 作为 InitiatorStateManager, 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
 2. 作为MediatedStateManager 选择其他节点(EventSendMediatedTransfer)和发送EventSendAnnounceDisposedResponse无法原子处理
+
+如果在进入statemanager之前就出现了错误,直接忽略错误,告诉对方收到即可.否则对方会一直尝试发送该消息,但是该消息也不会阻塞其他消息.
+比如
+A-B-C交易,B给A发送AnnounceDisposed,这时候发生了以外,A崩溃,很长一段时间后重启,这时候A会检测到锁已经过期,所以发送RemoveExpiredHashlock,
+如果B一直正常运行,那么会一直发送该消息,但是没有任何意义.
+也就是说,除了包含BalanceProof的消息,处理过程中发送了错误,应该直接忽略错误.让对方停止发送.
 */
 /*
  * messageAnnounceDisposed : function to handle AnnounceDisposed message.
@@ -297,11 +303,12 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDisposed) (err error) {
 	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	if graph == nil {
-		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
+		log.Error(fmt.Sprintf("unkonwn channel %s", msg.ChannelIdentifier.String()))
+		return nil
 	}
 	if !graph.HasChannel(mh.photon.NodeAddress, msg.Sender) {
-		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
-		return
+		log.Error(fmt.Sprintf("direct transfer from node without an existing channel: %s", msg.Sender))
+		return nil
 	}
 	ch := graph.GetPartenerAddress2Channel(msg.Sender)
 	if ch == nil {
@@ -309,13 +316,17 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	}
 	err = ch.RegisterAnnouceDisposed(msg)
 	if err != nil {
-		return
+		log.Error(fmt.Sprintf("receive AnnounceDisposed,but i don't know this lock. msg=%s,ch=%s",
+			utils.StringInterface(msg, 3), utils.StringInterface(ch, 4),
+		))
+		//种情况忽略即可
+		return nil
 	}
 	punish := models.NewReceivedAnnounceDisposed(msg.Lock.Hash(), msg.ChannelIdentifier, msg.GetAdditionalHash(), msg.OpenBlockNumber, msg.Signature)
 	err = mh.photon.dao.MarkLockHashCanPunish(punish)
 	if err != nil {
-		err = fmt.Errorf("MarkLockHashCanPunish %s err %s", utils.StringInterface(punish, 2), err)
-		return
+		log.Error(fmt.Sprintf("markLockHashCanPunish %s err %s", utils.StringInterface(punish, 2), err))
+		return nil
 	}
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
 		Sender:  msg.Sender,
