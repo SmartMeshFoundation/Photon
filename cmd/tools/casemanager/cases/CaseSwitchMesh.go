@@ -1,8 +1,9 @@
 package cases
 
 import (
+	"fmt"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"golang.org/x/exp/errors/fmt"
 )
 
 // CaseSwitchMesh :
