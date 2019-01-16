@@ -3,6 +3,8 @@ package channel
 import (
 	"errors"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"fmt"
 
 	"math/big"
@@ -384,7 +386,7 @@ func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber 
 		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
 		return
 	}
-	if mustExpired && (lock.Expiration > blockNumber) {
+	if mustExpired && (lock.Expiration > blockNumber-params.ForkConfirmNumber) {
 		err = fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
 		return
 	}
