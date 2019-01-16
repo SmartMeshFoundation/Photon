@@ -3,6 +3,8 @@ package crashnode
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -178,6 +180,7 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 		2. 如果不给我发 unlock, 我到时候主动去链上注册密码(等于什么都不做)
 		2. 如果过期了,我移除就可以了
 			todo 如果做到这点,我们就必须保证,如果重启以后,所有的事件处理完了,然后再去处理新块事件,如何做到呢?
+		但是对于已经关闭的通道,我必须再次链上unlock,因为当初的unlock肯定是失败的
 	*/
 	/*
 	 *	As to locks I received, if secret registered, then do nothing.
@@ -186,6 +189,23 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 	 *	3. If expired, then remove.
 	 *	todo If we do that, we should ensure if we resume, and all events finished, then to deal with new block event, how ?
 	 */
+	removedIndex = nil
+	for i, l := range state.ReceivedLocks {
+		if l.Lock.Expiration >= st.BlockNumber && l.Channel.State == channeltype.StateClosed {
+			it.Events = append(it.Events, &mt.EventContractSendUnlock{
+				LockSecretHash:    l.Lock.LockSecretHash,
+				ChannelIdentifier: l.Channel.ChannelIdentifier.ChannelIdentifier,
+			})
+			removedIndex = append(removedIndex, i)
+		}
+	}
+	if len(removedIndex) > 0 {
+		for _, i := range removedIndex {
+			state.ProcessedReceivedLocks = append(state.ProcessedReceivedLocks, state.ReceivedLocks[i])
+		}
+		state.ReceivedLocks = removeSliceFromSlice(state.ReceivedLocks, removedIndex)
+		it.Events = append(it.Events, checkFinish(state)...)
+	}
 	return
 }
 

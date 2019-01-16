@@ -972,34 +972,49 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 	}
 	state.SetSecret(st.Secret)
 	for _, pair := range state.TransfersPair {
-		tr := pair.PayeeTransfer
-		route := pair.PayeeRoute
-		if tr.Expiration >= st.BlockNumber {
-			//没有超时,就应该发送 unlock 消息,不用关心现在通道是什么状态,就是 settle 了问题也不大.
-			// if not be reveal_timeout, then we should send unlock, do not care current channel state.
-			ev := &mediatedtransfer.EventSendBalanceProof{
-				LockSecretHash:    tr.LockSecretHash,
-				ChannelIdentifier: route.ChannelIdentifier,
-				Token:             tr.Token,
-				Receiver:          route.HopNode(),
-			}
-			events = append(events, ev)
-			pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
-			//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
-			// As for payer, he will not be impacted even he does not send BalanceProof, but cost gas to on-chain secret register.
+		if true {
+			tr := pair.PayeeTransfer
+			route := pair.PayeeRoute
+			//针对下家,有效的链上注册,应该发送unlock
+			// todo 如果通道已经关闭,可以不发,但是发了也没什么坏处,只不过是消息多发几遍,然后丢弃而已.
+			//因为如果通道已经关闭,说明下家已经提交了BalanceProof,他也不会接受新的balance proof了.
+			if tr.Expiration >= st.BlockNumber {
+				//没有超时,就应该发送 unlock 消息,不用关心现在通道是什么状态,就是 settle 了问题也不大.
+				// if not be reveal_timeout, then we should send unlock, do not care current channel state.
+				ev := &mediatedtransfer.EventSendBalanceProof{
+					LockSecretHash:    tr.LockSecretHash,
+					ChannelIdentifier: route.ChannelIdentifier,
+					Token:             tr.Token,
+					Receiver:          route.HopNode(),
+				}
+				events = append(events, ev)
+				pair.PayeeState = mediatedtransfer.StatePayeeBalanceProof
+				//至于 payer 一方,不发送也不影响我所得,需要浪费 gas 进行链上兑现.
+				// As for payer, he will not be impacted even he does not send BalanceProof, but cost gas to on-chain secret register.
 
-			// 没有超时即确认收到了手续费,记录流水
-			if tr.Fee.Cmp(big.NewInt(0)) > 0 {
-				events = append(events, &mediatedtransfer.EventSaveFeeChargeRecord{
-					LockSecretHash: tr.LockSecretHash,
-					TokenAddress:   tr.Token,
-					TransferFrom:   tr.Initiator,
-					TransferTo:     tr.Target,
-					TransferAmount: tr.TargetAmount,
-					InChannel:      pair.PayerRoute.ChannelIdentifier,
-					OutChannel:     pair.PayeeRoute.ChannelIdentifier,
-					Fee:            pair.PayerRoute.Fee,
-					Timestamp:      time.Now().Unix(),
+				// 没有超时即确认收到了手续费,记录流水
+				if tr.Fee.Cmp(big.NewInt(0)) > 0 {
+					events = append(events, &mediatedtransfer.EventSaveFeeChargeRecord{
+						LockSecretHash: tr.LockSecretHash,
+						TokenAddress:   tr.Token,
+						TransferFrom:   tr.Initiator,
+						TransferTo:     tr.Target,
+						TransferAmount: tr.TargetAmount,
+						InChannel:      pair.PayerRoute.ChannelIdentifier,
+						OutChannel:     pair.PayeeRoute.ChannelIdentifier,
+						Fee:            pair.PayerRoute.Fee,
+						Timestamp:      time.Now().Unix(),
+					})
+				}
+			}
+		}
+		if true { //针对上家通道
+			route := pair.PayerRoute
+			//针对上家,如果通道已经关闭了,说明自己已经提交过balance proof,并且尝试unlock过,当然unlock是失败的
+			if route.State() == channeltype.StateClosed {
+				events = append(events, &mediatedtransfer.EventContractSendUnlock{
+					LockSecretHash:    st.LockSecretHash,
+					ChannelIdentifier: route.ChannelIdentifier,
 				})
 			}
 		}
