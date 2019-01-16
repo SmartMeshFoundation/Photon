@@ -1314,6 +1314,16 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 		return
 	}
 	/*
+		如果我还持有对方给我的锁,这时候从安全的角度考虑,不能进行关闭,
+		如果我不知道密码,有可能过一会儿我就知道密码了,
+		如果我已经知道密码,可能我还没有在链上注册.
+	*/
+	if len(c.PartnerState.Lock2PendingLocks) > 0 || len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
+		result = utils.NewAsyncResult()
+		result.Result <- fmt.Errorf("try to close a channel,but I have partner's lock")
+		return
+	}
+	/*
 		在关闭的过程中崩溃了,或者关闭 tx 失败了,这些都可能发生.所以不能因为 state 不对,就不允许 close
 		标记的目的是为了阻止继续接受或者发起交易.
 	*/
