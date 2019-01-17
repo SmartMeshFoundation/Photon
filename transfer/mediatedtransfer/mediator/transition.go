@@ -95,11 +95,10 @@ True if this node needs to register secret on chain
 func isSecretRegisterNeeded(tr *mediatedtransfer.MediationPairState, blockNumber int64) bool {
 	payeeReceived := stateTransferPaidMaps[tr.PayeeState]
 	payerPayed := stateTransferPaidMaps[tr.PayerState]
-	payerChannelOpen := tr.PayerRoute.State() == channeltype.StateOpened
 	AlreadyRegisterring := tr.PayerState == mediatedtransfer.StatePayerWaitingRegisterSecret
 	safeToWait := IsSafeToWait(tr.PayerTransfer, tr.PayerRoute.RevealTimeout(), blockNumber)
 
-	return payeeReceived && !payerPayed && payerChannelOpen && !AlreadyRegisterring && !safeToWait
+	return payeeReceived && !payerPayed && !AlreadyRegisterring && !safeToWait
 }
 
 //Return the transfer pairs that are not at a final state.
