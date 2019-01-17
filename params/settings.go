@@ -26,7 +26,9 @@ const defaultProtocolThrottleFillRate = 10.
 const defaultprotocolRetryInterval = 1.
 
 //DefaultRevealTimeout blocks needs to update transfer
-var DefaultRevealTimeout = 10
+//this time is used for a participant to register secret on chain
+// and unlock the lock if need.
+var DefaultRevealTimeout = 30
 
 //DefaultSettleTimeout settle time of channel
 const DefaultSettleTimeout = 600

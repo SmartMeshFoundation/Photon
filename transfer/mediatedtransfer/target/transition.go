@@ -3,6 +3,8 @@ package target
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -93,6 +95,13 @@ func handleSecretRegisteredOnChain(state *mediatedtransfer.TargetState, st *medi
 		events = append(events, ev)
 		state.Secret = st.Secret
 		state.FromTransfer.Secret = st.Secret
+		//链上注册没有过期,并且通道已经关闭,说明我还需要再次unlock
+		if st.BlockNumber < state.FromTransfer.Expiration && state.FromRoute.State() == channeltype.StateClosed {
+			events = append(events, &mediatedtransfer.EventContractSendUnlock{
+				LockSecretHash:    st.LockSecretHash,
+				ChannelIdentifier: state.FromRoute.ChannelIdentifier,
+			})
+		}
 	} else {
 		panic("should not here")
 	}

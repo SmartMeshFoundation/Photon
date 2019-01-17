@@ -2,7 +2,6 @@ package channel
 
 import (
 	"errors"
-
 	"fmt"
 
 	"math/big"
@@ -82,6 +81,13 @@ transfer tokens to partner.
 */
 func (c *Channel) CanTransfer() bool {
 	return channeltype.CanTransferMap[c.State]
+}
+
+/*
+IsClosed returns true when this channel closed
+*/
+func (c *Channel) IsClosed() bool {
+	return c.State == channeltype.StateClosed
 }
 
 //CanContinueTransfer unfinished transfer can continue?
@@ -171,6 +177,21 @@ func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, t
 	}
 	endStateContractUpdated.SetContractTransferAmount(transferAmount)
 	endStateContractUpdated.SetContractLocksroot(locksRoot)
+	//我updateBalanceProof以后,要进行unlock
+	if updatedParticipant == c.OurState.Address {
+		unlockProofs := c.PartnerState.GetKnownUnlocks()
+		if len(unlockProofs) > 0 {
+			result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
+			go func() {
+				err := <-result.Result
+				if err != nil {
+					//todo 需要回报错误给Photon 调用者
+					// todo need to report error to Photon
+					log.Error(fmt.Sprintf("Unlock failed because of %s", err))
+				}
+			}()
+		}
+	}
 }
 
 /*
@@ -249,19 +270,22 @@ func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount 
 		//todo 报告错误给最上层,可能是一个 bug? 一种攻击?,还是我自己存储数据有问题
 		// todo throw error to the uppermost layer, maybe a bug? an attack? or just local storage error.
 	}
-	unlockProofs := c.PartnerState.GetKnownUnlocks()
-	if len(unlockProofs) > 0 {
-		result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
-		go func() {
-			err := <-result.Result
-			if err != nil {
-				//todo 需要回报错误给Photon 调用者
-				// todo need to report error to Photon
-				log.Info(fmt.Sprintf("Unlock failed because of %s", err))
-			}
-		}()
-	}
+	//我是通道关闭方,需要进行相应的unlock,非通道关闭方,只能在updateBalanceProof以后进行unlock
+	if closingAddress == c.OurState.Address {
+		unlockProofs := c.PartnerState.GetKnownUnlocks()
+		if len(unlockProofs) > 0 {
+			result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
+			go func() {
+				err := <-result.Result
+				if err != nil {
+					//todo 需要回报错误给Photon 调用者
+					// todo need to report error to Photon
+					log.Error(fmt.Sprintf("Unlock failed because of %s", err))
+				}
+			}()
+		}
 
+	}
 	c.State = channeltype.StateClosed
 }
 
@@ -510,6 +534,9 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
  *		4. locksroot should be correct, but the hashlock verified in step 2 has been removed.
  */
 func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, _, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -534,6 +561,9 @@ func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err er
  *		4. sufficient tokens should remain in accounts in order to process transfer.
  */
 func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -574,6 +604,9 @@ func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumbe
  *		4. there should be sufficient fund deposited in
  */
 func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -669,6 +702,9 @@ func (c *Channel) RegisterAnnounceDisposedResponse(response *encoding.AnnounceDi
 	return c.registerRemoveLock(response, blockNumber, response.LockSecretHash, false)
 }
 func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNumber int64, lockSecretHash common.Hash, mustExpired bool) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	msg := messager.GetEnvelopMessage()
 	fromState, _, err := c.PreCheckRecievedTransfer(messager)
 	if err != nil {
@@ -781,6 +817,9 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 
 //CreateUnlock creates  a unlock message
 func (c *Channel) CreateUnlock(lockSecretHash common.Hash) (tr *encoding.UnLock, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	from := c.OurState
 	lock, secret, err := from.getSecretByLockSecretHash(lockSecretHash)
 	if err != nil {
@@ -801,6 +840,9 @@ func (c *Channel) CreateUnlock(lockSecretHash common.Hash) (tr *encoding.UnLock,
 CreateRemoveExpiredHashLockTransfer create this transfer to notify my patner that this hashlock is expired and i want to remove it .
 */
 func (c *Channel) CreateRemoveExpiredHashLockTransfer(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.RemoveExpiredHashlockTransfer, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, true)
 	if err != nil {
 		return
@@ -820,6 +862,9 @@ CreateAnnounceDisposedResponse 必须先收到对方的AnnouceDisposedTransfer, 
  *	Note that a channel participant must first receive AnnounceDisposedTransfer, then he can
  */
 func (c *Channel) CreateAnnounceDisposedResponse(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposedResponse, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
 	if err != nil {
 		return
@@ -1313,6 +1358,19 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 		result.Result <- fmt.Errorf("channel %s already closed or settled", utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
 		return
 	}
+	/*
+		如果我还持有对方给我的锁,这时候从安全的角度考虑,不能进行关闭,
+		如果我不知道密码,有可能过一会儿我就知道密码了,
+		如果我已经知道密码,可能我还没有在链上注册.
+		新的考虑:
+		关闭之后,如果从其他途径得到了密码,仍然可以选择链上注册,然后unlock,因为我可以提交证据的时间
+		肯定大于选择持有的任何一个锁的expiration
+	*/
+	//if len(c.PartnerState.Lock2PendingLocks) > 0 || len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
+	//	result = utils.NewAsyncResult()
+	//	result.Result <- fmt.Errorf("try to close a channel,but I have partner's lock")
+	//	return
+	//}
 	/*
 		在关闭的过程中崩溃了,或者关闭 tx 失败了,这些都可能发生.所以不能因为 state 不对,就不允许 close
 		标记的目的是为了阻止继续接受或者发起交易.

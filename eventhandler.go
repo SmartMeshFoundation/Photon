@@ -294,23 +294,36 @@ func (eh *stateMachineEventHandler) eventWithdrawFailed(e2 *mediatedtransfer.Eve
 	//need do nothing ,just wait.
 	return nil
 }
-func (eh *stateMachineEventHandler) eventContractSendWithdraw(e2 *mediatedtransfer.EventContractSendWithdraw, manager *transfer.StateManager) (err error) {
-	//if manager.Name != target.NameTargetTransition && manager.Name != mediator.NameMediatorTransition {
-	//	panic("EventWithdrawFailed can only comes from a target node or mediated node")
-	//}
-	//ch, err := eh.photon.findChannelByIdentifier(e2.ChannelIdentifier)
-	//if err != nil {
-	//	log.Error(fmt.Sprintf("payee's lock expired ,but cannot find channel %s, eh may happen long later restart after a stop", e2.ChannelIdentifier))
-	//	return
-	//}
-	//unlockProofs := ch.PartnerState.GetKnownUnlocks()
-	//result := ch.ExternState.Unlock(unlockProofs, ch.PartnerState.BalanceProofState.ContractTransferAmount)
-	//go func() {
-	//	err := <-result.Result
-	//	if err != nil {
-	//		log.Error(fmt.Sprintf("withdraw on %s failed, channel is gone, error:%s", ch.ChannelIdentifier.String(), err))
-	//	}
-	//}()
+func (eh *stateMachineEventHandler) eventContractSendUnlock(e2 *mediatedtransfer.EventContractSendUnlock, manager *transfer.StateManager) (err error) {
+	ch, err := eh.photon.findChannelByIdentifier(e2.ChannelIdentifier)
+	if err != nil {
+		log.Error(fmt.Sprintf("EventContractSendUnlock,but cannot find channel %s, eh may happen long later restart after a stop,event=%s",
+			e2.ChannelIdentifier, utils.StringInterface(e2, 3),
+		))
+		return
+	}
+	var p *channeltype.UnlockProof
+	//找到此次链上密码注册对应的锁,肯定应该找到.
+	unlockProofs := ch.PartnerState.GetKnownUnlocks()
+	for _, u := range unlockProofs {
+		if u.Lock.LockSecretHash == e2.LockSecretHash {
+			p = u
+			break
+		}
+	}
+	if p == nil {
+		log.Error(fmt.Sprintf("EventContractSendUnlock,but cannot found lock in channel,e2=%s,manager=%s,channel=%s",
+			utils.StringInterface(e2, 2), utils.StringInterface(manager, 3), ch,
+		))
+		return
+	}
+	result := ch.ExternState.Unlock([]*channeltype.UnlockProof{p}, ch.PartnerState.BalanceProofState.ContractTransferAmount)
+	go func() {
+		err := <-result.Result
+		if err != nil {
+			log.Error(fmt.Sprintf("contract unlock  on %s failed, channel is gone, error:%s", ch.ChannelIdentifier.String(), err))
+		}
+	}()
 	return nil
 }
 
@@ -422,9 +435,9 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 					  The withdraw is currently handled by the netting channel, once the close
 			     event is detected all locks will be withdrawn
 		*/
-	case *mediatedtransfer.EventContractSendWithdraw:
+	case *mediatedtransfer.EventContractSendUnlock:
 		//do nothing for five events above
-		err = eh.eventContractSendWithdraw(e2, stateManager)
+		err = eh.eventContractSendUnlock(e2, stateManager)
 	case *mediatedtransfer.EventUnlockFailed:
 		log.Error(fmt.Sprintf("unlockfailed hashlock=%s,reason=%s", utils.HPex(e2.LockSecretHash), e2.Reason))
 		err = eh.eventUnlockFailed(e2, stateManager)

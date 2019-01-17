@@ -521,11 +521,16 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 	result := rs.Protocol.SendAsync(recipient, msg)
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
-		<-result.Result //always success
-		rs.ProtocolMessageSendComplete <- &protocolMessage{
-			receiver: recipient,
-			Message:  msg,
+		err := <-result.Result //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败
+		if err == nil {
+			rs.ProtocolMessageSendComplete <- &protocolMessage{
+				receiver: recipient,
+				Message:  msg,
+			}
+		} else {
+			log.Error(fmt.Sprintf("message %s send finished ,but err=%s", utils.StringInterface(msg, 3), err))
 		}
+
 	}()
 	return nil
 }
@@ -1479,6 +1484,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
+			return
 		}
 		smkey := utils.Sha3(msg.FakeLockSecretHash[:], ch.TokenAddress[:])
 		if r, ok := rs.Transfer2Result[smkey]; ok {
@@ -1489,6 +1495,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
+			return
 		}
 		rs.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "MediatedTransfer 发送成功")
 	case *encoding.RevealSecret:
@@ -1501,12 +1508,14 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
+			return
 		}
 		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
 			log.Error(err.Error())
+			return
 		}
 		rs.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.LockSecretHash, "AnnounceDisposedResponse 发送成功")
 	}
