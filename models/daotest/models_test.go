@@ -16,7 +16,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +65,7 @@ func TestToken(t *testing.T) {
 }
 
 func TestGob(t *testing.T) {
-	s1 := params.SpectrumTestNetRegistryAddress
+	s1 := common.HexToAddress(os.Getenv("TOKEN_NETWORK"))
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(s1)
