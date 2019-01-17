@@ -73,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	tokensNetworkAddress = common.HexToAddress("0xF5DEcCfb4935eF57B500807a5214120ADDC86f74")
+	tokensNetworkAddress = common.HexToAddress("0xC176e4EA3DB9a36CF93d1BB8828633cae8dfeb4e")
 	tokensNetwork, err = contracts.NewTokensNetwork(tokensNetworkAddress, client)
 	if err != nil {
 		panic(err)

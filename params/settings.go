@@ -49,9 +49,6 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 
 var gasLimitHex string
 
-//SpectrumTestNetRegistryAddress Registry contract address
-var SpectrumTestNetRegistryAddress = common.HexToAddress("0x52d7167FAD53835a2356C7A872BfbC17C03aD758")
-
 //ChannelSettleTimeoutMin min settle timeout
 const ChannelSettleTimeoutMin = 6
 
@@ -129,8 +126,8 @@ var ChainID = DefaultChainID
 //MatrixServerConfig matrix server config
 var MatrixServerConfig = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
-	"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
-	"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
+	//"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
+	//"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
 }
 
 //AliasFragment  is discovery AliasFragment
@@ -145,15 +142,15 @@ var NETWORKNAME = "ropsten"
 //GenesisBlockHashToDefaultRegistryAddress :
 var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// spectrum
-	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): common.HexToAddress("0x28233F8e0f8Bd049382077c6eC78bE9c2915c7D4"),
+	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): common.HexToAddress("0x08b7d79ec4ebd53e5b89c7c062cc64bb09d063e3"),
 	// spectrum test net
-	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): common.HexToAddress("0xa2150A4647908ab8D0135F1c4BFBB723495e8d12"),
+	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"),
 	// ethereum
 	common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): utils.EmptyAddress,
 	// ethereum test net
 	common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): utils.EmptyAddress,
 	// ethereum private
-	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0x56d05806656D3Ea8F2142a2FF2eA6dFE5D625254"),
+	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"),
 }
 
 //GenesisBlockHashToPFS : default pfs provider
