@@ -35,6 +35,7 @@ func (ilre *InvalidLocksRootError) Error() string {
 var errBalanceDecrease = errors.New("contract_balance cannot decrease")
 var errUnknownLock = errors.New("'unknown lock")
 var errTransferAmountMismatch = errors.New("transfer amount mismatch")
+var errBalanceProofAlreadyRegisteredOnChain = errors.New("balance proof already registered on chain")
 
 /*
 EndState Tracks the state of one of the participants in a channel
@@ -234,6 +235,13 @@ func (node *EndState) computeMerkleRootWithout(without *mtree.Lock) (*mtree.Merk
 	}
 	return newtree, newtree.MerkleRoot(), nil
 }
+func (node *EndState) balanceProofRegisteredOnChain() bool {
+	b := node.BalanceProofState
+	//只要transferamount或者locksroot其一不为空,就表示已经上链更新过了.
+	return b != nil &&
+		((b.ContractTransferAmount != nil && b.ContractTransferAmount.Cmp(utils.BigInt0) != 0) ||
+			b.ContractLocksRoot != utils.EmptyHash)
+}
 
 /*
 registerDirectTransfer register a direct_transfer.
@@ -252,6 +260,9 @@ locksroot 必须相等.
  *		3. locksroot must not get changed.
  */
 func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTransfer) error {
+	if node.balanceProofRegisteredOnChain() {
+		return errBalanceProofAlreadyRegisteredOnChain
+	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(directTransfer)
 	if balanceProof.LocksRoot != node.Tree.MerkleRoot() {
 		return &InvalidLocksRootError{node.Tree.MerkleRoot(), balanceProof.LocksRoot}
@@ -273,6 +284,9 @@ this message may be sent out from this node or received from partner
 //}
 
 func (node *EndState) registerRemoveLock(msg encoding.EnvelopMessager, lockSecretHash common.Hash) error {
+	if node.balanceProofRegisteredOnChain() {
+		return errBalanceProofAlreadyRegisteredOnChain
+	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
 	node.BalanceProofState = balanceProof
 	delete(node.Lock2PendingLocks, lockSecretHash)
@@ -296,6 +310,9 @@ this message may be sent out from this node or received from partner
  *		3. transferAmount must equal to the value of previous transferAmount plus the amount of this transfer.
  */
 func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error) {
+	if node.balanceProofRegisteredOnChain() {
+		return errBalanceProofAlreadyRegisteredOnChain
+	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(unlock)
 	lockSecretHash := utils.ShaSecret(unlock.LockSecret[:])
 	lock := node.getLockByHashlock(lockSecretHash)
@@ -347,6 +364,9 @@ this message may be sent out from this node or received from partner
  * 		3. locksroot must be equal to value of previous locksroot plus the amount of this new amount.
  */
 func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (err error) {
+	if node.balanceProofRegisteredOnChain() {
+		return errBalanceProofAlreadyRegisteredOnChain
+	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(mtr)
 	mtranfer := encoding.GetMtrFromLockedTransfer(mtr)
 	lock := mtranfer.GetLock()

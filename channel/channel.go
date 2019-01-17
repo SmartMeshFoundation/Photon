@@ -83,6 +83,13 @@ func (c *Channel) CanTransfer() bool {
 	return channeltype.CanTransferMap[c.State]
 }
 
+/*
+IsClosed returns true when this channel closed
+*/
+func (c *Channel) IsClosed() bool {
+	return c.State == channeltype.StateClosed
+}
+
 //CanContinueTransfer unfinished transfer can continue?
 func (c *Channel) CanContinueTransfer() bool {
 	return !channeltype.TransferCannotBeContinuedMap[c.State]
@@ -527,6 +534,9 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
  *		4. locksroot should be correct, but the hashlock verified in step 2 has been removed.
  */
 func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, _, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -551,6 +561,9 @@ func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err er
  *		4. sufficient tokens should remain in accounts in order to process transfer.
  */
 func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -591,6 +604,9 @@ func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumbe
  *		4. there should be sufficient fund deposited in
  */
 func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNumber int64) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
@@ -686,6 +702,9 @@ func (c *Channel) RegisterAnnounceDisposedResponse(response *encoding.AnnounceDi
 	return c.registerRemoveLock(response, blockNumber, response.LockSecretHash, false)
 }
 func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNumber int64, lockSecretHash common.Hash, mustExpired bool) (err error) {
+	if c.IsClosed() {
+		return fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	msg := messager.GetEnvelopMessage()
 	fromState, _, err := c.PreCheckRecievedTransfer(messager)
 	if err != nil {
@@ -798,6 +817,9 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 
 //CreateUnlock creates  a unlock message
 func (c *Channel) CreateUnlock(lockSecretHash common.Hash) (tr *encoding.UnLock, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	from := c.OurState
 	lock, secret, err := from.getSecretByLockSecretHash(lockSecretHash)
 	if err != nil {
@@ -818,6 +840,9 @@ func (c *Channel) CreateUnlock(lockSecretHash common.Hash) (tr *encoding.UnLock,
 CreateRemoveExpiredHashLockTransfer create this transfer to notify my patner that this hashlock is expired and i want to remove it .
 */
 func (c *Channel) CreateRemoveExpiredHashLockTransfer(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.RemoveExpiredHashlockTransfer, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, true)
 	if err != nil {
 		return
@@ -837,6 +862,9 @@ CreateAnnounceDisposedResponse 必须先收到对方的AnnouceDisposedTransfer, 
  *	Note that a channel participant must first receive AnnounceDisposedTransfer, then he can
  */
 func (c *Channel) CreateAnnounceDisposedResponse(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposedResponse, err error) {
+	if c.IsClosed() {
+		return nil, fmt.Errorf("balance proof cannot be changed when channel is closed")
+	}
 	_, _, newlocksroot, err := c.OurState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
 	if err != nil {
 		return
