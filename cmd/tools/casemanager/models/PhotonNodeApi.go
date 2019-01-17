@@ -2,8 +2,11 @@ package models
 
 import (
 	"encoding/json"
+	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/restful/v1"
 
 	"github.com/SmartMeshFoundation/Photon"
 
@@ -754,6 +757,55 @@ func (node *PhotonNode) SwitchNetwork(tomesh string) (err error) {
 	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
 		Logger.Println(fmt.Sprintf("SwitchNetwork err : http status=%d,body=%s", statusCode, string(body)))
 		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	return
+
+}
+
+//TokenBalance query this account's balance of this token
+func (node *PhotonNode) TokenBalance(token string) (v int, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/debug/balance/%s/%s", token, node.Address),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("TokenBalance err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("TokenBalance err : http status=%d,body=%s", statusCode, string(body)))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	log.Trace(string(body))
+	b := new(big.Int)
+	b.SetString(string(body), 0)
+	v = int(b.Int64())
+	return
+}
+
+//SpecifiedChannel query channel's detail
+func (node *PhotonNode) SpecifiedChannel(channelIdentifier string) (c v1.ChannelDataDetail, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/channels/%s", channelIdentifier),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	err = json.Unmarshal(body, &c)
+	if err != nil {
 		return
 	}
 	return
