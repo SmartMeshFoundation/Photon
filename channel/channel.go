@@ -3,7 +3,6 @@ package channel
 import (
 	"errors"
 	"fmt"
-
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -179,14 +178,13 @@ func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, t
 	endStateContractUpdated.SetContractLocksroot(locksRoot)
 	//我updateBalanceProof以后,要进行unlock
 	if updatedParticipant == c.OurState.Address {
-		unlockProofs := c.PartnerState.GetKnownUnlocks()
+		unlockProofs := c.PartnerState.GetCanUnlockOnChainLocks()
 		if len(unlockProofs) > 0 {
 			result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
 			go func() {
 				err := <-result.Result
 				if err != nil {
-					//todo 需要回报错误给Photon 调用者
-					// todo need to report error to Photon
+					// todo need to report error to Photon user
 					log.Error(fmt.Sprintf("Unlock failed because of %s", err))
 				}
 			}()
@@ -259,27 +257,22 @@ func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount 
 			utils.HPex(c.ChannelIdentifier.ChannelIdentifier), endStateUpdatedOnContract.contractTransferAmount(),
 			utils.APex2(endStateUpdatedOnContract.Address), endStateUpdatedOnContract.TransferAmount(),
 		))
-		//todo 报告错误给最上层,可能是一个 bug? 一种攻击?,还是我自己存储数据有问题
-		// todo throw error to the uppermost layer, maybe a bug? an attack? or just local storage error
 	}
 	if endStateUpdatedOnContract.locksRoot() != endStateUpdatedOnContract.contractLocksRoot() {
 		log.Error(fmt.Sprintf("channel %s closed,but contract locksroot is %s, and local stored %s's locksroot is %s",
 			utils.HPex(c.ChannelIdentifier.ChannelIdentifier), utils.HPex(endStateUpdatedOnContract.contractLocksRoot()),
 			utils.APex2(endStateUpdatedOnContract.Address), utils.HPex(endStateUpdatedOnContract.locksRoot()),
 		))
-		//todo 报告错误给最上层,可能是一个 bug? 一种攻击?,还是我自己存储数据有问题
-		// todo throw error to the uppermost layer, maybe a bug? an attack? or just local storage error.
 	}
 	//我是通道关闭方,需要进行相应的unlock,非通道关闭方,只能在updateBalanceProof以后进行unlock
 	if closingAddress == c.OurState.Address {
-		unlockProofs := c.PartnerState.GetKnownUnlocks()
+		unlockProofs := c.PartnerState.GetCanUnlockOnChainLocks()
 		if len(unlockProofs) > 0 {
 			result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
 			go func() {
 				err := <-result.Result
 				if err != nil {
-					//todo 需要回报错误给Photon 调用者
-					// todo need to report error to Photon
+					// todo need to report error to Photon user
 					log.Error(fmt.Sprintf("Unlock failed because of %s", err))
 				}
 			}()
@@ -428,8 +421,7 @@ func (c *Channel) RegisterRevealedSecretHash(lockSecretHash, secret common.Hash,
 			utils.Pex(lockSecretHash[:]), lock.Amount))
 		err := c.OurState.RegisterRevealedSecretHash(lockSecretHash, secret, blockNumber)
 		if err == nil {
-			//todo 需要发送给对方 unlock 消息,在哪里发比较合适呢? stateManager 还是这里?
-			// todo need to send his partner unlock message. Where to send? In stateManager or right in this function ?
+			//一旦注册成功,在事件处理流程中,相应的statemanager会进行处理
 		}
 		return err
 	}
@@ -498,8 +490,9 @@ func (c *Channel) PreCheckRecievedTransfer(tr encoding.EnvelopMessager) (fromSta
 	//If a node data is damaged, then the channel will not work, so the data must not be damaged.
 	if isInvalidNonce {
 		/*
-			may occur on normal operation
-			todo: give a example
+				may occur on normal operation
+				测试Case:
+			A-B进行交易,然后A删除数据库,B不删除,这时候A重启以后再次给B发送交易,B就会因为nonce错误而拒绝接受.
 		*/
 		log.Info(fmt.Sprintf("invalid nonce node=%s,from=%s,to=%s,expected nonce=%d,nonce=%d",
 			utils.Pex(c.OurState.Address[:]), utils.Pex(fromState.Address[:]),
@@ -1232,12 +1225,12 @@ CreateCooperativeSettleResponse :
  */
 func (c *Channel) CreateCooperativeSettleResponse(req *encoding.SettleRequest) (res *encoding.SettleResponse, err error) {
 	if len(c.OurState.Lock2PendingLocks) > 0 ||
-		len(c.OurState.Lock2PendingLocks) > 0 {
+		len(c.OurState.Lock2UnclaimedLocks) > 0 {
 		log.Warn(fmt.Sprintf("CreateCooperativeSettleResponse ,but i'm sending transfer on road,these transfer should canceled immediately"))
 	}
 	if len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
-		panic("should no locks for partner state when  CreateWithdrawResponse")
+		panic("should no locks for partner state when  CreateCooperativeSettleResponse")
 	}
 	d := new(encoding.SettleResponseData)
 	d.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier

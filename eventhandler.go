@@ -134,6 +134,13 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		err = fmt.Errorf("receive eventSendMediatedTransfer,but cannot found the channel,there must be error, event=%s,stateManager=%s",
+			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
+		)
+		log.Error(err.Error())
+		return
+	}
 	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer g=%s", utils.StringInterface(g, 3)))
 	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer ch=%s", utils.StringInterface(ch, 2)))
 	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, event.Fee, event.Amount, event.Expiration, event.LockSecretHash)
@@ -220,6 +227,13 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		err = fmt.Errorf("receive eventSendAnnouncedDisposed,but cannot found the channel,there must be error, event=%s,stateManager=%s",
+			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
+		)
+		log.Error(err.Error())
+		return
+	}
 	mtr, err := ch.CreateAnnouceDisposed(event.LockSecretHash, eh.photon.GetBlockNumber())
 	if err != nil {
 		return
@@ -311,7 +325,7 @@ func (eh *stateMachineEventHandler) eventContractSendUnlock(e2 *mediatedtransfer
 	}
 	var p *channeltype.UnlockProof
 	//找到此次链上密码注册对应的锁,肯定应该找到.
-	unlockProofs := ch.PartnerState.GetKnownUnlocks()
+	unlockProofs := ch.PartnerState.GetCanUnlockOnChainLocks()
 	for _, u := range unlockProofs {
 		if u.Lock.LockSecretHash == e2.LockSecretHash {
 			p = u
