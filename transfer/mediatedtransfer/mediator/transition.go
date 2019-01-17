@@ -3,6 +3,8 @@ package mediator
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/encoding"
+
 	"math/big"
 
 	"time"
@@ -1011,6 +1013,10 @@ func handleSecretRevealOnChain(state *mediatedtransfer.MediatorState, st *mediat
 // Handle a ReceiveBalanceProof state change.
 func handleBalanceProof(state *mediatedtransfer.MediatorState, st *mediatedtransfer.ReceiveUnlockStateChange) *transfer.TransitionResult {
 	var events []transfer.Event
+	/*
+		有可能是通过链上注册密码事件,上家会发送unlock给我,但是我连接的公链可能还没有收到整个事件,因此是有可能不知道密码的
+	*/
+	state.SetSecret(st.Message.(*encoding.UnLock).LockSecret)
 	//走到这里,说明密码对了,金额也是对的,balanceProof也是对的,但是我有多个pair,需要找到对应的那个pair
 	for _, pair := range state.TransfersPair {
 		//如果不做检查,假设我是B,比如A-B-C-D-B-E ,那么B收到来自A的unlock消息以后,就会把unlock消息同时发送给C,E,这是错误的.
@@ -1097,10 +1103,13 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 		case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
 			it = handleSecretRevealOnChain(state, st2)
 		case *mediatedtransfer.ReceiveUnlockStateChange:
-			it = handleBalanceProof(state, st2)
 			if state.Secret == utils.EmptyHash {
+				/*
+					有可能是通过链上注册密码事件,上家会发送unlock给我,但是我连接的公链可能还没有收到整个事件,因此是有可能不知道密码的
+				*/
 				log.Warn(fmt.Sprintf("mediated state manager recevie unlock,but i don't know secret,this maybe a error "))
 			}
+			it = handleBalanceProof(state, st2)
 		case *mediatedtransfer.MediatorReReceiveStateChange:
 			if state.Secret == utils.EmptyHash {
 				it = handleMediatedTransferAgain(state, st2)

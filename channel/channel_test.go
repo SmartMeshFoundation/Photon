@@ -3,6 +3,8 @@ package channel
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"math/big"
 
 	"fmt"
@@ -772,9 +774,9 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		t.Error("cannot remove not expired hashlock")
 		return
 	}
-	_, _, locksroot, err := testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, expiration, true)
+	_, _, locksroot, err := testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, expiration+params.ForkConfirmNumber+1, true)
 	if err != nil {
-		t.Error("can remove a expired hashlock")
+		t.Errorf("can remove a expired hashlock err=%s", err)
 		return
 	}
 	bp = &encoding.BalanceProof{
@@ -791,18 +793,18 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		t.Error("can not register")
 		return
 	}
-	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner, expiration)
+	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner, expiration+params.ForkConfirmNumber)
 	if err != nil {
 		t.Error("must be  removed ", err)
 		return
 	}
-	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, expiration)
+	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, expiration+params.ForkConfirmNumber)
 	if err != nil {
 		t.Error("must be removed for a expired hashlock®")
 		return
 	}
 	removeTransferFromMe.Sign(privkey1, removeTransferFromMe)
-	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe, expiration)
+	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe, expiration+params.ForkConfirmNumber)
 	if err != nil {
 		t.Errorf(" err register mine remove transfer %s", err)
 		return
