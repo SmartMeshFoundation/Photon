@@ -72,7 +72,40 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 	}
 
 	// 重启节点1，交易失败,各自锁定
+	time.Sleep(30 * time.Second)
 	N1.ReStartWithoutConditionquit(env)
+	//for i := 0; i < cm.MediumWaitSeconds; i++ {
+	//	time.Sleep(time.Second * 1)
+	//
+	//	// 查询重启后数据
+	//	models.Logger.Println("------------ Data After Restart ------------")
+	//	cd21new := N2.GetChannelWith(N1, tokenAddress).PrintDataAfterRestart()
+	//	cd23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterRestart()
+	//	cd36new := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterRestart()
+	//
+	//	// 校验对等
+	//	models.Logger.Println("------------ Data After Fail ------------")
+	//	if !cd21new.CheckEqualByPartnerNode(env) || !cd23new.CheckEqualByPartnerNode(env) || !cd36new.CheckEqualByPartnerNode(env) {
+	//		continue
+	//	}
+	//
+	//	// 查询cd21，锁定对方20
+	//	if !cd21new.CheckLockPartner(transAmount) {
+	//		continue
+	//	}
+	//	// 查询cd23，锁定20
+	//	if !cd23new.CheckLockSelf(transAmount) {
+	//		continue
+	//	}
+	//	// 查询cd36，锁定20
+	//	if !cd36new.CheckLockSelf(transAmount) {
+	//		continue
+	//	}
+	//	break
+	//	//models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+	//	//return
+	//}
+	// 等待超时remove
 	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second * 1)
 
@@ -88,16 +121,16 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 			continue
 		}
 
-		// 查询cd21，锁定对方20
-		if !cd21new.CheckLockPartner(transAmount) {
+		// 查询cd21，无锁
+		if !cd21new.CheckLockBoth(0) {
 			continue
 		}
-		// 查询cd23，锁定20
-		if !cd23new.CheckLockSelf(transAmount) {
+		// 查询cd23，无锁
+		if !cd23new.CheckLockBoth(0) {
 			continue
 		}
-		// 查询cd36，锁定20
-		if !cd36new.CheckLockSelf(transAmount) {
+		// 查询cd36，无锁
+		if !cd36new.CheckLockBoth(0) {
 			continue
 		}
 		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
