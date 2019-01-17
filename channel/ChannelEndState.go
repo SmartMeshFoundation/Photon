@@ -466,6 +466,9 @@ func (node *EndState) GetKnownUnlocks() []*channeltype.UnlockProof {
 	tree := node.Tree
 	var proofs []*channeltype.UnlockProof
 	for _, v := range node.Lock2UnclaimedLocks {
+		if !v.IsRegisteredOnChain {
+			continue
+		}
 		proof := ComputeProofForLock(v.Lock, tree)
 		proofs = append(proofs, proof)
 	}
