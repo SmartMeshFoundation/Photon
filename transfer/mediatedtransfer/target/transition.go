@@ -27,6 +27,10 @@ func eventsForRegisterSecret(state *mediatedtransfer.TargetState) (events []tran
 	fromRoute := state.FromRoute
 	safeToWait := mediator.IsSafeToWait(fromTransfer, fromRoute.RevealTimeout(), state.BlockNumber)
 	secretKnown := fromTransfer.Secret != utils.EmptyHash
+	payerClosed := state.FromRoute.State() == channeltype.StateClosed
+	if safeToWait {
+		safeToWait = !payerClosed //只要通道关闭,就应该立即注册密码,不要等过期了.
+	}
 	if !safeToWait && secretKnown {
 		state.State = mediatedtransfer.StateWaitingRegisterSecret
 		channelClose := &mediatedtransfer.EventContractSendRegisterSecret{

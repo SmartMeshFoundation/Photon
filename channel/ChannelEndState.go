@@ -461,11 +461,14 @@ func (node *EndState) RegisterRevealedSecretHash(lockSecretHash, secret common.H
 	return nil
 }
 
-//GetKnownUnlocks generate unlocking proofs for the known secrets
-func (node *EndState) GetKnownUnlocks() []*channeltype.UnlockProof {
+//GetCanUnlockOnChainLocks generate unlocking proofs for the known secrets
+func (node *EndState) GetCanUnlockOnChainLocks() []*channeltype.UnlockProof {
 	tree := node.Tree
 	var proofs []*channeltype.UnlockProof
 	for _, v := range node.Lock2UnclaimedLocks {
+		if !v.IsRegisteredOnChain {
+			continue
+		}
 		proof := ComputeProofForLock(v.Lock, tree)
 		proofs = append(proofs, proof)
 	}

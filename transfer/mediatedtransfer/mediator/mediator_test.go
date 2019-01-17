@@ -158,7 +158,6 @@ func TestIsRegisterSecretNeededPaid(t *testing.T) {
 	}
 }
 
-//If the channel is already closed the anser is always no.
 func TestIsRegisterSecretNeedChannelClosed(t *testing.T) {
 	var amount = big.NewInt(10)
 	var expiration int64 = 10
@@ -170,9 +169,9 @@ func TestIsRegisterSecretNeedChannelClosed(t *testing.T) {
 		pair.PayerRoute.SetState(channeltype.StateClosed)
 
 		safeBlock := expiration - int64(revealTimeout) - 1
-		assert(t, isSecretRegisterNeeded(pair, safeBlock), false)
+		assert(t, isSecretRegisterNeeded(pair, safeBlock), true)
 		unsafeBlock := expiration - int64(revealTimeout)
-		assert(t, isSecretRegisterNeeded(pair, unsafeBlock), false)
+		assert(t, isSecretRegisterNeeded(pair, unsafeBlock), true)
 	}
 }
 

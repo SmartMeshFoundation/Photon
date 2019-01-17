@@ -17,7 +17,7 @@ import (
 只处理两件事情
 1. 我发出的锁,需要过期以后发送 RemoveExpiredLock
 2. 收到的对方的锁,如果我知道密码,那么应该在接近到期的时候去注册密码
-3. 收到 RevealSecretOnChain 要判断是否需要发送 Unlock 消息
+3. 收到 RevealSecretOnChain 对于发出的锁要判断是否需要发送 Unlock 消息,对于收到的锁要判断是否需要链上unlock
 4. 收到 unlock 消息,移除响应的锁.
 */
 // This piece of code only process two things
@@ -83,12 +83,14 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 			*/
 			// Maybe I received related code after start up
 			secret, found := l.Channel.PartnerState.GetSecret(state.LockSecretHash)
-			if found && l.Lock.Expiration >= stateChange.BlockNumber && l.Lock.Expiration < stateChange.BlockNumber+int64(l.Channel.RevealTimeout) {
+			//临近过期了,或者通道已经关闭了,就立即注册密码
+			if found && (l.Lock.Expiration >= stateChange.BlockNumber && l.Lock.Expiration < stateChange.BlockNumber+int64(l.Channel.RevealTimeout) ||
+				l.Channel.State == channeltype.StateClosed) {
 				//临近过期了,需要通知链上注册
 				events = append(events, &mt.EventContractSendRegisterSecret{
 					Secret: secret,
 				})
-				removedReceviedIndex = append(removedReceviedIndex, i)
+				//要等unlock之后才能移除
 			}
 		}
 	}
@@ -173,21 +175,20 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 		state.SentLocks = removeSliceFromSlice(state.SentLocks, removedIndex)
 		it.Events = append(it.Events, checkFinish(state)...)
 	}
-
 	/*
-			至于我收到的锁,密码注册了,我也不用管,
+			至于我收到的锁,密码注册了,只要通道没有关闭我就不用管了,
 		1. 如果对方发送给我 unlock, 那么我移除就可以了,
 		2. 如果不给我发 unlock, 我到时候主动去链上注册密码(等于什么都不做)
 		2. 如果过期了,我移除就可以了
-			todo 如果做到这点,我们就必须保证,如果重启以后,所有的事件处理完了,然后再去处理新块事件,如何做到呢?
-		但是对于已经关闭的通道,我必须再次链上unlock,因为当初的unlock肯定是失败的
+		4. 如果做到这点,我们就必须保证,如果重启以后,所有的事件处理完了,然后再去处理新块事件
+
+		但是对于已经关闭的通道,我必须再次链上unlock,因为close通道时候进行unlock肯定会失败
 	*/
 	/*
-	 *	As to locks I received, if secret registered, then do nothing.
+	 *	As to locks I received, if secret registered, then do nothing if channel is open.
 	 *	1. If partner sends me unlock, then just remove that.
 	 *	2. If he does not send me unlock, then register secret on-chain.
 	 *	3. If expired, then remove.
-	 *	todo If we do that, we should ensure if we resume, and all events finished, then to deal with new block event, how ?
 	 */
 	removedIndex = nil
 	for i, l := range state.ReceivedLocks {
@@ -210,13 +211,9 @@ func handleSecretRevealOnChain(state *mt.CrashState, st *mt.ContractSecretReveal
 }
 
 /*
- todo 是否会发生 RevealSecretOnChain 针对的是旧的 channel 的 Lock?
-比如我关掉了很长一段时间,然后重新启动,这时候收到了 RevealSecretOnChain, 但是我持有的锁完全是过去的某个锁呢?
+ 是否会发生 RevealSecretOnChain 针对的是旧的 channel 的 Lock?
+不会,我们处理链上事件保证是顺序进行的,不会落下事件
 */
-/*
- *	todo Is there case that RevealSecretOnChain aims to channel's Lock?
- *	For example, if I disconnect for a long time, then restarts, then received RevealSecretOnChain, but the lock I hold is one that belongs to past block?
- */
 func transferSuccessEvents(l *mt.LockAndChannel) (events []transfer.Event) {
 	unlockLock := &mt.EventSendBalanceProof{
 		LockSecretHash:    l.Lock.LockSecretHash,
@@ -246,6 +243,7 @@ func transferSuccessEvents(l *mt.LockAndChannel) (events []transfer.Event) {
  *	And locks that this participant received moves to ProcessedReceivedLock, because secret has been registered on chain.
  */
 func checkFinish(state *mt.CrashState) (events []transfer.Event) {
+	//todo 如果持有锁,但是密码已经在链上注册了,也可以认为已经完毕了,否则这个stateManager会一直保留
 	if len(state.SentLocks) == 0 && len(state.ReceivedLocks) == 0 {
 		events = append(events, &mt.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Token[:]),
@@ -339,10 +337,8 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 		/*
 			作为交易发起方,发送完 Unlock 消息,对方确认收到,就应该认为这次交易彻底完成了
 		*/
-		//todo fix, find a way to remove this identifier from photon.Transfer2StateManager
 		/*
 		 *	As transfer initiator, after sending Unlock, and my partner confirms that, then we should assums this transfer complete.
-		 *	todo fix, find a way to remove this identifier from photon. Transfer2StateManager
 		 */
 		log.Error(fmt.Sprintf("originalState,statechange should not be here originalState=\n%s\n,statechange=\n%s",
 			utils.StringInterface1(originalState), utils.StringInterface1(st)))

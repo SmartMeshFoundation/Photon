@@ -748,8 +748,7 @@ type updateTransfer struct {
 	NonClosingSignature []byte      `json:"non_closing_signature"`
 }
 
-//todo 需要第三方服务帮忙注册密码么?如果不需要,是否应该自己注册密码?
-// todo do we need delegation service to help us register secret? If not, should we register secret in person?
+//第三方服务也负责链上unlock
 type unlock struct {
 	Lock        *mtree.Lock `json:"lock"`
 	MerkleProof []byte      `json:"merkle_proof"`

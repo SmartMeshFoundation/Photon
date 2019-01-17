@@ -77,8 +77,7 @@ type TestAccount struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-// GetAccounts :
-// TODO 解耦account模块
+// GetAccounts unlock all accounts on TestKeystorePath
 func GetAccounts() (accounts []TestAccount, err error) {
 	am := accountModule.NewAccountManager(TestKeystorePath)
 	if len(am.Accounts) == 0 {
@@ -104,8 +103,7 @@ func GetAccounts() (accounts []TestAccount, err error) {
 	return
 }
 
-// GetAccountsByAddress :
-// TODO 解耦account模块
+// GetAccountsByAddress : find and unlock  account by TestPassword
 func GetAccountsByAddress(address common.Address) (account TestAccount, err error) {
 	accounts, err := GetAccounts()
 	if err != nil {

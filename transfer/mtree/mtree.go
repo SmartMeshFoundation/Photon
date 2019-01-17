@@ -40,13 +40,11 @@ Lock is 	The Lock structure for Hashed TimeLock Contract.
 In our messenger
 在消息中 expiration 用的是 int64编码
 而在合约中用的是 big.Int
-todo 要不要统一?
 */
 /*
  *	Lock : data structure for Hashed TimeLock Contract.
  *
  *	In our messenger, expiration should be int64, but in contract, it should be big.Int.
- *	todo should we unify them?
  */
 type Lock struct {
 	Expiration     int64 // expiration block number

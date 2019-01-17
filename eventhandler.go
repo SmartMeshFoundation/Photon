@@ -134,6 +134,13 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		err = fmt.Errorf("receive eventSendMediatedTransfer,but cannot found the channel,there must be error, event=%s,stateManager=%s",
+			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
+		)
+		log.Error(err.Error())
+		return
+	}
 	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer g=%s", utils.StringInterface(g, 3)))
 	//log.Trace(fmt.Sprintf("eventSendMediatedTransfer ch=%s", utils.StringInterface(ch, 2)))
 	mtr, err := ch.CreateMediatedTransfer(event.Initiator, event.Target, event.Fee, event.Amount, event.Expiration, event.LockSecretHash)
@@ -192,6 +199,13 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		err = fmt.Errorf("receive EventSendBalanceProof,but cannot found the channel,there must be error, event=%s,stateManager=%s",
+			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
+		)
+		log.Error(err.Error())
+		return
+	}
 	tr, err := ch.CreateUnlock(event.LockSecretHash)
 	if err != nil {
 		return
@@ -213,6 +227,13 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
+	if ch == nil {
+		err = fmt.Errorf("receive eventSendAnnouncedDisposed,but cannot found the channel,there must be error, event=%s,stateManager=%s",
+			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
+		)
+		log.Error(err.Error())
+		return
+	}
 	mtr, err := ch.CreateAnnouceDisposed(event.LockSecretHash, eh.photon.GetBlockNumber())
 	if err != nil {
 		return
@@ -304,7 +325,7 @@ func (eh *stateMachineEventHandler) eventContractSendUnlock(e2 *mediatedtransfer
 	}
 	var p *channeltype.UnlockProof
 	//找到此次链上密码注册对应的锁,肯定应该找到.
-	unlockProofs := ch.PartnerState.GetKnownUnlocks()
+	unlockProofs := ch.PartnerState.GetCanUnlockOnChainLocks()
 	for _, u := range unlockProofs {
 		if u.Lock.LockSecretHash == e2.LockSecretHash {
 			p = u
@@ -552,8 +573,6 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractBalanceStateChange) error {
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
-		//todo 处理这个事件,路由的时候可以考虑节点之间的权重,权重值=双方 deposit 之和
-		// todo handle this event, when routing we should consider the weight between nodes, weight = sum of deposits between a participant pair.
 		//log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
@@ -607,7 +626,7 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 1. channel graph 中的channel 信息
 2. 数据库中的 channel 信息
 3. 数据库中 non participant 信息
-4. todo statemanager 中有关该 channel 的信息, 是否有?
+4. statemanager 中有关该 channel 的信息, 会自行移除
 */
 /*
  *	Remove this channel infor from local memory.
@@ -615,7 +634,7 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
  *	1. channel information in channel graph
  *	2. channel info in database.
  *	3. non participant info in database
- *	4. todo is there any channel info in statemanager,?
+ *	4. channel reference by statemanager
  */
 func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) error {
 	g := eh.photon.getChannelGraph(ch.ChannelIdentifier.ChannelIdentifier)
@@ -783,7 +802,7 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 
 //1. 必须能够正确处理重复的ContractSecretRevealOnChainStateChange,
 //todo 这里有一个潜在的问题A给B发交易,A收到ContractSecretRevealOnChainStateChange,然后会给B发unlock消息,
-// 这时候A崩溃,等A重启以后,会再次处理ContractSecretRevealOnChainStateChange,从而导致unlock消息发送两次.
+// 这时候A崩溃,等A立即重启以后,会再次处理ContractSecretRevealOnChainStateChange,从而导致unlock消息发送两次.
 // 但是两次unlock消息nonce不同,从而导致通道不可用.
 func (eh *stateMachineEventHandler) handleSecretRegisteredOnChain(st *mediatedtransfer.ContractSecretRevealOnChainStateChange) error {
 	// 这里需要注册密码,否则unlock消息无法正常发送
@@ -813,10 +832,9 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
 		if c.State == channeltype.StateClosed {
-			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout) //todo punish time
+			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
 			if st2.BlockNumber > settlementEnd {
-				//should not block todo fix it
-				//err = c.ExternState.Settle()
+				//wait for user call settle
 			}
 		}
 	case *mediatedtransfer.ContractClosedStateChange:
@@ -830,6 +848,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		}
 	case *mediatedtransfer.ContractSettledStateChange:
 		//settled channel should be removed.
+		c.State = channeltype.StateSettled
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {
@@ -838,6 +857,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		//settled channel should be removed.
+		c.State = channeltype.StateCooprativeSettle
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {

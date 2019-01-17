@@ -119,9 +119,8 @@ func (mh *photonMessageHandler) balanceProof(msg *encoding.UnLock, smkey common.
 }
 
 /*
- todo 收到密码,可能会影响到好多StateManager, 这些 StateManager 我如何做到原子保存呢?
+ 收到密码,可能会影响到好多StateManager,stateManager并不会保存在数据库中,只保存通道相关信息
 */
-// todo receive secret may impact manay StateManager, how should I do atomic store for these StateManager?
 func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) error {
 	secret := msg.LockSecret
 	sender := msg.Sender

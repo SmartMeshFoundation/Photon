@@ -115,9 +115,6 @@ func Start() {
 		rest.Post("/api/1/updatenodes", UpdateMeshNetworkNodes),
 
 		/*
-			others TODO
-		*/
-		/*
 			1. withdraw
 			{ "amount":3333,}
 			2. prepare for withdraw:

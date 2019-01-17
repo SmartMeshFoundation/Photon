@@ -78,7 +78,6 @@ func (e *ExternalState) SetSettled(blocknumber int64) bool {
 }
 
 //Close call close function of smart contract
-//todo fix somany duplicate codes
 func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result *utils.AsyncResult) {
 	if e.ClosedBlock != 0 {
 		result = utils.NewAsyncResult()
