@@ -773,20 +773,12 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 		}
 		m.log.Trace(fmt.Sprintf("receive invite, event=%s", utils.StringInterface(event, 5)))
 		go func() {
-			////todo fixme why need sleep, otherwise join will faile because of forbidden
-			//if strings.Contains(event.RoomID, m.servername) {
-			//	time.Sleep(time.Second)
-			//} else {
-			//	// 如果房间不在我连接的matrix服务器上,给服务器留出足够的时间同步房间信息,以免join失败
-			//	log.Warn(fmt.Sprintf("wait 10 seconds ,then join room %s", event.RoomID))
-			//	time.Sleep(30 * time.Second)
-			//}
 			//one must join to be able to get room alias
 			var err error
 			for i := 0; i < 5; i++ {
 				_, err = m.matrixcli.JoinRoom(event.RoomID, "", nil)
 				if err != nil {
-					m.log.Error(fmt.Sprintf("JoinRoom %s ,err %s, sleep 5 seconds and retry", event.RoomID, err))
+					m.log.Info(fmt.Sprintf("JoinRoom %s ,err %s, sleep 5 seconds and retry,times=%d", event.RoomID, err, i))
 					time.Sleep(5 * time.Second)
 					continue
 				} else {
@@ -940,7 +932,6 @@ func (m *MatrixTransport) register(username, password string) (userID string, er
 // loginOrRegister node login, if failed, register again then try login,
 // displayname of nodes as the signature of userID
 func (m *MatrixTransport) loginOrRegister() (err error) {
-	//TODO:Consider the risk of being registered maliciously
 	loginok := false
 	baseAddress := crypto.PubkeyToAddress(m.key.PublicKey)
 	baseUsername := strings.ToLower(baseAddress.String())
@@ -1375,7 +1366,7 @@ func validateUseridSignature(user *gomatrix.UserInfo) (address common.Address, e
 
 /* joinDiscoveryRoom : check discoveryroom if not exist, then create a new one.
 client caches all memebers of this room, and invite nodes checked from this room again.
-需要找到一个可靠的方式来移除DiscoveryRoom, todo
+todo 需要找到一个可靠的方式来移除DiscoveryRoom,
 目前不能移除DiscoveryRoom是因为PathFinder需要依赖DiscoveryRoom来发现节点的上线下线,正常的Matrix通信已经可以做到不依赖DiscoveryRoom了
 发现聊天室设计目标主要是让节点之间能够找到对方,主要是通过Matrix的Search方式找到相关UserID以及指导这些UserID的上线下线状态.
 但是目前来说这些都不再需要,

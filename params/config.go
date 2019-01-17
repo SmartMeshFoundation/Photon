@@ -98,16 +98,6 @@ type ConditionQuit struct {
 	RandomQuit bool   //random exit
 }
 
-/*
-TreatRefundTransferAsNormalMediatedTransfer When refund occurs in the intermediary node,is it treated as a common mediatedtransfer(that is to delete handleSecret in photonservice)?
-todo remove?
-*/
-var TreatRefundTransferAsNormalMediatedTransfer = true
-
-func init() {
-
-}
-
 //DefaultDataDir default work directory
 func DefaultDataDir() string {
 	// Try to place the data folder in the user's home dir

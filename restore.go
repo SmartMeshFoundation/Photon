@@ -40,19 +40,10 @@ func (rs *Service) reSendEnvelopMessage() {
 	msgs := rs.dao.GetAllOrderedSentEnvelopMessager()
 	for _, msg := range msgs {
 		/*
-			todo 存在问题:
-			1.应该等待历史消息处理完毕以后再发送消息
-			2. 有些消息是不需要发送的,比如 unlock 消息,如果对在链上注册了密码,那么会在其他地方触发发送 unlock 消息
-			3. 已经过期的MediatedTransfer?
-			4. 通道已经 settle 的消息?
+			1. 可以立即发送消息,但是要在历史消息处理完毕以后再接收消息
+			3. 已经过期的MediatedTransfer,对方还是会接受,但是需要我紧接着发送removeExpiredHashLock
+			4. 通道已经 settle 的消息,会在protocol层被丢弃
 		*/
-		/*
-		 *	todo have problem here :
-		 *	1. we should wait after handling history message then continue.
-		 *	2. Some messages are no need to send, like unlock, if pairs register their secret on chain, then other pairs will be triggered to send unlock.
-		 *	3. How to deal with expired MediatedTransfer?
-		 *	4. How to deal with messages after channel settle?
-		 */
 		err := rs.sendAsync(msg.Receiver, msg.Message)
 		if err != nil {
 			log.Error(fmt.Sprintf("reSendEnvelopMessage %s to %s err %s", msg.Message, msg.Receiver, err))
@@ -87,6 +78,7 @@ func (rs *Service) restoreLocks() {
 				})
 			}
 			for _, l := range ch.OurState.Lock2UnclaimedLocks {
+				//todo 密码已经链上注册的锁,需要跳过
 				locks = append(locks, &lockInfo{
 					l:      l.Lock,
 					isSent: true,
@@ -103,6 +95,7 @@ func (rs *Service) restoreLocks() {
 				})
 			}
 			for _, l := range ch.PartnerState.Lock2UnclaimedLocks {
+				//todo 密码已经链上注册的锁,需要跳过
 				locks = append(locks, &lockInfo{
 					l:      l.Lock,
 					isSent: false,

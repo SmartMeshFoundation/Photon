@@ -38,7 +38,7 @@ func testUniqueArray(t *testing.T, dbPath string) {
 	err = db.Save(p)
 	if err == nil {
 		//todo save is create?
-		//t.Error("should not save")
+		// t.Error("should not save")
 	}
 }
 func TestTwice(t *testing.T) {

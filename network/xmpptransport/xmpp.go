@@ -151,7 +151,6 @@ func (x *XMPPConnection) loop() {
 			return
 		}
 		if err != nil {
-			//todo how to detect network error ,disconnect
 			log.Error(fmt.Sprintf("%s receive error %s ,try to reconnect ", x.name, err))
 			err = x.client.Close()
 			if err != nil {

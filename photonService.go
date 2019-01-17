@@ -98,11 +98,10 @@ type Service struct {
 	Transfer2Result       map[common.Hash]*utils.AsyncResult
 	SwapKey2TokenSwap     map[swapKey]*TokenSwap
 	/*
-				   This is a map from a hashlock to a list of channels, the same
-			         hashlock can be used in more than one token (for tokenswaps), a
-			         channel should be removed from this list only when the Lock is
-			         released/withdrawn but not when the secret is registered.
-		TODO remove this,this design is very weird
+		   This is a map from a hashlock to a list of channels, the same
+			 hashlock can be used in more than one token (for tokenswaps), a
+			 channel should be removed from this list only when the Lock is
+			 released/withdrawn but not when the secret is registered.
 	*/
 	Token2LockSecretHash2Channels map[common.Address]map[common.Hash][]*channel.Channel
 	FileLocker                    *flock.Flock
@@ -144,7 +143,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		dao:                dao,
 		NodeAddress:        crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph: make(map[common.Address]*graph.ChannelGraph),
-		//todo fixme Token2TokenNetwork 应该是一个token的数组,表示已经注册的token.目前k,v中的v必须是空地址
+		//Token2TokenNetwork 应该是一个token的数组,表示已经注册的token.目前k,v中的v必须是空地址
 		Token2TokenNetwork:                    make(map[common.Address]common.Address),
 		Transfer2StateManager:                 make(map[common.Hash]*transfer.StateManager),
 		Transfer2Result:                       make(map[common.Hash]*utils.AsyncResult),
@@ -1021,18 +1020,17 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	stateManager := rs.Transfer2StateManager[smkey]
 	/*
 		第一次收到这个密码,
-		todo 首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
+		首先要判断这个密码是否是我声明放弃过的,如果是,就应该谨慎处理.
 		锁是有可能重复的,比如 token swap 中.
 	*/
 	/*
 	 *	First time receiving this secret.
-	 *	todo We need to check if I have ever abandoned this secret, if so, handle it carefully.
+	 *	We need to check if I have ever abandoned this secret, if so, handle it carefully.
 	 * 	Locks might be duplicate, like in toke swap.
 	 */
 	if rs.dao.IsLockSecretHashChannelIdentifierDisposed(msg.LockSecretHash, ch.ChannelIdentifier.ChannelIdentifier) {
+		//todo 需要通知photon用户
 		log.Error(fmt.Sprintf("receive a lock secret hash,and it's my annouce disposed. %s", msg.LockSecretHash.String()))
-		//忽略,什么都不做
-		// do nothing
 		return
 	}
 	if stateManager != nil {
@@ -1312,7 +1310,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 
 /*
 process user's token swap maker request
-save and restore todo?
+todo? save and restore
 */
 func (rs *Service) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResult) {
 	var lockSecretHash common.Hash
@@ -1807,7 +1805,7 @@ func (rs *Service) getUnfinishedReceivedTransfer(req *getUnfinishedReceivedTrans
 	tokenAddress := req.TokenAddress
 	result = utils.NewAsyncResult()
 	if rs.SecretRequestPredictorMap[lockSecretHash] != nil {
-		result.Result <- fmt.Errorf("SecretRequestPredictorMap has lockSecretHash") //todo fixme why check?
+		result.Result <- fmt.Errorf("SecretRequestPredictorMap has lockSecretHash")
 		return
 	}
 	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])

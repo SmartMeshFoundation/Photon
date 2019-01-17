@@ -9,7 +9,6 @@ import (
 
 /*
 request from user
-todo  we need a seperate rpc server .
 */
 //key for map, no pointer
 type swapKey struct {

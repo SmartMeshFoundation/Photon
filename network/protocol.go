@@ -454,7 +454,7 @@ func (p *PhotonProtocol) GetNetworkStatus(addr common.Address) (deviceType strin
 }
 
 func (p *PhotonProtocol) receive(data []byte) {
-	//todo fix ,remove copy and fix deadlock of send and receive
+	//todo fix 使用可以反复使用的缓冲区,而不是每次都分配.
 	cdata := make([]byte, len(data))
 	copy(cdata, data)
 

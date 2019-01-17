@@ -125,7 +125,6 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	//todo fix me support charging fee
 	if req.Fee.Cmp(utils.BigInt0) == 0 {
 		req.Fee = nil
 	}

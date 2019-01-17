@@ -236,14 +236,13 @@ func (w *withDraw) WithDrawOnChannel() {
 					log.Error(fmt.Sprintf("RegisterSecret %s", err))
 				}
 			}
-			//todo 链上注册密码
 			result := c.Close()
 			err = <-result.Result
 			if err != nil {
 				log.Error(fmt.Sprintf("close channel %s error %s", c.ChannelIdentifier.String(), err))
 				break
 			}
-			unlockProofs2 := c.PartnerState.GetKnownUnlocks()
+			unlockProofs2 := c.PartnerState.GetCanUnlockOnChainLocks()
 			result = c.ExternState.Unlock(unlockProofs2, c.PartnerState.TransferAmount())
 			err = <-result.Result
 			if err != nil {

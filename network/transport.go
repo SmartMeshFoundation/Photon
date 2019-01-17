@@ -129,7 +129,7 @@ type UDPTransport struct {
 	UAddr         *net.UDPAddr
 	policy        Policier
 	stopped       bool
-	stopReceiving bool //todo use atomic to replace
+	stopReceiving bool
 	intranetNodes map[common.Address]*net.UDPAddr
 	lock          sync.RWMutex
 	name          string
@@ -224,7 +224,6 @@ func (ut *UDPTransport) Send(receiver common.Address, data []byte) error {
 	//ut.log.Trace(fmt.Sprintf("send data  \n%s", hex.Dump(data)))
 	//only comment this line,if you want to test.
 	//time.Sleep(ut.policy.Consume(1)) //force to wait,
-	//todo need one lock for write?
 	_, err = ut.conn.WriteToUDP(data, ua)
 	return err
 }

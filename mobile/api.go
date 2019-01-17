@@ -736,7 +736,7 @@ func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
 
 /*
 EthereumStatus  query the status between Photon and ethereum
-todo fix it ,r is useless
+todo fix it,remove this deprecated api
 */
 func (a *API) EthereumStatus() (r string, err error) {
 	c := a.api.Photon.Chain
