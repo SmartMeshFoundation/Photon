@@ -35,9 +35,7 @@ type Db interface {
 	/*
 	 要记录自己放在某个 channel 上放弃了某个锁,到时候一定不能unlock
 	*/
-	//CanUnlockThisLock(LockSecretHash common.Hash, channelIdentifier common.Hash) bool
-	//IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool
-	//MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error
+	IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool
 }
 
 //MockChannelDb for test only
@@ -81,12 +79,7 @@ func (f *MockChannelDb) GetChannelByAddress(channelIdentifier common.Hash) (c *S
 	return nil, errors.New("not found")
 }
 
-//func (f *MockChannelDb) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
-//	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
-//	return f.Keys[key]
-//}
-//func (f *MockChannelDb) MarkLockSecretHashDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) error {
-//	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
-//	f.Keys[key] = true
-//	return nil
-//}
+func (f *MockChannelDb) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
+	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
+	return f.Keys[key]
+}
