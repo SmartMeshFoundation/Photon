@@ -144,7 +144,8 @@ func Start() {
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
 		rest.Get("/api/1/debug/ethstatus", EthereumStatus),
-		rest.Get("/api/1/debug/force-unlock/:channel/:locksecrethash/:secrethash", ForceUnlock),
+		rest.Get("/api/1/debug/force-unlock/:channel/:secret", ForceUnlock),
+		rest.Get("/api/1/debug/register-secret-onchain/:secret", RegisterSecretOnChain),
 		rest.Get("/api/1/debug/pfs/:channel", BalanceUpdateForPFS),
 		rest.Post("/api/1/debug/notify_network_down", NotifyNetworkDown), // notify photon network down
 		rest.Get("/api/1/debug/shutdown", func(writer rest.ResponseWriter, request *rest.Request) {

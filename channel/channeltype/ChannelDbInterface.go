@@ -79,6 +79,7 @@ func (f *MockChannelDb) GetChannelByAddress(channelIdentifier common.Hash) (c *S
 	return nil, errors.New("not found")
 }
 
+//IsLockSecretHashChannelIdentifierDisposed is this lock I have annouced disposed
 func (f *MockChannelDb) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool {
 	key := utils.Sha3(lockSecretHash[:], ChannelIdentifier[:])
 	return f.Keys[key]

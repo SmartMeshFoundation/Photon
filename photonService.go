@@ -1629,7 +1629,10 @@ func (rs *Service) handleReq(req *apiReq) {
 		result = rs.allowRevealSecret(r)
 	case registerSecretReqName:
 		r := req.Req.(*registerSecretReq)
-		result = rs.registerSecretFromUser(r)
+		result = rs.registerSecretToStateManagerFromUser(r)
+	case registerSecretOnChainReqName:
+		r := req.Req.(*registerSecretReq)
+		result = rs.registerSecretOnChain(r)
 	case getUnfinishedReceviedTransferReqName:
 		r := req.Req.(*getUnfinishedReceivedTransferReq)
 		result = rs.getUnfinishedReceivedTransfer(r)
@@ -1742,7 +1745,7 @@ func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, 
 func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	channelIdentifier := req.ChannelIdentifier
-	lockSecretHash := req.LockSecretHash
+	lockSecretHash := utils.ShaSecret(req.Secret[:])
 	secret := req.Secret
 	channel := rs.getChannelWithAddr(channelIdentifier)
 	if channel == nil {
@@ -1857,7 +1860,7 @@ func (rs *Service) allowRevealSecret(req *allowRevealSecretReq) (result *utils.A
 	return
 }
 
-func (rs *Service) registerSecretFromUser(req *registerSecretReq) (result *utils.AsyncResult) {
+func (rs *Service) registerSecretToStateManagerFromUser(req *registerSecretReq) (result *utils.AsyncResult) {
 	secret := req.Secret
 	tokenAddress := req.TokenAddress
 	lockSecretHash := utils.ShaSecret(secret.Bytes())
@@ -1886,4 +1889,9 @@ func (rs *Service) registerSecretFromUser(req *registerSecretReq) (result *utils
 	state.Secret = secret
 	result.Result <- nil
 	return
+}
+
+func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.AsyncResult) {
+	secret := req.Secret
+	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
 }
