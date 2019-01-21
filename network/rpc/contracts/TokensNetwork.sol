@@ -155,7 +155,7 @@ contract TokensNetwork is Utils {
     }
 
     /// @notice contract constructor.
-    /// @param _chain_id            id of block chain,for example 1 for mainnet,3 for testnet
+    /// @param _chain_id            id of block chain, it's both 3 for spectrum mainnet and testnet
     constructor( uint256 _chain_id)
     public
     {
