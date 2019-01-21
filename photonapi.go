@@ -966,8 +966,15 @@ func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 }
 
 // ForceUnlock : only for debug
-func (r *API) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secret common.Hash) (err error) {
-	result := r.Photon.forceUnlockClient(lockSecretHash, secret, channelIdentifier)
+func (r *API) ForceUnlock(channelIdentifier, secret common.Hash) (err error) {
+	result := r.Photon.forceUnlockClient(secret, channelIdentifier)
+	err = <-result.Result
+	return
+}
+
+// RegisterSecretOnChain : only for debug
+func (r *API) RegisterSecretOnChain(secret common.Hash) (err error) {
+	result := r.Photon.registerSecretOnChainClient(secret)
 	err = <-result.Result
 	return
 }

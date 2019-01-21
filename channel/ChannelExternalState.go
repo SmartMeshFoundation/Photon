@@ -136,6 +136,9 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 				log.Info(fmt.Sprintf("Unlock secret has been used %s  %s", e.ChannelIdentifier.String(), utils.HPex(proof.Lock.LockSecretHash)))
 				continue
 			}
+			if e.db.IsLockSecretHashChannelIdentifierDisposed(proof.Lock.LockSecretHash, e.ChannelIdentifier.ChannelIdentifier) {
+				continue //已经annouce disposed的锁一定不能unlock
+			}
 			err := e.TokenNetwork.Unlock(e.PartnerAddress, transferAmount, proof.Lock, mtree.Proof2Bytes(proof.MerkleProof))
 			if err != nil {
 				failed = true

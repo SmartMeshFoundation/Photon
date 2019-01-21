@@ -46,6 +46,7 @@ const allowRevealSecretReqName = "AllowRevealSecret"
 const registerSecretReqName = "RegisterSecret"
 const getUnfinishedReceviedTransferReqName = "GetUnfinishedReceivedTransfer"
 const forceUnlockReqName = "ForceUnlock"
+const registerSecretOnChainReqName = "registerSecretOnChain"
 
 /*
 transfer api
@@ -333,19 +334,28 @@ func (rs *Service) getUnfinishedReceivedTransferClient(lockSecretHash common.Has
 }
 
 type forceUnlockReq struct {
-	LockSecretHash    common.Hash
 	Secret            common.Hash
 	ChannelIdentifier common.Hash
 }
 
-func (rs *Service) forceUnlockClient(lockSecretHash, secret, channelIdentifier common.Hash) *utils.AsyncResult {
+func (rs *Service) forceUnlockClient(secret, channelIdentifier common.Hash) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  forceUnlockReqName,
 		Req: &forceUnlockReq{
-			LockSecretHash:    lockSecretHash,
 			ChannelIdentifier: channelIdentifier,
 			Secret:            secret,
+		},
+	}
+	return rs.sendReqClient(req)
+}
+
+func (rs *Service) registerSecretOnChainClient(secret common.Hash) *utils.AsyncResult {
+	req := &apiReq{
+		ReqID: utils.RandomString(10),
+		Name:  registerSecretOnChainReqName,
+		Req: &registerSecretReq{
+			Secret: secret,
 		},
 	}
 	return rs.sendReqClient(req)

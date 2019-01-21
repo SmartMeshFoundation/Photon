@@ -146,11 +146,26 @@ ForceUnlock force unlock by locksecrethash
 func ForceUnlock(w rest.ResponseWriter, r *rest.Request) {
 	channelIdentifierStr := r.PathParam("channel")
 	channelIdentifier := common.HexToHash(channelIdentifierStr)
-	lockSecretHashStr := r.PathParam("locksecrethash")
-	lockSecretHash := common.HexToHash(lockSecretHashStr)
-	secretHashStr := r.PathParam("secrethash")
-	secretHash := common.HexToHash(secretHashStr)
-	err := API.ForceUnlock(channelIdentifier, lockSecretHash, secretHash)
+	secretStr := r.PathParam("secret")
+	secret := common.HexToHash(secretStr)
+	err := API.ForceUnlock(channelIdentifier, secret)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = w.WriteJson("ok")
+	if err != nil {
+		log.Warn(fmt.Sprintf("writejson err %s", err))
+	}
+}
+
+/*
+RegisterSecretOnChain register secret to contract
+*/
+func RegisterSecretOnChain(w rest.ResponseWriter, r *rest.Request) {
+	secretStr := r.PathParam("secret")
+	secret := common.HexToHash(secretStr)
+	err := API.RegisterSecretOnChain(secret)
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusBadRequest)
 		return
