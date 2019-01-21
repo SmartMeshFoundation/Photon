@@ -811,3 +811,47 @@ func (node *PhotonNode) SpecifiedChannel(channelIdentifier string) (c v1.Channel
 	return
 
 }
+
+//ForceUnlock  unlock a unlock whenever i send annoucedisposed or not
+func (node *PhotonNode) ForceUnlock(channelIdentifier string, secret string) (err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/debug/force-unlock/%s/%s", channelIdentifier, secret),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	Logger.Printf("forunlock body=%s", string(body))
+	return
+
+}
+
+//RegisterSecret  register a secret to contract
+func (node *PhotonNode) RegisterSecret(secret string) (err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/debug/register-secret-onchain/%s", secret),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("RegisterSecret err :%s", err))
+		return
+	}
+	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
+		Logger.Println(fmt.Sprintf("RegisterSecret err : http status=%d", statusCode))
+		err = fmt.Errorf("errcode=%d", statusCode)
+		return
+	}
+	Logger.Printf("RegisterSecret body=%s", string(body))
+	return
+
+}

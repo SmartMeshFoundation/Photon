@@ -27,11 +27,15 @@ type PhotonNode struct {
 }
 
 // Start start a photon node
-func (node *PhotonNode) Start(env *TestEnv, pprof ...bool) {
+func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	dopprof := false
-	if len(pprof) > 0 {
-		dopprof = pprof[0]
+	nonetwork := false //是否完全不和其他节点通信
+	if len(otherflag) > 0 {
+		dopprof = otherflag[0]
+	}
+	if len(otherflag) > 1 {
+		nonetwork = otherflag[1]
 	}
 	go ExecShell(env.Main, node.getParamStr(env, dopprof), logfile, true)
 
@@ -57,6 +61,9 @@ func (node *PhotonNode) Start(env *TestEnv, pprof ...bool) {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
 	node.Running = true
+	if nonetwork { //启动以后不更新其他节点信息,这样就无法和别的节点进行通信了
+		return
+	}
 	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
 			if n.Running {
@@ -64,6 +71,11 @@ func (node *PhotonNode) Start(env *TestEnv, pprof ...bool) {
 			}
 		}
 	}
+}
+
+// Start start a photon node
+func (node *PhotonNode) Start(env *TestEnv, otherarg ...bool) {
+	node.startInternal(env, otherarg...)
 }
 
 // StartWithParams start a photon node with --fee
@@ -158,7 +170,15 @@ func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
 	node.ConditionQuit = nil
 	node.Name = node.Name + "Restart"
-	node.Start(env)
+	node.Start(env, false)
+}
+
+// ReStartWithoutConditionquitAndNetwork : Restart start a photon node
+func (node *PhotonNode) ReStartWithoutConditionquitAndNetwork(env *TestEnv) {
+	node.DebugCrash = false
+	node.ConditionQuit = nil
+	node.Name = node.Name + "Restart"
+	node.Start(env, false, true)
 }
 
 func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
