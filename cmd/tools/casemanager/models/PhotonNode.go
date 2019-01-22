@@ -186,7 +186,7 @@ func (node *PhotonNode) StartWithoutUpdateMeshNetworkNodes(env *TestEnv, pprof .
 	node.Running = true
 }
 
-// ReStartWithoutConditionquit : Restart start a photon node
+// ReStartWithoutConditionQuitAndUpdateMethNetworkNodes : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionQuitAndUpdateMethNetworkNodes(env *TestEnv) {
 	node.DebugCrash = false
 	node.ConditionQuit = nil
