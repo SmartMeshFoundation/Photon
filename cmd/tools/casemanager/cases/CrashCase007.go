@@ -2,12 +2,13 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/params"
-	"time"
 )
 
-// LocalCase : only for local test
+// CrashCase007 : only for local test
 func (cm *CaseManager) CrashCase007() (err error) {
 	if !cm.RunThisCaseOnly {
 		return
@@ -79,5 +80,4 @@ func (cm *CaseManager) CrashCase007() (err error) {
 		return
 	}
 	return cm.caseFail(env.CaseName)
-	return
 }
