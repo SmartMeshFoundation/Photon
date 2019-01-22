@@ -153,6 +153,47 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	}
 }
 
+// StartWithoutUpdateMeshNetworkNodes : Start start a photon node
+func (node *PhotonNode) StartWithoutUpdateMeshNetworkNodes(env *TestEnv, pprof ...bool) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	dopprof := false
+	if len(pprof) > 0 {
+		dopprof = pprof[0]
+	}
+	go ExecShell(env.Main, node.getParamStr(env, dopprof), logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to start, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
+		count++
+		if count > 400 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s start with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
+	}
+	node.Running = true
+}
+
+// ReStartWithoutConditionquit : Restart start a photon node
+func (node *PhotonNode) ReStartWithoutConditionQuitAndUpdateMethNetworkNodes(env *TestEnv) {
+	node.DebugCrash = false
+	node.ConditionQuit = nil
+	node.Name = node.Name + "Restart"
+	node.StartWithoutUpdateMeshNetworkNodes(env)
+}
+
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.DebugCrash = false
