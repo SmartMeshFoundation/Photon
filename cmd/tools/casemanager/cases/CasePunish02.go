@@ -4,22 +4,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
-
-	"github.com/SmartMeshFoundation/Photon/utils"
-
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
-CasePunish : test for punish
-# N0-N1-N2,N1-N2因为钱不够,N1 AnnouceDisposed,N0在EventSendAnnouncedDisposedResponseBefore崩溃,
-# 这时候N1强制关闭通道,调用测试接口,forceUnlock,
-# N0重启以后,应该punish N1,拿走N1通道中的所有钱
+CasePunish02 : test for punish
+#N0-N1-N2 交易,N1 AnnouceDisposed 给N0,但是N0在EventSendAnnouncedDisposedResponseBefore崩溃,
+#然后N0重新启动,但是不收发任何消息,同时强制关闭通道,然后等结算窗口过期以后settle通道. N1不应该unlock,N0不应该
+#有机会惩罚N0
+
+# 测试N0不能自身诱导N1犯错获利
 */
-func (cm *CaseManager) CasePunish() (err error) {
-	env, err := models.NewTestEnv("./cases/CasePunish.ENV", cm.UseMatrix, cm.EthEndPoint)
+func (cm *CaseManager) CasePunish02() (err error) {
+	env, err := models.NewTestEnv("./cases/CasePunish02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
@@ -39,6 +37,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 	})
 	N1.Start(env)
 	N2.Start(env)
+
 	secret, _, err := N0.GenerateSecret()
 	if err != nil {
 		return
@@ -62,35 +61,28 @@ func (cm *CaseManager) CasePunish() (err error) {
 	if N0.IsRunning() {
 		return fmt.Errorf("n0 should shutdown")
 	}
-	err = N1.ForceUnlock(c10.ChannelIdentifier, secret)
+	//N1,N2不再和N0发生通信
+	N1.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N0)...)
+	N2.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N1)...)
+	//N0启动以后无法和N1,N2通信
+	N0.ReStartWithoutConditionquitAndNetwork(env)
+	//N0注册密码
+	err = N0.RegisterSecret(secret)
 	if err != nil {
-		return fmt.Errorf("force unlock err %s", err)
+		return fmt.Errorf("register secret err %s", err)
 	}
+	//N1关闭通道,
+	err = N1.Close(c10.ChannelIdentifier)
+	if err != nil {
+		return fmt.Errorf("close channel err %s", err)
+	}
+	/*
+		这时候N1不应该解锁,因为他已经发出去了annoucedisposed,虽然他没有收到annoucedisposed response
+	*/
 
-	N0.ReStartWithoutConditionquit(env)
-	//N0 should punish N1
-	//check balance
-	expectN1 := n1value
-	expectN0 := n0balance + n1balance + int32(n0value)
+	expectN1 := int32(n1value) + n1balance
+	expectN0 := n0balance + int32(n0value)
 	var i = 0
-	for i = 0; i < cm.MediumWaitSeconds; i++ {
-		var c v1.ChannelDataDetail
-		time.Sleep(time.Second)
-		c, err = N0.SpecifiedChannel(c10.ChannelIdentifier)
-		if err != nil {
-			continue
-		}
-		if (c.OurBalanceProof.ContractTransferAmount != nil && c.OurBalanceProof.ContractTransferAmount.Uint64() != 0) ||
-			c.OurBalanceProof.ContractLocksRoot != utils.EmptyHash ||
-			c.OurBalanceProof.ContractNonce != 0xffffffffffffffff {
-			models.Logger.Printf("c=%s", utils.StringInterface(c, 5))
-			continue
-		}
-		break
-	}
-	if i == cm.MediumWaitSeconds {
-		return cm.caseFailWithWrongChannelData(env.CaseName, "check balance proof error")
-	}
 	for i = 0; i < cm.HighMediumWaitSeconds; i++ {
 		var n0NewValue, n1NewValue int
 		time.Sleep(time.Second)
@@ -101,7 +93,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 		time.Sleep(time.Second)
 		n0NewValue, err = N0.TokenBalance(tokenAddress)
 		n1NewValue, err = N1.TokenBalance(tokenAddress)
-		if n1NewValue != expectN1 || n0NewValue != int(expectN0) {
+		if n1NewValue != int(expectN1) || n0NewValue != int(expectN0) {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance error n0=%d,n0expect=%d,n1=%d,n1expect=%d ", n0NewValue, expectN0, n1NewValue, expectN1))
 		}
 		break
@@ -110,5 +102,5 @@ func (cm *CaseManager) CasePunish() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "settle   error")
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	return
+	return nil
 }
