@@ -162,7 +162,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
-			Usage: "channels' reveal timeout, default 10",
+			Usage: "channels' reveal timeout",
 			Value: params.DefaultRevealTimeout,
 		},
 		cli.StringFlag{
@@ -493,15 +493,18 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 		var privateKeyBytes []byte
 		plug, err = plugin.Open("photon_plugin.so")
 		if err != nil {
+			err = fmt.Errorf("plugin open photo_plugin.so err %s", err)
 			return
 		}
 		privateKeyGetter, err = plug.Lookup("GetPrivateKeyForMeshBox")
 		if err != nil {
+			err = fmt.Errorf("plugin lockup symbol err %s", err)
 			return
 		}
 
 		privateKeyBytes, err = privateKeyGetter.(func() ([]byte, error))()
 		if err != nil {
+			err = fmt.Errorf("privateKeyGetter fail err %s", err)
 			return
 		}
 		return crypto.ToECDSA(privateKeyBytes)
