@@ -37,11 +37,11 @@ TransferStatus :
 	save status of transfer for api, most time for debug
 */
 type TransferStatus struct {
-	Key            string `storm:"id"`
-	LockSecretHash common.Hash
-	TokenAddress   common.Address
-	Status         TransferStatusCode
-	StatusMessage  string
+	Key            string             `storm:"id" json:"key,omitempty"`
+	LockSecretHash common.Hash        `json:"lock_secret_hash"`
+	TokenAddress   common.Address     `json:"token_address"`
+	Status         TransferStatusCode `json:"status"`
+	StatusMessage  string             `json:"status_message"`
 }
 
 func init() {

@@ -395,7 +395,7 @@ func (rs *Service) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
-				rs.NotifyHandler.Notify(notify.LevelWarn, "公链连接失败,正在尝试重连")
+				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -1465,6 +1465,7 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 	}
 	rs.StateMachineEventHandler.dispatch(manager, stateChange)
 	rs.dao.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	rs.NotifyTransferStatusChange(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
 	result.Result <- nil
 	return
 }
@@ -1489,6 +1490,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			r.Result <- nil
 		}
 		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
+		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1509,6 +1511,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			return
 		}
 		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1894,4 +1897,14 @@ func (rs *Service) registerSecretToStateManagerFromUser(req *registerSecretReq) 
 func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.AsyncResult) {
 	secret := req.Secret
 	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
+}
+
+//NotifyTransferStatusChange notify status change of a sending transfer
+func (rs *Service) NotifyTransferStatusChange(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string) {
+	rs.NotifyHandler.NotifyTransferStatusChange(&models.TransferStatus{
+		LockSecretHash: lockSecretHash,
+		TokenAddress:   tokenAddress,
+		Status:         status,
+		StatusMessage:  statusMessage,
+	})
 }

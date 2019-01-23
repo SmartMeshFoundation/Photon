@@ -659,7 +659,7 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.photon.NotifyHandler.Notify(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
+			mh.photon.NotifyHandler.NotifyString(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
 		}
 	}()
 	return nil

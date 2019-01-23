@@ -797,7 +797,14 @@ type NotifyHandler interface {
 	OnReceivedTransfer(tr string)
 	//OnSentTransfer a transfer sent success
 	OnSentTransfer(tr string)
-	// OnNotify get some important message Photon want to notify upper application
+	/* OnNotify get some important message Photon want to notify upper application
+	level: 0:info,1:warn,2:error
+	info: type InfoStruct struct {
+		Type    int
+		Message interface{}
+		}
+	当info.Type=0 表示Message是一个string,1表示Message是TransferStatus
+	*/
 	OnNotify(level int, info string)
 }
 
