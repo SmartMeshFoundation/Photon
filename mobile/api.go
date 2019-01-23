@@ -11,7 +11,7 @@ import (
 
 	"strings"
 
-	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network"
@@ -1027,8 +1027,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string
 	return
 }
 
-// OnResume :
-// 手机从后台切换至前台时调用
+// OnResume 手机从后台切换至前台时调用
 func (a *API) OnResume() (err error) {
 	// 1. 强制网络重连
 	err = a.NotifyNetworkDown()
@@ -1036,8 +1035,37 @@ func (a *API) OnResume() (err error) {
 	return
 }
 
-// GetSystemStatus :
+// GetSystemStatus 查询系统状态,
 func (a *API) GetSystemStatus() (r string, err error) {
 	resp := a.api.SystemStatus()
 	return resp.ToString(), nil
+}
+
+/*
+FindPath 查询所有从我到target的最低费用路径,该调用总是找pfs问路
+example:
+{
+        "path_id": 0,
+        "path_hop": 2,
+        "fee": 10000000000,
+        "result": [
+            "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+            "0x8a32108d269c11f8db859ca7fac8199ca87a2722",
+            "0xefb2e46724f675381ce0b3f70ea66383061924e9"
+        ]
+    }
+*/
+func (a *API) FindPath(targetStr, tokenStr, amountStr string) (r string, err error) {
+	target := common.HexToAddress(targetStr)
+	token := common.HexToAddress(tokenStr)
+	amount, isSuccess := new(big.Int).SetString(amountStr, 0)
+	if !isSuccess {
+		err = fmt.Errorf("arg amount err %s", amountStr)
+		return
+	}
+	routes, err := a.api.FindPath(target, token, amount)
+	if err != nil {
+		return
+	}
+	return marshal(routes)
 }
