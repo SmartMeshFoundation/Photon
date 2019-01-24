@@ -168,6 +168,14 @@ func (be *Events) startAlarmTask() {
 				log.Warn(fmt.Sprintf("photon start with blockNumber %d,but lastedBlockNumber on chain also %d", startUpBlockNumber, lastedBlock))
 				be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 				startUpBlockNumber = 0
+				//在启动的时候连接到了一条无效的公链(不出块)的情况下,photon也应该可以继续启动.
+				if be.firstStart {
+					be.firstStart = false
+					//通知photon,历史消息处理完毕,可以进行后续启动了.
+					be.StateChangeChannel <- &mediatedtransfer.ContractHistoryEventCompleteStateChange{
+						BlockNumber: currentBlock,
+					}
+				}
 			}
 			time.Sleep(be.pollPeriod / 2)
 			retryTime++
@@ -178,7 +186,7 @@ func (be *Events) startAlarmTask() {
 		}
 		retryTime = 0
 		if currentBlock != -1 && lastedBlock != currentBlock+1 {
-			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks", lastedBlock-currentBlock-1))
+			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks,currentBlock=%d", lastedBlock-currentBlock-1, currentBlock))
 		}
 		if lastedBlock%logPeriod == 0 {
 			log.Trace(fmt.Sprintf("new block :%d", lastedBlock))
