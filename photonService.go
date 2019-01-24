@@ -217,7 +217,6 @@ func (rs *Service) Start() (err error) {
 	*/
 	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
-
 	err = rs.registerRegistry()
 	if err != nil {
 		return
@@ -277,7 +276,6 @@ func (rs *Service) Start() (err error) {
 		这么做有可能因为接收到过多的消息,而阻塞接受线程,导致消息丢失.但是因为没有处理,对方一定会反复重新发送.
 	*/
 	rs.Protocol.StartReceive()
-
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -894,7 +892,8 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]
 	if manager != nil {
-		panic(fmt.Sprintf("manager must be never exist"))
+		result.Result <- fmt.Errorf("manager must be never exist")
+		return
 	}
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.Transfer2Result[smkey] = result

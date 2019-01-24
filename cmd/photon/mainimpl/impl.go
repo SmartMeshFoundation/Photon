@@ -305,6 +305,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	err = service.Start()
 	if err != nil {
+		log.Error(fmt.Sprintf("photon service start error %s", err))
 		service.Stop()
 		return
 	}

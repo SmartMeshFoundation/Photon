@@ -268,7 +268,7 @@ func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SetFeePolicy %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI SetFeePolicy %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
