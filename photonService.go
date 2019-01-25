@@ -830,18 +830,21 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	var err error
 	targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
-	if rs.PfsProxy != nil {
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	if g == nil {
+		result.Result <- errors.New("token not exist")
+		return
+	}
+	/*
+		只有在没有直接通道的情况下才找PFS询问路由
+	*/
+	if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
 		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
 		if err != nil {
-			result.Result <- errors.New("get route from pathfinder failed")
+			result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
 			return
 		}
 	} else {
-		g := rs.getToken2ChannelGraph(tokenAddress)
-		if g == nil {
-			result.Result <- errors.New("token not exist")
-			return
-		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
 	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
