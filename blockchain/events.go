@@ -125,7 +125,15 @@ func (be *Events) Start(LastBlockNumber int64) {
 	*/
 	go be.startAlarmTask()
 }
-
+func (be *Events) notifyPhotonStartupCompleteIfNeeded(currentBlock int64) {
+	if be.firstStart {
+		be.firstStart = false
+		//通知photon,历史消息处理完毕,可以进行后续启动了.
+		be.StateChangeChannel <- &mediatedtransfer.ContractHistoryEventCompleteStateChange{
+			BlockNumber: currentBlock,
+		}
+	}
+}
 func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
 	startUpBlockNumber := be.lastBlockNumber
@@ -134,6 +142,14 @@ func (be *Events) startAlarmTask() {
 	retryTime := 0
 	be.stopChan = make(chan int)
 	be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
+	/*
+		正常处理流程:
+		1. 抓取历史事件,排序,发送给photon
+		2. 通知photon启动完毕
+		其他处理流程:
+		通知photon启动完毕
+		也就是说无论发生了什么错误,尽快通知photon启动完毕,不要卡主.
+	*/
 	for {
 		//get the lastest number imediatelly
 		if be.pollPeriod == 0 {
@@ -151,6 +167,8 @@ func (be *Events) startAlarmTask() {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
 		h, err := be.client.HeaderByNumber(ctx, nil)
 		if err != nil {
+			//无论公链发生什么错误,都应该让photon启动起来,而不是卡主
+			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
 			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
 			cancelFunc()
 			if be.stopChan != nil {
@@ -163,20 +181,18 @@ func (be *Events) startAlarmTask() {
 		lastedBlock := h.Number.Int64()
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
-			if startUpBlockNumber == lastedBlock {
+			if startUpBlockNumber >= lastedBlock {
+				if startUpBlockNumber > lastedBlock {
+					log.Error(fmt.Sprintf("photon last processed number is %d,but spectrum's lastest block number  %d", startUpBlockNumber, lastedBlock))
+				}
 				// 当启动时获取不到新块,也需要通知photonService,否则会导致api无法启动
 				log.Warn(fmt.Sprintf("photon start with blockNumber %d,but lastedBlockNumber on chain also %d", startUpBlockNumber, lastedBlock))
 				be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 				startUpBlockNumber = 0
-				//在启动的时候连接到了一条无效的公链(不出块)的情况下,photon也应该可以继续启动.
-				if be.firstStart {
-					be.firstStart = false
-					//通知photon,历史消息处理完毕,可以进行后续启动了.
-					be.StateChangeChannel <- &mediatedtransfer.ContractHistoryEventCompleteStateChange{
-						BlockNumber: currentBlock,
-					}
-				}
 			}
+			//在启动的时候连接到了一条无效的公链(不出块)的情况下,photon也应该可以继续启动.
+			// 连接到另外一个节点,该节点落后很多,也应该让photon尽快启动
+			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
 			time.Sleep(be.pollPeriod / 2)
 			retryTime++
 			if retryTime > 10 {
@@ -200,6 +216,8 @@ func (be *Events) startAlarmTask() {
 		stateChanges, err := be.queryAllStateChange(fromBlockNumber, lastedBlock)
 		if err != nil {
 			log.Error(fmt.Sprintf("queryAllStateChange err=%s", err))
+			//无论公链发生什么错误,都应该让photon启动起来,而不是卡主
+			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
 			// 如果这里出现err,不能继续处理该blocknumber,否则会丢事件,直接从该块重新处理即可
 			time.Sleep(be.pollPeriod / 2)
 			continue
@@ -226,13 +244,8 @@ func (be *Events) startAlarmTask() {
 			}
 			be.StateChangeChannel <- sc
 		}
-		if be.firstStart {
-			be.firstStart = false
-			//通知photon,历史消息处理完毕,可以进行后续启动了.
-			be.StateChangeChannel <- &mediatedtransfer.ContractHistoryEventCompleteStateChange{
-				BlockNumber: currentBlock,
-			}
-		}
+		//正常启动流程是,所有历史事件处理完毕,然后再通知photon继续启动
+		be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
 		if lastSendBlockNumber != currentBlock {
 			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 		}
