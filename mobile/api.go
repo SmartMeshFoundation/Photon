@@ -856,6 +856,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
+				log.Info(fmt.Sprintf("status change to %d", cs.XMPPStatus))
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
@@ -938,25 +939,60 @@ func (a *API) NotifyNetworkDown() error {
 	return a.api.NotifyNetworkDown()
 }
 
-// GetCallResult :
-func (a *API) GetCallResult(callID string) (r string, err error) {
+const (
+	statusDealing = iota
+	statusFinishedSuccess
+	statusError
+)
+
+type callResult struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
+
+/*
+GetCallResult 查询异步调用的处理结果,
+返回结果形如:
+{
+"status":2,
+"Message":"error happening'
+}
+status共有三种情况:
+0: 表示正在处理还没有结果,此时Message为空
+1: 表示处理成功,Message中包含了相应的json结果.
+2: 表示处理失败,Message中包含了相应的Error描述字符串信息
+*/
+func (a *API) GetCallResult(callID string) (r string) {
+	var err error
 	result, ok := a.callID2result[callID]
 	if !ok {
-		err = errors.New("not found")
+		r, err = marshal(callResult{
+			Status:  statusError,
+			Message: "not found",
+		})
 		return
 	}
+	//还没处理完毕
+	if !result.Done {
+		r, err = marshal(callResult{
+			Status: statusDealing,
+		})
+		return
+	}
+	//处理完毕了
+	delete(a.callID2result, callID)
 	if result.Err != nil {
-		err = result.Err
-		return
-	}
-	r = result.Result
-	done := result.Done
-	if done {
-		err = result.Err
-		delete(a.callID2result, callID)
+		r, err = marshal(callResult{
+			Status:  statusError,
+			Message: result.Err.Error(),
+		})
 	} else {
-		err = errors.New("dealing")
+		r, err = marshal(callResult{
+			Status:  statusFinishedSuccess,
+			Message: result.Result,
+		})
 	}
+	log.Info(fmt.Sprintf("GetCallResult err %s", err))
 	return
 }
 
