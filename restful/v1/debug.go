@@ -115,9 +115,9 @@ const BlockTimeFormat = "01-02|15:04:05.999"
 
 //ConnectionStatus status of network connection
 type ConnectionStatus struct {
-	XMPPStatus    netshare.Status
-	EthStatus     netshare.Status
-	LastBlockTime string
+	XMPPStatus    netshare.Status `json:"xmpp_status"`
+	EthStatus     netshare.Status `json:"eth_status"`
+	LastBlockTime string          `json:"last_block_time"`
 }
 
 /*

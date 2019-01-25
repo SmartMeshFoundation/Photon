@@ -450,6 +450,9 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	return err
 }
 
+//交易过程中不应该出现密码为0的情况,除非有人恶意攻击.目前忽略这种交易,可以改进为直接发送reveal secret,收下来.
+var emptySecretHash = utils.ShaSecret(utils.EmptyHash[:])
+
 /*
 收到 MediatedTransfer, 如果验证不通过,说明节点之间状态不同步,通道只能关闭
 验证通过:
@@ -479,6 +482,13 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	// Clients inovke prepare-update, stop receiving new transfers.
 	if mh.photon.StopCreateNewTransfers {
 		return rerr.ErrStopCreateNewTransfer
+	}
+	if msg.LockSecretHash == emptySecretHash {
+		/*
+			接收到制定了密码为空的交易,直接忽略
+			这种交易一般都是恶意的,并且此交易可以会造成中间节点崩溃
+		*/
+		return fmt.Errorf("receive mediated transfer,it's secret is zero")
 	}
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if mh.photon.Config.IgnoreMediatedNodeRequest && msg.Target != mh.photon.NodeAddress {
@@ -659,7 +669,7 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.photon.NotifyHandler.Notify(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
+			mh.photon.NotifyHandler.NotifyString(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
 		}
 	}()
 	return nil

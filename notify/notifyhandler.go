@@ -21,7 +21,6 @@ type Handler struct {
 	receivedTransferChan chan *models.ReceivedTransfer
 	//noticeChan should never close
 	noticeChan chan *Notice
-
 	// work status
 	stopped bool
 }
@@ -63,8 +62,8 @@ func (h *Handler) GetReceivedTransferChan() <-chan *models.ReceivedTransfer {
 }
 
 // Notify : 通知上层,不让阻塞,以免影响正常业务
-func (h *Handler) Notify(level Level, info interface{}) {
-	if h.stopped || info == nil || info == "" {
+func (h *Handler) Notify(level Level, info *InfoStruct) {
+	if h.stopped || info == nil {
 		return
 	}
 	select {
@@ -74,6 +73,22 @@ func (h *Handler) Notify(level Level, info interface{}) {
 	}
 }
 
+// NotifyString : 通知上层,不让阻塞,以免影响正常业务
+func (h *Handler) NotifyString(level Level, info string) {
+	h.Notify(level, &InfoStruct{
+		Type:    infoTypeString,
+		Message: info,
+	})
+}
+
+// NotifyTransferStatusChange : 通知上层,不让阻塞,以免影响正常业务
+func (h *Handler) NotifyTransferStatusChange(status *models.TransferStatus) {
+	h.Notify(LevelInfo, &InfoStruct{
+		Type:    infoTypeTransferStatus,
+		Message: status,
+	})
+}
+
 // NotifyReceiveMediatedTransfer :
 func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
 	if h.stopped || msg == nil {
@@ -81,7 +96,7 @@ func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, 
 	}
 	info := fmt.Sprintf("收到token=%s,amount=%d,locksecrethash=%s的交易",
 		utils.APex2(ch.TokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash))
-	h.Notify(LevelInfo, info)
+	h.NotifyString(LevelInfo, info)
 }
 
 // NotifySentTransfer :

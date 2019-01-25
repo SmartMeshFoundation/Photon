@@ -107,7 +107,7 @@ func timeoutExponentialBackoff(retries int, timeout, maximumTimeout time.Duratio
 }
 
 type queueMessagesAndLock struct {
-	messages   []*SentMessageState
+	messages   []*SentMessageState //todo fixme use channel to avoid lock
 	lock       sync.Mutex
 	wakeUpChan chan int
 }
@@ -314,6 +314,9 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
+			p.mapLock.Lock()
+			delete(p.SentHashesToChannel, msgState.EchoHash)
+			p.mapLock.Unlock()
 			return
 		}
 		nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
@@ -328,6 +331,10 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			if ok {
 				p.log.Trace(fmt.Sprintf("msg=%s EchoHash=%s, sent success", encoding.MessageType(msgState.Message.Cmd()), utils.HPex(msgState.EchoHash)))
 				msgState.AsyncResult.Result <- nil
+				p.mapLock.Lock()
+				delete(p.SentHashesToChannel, msgState.EchoHash)
+				p.mapLock.Unlock()
+
 			} else {
 				p.log.Info(fmt.Sprintf("sendMessage EchoHash=%s stop retry, because of chan closed", utils.HPex(msgState.EchoHash)))
 			}
@@ -403,6 +410,8 @@ func (p *PhotonProtocol) sendWithResult(receiver common.Address,
 	p.mapLock.Lock()
 	msgState, ok := p.SentHashesToChannel[echohash]
 	if ok {
+		log.Info(fmt.Sprintf(`trying to send same message, this should only occur when token swap,
+because they sending same SecretRequest and RevealSecret,msg=%s`, msg))
 		p.mapLock.Unlock()
 		result = msgState.AsyncResult
 		return

@@ -217,7 +217,6 @@ func (rs *Service) Start() (err error) {
 	*/
 	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
-
 	err = rs.registerRegistry()
 	if err != nil {
 		return
@@ -277,7 +276,6 @@ func (rs *Service) Start() (err error) {
 		这么做有可能因为接收到过多的消息,而阻塞接受线程,导致消息丢失.但是因为没有处理,对方一定会反复重新发送.
 	*/
 	rs.Protocol.StartReceive()
-
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -395,7 +393,7 @@ func (rs *Service) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
-				rs.NotifyHandler.Notify(notify.LevelWarn, "公链连接失败,正在尝试重连")
+				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -894,7 +892,8 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]
 	if manager != nil {
-		panic(fmt.Sprintf("manager must be never exist"))
+		result.Result <- fmt.Errorf("manager must be never exist")
+		return
 	}
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.Transfer2Result[smkey] = result
@@ -1465,6 +1464,7 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 	}
 	rs.StateMachineEventHandler.dispatch(manager, stateChange)
 	rs.dao.UpdateTransferStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	rs.NotifyTransferStatusChange(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
 	result.Result <- nil
 	return
 }
@@ -1489,6 +1489,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			r.Result <- nil
 		}
 		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
+		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1509,6 +1510,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			return
 		}
 		rs.dao.UpdateTransferStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1758,10 +1760,15 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 		return
 	}
 	// 获取数据
-	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash]
-	if lock.Lock == nil {
-		result.Result <- fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
-		return
+	isSecretRegistered := false
+	lock := channel.PartnerState.Lock2PendingLocks[lockSecretHash].Lock
+	if lock == nil {
+		lock = channel.PartnerState.Lock2UnclaimedLocks[lockSecretHash].Lock
+		if lock == nil {
+			result.Result <- fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
+			return
+		}
+		isSecretRegistered = channel.PartnerState.Lock2UnclaimedLocks[lockSecretHash].IsRegisteredOnChain
 	}
 	partnerAddress := channel.PartnerState.Address
 	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
@@ -1770,36 +1777,40 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	nonce := channel.PartnerState.BalanceProofState.Nonce
 	signature := channel.PartnerState.BalanceProofState.Signature
 	addtionalHash := channel.PartnerState.BalanceProofState.MessageHash
-	proof := channel.PartnerState.Tree.MakeProof(lock.LockHash)
+	proof := channel.PartnerState.Tree.MakeProof(lock.Hash())
+	//不能阻塞主线程
+	go func() {
+		if channel.State == channeltype.StateOpened {
+			// 自己close
+			log.Trace(fmt.Sprintf("forceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
+				partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature)))
+			err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
+			if err != nil {
+				result.Result <- fmt.Errorf("forceUnlock : close channel fail %s", err.Error())
+				return
+			}
+		}
+		if !isSecretRegistered {
+			// register
+			err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
+			if err != nil {
+				result.Result <- fmt.Errorf("ForceUnlock : register secret fail %s", err.Error())
+				return
+			}
+		}
+		// unlock
+		log.Trace(fmt.Sprintf("forceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
+			partnerAddress.String(), transferAmount, lock.Expiration, lock.Amount, lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
+			lock.Hash().String()))
 
-	if channel.State == channeltype.StateOpened {
-		// 自己close
-		log.Trace(fmt.Sprintf("forceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
-			partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature)))
-		err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
+		err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock, mtree.Proof2Bytes(proof))
 		if err != nil {
-			result.Result <- fmt.Errorf("forceUnlock : close channel fail %s", err.Error())
+			result.Result <- fmt.Errorf("forceUnlock : unlock failed %s", err.Error())
 			return
 		}
-	}
-	// register
-	err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
-	if err != nil {
-		result.Result <- fmt.Errorf("ForceUnlock : register secret fail %s", err.Error())
-		return
-	}
-	// unlock
-	log.Trace(fmt.Sprintf("forceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",
-		partnerAddress.String(), transferAmount, lock.Lock.Expiration, lock.Lock.Amount, lock.Lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
-		lock.LockHash.String()))
-
-	err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock.Lock, mtree.Proof2Bytes(proof))
-	if err != nil {
-		result.Result <- fmt.Errorf("forceUnlock : unlock failed %s", err.Error())
-		return
-	}
-	log.Info(fmt.Sprintf("forceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
-	result.Result <- nil
+		log.Info(fmt.Sprintf("forceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
+		result.Result <- nil
+	}()
 	return
 }
 
@@ -1894,4 +1905,14 @@ func (rs *Service) registerSecretToStateManagerFromUser(req *registerSecretReq) 
 func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.AsyncResult) {
 	secret := req.Secret
 	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
+}
+
+//NotifyTransferStatusChange notify status change of a sending transfer
+func (rs *Service) NotifyTransferStatusChange(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string) {
+	rs.NotifyHandler.NotifyTransferStatusChange(&models.TransferStatus{
+		LockSecretHash: lockSecretHash,
+		TokenAddress:   tokenAddress,
+		Status:         status,
+		StatusMessage:  statusMessage,
+	})
 }
