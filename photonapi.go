@@ -1038,6 +1038,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 
 // NotifyNetworkDown :
 func (r *API) NotifyNetworkDown() error {
+	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
 	client := r.Photon.Chain.Client
 	if client.IsConnected() {

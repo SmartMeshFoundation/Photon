@@ -33,8 +33,8 @@ const (
 
 //InfoStruct for notify to mobile
 type InfoStruct struct {
-	Type    int //infoTypeString 表示Message是一个string,InfoTypeTransferStatus表示Message是TransferStatus
-	Message interface{}
+	Type    int         `json:"info"` //infoTypeString 表示Message是一个string,InfoTypeTransferStatus表示Message是TransferStatus
+	Message interface{} `json:"message"`
 }
 
 /*
