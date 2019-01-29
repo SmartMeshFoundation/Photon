@@ -540,7 +540,8 @@ event ChannelSettled(
 
 
  ####  Cooperatively close and settle a channel
-**Function description：**
+ **Function description：**
+ 
  Allows the participants to cooperate and provide both of their balances and signatures. This closes and settles the channel immediately, without triggering a challenge period.Anyone can call the function and can only call once. Cooperative settlement does not include locks. When the channel is open, the two parties negotiate to settle the channel and transfer the balance directly to the other party without closing the channel before.
 ```soldity
  function cooperativeSettle(
