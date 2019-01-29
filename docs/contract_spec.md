@@ -595,8 +595,6 @@ O((Start))-->A{P1,P2 want to open a Channel and deposit}
 A-->B(P1 open Channel and deposit )
 A-->C(P2 open Channel and deposit)
 B-->F(P1,P2 Channel is open)
-D-->F(P1,P2 Channel is open)
-E-->F(P1,P2 Channel is open)
 C-->F(P1,P2 Channel is open)
 F-->G{deposits}
 G-->B1(P1 deposits)
