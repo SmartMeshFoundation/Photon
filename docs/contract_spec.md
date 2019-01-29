@@ -538,10 +538,9 @@ event ChannelSettled(
 
   >If Alice does not find Bob unlock the abandoned lock during the punishment window , then Alice can call the settlememt function after the settlement window and the punishment window. According to the parameters submitted by both participants, the amount of tokens which need to be  transferred  is calculated and sent to the Corresponding address. Such as Alice 40 token, Bob 30 token.After the settlement is completed, the channel will be  destroyed. 
 
+####  Cooperatively close and Settle channel
+**Function description：**
 
- ####  Cooperatively close and settle a channel
- **Function description：**
- 
  Allows the participants to cooperate and provide both of their balances and signatures. This closes and settles the channel immediately, without triggering a challenge period.Anyone can call the function and can only call once. Cooperative settlement does not include locks. When the channel is open, the two parties negotiate to settle the channel and transfer the balance directly to the other party without closing the channel before.
 ```soldity
  function cooperativeSettle(
