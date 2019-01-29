@@ -85,7 +85,9 @@ Our contract allows for both channel participants immediately to close and settl
 ```soldity
 ecdsa_recoverable(privkey, keccak256(participant1 || participant1_balance || participant2 || participant2_balance || channel_identifier || open_block_number || chain_id)
 ```
+
 #### Fields
+
 Field Names|Field Types|Description
 -----------|-----------|-----------
 participant1|address|One of the channel participants
@@ -96,7 +98,9 @@ channel_identifier|bytes32|Channel identifier inside the TokensNetwork contract
 open_blocknumber|uint64|Block number at which channel opens.
 chain_id|uint256|Chain identifier as defined in EIP155
 signature|bytes|Elliptic Curve 256k1 signature on the above data
+
 ### Channel_identifier Calculation
+
 ```solidity
 if (participant1 < participant2) {
     return keccak256(abi.encodePacked(participant1, participant2, token,TokensNetwork));
@@ -105,9 +109,13 @@ if (participant1 < participant2) {
 }
 ```
 In TokensNetwork contract, The channel is specified through the triple of <token, participant1, participant2>.
+
 ## Project Specification 
+
 ###  Feature Highlight
+
 #### Cooperative Settling Channel
+
 Under most circumstances, both channel participants are Cooperative. Hence, any channel participant attempting to unilaterally close the channel will boost the time consuming and cost. In order to minimize cost, photon adds up a feature to cooperative settling the channel in which both channel participants have no need to submit their most recent pre-signed balance proof on-chain, just to sign the signature to show the agreement to the final state. If approved, channel settle can be immediately processed, normally within 20 secs, tokens will be allocated accordingly to accounts of this channel participants.
 
 ####  Withdraw without closing the channel
