@@ -204,3 +204,14 @@ func (c *CaseManager) trySettleInSeconds(seconds int, node *models.PhotonNode, c
 		return node.Settle(channelIdentifier)
 	})
 }
+
+func (c *CaseManager) nodesExcept(nodes []*models.PhotonNode, n *models.PhotonNode) []*models.PhotonNode {
+	r := make([]*models.PhotonNode, 0, len(nodes))
+	for _, n2 := range nodes {
+		if n2 == n {
+			continue
+		}
+		r = append(r, n2)
+	}
+	return r
+}

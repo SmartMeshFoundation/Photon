@@ -26,10 +26,21 @@ type Notice struct {
 	Info  string `json:"info"`
 }
 
+const (
+	infoTypeString = iota
+	infoTypeTransferStatus
+)
+
+//InfoStruct for notify to mobile
+type InfoStruct struct {
+	Type    int         `json:"info"` //infoTypeString 表示Message是一个string,InfoTypeTransferStatus表示Message是TransferStatus
+	Message interface{} `json:"message"`
+}
+
 /*
 newNotice :
 */
-func newNotice(level Level, info interface{}) *Notice {
+func newNotice(level Level, info *InfoStruct) *Notice {
 	n := &Notice{
 		Level: level,
 	}

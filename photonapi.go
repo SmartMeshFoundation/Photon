@@ -966,8 +966,15 @@ func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 }
 
 // ForceUnlock : only for debug
-func (r *API) ForceUnlock(channelIdentifier common.Hash, lockSecretHash common.Hash, secret common.Hash) (err error) {
-	result := r.Photon.forceUnlockClient(lockSecretHash, secret, channelIdentifier)
+func (r *API) ForceUnlock(channelIdentifier, secret common.Hash) (err error) {
+	result := r.Photon.forceUnlockClient(secret, channelIdentifier)
+	err = <-result.Result
+	return
+}
+
+// RegisterSecretOnChain : only for debug
+func (r *API) RegisterSecretOnChain(secret common.Hash) (err error) {
+	result := r.Photon.registerSecretOnChainClient(secret)
 	err = <-result.Result
 	return
 }
@@ -1031,6 +1038,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 
 // NotifyNetworkDown :
 func (r *API) NotifyNetworkDown() error {
+	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
 	client := r.Photon.Chain.Client
 	if client.IsConnected() {

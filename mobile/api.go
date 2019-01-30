@@ -11,7 +11,7 @@ import (
 
 	"strings"
 
-	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network"
@@ -797,7 +797,14 @@ type NotifyHandler interface {
 	OnReceivedTransfer(tr string)
 	//OnSentTransfer a transfer sent success
 	OnSentTransfer(tr string)
-	// OnNotify get some important message Photon want to notify upper application
+	/* OnNotify get some important message Photon want to notify upper application
+	level: 0:info,1:warn,2:error
+	info: type InfoStruct struct {
+		Type    int
+		Message interface{}
+		}
+	当info.Type=0 表示Message是一个string,1表示Message是TransferStatus
+	*/
 	OnNotify(level int, info string)
 }
 
@@ -849,6 +856,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
+				log.Info(fmt.Sprintf("status change to %d", cs.XMPPStatus))
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
@@ -931,25 +939,60 @@ func (a *API) NotifyNetworkDown() error {
 	return a.api.NotifyNetworkDown()
 }
 
-// GetCallResult :
-func (a *API) GetCallResult(callID string) (r string, err error) {
+const (
+	statusDealing = iota
+	statusFinishedSuccess
+	statusError
+)
+
+type callResult struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
+
+/*
+GetCallResult 查询异步调用的处理结果,
+返回结果形如:
+{
+"status":2,
+"Message":"error happening'
+}
+status共有三种情况:
+0: 表示正在处理还没有结果,此时Message为空
+1: 表示处理成功,Message中包含了相应的json结果.
+2: 表示处理失败,Message中包含了相应的Error描述字符串信息
+*/
+func (a *API) GetCallResult(callID string) (r string) {
+	var err error
 	result, ok := a.callID2result[callID]
 	if !ok {
-		err = errors.New("not found")
+		r, err = marshal(callResult{
+			Status:  statusError,
+			Message: "not found",
+		})
 		return
 	}
+	//还没处理完毕
+	if !result.Done {
+		r, err = marshal(callResult{
+			Status: statusDealing,
+		})
+		return
+	}
+	//处理完毕了
+	delete(a.callID2result, callID)
 	if result.Err != nil {
-		err = result.Err
-		return
-	}
-	r = result.Result
-	done := result.Done
-	if done {
-		err = result.Err
-		delete(a.callID2result, callID)
+		r, err = marshal(callResult{
+			Status:  statusError,
+			Message: result.Err.Error(),
+		})
 	} else {
-		err = errors.New("dealing")
+		r, err = marshal(callResult{
+			Status:  statusFinishedSuccess,
+			Message: result.Result,
+		})
 	}
+	log.Info(fmt.Sprintf("GetCallResult err %s", err))
 	return
 }
 
@@ -1027,8 +1070,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string
 	return
 }
 
-// OnResume :
-// 手机从后台切换至前台时调用
+// OnResume 手机从后台切换至前台时调用
 func (a *API) OnResume() (err error) {
 	// 1. 强制网络重连
 	err = a.NotifyNetworkDown()
@@ -1036,8 +1078,37 @@ func (a *API) OnResume() (err error) {
 	return
 }
 
-// GetSystemStatus :
+// GetSystemStatus 查询系统状态,
 func (a *API) GetSystemStatus() (r string, err error) {
 	resp := a.api.SystemStatus()
 	return resp.ToString(), nil
+}
+
+/*
+FindPath 查询所有从我到target的最低费用路径,该调用总是找pfs问路
+example:
+{
+        "path_id": 0,
+        "path_hop": 2,
+        "fee": 10000000000,
+        "result": [
+            "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+            "0x8a32108d269c11f8db859ca7fac8199ca87a2722",
+            "0xefb2e46724f675381ce0b3f70ea66383061924e9"
+        ]
+    }
+*/
+func (a *API) FindPath(targetStr, tokenStr, amountStr string) (r string, err error) {
+	target := common.HexToAddress(targetStr)
+	token := common.HexToAddress(tokenStr)
+	amount, isSuccess := new(big.Int).SetString(amountStr, 0)
+	if !isSuccess {
+		err = fmt.Errorf("arg amount err %s", amountStr)
+		return
+	}
+	routes, err := a.api.FindPath(target, token, amount)
+	if err != nil {
+		return
+	}
+	return marshal(routes)
 }

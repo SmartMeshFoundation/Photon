@@ -200,6 +200,7 @@ HandleChannelPunished 发生了 Punish 事件,意味着受益方合约上的信�
  * 		which means that information on contract of beneficiary has been changed.
  */
 func (c *Channel) HandleChannelPunished(beneficiaries common.Address) {
+	log.Trace(fmt.Sprintf("receive punish for %s,channel id=%s", beneficiaries.String(), c.ChannelIdentifier.ChannelIdentifier.String()))
 	var beneficiaryState, cheaterState *EndState
 	if beneficiaries == c.OurState.Address {
 		beneficiaryState = c.OurState
@@ -215,11 +216,12 @@ func (c *Channel) HandleChannelPunished(beneficiaries common.Address) {
 	}
 	beneficiaryState.SetContractTransferAmount(utils.BigInt0)
 	beneficiaryState.SetContractLocksroot(utils.EmptyHash)
-	beneficiaryState.SetContractNonce(0xfffffff)
+	beneficiaryState.SetContractNonce(0xffffffffffffffff)
 	beneficiaryState.ContractBalance = beneficiaryState.ContractBalance.Add(
 		beneficiaryState.ContractBalance, cheaterState.ContractBalance,
 	)
 	cheaterState.ContractBalance = new(big.Int).Set(utils.BigInt0)
+	log.Trace(fmt.Sprintf("c=%s", utils.StringInterface(c, 5)))
 }
 
 /*

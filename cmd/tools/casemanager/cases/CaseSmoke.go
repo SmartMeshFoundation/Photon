@@ -165,7 +165,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		models.Logger.Println("direct token swap fail")
 		return fmt.Errorf("direct token sdwap maker err=%s", err)
 	}
-	//time.Sleep(time.Second)
+	time.Sleep(time.Second)
 	c01t0new := n0.GetChannelWith(n1, tokenAddress).Println("after direct token swap")
 	c01t1new := n0.GetChannelWith(n1, token2).Println("after direct token swap")
 	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
