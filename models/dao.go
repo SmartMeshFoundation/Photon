@@ -43,12 +43,8 @@ type ChainIDDao interface {
 	SaveChainID(chainID int64)
 }
 
-// ChannelDao :
-type ChannelDao interface {
-	// add
-	NewChannel(c *channeltype.Serialization) error
-	// remove
-	RemoveChannel(c *channeltype.Serialization) error
+//ChannelUpdateDao update channel status in db
+type ChannelUpdateDao interface {
 	// update
 	UpdateChannel(c *channeltype.Serialization, tx TX) error
 	UpdateChannelNoTx(c *channeltype.Serialization) error
@@ -56,6 +52,15 @@ type ChannelDao interface {
 	// mix update
 	UpdateChannelAndSaveAck(c *channeltype.Serialization, echoHash common.Hash, ack []byte) (err error)
 	UpdateChannelContractBalance(c *channeltype.Serialization) error
+}
+
+// ChannelDao :
+type ChannelDao interface {
+	ChannelUpdateDao
+	// add
+	NewChannel(c *channeltype.Serialization) error
+	// remove
+	RemoveChannel(c *channeltype.Serialization) error
 	//query
 	GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error)
 	GetChannelByAddress(channelIdentifier common.Hash) (c *channeltype.Serialization, err error)

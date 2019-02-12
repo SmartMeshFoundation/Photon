@@ -279,9 +279,7 @@ func (c *Channel) HandleClosed(closingAddress common.Address, transferredAmount 
 				}
 			}()
 		}
-
 	}
-	c.State = channeltype.StateClosed
 }
 
 /*

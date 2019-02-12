@@ -17,13 +17,13 @@ import (
 
 //BalanceProofState is   proof need by contract
 type BalanceProofState struct {
-	Nonce             uint64
-	TransferAmount    *big.Int
-	LocksRoot         common.Hash
-	ChannelIdentifier contracts.ChannelUniqueID
-	MessageHash       common.Hash
+	Nonce             uint64                    `json:"nonce"`
+	TransferAmount    *big.Int                  `json:"transfer_amount"`
+	LocksRoot         common.Hash               `json:"locks_root"`
+	ChannelIdentifier contracts.ChannelUniqueID `json:"channel_identifier"`
+	MessageHash       common.Hash               `json:"message_hash"`
 	//signature is nonce + transferred_amount + locksroot + channel_identifier + message_hash
-	Signature []byte
+	Signature []byte `json:"signature,omitempty"`
 
 	/*
 		由于合约上并没有存储transferamount 和 locksroot,
@@ -31,9 +31,9 @@ type BalanceProofState struct {
 	*/
 	// Because contract does not cache transferAmount and locksroot
 	// and my partner's transferAmount will be changed, even I have no signature of my partner, but we should settle and unlock via it.
-	ContractTransferAmount *big.Int
-	ContractNonce          uint64
-	ContractLocksRoot      common.Hash
+	ContractTransferAmount *big.Int    `json:"contract_transfer_amount,omitempty"`
+	ContractNonce          uint64      `json:"contract_nonce,omitempty"`
+	ContractLocksRoot      common.Hash `json:"contract_locksroot,omitempty"`
 }
 
 //NewEmptyBalanceProofState init BalanceProof with proper state

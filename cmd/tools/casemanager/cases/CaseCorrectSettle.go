@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -62,7 +62,7 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 
 	var i = 0
 	for i = 0; i < 100; i++ {
-		var c v1.ChannelDataDetail
+		var c channeltype.ChannelDataDetail
 		time.Sleep(time.Second)
 		c, err = N0.SpecifiedChannel(c01.ChannelIdentifier)
 		if err != nil {

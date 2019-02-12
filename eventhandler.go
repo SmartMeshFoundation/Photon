@@ -123,9 +123,9 @@ func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransf
 	}
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendSecretRequest %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
-		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		eh.photon.UpdateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.photon.sendAsync(event.Receiver, secretRequest)
@@ -159,7 +159,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		if stateManager.Name != initiator.NameInitiatorTransition {
 			log.Warn(fmt.Sprintf("EventSendMediatedTransfer %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
 		}
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
 		var fromCh *channel.Channel
 		fromCh, err = eh.photon.findChannelByIdentifier(event.FromChannel)
@@ -171,7 +171,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		ack := eh.photon.Protocol.CreateAck(echohash)
 		tx := eh.photon.dao.StartTx()
 		eh.photon.dao.SaveAck(echohash, ack.Pack(), tx)
-		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(ch), tx)
+		err = eh.photon.UpdateChannel(channel.NewChannelSerialization(ch), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
 			// database cache fault, impossible to happen.
@@ -179,7 +179,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 			//err=tx.Rollback()
 			panic(fmt.Sprintf("update channel err %s", err))
 		}
-		err = eh.photon.dao.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
+		err = eh.photon.UpdateChannel(channel.NewChannelSerialization(fromCh), tx)
 		if err != nil {
 			//数据库保存错误,不可能发生,一旦发生了,程序只能向上层报告错误.
 			// database cache fault, impossible to happen.
@@ -218,7 +218,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 		return
 	}
 	eh.photon.conditionQuit("EventSendUnlockBefore")
-	err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(receiver, tr)
 	if err == nil {
 		eh.photon.dao.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
@@ -251,9 +251,9 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	}
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendAnnounceDisposed %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
-		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		eh.photon.UpdateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		//有可能同一个消息会引发两个 event send, 比如收到 中间节点EventAnnouceDisposed
 		// 会触发EventSendAnnounceDisposedResponse 和EventSendMediatedTransfer
 		// Maybe a message triggers two event send, when receiving Medaited node's EventAnnounceDisposed
@@ -284,9 +284,9 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	eh.photon.conditionQuit("EventSendAnnouncedDisposedResponseBefore")
 	if stateManager.LastReceivedMessage == nil {
 		log.Warn(fmt.Sprintf("EventSendAnnounceDisposedResponse %s,but has no lastReceviedMessage", utils.StringInterface(event, 3)))
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	} else {
-		eh.photon.updateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
+		eh.photon.UpdateChannelAndSaveAck(ch, stateManager.LastReceivedMessage.Tag())
 		stateManager.LastReceivedMessage = nil
 	}
 	err = eh.photon.sendAsync(receiver, mtr)
@@ -378,7 +378,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		return
 	}
 	eh.photon.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
-	err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(ch.PartnerState.Address, tr)
 	eh.photon.dao.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	eh.photon.NotifyTransferStatusChange(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
@@ -428,7 +428,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 			err = fmt.Errorf("receive EventTransferSentSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
 		}
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
@@ -445,7 +445,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 			err = fmt.Errorf("receive EventTransferReceivedSuccess,but channel not exist %s", utils.HPex(e2.ChannelIdentifier))
 			return
 		}
-		err = eh.photon.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
@@ -584,8 +584,8 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	err = eh.photon.dao.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
-	return nil
+	err = eh.photon.UpdateChannelContractBalance(channel.NewChannelSerialization(ch))
+	return err
 }
 
 //1. 必须能够正确处理重复的ContractClosedStateChange
@@ -621,7 +621,7 @@ func (eh *stateMachineEventHandler) handleClosed(st *mediatedtransfer.ContractCl
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 	}
-	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelState(channel.NewChannelSerialization(ch))
 	return err
 }
 
@@ -728,7 +728,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
 		return err
 	}
-	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelState(channel.NewChannelSerialization(ch))
 	// 通知该通道下所有存在pending lock的state manager,可以放心的announce disposed或者尝试新路由了
 	// nofity all statemanager with pending locks, and send announce disposed or try new route.
 	eh.dispatchByPendingLocksInChannel(ch, st)
@@ -769,7 +769,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 			}()
 		}
 	}
-	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	return err
 }
 
@@ -788,7 +788,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 		log.Error(fmt.Sprintf("handle punish ChannelStateTransition err=%s", err))
 		return err
 	}
-	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	return err
 }
 
@@ -800,7 +800,7 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
-	err = eh.photon.dao.UpdateChannelState(channel.NewChannelSerialization(ch))
+	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	return err
 }
 
@@ -861,7 +861,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		//settled channel should be removed.
-		c.State = channeltype.StateCooprativeSettle
+		//c.State = channeltype.StateCooprativeSettle
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {

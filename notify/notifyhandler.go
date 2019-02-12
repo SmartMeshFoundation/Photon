@@ -3,6 +3,10 @@ package notify
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/log"
+
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -76,7 +80,7 @@ func (h *Handler) Notify(level Level, info *InfoStruct) {
 // NotifyString : 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) NotifyString(level Level, info string) {
 	h.Notify(level, &InfoStruct{
-		Type:    infoTypeString,
+		Type:    InfoTypeString,
 		Message: info,
 	})
 }
@@ -84,8 +88,56 @@ func (h *Handler) NotifyString(level Level, info string) {
 // NotifyTransferStatusChange : 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) NotifyTransferStatusChange(status *models.TransferStatus) {
 	h.Notify(LevelInfo, &InfoStruct{
-		Type:    infoTypeTransferStatus,
+		Type:    InfoTypeTransferStatus,
 		Message: status,
+	})
+}
+
+const (
+	//CallStatusFinishedSuccess 调用成功
+	CallStatusFinishedSuccess = iota + 1
+	//CallStatusError 失败
+	CallStatusError
+)
+
+type channelCallIDResult struct {
+	CallID       string      `json:"call_id"`
+	Status       int         `json:"status"`
+	ErrorMessage string      `json:"error_message"`
+	Channel      interface{} `json:"channel"`
+}
+
+//NotifyChannelCallIDError 通知channel callid结果出错
+func (h *Handler) NotifyChannelCallIDError(callID string, err error) {
+	h.Notify(LevelInfo, &InfoStruct{
+		Type: InfoTypeChannelCallID,
+		Message: &channelCallIDResult{
+			CallID:       callID,
+			Status:       CallStatusError,
+			ErrorMessage: err.Error(),
+		},
+	})
+}
+
+//NotifyChannelCallIDSuccess 通知channel callid成功
+func (h *Handler) NotifyChannelCallIDSuccess(callID string, channel *channeltype.ChannelDataDetail) {
+	h.Notify(LevelInfo, &InfoStruct{
+		Type: InfoTypeChannelCallID,
+		Message: &channelCallIDResult{
+			CallID:       callID,
+			Status:       CallStatusFinishedSuccess,
+			ErrorMessage: "",
+			Channel:      channel,
+		},
+	})
+}
+
+//NotifyChannelStatus 通知channel发生了变化,包括balance,locked_amount,state等等
+func (h *Handler) NotifyChannelStatus(ch *channeltype.ChannelDataDetail) {
+	log.Trace(fmt.Sprintf("notify channel status changed:%s", utils.StringInterface(ch, 5)))
+	h.Notify(LevelInfo, &InfoStruct{
+		Type:    InfoTypeChannelStatus,
+		Message: ch,
 	})
 }
 

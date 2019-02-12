@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"math/big"
 
 	"errors"
@@ -26,23 +28,7 @@ import (
 //
 // should not export any member because of gomobile's protocol
 type API struct {
-	api           *photon.API
-	callID2result map[string]Result
-}
-
-// Result :
-type Result struct {
-	Result string `json:"result"`
-	Err    error  `json:"error"`
-	Done   bool   `json:"done"`
-}
-
-func newResult() Result {
-	return Result{
-		Result: "",
-		Err:    nil,
-		Done:   false,
-	}
+	api *photon.API
 }
 
 func marshal(v interface{}) (s string, err error) {
@@ -125,7 +111,7 @@ exmaple returns:
     "reveal_timeout": 0,
     "ClosedBlock": 0,
     "SettledBlock": 0,
-    "OurUnkownSecretLocks": {},
+    "OurUnknownSecretLocks": {},
     "OurKnownSecretLocks": {},
     "PartnerUnkownSecretLocks": {},
     "PartnerKnownSecretLocks": {},
@@ -172,29 +158,7 @@ func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error
 		log.Error(err.Error())
 		return
 	}
-	d := &v1.ChannelDataDetail{
-		ChannelIdentifier:        common.BytesToHash(c.Key).String(),
-		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddress:           c.PartnerAddress().String(),
-		Balance:                  c.OurBalance(),
-		PartnerBalance:           c.PartnerBalance(),
-		State:                    c.State,
-		SettleTimeout:            c.SettleTimeout,
-		TokenAddress:             c.TokenAddress().String(),
-		LockedAmount:             c.OurAmountLocked(),
-		PartnerLockedAmount:      c.PartnerAmountLocked(),
-		ClosedBlock:              c.ClosedBlock,
-		SettledBlock:             c.SettledBlock,
-		OurLeaves:                c.OurLeaves,
-		PartnerLeaves:            c.PartnerLeaves,
-		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks(),
-		OurUnkownSecretLocks:     c.OurLock2PendingLocks(),
-		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks(),
-		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks(),
-		OurBalanceProof:          c.OurBalanceProof,
-		PartnerBalanceProof:      c.PartnerBalanceProof,
-	}
-	channel, err = marshal(d)
+	channel, err = marshal(channeltype.ChannelSerialization2ChannelDataDetail(c))
 	return
 }
 
@@ -229,22 +193,21 @@ example returns:
 */
 func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (callID string, err error) {
 	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
 	go func() {
 		r, e := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr, newChannel)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
+		if e != nil {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
+		} else {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
+		}
 	}()
 	return
 }
 
-func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newcChannel bool) (channel string, err error) {
+func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newcChannel bool) (channel *channeltype.ChannelDataDetail, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api Deposit in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
-			partnerAddress, tokenAddress, settleTimeout, balanceStr, channel, err,
+			partnerAddress, tokenAddress, settleTimeout, balanceStr, utils.StringInterface(channel, 5), err,
 		))
 	}()
 	partnerAddr, err := utils.HexToAddressWithoutValidation(partnerAddress)
@@ -261,21 +224,7 @@ func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 		log.Error(err.Error())
 		return
 	}
-	d := &v1.ChannelData{
-		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		StateString:         c.State.String(),
-		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-		RevealTimeout:       c.RevealTimeout,
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-	}
-	channel, err = marshal(d)
+	channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
 	return
 
 }
@@ -302,22 +251,22 @@ example returns:
 */
 func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string, err error) {
 	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
+
 	go func() {
 		r, e := a.closeChannel(channelIdentifier, force)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
+		if e != nil {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
+		} else {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
+		}
 	}()
 	return
 
 }
-func (a *API) closeChannel(channelIdentifier string, force bool) (channel string, err error) {
+func (a *API) closeChannel(channelIdentifier string, force bool) (channel *channeltype.ChannelDataDetail, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api CloseChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
-			channelIdentifier, channel, err,
+			channelIdentifier, utils.StringInterface(channel, 5), err,
 		))
 	}()
 	channelIdentifierHash := common.HexToHash(channelIdentifier)
@@ -339,18 +288,7 @@ func (a *API) closeChannel(channelIdentifier string, force bool) (channel string
 			return
 		}
 	}
-	d := &v1.ChannelData{
-		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-	}
-	channel, err = marshal(d)
+	channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
 	return
 }
 
@@ -375,21 +313,45 @@ example returns:
 */
 func (a *API) SettleChannel(channelIdentifier string) (callID string, err error) {
 	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
+
 	go func() {
 		r, e := a.settleChannel(channelIdentifier)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
+		if e != nil {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
+		} else {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
+		}
 	}()
 	return
 }
-func (a *API) settleChannel(channelIdentifier string) (channel string, err error) {
+
+// Withdraw :
+/*
+	1. withdraw
+	{ "amount":3333,}
+	2. prepare for withdraw:
+	{"op":"preparewithdraw",}
+	3. cancel prepare:
+	{"op": "cancelprepare"}
+*/
+func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) {
+	callID = utils.NewRandomHash().String()
+
+	go func() {
+		r, e := a.withdraw(channelIdentifierHashStr, amountstr, op)
+		if e != nil {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
+		} else {
+			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
+		}
+	}()
+	return
+}
+
+func (a *API) settleChannel(channelIdentifier string) (channel *channeltype.ChannelDataDetail, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api SettleChannel in channelIdentifier=%s,out channel=\n%s,err=%v",
-			channelIdentifier, channel, err,
+			channelIdentifier, utils.StringInterface(channel, 5), err,
 		))
 	}()
 
@@ -404,18 +366,7 @@ func (a *API) settleChannel(channelIdentifier string) (channel string, err error
 		log.Error(err.Error())
 		return
 	}
-	d := &v1.ChannelData{
-		ChannelIdentifier:   common.BytesToHash(c.Key).String(),
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-	}
-	channel, err = marshal(d)
+	channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
 	return
 }
 
@@ -598,57 +549,58 @@ the role should only be  "maker" or "taker".
 `SecretStr` if i'm a maker, I know secret and also secret's hash, I must specify the `SecretStr` and can ignore `lockSecretHash`
 
 */
-func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
-	go func() {
-		e := a.tokenSwap(role, lockSecretHash, SendingAmountStr, ReceivingAmountStr, SendingToken, ReceivingToken, TargetAddress, SecretStr)
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
-	}()
-	return
-}
-func (a *API) tokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
-	type Req struct {
-		Role            string   `json:"role"`
-		SendingAmount   *big.Int `json:"sending_amount"`
-		SendingToken    string   `json:"sending_token"`
-		ReceivingAmount int64    `json:"receiving_amount"`
-		ReceivingToken  *big.Int `json:"receiving_token"`
-	}
-
-	var target common.Address
-	target, err = utils.HexToAddressWithoutValidation(TargetAddress)
-	if err != nil {
-		return
-	}
-	if len(lockSecretHash) <= 0 {
-		err = errors.New("LockSecretHash must not be empty")
-		return
-	}
-	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
-	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
-	makerToken, err := utils.HexToAddressWithoutValidation(SendingToken)
-	if err != nil {
-		return
-	}
-	takerToken, err := utils.HexToAddressWithoutValidation(ReceivingToken)
-	if err != nil {
-		return
-	}
-	if role == "maker" {
-		err = a.api.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
-			a.api.Photon.NodeAddress, target, SendingAmount, ReceivingAmount, SecretStr)
-	} else if role == "taker" {
-		err = a.api.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
-			target, a.api.Photon.NodeAddress, ReceivingAmount, SendingAmount)
-	} else {
-		err = fmt.Errorf("provided invalid token swap role %s", role)
-	}
-	return
-}
+//todo 手机接口暂时不导出tokenswap,
+//func (a *API) TokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (callID string, err error) {
+//	callID = utils.NewRandomHash().String()
+//	result := newResult()
+//	a.callID2result[callID] = result
+//	go func() {
+//		e := a.tokenSwap(role, lockSecretHash, SendingAmountStr, ReceivingAmountStr, SendingToken, ReceivingToken, TargetAddress, SecretStr)
+//		result.Err = e
+//		result.Done = true
+//		a.callID2result[callID] = result
+//	}()
+//	return
+//}
+//func (a *API) tokenSwap(role string, lockSecretHash string, SendingAmountStr, ReceivingAmountStr string, SendingToken, ReceivingToken, TargetAddress string, SecretStr string) (err error) {
+//	type Req struct {
+//		Role            string   `json:"role"`
+//		SendingAmount   *big.Int `json:"sending_amount"`
+//		SendingToken    string   `json:"sending_token"`
+//		ReceivingAmount int64    `json:"receiving_amount"`
+//		ReceivingToken  *big.Int `json:"receiving_token"`
+//	}
+//
+//	var target common.Address
+//	target, err = utils.HexToAddressWithoutValidation(TargetAddress)
+//	if err != nil {
+//		return
+//	}
+//	if len(lockSecretHash) <= 0 {
+//		err = errors.New("LockSecretHash must not be empty")
+//		return
+//	}
+//	SendingAmount, _ := new(big.Int).SetString(SendingAmountStr, 0)
+//	ReceivingAmount, _ := new(big.Int).SetString(ReceivingAmountStr, 0)
+//	makerToken, err := utils.HexToAddressWithoutValidation(SendingToken)
+//	if err != nil {
+//		return
+//	}
+//	takerToken, err := utils.HexToAddressWithoutValidation(ReceivingToken)
+//	if err != nil {
+//		return
+//	}
+//	if role == "maker" {
+//		err = a.api.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
+//			a.api.Photon.NodeAddress, target, SendingAmount, ReceivingAmount, SecretStr)
+//	} else if role == "taker" {
+//		err = a.api.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
+//			target, a.api.Photon.NodeAddress, ReceivingAmount, SendingAmount)
+//	} else {
+//		err = fmt.Errorf("provided invalid token swap role %s", role)
+//	}
+//	return
+//}
 
 //Stop stop Photon
 func (a *API) Stop() {
@@ -939,90 +891,10 @@ func (a *API) NotifyNetworkDown() error {
 	return a.api.NotifyNetworkDown()
 }
 
-const (
-	statusDealing = iota
-	statusFinishedSuccess
-	statusError
-)
-
-type callResult struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-/*
-GetCallResult 查询异步调用的处理结果,
-返回结果形如:
-{
-"status":2,
-"Message":"error happening'
-}
-status共有三种情况:
-0: 表示正在处理还没有结果,此时Message为空
-1: 表示处理成功,Message中包含了相应的json结果.
-2: 表示处理失败,Message中包含了相应的Error描述字符串信息
-*/
-func (a *API) GetCallResult(callID string) (r string) {
-	var err error
-	result, ok := a.callID2result[callID]
-	if !ok {
-		r, err = marshal(callResult{
-			Status:  statusError,
-			Message: "not found",
-		})
-		return
-	}
-	//还没处理完毕
-	if !result.Done {
-		r, err = marshal(callResult{
-			Status: statusDealing,
-		})
-		return
-	}
-	//处理完毕了
-	delete(a.callID2result, callID)
-	if result.Err != nil {
-		r, err = marshal(callResult{
-			Status:  statusError,
-			Message: result.Err.Error(),
-		})
-	} else {
-		r, err = marshal(callResult{
-			Status:  statusFinishedSuccess,
-			Message: result.Result,
-		})
-	}
-	log.Info(fmt.Sprintf("GetCallResult err %s", err))
-	return
-}
-
-// Withdraw :
-/*
-	1. withdraw
-	{ "amount":3333,}
-	2. prepare for withdraw:
-	{"op":"preparewithdraw",}
-	3. cancel prepare:
-	{"op": "cancelprepare"}
-*/
-func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-	result := newResult()
-	a.callID2result[callID] = result
-	go func() {
-		r, e := a.withdraw(channelIdentifierHashStr, amountstr, op)
-		result.Result = r
-		result.Err = e
-		result.Done = true
-		a.callID2result[callID] = result
-	}()
-	return
-}
-
-func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string, err error) {
+func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel *channeltype.ChannelDataDetail, err error) {
 	defer func() {
 		log.Trace(fmt.Sprintf("Api Withdraw channelIdentifierHashStr=%s,amountStr=%s,op=%s,response=%s,err=%v",
-			channelIdentifierHashStr, amountStr, op, r, err))
+			channelIdentifierHashStr, amountStr, op, utils.StringInterface(channel, 3), err))
 	}()
 	const OpPrepareWithdraw = "preparewithdraw"
 	const OpCancelPrepare = "cancelprepare"
@@ -1052,21 +924,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (r string
 			return
 		}
 	}
-	d := &v1.ChannelData{
-		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
-		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		StateString:         c.State.String(),
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-		RevealTimeout:       c.RevealTimeout,
-	}
-	r, err = marshal(d)
+	channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
 	return
 }
 

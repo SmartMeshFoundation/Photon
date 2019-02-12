@@ -12,8 +12,8 @@ type ChannelIdentifier common.Hash
 
 //ChannelUniqueID unique id of a channel
 type ChannelUniqueID struct {
-	ChannelIdentifier common.Hash
-	OpenBlockNumber   int64
+	ChannelIdentifier common.Hash `json:"channel_identifier"`
+	OpenBlockNumber   int64       `json:"open_block_number"`
 }
 
 func (c *ChannelUniqueID) String() string {

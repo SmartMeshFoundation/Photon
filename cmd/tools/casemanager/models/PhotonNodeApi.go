@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon"
 
@@ -788,7 +788,7 @@ func (node *PhotonNode) TokenBalance(token string) (v int, err error) {
 }
 
 //SpecifiedChannel query channel's detail
-func (node *PhotonNode) SpecifiedChannel(channelIdentifier string) (c v1.ChannelDataDetail, err error) {
+func (node *PhotonNode) SpecifiedChannel(channelIdentifier string) (c channeltype.ChannelDataDetail, err error) {
 	req := &Req{
 		FullURL: fmt.Sprintf(node.Host+"/api/1/channels/%s", channelIdentifier),
 		Method:  http.MethodGet,
