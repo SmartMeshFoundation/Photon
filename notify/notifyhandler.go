@@ -141,7 +141,7 @@ func (h *Handler) NotifyChannelStatus(ch *channeltype.ChannelDataDetail) {
 	})
 }
 
-// NotifyReceiveMediatedTransfer :
+// NotifyReceiveMediatedTransfer :通知收到了MediatedTransfer
 func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
 	if h.stopped || msg == nil {
 		return
@@ -151,7 +151,7 @@ func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, 
 	h.NotifyString(LevelInfo, info)
 }
 
-// NotifySentTransfer :
+// NotifySentTransfer : 通知发出的交易成功了.
 func (h *Handler) NotifySentTransfer(st *models.SentTransfer) {
 	if h.stopped || st == nil {
 		return
@@ -163,7 +163,7 @@ func (h *Handler) NotifySentTransfer(st *models.SentTransfer) {
 	}
 }
 
-// NotifyReceiveTransfer :
+// NotifyReceiveTransfer : 通知成功收到一笔token
 func (h *Handler) NotifyReceiveTransfer(rt *models.ReceivedTransfer) {
 
 	if h.stopped || rt == nil {

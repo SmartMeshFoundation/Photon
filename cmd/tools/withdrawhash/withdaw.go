@@ -134,7 +134,7 @@ func mainctx(ctx *cli.Context) error {
 		log.Crit("private key is invalid, wrong password?")
 	}
 	w.PrivateKey = privateKey
-	w.bcs, err = rpc.NewBlockChainService(privateKey, w.db.GetRegistryAddress(), w.Conn)
+	w.bcs, err = rpc.NewBlockChainService(privateKey, w.db.GetContractStatus().RegistryAddress, w.Conn)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,8 @@ package photon
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/channel"
@@ -836,7 +838,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
 		if c.State == channeltype.StateClosed {
-			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout)
+			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout) + params.PunishBlockNumber
 			if st2.BlockNumber > settlementEnd {
 				//wait for user call settle
 			}
@@ -845,6 +847,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.State != channeltype.StateClosed {
 			c.State = channeltype.StateClosed
 			c.ExternState.SetClosed(st2.ClosedBlock)
+			c.ExternState.SetSettled(st2.ClosedBlock + int64(c.SettleTimeout) + params.PunishBlockNumber)
 			c.HandleClosed(st2.ClosingAddress, st2.TransferredAmount, st2.LocksRoot)
 		} else {
 			log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%d,thisblock=%d",

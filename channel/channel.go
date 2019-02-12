@@ -56,13 +56,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		TokenAddress:      tokenAddr,
 		RevealTimeout:     revealTimeout,
 		SettleTimeout:     settleTimeout,
-		State:             channeltype.StateOpened,
-	}
-	if externState.ClosedBlock != 0 {
-		c.State = channeltype.StateClosed
-	}
-	if externState.SettledBlock != 0 {
-		c.State = channeltype.StateSettled
+		State:             channeltype.StateOpened, //如果是从数据中恢复,state会直接被修改,如果是新建的则初始状态就是open
 	}
 	return
 }
@@ -1379,8 +1373,8 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 	return
 }
 
-//Settle async settle this channel
-func (c *Channel) Settle() (result *utils.AsyncResult) {
+//Settle async settle this channel,blockNumber is the current blockNumber
+func (c *Channel) Settle(blockNumber int64) (result *utils.AsyncResult) {
 	if c.State != channeltype.StateClosed {
 		return utils.NewAsyncResultWithError(fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State))
 	}
@@ -1399,6 +1393,9 @@ func (c *Channel) Settle() (result *utils.AsyncResult) {
 		PartnerLocksroot = c.PartnerState.BalanceProofState.ContractLocksRoot
 	} else {
 		PartnerTransferAmount = utils.BigInt0
+	}
+	if c.ExternState.SettledBlock > blockNumber {
+		return utils.NewAsyncResultWithError(errors.New("settle must after settle timeout"))
 	}
 	return c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
 }

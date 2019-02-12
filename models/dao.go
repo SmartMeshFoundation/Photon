@@ -85,10 +85,10 @@ type DbStatusDao interface {
 	IsDbCrashedLastTime() bool
 }
 
-// RegistryAddressDao :
-type RegistryAddressDao interface {
-	SaveRegistryAddress(registryAddress common.Address)
-	GetRegistryAddress() common.Address
+// ContractStatusDao :
+type ContractStatusDao interface {
+	SaveContractStatus(contractStatus ContractStatus)
+	GetContractStatus() ContractStatus
 }
 
 // SentEnvelopMessagerDao :
@@ -188,7 +188,7 @@ type Dao interface {
 	UnlockDao
 	ExpiredLockDao
 	DbStatusDao
-	RegistryAddressDao
+	ContractStatusDao
 	SentEnvelopMessagerDao
 	FeeChargeRecordDao
 	FeePolicyDao

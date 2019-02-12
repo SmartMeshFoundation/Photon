@@ -264,6 +264,7 @@ func ChannelSerialization2ChannelDataDetail(c *Serialization) *ChannelDataDetail
 		State:                     c.State,
 		StateString:               c.State.String(),
 		SettleTimeout:             c.SettleTimeout,
+		RevealTimeout:             c.RevealTimeout,
 		TokenAddress:              c.TokenAddress().String(),
 		LockedAmount:              c.OurAmountLocked(),
 		PartnerLockedAmount:       c.PartnerAmountLocked(),

@@ -32,6 +32,11 @@ func (r *RegistryProxy) GetContractVersion() (string, error) {
 	return r.ch.ContractVersion(nil)
 }
 
+//GetContract return Contract interface
+func (r *RegistryProxy) GetContract() *contracts.TokensNetwork {
+	return r.ch
+}
+
 //TokenNetworkProxy proxy of TokenNetwork Contract
 type TokenNetworkProxy struct {
 	*RegistryProxy

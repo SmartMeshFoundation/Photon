@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/SmartMeshFoundation/Atmosphere/contracts"
@@ -71,7 +73,7 @@ func TestMobile(t *testing.T) {
 		return
 	}
 	defer sub.Unsubscribe()
-
+	th.clearHistory()
 	partnerAddr := utils.NewRandomAddress()
 	callID, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
 	if err != nil {
@@ -96,6 +98,15 @@ func TestMobile(t *testing.T) {
 		channelMap = m["channel"].(map[string]interface{})
 		break
 	}
+	cdetail, ok := th.lastNotify[notify.InfoTypeChannelStatus]
+	if !ok {
+		t.Error("must have status change")
+		return
+	}
+	channelMap = cdetail.(map[string]interface{})
+	ast.EqualValues(channeltype.StateOpened, channelMap["state"])
+
+	//清除历史记录,下一笔调用开始
 	th.clearHistory()
 	channelIdentifier := channelMap["channel_identifier"].(string)
 	callID, err = api.CloseChannel(channelIdentifier, true)

@@ -1193,7 +1193,7 @@ func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string
 	if op == closeChannelReqName {
 		result = c.Close()
 	} else {
-		result = c.Settle()
+		result = c.Settle(rs.GetBlockNumber())
 	}
 	//通道变化的通知来自于事件,而不是执行结果
 	return
