@@ -88,6 +88,7 @@ State|StateString|Description
 ```
 **Status Codes:**  
 - `200 OK` 
+
 If the node has not registered the token, then respond the message " NULL".
 
 ## Get all the channel partners of this token
@@ -99,7 +100,7 @@ If the node has not registered the token, then respond the message " NULL".
 
 `GET http://{{ip2}}/api/1/tokens/0x2a7Af974B7bB88703180d6AFF9a656BB4Dbba809/partners`
 
-**Example Response: **
+**Example Response :** 
 ```json
 [
     {
@@ -338,7 +339,7 @@ When you’re ready to withdraw, you can switch the channel state to `"preparewi
 		"op":"preparewithdraw"
 }
 ```
-**Example Response :**  
+**Example Response :** 
 
 ```json
 {
@@ -364,7 +365,7 @@ When you want to cancel the state of the `preparewithdraw`, you can switch the c
 		"op":"cancelprepare"
 }
 ```
-**Example Response: **
+**Example Response :** 
 ```json
 {
     "channel_identifier": "0x623c5bf569977f6da37ff39da9a917eb500089ba7ae95ee894b9349db4320b16",
@@ -577,7 +578,7 @@ Through calling the interface,the caller will Get `lock_secret_hash` / `secret` 
 
  `GET  http://{{ip1}}/api/1/secret`
 
-**Example Response: **
+**Example Response :** 
 ```json
 {
     "lock_secret_hash": "0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
@@ -618,7 +619,7 @@ For the sender of the transfer, the interface can be used to query the history i
 
 `GET http://{{ip1}}/api/1/querysenttransfer`
 
-**Example Response: **
+**Example Response :** 
 ```json
 [
     {
@@ -652,7 +653,7 @@ For the receiver of the transfer, the interface can be used to query the history
 
 `GET http://{{ip2}}/api/1/queryreceivedtransfer`
 
-**Example Response : ** 
+**Example Response :** 
 ```json
 [
     {
@@ -685,7 +686,7 @@ For the receiver of the transfer, the interface can be used to query the history
  **Example Request :**    
 `GET /api/1/getunfinishedreceivedtransfer/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843`   
 
- **Example Response:  **
+ **Example Response :** 
 ```json
 {
     "initiator_address": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
