@@ -50,7 +50,7 @@ State|StateString|Description
 
 ##  Query node address
 
- GET /api/1/address
+ `GET /api/1/address`
 
  Return the address of photon node.
 
@@ -69,7 +69,7 @@ State|StateString|Description
 
 
 ##  Query the registered token
-    GET /api/1/tokens  
+ ` GET /api/1/tokens` 
   
   Return the token address which can be used in the offchain transfer.
 
@@ -91,7 +91,7 @@ State|StateString|Description
 If the node has not registered the token, then respond the message " NULL".
 
 ## Get all the channel partners of this token
-   GET /api/1/tokens/*(token_address)*/partners
+ `GET /api/1/tokens/*(token_address)*/partners`
 
    Return all channels of this node under this token.
 
@@ -99,7 +99,7 @@ If the node has not registered the token, then respond the message " NULL".
 
 `GET http://{{ip2}}/api/1/tokens/0x2a7Af974B7bB88703180d6AFF9a656BB4Dbba809/partners`
 
-Example Response:
+**Example Response: **
 ```json
 [
     {
@@ -118,11 +118,12 @@ Example Response:
 ```
 **Status Codes:**  
 - `200 OK` 
+
  If the node has not created the channel with the token, then respond the message " NULL".
 
  
 ## Query all the channels of the node
-   GET /api/1/channels  
+   `GET /api/1/channels`  
 
 Return all the unsettled channels of the node.
 
@@ -179,10 +180,11 @@ Return all the unsettled channels of the node.
 ```
 **Status Codes:**  
 - `200 OK` 
+
 If the node has not created the channel with other nodes, then respond the message " NULL".
 
 ## Query specific channel of the node
-   GET /api/1/channels/*(channel_identifier)* 
+  `GET /api/1/channels/*(channel_identifier)* `
 
 Query the specific channel and return all the information about the channel.
 
@@ -249,7 +251,7 @@ Query the specific channel and return all the information about the channel.
 - `404 Not Found` - not found
 
 ## Deposit to the channel
-   PUT /api/1/deposit 
+ `  PUT /api/1/deposit `
 
    Deposit to the channel (if there is no channel, the interface can be reused to create the channel and deposit).
 
@@ -275,7 +277,7 @@ deposit interfaces contain two behaviors：
 
   `PUT http://{{ip1}}/api/1/deposit`
 
-**PAYLOAD:**  
+**PAYLOAD:** 
 ```json 
 {
     "partner_address": "0x7d289f1cBd70d5c3c6F56c09f812F6407f6458B7",
@@ -321,7 +323,7 @@ Setting `settle_timeout` to be non-zero when the channel already exists will pro
 
 ## Withdraw from the channel  
 
- PUT /api/1/withdraw/*(channel_identifier)* 
+` PUT /api/1/withdraw/*(channel_identifier)* `
 
 CooperateWithdraw available when both channel participants online.
 When you’re ready to withdraw, you can switch the channel state to `"preparewithdraw"` by setting the `"op"`:`"preparewithdraw"` and refuse to accept the transaction.When no new block is received from the connection point for more than one minute, an error message will be given when calling `withdraw`."call smc SyncProgress err, client is closed”,which means that the connection point need to synchronize new blocks.
@@ -362,7 +364,7 @@ When you want to cancel the state of the `preparewithdraw`, you can switch the c
 		"op":"cancelprepare"
 }
 ```
-Example Response: 
+**Example Response: **
 ```json
 {
     "channel_identifier": "0x623c5bf569977f6da37ff39da9a917eb500089ba7ae95ee894b9349db4320b16",
@@ -409,10 +411,11 @@ When `amount`is greater than 0, the `op` parameter is meaningless.
 If the withdrawn amount is larger than the available balance of the channel, an error message will be returned.such as "Error": "invalid withdraw amount, availabe=399999999999999999999,want=1000000000000000000000"”.
 
 ##  Close the channel
-PATCH /api/1/channels/*(channel_identifier)*  
+`PATCH /api/1/channels/*(channel_identifier)* `
 
 Close the channel, which includes the unilateral close the channel and cooperative settle the channel.
 set `force` default to `false`, meaning that channel participants cooperate settle the channel.When no new block is received from the connection point for more than one minute, an error message will be given when calling to close the channel."call smc SyncProgress err, client is closed”,which means that the connection point need to synchronize new blocks.
+
 **Example Request :**    
 
 `PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`
@@ -441,6 +444,7 @@ set `force` default to `false`, meaning that channel participants cooperate sett
 }
 ```
 Once channel partner is offline or has the locks, the cooperate settle can't be carried out.The participant should alter the`force` to `true`, wait for settle_timeout and unilateral settle the channel.
+
 **PAYLOAD:**     
 ```json 
 {"state":"closed",
@@ -465,7 +469,7 @@ Once channel partner is offline or has the locks, the cooperate settle can't be 
 }
 ```
 ##  Settle the Channel
-PATCH /api/1/channels/(channel_identifier)
+`PATCH /api/1/channels/(channel_identifier)`
 
 The interface of unilaterally settling channel is reused with closing channel, which the parameters are different.
  
@@ -508,7 +512,7 @@ Note: Since settle_timeout does not include the penalty period (in spectrum, whi
 - `409 Conflict` - State conflicts, such as, "failed to estimate gas needed: gas required exceeds allowance or always failing transaction",or "channel is still open".
 
 ## Initiate the payment
-POST /api/1/transfers/*(token_address)*/*(target_address)*  
+`POST /api/1/transfers/*(token_address)*/*(target_address)*`  
 
 This interface is used to initiate a transfer transaction, which is currently associated with PFS by default.
 
@@ -547,13 +551,13 @@ This interface is used to initiate a transfer transaction, which is currently as
 Note: In general, the parameter "fee" uses the default value of 0, that is, the total cost of the transfer is not specified. The sender will refer to the PFS recommended fee plan for transfer; in the case where "fee" is not 0, the amount is theoretically greater than or equal to the cost value recommended by PFS, otherwise the transfer may fail, prompting “no available route”.
 
 
-## Initiate the transfer with specified `secret`
+## Initiate the transfer with specified secret
 
 The normal transfer secret is automatically generated by photon. If the user wants to precisely control the success or failure of the transaction, he can use the transfer of the specified `secret`. Currently a major application scenario is tokenswap.
 
 **Example Request :**   
 
-`http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`   
+`POST: http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`   
 
 ```json
 {
@@ -562,17 +566,18 @@ The normal transfer secret is automatically generated by photon. If the user wan
     "secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1"
 }
 ```
-Note: The specified secret is obtained by the interface  /api/1/secret.
+Note: The specified secret is obtained by the interface  `/api/1/secret`.
 
 ## Get secret
- GET /api/1/secret 
+` GET /api/1/secret `
 
 Through calling the interface,the caller will Get `lock_secret_hash` / `secret` pair,which can be used in Specified secret transaction or tokenswap.
+
  **Example Request :**   
 
  `GET  http://{{ip1}}/api/1/secret`
 
-Example Response: 
+**Example Response: **
 ```json
 {
     "lock_secret_hash": "0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
@@ -581,7 +586,7 @@ Example Response:
 ```
 
 ## Allow disclosure of secret
- Post /api/1/transfers/allowrevealsecret
+ `Post /api/1/transfers/allowrevealsecret`
 
 This interface is used in combination with the specified secret transfer interface. When a transfer with the special secret is sent, if the interface is not be called to unlock the Secret, the initiator will not accept the SecretRequest from the recipient. So when sending the transaction with the specified secret, the sender must actively call this interface ,then the transaction can be successfully continued.
   
@@ -601,11 +606,11 @@ This interface is used in combination with the specified secret transfer interfa
 - lock_secret_hash: Refers to the lock_secret_hash corresponding to Secret in the send Secret transaction.
 - token_address: Token of transactions
 
-Response:  
+**Example Response:**  
 **200 ok**
 
 ## Query the sent successful transfer 
-  GET /api/1/querysenttransfer 
+  `GET /api/1/querysenttransfer` 
 
 For the sender of the transfer, the interface can be used to query the history information of all successful transfer which sent from itself, so that the user can accurately master the situation of the transfered funds. If there is too much history, you can use block filtering.Such as:".../querysenttransfer?from_block=3000&to_block=5000"
 
@@ -613,7 +618,7 @@ For the sender of the transfer, the interface can be used to query the history i
 
 `GET http://{{ip1}}/api/1/querysenttransfer`
 
-Example Response:
+**Example Response: **
 ```json
 [
     {
@@ -639,14 +644,15 @@ Example Response:
 ]
 ```
 ## Query the received successful transfer 
-   GET /api/1/queryreceivedtransfer
+   `GET /api/1/queryreceivedtransfer`
+   
 For the receiver of the transfer, the interface can be used to query the history information of all successful transfer which received from other partners, so that the user can accurately master the situation of the received funds. If there is too much history, you can use block filtering.Such as:".../queryreceivedtransfer?from_block=3000&to_block=5000"
 
-Example Request：
+**Example Request：**
 
 `GET http://{{ip2}}/api/1/queryreceivedtransfer`
 
-Example Response :  
+**Example Response : ** 
 ```json
 [
     {
@@ -672,13 +678,14 @@ Example Response :
 ]
 ```
 ##  Query the transaction that have not yet been received
-    GET /api/1/getunfinishedreceivedtransfer/*(tokenaddress)*/*(locksecrethash)*   
+   ` GET /api/1/getunfinishedreceivedtransfer/*(tokenaddress)*/*(locksecrethash)* `  
 
  This interface is called by the receiver, also used to specify the secret transaction scenario. The  receiver can find out that  a transaction has been received through the interface, but there is no secret. The receiver can request the sender to call allowrevealsecret to complete the transaction, otherwise the transaction will be returned after expiration.
  
  **Example Request :**    
 `GET /api/1/getunfinishedreceivedtransfer/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843`   
-Example Response: 
+
+ **Example Response:  **
 ```json
 {
     "initiator_address": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
@@ -693,7 +700,7 @@ Example Response:
 ```
 
 ## Query the transaction status
-GET /api/1/transferstatus/*(token_address)*/*(locksecrethash)*  
+`GET /api/1/transferstatus/*(token_address)*/*(locksecrethash)* ` 
 
 There are two ways for users to send and receive transactions, that is, synchronous and asynchronous. If the asynchronous mode is used (sync is false, that is, the default mode), the interface can be called to query the status information of the current transaction. Among them, locksecrethash is obtained from the message returned by the asynchronous transfer transaction.
 
@@ -710,7 +717,7 @@ There are two ways for users to send and receive transactions, that is, synchron
 }
 ```
 
-Response JSON Array of Objects :
+**Response JSON Array of Objects :**
 - `Status`  
   - 0 -TransferStatusInit                    init  
   - 1 -TransferStatusCanCancel               transfer can cancel right now  
@@ -720,7 +727,7 @@ Response JSON Array of Objects :
   - 5 -TransferStatusFailed                  transfer already failed
 
 ## cancel the transaction
-   Post /api/1/transfercancel/*(token)*/*(locksecrethash)*
+  ` Post /api/1/transfercancel/*(token)*/*(locksecrethash)*`
 
 This interface is for cancellation of a transaction, which the transaction is in a cancelable state.
 
@@ -736,7 +743,7 @@ In the asynchronous transaction transfer process, if the current transaction is 
 Note: Before using this interface, you need to query the corresponding transaction status through the interface `/api/1/transferstatus`. If it is not in the cancelable state, the interface will return an Error:"can not found transfer".
 
 ## Token exchange
-   PUT /api/1/token_swaps/*(target_address)*/*(lock_secret_hash)*
+  ` PUT /api/1/token_swaps/*(target_address)*/*(lock_secret_hash)*`
 
 Token Swap can be used to atomic exchange within two types of tokens.
 
@@ -747,7 +754,7 @@ Note: With help of the interface  `/api/1/secret` ,  channel participants can re
 
 **Example Request :**    
 
-the taker:  
+**the taker:  **
 `PUT /api/1/token_swaps/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03` 
 
 **PAYLOAD:**    
@@ -762,7 +769,7 @@ the taker:
 ``` 
 **Example Request :**  
 
-the maker:   
+**the maker:**   
 `PUT /api/1/token_swaps/0x69C5621db8093ee9a26cc2e253f929316E6E5b92/0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03`  
 
 **PAYLOAD:**     
@@ -782,7 +789,7 @@ the maker:
 
 
 ## switch to no network
- GET /api/1/switch/*(Boolean)* 
+ `GET /api/1/switch/*(Boolean)*` 
 
 This interface is provided to switch to no-network state,by the way,this is mainly provided for APP, if the interface is called, the indirect transaction is prohibited.
 
@@ -790,7 +797,7 @@ This interface is provided to switch to no-network state,by the way,this is main
 
 `GET ：http://{{ip2}}/api/1/switch/true`
 
-Parameters:
+**Parameters:**
 - Boolean  
   - `true` - Switch to no network
   - `false` -With the network connection
@@ -800,7 +807,7 @@ Parameters:
   Note: Although the node can use this interface to switch to the no-network state, if the node sends a direct transfer transaction to other nodes with direct channels, it can still succeed. Therefore, the interface is not completely "no network", but only achieves the shielding function of indirect transactions.
 
 ##  Update node registered information
-  POST /api/1/updatenodes 
+ ` POST /api/1/updatenodes` 
 
  It is necessary to update node information in order to ensure normal transaction at the state of no-network.
 when the node information were registered, the transfer will take the UDP mode of communication for inproving TPS.Both nodes need to call the interface to update the other party's information,and if the registered node is restarted,the information need to re-registered since the message is stored in memory.
@@ -809,7 +816,7 @@ when the node information were registered, the transfer will take the UDP mode o
 
 `POST http://{{ip2}}/api/1/updatenodes`
 
-Request parameters(Suppose the other party's port is:192.168.14.13：60002):
+**Request parameters(Suppose the other party's port is:192.168.14.13：60002):**
 
 ```json
 [{
@@ -822,7 +829,7 @@ Request parameters(Suppose the other party's port is:192.168.14.13：60002):
 
 
 ## Set the fee policy
-  POST /api/1/fee_policy 
+ ` POST /api/1/fee_policy `
 
 The interface is called by the user to provide the PFS with the charging rate of the local node. When sending a transaction, the node requests routing from the PFS, and the PFS calculates the shortest path of the total cost based on the rate conditions submitted by all nodes. The node can use the PFS recommended fee plan and give enough money to transfer the transaction. If the amount is not enough, the transaction fails. If the node does not set a rate, PFS will use the global default value for route charging calculations, and there may be cases where the transaction fails. In addition, even if the node rate is set, if the sender clarifies the cost of the transfer in the transfer fee field (requires a fee plan greater than or equal to the PFS recommendation, or there is no available route), the actual charge is executed at the user-specified fee (last hop in the route collects extra fees).
 
@@ -865,7 +872,7 @@ The interface is called by the user to provide the PFS with the charging rate of
  The priority of the three charging modes is：`channel_fee`>`token_fee`>`account_fee`
 
 ## Query the fee policy
-  GET /api/1/fee_policy 
+`  GET /api/1/fee_policy `
 
 Query the node charging information, which connect to default PFS server. If the rate has been set, return the fee rate information, otherwise, return the default information.
 
@@ -876,6 +883,7 @@ Query the node charging information, which connect to default PFS server. If the
 **Example Response :**  
 
 **200 OK**   
+
 ```json  
 {
     "Key": "feePolicy",
@@ -889,7 +897,7 @@ Query the node charging information, which connect to default PFS server. If the
 }
 ```
 ## Query node charge record
-  GET  /api/1/fee
+ ` GET  /api/1/fee`
 
  The user can query all feecharge record of the intermediate node in different channels through the interface, so as to verify the revenue situation.
 
@@ -951,7 +959,7 @@ Query the node charging information, which connect to default PFS server. If the
 
 ```
 ## Query the charging route from the node to the target node
- GET /api/1/path/{target_address}/{token_address}/"amount"
+` GET /api/1/path/{target_address}/{token_address}/"amount"`
 
 The user invokes the interface to query whether the target node has available routes and fees. If there are multiple routes with the same cost, they are given together.
 
