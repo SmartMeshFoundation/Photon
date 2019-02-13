@@ -24,15 +24,25 @@ In order to avoid such problems, Photon provides interfaces to almost all basic 
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
 
 parameter:
+
 * `address string`– the account address used by the photon node
+
 * `keystorePath string` – the path of account private key 
+
 * `ethRPCEndPoint string` – public chain node host, http protocol
+
 * `dataDir string` – photon db path
+
 * `passwordfile string` –  password file path
+
 * `apiAddr string` – http api listening port
+
 * `listenAddr string` – udp listening port
+
 * `logFile string` – log file path
+
 * `registryAddress string` – TokenNetworkRegistry contract address
+
 * `otherArgs mobile.Strings` – other parameters, see photon -h   
 
 If you need to pass other parameters than the default parameters, you can refer to the following ways:
@@ -48,7 +58,9 @@ if err != nil {
 }
 ```
 return:
+
 * `api *API` – startup successfully which will return the api handle
+
 * `err error` – error message
 
 ### Stop a photon node
@@ -90,8 +102,11 @@ type NotifyHandler interface {
 
 #### OnError
   Notify Photon that an unrecoverable error has occurred. Any function of Photon must be restarted before it can be used. Since it is considered that the integration of Photon may be single-process, The unknown error may cause the App to quit, so even if there is an unpredictable error inside Photon, Photon will intercept and report to the App, and the App will decide whether to exit immediately or continue to use it.
+  
 - `errCode`is the error code
+
 - `failure`is an error message description
+
 Restart the Photon mode:
 ```go
 api.Stop()
@@ -159,7 +174,7 @@ Note: This interface does not contain transactions that participate as intermedi
 #### OnNotify
 The interface has two functions, mainly based on the type in the second parameter.
 If the type is 0, it represents string information that photon hopes to  push to the user and let the user know  there is a change inside photon. At this time, the first parameter indicates the importance of the information.
-If the type is 1, it means that the status of a transaction initiated by the user has changed. For details, please refer to[Query the status of the transaction initiated by yourself](#Query the status of the transaction initiated by yourself) 
+If the type is 1, it means that the status of a transaction initiated by the user has changed. For details, please refer to[Query the status of the transaction initiated by yourself](### Query the transaction status) 
 `level` is defined as follows
 ```go
 type Level int
@@ -267,17 +282,29 @@ func (a *API) GetSystemStatus() (r string, err error)
     }
 ```
 Channel structure description ： 
+
 - `channel_identifier`:  Address for a channel
+
 - `open_block_number` : Block height when a channel opens
+
 - `partner_address`: The address of the other participant of the channel
+
 - `balance`: Available Balance of the channel participant
+
 - `partner_balance` : Available Balance of the other participant of the channel 
+
 - `locked_amount`: The locked amount of the participant
+
 - `partner_locked_amount`: The locked amount of the other participant 
+
 - `token_address`: Address for tokens in this channel
+
 - `state` :The digits denoting for the channel states
+
 - `StateString` :The string literal for the Channel States
+
 -  `settle_timeout`: Some amount of block denoting time period for transaction settlement,which must greater than `reveal_timeout`.
+
 -  `reveal_timeout`: The block height at which nodes registering `secret`,the default value is 30, and if modified, it can be setting at node startup with `-- reveal-timeout` 
 
 State|StateString|Description
@@ -480,10 +507,15 @@ func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID s
 CooperateWithdraw available when both channel participants online.
 
 parameter:
+
 - channelIdentifierHashStr        Channel address
+
 - amountstr                      Amount of taken which will be withdrawn
+
 - op                             Option
+
   -  When you’re ready to withdraw, you can switch the channel state to `"preparewithdraw"` by setting the `"op"`:`"preparewithdraw"` and refuse to accept the transaction.
+  
   -  When you want to cancel the state of the `preparewithdraw`, you can switch the channel state to the`opened` through the parameter`"op":"cancelprepare"`.
 
 Parameter:    
@@ -678,12 +710,19 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 This interface is used to initiate a transfer transaction, which is currently associated with PFS by default.
 
 Parameters:
+
 * `tokenAddress string`– Transaction token
+
 * `targetAddress string` – Payee address
+
 * `amountstr string` – Transfer amount
+
 * `feestr string` – Specify the total cost of the transaction(When using specified transaction costs, the fee calculated by PFS is not used to send the transfer amount)
+
 * `secretStr string` – transaction secret,which may be " ",if it is designated, the transaction should use the special secret. 
+
 * `isDirect string` – whether it is a direct transfer. The default is false(MediatedTransfer)
+
 * `data` -  Incidental information of the transaction. The length is not more than 256 byte.
 
 Example Request:  
