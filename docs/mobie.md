@@ -8,7 +8,7 @@ cd mobile
 #build iOS
 ./build_iOS.sh
 ```
-### android use
+### Android use
 Integrate mobile.aar into your project
 ### iOS use
 Integrate Mobile.framework into your project.
@@ -731,12 +731,19 @@ Example Response:
 }
 ```
 Response JSON Array of Objects :
+
 * 0 - Transfer init
+
 * 1 - transfer can cancel
+
 * 2 - transfer can not cancel
+
 * 3 - transfer already success
+
 * 4 - transfer cancel by user request
+
 * 5 - transfer already failed
+
 ### Query the received successful transfer 
 func (a *API) GetReceivedTransfers(from, to int64) (r string, err error)
 
@@ -847,8 +854,11 @@ Query the processing result of the asynchronous call, and return the result as f
 }
 ```
 There are three status:
+
 - 0: indicates that there is no result yet, and the message is empty at this time.
+
 - 1: indicates that the processing is successful, the corresponding json result is included in the message, and the sample can refer to  http interface [rest_api.md](https://github.com/SmartMeshFoundation/Photon/blob/master/docs/rest_api.md)
+
 - 2: indicates that the processing is failed. The message contains the corresponding Error information.
 
 ## Third party service
