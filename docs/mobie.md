@@ -848,8 +848,7 @@ Query the processing result of the asynchronous call, and return the result as f
 ```
 There are three status:
 - 0: indicates that there is no result yet, and the message is empty at this time.
-- 1: indicates that the processing is successful, the corresponding json result is included in the message, and the sample can refer to  http interface [rest_api.md]
-(https://github.com/SmartMeshFoundation/Photon/wiki/%E6%8E%A5%E5%8F%A3%E6%96%87%E6%A1%A3)
+- 1: indicates that the processing is successful, the corresponding json result is included in the message, and the sample can refer to  http interface [rest_api.md](https://github.com/SmartMeshFoundation/Photon/blob/master/docs/rest_api.md)
 - 2: indicates that the processing is failed. The message contains the corresponding Error information.
 
 ## Third party service
