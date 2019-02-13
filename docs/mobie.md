@@ -174,7 +174,8 @@ Note: This interface does not contain transactions that participate as intermedi
 #### OnNotify
 The interface has two functions, mainly based on the type in the second parameter.
 If the type is 0, it represents string information that photon hopes to  push to the user and let the user know  there is a change inside photon. At this time, the first parameter indicates the importance of the information.
-If the type is 1, it means that the status of a transaction initiated by the user has changed. For details, please refer to[Query the status of the transaction initiated by yourself](### Query the transaction status) 
+If the type is 1, it means that the status of a transaction initiated by the user has changed. For details, please refer to `Query the transaction status`. 
+
 `level` is defined as follows
 ```go
 type Level int
