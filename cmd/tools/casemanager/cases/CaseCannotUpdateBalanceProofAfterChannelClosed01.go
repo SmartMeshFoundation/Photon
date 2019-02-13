@@ -67,16 +67,10 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err e
 	//N0务必启启动,尝试发送unlock失败.
 	N0.ReStartWithoutConditionquit(env)
 
-	var i = 0
 	settleTime := c01.SettleTimeout + 3600/14
-	for i = 0; i < int(settleTime); i++ {
-		time.Sleep(time.Second)
-		err = N1.Settle(c01.ChannelIdentifier)
-		if err == nil {
-			break
-		}
-	}
-	if i == int(settleTime) {
+	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
+
+	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
 	//n0valuenew, err := N0.TokenBalance(tokenAddress)
