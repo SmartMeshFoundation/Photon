@@ -191,20 +191,19 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-	go func() {
-		r, e := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr, newChannel)
-		if e != nil {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
-		} else {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
-		}
-	}()
+func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (channel string, err error) {
+	r, err := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr, newChannel)
+	if err != nil {
+		return
+	}
+	if r != nil {
+		return marshal(r)
+	}
 	return
 }
 
 func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newcChannel bool) (channel *channeltype.ChannelDataDetail, err error) {
+
 	defer func() {
 		log.Trace(fmt.Sprintf("Api Deposit in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, utils.StringInterface(channel, 5), err,
@@ -224,9 +223,10 @@ func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 		log.Error(err.Error())
 		return
 	}
-	channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
+	if c != nil {
+		channel = channeltype.ChannelSerialization2ChannelDataDetail(c)
+	}
 	return
-
 }
 
 /*
@@ -249,18 +249,12 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) CloseChannel(channelIdentifier string, force bool) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-
-	go func() {
-		r, e := a.closeChannel(channelIdentifier, force)
-		if e != nil {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
-		} else {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
-		}
-	}()
-	return
+func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
+	c, err := a.closeChannel(channelIdentifier, force)
+	if err != nil {
+		return
+	}
+	return marshal(c)
 
 }
 func (a *API) closeChannel(channelIdentifier string, force bool) (channel *channeltype.ChannelDataDetail, err error) {
@@ -311,18 +305,13 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) SettleChannel(channelIdentifier string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
+func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
+	c, err := a.settleChannel(channelIdentifier)
+	if err != nil {
+		return
+	}
+	return marshal(c)
 
-	go func() {
-		r, e := a.settleChannel(channelIdentifier)
-		if e != nil {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
-		} else {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
-		}
-	}()
-	return
 }
 
 // Withdraw :
@@ -334,18 +323,12 @@ func (a *API) SettleChannel(channelIdentifier string) (callID string, err error)
 	3. cancel prepare:
 	{"op": "cancelprepare"}
 */
-func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (callID string, err error) {
-	callID = utils.NewRandomHash().String()
-
-	go func() {
-		r, e := a.withdraw(channelIdentifierHashStr, amountstr, op)
-		if e != nil {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDError(callID, e)
-		} else {
-			a.api.Photon.NotifyHandler.NotifyChannelCallIDSuccess(callID, r)
-		}
-	}()
-	return
+func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (channel string, err error) {
+	r, err := a.withdraw(channelIdentifierHashStr, amountstr, op)
+	if err != nil {
+		return
+	}
+	return marshal(r)
 }
 
 func (a *API) settleChannel(channelIdentifier string) (channel *channeltype.ChannelDataDetail, err error) {

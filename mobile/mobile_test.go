@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/SmartMeshFoundation/Atmosphere/contracts"
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/restful/v1"
 
@@ -66,71 +65,48 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	th := newTestHandler()
-	sub, err := api.Subscribe(th)
+	sub, err := api.Subscribe(newTestHandler())
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer sub.Unsubscribe()
-	th.clearHistory()
 	partnerAddr := utils.NewRandomAddress()
-	callID, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	channelstr, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	var channelMap map[string]interface{}
-
-	now := time.Now()
-	for {
-		if time.Since(now) > 60*time.Second {
-			break
-		}
-		time.Sleep(time.Second)
-		ccall, ok := th.lastNotify[notify.InfoTypeChannelCallID]
-		if !ok {
+	ast.EqualValues(channelstr, "")
+	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
+	//等待交易被打包
+	for i := 0; i < 60; i++ {
+		channelstr, err = api.GetOneChannel(channelIdentifier.String())
+		if err != nil {
+			time.Sleep(time.Second)
 			continue
 		}
-		m := ccall.(map[string]interface{})
-		ast.EqualValues(notify.CallStatusFinishedSuccess, m["status"])
-		ast.EqualValues(callID, m["call_id"])
-		channelMap = m["channel"].(map[string]interface{})
 		break
 	}
-	cdetail, ok := th.lastNotify[notify.InfoTypeChannelStatus]
-	if !ok {
-		t.Error("must have status change")
-		return
-	}
-	channelMap = cdetail.(map[string]interface{})
-	ast.EqualValues(channeltype.StateOpened, channelMap["state"])
-
-	//清除历史记录,下一笔调用开始
-	th.clearHistory()
-	channelIdentifier := channelMap["channel_identifier"].(string)
-	callID, err = api.CloseChannel(channelIdentifier, true)
+	ast.NotEqual(channelstr, "")
+	var c channeltype.ChannelDataDetail
+	err = json.Unmarshal([]byte(channelstr), &c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	now = time.Now()
-	for {
-		if time.Since(now) > 60*time.Second {
-			break
-		}
-		time.Sleep(time.Second)
-		ccall, ok := th.lastNotify[notify.InfoTypeChannelCallID]
-		if !ok {
-			continue
-		}
-		m := ccall.(map[string]interface{})
-		ast.EqualValues(notify.CallStatusFinishedSuccess, m["status"])
-		ast.EqualValues(callID, m["call_id"])
-		channelMap = m["channel"].(map[string]interface{})
-		break
+
+	channelstr, err = api.CloseChannel(channelIdentifier.String(), true)
+	if err != nil {
+		t.Error(err)
+		return
 	}
-	ast.EqualValues(channelMap["state"], contracts.ChannelStateClosed)
+	err = json.Unmarshal([]byte(channelstr), &c)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	ast.EqualValues(c.State, channeltype.StateClosing)
 	api.Stop()
 }
 

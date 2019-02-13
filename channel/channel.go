@@ -1051,7 +1051,7 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 	if len(c.PartnerState.Lock2UnclaimedLocks) > 0 ||
 		len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.OurState.Lock2UnclaimedLocks) > 0 {
-		return errors.New("cannot withdraw when has unlock")
+		return ErrWithdrawButHasLocks
 	}
 	c.State = channeltype.StateWithdraw
 	return nil
@@ -1131,7 +1131,7 @@ func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error 
 		len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.OurState.Lock2UnclaimedLocks) > 0 ||
 		len(c.OurState.Lock2PendingLocks) > 0 {
-		return errors.New("cannot withdraw when has unlock")
+		return ErrWithdrawButHasLocks
 	}
 	c.State = channeltype.StateWithdraw
 	return nil
@@ -1162,7 +1162,7 @@ func (c *Channel) CreateCooperativeSettleRequest() (s *encoding.SettleRequest, e
 		len(c.OurState.Lock2PendingLocks) > 0 ||
 		len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
-		err = ErrWithdrawButHasLocks
+		err = ErrSettleButHasLocks
 	}
 	wd := new(encoding.SettleRequestData)
 	wd.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
@@ -1335,15 +1335,13 @@ func (c *Channel) CanWithdrawOrCooperativeSettle() bool {
 }
 
 //Close async close this channel
-func (c *Channel) Close() (result *utils.AsyncResult) {
+func (c *Channel) Close() (err error) {
 	if c.State != channeltype.StateOpened {
 		log.Warn(fmt.Sprintf("try to close channel %s,but it's state is %s", utils.HPex(c.ChannelIdentifier.ChannelIdentifier), c.State))
 	}
 	if c.State == channeltype.StateClosed ||
 		c.State == channeltype.StateSettled {
-		result = utils.NewAsyncResult()
-		result.Result <- fmt.Errorf("channel %s already closed or settled", utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
-		return
+		return fmt.Errorf("channel %s already closed or settled", utils.HPex(c.ChannelIdentifier.ChannelIdentifier))
 	}
 	/*
 		如果我还持有对方给我的锁,这时候从安全的角度考虑,不能进行关闭,
@@ -1367,19 +1365,21 @@ func (c *Channel) Close() (result *utils.AsyncResult) {
 	 *	We cannot forbid close just because channel state is abnormal.
 	 *	State tag is used to prevent further receiving or sending transfers.
 	 */
-	c.State = channeltype.StateClosing
+
 	bp := c.PartnerState.BalanceProofState
-	result = c.ExternState.Close(bp)
-	return
+	err = c.ExternState.Close(bp)
+	if err != nil {
+		return
+	}
+	c.State = channeltype.StateClosing
+	return nil
 }
 
 //Settle async settle this channel,blockNumber is the current blockNumber
-func (c *Channel) Settle(blockNumber int64) (result *utils.AsyncResult) {
+func (c *Channel) Settle(blockNumber int64) (err error) {
 	if c.State != channeltype.StateClosed {
-		return utils.NewAsyncResultWithError(fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State))
+		return fmt.Errorf("settle only valid when a channel is closed,now is %s", c.State)
 	}
-	//不需要修改状态, settle 失败以后还可以继续调用 settle.
-	//c.State = channeltype.StateSettling
 	var MyTransferAmount, PartnerTransferAmount *big.Int
 	var MyLocksroot, PartnerLocksroot common.Hash
 	if c.OurState.BalanceProofState != nil {
@@ -1395,9 +1395,14 @@ func (c *Channel) Settle(blockNumber int64) (result *utils.AsyncResult) {
 		PartnerTransferAmount = utils.BigInt0
 	}
 	if c.ExternState.SettledBlock > blockNumber {
-		return utils.NewAsyncResultWithError(errors.New("settle must after settle timeout"))
+		return errors.New("settle must after settle timeout")
 	}
-	return c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+	err = c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+	if err != nil {
+		return
+	}
+	c.State = channeltype.StateSettling
+	return
 }
 
 //GetNeedRegisterSecrets find all secres need to reveal on secret

@@ -1162,7 +1162,7 @@ func (rs *Service) getChannel(tokenAddr, partnerAddr common.Address) *channel.Ch
 /*
 Process user's new channel request
 */
-func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) (result *utils.AsyncResult) {
+func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) *utils.AsyncResult {
 	if isNewChannel {
 		g := rs.Token2ChannelGraph[token]
 		if g != nil {
@@ -1173,17 +1173,16 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
-		result = utils.NewAsyncResultWithError(err)
-		return
+		return utils.NewAsyncResultWithError(err)
 	}
-	result = tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount)
-	return
+	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
 }
 
 /*
 process user's close or settle channel request
 */
 func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
 		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
@@ -1191,10 +1190,14 @@ func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string
 	}
 	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelIdentifier)))
 	if op == closeChannelReqName {
-		result = c.Close()
+		err = c.Close()
 	} else {
-		result = c.Settle(rs.GetBlockNumber())
+		err = c.Settle(rs.GetBlockNumber())
 	}
+	if err == nil {
+		err = rs.UpdateChannelState(channel.NewChannelSerialization(c))
+	}
+	result.Result <- err
 	//通道变化的通知来自于事件,而不是执行结果
 	return
 }

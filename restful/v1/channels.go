@@ -166,19 +166,23 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	d := &ChannelData{
-		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
-		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		StateString:         c.State.String(),
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-		RevealTimeout:       c.RevealTimeout,
+	var d *ChannelData
+	if !req.NewChannel {
+		d = &ChannelData{
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+			PartnerAddrses:      c.PartnerAddress().String(),
+			Balance:             c.OurBalance(),
+			PartnerBalance:      c.PartnerBalance(),
+			State:               c.State,
+			StateString:         c.State.String(),
+			SettleTimeout:       c.SettleTimeout,
+			TokenAddress:        c.TokenAddress().String(),
+			LockedAmount:        c.OurAmountLocked(),
+			PartnerLockedAmount: c.PartnerAmountLocked(),
+			RevealTimeout:       c.RevealTimeout,
+		}
+
 	}
 	err = w.WriteJson(d)
 	if err != nil {

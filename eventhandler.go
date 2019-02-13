@@ -864,7 +864,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		}
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
 		//settled channel should be removed.
-		//c.State = channeltype.StateCooprativeSettle
+		c.State = channeltype.StateSettled
 		if c.ExternState.SetSettled(st2.SettledBlock) {
 			c.HandleSettled(st2.SettledBlock)
 		} else {

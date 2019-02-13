@@ -59,42 +59,100 @@ func makeNewChannelAndDepositData(participantAddress, partnerAddress common.Addr
 	}
 	return buf.Bytes()
 }
+
+//注意此函数并不会等待交易打包,只要交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByApproveAndCall(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
 	return token.ApproveAndCall(t.Address, amount, data)
 }
+
+//注意这个函数并不会等待交易打包完成才返回,只要确定交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByFallback(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
 	return token.TransferWithFallback(t.Address, amount, data)
 }
+
+/*
+todo 目前这个处理流程有问题,必须要将相应的信息存入数据库中
+*/
 func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
-	//log.Trace(fmt.Sprintf("newChannelAndDepositByApprove participant=%s,partner=%s,settletimeout=%d,amount=%s,token=%s",
-	//	utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount, utils.APex2(t.token),
-	//))
-	err = token.Approve(t.Address, amount)
+	log.Info(fmt.Sprintf("newChannelAndDepositByApprove participant=%s,partner=%s,settletimeout=%d,amount=%s,token=%s",
+		utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount, utils.APex2(t.token),
+	))
+	tx, err := token.Token.Approve(t.bcs.Auth, t.Address, amount)
 	if err != nil {
 		return err
 	}
-	//log.Trace(fmt.Sprintf("approve pass..."))
-	tx, err := t.GetContract().Deposit(t.bcs.Auth, t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout))
-	if err != nil {
+	log.Info(fmt.Sprintf("Approve %s, txhash=%s", utils.APex(t.Address), tx.Hash().String()))
+	go func() {
+		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+		if err != nil {
+			log.Error(fmt.Sprintf("Approve waitmined err,txhash=%s,err=%s", tx.Hash().String(), err))
+			return
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Error(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(t.Address), receipt))
+			return
+		}
+		log.Info(fmt.Sprintf("Approve success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(t.Address), amount))
+
+		tx, err = t.GetContract().Deposit(t.bcs.Auth, t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout))
+		if err != nil {
+			return
+		}
+		log.Info(fmt.Sprintf("OpenChannelWithDeposit  txhash=%s", tx.Hash().String()))
+		receipt, err = bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+		if err != nil {
+			log.Error(fmt.Sprintf("OpenChannelWithDeposit waitmined err, txhash=%s,err=%s", tx.Hash().String(), err))
+			return
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Error(fmt.Sprintf("OpenChannelWithDeposit failed %s", receipt))
+			return
+		}
+		log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s txhash=%s", utils.APex(t.Address), tx.Hash().String()))
 		return
-	}
-	log.Info(fmt.Sprintf("OpenChannelWithDeposit  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-	if err != nil {
-		return err
-	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Warn(fmt.Sprintf("OpenChannelWithDeposit failed %s", receipt))
-		return errors.New("OpenChannelWithDeposit tx execution failed")
-	}
-	log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s txhash=%s", utils.APex(t.Address), tx.Hash().String()))
+	}()
 	return nil
+
 }
 
 //NewChannelAndDeposit create new channel ,block until a new channel create
-func (t *TokenNetworkProxy) NewChannelAndDeposit(participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+//func (t *TokenNetworkProxy) NewChannelAndDeposit(participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+//	log.Trace(fmt.Sprintf("NewChannelAndDeposit participant=%s,partner=%s,settletimeout=%d,amount=%s",
+//		utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount,
+//	))
+//	tokenAddr := t.token
+//	if err != nil {
+//		return
+//	}
+//	token, err := t.bcs.Token(tokenAddr)
+//	if err != nil {
+//		return
+//	}
+//	err = t.newChannelAndDepositByFallback(token, participantAddress, partnerAddress, settleTimeout, amount)
+//	if err == nil {
+//		log.Trace(fmt.Sprintf("%s-%s newChannelAndDepositByFallback success", utils.APex(tokenAddr), utils.APex(participantAddress)))
+//		return
+//	}
+//	err = t.newChannelAndDepositByApproveAndCall(token, participantAddress, partnerAddress, settleTimeout, amount)
+//	if err == nil {
+//		log.Trace(fmt.Sprintf("%s-%s newChannelAndDepositByApproveAndCall success", utils.APex(tokenAddr), utils.APex(participantAddress)))
+//		return
+//	}
+//	return t.newChannelAndDepositByApprove(token, participantAddress, partnerAddress, settleTimeout, amount)
+//}
+
+/*NewChannelAndDepositAsync create channel async
+创建通道并存款和存款分两种情况,
+一,只有一个Tx就能完成的情况,那么和关闭通道,settle通道处理流程是一样的
+二,需要两个Tx,先Approve然后调用deposit,那么就需要详细规划
+1. 首先approve初步验证没问题,就把相应的deposit信息存入数据库中
+2. 收到approve事件以后,调取数据库中的信息
+3. 继续deposit,并从数据库中删除记录, 如果失败,则需要专门通知用户失败了,
+还要考虑重复的Deposit,如果数据库中有相应记录,不允许继续创建通道也不允许继续存款,这会覆盖上一次的操作.
+*/
+func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	log.Trace(fmt.Sprintf("NewChannelAndDeposit participant=%s,partner=%s,settletimeout=%d,amount=%s",
 		utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount,
 	))
@@ -117,16 +175,6 @@ func (t *TokenNetworkProxy) NewChannelAndDeposit(participantAddress, partnerAddr
 		return
 	}
 	return t.newChannelAndDepositByApprove(token, participantAddress, partnerAddress, settleTimeout, amount)
-}
-
-//NewChannelAndDepositAsync create channel async
-func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
-	go func() {
-		err := t.NewChannelAndDeposit(participantAddress, partnerAddress, settleTimeout, amount)
-		result.Result <- err
-	}()
-	return result
 }
 
 /*GetChannelInfo Returns the channel specific data.
@@ -171,14 +219,27 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 	return nil
 }
 
-//CloseChannelAsync close channel async
-func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
+//CloseChannelAsync close channel async 认为只要交易进入了缓冲池中,肯定会成功.
+func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
+	tx, err := t.GetContract().PrepareSettle(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
+	if err != nil {
+		return
+	}
+	log.Info(fmt.Sprintf("CloseChannel  txhash=%s", tx.Hash().String()))
 	go func() {
-		err := t.CloseChannel(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
-		result.Result <- err
+		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+		if err != nil {
+			log.Error(fmt.Sprintf("CloseChannel error ,partner=%s,error=%s", err, utils.APex2(partnerAddr)))
+			return
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Info(fmt.Sprintf("CloseChannel failed %s", receipt))
+			return
+		}
+		log.Info(fmt.Sprintf("CloseChannel success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
 	}()
-	return
+
+	return nil
 }
 
 //UpdateBalanceProof update balance proof of partner
@@ -204,6 +265,9 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		/*
+			异步的链上操作应该是分成两步的,第一步是合约直接调用获取TxHash,如果没问题,那么我们认为第二步的WaitMined一定不会出问题
+		*/
 		err := t.UpdateBalanceProof(partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
 		result.Result <- err
 	}()
@@ -259,14 +323,26 @@ func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amoun
 	return nil
 }
 
-//SettleChannelAsync settle a channel async
-func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1Amount, p2Amount *big.Int, p1Locksroot, p2Locksroot common.Hash) (result *utils.AsyncResult) {
-	result = utils.NewAsyncResult()
+//SettleChannelAsync settle a channel async 进入缓冲池就认为成功了
+func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1Amount, p2Amount *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
+	tx, err := t.GetContract().Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
+	if err != nil {
+		return
+	}
+	log.Info(fmt.Sprintf("SettleChannel  txhash=%s", tx.Hash().String()))
 	go func() {
-		err := t.SettleChannel(p1Addr, p2Addr, p1Amount, p2Amount, p1Locksroot, p2Locksroot)
-		result.Result <- err
+		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+		if err != nil {
+			log.Error(fmt.Sprintf("SettleChannel waitmined err %s", err))
+			return
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Error(fmt.Sprintf("SettleChannel failed %s", receipt))
+			return
+		}
+		log.Info(fmt.Sprintf("SettleChannel success %s ", utils.APex(t.Address)))
 	}()
-	return
+	return nil
 }
 
 //Withdraw  to  a channel
@@ -300,6 +376,7 @@ func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balan
 		result.Result <- err
 	}()
 	return
+	return nil
 }
 
 //PunishObsoleteUnlock  to  a channel

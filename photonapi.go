@@ -14,8 +14,6 @@ import (
 
 	"math/big"
 
-	"sync"
-
 	"errors"
 
 	"bytes"
@@ -93,6 +91,8 @@ DepositAndOpenChannel a channel with the peer at `partner_address`
     with the given `token_address`.
 deposit必须大于0
 settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如果大于0,表示希望完全创建通道.
+此接口并不等待交易打包才返回,因此如果是新创建通道,就算是成功了ch也会是nil
+如果是单纯deposit,那么err为nil时,ch一定有效
 */
 func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
@@ -116,52 +116,21 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	if err = r.checkSmcStatus(); err != nil {
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
 	if newChannel {
 		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err == nil {
 			err = errors.New("channel already exist")
 			return
 		}
-		r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
-			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-				wg.Done()
-				return true
-			}
-			return false
-		})
 	} else {
-		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
 			err = errors.New("channel not exist")
 			return
 		}
-		r.Photon.dao.RegisterChannelDepositCallback(func(c *channeltype.Serialization) (remove bool) {
-			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-				wg.Done()
-				return true
-			}
-			return false
-		})
 	}
-
 	result := r.Photon.depositAndOpenChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
-	if err != nil {
-		return
-	}
-	wg.Wait()
-
-	ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
-	if err == nil {
-		//must be success, no need to wait event and register a callback
-		if deposit != nil {
-			ch.OurContractBalance = deposit
-		} else {
-			ch.OurContractBalance = big.NewInt(0)
-		}
-	}
 	return
 }
 
@@ -396,24 +365,12 @@ func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype
 	if err != nil {
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	r.Photon.dao.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
-			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Equal(c2.Key, c.Key) {
-			wg.Done()
-			return true
-		}
-		return false
-	})
 	//send close channel request
 	result := r.Photon.closeChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
-	wg.Wait()
 	//reload data from database,
 	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
@@ -428,17 +385,6 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 		err = rerr.InvalidState("channel is still open")
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	r.Photon.dao.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
-			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Equal(c2.Key, c.Key) {
-			wg.Done()
-			return true
-		}
-		return false
-	})
 	//send settle request
 	result := r.Photon.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
@@ -446,9 +392,8 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	if err != nil {
 		return
 	}
-	wg.Wait()
-	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
+	//reload data from database, this channel has been removed. 这时候channel应该是settling状态
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //CooperativeSettle a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
