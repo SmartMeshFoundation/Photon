@@ -464,14 +464,13 @@ Example Request：
 
 deposit interfaces contain two behaviors：
 
-Create channel and deposit:
+1.Create channel and deposit:
  
    - `new_channel` sets `true`，which means open a new channel and deposit to the channel; if there is no channel between the participants. `false`is no meaning for `new_channel`，which will return the error message "There is no channel".
    
    - `settle_timeout`represent the settlement window for new channel,for example,settle_timeout：100; if the `settle_timeout` set to 0,the default window period is used which is 600 block. 
     
-
-only deposit:
+2.Only deposit:
 
    - `new_channel` must set to `false`，which means the channel has been existed；If the channel has been existed ,there is Meaningless to set the `new_channel`statue as `ture`，which will response the error message "The channel has already existed". 
    
