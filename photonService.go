@@ -2,7 +2,6 @@ package photon
 
 import (
 	"crypto/ecdsa"
-	"errors"
 
 	"fmt"
 
@@ -182,7 +181,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
 	locked, err := rs.FileLocker.TryLock()
 	if err != nil || !locked {
-		err = fmt.Errorf("another instance already running at %s", config.DataBasePath)
+		err = rerr.ErrPhotonAlreadyRunning.Errorf("another instance already running at %s", config.DataBasePath)
 		return
 	}
 	log.Info(fmt.Sprintf("create photon service registry=%s,node=%s", rs.Chain.GetRegistryAddress().String(), rs.NodeAddress.String()))
@@ -283,10 +282,7 @@ func (rs *Service) Start() (err error) {
 	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
 	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
 		err = rs.startSubscribeNeighborStatus()
-		if err != nil {
-			err = fmt.Errorf("startSubscribeNeighborStatus err %s", err)
-			return
-		}
+		return
 	}
 	return nil
 }
@@ -560,7 +556,7 @@ func (rs *Service) registerSecret(secret common.Hash) {
 	for _, hashchannel := range rs.Token2LockSecretHash2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
-			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier.String(), err))
@@ -583,7 +579,7 @@ func (rs *Service) registerRevealedLockSecretHash(lockSecretHash, secret common.
 				))
 				continue
 			}
-			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(lockSecretHash), ch.ChannelIdentifier.String(), err))
@@ -741,12 +737,12 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	result = utils.NewAsyncResult()
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	if g == nil {
-		result.Result <- errors.New("token not exist")
+		result.Result <- rerr.ErrTokenNotFound
 		return
 	}
 	directChannel := g.GetPartenerAddress2Channel(target)
 	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
-		result.Result <- errors.New("no available direct channel")
+		result.Result <- rerr.ErrChannelNotFound.Append("no available direct channel")
 		return
 	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
@@ -830,27 +826,30 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	var err error
 	targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
-	if rs.PfsProxy != nil {
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	if g == nil {
+		result.Result <- rerr.ErrTokenNotFound
+		return
+	}
+	/*
+		只有在没有直接通道的情况下才找PFS询问路由
+	*/
+	if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
 		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
 		if err != nil {
-			result.Result <- errors.New("get route from pathfinder failed")
+			result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
 			return
 		}
 	} else {
-		g := rs.getToken2ChannelGraph(tokenAddress)
-		if g == nil {
-			result.Result <- errors.New("token not exist")
-			return
-		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
 	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
 	if len(availableRoutes) <= 0 {
-		result.Result <- errors.New("no available route")
+		result.Result <- rerr.ErrNoAvailabeRoute
 		return
 	}
 	if rs.Config.IsMeshNetwork {
-		result.Result <- errors.New("no mediated transfer on mesh only network")
+		result.Result <- rerr.ErrNotAllowMediatedTransfer
 		return
 	}
 	/*
@@ -892,7 +891,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]
 	if manager != nil {
-		result.Result <- fmt.Errorf("manager must be never exist")
+		result.Result <- rerr.ErrDuplicateTranser
 		return
 	}
 	rs.Transfer2StateManager[smkey] = stateManager
@@ -1103,7 +1102,7 @@ func (rs *Service) startSubscribeNeighborStatus() error {
 	case *network.MatrixMixTransport:
 		err = t.SetMatrixDB(rs.dao)
 	default:
-		return fmt.Errorf("transport is not mix or matrix transpoter,can't subscribe neighbor status")
+		return rerr.ErrTransportTypeUnknown
 	}
 	if err != nil {
 		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
@@ -1159,51 +1158,55 @@ func (rs *Service) getChannel(tokenAddr, partnerAddr common.Address) *channel.Ch
 /*
 Process user's new channel request
 */
-func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) (result *utils.AsyncResult) {
+func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) *utils.AsyncResult {
 	if isNewChannel {
 		g := rs.Token2ChannelGraph[token]
 		if g != nil {
 			if g.GetPartenerAddress2Channel(partner) != nil {
-				return utils.NewAsyncResultWithError(errors.New("channel already exists"))
+				return utils.NewAsyncResultWithError(rerr.ErrChannelAlreadExist)
 			}
 		}
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
-		result = utils.NewAsyncResultWithError(err)
-		return
+		return utils.NewAsyncResultWithError(err)
 	}
-	result = tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount)
-	return
+	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
 }
 
 /*
 process user's close or settle channel request
 */
 func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
+		result = utils.NewAsyncResultWithError(rerr.ErrChannelNotFound)
 		return
 	}
 	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelIdentifier)))
 	if op == closeChannelReqName {
-		result = c.Close()
+		err = c.Close()
 	} else {
-		result = c.Settle()
+		err = c.Settle(rs.GetBlockNumber())
 	}
+	if err == nil {
+		err = rs.UpdateChannelState(channel.NewChannelSerialization(c))
+	}
+	result.Result <- err
+	//通道变化的通知来自于事件,而不是执行结果
 	return
 }
 func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result.Result <- errors.New("channel not exist")
+		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
-		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
+		result.Result <- rerr.ErrNodeNotOnline.Printf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
 	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelIdentifier)))
@@ -1213,7 +1216,7 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 		return
 	}
 	c.State = channeltype.StateCooprativeSettle
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1226,7 +1229,7 @@ func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result.Result <- errors.New("channel not exist")
+		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
 	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelIdentifier)))
@@ -1235,7 +1238,7 @@ func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1243,7 +1246,7 @@ func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIde
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result.Result <- errors.New("channel not exist")
+		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
 	log.Trace(fmt.Sprintf("cancelPrepareForCooperativeSettleChannelOrWithdraw   channel %s\n", utils.HPex(channelIdentifier)))
@@ -1252,7 +1255,7 @@ func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIde
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1261,16 +1264,16 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result.Result <- errors.New("channel not exist")
+		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
-		result.Result <- errors.New("can not withdraw now")
+		result.Result <- rerr.ErrChannelNotAllowWithdraw.Printf("state=%s", c.State)
 		return
 	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
-		result.Result <- fmt.Errorf("node %s is not online", c.PartnerState.Address.String())
+		result.Result <- rerr.ErrNodeNotOnline.Printf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
 	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
@@ -1280,7 +1283,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	c.State = channeltype.StateWithdraw
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1293,7 +1296,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
-		result.Result <- errors.New("channel not exist")
+		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
 	log.Trace(fmt.Sprintf("prepareForWithdraw   channel %s,and status=%s\n", utils.HPex(channelIdentifier), c.State))
@@ -1302,7 +1305,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1443,20 +1446,20 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 	smKey := utils.Sha3(req.LockSecretHash[:], req.TokenAddress[:])
 	manager := rs.Transfer2StateManager[smKey]
 	if manager == nil {
-		result.Result <- errors.New("can not found transfer")
+		result.Result <- rerr.ErrTransferNotFound
 		return
 	}
 	if manager.Name != initiator.NameInitiatorTransition {
-		result.Result <- errors.New("you can only cancel transfers you send")
+		result.Result <- rerr.ErrTransferCannotCancel.Append("you can only cancel transfers you send")
 		return
 	}
 	transferStatus, err := rs.dao.GetTransferStatus(req.TokenAddress, req.LockSecretHash)
 	if err != nil {
-		result.Result <- errors.New("can not found transfer status")
+		result.Result <- rerr.ErrTransferNotFound.Append("can not found transfer status")
 		return
 	}
 	if transferStatus.Status != models.TransferStatusCanCancel {
-		result.Result <- errors.New("transfer already can not cancel now")
+		result.Result <- rerr.ErrTransferCannotCancel.Printf("status=%d", transferStatus.Status)
 		return
 	}
 	stateChange := &transfer.ActionCancelTransferStateChange{
@@ -1648,17 +1651,51 @@ func (rs *Service) handleReq(req *apiReq) {
 	r.result <- result
 }
 
-func (rs *Service) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
+/*
+这一系列update通知没有走callback,而是专门开辟一条道路主要是考虑到这些通知并不是来自用户的请求,
+而是
+1. photon主动推送
+2. 比如交易引起的金额变化,以前是不会通知的,也就没有相应的callback
+*/
+
+//UpdateChannelAndSaveAck 保证通道更新和消息确认是一个原子操作
+func (rs *Service) UpdateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
 	t, ok := tag.(*transfer.MessageTag)
 	if !ok || t == nil {
 		panic("tag is nil")
 	}
 	echohash := t.EchoHash
 	ack := rs.Protocol.CreateAck(echohash)
-	err := rs.dao.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	cs := channel.NewChannelSerialization(c)
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
+	err := rs.dao.UpdateChannelAndSaveAck(cs, echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}
+}
+
+//UpdateChannel 数据库中更新通道状态,同时通知App
+func (rs *Service) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannel(c, tx)
+}
+
+//UpdateChannelNoTx  数据库更新,同时通知App,与updateChannelState的区别就在于回调函数的
+func (rs *Service) UpdateChannelNoTx(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelNoTx(c)
+}
+
+//UpdateChannelState 数据库更新,同时通知app
+func (rs *Service) UpdateChannelState(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelState(c)
+}
+
+//UpdateChannelContractBalance 数据库更新,同时通知app
+func (rs *Service) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelContractBalance(c)
 }
 
 func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {
@@ -1751,7 +1788,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	secret := req.Secret
 	channel := rs.getChannelWithAddr(channelIdentifier)
 	if channel == nil {
-		result.Result <- fmt.Errorf("can not find channel %s", channelIdentifier.String())
+		result.Result <- rerr.ErrChannelNotFound.Printf("can not find channel %s", channelIdentifier.String())
 		return
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(channel.TokenAddress)
@@ -1765,7 +1802,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	if lock == nil {
 		lock = channel.PartnerState.Lock2UnclaimedLocks[lockSecretHash].Lock
 		if lock == nil {
-			result.Result <- fmt.Errorf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
+			result.Result <- rerr.ErrTransferNotFound.Printf("can not find lock by lockSecretHash : %s", lockSecretHash.String())
 			return
 		}
 		isSecretRegistered = channel.PartnerState.Lock2UnclaimedLocks[lockSecretHash].IsRegisteredOnChain
@@ -1786,7 +1823,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 				partnerAddress.String(), transferAmount, locksroot.String(), nonce, addtionalHash.String(), common.Bytes2Hex(signature)))
 			err = tokenNetwork.CloseChannel(partnerAddress, transferAmount, locksroot, nonce, addtionalHash, signature)
 			if err != nil {
-				result.Result <- fmt.Errorf("forceUnlock : close channel fail %s", err.Error())
+				result.Result <- rerr.ErrCloseChannel.Printf("forceUnlock : close channel fail %s", err.Error())
 				return
 			}
 		}
@@ -1794,7 +1831,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 			// register
 			err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
 			if err != nil {
-				result.Result <- fmt.Errorf("ForceUnlock : register secret fail %s", err.Error())
+				result.Result <- rerr.ErrRegisterSecret.Errorf("ForceUnlock : register secret fail %s", err.Error())
 				return
 			}
 		}
@@ -1805,7 +1842,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 
 		err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock, mtree.Proof2Bytes(proof))
 		if err != nil {
-			result.Result <- fmt.Errorf("forceUnlock : unlock failed %s", err.Error())
+			result.Result <- rerr.ErrUnlock.Errorf("forceUnlock : unlock failed %s", err.Error())
 			return
 		}
 		log.Info(fmt.Sprintf("forceUnlock success %s ,partner=%s", lockSecretHash.String(), utils.APex(partnerAddress)))
@@ -1818,21 +1855,22 @@ func (rs *Service) getUnfinishedReceivedTransfer(req *getUnfinishedReceivedTrans
 	lockSecretHash := req.LockSecretHash
 	tokenAddress := req.TokenAddress
 	result = utils.NewAsyncResult()
+	//token swap 过滤
 	if rs.SecretRequestPredictorMap[lockSecretHash] != nil {
-		result.Result <- fmt.Errorf("SecretRequestPredictorMap has lockSecretHash")
+		result.Result <- rerr.ErrTransferNotFound.Errorf("SecretRequestPredictorMap has lockSecretHash")
 		return
 	}
 	key := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[key]
 	if manager == nil {
-		result.Result <- fmt.Errorf("can not find transfer by lock_secret_hash[%s] and token_address[%s]", lockSecretHash.String(), tokenAddress.String())
+		result.Result <- rerr.ErrTransferNotFound.Printf("can not find transfer by lock_secret_hash[%s] and token_address[%s]", lockSecretHash.String(), tokenAddress.String())
 		return
 	}
 	state, ok := manager.CurrentState.(*mediatedtransfer.TargetState)
 	if !ok {
 		// 接收人不是自己
 		// I'm not the recipient
-		result.Result <- fmt.Errorf("i'm not recipient")
+		result.Result <- rerr.ErrTransferNotFound.Errorf("i'm not recipient")
 		return
 	}
 	resp := new(TransferDataResponse)

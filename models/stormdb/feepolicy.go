@@ -12,6 +12,7 @@ import (
 func (model *StormDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
 	fp.Key = models.KeyFeePolicy
 	err = model.db.Save(fp)
+	err = models.GeneratDBError(err)
 	return
 }
 

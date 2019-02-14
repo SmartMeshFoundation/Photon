@@ -14,7 +14,8 @@ func (dao *GkvDB) NewSettledChannel(c *channeltype.Serialization) error {
 		panic("only settled channel can saved to settledChannel")
 	}
 	key := fmt.Sprintf("%s-%d", c.ChannelIdentifier.ChannelIdentifier.String(), c.ChannelIdentifier.OpenBlockNumber)
-	return dao.saveKeyValueToBucket(models.BucketSettledChannel, key, c)
+	err := dao.saveKeyValueToBucket(models.BucketSettledChannel, key, c)
+	return models.GeneratDBError(err)
 }
 
 //GetAllSettledChannel returns all settled channel
@@ -41,5 +42,6 @@ func (dao *GkvDB) GetSettledChannel(channelIdentifier common.Hash, openBlockNumb
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)
 	err = dao.getKeyValueToBucket(models.BucketSettledChannel, key, c)
+	err = models.GeneratDBError(err)
 	return
 }

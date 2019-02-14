@@ -22,7 +22,8 @@ func (dao *GkvDB) SaveFeeChargeRecord(r *models.FeeChargeRecord) (err error) {
 	}
 	err = dao.saveKeyValueToBucket(models.BucketFeeChargeRecord, r.Key, r)
 	if err != nil {
-		err = fmt.Errorf("SaveFeeChargeRecord err %s", err)
+		err = models.GeneratDBError(err)
+		//err = fmt.Errorf("SaveFeeChargeRecord err %s", err)
 		return
 	}
 	log.Trace(fmt.Sprintf("charge for transfer:%s", r.ToString()))
@@ -34,6 +35,7 @@ func (dao *GkvDB) GetAllFeeChargeRecord() (records []*models.FeeChargeRecord, er
 	var tb *gkvdb.Table
 	tb, err = dao.db.Table(models.BucketFeeChargeRecord)
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return
 	}
 	buf := tb.Values(-1)
@@ -53,6 +55,7 @@ func (dao *GkvDB) GetFeeChargeRecordByLockSecretHash(lockSecretHash common.Hash)
 	var rs []*models.FeeChargeRecord
 	rs, err = dao.GetAllFeeChargeRecord()
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return
 	}
 	for _, r := range rs {

@@ -19,6 +19,7 @@ func (model *StormDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, Cha
 		LockSecretHash:    lockSecretHash[:],
 		ChannelIdentifier: ChannelIdentifier,
 	})
+	err = models.GeneratDBError(err)
 	return err
 }
 

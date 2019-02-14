@@ -3,10 +3,9 @@ package cases
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
-
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/params"
 )
@@ -58,7 +57,7 @@ func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	}
 	err = cm.tryInSeconds(cm.MediumWaitSeconds, func() error {
 		models.Logger.Println("check...")
-		var c v1.ChannelDataDetail
+		var c channeltype.ChannelDataDetail
 		c, err = N3.SpecifiedChannel(c32new.ChannelIdentifier)
 		if len(c.PartnerKnownSecretLocks) <= 0 {
 			return fmt.Errorf("CheckLockPartner after restart err %s", err)

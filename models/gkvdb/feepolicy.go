@@ -10,7 +10,9 @@ import (
 // SaveFeePolicy :
 func (dao *GkvDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
 	fp.Key = models.KeyFeePolicy
-	return dao.saveKeyValueToBucket(models.BucketFeePolicy, fp.Key, fp)
+	err = dao.saveKeyValueToBucket(models.BucketFeePolicy, fp.Key, fp)
+	err = models.GeneratDBError(err)
+	return
 }
 
 // GetFeePolicy :

@@ -5,7 +5,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -42,38 +41,20 @@ func (dao *GkvDB) CloseDB() {
 	dao.lock.Unlock()
 }
 
-//SaveRegistryAddress save registry address to db
-func (dao *GkvDB) SaveRegistryAddress(registryAddress common.Address) {
-	err := dao.saveKeyValueToBucket(models.BucketMeta, models.KeyRegistry, registryAddress)
+//SaveContractStatus save registry address to db
+func (dao *GkvDB) SaveContractStatus(contractStatus models.ContractStatus) {
+	err := dao.saveKeyValueToBucket(models.BucketMeta, models.KeyRegistry, contractStatus)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
 }
 
-//GetRegistryAddress returns registry address in db
-func (dao *GkvDB) GetRegistryAddress() common.Address {
-	var registry common.Address
-	err := dao.getKeyValueToBucket(models.BucketMeta, models.KeyRegistry, &registry)
+//GetContractStatus returns registry address in db
+func (dao *GkvDB) GetContractStatus() models.ContractStatus {
+	var contractStatus models.ContractStatus
+	err := dao.getKeyValueToBucket(models.BucketMeta, models.KeyRegistry, &contractStatus)
 	if err != nil && err != ErrorNotFound {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
-	return registry
-}
-
-//SaveSecretRegistryAddress save secret registry contract address to db
-func (dao *GkvDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
-	err := dao.saveKeyValueToBucket(models.BucketMeta, models.KeySecretRegistry, secretRegistryAddress)
-	if err != nil {
-		log.Error(fmt.Sprintf("db err %s", err))
-	}
-}
-
-//GetSecretRegistryAddress return secret registry contract address
-func (dao *GkvDB) GetSecretRegistryAddress() common.Address {
-	var secretRegistry common.Address
-	err := dao.getKeyValueToBucket(models.BucketMeta, models.KeySecretRegistry, &secretRegistry)
-	if err != nil {
-		log.Error(fmt.Sprintf("db err %s", err))
-	}
-	return secretRegistry
+	return contractStatus
 }

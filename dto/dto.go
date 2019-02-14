@@ -3,54 +3,87 @@ package dto
 import (
 	"encoding/json"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 // APIErrorCode :
-type APIErrorCode string
+type APIErrorCode int
 
 const (
 	// SUCCESS :
-	SUCCESS = "0000"
-	// DEALING : for async
-	DEALING = "1000"
+	SUCCESS = 0
 	// EXCEPTION :
-	EXCEPTION = "9999"
+	UNKNOWNERROR = -1
 )
 
 // APIResponse :
 // 接口统一返回格式
 type APIResponse struct {
-	ErrorCode APIErrorCode `json:"error_code"`
-	ErrorMsg  string       `json:"error_msg"`
-	CallID    string       `json:"call_id,omitempty"` // for async
-	Data      interface{}  `json:"data,omitempty"`
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
+	//CallID    string          `json:"call_id,omitempty"` // for async
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
-// NewAPIResponse :
-func NewAPIResponse(errorCode APIErrorCode, errorMsg string, data interface{}) *APIResponse {
-	return &APIResponse{
-		ErrorCode: errorCode,
-		ErrorMsg:  errorMsg,
-		Data:      data,
+func apitojson(a *APIResponse) string {
+	b, err := json.Marshal(a)
+	if err != nil {
+		panic(err)
 	}
+	return string(b)
+}
+
+//NewSuccessMobileResponse 直接序列化为string,方便处理
+func NewSuccessMobileResponse(data interface{}) string {
+	a := NewSuccessAPIResponse(data)
+	return apitojson(a)
+}
+
+//NewErrorMobileResponse 直接序列化为string,方便处理
+func NewErrorMobileResponse(err error) string {
+	a := NewExceptionAPIResponse(err)
+	return apitojson(a)
 }
 
 // NewSuccessAPIResponse :
 func NewSuccessAPIResponse(data interface{}) *APIResponse {
+	d, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
 	return &APIResponse{
 		ErrorCode: SUCCESS,
 		ErrorMsg:  "SUCCESS",
-		Data:      data,
+		Data:      json.RawMessage(d),
 	}
 }
 
 // NewExceptionAPIResponse :
 func NewExceptionAPIResponse(err error) *APIResponse {
+	if err == nil {
+		return NewSuccessAPIResponse(nil)
+	}
+	e1, ok := err.(rerr.StandardError)
+	if ok {
+		return &APIResponse{
+			ErrorCode: e1.ErrorCode,
+			ErrorMsg:  e1.ErrorMsg,
+		}
+	}
+	e2, ok := err.(rerr.StandardDataError)
+	if ok {
+		return &APIResponse{
+			ErrorCode: e2.ErrorCode,
+			ErrorMsg:  e2.ErrorMsg,
+			Data:      e2.Data,
+		}
+	}
 	return &APIResponse{
-		ErrorCode: EXCEPTION,
+		ErrorCode: UNKNOWNERROR,
 		ErrorMsg:  err.Error(),
 	}
 }

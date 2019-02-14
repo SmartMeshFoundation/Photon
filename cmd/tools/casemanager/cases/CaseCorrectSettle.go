@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -62,7 +62,7 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 
 	var i = 0
 	for i = 0; i < 100; i++ {
-		var c v1.ChannelDataDetail
+		var c channeltype.ChannelDataDetail
 		time.Sleep(time.Second)
 		c, err = N0.SpecifiedChannel(c01.ChannelIdentifier)
 		if err != nil {
@@ -82,15 +82,10 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	if i == 100 {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 spec err")
 	}
+
 	settleTime := c01.SettleTimeout + 3600/14
-	for i = 0; i < int(settleTime); i++ {
-		time.Sleep(time.Second)
-		err = N1.Settle(c01.ChannelIdentifier)
-		if err == nil {
-			break
-		}
-	}
-	if i == int(settleTime) {
+	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
+	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

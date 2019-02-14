@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kataras/go-errors"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -200,8 +202,22 @@ func (c *CaseManager) tryInSeconds(seconds int, f repeatReturnNilSuccessFunc) er
 
 //在seconds秒内结算通道
 func (c *CaseManager) trySettleInSeconds(seconds int, node *models.PhotonNode, channelIdentifier string) error {
+	needsettle := true
 	return c.tryInSeconds(seconds, func() error {
-		return node.Settle(channelIdentifier)
+		if needsettle {
+			err := node.Settle(channelIdentifier)
+			if err == nil { //只要error不为空,就表示settle没有成功
+				needsettle = false
+				err = errors.New("wait settled")
+			}
+			return err
+		}
+		//进入等待交易被打包状态
+		_, err := node.SpecifiedChannel(channelIdentifier)
+		if err != nil {
+			return nil //这里应该检测结果,确定是channel不存在,这里简化一下
+		}
+		return errors.New("retry")
 	})
 }
 

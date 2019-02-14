@@ -3,6 +3,8 @@ package stormdb
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
@@ -17,6 +19,8 @@ func (model *StormDB) GetAllTokens() (tokens models.AddressMap, err error) {
 	if err != nil {
 		if err == storm.ErrNotFound {
 			tokens = make(models.AddressMap)
+		} else {
+			err = rerr.ErrGeneralDBError.AppendError(err)
 		}
 	}
 	return
@@ -27,7 +31,7 @@ func (model *StormDB) AddToken(token common.Address, tokenNetworkAddress common.
 	var m models.AddressMap
 	err := model.db.Get(models.BucketToken, models.KeyToken, &m)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
 	if m[token] != utils.EmptyAddress {
 		//startup ...
@@ -37,7 +41,7 @@ func (model *StormDB) AddToken(token common.Address, tokenNetworkAddress common.
 	m[token] = tokenNetworkAddress
 	err = model.db.Set(models.BucketToken, models.KeyToken, m)
 	model.handleTokenCallback(model.newTokenCallbacks, token)
-	return err
+	return models.GeneratDBError(err)
 }
 func (model *StormDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
 	var cbs []*cb.NewTokenCb
@@ -56,7 +60,8 @@ func (model *StormDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token commo
 
 //UpdateTokenNodes update all nodes that open channel
 func (model *StormDB) UpdateTokenNodes(token common.Address, nodes []common.Address) error {
-	return model.db.Set(models.BucketTokenNodes, token[:], nodes)
+	err := model.db.Set(models.BucketTokenNodes, token[:], nodes)
+	return models.GeneratDBError(err)
 }
 
 //GetTokenNodes return all nodes has channel with me

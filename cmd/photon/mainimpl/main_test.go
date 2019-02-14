@@ -176,7 +176,7 @@ func TestVerifyContractCode(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	err = verifyContractCode(bcs)
+	_, _, _, _, err = verifyContractCode(bcs)
 	if err != nil {
 		t.Error(err.Error())
 	}

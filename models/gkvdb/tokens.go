@@ -18,6 +18,7 @@ func (dao *GkvDB) GetAllTokens() (tokens models.AddressMap, err error) {
 			tokens = make(models.AddressMap)
 		}
 	}
+	err = models.GeneratDBError(err)
 	return
 }
 
@@ -26,7 +27,7 @@ func (dao *GkvDB) AddToken(token common.Address, tokenNetworkAddress common.Addr
 	var m models.AddressMap
 	err := dao.getKeyValueToBucket(models.BucketToken, models.KeyToken, &m)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
 	if m[token] != utils.EmptyAddress {
 		//startup ...
@@ -36,7 +37,7 @@ func (dao *GkvDB) AddToken(token common.Address, tokenNetworkAddress common.Addr
 	m[token] = tokenNetworkAddress
 	err = dao.saveKeyValueToBucket(models.BucketToken, models.KeyToken, m)
 	dao.handleTokenCallback(dao.newTokenCallbacks, token)
-	return err
+	return models.GeneratDBError(err)
 }
 func (dao *GkvDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Address) {
 	var cbs []*cb.NewTokenCb
@@ -55,7 +56,8 @@ func (dao *GkvDB) handleTokenCallback(m map[*cb.NewTokenCb]bool, token common.Ad
 
 //UpdateTokenNodes update all nodes that open channel
 func (dao *GkvDB) UpdateTokenNodes(token common.Address, nodes []common.Address) error {
-	return dao.saveKeyValueToBucket(models.BucketTokenNodes, token[:], nodes)
+	err := dao.saveKeyValueToBucket(models.BucketTokenNodes, token[:], nodes)
+	return models.GeneratDBError(err)
 }
 
 //GetTokenNodes return all nodes has channel with me

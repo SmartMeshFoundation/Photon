@@ -223,7 +223,7 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	*/
 	smkey := utils.Sha3(lockSecretHash[:], ch.TokenAddress[:])
 	mh.balanceProof(msg, smkey)
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
@@ -260,7 +260,7 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 		*/
 		return err
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
@@ -392,7 +392,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	}
 	//保存通道状态即可.
 	// Just store channel state.
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
 	return nil
@@ -443,7 +443,7 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 		ChannelIdentifier: msg.ChannelIdentifier,
 		Data:              string(msg.Data),
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.photon.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
@@ -545,7 +545,7 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 
 	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
 	log.Trace(string(buf))
-	//mh.updateChannelAndSaveAck(ch, msg.Tag())
+	//mh.UpdateChannelAndSaveAck(ch, msg.Tag())
 	if msg.Target == mh.photon.NodeAddress {
 		mh.photon.targetMediatedTransfer(msg, ch)
 	} else {
@@ -630,7 +630,7 @@ func (mh *photonMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", settleResponse, msg.Sender, err))
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
 func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
@@ -663,7 +663,7 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		log.Error(fmt.Sprintf("RegisterCooperativeSettleResponse error %s\n", err))
 		return err
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	result := ch.CooperativeSettleChannel(msg)
 	go func() {
 		err = <-result.Result
@@ -725,7 +725,7 @@ func (mh *photonMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	if err != nil {
 		log.Error(fmt.Sprintf("send message %s, to %s ,err %s", withdrawResponse, msg.Sender, err))
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	return nil
 }
 func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
@@ -739,7 +739,7 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		return rerr.ChannelNotFound(fmt.Sprintf("token:%s,partner:%s", utils.APex2(token), utils.APex2(msg.Sender)))
 	}
 	if ch.State != channeltype.StateWithdraw {
-		return fmt.Errorf("receive settle request but channel state is %s", ch.State)
+		return fmt.Errorf("receive WithdrawResponse request but channel state is %s", ch.State)
 	}
 	/*
 		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册
@@ -750,7 +750,7 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
 		return err
 	}
-	mh.photon.updateChannelAndSaveAck(ch, msg.Tag())
+	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	//如果碰巧崩溃了,如果失败了,都只能回到 close/settle 这种老办法.
 	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)

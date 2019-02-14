@@ -23,6 +23,7 @@ func (model *StormDB) NewChannel(c *channeltype.Serialization) error {
 	if err != nil {
 		log.Error(fmt.Sprintf("NewChannel for models err:%s", err))
 	}
+	err = models.GeneratDBError(err)
 	return err
 }
 
@@ -33,7 +34,7 @@ func (model *StormDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
 	}
-	return err
+	return models.GeneratDBError(err)
 }
 
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
@@ -47,10 +48,12 @@ func (model *StormDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echo
 	err = model.UpdateChannel(c, tx)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	model.SaveAck(echohash, ack, tx)
 	err = tx.Commit()
+	err = models.GeneratDBError(err)
 	return
 }
 func (model *StormDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
@@ -72,6 +75,7 @@ func (model *StormDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channel
 func (model *StormDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return err
 	}
 	//notify listener
@@ -86,14 +90,14 @@ func (model *StormDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) 
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
 	}
-	return err
+	return models.GeneratDBError(err)
 }
 
 //UpdateChannelState update channel state ,close settle
 func (model *StormDB) UpdateChannelState(c *channeltype.Serialization) error {
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
 	//notify listener
 	model.handleChannelCallback(model.channelStateCallbacks, c)
@@ -156,6 +160,7 @@ func (model *StormDB) GetChannelList(token, partner common.Address) (cs []*chann
 	if err == storm.ErrNotFound {
 		err = nil
 	}
+	err = models.GeneratDBError(err)
 	return
 }
 

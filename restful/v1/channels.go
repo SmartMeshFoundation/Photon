@@ -9,8 +9,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/transfer"
-	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,37 +30,6 @@ type ChannelData struct {
 	StateString         string            `json:"state_string"`
 	SettleTimeout       int               `json:"settle_timeout"`
 	RevealTimeout       int               `json:"reveal_timeout"`
-}
-
-//ChannelDataDetail more info
-type ChannelDataDetail struct {
-	ChannelIdentifier   string            `json:"channel_identifier"`
-	OpenBlockNumber     int64             `json:"open_block_number"`
-	PartnerAddress      string            `json:"partner_address"`
-	Balance             *big.Int          `json:"balance"`
-	PartnerBalance      *big.Int          `json:"partner_balance"`
-	LockedAmount        *big.Int          `json:"locked_amount"`
-	PartnerLockedAmount *big.Int          `json:"partner_locked_amount"`
-	TokenAddress        string            `json:"token_address"`
-	State               channeltype.State `json:"state"`
-	StateString         string
-	SettleTimeout       int `json:"settle_timeout"`
-	RevealTimeout       int `json:"reveal_timeout"`
-
-	/*
-		extended
-	*/
-	ClosedBlock              int64
-	SettledBlock             int64
-	OurUnkownSecretLocks     map[common.Hash]channeltype.PendingLock
-	OurKnownSecretLocks      map[common.Hash]channeltype.UnlockPartialProof
-	PartnerUnkownSecretLocks map[common.Hash]channeltype.PendingLock
-	PartnerKnownSecretLocks  map[common.Hash]channeltype.UnlockPartialProof
-	OurLeaves                []*mtree.Lock
-	PartnerLeaves            []*mtree.Lock
-	OurBalanceProof          *transfer.BalanceProofState
-	PartnerBalanceProof      *transfer.BalanceProofState
-	Signature                []byte //my signature of PartnerBalanceProof
 }
 
 /*
@@ -140,29 +107,7 @@ func SpecifiedChannel(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	d := &ChannelDataDetail{
-		ChannelIdentifier:        c.ChannelIdentifier.ChannelIdentifier.String(),
-		OpenBlockNumber:          c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddress:           c.PartnerAddress().String(),
-		Balance:                  c.OurBalance(),
-		PartnerBalance:           c.PartnerBalance(),
-		State:                    c.State,
-		StateString:              c.State.String(),
-		SettleTimeout:            c.SettleTimeout,
-		TokenAddress:             c.TokenAddress().String(),
-		LockedAmount:             c.OurAmountLocked(),
-		PartnerLockedAmount:      c.PartnerAmountLocked(),
-		ClosedBlock:              c.ClosedBlock,
-		SettledBlock:             c.SettledBlock,
-		OurLeaves:                c.OurLeaves,
-		PartnerLeaves:            c.PartnerLeaves,
-		OurKnownSecretLocks:      c.OurLock2UnclaimedLocks(),
-		OurUnkownSecretLocks:     c.OurLock2PendingLocks(),
-		PartnerUnkownSecretLocks: c.PartnerLock2PendingLocks(),
-		PartnerKnownSecretLocks:  c.PartnerLock2UnclaimedLocks(),
-		OurBalanceProof:          c.OurBalanceProof,
-		PartnerBalanceProof:      c.PartnerBalanceProof,
-	}
+	d := channeltype.ChannelSerialization2ChannelDataDetail(c)
 	err = w.WriteJson(d)
 	if err != nil {
 		log.Warn(fmt.Sprintf("writejson err %s", err))
@@ -221,19 +166,23 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		rest.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	d := &ChannelData{
-		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
-		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
-		PartnerAddrses:      c.PartnerAddress().String(),
-		Balance:             c.OurBalance(),
-		PartnerBalance:      c.PartnerBalance(),
-		State:               c.State,
-		StateString:         c.State.String(),
-		SettleTimeout:       c.SettleTimeout,
-		TokenAddress:        c.TokenAddress().String(),
-		LockedAmount:        c.OurAmountLocked(),
-		PartnerLockedAmount: c.PartnerAmountLocked(),
-		RevealTimeout:       c.RevealTimeout,
+	var d *ChannelData
+	if !req.NewChannel {
+		d = &ChannelData{
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+			PartnerAddrses:      c.PartnerAddress().String(),
+			Balance:             c.OurBalance(),
+			PartnerBalance:      c.PartnerBalance(),
+			State:               c.State,
+			StateString:         c.State.String(),
+			SettleTimeout:       c.SettleTimeout,
+			TokenAddress:        c.TokenAddress().String(),
+			LockedAmount:        c.OurAmountLocked(),
+			PartnerLockedAmount: c.PartnerAmountLocked(),
+			RevealTimeout:       c.RevealTimeout,
+		}
+
 	}
 	err = w.WriteJson(d)
 	if err != nil {

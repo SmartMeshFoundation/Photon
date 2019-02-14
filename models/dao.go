@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
@@ -43,12 +45,8 @@ type ChainIDDao interface {
 	SaveChainID(chainID int64)
 }
 
-// ChannelDao :
-type ChannelDao interface {
-	// add
-	NewChannel(c *channeltype.Serialization) error
-	// remove
-	RemoveChannel(c *channeltype.Serialization) error
+//ChannelUpdateDao update channel status in db
+type ChannelUpdateDao interface {
 	// update
 	UpdateChannel(c *channeltype.Serialization, tx TX) error
 	UpdateChannelNoTx(c *channeltype.Serialization) error
@@ -56,6 +54,15 @@ type ChannelDao interface {
 	// mix update
 	UpdateChannelAndSaveAck(c *channeltype.Serialization, echoHash common.Hash, ack []byte) (err error)
 	UpdateChannelContractBalance(c *channeltype.Serialization) error
+}
+
+// ChannelDao :
+type ChannelDao interface {
+	ChannelUpdateDao
+	// add
+	NewChannel(c *channeltype.Serialization) error
+	// remove
+	RemoveChannel(c *channeltype.Serialization) error
 	//query
 	GetChannel(token, partner common.Address) (c *channeltype.Serialization, err error)
 	GetChannelByAddress(channelIdentifier common.Hash) (c *channeltype.Serialization, err error)
@@ -80,10 +87,10 @@ type DbStatusDao interface {
 	IsDbCrashedLastTime() bool
 }
 
-// RegistryAddressDao :
-type RegistryAddressDao interface {
-	SaveRegistryAddress(registryAddress common.Address)
-	GetRegistryAddress() common.Address
+// ContractStatusDao :
+type ContractStatusDao interface {
+	SaveContractStatus(contractStatus ContractStatus)
+	GetContractStatus() ContractStatus
 }
 
 // SentEnvelopMessagerDao :
@@ -183,7 +190,7 @@ type Dao interface {
 	UnlockDao
 	ExpiredLockDao
 	DbStatusDao
-	RegistryAddressDao
+	ContractStatusDao
 	SentEnvelopMessagerDao
 	FeeChargeRecordDao
 	FeePolicyDao
@@ -205,4 +212,16 @@ type Dao interface {
 	RegisterChannelDepositCallback(f cb.ChannelCb)
 	RegisterChannelStateCallback(f cb.ChannelCb)
 	RegisterChannelSettleCallback(f cb.ChannelCb)
+}
+
+//GeneratDBError helper function
+func GeneratDBError(err error) error {
+	if err != nil {
+		e2, ok := err.(rerr.StandardError)
+		if ok {
+			return e2
+		}
+		return rerr.ErrGeneralDBError.Append(err.Error())
+	}
+	return nil
 }

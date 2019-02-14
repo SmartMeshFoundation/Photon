@@ -92,6 +92,7 @@ func (dao *GkvDB) GetSentTransfer(key string) (*models.SentTransfer, error) {
 func (dao *GkvDB) GetReceivedTransfer(key string) (*models.ReceivedTransfer, error) {
 	var r models.ReceivedTransfer
 	err := dao.getKeyValueToBucket(models.BucketReceivedTransfer, key, &r)
+	err = models.GeneratDBError(err)
 	return &r, err
 }
 

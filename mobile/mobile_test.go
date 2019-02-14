@@ -4,6 +4,15 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/dto"
+
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/SmartMeshFoundation/Photon/notify"
+	"github.com/SmartMeshFoundation/Photon/restful/v1"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 
 	"os"
@@ -15,13 +24,12 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
-	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestMobile(t *testing.T) {
+	ast := assert.New(t)
 	if testing.Short() {
 		return
 	}
@@ -34,122 +42,80 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if api.Address() != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
-		t.Error("address error")
-	}
-	if testing.Short() {
-		return
-	}
+	var res dto.APIResponse
+	resultstr := api.Address()
+	json.Unmarshal([]byte(resultstr), &res)
+	var s string
+	json.Unmarshal([]byte(res.Data), &s)
+	ast.EqualValues(s, common.HexToAddress("0x1a9eC3b0b807464e6D3398a59d6b0a369Bf422fA").String())
+
 	var tokens []common.Address
-	tokensstr := api.Tokens()
-	err = json.Unmarshal([]byte(tokensstr), &tokens)
+	resultstr = api.Tokens()
+	json.Unmarshal([]byte(resultstr), &res)
+	err = json.Unmarshal([]byte(res.Data), &tokens)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	var channels []*v1.ChannelData
-	channelsstr, err := api.GetChannelList()
+	resultstr = api.GetChannelList()
+
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
+		return
+	}
+	//t.Log(resultstr)
+	err = json.Unmarshal([]byte(res.Data), &channels)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log(channelsstr)
-	err = json.Unmarshal([]byte(channelsstr), &channels)
+	sub, err := api.Subscribe(newTestHandler())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer sub.Unsubscribe()
+	partnerAddr := utils.NewRandomAddress()
+	resultstr = api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
+		return
+	}
+	ast.EqualValues(string(res.Data), "null")
+	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
+	//等待交易被打包
+	for i := 0; i < 60; i++ {
+		resultstr = api.GetOneChannel(channelIdentifier.String())
+		json.Unmarshal([]byte(resultstr), &res)
+		if res.ErrorCode != dto.SUCCESS {
+			time.Sleep(time.Second)
+			continue
+		}
+		break
+	}
+	ast.NotEqual(res.Data, "")
+	var c channeltype.ChannelDataDetail
+	err = json.Unmarshal([]byte(res.Data), &c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	partnerAddr := utils.NewRandomAddress()
-	callID, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	resultstr = api.CloseChannel(channelIdentifier.String(), true)
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
+		return
+	}
+	err = json.Unmarshal([]byte(res.Data), &c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	var channelstr string
-	var crs string
-	var cr callResult
-	now := time.Now()
-	for {
-		if time.Since(now) > 60*time.Second {
-			break
-		}
-		time.Sleep(time.Second)
-		crs = api.GetCallResult(callID)
-		err = json.Unmarshal([]byte(crs), &cr)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if cr.Status == statusDealing {
-			continue
-		}
-		if cr.Status == statusError {
-			t.Error(cr.Message)
-			return
-		}
-		channelstr = cr.Message
-		break
-	}
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	var c v1.ChannelData
-	err = json.Unmarshal([]byte(channelstr), &c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	callID, err = api.CloseChannel(c.ChannelIdentifier, true)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	now = time.Now()
-	for {
-		if time.Since(now) > 20*time.Second {
-			break
-		}
-		time.Sleep(time.Second)
-		crs = api.GetCallResult(callID)
-		err = json.Unmarshal([]byte(crs), &cr)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if cr.Status == statusDealing {
-			continue
-		}
-		if cr.Status == statusError {
-			t.Error(cr.Message)
-			return
-		}
-		channelstr = cr.Message
-		break
-	}
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	err = json.Unmarshal([]byte(channelstr), &c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if c.State != contracts.ChannelStateClosed {
-		t.Error(err)
-		return
-	}
-	crs = api.GetCallResult(callID)
-	err = json.Unmarshal([]byte(crs), &cr)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if cr.Message != "not found" {
-		t.Error("should be not found")
-	}
+	ast.EqualValues(c.State, channeltype.StateClosing)
 	api.Stop()
 }
 
@@ -159,8 +125,14 @@ func TestFormat(t *testing.T) {
 }
 
 type testHandler struct {
+	lastNotify map[int]interface{}
 }
 
+func newTestHandler() *testHandler {
+	return &testHandler{
+		lastNotify: make(map[int]interface{}),
+	}
+}
 func (t *testHandler) OnError(errCode int, failure string) {
 	log.Info(fmt.Sprintf("onError errcode=%d,failure=%s", errCode, failure))
 }
@@ -184,12 +156,26 @@ info: type InfoStruct struct {
 	Type    int
 	Message interface{}
 	}
-当info.Type=0 表示Message是一个string,1表示Message是TransferStatus
+当info.Type=0 表示Message是一个string,1表示Message是TransferStatus,2 表示channel callid,3 表示channel status
 */
 func (t *testHandler) OnNotify(level int, info string) {
-
+	log.Info(fmt.Sprintf("notify leve=%d,info=%s", level, info))
+	if level == 0 {
+		var is notify.InfoStruct
+		err := json.Unmarshal([]byte(info), &is)
+		if err != nil {
+			log.Error("unmarshal error %s", err)
+		} else {
+			t.lastNotify[is.Type] = is.Message
+		}
+	}
 }
 
+func (t *testHandler) clearHistory() {
+	for k := range t.lastNotify {
+		delete(t.lastNotify, k)
+	}
+}
 func TestMobileNotify(t *testing.T) {
 	if testing.Short() {
 		return
@@ -206,7 +192,7 @@ func TestMobileNotify(t *testing.T) {
 	if api.Address() != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
 		t.Error("address error")
 	}
-	sub, err := api.Subscribe(&testHandler{})
+	sub, err := api.Subscribe(newTestHandler())
 	if err != nil {
 		t.Error(err)
 		return

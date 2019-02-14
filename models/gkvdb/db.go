@@ -1,8 +1,9 @@
 package gkvdb
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"sync"
 
@@ -18,7 +19,7 @@ import (
 )
 
 // ErrorNotFound :
-var ErrorNotFound = errors.New("not found")
+var ErrorNotFound = rerr.ErrNotFound
 
 //GkvDB is thread safe
 type GkvDB struct {

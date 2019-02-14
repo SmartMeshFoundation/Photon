@@ -14,10 +14,6 @@ import (
 
 	"math/big"
 
-	"sync"
-
-	"errors"
-
 	"bytes"
 	"crypto/ecdsa"
 
@@ -33,8 +29,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-var errEthConnectionNotReady = errors.New("eth connection not ready")
 
 //API photon for user
 /* #nolint */
@@ -93,20 +87,22 @@ DepositAndOpenChannel a channel with the peer at `partner_address`
     with the given `token_address`.
 deposit必须大于0
 settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如果大于0,表示希望完全创建通道.
+此接口并不等待交易打包才返回,因此如果是新创建通道,就算是成功了ch也会是nil
+如果是单纯deposit,那么err为nil时,ch一定有效
 */
 func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
 		revealTimeout = r.Photon.Config.RevealTimeout
 	}
 	if !newChannel && settleTimeout != 0 {
-		err = errors.New("settleTimeout must be zero when newChannel is false ")
+		err = rerr.ErrArgumentError.Append("settleTimeout must be zero when newChannel is false ")
 		return
 	}
 	if settleTimeout <= 0 {
 		settleTimeout = r.Photon.Config.SettleTimeout
 	}
 	if settleTimeout <= revealTimeout {
-		err = rerr.ErrInvalidSettleTimeout
+		err = rerr.ErrChannelInvalidSttleTimeout
 		return
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
@@ -116,52 +112,21 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	if err = r.checkSmcStatus(); err != nil {
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
 	if newChannel {
 		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err == nil {
-			err = errors.New("channel already exist")
+			err = rerr.ErrChannelAlreadExist
 			return
 		}
-		r.Photon.dao.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
-			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-				wg.Done()
-				return true
-			}
-			return false
-		})
 	} else {
-		_, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
-			err = errors.New("channel not exist")
+			err = rerr.ErrChannelNotFound
 			return
 		}
-		r.Photon.dao.RegisterChannelDepositCallback(func(c *channeltype.Serialization) (remove bool) {
-			if c.TokenAddress() == tokenAddress && c.PartnerAddress() == partnerAddress {
-				wg.Done()
-				return true
-			}
-			return false
-		})
 	}
-
 	result := r.Photon.depositAndOpenChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
-	if err != nil {
-		return
-	}
-	wg.Wait()
-
-	ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
-	if err == nil {
-		//must be success, no need to wait event and register a callback
-		if deposit != nil {
-			ch.OurContractBalance = deposit
-		} else {
-			ch.OurContractBalance = big.NewInt(0)
-		}
-	}
 	return
 }
 
@@ -186,12 +151,12 @@ func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, make
 	makerAmount, takerAmount *big.Int, secret string) (result *utils.AsyncResult, err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
-		err = errors.New("unkown taker token")
+		err = rerr.ErrTokenNotFound
 		return
 	}
 	chs, err = r.Photon.dao.GetChannelList(makerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
-		err = errors.New("unkown maker token")
+		err = rerr.ErrTokenNotFound
 		return
 	}
 
@@ -220,12 +185,12 @@ func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, mak
 	makerAmount, takerAmount *big.Int) (err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
-		err = errors.New("unkown taker token")
+		err = rerr.ErrTokenNotFound
 		return
 	}
 	chs, err = r.Photon.dao.GetChannelList(makerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
-		err = errors.New("unkown maker token")
+		err = rerr.ErrTokenNotFound
 		return
 	}
 	tokenSwap := &TokenSwap{
@@ -286,7 +251,7 @@ func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, targ
 		timeoutCh := time.After(timeout)
 		select {
 		case <-timeoutCh:
-			return result, errors.New("timeout")
+			return result, rerr.ErrTransferTimeout
 		case err = <-result.Result:
 		}
 	} else {
@@ -396,24 +361,12 @@ func (r *API) Close(tokenAddress, partnerAddress common.Address) (c *channeltype
 	if err != nil {
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	r.Photon.dao.RegisterChannelStateCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		log.Trace(fmt.Sprintf("wait %s closed ,get channle %s update",
-			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Equal(c2.Key, c.Key) {
-			wg.Done()
-			return true
-		}
-		return false
-	})
 	//send close channel request
 	result := r.Photon.closeChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
 	if err != nil {
 		return
 	}
-	wg.Wait()
 	//reload data from database,
 	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
@@ -428,17 +381,6 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 		err = rerr.InvalidState("channel is still open")
 		return
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	r.Photon.dao.RegisterChannelSettleCallback(func(c2 *channeltype.Serialization) (remove bool) {
-		log.Trace(fmt.Sprintf("wait %s settled ,get channle %s update",
-			c.ChannelIdentifier, c2.ChannelIdentifier))
-		if bytes.Equal(c2.Key, c.Key) {
-			wg.Done()
-			return true
-		}
-		return false
-	})
 	//send settle request
 	result := r.Photon.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
@@ -446,9 +388,8 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	if err != nil {
 		return
 	}
-	wg.Wait()
-	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetSettledChannel(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber)
+	//reload data from database, this channel has been removed. 这时候channel应该是settling状态
+	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
 }
 
 //CooperativeSettle a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
@@ -519,7 +460,7 @@ func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.
 		return
 	}
 	if c.OurBalance().Cmp(amount) < 0 {
-		err = fmt.Errorf("invalid withdraw amount, availabe=%s,want=%s", c.OurBalance(), amount)
+		err = rerr.ErrArgumentError.Printf("invalid withdraw amount, availabe=%s,want=%s", c.OurBalance(), amount)
 		return
 	}
 	//send settle request
@@ -843,7 +784,7 @@ func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, third
 func signBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
 	if c.PartnerBalanceProof == nil {
 		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
-		return nil, errors.New("empty PartnerBalanceProof")
+		return nil, rerr.ErrChannelBalanceProofNil.Append("empty PartnerBalanceProof")
 	}
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
@@ -922,7 +863,7 @@ func (r *API) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []
 		}
 	}
 	if !hasRegistered {
-		err = errors.New("token not registered")
+		err = rerr.ErrTokenNotFound
 		return
 	}
 	channels, err := r.GetChannelList(tokenAddress, utils.EmptyAddress)
@@ -1066,7 +1007,7 @@ func (r *API) GetFeePolicy() (fp *models.FeePolicy, err error) {
 func (r *API) SetFeePolicy(fp *models.FeePolicy) error {
 	feeModule, ok := r.Photon.FeePolicy.(*FeeModule)
 	if !ok {
-		return errors.New("photon start without param '--fee', can not set fee policy")
+		return rerr.ErrArgumentError.Append("photon start without param '--fee', can not set fee policy")
 	}
 	return feeModule.SetFeePolicy(fp)
 }
@@ -1074,7 +1015,7 @@ func (r *API) SetFeePolicy(fp *models.FeePolicy) error {
 // FindPath :
 func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.Int) (routes []pfsproxy.FindPathResponse, err error) {
 	if r.Photon.PfsProxy == nil {
-		err = errors.New("photon start without param '--pfs', can not calculate total fee")
+		err = rerr.ErrArgumentError.Append("photon start without param '--pfs', can not calculate total fee")
 		return
 	}
 	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount, true)
@@ -1196,14 +1137,14 @@ func (r *API) checkSmcStatus() error {
 	// 1. 校验最新块的时间
 	lastBlockNumberTime := r.Photon.dao.GetLastBlockNumberTime()
 	if time.Since(lastBlockNumberTime) > 60*time.Second {
-		err = fmt.Errorf("has't receive new block from smc since %s, maybe something wrong with smc", lastBlockNumberTime.String())
+		err = rerr.ErrSpectrumSyncError.Errorf("has't receive new block from smc since %s, maybe something wrong with smc", lastBlockNumberTime.String())
 		log.Error(err.Error())
 		return err
 	}
 	// 2. 校验smc节点同步情况
 	sp, err := r.Photon.Chain.SyncProgress()
 	if err != nil {
-		err = fmt.Errorf("call smc SyncProgress err %s", err)
+		err = rerr.ErrSpectrumSyncError.Errorf("call smc SyncProgress err %s", err)
 		log.Error(err.Error())
 		return err
 	}
@@ -1212,7 +1153,7 @@ func (r *API) checkSmcStatus() error {
 		defaultSyncBlock = 30
 	}
 	if sp != nil && sp.HighestBlock-sp.CurrentBlock > defaultSyncBlock {
-		err = fmt.Errorf("smc block number error : HighestBlock=%d but CurrentBlock=%d", sp.HighestBlock, sp.CurrentBlock)
+		err = rerr.ErrSpectrumBlockError.Errorf("smc block number error : HighestBlock=%d but CurrentBlock=%d", sp.HighestBlock, sp.CurrentBlock)
 		log.Error(err.Error())
 		return err
 	}

@@ -3,7 +3,7 @@ package gkvdb
 import (
 	"fmt"
 
-	"github.com/kataras/go-errors"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -28,7 +28,7 @@ func (dao *GkvDB) NewNonParticipantChannel(token common.Address, channel common.
 	))
 	err := dao.getKeyValueToBucket(models.BucketChannel, channel[:], &m)
 	if err == nil {
-		return errors.New("duplicate key")
+		return rerr.ErrDBDuplicateKey
 	}
 	if participant1 == participant2 {
 		panic(fmt.Sprintf("channel error, p1 andf p2 is the same,token=%s,participant=%s", token.String(), participant1.String()))
@@ -36,12 +36,13 @@ func (dao *GkvDB) NewNonParticipantChannel(token common.Address, channel common.
 
 	log.Trace(fmt.Sprintf("NewNonParticipantChannel token=%s,p1=%s,p2=%s", utils.APex2(token),
 		utils.APex2(participant1), utils.APex2(participant2)))
-	return dao.saveKeyValueToBucket(models.BucketChannel, channel[:], &nonParticipantChannel{
+	err = dao.saveKeyValueToBucket(models.BucketChannel, channel[:], &nonParticipantChannel{
 		TokenAddressBytes:      token[:],
 		Participant1Bytes:      participant1[:],
 		Participant2Bytes:      participant2[:],
 		ChannelIdentifierBytes: channel[:],
 	})
+	return models.GeneratDBError(err)
 }
 
 //RemoveNonParticipantChannel a channel is settled
@@ -49,9 +50,10 @@ func (dao *GkvDB) RemoveNonParticipantChannel(channel common.Hash) error {
 	var m nonParticipantChannel
 	err := dao.getKeyValueToBucket(models.BucketChannel, channel[:], &m)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
-	return dao.removeKeyValueFromBucket(models.BucketChannel, channel[:])
+	err = dao.removeKeyValueFromBucket(models.BucketChannel, channel[:])
+	return models.GeneratDBError(err)
 }
 
 //GetAllNonParticipantChannelByToken returna all channel on this `token`
