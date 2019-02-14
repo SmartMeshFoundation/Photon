@@ -123,6 +123,9 @@ var DefaultChainID = big.NewInt(0)
 //ChainID of this tokenNetwork
 var ChainID = DefaultChainID
 
+//PunishBlockNumber is punish_block_number of contract,default is 257
+var PunishBlockNumber int64
+
 //MatrixServerConfig matrix server config
 var MatrixServerConfig = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",

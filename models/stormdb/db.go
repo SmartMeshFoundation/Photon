@@ -126,41 +126,24 @@ func (model *StormDB) CloseDB() {
 	model.lock.Unlock()
 }
 
-//SaveRegistryAddress save registry address to db
-func (model *StormDB) SaveRegistryAddress(registryAddress common.Address) {
-	err := model.db.Set(models.BucketMeta, models.KeyRegistry, registryAddress)
+//SaveContractStatus save registry address to db
+func (model *StormDB) SaveContractStatus(contractStatus models.ContractStatus) {
+	err := model.db.Set(models.BucketMeta, models.KeyRegistry, contractStatus)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
 }
 
-//GetRegistryAddress returns registry address in db
-func (model *StormDB) GetRegistryAddress() common.Address {
-	var registry common.Address
-	err := model.db.Get(models.BucketMeta, models.KeyRegistry, &registry)
+//GetContractStatus returns registry address in db
+func (model *StormDB) GetContractStatus() models.ContractStatus {
+	var contractStatus models.ContractStatus
+	err := model.db.Get(models.BucketMeta, models.KeyRegistry, &contractStatus)
 	if err != nil && err != storm.ErrNotFound {
 		log.Error(fmt.Sprintf("db err %s", err))
 	}
-	return registry
+	return contractStatus
 }
 
-//SaveSecretRegistryAddress save secret registry contract address to db
-func (model *StormDB) SaveSecretRegistryAddress(secretRegistryAddress common.Address) {
-	err := model.db.Set(models.BucketMeta, models.KeySecretRegistry, secretRegistryAddress)
-	if err != nil {
-		log.Error(fmt.Sprintf("db err %s", err))
-	}
-}
-
-//GetSecretRegistryAddress return secret registry contract address
-func (model *StormDB) GetSecretRegistryAddress() common.Address {
-	var secretRegistry common.Address
-	err := model.db.Get(models.BucketMeta, models.KeySecretRegistry, &secretRegistry)
-	if err != nil {
-		log.Error(fmt.Sprintf("db err %s", err))
-	}
-	return secretRegistry
-}
 func init() {
 	gob.Register(&StormDB{}) //cannot save and restore by gob,only avoid noise by gob
 }

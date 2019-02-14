@@ -15,32 +15,32 @@ import (
 PendingLock is lock of HTLC
 */
 type PendingLock struct {
-	Lock     *mtree.Lock
-	LockHash common.Hash //hash of this lock
+	Lock     *mtree.Lock `json:"lock"`
+	LockHash common.Hash `json:"lock_hash"` //hash of this lock
 }
 
 /*
 UnlockPartialProof is the lock that I have known the secret ,but haven't receive the Balance proof
 */
 type UnlockPartialProof struct {
-	Lock                *mtree.Lock
-	LockHash            common.Hash
-	Secret              common.Hash
-	IsRegisteredOnChain bool //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
+	Lock                *mtree.Lock `json:"lock"`
+	LockHash            common.Hash `json:"lock_hash"`
+	Secret              common.Hash `json:"secret"`
+	IsRegisteredOnChain bool        `json:"is_registered_on_chain"` //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
 }
 
 /*
 UnlockProof is the info needs withdraw on blockchain
 */
 type UnlockProof struct {
-	MerkleProof []common.Hash
-	Lock        *mtree.Lock
+	MerkleProof []common.Hash `json:"merkle_proof"`
+	Lock        *mtree.Lock   `json:"lock"`
 }
 
 //KnownSecret is used to save to db
 type KnownSecret struct {
-	Secret              common.Hash
-	IsRegisteredOnChain bool //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
+	Secret              common.Hash `json:"secret"`
+	IsRegisteredOnChain bool        `json:"is_registered_on_chain"` //该密码是通过链上注册获知的还是通过普通的RevealSecret得知的. 如果是链上注册得知,那么一定是没有过期的.
 }
 
 // Serialization is the living channel in the database
@@ -221,6 +221,67 @@ func (s *Serialization) MinExpiration(blockNumber int64) int64 {
 	}
 	return min
 }
+
+//ChannelDataDetail for user api
+type ChannelDataDetail struct {
+	ChannelIdentifier   string   `json:"channel_identifier"`
+	OpenBlockNumber     int64    `json:"open_block_number"`
+	PartnerAddress      string   `json:"partner_address"`
+	Balance             *big.Int `json:"balance"`
+	PartnerBalance      *big.Int `json:"partner_balance"`
+	LockedAmount        *big.Int `json:"locked_amount"`
+	PartnerLockedAmount *big.Int `json:"partner_locked_amount"`
+	TokenAddress        string   `json:"token_address"`
+	State               State    `json:"state"`
+	StateString         string   `json:"state_string"`
+	SettleTimeout       int      `json:"settle_timeout"`
+	RevealTimeout       int      `json:"reveal_timeout"`
+
+	/*
+		extended
+	*/
+	ClosedBlock               int64                              `json:"closed_block"`
+	SettledBlock              int64                              `json:"settled_block"`
+	OurUnknownSecretLocks     map[common.Hash]PendingLock        `json:"our_unknown_secret_locks,omitempty"`
+	OurKnownSecretLocks       map[common.Hash]UnlockPartialProof `json:"our_known_secret_locks,omitempty"`
+	PartnerUnknownSecretLocks map[common.Hash]PendingLock        `json:"partner_unknown_secret_locks,omitempty"`
+	PartnerKnownSecretLocks   map[common.Hash]UnlockPartialProof `json:"partner_known_secret_locks,omitempty"`
+	OurLeaves                 []*mtree.Lock                      `json:"our_leaves,omitempty"`
+	PartnerLeaves             []*mtree.Lock                      `json:"partner_leaves,omitempty"`
+	OurBalanceProof           *transfer.BalanceProofState        `json:"our_balance_proof,omitempty"`
+	PartnerBalanceProof       *transfer.BalanceProofState        `json:"partner_balance_proof,omitempty"`
+	Signature                 []byte                             `json:"signature,omitempty"` //my signature of PartnerBalanceProof
+}
+
+//ChannelSerialization2ChannelDataDetail 辅助函数
+func ChannelSerialization2ChannelDataDetail(c *Serialization) *ChannelDataDetail {
+	d := &ChannelDataDetail{
+		ChannelIdentifier:         c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:           c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddress:            c.PartnerAddress().String(),
+		Balance:                   c.OurBalance(),
+		PartnerBalance:            c.PartnerBalance(),
+		State:                     c.State,
+		StateString:               c.State.String(),
+		SettleTimeout:             c.SettleTimeout,
+		RevealTimeout:             c.RevealTimeout,
+		TokenAddress:              c.TokenAddress().String(),
+		LockedAmount:              c.OurAmountLocked(),
+		PartnerLockedAmount:       c.PartnerAmountLocked(),
+		ClosedBlock:               c.ClosedBlock,
+		SettledBlock:              c.SettledBlock,
+		OurLeaves:                 c.OurLeaves,
+		PartnerLeaves:             c.PartnerLeaves,
+		OurKnownSecretLocks:       c.OurLock2UnclaimedLocks(),
+		OurUnknownSecretLocks:     c.OurLock2PendingLocks(),
+		PartnerUnknownSecretLocks: c.PartnerLock2PendingLocks(),
+		PartnerKnownSecretLocks:   c.PartnerLock2UnclaimedLocks(),
+		OurBalanceProof:           c.OurBalanceProof,
+		PartnerBalanceProof:       c.PartnerBalanceProof,
+	}
+	return d
+}
+
 func init() {
 	gob.Register(&PendingLock{})
 	gob.Register(&UnlockPartialProof{})

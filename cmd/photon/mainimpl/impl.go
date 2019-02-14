@@ -281,15 +281,34 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	if isFirstStartUp {
-		err = verifyContractCode(bcs)
+		var contractVersion string
+		var secretRegisteryAddress common.Address
+		var punishBlockNumber uint64
+		var chainID *big.Int
+		contractVersion, secretRegisteryAddress, punishBlockNumber, chainID, err = verifyContractCode(bcs)
 		if err != nil {
-			dao.SaveRegistryAddress(utils.EmptyAddress) // return to first start up
+			//dao.SaveContractStatus(models.ContractStatus{}) // return to first start up
 			dao.CloseDB()
 			client.Close()
 			return
 		}
+		dao.SaveContractStatus(models.ContractStatus{
+			RegistryAddress:       cfg.RegistryAddress,
+			SecretRegistryAddress: secretRegisteryAddress,
+			PunishBlockNumber:     int64(punishBlockNumber),
+			ChainID:               chainID,
+			ContractVersion:       contractVersion,
+		})
 	}
-
+	/*
+		由于数据库设计历史原因,chainID是单独保存的,为了保持兼容,暂时不做修改
+	*/
+	cs := dao.GetContractStatus()
+	if cs.ChainID.Cmp(params.ChainID) != 0 {
+		panic(fmt.Sprintf("chainid not equal ,there must be error, db status=%s,params=%s", utils.StringInterface(cs, 3), params.ChainID))
+	}
+	params.PunishBlockNumber = cs.PunishBlockNumber
+	log.Info(fmt.Sprintf("punish block number=%d", params.PunishBlockNumber))
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
 		dao.CloseDB()
@@ -520,7 +539,7 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 }
 
 func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
-	dbRegistryAddress := dao.GetRegistryAddress()
+	dbRegistryAddress := dao.GetContractStatus().RegistryAddress
 	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
 	hasConnectedChain = client.Status == netshare.Connected
 	if isFirstStartUp && !hasConnectedChain {
@@ -541,7 +560,8 @@ func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.Sa
 		} else {
 			registryAddress = config.RegistryAddress
 		}
-		dao.SaveRegistryAddress(registryAddress)
+		//等交验完合约没问题以后再存,否则合约有问题还需要重新来过
+		//dao.SaveContractStatus(registryAddress)
 	} else {
 		registryAddress = dbRegistryAddress
 	}
@@ -572,8 +592,7 @@ func getDefaultPFSByEthClient(client *helper.SafeEthClient) (pfs string, err err
 /*
 	校验链上的合约代码版本
 */
-func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
-	var contractVersion string
+func verifyContractCode(bcs *rpc.BlockChainService) (contractVersion string, secretRegisteryAddress common.Address, punishBlockNumber uint64, chainID *big.Int, err error) {
 	log.Trace(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
 	contractVersion, err = bcs.RegistryProxy.GetContractVersion()
 	if err != nil {
@@ -582,6 +601,16 @@ func verifyContractCode(bcs *rpc.BlockChainService) (err error) {
 	if !strings.HasPrefix(contractVersion, params.ContractVersionPrefix) {
 		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
+	secretRegisteryAddress, err = bcs.RegistryProxy.GetContract().SecretRegistry(nil)
+	if err != nil {
+		err = fmt.Errorf("get SecretRegistry address err %s", err)
+		return
+	}
+	punishBlockNumber, err = bcs.RegistryProxy.GetContract().PunishBlockNumber(nil)
+	if err != nil {
+		err = fmt.Errorf("get punish block number err %s", err)
+	}
+	chainID, err = bcs.RegistryProxy.GetContract().ChainId(nil)
 	return
 }
 func checkDbMeta(dbPath, dbType string) (err error) {

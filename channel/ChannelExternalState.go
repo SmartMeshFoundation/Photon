@@ -32,8 +32,8 @@ type ExternalState struct {
 	auth                           *bind.TransactOpts
 	privKey                        *ecdsa.PrivateKey
 	Client                         *helper.SafeEthClient
-	ClosedBlock                    int64
-	SettledBlock                   int64
+	ClosedBlock                    int64 //通道被强制关闭的block,
+	SettledBlock                   int64 //初始为0,通道被强制关闭以后则是可以进行settle的块数,通道被settle以后,则是通道被settle的块数
 	ChannelIdentifier              contracts.ChannelUniqueID
 	MyAddress                      common.Address
 	PartnerAddress                 common.Address
@@ -70,7 +70,13 @@ func (e *ExternalState) SetClosed(blocknumber int64) bool {
 
 //SetSettled set the settled number of this channel
 func (e *ExternalState) SetSettled(blocknumber int64) bool {
-	if e.SettledBlock != 0 && e.SettledBlock != blocknumber {
+	//初始为0,通道被强制关闭以后则是可以进行settle的块数,通道被settle以后,则是通道被settle的块数
+	if blocknumber < e.SettledBlock {
+		/*
+			有两种情况需要设置settledBlock
+			1.链上发生了settle时间,这时候settledBlock是预设的可以settle的块数, 不可能发生settle的块数比预设的还早
+			2. 如果是第一次设置settledblock,也就是发生closed的时候,
+		*/
 		return false
 	}
 	e.SettledBlock = blocknumber
@@ -78,11 +84,9 @@ func (e *ExternalState) SetSettled(blocknumber int64) bool {
 }
 
 //Close call close function of smart contract
-func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result *utils.AsyncResult) {
+func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (err error) {
 	if e.ClosedBlock != 0 {
-		result = utils.NewAsyncResult()
-		result.Result <- fmt.Errorf("%s already closed,closeBlock=%d", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), e.ClosedBlock)
-		return
+		return fmt.Errorf("%s already closed,closeBlock=%d", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), e.ClosedBlock)
 	}
 	//start tx close and wait.
 	var Nonce uint64
@@ -95,12 +99,11 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (result 
 		Nonce = balanceProof.Nonce
 		TransferAmount = balanceProof.TransferAmount
 		LocksRoot = balanceProof.LocksRoot
-		//ChannelIdentifier = balanceProof.ChannelIdentifier
+		//ChannelIdentifier = balanceProof.ChannelIdentifieerrr
 		MessageHash = balanceProof.MessageHash
 		Signature = balanceProof.Signature
 	}
-	result = e.TokenNetwork.CloseChannelAsync(e.PartnerAddress, TransferAmount, LocksRoot, Nonce, MessageHash, Signature)
-	return
+	return e.TokenNetwork.CloseChannelAsync(e.PartnerAddress, TransferAmount, LocksRoot, Nonce, MessageHash, Signature)
 }
 
 //UpdateTransfer call updateTransfer of contract
@@ -166,27 +169,15 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 }
 
 //Settle call settle function of contract
-func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (result *utils.AsyncResult) {
-	if e.SettledBlock != 0 {
-		result = utils.NewAsyncResult()
-		result.Result <- fmt.Errorf("channel %s already settled", e.ChannelIdentifier.String())
-		return
-	}
+func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (err error) {
 	log.Info(fmt.Sprintf("settle called %s,myTransferAmount=%s,partnerTransferAmount=%s,mylocksRoot=%s,partnerLocksroot=%s",
 		e.ChannelIdentifier.String(), MyTransferAmount, PartnerTransferAmount,
 		utils.HPex(MyLocksroot), utils.HPex(PartnerLocksroot),
 	))
-	result = e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
+	return e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
 		MyTransferAmount, PartnerTransferAmount,
 		MyLocksroot, PartnerLocksroot,
 	)
-	return
-}
-
-//Deposit call deposit of contract
-func (e *ExternalState) Deposit(tokenAddress common.Address, amount *big.Int) (result *utils.AsyncResult) {
-	result = e.TokenNetwork.NewChannelAndDepositAsync(e.MyAddress, e.PartnerAddress, 0, amount)
-	return
 }
 
 /*

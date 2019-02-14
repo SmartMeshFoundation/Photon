@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -74,7 +74,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 	expectN0 := n0balance + n1balance + int32(n0value)
 	var i = 0
 	for i = 0; i < cm.MediumWaitSeconds; i++ {
-		var c v1.ChannelDataDetail
+		var c channeltype.ChannelDataDetail
 		time.Sleep(time.Second)
 		c, err = N0.SpecifiedChannel(c10.ChannelIdentifier)
 		if err != nil {

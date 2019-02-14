@@ -560,7 +560,7 @@ func (rs *Service) registerSecret(secret common.Hash) {
 	for _, hashchannel := range rs.Token2LockSecretHash2Channels {
 		for _, ch := range hashchannel[hashlock] {
 			err := ch.RegisterSecret(secret)
-			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(secret), ch.ChannelIdentifier.String(), err))
@@ -583,7 +583,7 @@ func (rs *Service) registerRevealedLockSecretHash(lockSecretHash, secret common.
 				))
 				continue
 			}
-			err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 			if err != nil {
 				log.Error(fmt.Sprintf("RegisterSecret %s to channel %s  err: %s",
 					utils.HPex(lockSecretHash), ch.ChannelIdentifier.String(), err))
@@ -830,18 +830,21 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	var err error
 	targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
-	if rs.PfsProxy != nil {
+	g := rs.getToken2ChannelGraph(tokenAddress)
+	if g == nil {
+		result.Result <- errors.New("token not exist")
+		return
+	}
+	/*
+		只有在没有直接通道的情况下才找PFS询问路由
+	*/
+	if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
 		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
 		if err != nil {
-			result.Result <- errors.New("get route from pathfinder failed")
+			result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
 			return
 		}
 	} else {
-		g := rs.getToken2ChannelGraph(tokenAddress)
-		if g == nil {
-			result.Result <- errors.New("token not exist")
-			return
-		}
 		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
 	}
 	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
@@ -1159,7 +1162,7 @@ func (rs *Service) getChannel(tokenAddr, partnerAddr common.Address) *channel.Ch
 /*
 Process user's new channel request
 */
-func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) (result *utils.AsyncResult) {
+func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) *utils.AsyncResult {
 	if isNewChannel {
 		g := rs.Token2ChannelGraph[token]
 		if g != nil {
@@ -1170,17 +1173,16 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
-		result = utils.NewAsyncResultWithError(err)
-		return
+		return utils.NewAsyncResultWithError(err)
 	}
-	result = tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount)
-	return
+	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
 }
 
 /*
 process user's close or settle channel request
 */
 func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string) (result *utils.AsyncResult) {
+	result = utils.NewAsyncResult()
 	c, err := rs.findChannelByIdentifier(channelIdentifier)
 	if err != nil { //settled channel can be queried from dao.
 		result = utils.NewAsyncResultWithError(errors.New("channel not exist"))
@@ -1188,10 +1190,15 @@ func (rs *Service) closeOrSettleChannel(channelIdentifier common.Hash, op string
 	}
 	log.Trace(fmt.Sprintf("%s channel %s\n", op, utils.HPex(channelIdentifier)))
 	if op == closeChannelReqName {
-		result = c.Close()
+		err = c.Close()
 	} else {
-		result = c.Settle()
+		err = c.Settle(rs.GetBlockNumber())
 	}
+	if err == nil {
+		err = rs.UpdateChannelState(channel.NewChannelSerialization(c))
+	}
+	result.Result <- err
+	//通道变化的通知来自于事件,而不是执行结果
 	return
 }
 func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (result *utils.AsyncResult) {
@@ -1213,7 +1220,7 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 		return
 	}
 	c.State = channeltype.StateCooprativeSettle
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1235,7 +1242,7 @@ func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1252,7 +1259,7 @@ func (rs *Service) cancelPrepareForCooperativeSettleChannelOrWithdraw(channelIde
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1280,7 +1287,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	c.State = channeltype.StateWithdraw
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err
 	}
@@ -1302,7 +1309,7 @@ func (rs *Service) prepareForWithdraw(channelIdentifier common.Hash) (result *ut
 		result.Result <- err
 		return
 	}
-	err = rs.dao.UpdateChannelNoTx(channel.NewChannelSerialization(c))
+	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	result.Result <- err
 	return
 }
@@ -1648,17 +1655,51 @@ func (rs *Service) handleReq(req *apiReq) {
 	r.result <- result
 }
 
-func (rs *Service) updateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
+/*
+这一系列update通知没有走callback,而是专门开辟一条道路主要是考虑到这些通知并不是来自用户的请求,
+而是
+1. photon主动推送
+2. 比如交易引起的金额变化,以前是不会通知的,也就没有相应的callback
+*/
+
+//UpdateChannelAndSaveAck 保证通道更新和消息确认是一个原子操作
+func (rs *Service) UpdateChannelAndSaveAck(c *channel.Channel, tag interface{}) {
 	t, ok := tag.(*transfer.MessageTag)
 	if !ok || t == nil {
 		panic("tag is nil")
 	}
 	echohash := t.EchoHash
 	ack := rs.Protocol.CreateAck(echohash)
-	err := rs.dao.UpdateChannelAndSaveAck(channel.NewChannelSerialization(c), echohash, ack.Pack())
+	cs := channel.NewChannelSerialization(c)
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
+	err := rs.dao.UpdateChannelAndSaveAck(cs, echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}
+}
+
+//UpdateChannel 数据库中更新通道状态,同时通知App
+func (rs *Service) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannel(c, tx)
+}
+
+//UpdateChannelNoTx  数据库更新,同时通知App,与updateChannelState的区别就在于回调函数的
+func (rs *Service) UpdateChannelNoTx(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelNoTx(c)
+}
+
+//UpdateChannelState 数据库更新,同时通知app
+func (rs *Service) UpdateChannelState(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelState(c)
+}
+
+//UpdateChannelContractBalance 数据库更新,同时通知app
+func (rs *Service) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	return rs.dao.UpdateChannelContractBalance(c)
 }
 
 func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {

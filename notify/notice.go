@@ -27,13 +27,24 @@ type Notice struct {
 }
 
 const (
-	infoTypeString = iota
-	infoTypeTransferStatus
+	//InfoTypeString 0 简单的string通知
+	InfoTypeString = iota
+	//InfoTypeTransferStatus 1 发起的交易状态发生了变化
+	InfoTypeTransferStatus
+	//InfoTypeChannelCallID 2 关于通道的操作,有了结果
+	InfoTypeChannelCallID
+	//InfoTypeChannelStatus 3 通道状态发生了变化,包括但不限于
+	//balance
+	//patner_balance
+	//locked_amount
+	//partner_locked_amount
+	//state
+	InfoTypeChannelStatus
 )
 
 //InfoStruct for notify to mobile
 type InfoStruct struct {
-	Type    int         `json:"info"` //infoTypeString 表示Message是一个string,InfoTypeTransferStatus表示Message是TransferStatus
+	Type    int         `json:"type"` //InfoTypeString 表示Message是一个string,InfoTypeTransferStatus表示Message是TransferStatus
 	Message interface{} `json:"message"`
 }
 
