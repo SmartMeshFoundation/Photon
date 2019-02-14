@@ -17,12 +17,19 @@ an example run script:
 photonmonitoring --datadir=.photonmonitoring --eth-rpc-endpoint ws://192.168.124.13:5555  --address="0x292650fee408320D888e06ed89D938294Ea42f99" --keystore-path=/Users/bai/privnet3/keystore  --registry-contract-address 0x7B319fB135811caeED9969E6a97544f74E312A65  --password-file 123 --verbosity 5  --debug   --smt 0x40db17463AD4A00cc824a37d851725aC7eA4E0B6
 ```
 Parameters:
+
 - `datadir` Local data storage path
+
 - `eth-rpc-endpoint` Full node (the mainnet/testnet is online)
+
 - `address` Third party service address
+
 - `keystore-path` Private key path
+
 - `registry-contract-address` Contract address (The mainnet/testnet is online)
+
 - `password-file` Private key password
+
 - `smt` The address of token 
 
 ## How to use  Photon Monitoring Service
@@ -40,6 +47,7 @@ Channel Participant`alice`|0x31ddac67e610c22d19e887fb1937bee3079b56cd
 Channel Participant`Bob`|0xf0f6e53d6bbb9debf35da6531ec9f1141cd549d5
 
 **Photon Monitoring Start**
+
 Run script code below to start pms node.  
 ```sh
 photonmonitoring  --datadir=.photonmonitoring --eth-rpc-endpoint ws://127.0.0.1:5555  --address="0x6b9e4d89ee3828e7a477ea9aa7b62810260e27e9" --keystore-path ~/.ethereum/keystore --registry-contract-address 0x4dc3388E72e45E99061Ec4Fe17Db2ebfe3B4341f  --password-file /home/niexin/niexin/data.txt  --smt  0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20
@@ -48,6 +56,7 @@ echo "quit ok"
  *Default port for Photon Monitoring : 6000*  
 
 **Start-up Delegated Charge Node**
+
 Run script below to operate delegated charged node.  
 ```sh
 echo run photon...
@@ -57,7 +66,9 @@ echo "quit ok"
 *`ignore-mediatednode-request` must be added when start delegated charge node, in case it works as a mediated node of photon and make mistakes at fee-charging.*    
 
 **Run Channel Participant Nodes:**
+
 Same as Start-up Delegated Charge Node, you can run codes below to achieve that.  
+
 **Alice:**
 ```sh
 echo privnet
@@ -88,8 +99,10 @@ There are other cases,such as, a channel participant is a fraudulent actor and a
 ### Normal Delegation, not including punish
 
 #### 1. Alice makes a transfer to Bob
+
 **Via API offered below**  
 `POST  /api/<version>/transfer/<token_address>/target_address`
+
 **Example Request:** 
 `POST http://127.0.0.1:5002/api/1/transfers/0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20/0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd` 
 
@@ -130,9 +143,11 @@ There are other cases,such as, a channel participant is a fraudulent actor and a
 
 #### 3. Photon Monitoring Service queries whether Tokens are sufficient in delegated charge node.
 **Via API offered below**   
+
 `GET /fee/<delegater_address>`  
 
 **Example Request :**  
+
 `http://127.0.0.1:6000/fee/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`  
 
 **Example Response:** 
