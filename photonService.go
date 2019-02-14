@@ -891,7 +891,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	smkey := utils.Sha3(lockSecretHash[:], tokenAddress[:])
 	manager := rs.Transfer2StateManager[smkey]
 	if manager != nil {
-		result.Result <- rerr.ErrDuplicateTranser
+		result.Result <- rerr.ErrDuplicateTransfer
 		return
 	}
 	rs.Transfer2StateManager[smkey] = stateManager

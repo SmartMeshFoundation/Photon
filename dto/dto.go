@@ -16,7 +16,7 @@ type APIErrorCode int
 const (
 	// SUCCESS :
 	SUCCESS = 0
-	// EXCEPTION :
+	// UNKNOWNERROR :
 	UNKNOWNERROR = -1
 )
 
