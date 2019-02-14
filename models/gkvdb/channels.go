@@ -3,6 +3,8 @@ package gkvdb
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -20,7 +22,7 @@ func (dao *GkvDB) NewChannel(c *channeltype.Serialization) error {
 	if err != nil {
 		log.Error(fmt.Sprintf("NewChannel for daos err:%s", err))
 	}
-	return err
+	return models.GeneratDBError(err)
 }
 
 //UpdateChannelNoTx update channel status without a Tx
@@ -30,7 +32,7 @@ func (dao *GkvDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
 	}
-	return err
+	return models.GeneratDBError(err)
 }
 
 //UpdateChannelAndSaveAck update channel and save ack, must atomic
@@ -45,10 +47,12 @@ func (dao *GkvDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echohash
 	err = dao.UpdateChannel(c, tx)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	dao.SaveAck(echohash, ack, tx)
 	err = tx.Commit()
+	err = models.GeneratDBError(err)
 	return
 }
 func (dao *GkvDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype.Serialization) {
@@ -70,7 +74,7 @@ func (dao *GkvDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channeltype
 func (dao *GkvDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
 	err := dao.UpdateChannelNoTx(c)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
 	//notify listener
 	dao.handleChannelCallback(dao.channelDepositCallbacks, c)
@@ -84,14 +88,14 @@ func (dao *GkvDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) erro
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
 	}
-	return err
+	return models.GeneratDBError(err)
 }
 
 //UpdateChannelState update channel state ,close settle
 func (dao *GkvDB) UpdateChannelState(c *channeltype.Serialization) error {
 	err := dao.UpdateChannelNoTx(c)
 	if err != nil {
-		return err
+		return models.GeneratDBError(err)
 	}
 	//notify listener
 	dao.handleChannelCallback(dao.channelStateCallbacks, c)
@@ -104,7 +108,7 @@ func (dao *GkvDB) RemoveChannel(c *channeltype.Serialization) error {
 		panic("only can remove a settled channel")
 	}
 	dao.handleChannelCallback(dao.channelSettledCallbacks, c)
-	return dao.removeKeyValueFromBucket(models.BucketChannelSerialization, c.GetKey())
+	return models.GeneratDBError(dao.removeKeyValueFromBucket(models.BucketChannelSerialization, c.GetKey()))
 }
 
 //GetChannel return a channel queried by (token,partner),this channel must not settled
@@ -118,11 +122,12 @@ func (dao *GkvDB) GetChannel(token, partner common.Address) (c *channeltype.Seri
 	}
 	tb, err := dao.db.Table(models.BucketChannelSerialization)
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return
 	}
 	buf := tb.Values(-1)
 	if len(buf) == 0 {
-		err = ErrorNotFound
+		err = rerr.ErrNotFound
 		return
 	}
 	for _, v := range buf {
@@ -170,6 +175,7 @@ func (dao *GkvDB) GetChannelByAddress(ChannelIdentifier common.Hash) (c *channel
 func (dao *GkvDB) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
 	tb, err := dao.db.Table(models.BucketChannelSerialization)
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return
 	}
 	buf := tb.Values(-1)

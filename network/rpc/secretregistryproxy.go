@@ -1,9 +1,10 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
@@ -39,21 +40,21 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 	block, err := s.registry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err == nil && block.Uint64() > 0 {
 		//已经注册过了,直接报错
-		err = fmt.Errorf("secret %s,secret hash=%s  already registered", secret.String(), utils.ShaSecret(secret[:]).String())
+		err = rerr.ErrSecretAlreadyRegistered.Errorf("secret %s,secret hash=%s  already registered", secret.String(), utils.ShaSecret(secret[:]).String())
 		return
 	}
 	tx, err := s.registry.RegisterSecret(s.bcs.Auth, secret)
 	if err != nil {
-		return err
+		return rerr.ContractCallError(err)
 	}
 	log.Trace(fmt.Sprintf("RegisterSecret on chain tx=%s", tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), s.bcs.Client, tx)
 	if err != nil {
-		return err
+		return rerr.ErrTxWaitMined.AppendError(err)
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("RegisterSecret failed %s,receipt=%s", utils.HPex(secret), receipt))
-		return errors.New("RegisterSecret tx execution failed")
+		return rerr.ErrTxReceiptStatus.Append("RegisterSecret tx execution failed")
 	}
 	log.Info(fmt.Sprintf("RegisterSecret success %s,secret=%s", utils.HPex(secret), secret.String()))
 	return nil
@@ -75,7 +76,7 @@ func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *u
 func (s *SecretRegistryProxy) IsSecretRegistered(secret common.Hash) (bool, error) {
 	blockNumber, err := s.registry.GetSecretRevealBlockHeight(nil, utils.ShaSecret(secret[:]))
 	if err != nil {
-		return false, err
+		return false, rerr.ContractCallError(err)
 	}
 	if blockNumber.Cmp(utils.BigInt0) <= 0 {
 		return false, nil

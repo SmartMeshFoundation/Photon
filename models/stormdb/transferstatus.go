@@ -76,5 +76,6 @@ func (model *StormDB) GetTransferStatus(tokenAddress common.Address, lockSecretH
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
 	err := model.db.One("Key", key, &ts)
 	log.Trace(fmt.Sprintf("GetTransferStatus key=%s lockSecretHash=%s err=%s", key, lockSecretHash.String(), err))
+	err = models.GeneratDBError(err)
 	return &ts, err
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/dto"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/stretchr/testify/assert"
@@ -40,27 +42,31 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if api.Address() != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
-		t.Error("address error")
-	}
-	if testing.Short() {
-		return
-	}
+	var res dto.APIResponse
+	resultstr := api.Address()
+	json.Unmarshal([]byte(resultstr), &res)
+	var s string
+	json.Unmarshal([]byte(res.Data), &s)
+	ast.EqualValues(s, common.HexToAddress("0x1a9eC3b0b807464e6D3398a59d6b0a369Bf422fA").String())
+
 	var tokens []common.Address
-	tokensstr := api.Tokens()
-	err = json.Unmarshal([]byte(tokensstr), &tokens)
+	resultstr = api.Tokens()
+	json.Unmarshal([]byte(resultstr), &res)
+	err = json.Unmarshal([]byte(res.Data), &tokens)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	var channels []*v1.ChannelData
-	channelsstr, err := api.GetChannelList()
-	if err != nil {
-		t.Error(err)
+	resultstr = api.GetChannelList()
+
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
 		return
 	}
-	//t.Log(channelsstr)
-	err = json.Unmarshal([]byte(channelsstr), &channels)
+	//t.Log(resultstr)
+	err = json.Unmarshal([]byte(res.Data), &channels)
 	if err != nil {
 		t.Error(err)
 		return
@@ -72,36 +78,39 @@ func TestMobile(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	partnerAddr := utils.NewRandomAddress()
-	channelstr, err := api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
-	if err != nil {
-		t.Error(err)
+	resultstr = api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
 		return
 	}
-	ast.EqualValues(channelstr, "")
+	ast.EqualValues(string(res.Data), "null")
 	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
 	//等待交易被打包
 	for i := 0; i < 60; i++ {
-		channelstr, err = api.GetOneChannel(channelIdentifier.String())
-		if err != nil {
+		resultstr = api.GetOneChannel(channelIdentifier.String())
+		json.Unmarshal([]byte(resultstr), &res)
+		if res.ErrorCode != dto.SUCCESS {
 			time.Sleep(time.Second)
 			continue
 		}
 		break
 	}
-	ast.NotEqual(channelstr, "")
+	ast.NotEqual(res.Data, "")
 	var c channeltype.ChannelDataDetail
-	err = json.Unmarshal([]byte(channelstr), &c)
+	err = json.Unmarshal([]byte(res.Data), &c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	channelstr, err = api.CloseChannel(channelIdentifier.String(), true)
-	if err != nil {
-		t.Error(err)
+	resultstr = api.CloseChannel(channelIdentifier.String(), true)
+	json.Unmarshal([]byte(resultstr), &res)
+	if res.ErrorCode != dto.SUCCESS {
+		t.Error(res)
 		return
 	}
-	err = json.Unmarshal([]byte(channelstr), &c)
+	err = json.Unmarshal([]byte(res.Data), &c)
 	if err != nil {
 		t.Error(err)
 		return

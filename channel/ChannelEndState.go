@@ -1,7 +1,7 @@
 package channel
 
 import (
-	"errors"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
@@ -17,25 +17,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-/*
-InvalidLocksRootError is a wrong locks root error
-*/
-type InvalidLocksRootError struct {
-	ExpectedLocksroot common.Hash
-	GotLocksroot      common.Hash
-}
-
-//Error is err.Error interface
-func (ilre *InvalidLocksRootError) Error() string {
-	return fmt.Sprintf("Locksroot mismatch. Expected %s but get %s",
-		utils.Pex(ilre.ExpectedLocksroot[:]), utils.Pex(ilre.GotLocksroot[:]))
-}
-
-var errBalanceDecrease = errors.New("contract_balance cannot decrease")
-var errUnknownLock = errors.New("'unknown lock")
-var errTransferAmountMismatch = errors.New("transfer amount mismatch")
-var errBalanceProofAlreadyRegisteredOnChain = errors.New("balance proof already registered on chain")
 
 /*
 EndState Tracks the state of one of the participants in a channel
@@ -167,7 +148,7 @@ return error If the `contract_balance` is smaller than the current
 */
 func (node *EndState) UpdateContractBalance(balance *big.Int) error {
 	if balance.Cmp(node.ContractBalance) < 0 {
-		return errBalanceDecrease
+		return rerr.ErrChannelBalanceDecrease
 	}
 	node.ContractBalance = new(big.Int).Set(balance)
 	return nil
@@ -207,7 +188,7 @@ func (node *EndState) getSecretByLockSecretHash(lockSecretHash common.Hash) (loc
 	if ok {
 		return plock.Lock, plock.Secret, nil
 	}
-	return nil, utils.EmptyHash, errors.New("not found")
+	return nil, utils.EmptyHash, rerr.ErrChannelEndStateNoSuchLock
 }
 
 /*
@@ -227,7 +208,7 @@ func (node *EndState) computeMerkleRootWith(include *mtree.Lock) (tree *mtree.Me
 */
 func (node *EndState) computeMerkleRootWithout(without *mtree.Lock) (*mtree.Merkletree, common.Hash, error) {
 	if !node.IsKnown(without.LockSecretHash) {
-		return nil, utils.EmptyHash, errUnknownLock
+		return nil, utils.EmptyHash, rerr.ErrChannelEndStateNoSuchLock
 	}
 	newtree, err := node.Tree.ComputeMerkleRootWithout(without)
 	if err != nil {
@@ -261,11 +242,11 @@ locksroot 必须相等.
  */
 func (node *EndState) registerDirectTransfer(directTransfer *encoding.DirectTransfer) error {
 	if node.balanceProofRegisteredOnChain() {
-		return errBalanceProofAlreadyRegisteredOnChain
+		return rerr.ErrChannelBalanceProofAlreadyRegisteredOnChain
 	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(directTransfer)
 	if balanceProof.LocksRoot != node.Tree.MerkleRoot() {
-		return &InvalidLocksRootError{node.Tree.MerkleRoot(), balanceProof.LocksRoot}
+		return rerr.InvalidLocksRoot(node.Tree.MerkleRoot(), balanceProof.LocksRoot)
 	}
 	node.BalanceProofState = balanceProof
 	return nil
@@ -285,7 +266,7 @@ this message may be sent out from this node or received from partner
 
 func (node *EndState) registerRemoveLock(msg encoding.EnvelopMessager, lockSecretHash common.Hash) error {
 	if node.balanceProofRegisteredOnChain() {
-		return errBalanceProofAlreadyRegisteredOnChain
+		return rerr.ErrChannelBalanceProofAlreadyRegisteredOnChain
 	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(msg)
 	node.BalanceProofState = balanceProof
@@ -311,13 +292,13 @@ this message may be sent out from this node or received from partner
  */
 func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error) {
 	if node.balanceProofRegisteredOnChain() {
-		return errBalanceProofAlreadyRegisteredOnChain
+		return rerr.ErrChannelBalanceProofAlreadyRegisteredOnChain
 	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(unlock)
 	lockSecretHash := utils.ShaSecret(unlock.LockSecret[:])
 	lock := node.getLockByHashlock(lockSecretHash)
 	if lock == nil {
-		err = fmt.Errorf(" receive unlock message,but has no related lockSecretHash,msg=%s", utils.StringInterface(unlock, 3))
+		err = rerr.ErrChannelLockSecretHashNotFound.Errorf(" receive unlock message,but has no related lockSecretHash,msg=%s", utils.StringInterface(unlock, 3))
 		log.Error(err.Error())
 		return err
 	}
@@ -326,7 +307,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 		return err
 	}
 	if balanceProof.LocksRoot != newLocksroot {
-		return &InvalidLocksRootError{newLocksroot, balanceProof.LocksRoot}
+		return rerr.InvalidLocksRoot(newLocksroot, balanceProof.LocksRoot)
 	}
 	transferAmount := new(big.Int).Add(node.TransferAmount(), lock.Amount)
 	/*
@@ -334,7 +315,7 @@ func (node *EndState) registerSecretMessage(unlock *encoding.UnLock) (err error)
 	*/
 	// transferAmount = previous transferAmount + token amount in this lock
 	if unlock.TransferAmount.Cmp(transferAmount) != 0 {
-		return fmt.Errorf("invalid transferred_amount, expected: %s got: %s",
+		return rerr.ErrChannelTransferAmountMismatch.Errorf("invalid transferred_amount, expected: %s got: %s",
 			transferAmount, unlock.TransferAmount)
 	}
 	delete(node.Lock2PendingLocks, lock.LockSecretHash)
@@ -365,27 +346,21 @@ this message may be sent out from this node or received from partner
  */
 func (node *EndState) registerMediatedMessage(mtr *encoding.MediatedTransfer) (err error) {
 	if node.balanceProofRegisteredOnChain() {
-		return errBalanceProofAlreadyRegisteredOnChain
+		return rerr.ErrChannelBalanceProofAlreadyRegisteredOnChain
 	}
 	balanceProof := transfer.NewBalanceProofStateFromEnvelopMessage(mtr)
 	mtranfer := encoding.GetMtrFromLockedTransfer(mtr)
 	lock := mtranfer.GetLock()
 	if node.IsKnown(lock.LockSecretHash) {
-		return errors.New("hashlock is already registered")
-	}
-	if node.getLockByHashlock(mtr.LockSecretHash) != nil {
-		return fmt.Errorf("MediatedTransfer has duplicated lock, mtr=%s", mtr)
+		return rerr.ErrChannelDuplicateLock
 	}
 	if balanceProof.TransferAmount.Cmp(node.TransferAmount()) < 0 {
-		return fmt.Errorf("transfer amount decrease,now=%s, message=%s", node.TransferAmount(), mtr)
+		return rerr.ErrChannelTransferAmountDecrease.Errorf("transfer amount decrease,now=%s, message=%s", node.TransferAmount(), mtr)
 	}
 	newtree, locksroot := node.computeMerkleRootWith(lock)
 	lockhashed := utils.Sha3(lock.AsBytes())
 	if balanceProof.LocksRoot != locksroot {
-		return &InvalidLocksRootError{
-			ExpectedLocksroot: locksroot,
-			GotLocksroot:      balanceProof.LocksRoot,
-		}
+		return rerr.InvalidLocksRoot(locksroot, balanceProof.LocksRoot)
 	}
 	node.Lock2PendingLocks[lock.LockSecretHash] = channeltype.PendingLock{
 		Lock:     lock,
@@ -403,11 +378,11 @@ func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber 
 	//链上已经注册密码的锁是一定不能移除的,无论什么原因都不能移除此锁.除非是unlock消息
 	lock = node.GetUnkownSecretLockByHashlock(lockSecretHash)
 	if lock == nil {
-		err = fmt.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
+		err = rerr.ErrChannelEndStateNoSuchLock.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
 		return
 	}
 	if mustExpired && (lock.Expiration > blockNumber-params.ForkConfirmNumber) {
-		err = fmt.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
+		err = rerr.ErrRemoveNotExpiredLock.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
 		return
 	}
 	newtree, newlocksroot, err = node.computeMerkleRootWithout(lock)
@@ -425,7 +400,7 @@ RegisterSecret register a secret(not secret message) so that it can be used in a
 func (node *EndState) RegisterSecret(secret common.Hash) error {
 	hashlock := utils.ShaSecret(secret[:])
 	if !node.IsKnown(hashlock) {
-		return errors.New("secret does not correspond to any hashlock")
+		return rerr.ErrChannelEndStateNoSuchLock
 	}
 	if node.IsLocked(hashlock) {
 		pendingLock := node.Lock2PendingLocks[hashlock]
@@ -445,10 +420,10 @@ RegisterRevealedSecretHash a SecretReveal event on chain
 func (node *EndState) RegisterRevealedSecretHash(lockSecretHash, secret common.Hash, blockNumber int64) error {
 	lock := node.getLockByHashlock(lockSecretHash)
 	if lock == nil {
-		return errors.New("secret does not correspond to any lockSecretHash")
+		return rerr.ErrChannelEndStateNoSuchLock
 	}
 	if blockNumber > lock.Expiration {
-		return fmt.Errorf("secrethash %s  registerred on block chain,but already expired for me", utils.HPex(lockSecretHash))
+		return rerr.ErrChannelEndStateNoSuchLock.Errorf("secrethash %s  registerred on block chain,but already expired for me", utils.HPex(lockSecretHash))
 	}
 	//有可能这个lock已经在Lock2UnclaimedLocks,不过无所谓
 	delete(node.Lock2PendingLocks, lockSecretHash)

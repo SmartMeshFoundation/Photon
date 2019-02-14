@@ -24,6 +24,7 @@ func (model *StormDB) SaveFeeChargeRecord(r *models.FeeChargeRecord) (err error)
 	err = model.db.Save(rs)
 	if err != nil {
 		err = fmt.Errorf("SaveFeeChargeRecord err %s", err)
+		err = models.GeneratDBError(err)
 		return
 	}
 	log.Trace(fmt.Sprintf("charge for transfer:%s", r.ToString()))
@@ -36,6 +37,7 @@ func (model *StormDB) GetAllFeeChargeRecord() (records []*models.FeeChargeRecord
 	err = model.db.All(&rs)
 	if err != nil {
 		err = fmt.Errorf("GetAllFeeChargeRecord err %s", err)
+		err = models.GeneratDBError(err)
 		return
 	}
 	for _, r := range rs {
@@ -50,6 +52,7 @@ func (model *StormDB) GetFeeChargeRecordByLockSecretHash(lockSecretHash common.H
 	err = model.db.Find("LockSecretHash", lockSecretHash[:], &rs)
 	if err != nil {
 		err = fmt.Errorf("GetAllFeeChargeRecordByLockSecretHash err %s", err)
+		err = models.GeneratDBError(err)
 		return
 	}
 	for _, r := range rs {

@@ -547,18 +547,21 @@ func TestCloseChannelAndUpdateBalanceProofDelegateAndSettle(t *testing.T) {
 }
 
 func TestCloseChannelAndUpdateBalanceProofAndSettle(t *testing.T) {
+
 	channelID, partnerAddr, partnerKey, err := getTestOpenChannel(t)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	/*
-		partneraddr 需要有 ether 作为 gas
+		partneraddr 需要有 ether 作为 gas todo 自行发起了交易,绕开了base.go,需要修复.
 	*/
 	err = TransferTo(client, TestPrivKey, partnerAddr, big.NewInt(ethparams.Ether))
 	if err != nil {
 		t.Error(err)
+		return
 	}
+
 	partnerAuth := bind.NewKeyedTransactor(partnerKey)
 	bp := createPartnerBalanceProof(partnerKey, contracts.ChannelIdentifier(channelID))
 	log.Info(fmt.Sprintf("close channel partner=%s,transferAmount=%s,locksroot=%s,nonce=%d",
