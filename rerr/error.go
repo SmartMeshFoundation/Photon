@@ -46,10 +46,12 @@ func InvalidNonce(msg string) StandardError {
 	return ErrInvalidNonce.Append(msg)
 }
 
+//ChannelStateError  在不能执行相应操作的通道状态,试图执行某些交易,比如在关闭的通道上发起交易
 func ChannelStateError(state channeltype.State) StandardError {
 	return ErrChannelState.Printf("state=%s", state)
 }
 
+//ChannelNotFound 找不到通道错误
 func ChannelNotFound(info string) StandardError {
 	return ErrChannelNotFound.Append(info)
 }

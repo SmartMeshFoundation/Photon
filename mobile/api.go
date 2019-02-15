@@ -354,6 +354,9 @@ func (a *API) settleChannel(channelIdentifier string) (channel *channeltype.Chan
 
 // Deprecated
 func (a *API) networkEvent(fromBlock, toBlock int64) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall networkEvent result=%s", result))
+	}()
 	events, err := a.api.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
@@ -364,6 +367,9 @@ func (a *API) networkEvent(fromBlock, toBlock int64) (result string) {
 
 //Deprecated: ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
 func (a *API) channelsEvent(fromBlock, toBlock int64, channelIdentifier string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall channelsEvent result=%s", result))
+	}()
 	channel := common.HexToHash(channelIdentifier)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
@@ -378,6 +384,9 @@ Address returns node's checksum address
 for example: returns "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 */
 func (a *API) Address() (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall Address result=%s", result))
+	}()
 	return dto.NewSuccessMobileResponse(a.api.Address().String())
 }
 
@@ -389,6 +398,9 @@ for example:
 ]
 */
 func (a *API) Tokens() (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall Tokens result=%s", result))
+	}()
 	tokens := a.api.Tokens()
 	return dto.NewSuccessMobileResponse(tokens)
 }
@@ -414,6 +426,9 @@ for example:
 ]
 */
 func (a *API) TokenPartners(tokenAddress string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall TokenPartners result=%s", result))
+	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
@@ -570,7 +585,7 @@ the role should only be  "maker" or "taker".
 
 //Stop stop Photon
 func (a *API) Stop() {
-	log.Trace("Api Stop")
+	log.Info("Api Stop")
 	//test only
 	a.api.Stop()
 }
@@ -603,7 +618,10 @@ example returns:
     ]
 }
 */
-func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) string {
+func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall ChannelFor3rdParty result=%s", result))
+	}()
 	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	thirdPartyAddr, err := utils.HexToAddressWithoutValidation(thirdPartyAddress)
 	if err != nil {
@@ -615,13 +633,13 @@ func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) st
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	result, err := a.api.ChannelInformationFor3rdParty(channelIdentifierHash, thirdPartyAddr)
+	resp, err := a.api.ChannelInformationFor3rdParty(channelIdentifierHash, thirdPartyAddr)
 	if err != nil {
 		log.Error(err.Error())
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	return dto.NewSuccessMobileResponse(result)
+	return dto.NewSuccessMobileResponse(resp)
 }
 
 /*
@@ -661,6 +679,9 @@ EthereumStatus  query the status between Photon and ethereum
 todo fix it,remove this deprecated api
 */
 func (a *API) EthereumStatus() (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall EthereumStatus result=%s", result))
+	}()
 	c := a.api.Photon.Chain
 	if c != nil && c.Client.Status == netshare.Connected {
 		dto.NewSuccessMobileResponse(result)
@@ -672,6 +693,9 @@ func (a *API) EthereumStatus() (result string) {
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
 func (a *API) GetSentTransfers(from, to int64) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall GetSentTransfers result=%s", result))
+	}()
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := a.api.GetSentTransfers(from, to)
 	if err != nil {
@@ -686,6 +710,9 @@ GetReceivedTransfers retuns list of received transfer between `from_block` and `
 it contains token swap
 */
 func (a *API) GetReceivedTransfers(from, to int64) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall GetReceivedTransfers result=%s", result))
+	}()
 	trs, err := a.api.GetReceivedTransfers(from, to)
 	if err != nil {
 		log.Error(err.Error())
@@ -855,8 +882,12 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 }
 
 // NotifyNetworkDown :
-func (a *API) NotifyNetworkDown() error {
-	return a.api.NotifyNetworkDown()
+func (a *API) NotifyNetworkDown() (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall NotifyNetworkDown result=%s", result))
+	}()
+	err := a.api.NotifyNetworkDown()
+	return dto.NewErrorMobileResponse(err)
 }
 
 func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel *channeltype.ChannelDataDetail, err error) {
@@ -899,15 +930,18 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel 
 // OnResume 手机从后台切换至前台时调用
 func (a *API) OnResume() string {
 	// 1. 强制网络重连
-	err := a.NotifyNetworkDown()
+	result := a.NotifyNetworkDown()
 	// 2. 还需要作什么???
-	return dto.NewErrorMobileResponse(err)
+	return result
 }
 
 // GetSystemStatus 查询系统状态,
-func (a *API) GetSystemStatus() (r string) {
-	resp := a.api.SystemStatus()
-	return dto.NewSuccessMobileResponse(resp)
+func (a *API) GetSystemStatus() (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall GetSystemStatus result=%s", result))
+	}()
+	resp, err := a.api.SystemStatus()
+	return dto.NewMobileResponse(err, resp)
 }
 
 /*
@@ -925,6 +959,9 @@ example:
     }
 */
 func (a *API) FindPath(targetStr, tokenStr, amountStr string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall FindPath result=%s", result))
+	}()
 	target := common.HexToAddress(targetStr)
 	token := common.HexToAddress(tokenStr)
 	amount, isSuccess := new(big.Int).SetString(amountStr, 0)

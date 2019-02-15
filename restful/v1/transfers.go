@@ -3,9 +3,11 @@ package v1
 import (
 	"fmt"
 	"math/big"
-	"net/http"
 	"strings"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -31,17 +33,15 @@ type TransferData struct {
 GetSentTransfers returns list of sent transfer between `from_block` and `to_block`
 */
 func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransfers ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	from, to := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := API.GetSentTransfers(from, to)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = w.WriteJson(trs)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, trs)
 }
 
 /*
@@ -49,70 +49,67 @@ GetReceivedTransfers retuns list of received transfer between `from_block` and `
 it contains token swap
 */
 func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetReceivedTransfers ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	from, to := getFromTo(r)
 	trs, err := API.GetReceivedTransfers(from, to)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = w.WriteJson(trs)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, trs)
 }
 
 /*
 Transfers is the api of /transfer/:token/:partner
 */
 func Transfers(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> Transfers ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> Transfers ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	// 用户调用了prepare-update,暂停接收新交易
 	// client invokes prepare-update, halts receiving new transfers.
 	if API.Photon.StopCreateNewTransfers {
-		rest.Error(w, "Stop create new transfers, please restart photon", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrStopCreateNewTransfer)
 		return
 	}
 	token := r.PathParam("token")
 	tokenAddr, err := utils.HexToAddress(token)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	target := r.PathParam("target")
 	targetAddr, err := utils.HexToAddress(target)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	req := &TransferData{}
 	err = r.DecodeJsonPayload(req)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	if req.Amount.Cmp(utils.BigInt0) <= 0 {
-		rest.Error(w, "Invalid amount", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrInvalidAmount.Append("invalid amount"))
 		return
 	}
 	if req.Fee == nil {
 		req.Fee = utils.BigInt0
 	}
 	if req.Fee.Cmp(utils.BigInt0) < 0 {
-		rest.Error(w, "Invalid fee", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid amount"))
 		return
 	}
 	if len(req.Secret) != 0 && len(req.Secret) != 64 && (strings.HasPrefix(req.Secret, "0x") && len(req.Secret) != 66) {
-		rest.Error(w, "Invalid secret", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid secret"))
 		return
 	}
 	if len(req.Data) > params.MaxTransferDataLen {
-		rest.Error(w, "Invalid data, length must < 256", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("Invalid data, length must < 256"))
 		return
 	}
 	var result *utils.AsyncResult
@@ -122,7 +119,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data)
 	}
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	if req.Fee.Cmp(utils.BigInt0) == 0 {
@@ -132,53 +129,44 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	req.Target = target
 	req.Token = token
 	req.LockSecretHash = result.LockSecretHash.String()
-	err = w.WriteJson(req)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewSuccessAPIResponse(req)
 }
 
 // GetTransferStatus : query transfer status by lockSecretHash
 func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
-	lockSecretHashStr := r.PathParam("locksecrethash")
-	lockSecretHash := common.HexToHash(lockSecretHashStr)
-	token := r.PathParam("token")
-	tokenAddr, err := utils.HexToAddress(token)
-	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	ts, err := API.Photon.GetDao().GetTransferStatus(tokenAddr, lockSecretHash)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
-	err = w.WriteJson(ts)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
-}
-
-// CancelTransfer : cancel a transfer when haven't send secret
-func CancelTransfer(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> CancelTransfer ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetTransferStatus ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
 	lockSecretHashStr := r.PathParam("locksecrethash")
 	lockSecretHash := common.HexToHash(lockSecretHashStr)
 	token := r.PathParam("token")
 	tokenAddr, err := utils.HexToAddress(token)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	ts, err := API.Photon.GetDao().GetTransferStatus(tokenAddr, lockSecretHash)
+	resp = dto.NewAPIResponse(err, ts)
+}
+
+// CancelTransfer : cancel a transfer when haven't send secret
+func CancelTransfer(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> CancelTransfer ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	var err error
+	lockSecretHashStr := r.PathParam("locksecrethash")
+	lockSecretHash := common.HexToHash(lockSecretHashStr)
+	token := r.PathParam("token")
+	tokenAddr, err := utils.HexToAddress(token)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	err = API.CancelTransfer(lockSecretHash, tokenAddr)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
+	resp = dto.NewAPIResponse(err, nil)
 }

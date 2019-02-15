@@ -2,12 +2,15 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 )
 
 // Req a photon api http request
@@ -37,7 +40,7 @@ func (r *Req) GetReq() *http.Request {
 }
 
 // Invoke : send a http request
-func (r *Req) Invoke() (int, []byte, error) {
+func (r *Req) Invoke() ([]byte, error) {
 	client := http.Client{
 		Transport: &http.Transport{
 			Dial: func(netw, addr string) (net.Conn, error) {
@@ -69,16 +72,26 @@ func (r *Req) Invoke() (int, []byte, error) {
 		_ = err2
 	}()
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
-	statusCode := resp.StatusCode
+
 	var buf [4096 * 1024]byte
 	n := 0
 	n, err = resp.Body.Read(buf[:])
 	if err != nil && err.Error() == "EOF" {
 		err = nil
 	}
-	return statusCode, buf[:n], err
+
+	var res dto.APIResponse
+	err = json.Unmarshal([]byte(buf[:n]), &res)
+	if err != nil {
+		panic(err)
+	}
+	if res.ErrorCode != dto.SUCCESS {
+		err = errors.New(res.ErrorMsg)
+		return nil, err
+	}
+	return res.Data, nil
 }
 
 // ToString : get json of this

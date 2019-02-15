@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -10,13 +11,10 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 )
 
-// APIErrorCode :
-type APIErrorCode int
-
 const (
 	// SUCCESS :
 	SUCCESS = 0
-	// EXCEPTION :
+	// UNKNOWNERROR :
 	UNKNOWNERROR = -1
 )
 
@@ -29,7 +27,8 @@ type APIResponse struct {
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
-func apitojson(a *APIResponse) string {
+//API2JSON helper function
+func API2JSON(a *APIResponse) string {
 	b, err := json.Marshal(a)
 	if err != nil {
 		panic(err)
@@ -37,19 +36,32 @@ func apitojson(a *APIResponse) string {
 	return string(b)
 }
 
+//NewAPIResponse 辅助http接口创建
+func NewAPIResponse(err error, data interface{}) *APIResponse {
+	if err != nil {
+		return NewExceptionAPIResponse(err)
+	}
+	return NewSuccessAPIResponse(data)
+}
+
+//NewMobileResponse mobile接口,err为空认为成功,否则认为失败
+func NewMobileResponse(err error, data interface{}) string {
+	return API2JSON(NewAPIResponse(err, data))
+}
+
 //NewSuccessMobileResponse 直接序列化为string,方便处理
 func NewSuccessMobileResponse(data interface{}) string {
 	a := NewSuccessAPIResponse(data)
-	return apitojson(a)
+	return API2JSON(a)
 }
 
 //NewErrorMobileResponse 直接序列化为string,方便处理
 func NewErrorMobileResponse(err error) string {
 	a := NewExceptionAPIResponse(err)
-	return apitojson(a)
+	return API2JSON(a)
 }
 
-// NewSuccessAPIResponse :
+// NewSuccessAPIResponse  http接口所用,创建成功的返回
 func NewSuccessAPIResponse(data interface{}) *APIResponse {
 	d, err := json.Marshal(data)
 	if err != nil {
@@ -62,7 +74,7 @@ func NewSuccessAPIResponse(data interface{}) *APIResponse {
 	}
 }
 
-// NewExceptionAPIResponse :
+// NewExceptionAPIResponse http接口用,创建失败的返回,如果err为空会被认为是成功
 func NewExceptionAPIResponse(err error) *APIResponse {
 	if err == nil {
 		return NewSuccessAPIResponse(nil)
@@ -88,8 +100,8 @@ func NewExceptionAPIResponse(err error) *APIResponse {
 	}
 }
 
-// ToString :
-func (r *APIResponse) ToString() string {
+// String fmt.Formater
+func (r *APIResponse) String() string {
 	buf, err := json.Marshal(r)
 	if err != nil {
 		log.Error(fmt.Sprintf("APIResponse marshal err = %s", err.Error()))
@@ -98,7 +110,7 @@ func (r *APIResponse) ToString() string {
 	return string(buf)
 }
 
-// ToFormatString :
+// ToFormatString 打印格式化的json结构体
 func (r *APIResponse) ToFormatString() string {
 	buf, err := json.MarshalIndent(r, "\t", "")
 	if err != nil {
@@ -106,4 +118,20 @@ func (r *APIResponse) ToFormatString() string {
 		return ""
 	}
 	return string(buf)
+}
+
+//ParseResult helper function
+func ParseResult(result string, output interface{}) (err error) {
+	var res APIResponse
+	err = json.Unmarshal([]byte(result), &res)
+	if err != nil {
+		panic(err)
+	}
+	if res.ErrorCode != SUCCESS {
+		return errors.New(res.ErrorMsg)
+	}
+	if output != nil {
+		err = json.Unmarshal([]byte(res.Data), output)
+	}
+	return nil
 }

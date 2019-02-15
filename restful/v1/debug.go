@@ -3,7 +3,10 @@ package v1
 import (
 	"fmt"
 	"math/big"
-	"net/http"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 
 	"context"
 
@@ -19,34 +22,30 @@ Balance for test only
 query `addr`'s balance on `token`
 */
 func Balance(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> Balance ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")
 	token, err := utils.HexToAddress(tokenstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	addr, err := utils.HexToAddress(addrstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	t, err := API.Photon.Chain.Token(token)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	v, err := t.BalanceOf(addr)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
-	_, err = w.(http.ResponseWriter).Write([]byte(v.String()))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, v)
 }
 
 /*
@@ -54,60 +53,53 @@ TransferToken for test only
 Transfer from this node to `addr` `value` tokens on token `token`
 */
 func TransferToken(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> TransferToken ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	tokenstr := r.PathParam("token")
 	addrstr := r.PathParam("addr")
 	valuestr := r.PathParam("value")
 	token, err := utils.HexToAddress(tokenstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	addr, err := utils.HexToAddress(addrstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	v, b := new(big.Int).SetString(valuestr, 0)
 	if !b {
-		rest.Error(w, "arg error ", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
 	t, err := API.Photon.Chain.Token(token)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	err = t.Transfer(addr, v)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = w.WriteJson("ok")
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, nil)
 }
 
 //EthBalance how many eth `addr` have.
 func EthBalance(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> EthBalance ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	addrstr := r.PathParam("addr")
 	addr, err := utils.HexToAddress(addrstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	v, err := API.Photon.Chain.Client.BalanceAt(context.Background(), addr, nil)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
-	_, err = w.(http.ResponseWriter).Write([]byte(v.String()))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, v)
 }
 
 //BlockTimeFormat  is time format of last block
@@ -124,6 +116,11 @@ type ConnectionStatus struct {
 EthereumStatus  query the status between Photon and ethereum
 */
 func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> EthereumStatus ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	c := API.Photon.Chain
 	cs := &ConnectionStatus{
 		XMPPStatus:    netshare.Disconnected,
@@ -134,44 +131,37 @@ func EthereumStatus(w rest.ResponseWriter, r *rest.Request) {
 	} else {
 		cs.EthStatus = netshare.Disconnected
 	}
-	err := w.WriteJson(cs)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(nil, cs)
 }
 
 /*
 ForceUnlock force unlock by locksecrethash
 */
 func ForceUnlock(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> ForceUnlock ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	channelIdentifierStr := r.PathParam("channel")
 	channelIdentifier := common.HexToHash(channelIdentifierStr)
 	secretStr := r.PathParam("secret")
 	secret := common.HexToHash(secretStr)
 	err := API.ForceUnlock(channelIdentifier, secret)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = w.WriteJson("ok")
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, "ok")
 }
 
 /*
 RegisterSecretOnChain register secret to contract
 */
 func RegisterSecretOnChain(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecretOnChain ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	secretStr := r.PathParam("secret")
 	secret := common.HexToHash(secretStr)
 	err := API.RegisterSecretOnChain(secret)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = w.WriteJson("ok")
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, "ok")
 }

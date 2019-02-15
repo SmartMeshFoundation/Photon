@@ -2,8 +2,10 @@ package v1
 
 import (
 	"fmt"
-	"net/http"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
@@ -15,10 +17,12 @@ import (
 // AllowRevealSecret : used when clients send a transfer with specific secrets.
 // that secret will not receive SecretRequest before invoking this function to unlock.
 func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> AllowRevealSecret ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> AllowRevealSecret ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	type AllowRevealSecretPayload struct {
 		LockSecretHash string `json:"lock_secret_hash"`
 		TokenAddress   string `json:"token_address"`
@@ -26,43 +30,41 @@ func AllowRevealSecret(w rest.ResponseWriter, r *rest.Request) {
 	var payload AllowRevealSecretPayload
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	lockSecretHash := common.HexToHash(payload.LockSecretHash)
 	tokenAddress, err := utils.HexToAddress(payload.TokenAddress)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	err = API.AllowRevealSecret(lockSecretHash, tokenAddress)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	resp = dto.NewAPIResponse(err, nil)
 }
 
 // GetUnfinishedReceivedTransfer :根据lockSecretHash查询未完成的交易
 // GetUnfinishedReceivedTransfer : check incomplete transfers according to lockSecretHash
 func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetUnfinishedReceivedTransfer ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	tokenAddressStr := r.PathParam("tokenaddress")
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	lockSecretHashStr := r.PathParam("locksecrethash")
 	lockSecretHash := common.HexToHash(lockSecretHashStr)
 	if lockSecretHash == utils.EmptyHash {
-		rest.Error(w, "Invalid lockSecretHash", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("Invalid lockSecretHash"))
 		return
 	}
 	transferData := API.GetUnfinishedReceivedTransfer(lockSecretHash, tokenAddress)
-	err = w.WriteJson(transferData)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, transferData)
 }
 
 // RegisterSecret :
@@ -70,10 +72,12 @@ func GetUnfinishedReceivedTransfer(w rest.ResponseWriter, r *rest.Request) {
 // RegisterSecret : when knowing the secret of a transfer from other sources,
 // we can register secret in statemanager
 func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecret ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> RegisterSecret ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	type RegisterSecretPayload struct {
 		Secret       string `json:"secret"`
 		TokenAddress string `json:"token_address"`
@@ -81,18 +85,15 @@ func RegisterSecret(w rest.ResponseWriter, r *rest.Request) {
 	var payload RegisterSecretPayload
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	secret := common.HexToHash(payload.Secret)
 	tokenAddress, err := utils.HexToAddress(payload.TokenAddress)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	err = API.RegisterSecret(secret, tokenAddress)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	resp = dto.NewAPIResponse(err, nil)
 }
