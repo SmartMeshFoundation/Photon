@@ -111,6 +111,7 @@ If submitting an invalid  balance_proof, the response are as follows：
 GET /pfs/1/account_rate/*(peer_address)*
 
 Example Request: 
+
 `GET http://127.0.0.1:9001/pfs/1/account_rate/0x6d946D646879d31a45bCE89a68B24cab165E9A2A`
 
 Example Response：
@@ -143,6 +144,7 @@ Example Response：
 GET /pfs/1/channel_rate/*(channel_identifier)*/*(peer_address)*  
 
 Example Request: 
+
 `GET http://127.0.0.1:9001/pfs/1/channel_rate/0x24bab913507cc9fcaa2c1efc4966ab35246448f19a7f0d44db21b8b3601db654/0x6d946D646879d31a45bCE89a68B24cab165E9A2A`
 
 Example Response： 
@@ -160,6 +162,7 @@ POST /pfs/1/paths
 Query the transfer routing, which will return all the lowest cost path.
 
 Example Request: 
+
 `POST http://127.0.0.1:9001/pfs/1/paths`
 
 PayLoad: 
@@ -217,7 +220,7 @@ Example Response：
 
  The priority of the three charging modes is：`channel_fee`>`token_fee`>`account_fee`
 
-When using pfs, node startup does not require the `--pfs` ` --fee` parameter, because they are default setting.If you want to change the PFS，you can add the `--pfs` and PFS address to the script code,and if you do not want to charge the fee, you can add the `--disable-fee` to the startup script to use the p2p path finding.
+When using pfs, node startup does not require the `--pfs` and` --fee` parameter, because they are default setting.If you want to change the PFS，you can add the `--pfs` and PFS address to the script code,and if you do not want to charge the fee, you can add the `--disable-fee` to the startup script to use the p2p path finding.
 
 
 
