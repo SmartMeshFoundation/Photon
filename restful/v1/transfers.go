@@ -94,7 +94,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if req.Amount.Cmp(utils.BigInt0) <= 0 {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid amount"))
+		resp = dto.NewExceptionAPIResponse(rerr.ErrInvalidAmount.Append("invalid amount"))
 		return
 	}
 	if req.Fee == nil {
