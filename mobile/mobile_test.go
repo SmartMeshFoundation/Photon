@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kataras/go-errors"
-
 	"github.com/SmartMeshFoundation/Photon/dto"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -30,20 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func parseResult(result string, output interface{}) (err error) {
-	var res dto.APIResponse
-	err = json.Unmarshal([]byte(result), &res)
-	if err != nil {
-		panic(err)
-	}
-	if res.ErrorCode != dto.SUCCESS {
-		return errors.New(res.ErrorMsg)
-	}
-	if output != nil {
-		err = json.Unmarshal([]byte(res.Data), output)
-	}
-	return nil
-}
 func TestMobile(t *testing.T) {
 	ast := assert.New(t)
 	if testing.Short() {
@@ -61,17 +45,17 @@ func TestMobile(t *testing.T) {
 	defer api.Stop()
 
 	var s string
-	parseResult(api.Address(), &s)
+	dto.ParseResult(api.Address(), &s)
 	ast.EqualValues(s, common.HexToAddress("0x1a9eC3b0b807464e6D3398a59d6b0a369Bf422fA").String())
 
 	var tokens []common.Address
-	err = parseResult(api.Tokens(), &tokens)
+	err = dto.ParseResult(api.Tokens(), &tokens)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	var channels []*v1.ChannelData
-	err = parseResult(api.GetChannelList(), &channels)
+	err = dto.ParseResult(api.GetChannelList(), &channels)
 	//t.Log(resultstr)
 	if err != nil {
 		t.Error(err)
@@ -91,7 +75,7 @@ func TestMobile(t *testing.T) {
 	//等待交易被打包
 	for i := 0; i < 60; i++ {
 		resultstr := api.GetOneChannel(channelIdentifier.String())
-		err = parseResult(resultstr, &c)
+		err = dto.ParseResult(resultstr, &c)
 		if err == nil {
 			break
 		}
@@ -104,7 +88,7 @@ func TestMobile(t *testing.T) {
 	}
 
 	resultstr := api.CloseChannel(channelIdentifier.String(), true)
-	parseResult(resultstr, &c)
+	dto.ParseResult(resultstr, &c)
 	ast.EqualValues(c.State, channeltype.StateClosing)
 
 }

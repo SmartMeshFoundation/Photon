@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -117,4 +118,20 @@ func (r *APIResponse) ToFormatString() string {
 		return ""
 	}
 	return string(buf)
+}
+
+//ParseResult helper function
+func ParseResult(result string, output interface{}) (err error) {
+	var res APIResponse
+	err = json.Unmarshal([]byte(result), &res)
+	if err != nil {
+		panic(err)
+	}
+	if res.ErrorCode != SUCCESS {
+		return errors.New(res.ErrorMsg)
+	}
+	if output != nil {
+		err = json.Unmarshal([]byte(res.Data), output)
+	}
+	return nil
 }
