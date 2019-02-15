@@ -13,6 +13,7 @@ cd /cmd/photon-pathfinding-service
 go install
 ```
 **Pfs default listening port is 9001**
+
 Start service
 ```sh
 photon-pathfinding-service  --eth-rpc-endpoint ws://192.168.124.13:5555  --registry-contract-address  0x3400aa968662Cfb6f7ea911Cd18254350e0C3d21  --port  9001  --verbosity 5
@@ -20,11 +21,15 @@ photon-pathfinding-service  --eth-rpc-endpoint ws://192.168.124.13:5555  --regis
 Parameters: 
 
 - `eth-rpc-endpoint` Full node
+
 - `registry-contract-address` Contract address
+
 - `port` listening port
 
 When using the pfs service, photon startup must be added:
+
 - `fee` charge the fee
+
 - `pfs` pfs service address
 ### Default address
 
@@ -194,16 +199,22 @@ Example Response：
 ```
 
  *tips：*
+ 
 - fee_constant: Fixed charge 
+
 - fee_percent: fee rate
   
   Where `fee_constant` is the fixed rate, for example, 5 means that the fixed fee is 5 tokens, and setting it to 0 means no charge. `fee_percent` is the proportional rate, calculated as the transaction amount/`fee_percent`, such as transaction amount 50000000000000000000000, `fee_percent`=10000, then the commission ratio part = 50000000000000000000000/10000=5000000000000000000, set to 0 means no charge.
  Charge rule fee = `fee_constant` + amount/`fee_percent`
 
  There are three charging modes for a node:
+ 
 - account_fee    Node charging
+
 - token_fee      Node charging  on Specific token
+
 - channel_fee    Node charging at a certain channel
+
  The priority of the three charging modes is：`channel_fee`>`token_fee`>`account_fee`
 
 When using pfs, node startup does not require the `--pfs` ` --fee` parameter, because they are default setting.If you want to change the PFS，you can add the `--pfs` and PFS address to the script code,and if you do not want to charge the fee, you can add the `--disable-fee` to the startup script to use the p2p path finding.
