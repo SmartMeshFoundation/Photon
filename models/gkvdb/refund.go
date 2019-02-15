@@ -14,7 +14,8 @@ func (dao *GkvDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, Channel
 		LockSecretHash:    lockSecretHash[:],
 		ChannelIdentifier: ChannelIdentifier,
 	}
-	return dao.saveKeyValueToBucket(models.BucketSentAnnounceDisposed, sad.Key, sad)
+	err := dao.saveKeyValueToBucket(models.BucketSentAnnounceDisposed, sad.Key, sad)
+	return models.GeneratDBError(err)
 }
 
 //IsLockSecretHashDisposed this lockSecretHash has Announced Disposed
@@ -57,7 +58,8 @@ func (dao *GkvDB) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash commo
  * 	and submit it to enforce punishment procedure while receiving unlock.
  */
 func (dao *GkvDB) MarkLockHashCanPunish(r *models.ReceivedAnnounceDisposed) error {
-	return dao.saveKeyValueToBucket(models.BucketReceivedAnnounceDisposed, r.Key, r)
+	err := dao.saveKeyValueToBucket(models.BucketReceivedAnnounceDisposed, r.Key, r)
+	return models.GeneratDBError(err)
 }
 
 //IsLockHashCanPunish can punish this unlock?

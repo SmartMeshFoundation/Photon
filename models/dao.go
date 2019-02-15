@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
@@ -220,4 +222,16 @@ type Dao interface {
 	RegisterChannelDepositCallback(f cb.ChannelCb)
 	RegisterChannelStateCallback(f cb.ChannelCb)
 	RegisterChannelSettleCallback(f cb.ChannelCb)
+}
+
+//GeneratDBError helper function
+func GeneratDBError(err error) error {
+	if err != nil {
+		e2, ok := err.(rerr.StandardError)
+		if ok {
+			return e2
+		}
+		return rerr.ErrGeneralDBError.Append(err.Error())
+	}
+	return nil
 }

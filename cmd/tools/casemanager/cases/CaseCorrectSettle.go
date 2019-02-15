@@ -82,15 +82,10 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	if i == 100 {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 spec err")
 	}
+
 	settleTime := c01.SettleTimeout + 3600/14
-	for i = 0; i < int(settleTime); i++ {
-		time.Sleep(time.Second)
-		err = N1.Settle(c01.ChannelIdentifier)
-		if err == nil {
-			break
-		}
-	}
-	if i == int(settleTime) {
+	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
+	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")

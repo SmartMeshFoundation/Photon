@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"errors"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"crypto/ecdsa"
 
@@ -86,7 +86,7 @@ func (e *ExternalState) SetSettled(blocknumber int64) bool {
 //Close call close function of smart contract
 func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (err error) {
 	if e.ClosedBlock != 0 {
-		return fmt.Errorf("%s already closed,closeBlock=%d", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), e.ClosedBlock)
+		return rerr.ErrChannelCloseClosedChannel.Errorf("%s already closed,closeBlock=%d", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), e.ClosedBlock)
 	}
 	//start tx close and wait.
 	var Nonce uint64
@@ -110,7 +110,7 @@ func (e *ExternalState) Close(balanceProof *transfer.BalanceProofState) (err err
 func (e *ExternalState) UpdateTransfer(bp *transfer.BalanceProofState) (result *utils.AsyncResult) {
 	if bp == nil {
 		result = utils.NewAsyncResult()
-		result.Result <- errors.New("bp is nil")
+		result.Result <- rerr.ErrChannelBalanceProofNil
 		return
 	}
 	log.Info(fmt.Sprintf("UpdateTransfer %s called ,BalanceProofState=%s",
@@ -144,6 +144,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 			}
 			err := e.TokenNetwork.Unlock(e.PartnerAddress, transferAmount, proof.Lock, mtree.Proof2Bytes(proof.MerkleProof))
 			if err != nil {
+				//todo notify app error
 				failed = true
 			} else {
 				/*
@@ -160,7 +161,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 			}
 		}
 		if failed {
-			result.Result <- fmt.Errorf("there are errors when Unlock on channel %s  for %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.APex2(e.MyAddress))
+			result.Result <- rerr.ErrChannelBackgroundTx.Errorf("there are errors when Unlock on channel %s  for %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier), utils.APex2(e.MyAddress))
 		} else {
 			result.Result <- nil
 		}

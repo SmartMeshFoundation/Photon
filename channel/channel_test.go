@@ -106,8 +106,8 @@ func TestEndState(t *testing.T) {
 
 	assert.EqualValues(t, state1.nonce(), 1)
 	assert.EqualValues(t, state2.nonce(), 0)
-	if state1.UpdateContractBalance(new(big.Int).Sub(balance1, big10)) != errBalanceDecrease {
-		t.Error(errBalanceDecrease)
+	if state1.UpdateContractBalance(new(big.Int).Sub(balance1, big10)) != rerr.ErrChannelBalanceDecrease {
+		t.Error(rerr.ErrChannelBalanceDecrease)
 		return
 	}
 	assert.Equal(t, state1.UpdateContractBalance(new(big.Int).Add(balance1, big10)), nil)

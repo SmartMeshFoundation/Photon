@@ -2,9 +2,10 @@ package helper
 
 import (
 	"context"
-	"errors"
 	"math/big"
 	"sync"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"fmt"
 
@@ -20,7 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-var errNotConnectd = errors.New("eth not connected")
+var errNotConnectd = rerr.ErrSpectrumNotConnected
 
 //SafeEthClient how to recover from a restart of geth
 type SafeEthClient struct {
