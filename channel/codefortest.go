@@ -11,6 +11,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,7 +26,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Crit("Failed to create authorized transactor: ", err)
 	}
-	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
+	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), nil)
 	if err != nil {
 		panic(err)
 	}

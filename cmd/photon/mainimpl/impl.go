@@ -272,9 +272,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	} else {
 		params.ChainID = big.NewInt(dao.GetChainID())
 	}
-
+	//  init notify handler
+	notifyHandler := notify.NewNotifyHandler()
 	// init blockchain module
-	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client)
+	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client, notifyHandler, dao)
 	if err != nil {
 		dao.CloseDB()
 		client.Close()
@@ -315,7 +316,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 		client.Close()
 		return
 	}
-	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notify.NewNotifyHandler(), dao)
+	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler, dao)
 	if err != nil {
 		dao.CloseDB()
 		client.Close()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/network/helper"
+	"github.com/SmartMeshFoundation/Photon/notify"
 
 	"os"
 
@@ -50,7 +51,7 @@ func MakeTestBlockChainService() *BlockChainService {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to the Ethereum client: %s\n", err))
 	}
-	bcs, err := NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn)
+	bcs, err := NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), nil)
 	if err != nil {
 		panic(err)
 	}

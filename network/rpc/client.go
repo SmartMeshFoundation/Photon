@@ -14,9 +14,11 @@ import (
 	"sync"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum"
@@ -58,12 +60,14 @@ type BlockChainService struct {
 	addressChannels map[common.Address]*TokenNetworkProxy
 	RegistryProxy   *RegistryProxy
 	//Auth needs by call on blockchain todo remove this
-	Auth  *bind.TransactOpts
-	mlock sync.Mutex
+	Auth          *bind.TransactOpts
+	mlock         sync.Mutex
+	NotifyHandler *notify.Handler
+	TXInfoDao     models.TXInfoDao
 }
 
 //NewBlockChainService create BlockChainService
-func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) (bcs *BlockChainService, err error) {
+func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient, notifyHandler *notify.Handler, txInfoDao models.TXInfoDao) (bcs *BlockChainService, err error) {
 	bcs = &BlockChainService{
 		PrivKey:             privateKey,
 		NodeAddress:         crypto.PubkeyToAddress(privateKey.PublicKey),
@@ -72,6 +76,8 @@ func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.A
 		addressChannels:     make(map[common.Address]*TokenNetworkProxy),
 		Auth:                bind.NewKeyedTransactor(privateKey),
 		tokenNetworkAddress: registryAddress,
+		NotifyHandler:       notifyHandler,
+		TXInfoDao:           txInfoDao,
 	}
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)

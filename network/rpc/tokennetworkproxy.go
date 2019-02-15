@@ -376,7 +376,6 @@ func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balan
 		result.Result <- err
 	}()
 	return
-	return nil
 }
 
 //PunishObsoleteUnlock  to  a channel

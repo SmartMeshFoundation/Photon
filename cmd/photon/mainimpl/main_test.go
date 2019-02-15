@@ -12,6 +12,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/stretchr/testify/assert"
@@ -171,7 +172,7 @@ func TestVerifyContractCode(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client)
+	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client, notify.NewNotifyHandler(), nil)
 	if err != nil {
 		t.Error(err.Error())
 		return

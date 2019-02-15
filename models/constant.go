@@ -49,6 +49,7 @@ const (
 	BucketSentTransfer             = "SentTransfer"
 	BucketReceivedTransfer         = "ReceivedTransfer"
 	BucketTransferStatus           = "TransferStatus"
+	BucketTXInfo                   = "TXInfo"
 )
 
 /*
