@@ -3,7 +3,7 @@ package v1
 import (
 	"fmt"
 
-	"net/http"
+	"github.com/SmartMeshFoundation/Photon/dto"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -15,18 +15,18 @@ import (
 Address is api of /api/1/address
 */
 func Address(w rest.ResponseWriter, r *rest.Request) {
-	data := make(map[string]interface{})
-	data["our_address"] = API.Photon.NodeAddress.String()
-	err := w.WriteJson(data)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	writejson(w, dto.NewSuccessAPIResponse(API.Photon.NodeAddress.String()))
 }
 
 /*
 GetBalanceByTokenAddress : get account's balance and locked account on token
 */
 func GetBalanceByTokenAddress(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetBalanceByTokenAddress ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	tokenAddressStr := r.PathParam("tokenaddress")
 	var tokenAddress common.Address
 	if tokenAddressStr == "" {
@@ -34,13 +34,6 @@ func GetBalanceByTokenAddress(w rest.ResponseWriter, r *rest.Request) {
 	} else {
 		tokenAddress = common.HexToAddress(tokenAddressStr)
 	}
-	resp, err := API.GetBalanceByTokenAddress(tokenAddress)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = w.WriteJson(resp)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	result, err := API.GetBalanceByTokenAddress(tokenAddress)
+	resp = dto.NewAPIResponse(err, result)
 }

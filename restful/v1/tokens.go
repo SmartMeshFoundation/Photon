@@ -2,8 +2,10 @@ package v1
 
 import (
 	"fmt"
-	"net/http"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
@@ -13,24 +15,30 @@ import (
 Tokens is api of /api/1/tokens
 */
 func Tokens(w rest.ResponseWriter, r *rest.Request) {
-	err := w.WriteJson(API.GetTokenTokenNetorks())
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> Tokens ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	resp = dto.NewSuccessAPIResponse(API.GetTokenTokenNetorks())
 }
 
 /*
 TokenPartners is api of /api/1/:token/:partner
 */
 func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> TokenPartners ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	type partnersDataResponse struct {
 		PartnerAddress string `json:"partner_address"`
 		Channel        string `json:"channel"`
 	}
 	tokenAddr, err := utils.HexToAddress(r.PathParam("token"))
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	log.Trace(fmt.Sprintf("TokenPartners tokenAddr=%s", utils.APex(tokenAddr)))
@@ -43,12 +51,12 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 		}
 	}
 	if !found {
-		rest.Error(w, "token doesn't exist", http.StatusNotFound)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrTokenNotFound)
 		return
 	}
 	chs, err := API.GetChannelList(tokenAddr, utils.EmptyAddress)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	var datas []*partnersDataResponse
@@ -59,8 +67,5 @@ func TokenPartners(w rest.ResponseWriter, r *rest.Request) {
 		}
 		datas = append(datas, d)
 	}
-	err = w.WriteJson(datas)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewSuccessAPIResponse(datas)
 }

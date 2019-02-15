@@ -42,31 +42,21 @@ func TestMobile(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	var res dto.APIResponse
-	resultstr := api.Address()
-	json.Unmarshal([]byte(resultstr), &res)
+	defer api.Stop()
+
 	var s string
-	json.Unmarshal([]byte(res.Data), &s)
+	dto.ParseResult(api.Address(), &s)
 	ast.EqualValues(s, common.HexToAddress("0x1a9eC3b0b807464e6D3398a59d6b0a369Bf422fA").String())
 
 	var tokens []common.Address
-	resultstr = api.Tokens()
-	json.Unmarshal([]byte(resultstr), &res)
-	err = json.Unmarshal([]byte(res.Data), &tokens)
+	err = dto.ParseResult(api.Tokens(), &tokens)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	var channels []*v1.ChannelData
-	resultstr = api.GetChannelList()
-
-	json.Unmarshal([]byte(resultstr), &res)
-	if res.ErrorCode != dto.SUCCESS {
-		t.Error(res)
-		return
-	}
+	err = dto.ParseResult(api.GetChannelList(), &channels)
 	//t.Log(resultstr)
-	err = json.Unmarshal([]byte(res.Data), &channels)
 	if err != nil {
 		t.Error(err)
 		return
@@ -78,45 +68,29 @@ func TestMobile(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	partnerAddr := utils.NewRandomAddress()
-	resultstr = api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
-	json.Unmarshal([]byte(resultstr), &res)
-	if res.ErrorCode != dto.SUCCESS {
-		t.Error(res)
-		return
-	}
-	ast.EqualValues(string(res.Data), "null")
+	api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	var c channeltype.ChannelDataDetail
+
 	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
 	//等待交易被打包
 	for i := 0; i < 60; i++ {
-		resultstr = api.GetOneChannel(channelIdentifier.String())
-		json.Unmarshal([]byte(resultstr), &res)
-		if res.ErrorCode != dto.SUCCESS {
-			time.Sleep(time.Second)
-			continue
+		resultstr := api.GetOneChannel(channelIdentifier.String())
+		err = dto.ParseResult(resultstr, &c)
+		if err == nil {
+			break
 		}
-		break
+		time.Sleep(time.Second)
+		continue
 	}
-	ast.NotEqual(res.Data, "")
-	var c channeltype.ChannelDataDetail
-	err = json.Unmarshal([]byte(res.Data), &c)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	resultstr = api.CloseChannel(channelIdentifier.String(), true)
-	json.Unmarshal([]byte(resultstr), &res)
-	if res.ErrorCode != dto.SUCCESS {
-		t.Error(res)
-		return
-	}
-	err = json.Unmarshal([]byte(res.Data), &c)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	resultstr := api.CloseChannel(channelIdentifier.String(), true)
+	dto.ParseResult(resultstr, &c)
 	ast.EqualValues(c.State, channeltype.StateClosing)
-	api.Stop()
+
 }
 
 func TestFormat(t *testing.T) {
@@ -189,7 +163,13 @@ func TestMobileNotify(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if api.Address() != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
+	defer api.Stop()
+	res := api.Address()
+	var resp dto.APIResponse
+	json.Unmarshal([]byte(res), &resp)
+	var addr string
+	json.Unmarshal([]byte(resp.Data), &addr)
+	if addr != common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa").String() {
 		t.Error("address error")
 	}
 	sub, err := api.Subscribe(newTestHandler())
@@ -205,5 +185,15 @@ func TestMobileNotify(t *testing.T) {
 	}()
 	time.Sleep(time.Minute * 1)
 	sub.Unsubscribe()
-	api.Stop()
+}
+
+func testresult() (result string) {
+	defer func() {
+		log.Info(fmt.Sprintf("result=%s", result))
+	}()
+	return "ok"
+}
+
+func TestResult(t *testing.T) {
+	t.Logf("result=%s", testresult())
 }

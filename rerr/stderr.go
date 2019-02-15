@@ -158,6 +158,10 @@ var (
 	ErrDBDuplicateKey = StandardError{ErrorCode: 1019, ErrorMsg: "duplicate key"}
 	//ErrTransferTimeout 交易超时,不代表交易肯定会成功或者失败,只是在给定时间内交易没有成功而已
 	ErrTransferTimeout = StandardError{ErrorCode: 1020, ErrorMsg: "ErrTransferTimeout"}
+	//ErrUpdateButHaveTransfer 试图升级,发现还有交易在进行
+	ErrUpdateButHaveTransfer = StandardError{ErrorCode: 1021, ErrorMsg: "ErrUpdateButHaveTransfer"}
+	//ErrNotChargeFee 进行与收费相关的操作,但是没有启用收费
+	ErrNotChargeFee = StandardError{ErrorCode: 1022, ErrorMsg: "ErrNotChargeFee"}
 	/*
 		以太坊报公链节点报的错误
 
