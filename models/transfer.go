@@ -13,7 +13,7 @@ type SentTransfer struct {
 	BlockNumber       int64          `json:"block_number" storm:"index"`
 	OpenBlockNumber   int64          `json:"open_block_number"`
 	ChannelIdentifier common.Hash    `json:"channel_identifier"`
-	ToAddress         common.Address `json:"to_address"`
+	ToAddress         common.Address `json:"target_address"`
 	TokenAddress      common.Address `json:"token_address"`
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
@@ -28,7 +28,7 @@ type ReceivedTransfer struct {
 	OpenBlockNumber   int64
 	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	TokenAddress      common.Address `json:"token_address"`
-	FromAddress       common.Address `json:"from_address"`
+	FromAddress       common.Address `json:"initiator_address"`
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 	Data              string         `json:"data"`
