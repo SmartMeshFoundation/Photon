@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kataras/go-errors"
+
 	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
@@ -65,8 +67,21 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
+	var c01new *models.Channel
+	err = cm.tryInSeconds(cm.LowWaitSeconds, func() error {
+		c01new = N0.GetChannelWith(N1, tokenAddress).Println("after Reopen channel")
+		if c01new == nil {
+			return errors.New("retry")
+		}
+		return nil
+	})
+	if err != nil {
+		return cm.caseFail(env.CaseName)
+	}
+
 	N0.SendTrans(tokenAddress, 1, N1.Address, true)
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("after Reopen channel")
+	//交易后,通道再查才能更新
+	c01new = N0.GetChannelWith(N1, tokenAddress).Println("after Reopen channel")
 	if !c01new.CheckSelfBalance(c01.Balance - 1) {
 		return cm.caseFail(env.CaseName)
 	}

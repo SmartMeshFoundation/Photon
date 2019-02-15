@@ -14,12 +14,14 @@ type StormTx struct {
 
 // Set :
 func (stx *StormTx) Set(table string, key interface{}, value interface{}) error {
-	return stx.tx.Set(table, key, value)
+	err := stx.tx.Set(table, key, value)
+	return err
 }
 
 // Save :
 func (stx *StormTx) Save(v models.KeyGetter) error {
-	return stx.tx.Save(v)
+	err := stx.tx.Save(v)
+	return err
 }
 
 // Commit :

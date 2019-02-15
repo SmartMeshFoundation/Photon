@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kataras/go-errors"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon"
@@ -299,8 +301,8 @@ func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
 	return nil
 }
 
-// CooperateSettle :
-func (node *PhotonNode) CooperateSettle(channelIdentifier string) (err error) {
+// CooperateSettle : 由于CooperateSettle,close,settle,withdraw都是异步调用,因此必须再次封装
+func (node *PhotonNode) CooperateSettle(channelIdentifier string, waitSeconds ...int) (err error) {
 	type ClosePayload struct {
 		State string `json:"state"`
 	}
@@ -319,6 +321,24 @@ func (node *PhotonNode) CooperateSettle(channelIdentifier string) (err error) {
 	}
 	if statusCode != 200 {
 		return fmt.Errorf("CooperateSettle err : http status=%d,body=%s", statusCode, string(body))
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(channelIdentifier)
+		//找不到这个channel了才返回
+		if err != nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
 	}
 	return nil
 }

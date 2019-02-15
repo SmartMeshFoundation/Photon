@@ -88,27 +88,24 @@ func (cm *CaseManager) CasePunish() (err error) {
 		}
 		break
 	}
+
 	if i == cm.MediumWaitSeconds {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "check balance proof error")
 	}
-	for i = 0; i < cm.HighMediumWaitSeconds; i++ {
-		var n0NewValue, n1NewValue int
-		time.Sleep(time.Second)
-		err = N0.Settle(c10.ChannelIdentifier)
-		if err != nil {
-			continue
-		}
-		time.Sleep(time.Second)
-		n0NewValue, err = N0.TokenBalance(tokenAddress)
-		n1NewValue, err = N1.TokenBalance(tokenAddress)
-		if n1NewValue != expectN1 || n0NewValue != int(expectN0) {
-			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance error n0=%d,n0expect=%d,n1=%d,n1expect=%d ", n0NewValue, expectN0, n1NewValue, expectN1))
-		}
-		break
+	models.Logger.Printf("punish N1 success, then settle")
+	err = cm.trySettleInSeconds(cm.HighMediumWaitSeconds, N0, c10.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "settle channel error")
 	}
-	if i == cm.HighMediumWaitSeconds {
-		return cm.caseFailWithWrongChannelData(env.CaseName, "settle   error")
+	models.Logger.Printf("settle finished...")
+	var n0NewValue, n1NewValue int
+
+	n0NewValue, err = N0.TokenBalance(tokenAddress)
+	n1NewValue, err = N1.TokenBalance(tokenAddress)
+	if n1NewValue != expectN1 || n0NewValue != int(expectN0) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance error n0=%d,n0expect=%d,n1=%d,n1expect=%d ", n0NewValue, expectN0, n1NewValue, expectN1))
 	}
+
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }

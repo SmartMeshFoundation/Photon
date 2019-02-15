@@ -24,7 +24,8 @@ func (model *StormDB) NewSettledChannel(c *channeltype.Serialization) error {
 		panic("only settled channel can saved to settledChannel")
 	}
 	key := fmt.Sprintf("%s-%d", c.ChannelIdentifier.ChannelIdentifier.String(), c.ChannelIdentifier.OpenBlockNumber)
-	return model.db.Set(models.BucketSettledChannel, key, c)
+	err := model.db.Set(models.BucketSettledChannel, key, c)
+	return models.GeneratDBError(err)
 }
 
 //GetAllSettledChannel returns all settled channel
@@ -46,6 +47,7 @@ func (model *StormDB) GetAllSettledChannel() (chs []*channeltype.Serialization, 
 		})
 		return nil
 	})
+	err = models.GeneratDBError(err)
 	return
 }
 
@@ -55,5 +57,6 @@ func (model *StormDB) GetSettledChannel(channelIdentifier common.Hash, openBlock
 	c = new(channeltype.Serialization)
 	key := fmt.Sprintf("%s-%d", channelIdentifier.String(), openBlockNumber)
 	err = model.db.Get(models.BucketSettledChannel, key, c)
+	err = models.GeneratDBError(err)
 	return
 }

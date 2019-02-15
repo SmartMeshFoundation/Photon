@@ -75,5 +75,6 @@ func (dao *GkvDB) GetTransferStatus(tokenAddress common.Address, lockSecretHash 
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
 	err := dao.getKeyValueToBucket(models.BucketTransferStatus, key, &ts)
 	log.Trace(fmt.Sprintf("GetTransferStatus key=%s lockSecretHash=%s err=%s", key, lockSecretHash.String(), err))
+	err = models.GeneratDBError(err)
 	return &ts, err
 }

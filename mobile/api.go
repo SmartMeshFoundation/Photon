@@ -3,7 +3,10 @@ package mobile
 import (
 	"encoding/json"
 	"fmt"
-	"time"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
@@ -31,15 +34,6 @@ type API struct {
 	api *photon.API
 }
 
-func marshal(v interface{}) (s string, err error) {
-	d, err := json.Marshal(v)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	return string(d), nil
-}
-
 /*
 GetChannelList returns all the available channels
 
@@ -61,13 +55,14 @@ example returns:
     }
 ]
 */
-func (a *API) GetChannelList() (channels string, err error) {
+func (a *API) GetChannelList() (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("ApiCall GetChannelList channels=\n%s,err=%v", channels, err))
+		log.Trace(fmt.Sprintf("ApiCall GetChannelList result=%s", result))
 	}()
 	chs, err := a.api.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		log.Error(err.Error())
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
 	var datas []*v1.ChannelData
@@ -88,7 +83,7 @@ func (a *API) GetChannelList() (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	channels, err = marshal(datas)
+	result = dto.NewSuccessMobileResponse(datas)
 	return
 }
 
@@ -148,17 +143,18 @@ exmaple returns:
     "Signature": null
 }
 */
-func (a *API) GetOneChannel(channelIdentifier string) (channel string, err error) {
+func (a *API) GetOneChannel(channelIdentifier string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out channel=\n%s,err=%v", channelIdentifier, channel, err))
+		log.Trace(fmt.Sprintf("Api GetOneChannel in channel address=%s,out result=\n%s", channelIdentifier, result))
 	}()
 	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	c, err := a.api.GetChannel(channelIdentifierHash)
 	if err != nil {
 		log.Error(err.Error())
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
-	channel, err = marshal(channeltype.ChannelSerialization2ChannelDataDetail(c))
+	result = dto.NewSuccessMobileResponse(channeltype.ChannelSerialization2ChannelDataDetail(c))
 	return
 }
 
@@ -191,19 +187,17 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (channel string, err error) {
+func (a *API) Deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newChannel bool) (result string) {
 	r, err := a.deposit(partnerAddress, tokenAddress, settleTimeout, balanceStr, newChannel)
 	if err != nil {
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
-	if r != nil {
-		return marshal(r)
-	}
+	result = dto.NewSuccessMobileResponse(r)
 	return
 }
 
 func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, balanceStr string, newcChannel bool) (channel *channeltype.ChannelDataDetail, err error) {
-
 	defer func() {
 		log.Trace(fmt.Sprintf("Api Deposit in partnerAddress=%s,tokenAddress=%s,settletTimeout=%d,balanceStr=%s\nout channel=\n%s,err=%v",
 			partnerAddress, tokenAddress, settleTimeout, balanceStr, utils.StringInterface(channel, 5), err,
@@ -249,12 +243,14 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) CloseChannel(channelIdentifier string, force bool) (channel string, err error) {
+func (a *API) CloseChannel(channelIdentifier string, force bool) (result string) {
 	c, err := a.closeChannel(channelIdentifier, force)
 	if err != nil {
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
-	return marshal(c)
+	result = dto.NewSuccessMobileResponse(c)
+	return
 
 }
 func (a *API) closeChannel(channelIdentifier string, force bool) (channel *channeltype.ChannelDataDetail, err error) {
@@ -305,13 +301,14 @@ example returns:
     "reveal_timeout": 0
 }
 */
-func (a *API) SettleChannel(channelIdentifier string) (channel string, err error) {
+func (a *API) SettleChannel(channelIdentifier string) (result string) {
 	c, err := a.settleChannel(channelIdentifier)
 	if err != nil {
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
-	return marshal(c)
-
+	result = dto.NewSuccessMobileResponse(c)
+	return
 }
 
 // Withdraw :
@@ -323,12 +320,14 @@ func (a *API) SettleChannel(channelIdentifier string) (channel string, err error
 	3. cancel prepare:
 	{"op": "cancelprepare"}
 */
-func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (channel string, err error) {
-	r, err := a.withdraw(channelIdentifierHashStr, amountstr, op)
+func (a *API) Withdraw(channelIdentifierHashStr, amountstr, op string) (result string) {
+	c, err := a.withdraw(channelIdentifierHashStr, amountstr, op)
 	if err != nil {
+		result = dto.NewErrorMobileResponse(err)
 		return
 	}
-	return marshal(r)
+	result = dto.NewSuccessMobileResponse(c)
+	return
 }
 
 func (a *API) settleChannel(channelIdentifier string) (channel *channeltype.ChannelDataDetail, err error) {
@@ -354,49 +353,32 @@ func (a *API) settleChannel(channelIdentifier string) (channel *channeltype.Chan
 }
 
 // Deprecated
-func (a *API) networkEvent(fromBlock, toBlock int64) (eventsString string, err error) {
+func (a *API) networkEvent(fromBlock, toBlock int64) (result string) {
 	events, err := a.api.GetNetworkEvents(fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	eventsString, err = marshal(events)
-	return
-}
-
-//Deprecated: TokensEvent GET /api/1/events/tokens/0x61c808d82a3ac53231750dadc13c777b59310bd9
-func (a *API) tokensEvent(fromBlock, toBlock int64, tokenAddress string) (eventsString string, err error) {
-	token, err := utils.HexToAddressWithoutValidation(tokenAddress)
-	if err != nil {
-		return
-	}
-	events, err := a.api.GetTokenNetworkEvents(token, fromBlock, toBlock)
-	if err != nil {
-		log.Error(err.Error())
-		return
-	}
-	eventsString, err = marshal(events)
-	return
+	return dto.NewSuccessMobileResponse(events)
 }
 
 //Deprecated: ChannelsEvent GET /api/1/events/channels/0x2a65aca4d5fc5b5c859090a6c34d164135398226?from_block=1337
-func (a *API) channelsEvent(fromBlock, toBlock int64, channelIdentifier string) (eventsString string, err error) {
+func (a *API) channelsEvent(fromBlock, toBlock int64, channelIdentifier string) (result string) {
 	channel := common.HexToHash(channelIdentifier)
 	events, err := a.api.GetChannelEvents(channel, fromBlock, toBlock)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	eventsString, err = marshal(events)
-	return
+	return dto.NewSuccessMobileResponse(events)
 }
 
 /*
 Address returns node's checksum address
 for example: returns "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 */
-func (a *API) Address() (addr string) {
-	return a.api.Address().String()
+func (a *API) Address() (result string) {
+	return dto.NewSuccessMobileResponse(a.api.Address().String())
 }
 
 /*
@@ -406,12 +388,9 @@ for example:
     "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2"
 ]
 */
-func (a *API) Tokens() (tokens string) {
-	tokens, err := marshal(a.api.Tokens())
-	if err != nil {
-		log.Error(fmt.Sprintf("marshal tokens error %s", err))
-	}
-	return
+func (a *API) Tokens() (result string) {
+	tokens := a.api.Tokens()
+	return dto.NewSuccessMobileResponse(tokens)
 }
 
 type partnersData struct {
@@ -434,7 +413,7 @@ for example:
     }
 ]
 */
-func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
+func (a *API) TokenPartners(tokenAddress string) (result string) {
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
 		return
@@ -442,7 +421,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 	chs, err := a.api.GetChannelList(tokenAddr, utils.EmptyAddress)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
 	var datas []*partnersData
 	for _, c := range chs {
@@ -452,8 +431,7 @@ func (a *API) TokenPartners(tokenAddress string) (channels string, err error) {
 		}
 		datas = append(datas, d)
 	}
-	channels, err = marshal(datas)
-	return
+	return dto.NewSuccessMobileResponse(datas)
 }
 
 /*
@@ -478,42 +456,47 @@ transfer:
 
 the caller should call GetTransferStatus periodically to query this transfer's latest status.
 */
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (transfer string, err error) {
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s \nout transfer=\n%s,err=%v",
-			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, transfer, err,
+		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s \nout transfer=\n%s ",
+			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, result,
 		))
 	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
 	if err != nil {
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	targetAddr, err := utils.HexToAddressWithoutValidation(targetAddress)
 	if err != nil {
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	if len(secretStr) != 0 && len(secretStr) != 64 && (strings.HasPrefix(secretStr, "0x") && len(secretStr) != 66) {
 		err = errors.New("invalid secret")
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	if len(data) > params.MaxTransferDataLen {
 		err = errors.New("invalid data, data len must < 256")
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	amount, _ := new(big.Int).SetString(amountstr, 0)
 	fee, _ := new(big.Int).SetString(feestr, 0)
 	secret := common.HexToHash(secretStr)
 	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = errors.New("amount should be positive")
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
-	result, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data)
+	tr, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
 	req := &v1.TransferData{}
-	req.LockSecretHash = result.LockSecretHash.String()
+	req.LockSecretHash = tr.LockSecretHash.String()
 	req.Initiator = a.api.Photon.NodeAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
@@ -521,7 +504,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	req.Secret = secretStr
 	req.Fee = fee
 	req.Data = data
-	return marshal(req)
+	return dto.NewSuccessMobileResponse(req)
 }
 
 /*
@@ -620,23 +603,25 @@ example returns:
     ]
 }
 */
-func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) (r string, err error) {
+func (a *API) ChannelFor3rdParty(channelIdentifier, thirdPartyAddress string) string {
 	channelIdentifierHash := common.HexToHash(channelIdentifier)
 	thirdPartyAddr, err := utils.HexToAddressWithoutValidation(thirdPartyAddress)
 	if err != nil {
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	if channelIdentifierHash == utils.EmptyHash || thirdPartyAddr == utils.EmptyAddress {
 		err = errors.New("invalid argument")
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	result, err := a.api.ChannelInformationFor3rdParty(channelIdentifierHash, thirdPartyAddr)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
-	r, err = marshal(result)
-	return
+	return dto.NewSuccessMobileResponse(result)
 }
 
 /*
@@ -651,62 +636,62 @@ func (a *API) SwitchNetwork(isMesh bool) {
 UpdateMeshNetworkNodes updates all nodes in MeshNetwork.
 Nodes within the same local network have higher priority.
 */
-func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error) {
+func (a *API) UpdateMeshNetworkNodes(nodesstr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api UpdateMeshNetworkNodes nodesstr=%s,out err=%v", nodesstr, err))
+		log.Trace(fmt.Sprintf("Api UpdateMeshNetworkNodes nodesstr=%s,out result=%v", nodesstr, result))
 	}()
 	var nodes []*network.NodeInfo
-	err = json.Unmarshal([]byte(nodesstr), &nodes)
+	err := json.Unmarshal([]byte(nodesstr), &nodes)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	err = a.api.Photon.Protocol.UpdateMeshNetworkNodes(nodes)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
-	return nil
+	return dto.NewSuccessMobileResponse(nil)
 }
 
 /*
 EthereumStatus  query the status between Photon and ethereum
 todo fix it,remove this deprecated api
 */
-func (a *API) EthereumStatus() (r string, err error) {
+func (a *API) EthereumStatus() (result string) {
 	c := a.api.Photon.Chain
 	if c != nil && c.Client.Status == netshare.Connected {
-		return time.Now().String(), nil
+		dto.NewSuccessMobileResponse(result)
 	}
-	return time.Now().String(), errors.New("connect failed")
+	return dto.NewErrorMobileResponse(errors.New("connect failed"))
 }
 
 /*
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
-func (a *API) GetSentTransfers(from, to int64) (r string, err error) {
+func (a *API) GetSentTransfers(from, to int64) (result string) {
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := a.api.GetSentTransfers(from, to)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	r, err = marshal(trs)
-	return
+	return dto.NewSuccessMobileResponse(trs)
 }
 
 /*
 GetReceivedTransfers retuns list of received transfer between `from_block` and `to_block`
 it contains token swap
 */
-func (a *API) GetReceivedTransfers(from, to int64) (r string, err error) {
+func (a *API) GetReceivedTransfers(from, to int64) (result string) {
 	trs, err := a.api.GetReceivedTransfers(from, to)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	r, err = marshal(trs)
-	return
+	return dto.NewSuccessMobileResponse(trs)
 }
 
 // Subscription represents an event subscription where events are
@@ -849,24 +834,24 @@ example returns:
     "StatusMessage": "MediatedTransfer 正在发送 target=4b89\nMediatedTransfer 发送成功\n收到 SecretRequest, from=3af7\nRevealSecret 正在发送 target=3af7\nRevealSecret 发送成功\n收到 RevealSecret, from=4b89\nUnlock 正在发送 target=4b89\nUnLock 发送成功,交易成功.\n"
 }
 */
-func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (r string, err error) {
+func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetTransferStatus tokenAddressStr=%s,lockSecretHashStr=%s, err=%s\n",
-			tokenAddressStr, lockSecretHashStr, err,
+		log.Trace(fmt.Sprintf("Api GetTransferStatus tokenAddressStr=%s,lockSecretHashStr=%s, result=%s\n",
+			tokenAddressStr, lockSecretHashStr, result,
 		))
 	}()
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
 	if err != nil {
 		log.Error(err.Error())
-		return
+		err = rerr.ErrArgumentError.AppendError(err)
+		return dto.NewErrorMobileResponse(err)
 	}
 	ts, err := a.api.Photon.GetDao().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
 	if err != nil {
 		log.Error(fmt.Sprintf("err =%s", err))
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	r, err = marshal(ts)
-	return
+	return dto.NewSuccessMobileResponse(ts)
 }
 
 // NotifyNetworkDown :
@@ -900,7 +885,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel 
 		} else if op == OpCancelPrepare {
 			c, err = a.api.CancelPrepareForWithdraw(c.TokenAddress(), c.PartnerAddress())
 		} else {
-			err = fmt.Errorf("unkown operation %s", op)
+			err = rerr.ErrArgumentError.Errorf("unkown operation %s", op)
 		}
 		if err != nil {
 			log.Error(err.Error())
@@ -912,17 +897,17 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel 
 }
 
 // OnResume 手机从后台切换至前台时调用
-func (a *API) OnResume() (err error) {
+func (a *API) OnResume() string {
 	// 1. 强制网络重连
-	err = a.NotifyNetworkDown()
+	err := a.NotifyNetworkDown()
 	// 2. 还需要作什么???
-	return
+	return dto.NewErrorMobileResponse(err)
 }
 
 // GetSystemStatus 查询系统状态,
-func (a *API) GetSystemStatus() (r string, err error) {
+func (a *API) GetSystemStatus() (r string) {
 	resp := a.api.SystemStatus()
-	return resp.ToString(), nil
+	return dto.NewSuccessMobileResponse(resp)
 }
 
 /*
@@ -939,17 +924,17 @@ example:
         ]
     }
 */
-func (a *API) FindPath(targetStr, tokenStr, amountStr string) (r string, err error) {
+func (a *API) FindPath(targetStr, tokenStr, amountStr string) (result string) {
 	target := common.HexToAddress(targetStr)
 	token := common.HexToAddress(tokenStr)
 	amount, isSuccess := new(big.Int).SetString(amountStr, 0)
 	if !isSuccess {
-		err = fmt.Errorf("arg amount err %s", amountStr)
-		return
+		err := rerr.ErrArgumentError.Errorf("arg amount err %s", amountStr)
+		return dto.NewErrorMobileResponse(err)
 	}
 	routes, err := a.api.FindPath(target, token, amount)
 	if err != nil {
-		return
+		return dto.NewErrorMobileResponse(err)
 	}
-	return marshal(routes)
+	return dto.NewSuccessMobileResponse(routes)
 }

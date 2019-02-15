@@ -58,16 +58,9 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain02() (err error) {
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
 	}
-	var i = 0
 	settleTime := c01.SettleTimeout + 3600/14
-	for i = 0; i < int(settleTime); i++ {
-		time.Sleep(time.Second)
-		err = N1.Settle(c01.ChannelIdentifier)
-		if err == nil {
-			break
-		}
-	}
-	if i == int(settleTime) {
+	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
+	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c01.Name)
 	}
 	n1valuenew, err := N1.TokenBalance(tokenAddress)

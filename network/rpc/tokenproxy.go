@@ -2,9 +2,10 @@ package rpc
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
@@ -32,9 +33,9 @@ func (t *TokenProxy) TotalSupply() (*big.Int, error) {
 func (t *TokenProxy) BalanceOf(addr common.Address) (*big.Int, error) {
 	amount, err := t.Token.BalanceOf(t.bcs.getQueryOpts(), addr)
 	if err != nil {
-		return nil, err
+		return nil, rerr.ContractCallError(err)
 	}
-	return amount, err
+	return amount, nil
 }
 
 // Allowance Amount of remaining tokens allowed to spent
@@ -43,9 +44,9 @@ func (t *TokenProxy) BalanceOf(addr common.Address) (*big.Int, error) {
 func (t *TokenProxy) Allowance(owner, spender common.Address) (int64, error) {
 	amount, err := t.Token.Allowance(t.bcs.getQueryOpts(), owner, spender)
 	if err != nil {
-		return 0, err
+		return 0, rerr.ContractCallError(err)
 	}
-	return amount.Int64(), err //todo if amount larger than max int64?
+	return amount.Int64(), nil //todo if amount larger than max int64?
 }
 
 // Approve Whether the approval was successful or not
@@ -56,16 +57,16 @@ func (t *TokenProxy) Allowance(owner, spender common.Address) (int64, error) {
 func (t *TokenProxy) Approve(spender common.Address, value *big.Int) (err error) {
 	tx, err := t.Token.Approve(t.bcs.Auth, spender, value)
 	if err != nil {
-		return err
+		return rerr.ContractCallError(err)
 	}
 	log.Info(fmt.Sprintf("Approve %s, txhash=%s", utils.APex(spender), tx.Hash().String()))
 	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
 	if err != nil {
-		return err
+		return rerr.ErrTxWaitMined.AppendError(err)
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(t.Address), receipt))
-		return errors.New("Approve tx execution failed")
+		return rerr.ErrTxReceiptStatus.Append("Approve tx execution failed")
 	}
 	log.Info(fmt.Sprintf("Approve success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(spender), value))
 	return nil
@@ -83,15 +84,15 @@ func (t *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error
 	}
 	tx, err := t.Token.TransferFrom(t.bcs.Auth, t.bcs.Auth.From, spender, value)
 	if err != nil {
-		return err
+		return rerr.ContractCallError(err)
 	}
 	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
 	if err != nil {
-		return err
+		return rerr.ErrTxWaitMined.AppendError(err)
 	}
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		log.Info(fmt.Sprintf("Transfer failed %s,receipt=%s", utils.APex(t.Address), receipt))
-		return errors.New("Transfer tx execution failed")
+		return rerr.ErrTxReceiptStatus.Append("Transfer tx execution failed")
 	}
 	log.Info(fmt.Sprintf("Transfer success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(spender), value))
 	return nil
@@ -111,18 +112,22 @@ func (t *TokenProxy) TransferAsync(spender common.Address, value *big.Int) (resu
 func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, extraData []byte) (err error) {
 	tx, err := t.Token.Transfer(t.bcs.Auth, to, value, extraData)
 	if err != nil {
-		return err
+		return rerr.ContractCallError(err)
 	}
 	go func() {
 		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
 		if err != nil {
+			//todo 异步通知App?
+			//rerr.ErrTxWaitMined.AppendError(err)
 			log.Error(fmt.Sprintf("TransferWithFallback to=%s,value=%s extradata=%s,err=%s",
 				utils.APex2(to), value, hex.EncodeToString(extraData), err,
 			))
 			return
 		}
 		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Info(fmt.Sprintf("TransferWithFallback failed %s,receipt=%s", utils.APex(t.Address), receipt))
+			//todo 异步通知App?
+			log.Error(fmt.Sprintf("TransferWithFallback failed %s,receipt=%s", utils.APex(t.Address), receipt))
+			//rerr.ErrTxReceiptStatus.AppendError(err)
 			return
 		}
 		log.Info(fmt.Sprintf("TransferWithFallback success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(to), value, tx.Hash().String()))
@@ -135,7 +140,7 @@ func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, ext
 func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extraData []byte) (err error) {
 	tx, err := t.Token.ApproveAndCall(t.bcs.Auth, spender, value, extraData)
 	if err != nil {
-		return err
+		return rerr.ContractCallError(err)
 	}
 	log.Info(fmt.Sprintf("ApproveAndCall spender=%s,value=%s,extraData=%s,txHash=%s",
 		utils.APex(spender), value, hex.EncodeToString(extraData), tx.Hash().String(),

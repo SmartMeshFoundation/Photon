@@ -3,6 +3,8 @@ package stormdb
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/models"
+
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -31,19 +33,21 @@ func (model *StormDB) NewNonParticipantChannel(token common.Address, channel com
 	if err == nil {
 		return fmt.Errorf("channel %s already exists", channel.String())
 	}
-	return model.db.Save(&NonParticipantChannel{
+	err = model.db.Save(&NonParticipantChannel{
 		ChannelIdentifierBytes: channel[:],
 		TokenAddressBytes:      token[:],
 		Participant1Bytes:      participant1[:],
 		Participant2Bytes:      participant2[:],
 	})
+	return models.GeneratDBError(err)
 }
 
 //RemoveNonParticipantChannel a channel is settled
 func (model *StormDB) RemoveNonParticipantChannel(channel common.Hash) error {
-	return model.db.DeleteStruct(&NonParticipantChannel{
+	err := model.db.DeleteStruct(&NonParticipantChannel{
 		ChannelIdentifierBytes: channel[:],
 	})
+	return models.GeneratDBError(err)
 }
 
 //GetNonParticipantChannelByID return one channel's information
@@ -71,6 +75,7 @@ func (model *StormDB) GetAllNonParticipantChannelByToken(token common.Address) (
 	}
 	if err != nil {
 		err = fmt.Errorf("GetAllNonParticipantChannelByToken err %s", err)
+		err = models.GeneratDBError(err)
 		return
 	}
 	for _, c := range channels {

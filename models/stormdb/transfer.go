@@ -82,6 +82,7 @@ func (model *StormDB) NewReceivedTransfer(blockNumber int64, channelIdentifier c
 func (model *StormDB) GetSentTransfer(key string) (*models.SentTransfer, error) {
 	var s models.SentTransfer
 	err := model.db.One("Key", key, &s)
+	err = models.GeneratDBError(err)
 	return &s, err
 }
 
@@ -89,6 +90,7 @@ func (model *StormDB) GetSentTransfer(key string) (*models.SentTransfer, error) 
 func (model *StormDB) GetReceivedTransfer(key string) (*models.ReceivedTransfer, error) {
 	var r models.ReceivedTransfer
 	err := model.db.One("Key", key, &r)
+	err = models.GeneratDBError(err)
 	return &r, err
 }
 
@@ -104,6 +106,7 @@ func (model *StormDB) GetSentTransferInBlockRange(fromBlock, toBlock int64) (tra
 	if err == storm.ErrNotFound { //ingore not found error
 		err = nil
 	}
+	err = models.GeneratDBError(err)
 	return
 }
 
@@ -119,6 +122,7 @@ func (model *StormDB) GetReceivedTransferInBlockRange(fromBlock, toBlock int64) 
 	if err == storm.ErrNotFound { //ingore not found error
 		err = nil
 	}
+	err = models.GeneratDBError(err)
 	return
 }
 
@@ -130,6 +134,7 @@ func (model *StormDB) GetSentTransferInTimeRange(from, to time.Time) (transfers 
 	if err == storm.ErrNotFound { //ingore not found error
 		err = nil
 	}
+	err = models.GeneratDBError(err)
 	return
 }
 
@@ -141,5 +146,6 @@ func (model *StormDB) GetReceivedTransferInTimeRange(from, to time.Time) (transf
 	if err == storm.ErrNotFound { //ingore not found error
 		err = nil
 	}
+	err = models.GeneratDBError(err)
 	return
 }
