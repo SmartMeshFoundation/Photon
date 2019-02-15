@@ -41,7 +41,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
 	os.Args = append(os.Args, fmt.Sprintf("--registry-contract-address=%s", registryAddress))
-	os.Args = append(os.Args, fmt.Sprintf("--disable-fee"))
+	//os.Args = append(os.Args, fmt.Sprintf("--disable-fee"))
 	//os.Args = append(os.Args, fmt.Sprintf("--enable-health-check"))
 	if len(logFile) > 0 {
 		os.Args = append(os.Args, fmt.Sprintf("--logfile=%s", logFile))

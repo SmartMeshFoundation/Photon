@@ -18,7 +18,6 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
-	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
@@ -994,28 +993,29 @@ func (r *API) NotifyNetworkDown() error {
 	return nil
 }
 
-// GetFeePolicy :
+// GetFeePolicy 如果没有启动收费会返回错误,否则返回当前账户设置的收费信息
 func (r *API) GetFeePolicy() (fp *models.FeePolicy, err error) {
 	feeModule, ok := r.Photon.FeePolicy.(*FeeModule)
 	if !ok {
+		err = rerr.ErrNotChargeFee
 		return
 	}
 	return feeModule.feePolicy, nil
 }
 
-// SetFeePolicy :
+// SetFeePolicy 更新该账户所有的收费信息,不保留历史记录
 func (r *API) SetFeePolicy(fp *models.FeePolicy) error {
 	feeModule, ok := r.Photon.FeePolicy.(*FeeModule)
 	if !ok {
-		return rerr.ErrArgumentError.Append("photon start without param '--fee', can not set fee policy")
+		return rerr.ErrNotChargeFee.Append("photon start without param '--fee', can not set fee policy")
 	}
 	return feeModule.SetFeePolicy(fp)
 }
 
-// FindPath :
+// FindPath 向PFS询问路由,要求启用收费
 func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.Int) (routes []pfsproxy.FindPathResponse, err error) {
 	if r.Photon.PfsProxy == nil {
-		err = rerr.ErrArgumentError.Append("photon start without param '--pfs', can not calculate total fee")
+		err = rerr.ErrNotChargeFee.Append("photon start without param '--pfs', can not calculate total fee")
 		return
 	}
 	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount, true)
@@ -1026,16 +1026,16 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 }
 
 // GetAllFeeChargeRecord :
-func (r *API) GetAllFeeChargeRecord() (resp *dto.APIResponse) {
+func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	type responce struct {
 		TotalFee map[common.Address]*big.Int `json:"total_fee"`
 		Details  []*models.FeeChargeRecord   `json:"details"`
 	}
 	var data responce
-	var err error
+
 	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord()
 	if err != nil {
-		return dto.NewExceptionAPIResponse(err)
+		return
 	}
 	data.TotalFee = make(map[common.Address]*big.Int)
 	for _, record := range data.Details {
@@ -1045,11 +1045,12 @@ func (r *API) GetAllFeeChargeRecord() (resp *dto.APIResponse) {
 		}
 		data.TotalFee[record.TokenAddress] = totalFee.Add(totalFee, record.Fee)
 	}
-	return dto.NewSuccessAPIResponse(data)
+	resp = data
+	return
 }
 
 // SystemStatus :
-func (r *API) SystemStatus() (resp *dto.APIResponse) {
+func (r *API) SystemStatus() (resp interface{}, err error) {
 	type transfers struct {
 		SendNum    int `json:"send_num"`
 		ReceiveNum int `json:"receive_num"`
@@ -1111,25 +1112,25 @@ func (r *API) SystemStatus() (resp *dto.APIResponse) {
 	// channel num
 	cs, err := r.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
-		return dto.NewExceptionAPIResponse(err)
+		return
 	}
 	data.ChannelNum = len(cs)
 	// Transfers
 	sts, err := r.GetSentTransfers(-1, -1)
 	if err != nil {
-		return dto.NewExceptionAPIResponse(err)
+		return
 	}
 	rts, err := r.GetReceivedTransfers(-1, -1)
 	if err != nil {
-		return dto.NewExceptionAPIResponse(err)
+		return
 	}
 	data.Transfers = &transfers{
 		SendNum:    len(sts),
 		ReceiveNum: len(rts),
 		DealingNum: len(r.Photon.Transfer2StateManager),
 	}
-
-	return dto.NewSuccessAPIResponse(data)
+	resp = data
+	return
 }
 
 func (r *API) checkSmcStatus() error {

@@ -2,10 +2,12 @@ package v1
 
 import (
 	"fmt"
-	"net/http"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"strconv"
 
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
@@ -18,157 +20,149 @@ import (
 UpdateMeshNetworkNodes update nodes of this intranet
 */
 func UpdateMeshNetworkNodes(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> UpdateMeshNetworkNodes ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> UpdateMeshNetworkNodes ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	var nodes []*network.NodeInfo
 	err = r.DecodeJsonPayload(&nodes)
 	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
 	err = API.Photon.Protocol.UpdateMeshNetworkNodes(nodes)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, "ok")
 }
 
 /*
 SwitchNetwork  switch between mesh and internet
 */
 func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> SwitchNetwork ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	mesh := r.PathParam("mesh")
 	isMesh, err := strconv.ParseBool(mesh)
 	if err != nil {
-		rest.Error(w, "arg error", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
 	API.Photon.Config.IsMeshNetwork = isMesh
-	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewSuccessAPIResponse(nil)
 }
 
 // PrepareUpdate : 停止创建新的交易,返回当前是否可以升级
 // PrepareUpdate : stop sending new transfers, return boolean that if we can update now?
 func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> PrepareUpdate ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> PrepareUpdate ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	// 这里没并发问题,直接操作即可
 	// no concurrent issue, just do it.
 	API.Photon.StopCreateNewTransfers = true
 	num := len(API.Photon.Transfer2StateManager)
 	if num > 0 {
 		err = fmt.Errorf("%d transactions are still in progress. Please wait until all transactions are over", num)
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrUpdateButHaveTransfer.AppendError(err))
 		return
 	}
-	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewSuccessAPIResponse(nil)
 }
 
 // NotifyNetworkDown :
 func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> NotifyNetworkDown ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	err := API.NotifyNetworkDown()
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, "ok")
 }
 
 // GetFeePolicy :
 func GetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetFeePolicy ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	fp, err := API.GetFeePolicy()
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = w.WriteJson(fp)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, fp)
 }
 
 // SetFeePolicy :
 func SetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> SetFeePolicy ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	req := &models.FeePolicy{}
 	err := r.DecodeJsonPayload(req)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	err = API.SetFeePolicy(req)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	_, err = w.(http.ResponseWriter).Write([]byte("ok"))
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	resp = dto.NewAPIResponse(err, "ok")
 }
 
 // FindPath :
 func FindPath(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> FindPath ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
 	targetAddressStr := r.PathParam("target_address")
 	targetAddress, err := utils.HexToAddress(targetAddressStr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	tokenAddressStr := r.PathParam("token")
 	tokenAddress, err := utils.HexToAddress(tokenAddressStr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	amountStr := r.PathParam("amount")
 	amount, ok := math.ParseBig256(amountStr)
 	if !ok {
-		rest.Error(w, "wrong amount", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
-	resp, err := API.FindPath(targetAddress, tokenAddress, amount)
-	if err != nil {
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = w.WriteJson(resp)
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	result, err := API.FindPath(targetAddress, tokenAddress, amount)
+	resp = dto.NewAPIResponse(err, result)
+
 }
 
 // GetAllFeeChargeRecord :
 func GetAllFeeChargeRecord(w rest.ResponseWriter, r *rest.Request) {
-	err := w.WriteJson(API.GetAllFeeChargeRecord())
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetAllFeeChargeRecord ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	result, err := API.GetAllFeeChargeRecord()
+	resp = dto.NewAPIResponse(err, result)
 }
 
 // GetSystemStatus :
 func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
-	err := w.WriteJson(API.SystemStatus())
-	if err != nil {
-		log.Warn(fmt.Sprintf("writejson err %s", err))
-	}
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSystemStatus ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	result, err := API.SystemStatus()
+	resp = dto.NewAPIResponse(err, result)
 }

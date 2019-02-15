@@ -3,8 +3,10 @@ package v1
 import (
 	"fmt"
 	"math/big"
-	"net/http"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
@@ -16,10 +18,12 @@ TokenSwap is the api of /api/1/tokenswap/:id
 :id must be a unique identifier.
 */
 func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
-	var err error
+	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> TokenSwap ,err=%v", err))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> TokenSwap ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
 	}()
+	var err error
 	/*
 	   {
 	       "role": "maker",
@@ -32,8 +36,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	// 用户调用了prepare-update,暂停接收新交易
 	// client invokes prepare-update, halts receiving new transfers
 	if API.Photon.StopCreateNewTransfers {
-		rest.Error(w, "Stop create new transfers, please restart Photon", http.StatusBadRequest)
-		return
+		resp = dto.NewExceptionAPIResponse(rerr.ErrStopCreateNewTransfer)
 	}
 	type Req struct {
 		Role            string   `json:"role"`
@@ -47,43 +50,39 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 	lockSecretHash := r.PathParam("locksecrethash")
 	var target common.Address
 	if len(targetstr) != len(target.String()) {
-		rest.Error(w, "target address error", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
 	target, err = utils.HexToAddress(targetstr)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	if lockSecretHash == "" {
-		rest.Error(w, "must provide a valid lockSecretHash ", http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("must provide a valid lockSecretHash "))
 		return
 	}
 	req := &Req{}
 	err = r.DecodeJsonPayload(req)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	makerToken, err := utils.HexToAddress(req.SendingToken)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	takerToken, err := utils.HexToAddress(req.ReceivingToken)
 	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
 	if req.Role == "maker" {
 		// 校验secret和lockSecretHash是否匹配
 		// check whether secret and lockSecretHash match.
 		if req.Secret == "" || utils.ShaSecret(common.HexToHash(req.Secret).Bytes()) != common.HexToHash(lockSecretHash) {
-			rest.Error(w, "must provide a matching pair of secret and lockSecretHash", http.StatusBadRequest)
+			resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("must provide a matching pair of secret and lockSecretHash"))
 			return
 		}
 		err = API.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
@@ -92,16 +91,7 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		err = API.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
 			target, API.Photon.NodeAddress, req.ReceivingAmount, req.SendingAmount)
 	} else {
-		err = fmt.Errorf("Provided invalid token swap role %s", req.Role)
+		err = rerr.ErrArgumentError.Errorf("Provided invalid token swap role %s", req.Role)
 	}
-	if err != nil {
-		log.Error(err.Error())
-		rest.Error(w, err.Error(), http.StatusBadRequest)
-	} else {
-		w.(http.ResponseWriter).WriteHeader(http.StatusCreated)
-		_, err = w.(http.ResponseWriter).Write(nil)
-		if err != nil {
-			log.Warn(fmt.Sprintf("writejson err %s", err))
-		}
-	}
+	resp = dto.NewAPIResponse(err, nil)
 }
