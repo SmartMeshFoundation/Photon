@@ -27,7 +27,7 @@ func (node *PhotonNode) GetChannelWith(partnerNode *PhotonNode, tokenAddr string
 		Payload: "",
 		Timeout: time.Second * 30,
 	}
-	_, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func (node *PhotonNode) GetChannels(tokenAddr string) []*Channel {
 		Payload: "",
 		Timeout: time.Second * 30,
 	}
-	_, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		panic(err)
 	}
@@ -86,12 +86,8 @@ func (node *PhotonNode) IsRunning() bool {
 		Payload: "",
 		Timeout: time.Second * 3,
 	}
-	statusCode, _, err := req.Invoke()
+	_, err := req.Invoke()
 	if err != nil {
-		return false
-	}
-	if statusCode != 200 {
-		Logger.Printf("Exception response:%d\n", statusCode)
 		return false
 	}
 	return true
@@ -145,14 +141,10 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 		Payload: string(p),
 		Timeout: time.Second * 180,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TransferApi %s err :%s,body=%s", req.FullURL, err, string(body)))
 		return err
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
-		return fmt.Errorf("TransferApi err : http status=%d", statusCode)
 	}
 	return nil
 }
@@ -171,12 +163,9 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 		Payload: string(p),
 		Timeout: time.Second * 60,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SendTransApi err :%s,body=%s", err, string(body)))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -194,12 +183,9 @@ func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, 
 		Payload: string(p),
 		Timeout: time.Second * 60,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransApi err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -218,13 +204,11 @@ func (node *PhotonNode) SendTransWithSecret(tokenAddress string, amount int32, t
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err :%s", err))
 	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SendTransWithSecretApi err : http status=%d, body=%s", statusCode, string(body)))
-	}
+
 }
 
 // Withdraw :
@@ -242,13 +226,11 @@ func (node *PhotonNode) Withdraw(channelIdentifier string, withdrawAmount int32)
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("WithdrawApi err :%s", err))
 	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("WithdrawApi err : http status=%d,body=%s", statusCode, string(body)))
-	}
+
 }
 
 // Close :
@@ -267,12 +249,9 @@ func (node *PhotonNode) Close(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("CloseApi err : http status=%d,body=%s", statusCode, string(body))
 	}
 	return nil
 }
@@ -291,12 +270,9 @@ func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		return fmt.Errorf("SettleApi err :%s", err)
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("SettleApi err : http status=%d,body=%s", statusCode, string(body))
 	}
 	return nil
 }
@@ -315,12 +291,9 @@ func (node *PhotonNode) CooperateSettle(channelIdentifier string, waitSeconds ..
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CooperateSettle err :%s", err)
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("CooperateSettle err : http status=%d,body=%s", statusCode, string(body))
 	}
 	var ws int
 	if len(waitSeconds) > 0 {
@@ -365,15 +338,12 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 		Payload: string(p),
 		Timeout: time.Second * 60,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("OpenChannelApi %s err : http status=%d body=%s err=%s", req.FullURL, statusCode, string(body), err.Error()))
+		Logger.Println(fmt.Sprintf("OpenChannelApi %s err :   body=%s err=%s", req.FullURL, string(body), err.Error()))
 		return err
 	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("OpenChannelApi %s err : http status=%d body=%s ", req.FullURL, statusCode, string(body)))
-		return fmt.Errorf("http status=%d", statusCode)
-	}
+
 	return err
 }
 
@@ -399,13 +369,9 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("DepositApi %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
-		return fmt.Errorf("http status=%d", statusCode)
 	}
 	return err
 }
@@ -438,13 +404,9 @@ func (node *PhotonNode) UpdateMeshNetworkNodes(nodes ...*PhotonNode) {
 		Payload: string(p),
 		Timeout: time.Second * 5,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err :%s", req.FullURL, err))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("UpdateMeshNetworkNodes %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
-		return
 	}
 	return
 }
@@ -457,14 +419,11 @@ func (node *PhotonNode) SetFeePolicy(fp *models.FeePolicy) error {
 		Payload: marshal(fp),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SetFeePolicy %s err :%s", req.FullURL, err))
 	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("SetFeePolicy %s err : http status=%d,body=%s", req.FullURL, statusCode, string(body)))
-		return fmt.Errorf("http status=%d", statusCode)
-	}
+
 	return err
 }
 
@@ -492,12 +451,9 @@ func (node *PhotonNode) AllowSecret(secretHash, token string) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("AllowSecret err :%s", err))
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("AllowSecret err : http status=%d,body=%s", statusCode, string(body)))
 	}
 }
 
@@ -513,14 +469,9 @@ func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) 
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("GenerateSecret err :%s", err))
-		return
-	}
-	if statusCode != 200 {
-		Logger.Println(fmt.Sprintf("GenerateSecret err : http status=%d,body=%s", statusCode, string(body)))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &rs)
@@ -539,14 +490,9 @@ func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err erro
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("GetSentTransfers err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("GetSentTransfers err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &trs)
@@ -563,14 +509,9 @@ func (node *PhotonNode) GetReceivedTransfers() (trs []*models.ReceivedTransfer, 
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("GetReceivedTransfers err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("GetReceivedTransfers err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &trs)
@@ -587,14 +528,9 @@ func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status 
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("GetTransferStatus err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("GetTransferStatus err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &status)
@@ -611,14 +547,9 @@ func (node *PhotonNode) CancelTransfer(token, locksecrethash string) (err error)
 		Method:  http.MethodPost,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("CancelTransfer err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("CancelTransfer err : http status=%d,body=%s", statusCode, string(body)))
-		err = fmt.Errorf("errcode=%d,body=%s", statusCode, string(body))
 		return
 	}
 	return nil
@@ -631,14 +562,9 @@ func (node *PhotonNode) GetUnfinishedReceivedTransfer(token, locksecrethash stri
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("GetUnfinishedReceivedTransfer err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("GetUnfinishedReceivedTransfer err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &resp)
@@ -655,14 +581,9 @@ func (node *PhotonNode) Tokens() (tokens []string, err error) {
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("Tokens err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("Tokens err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &tokens)
@@ -686,14 +607,9 @@ func (node *PhotonNode) TokenPartners(token string) (partners []*PartnersDataRes
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &partners)
@@ -711,14 +627,9 @@ func (node *PhotonNode) PrepareUpdate() (err error) {
 		Method:  http.MethodPost,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("PrepareUpdate err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("PrepareUpdate err : http status=%d,body=%s", statusCode, string(body)))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	return
@@ -750,15 +661,12 @@ func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivin
 		Payload: string(p),
 		Timeout: time.Second * 30,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TransferApi %s err :%s", req.FullURL, err))
 		return err
 	}
-	if statusCode != http.StatusCreated {
-		Logger.Println(fmt.Sprintf("TransferApi %s err : http status=%d", req.FullURL, statusCode))
-		return fmt.Errorf("TransferApi err : http status=%d,body=%s", statusCode, string(body))
-	}
+
 	return nil
 }
 
@@ -769,14 +677,9 @@ func (node *PhotonNode) SwitchNetwork(tomesh string) (err error) {
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	_, err = req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("SwitchNetwork err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("SwitchNetwork err : http status=%d,body=%s", statusCode, string(body)))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	return
@@ -790,14 +693,9 @@ func (node *PhotonNode) TokenBalance(token string) (v int, err error) {
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TokenBalance err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("TokenBalance err : http status=%d,body=%s", statusCode, string(body)))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	log.Trace(string(body))
@@ -814,14 +712,9 @@ func (node *PhotonNode) SpecifiedChannel(channelIdentifier string) (c channeltyp
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	err = json.Unmarshal(body, &c)
@@ -839,14 +732,9 @@ func (node *PhotonNode) ForceUnlock(channelIdentifier string, secret string) (er
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("TokenPartners err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("TokenPartners err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	Logger.Printf("forunlock body=%s", string(body))
@@ -861,14 +749,9 @@ func (node *PhotonNode) RegisterSecret(secret string) (err error) {
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}
-	statusCode, body, err := req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("RegisterSecret err :%s", err))
-		return
-	}
-	if statusCode < http.StatusOK || statusCode > http.StatusMultipleChoices {
-		Logger.Println(fmt.Sprintf("RegisterSecret err : http status=%d", statusCode))
-		err = fmt.Errorf("errcode=%d", statusCode)
 		return
 	}
 	Logger.Printf("RegisterSecret body=%s", string(body))
