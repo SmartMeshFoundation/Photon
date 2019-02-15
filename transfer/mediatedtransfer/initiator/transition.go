@@ -70,7 +70,8 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	for len(state.Routes.AvailableRoutes) > 0 {
 		r := state.Routes.AvailableRoutes[0]
 		state.Routes.AvailableRoutes = state.Routes.AvailableRoutes[1:]
-		if !r.CanTransfer() /*交易发起方不应该考虑收费 || r.AvailableBalance().Cmp(new(big.Int).Add(state.Transfer.TargetAmount, r.Fee)) < 0*/ {
+		//if !r.CanTransfer() /*交易发起方不应该考虑收费*/ || r.AvailableBalance().Cmp(new(big.Int).Add(state.Transfer.TargetAmount, r.Fee)) < 0 {
+		if !r.CanTransfer() || r.AvailableBalance().Cmp(state.Transfer.TargetAmount) < 0 {
 			state.Routes.IgnoredRoutes = append(state.Routes.IgnoredRoutes, r)
 		} else {
 			tryRoute = r
