@@ -5,6 +5,8 @@ import (
 
 	"encoding/json"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -31,7 +33,7 @@ const (
 	TXInfoTypeUnlock             = "Unlock"
 	TXInfoTypePunish             = "Punish"
 	TXInfoTypeWithdraw           = "Withdraw"
-	TXInfoTypeApprove            = "Approve"
+	TXInfoTypeApproveDeposit     = "ApproveDeposit"
 	TXInfoTypeRegiterSecret      = "RegisterSecret"
 )
 
@@ -102,6 +104,16 @@ func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 
 // TXParams tx的参数,自己发起的tx会带上
 type TXParams interface{}
+
+// DepositApproveTXParams 保存在ApproveTX的TXParams中,给崩溃恢复后继续deposit使用
+type DepositApproveTXParams struct {
+	//t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout)
+	TokenAddress       common.Address `json:"token_address"`
+	ParticipantAddress common.Address `json:"participant_address"`
+	PartnerAddress     common.Address `json:"partner_address"`
+	Amount             *big.Int       `json:"amount"`
+	SettleTimeout      uint64         `json:"settle_timeout"`
+}
 
 func init() {
 	gob.Register(&TXInfoSerialization{})

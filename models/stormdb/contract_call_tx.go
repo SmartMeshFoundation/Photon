@@ -25,9 +25,18 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 			var buf []byte
 			buf, err = json.Marshal(txParams)
 			if err != nil {
+				err = models.GeneratDBError(err)
 				return
 			}
 			txParamsStr = string(buf)
+		}
+	}
+	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
+		c, err2 := model.GetChannelByAddress(channelIdentifier)
+		if err2 != nil {
+			log.Error(err.Error())
+		} else {
+			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 		}
 	}
 	txInfo = &models.TXInfo{
@@ -42,6 +51,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 	err = model.db.Save(txInfo.ToTXInfoSerialization())
 	if err != nil {
 		log.Error(fmt.Sprintf("NewPendingTXInfo txhash=%s, err %s", txInfo.TXHash.String(), err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	log.Trace(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
@@ -74,6 +84,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 	err = model.db.One("TXHash", txHash[:], &tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	tis.Status = string(status)
@@ -81,6 +92,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 	err = model.db.Save(&tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s pendingBlockNumber=%d", txHash.String(), status, pendingBlockNumber))
@@ -116,6 +128,7 @@ func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumb
 	}
 	if err != nil {
 		err = fmt.Errorf("GetTXInfoList err %s", err)
+		err = models.GeneratDBError(err)
 		return
 	}
 	for _, tis := range l {

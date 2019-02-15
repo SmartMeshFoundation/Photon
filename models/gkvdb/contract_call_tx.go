@@ -25,9 +25,18 @@ func (dao *GkvDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoTy
 			var buf []byte
 			buf, err = json.Marshal(txParams)
 			if err != nil {
+				err = models.GeneratDBError(err)
 				return
 			}
 			txParamsStr = string(buf)
+		}
+	}
+	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
+		c, err2 := dao.GetChannelByAddress(channelIdentifier)
+		if err2 != nil {
+			log.Error(err.Error())
+		} else {
+			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 		}
 	}
 	txInfo = &models.TXInfo{
@@ -43,6 +52,7 @@ func (dao *GkvDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoTy
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("NewPendingTXInfo txhash=%s, err %s", txInfo.TXHash.String(), err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	log.Trace(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
@@ -75,6 +85,7 @@ func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoSta
 	err = dao.getKeyValueToBucket(models.BucketTXInfo, txHash[:], &tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	tis.Status = string(status)
@@ -82,6 +93,7 @@ func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoSta
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))
+		err = models.GeneratDBError(err)
 		return
 	}
 	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s pendingBlockNumber=%d", txHash.String(), status, pendingBlockNumber))
@@ -94,6 +106,7 @@ func (dao *GkvDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber i
 	var tb *gkvdb.Table
 	tb, err = dao.db.Table(models.BucketTXInfo)
 	if err != nil {
+		err = models.GeneratDBError(err)
 		return
 	}
 	buf := tb.Values(-1)
