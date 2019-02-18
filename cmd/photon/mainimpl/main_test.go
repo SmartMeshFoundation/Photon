@@ -172,7 +172,7 @@ func TestVerifyContractCode(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client, notify.NewNotifyHandler(), nil)
+	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client, notify.NewNotifyHandler(), &rpc.FakeTXINfoDao{})
 	if err != nil {
 		t.Error(err.Error())
 		return

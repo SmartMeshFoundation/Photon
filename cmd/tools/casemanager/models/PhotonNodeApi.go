@@ -252,7 +252,6 @@ func (node *PhotonNode) Close(channelIdentifier string, waitSeconds ...int) (err
 	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
-		return err
 	}
 	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
 	ch := channeltype.ChannelDataDetail{}
@@ -298,7 +297,6 @@ func (node *PhotonNode) Settle(channelIdentifier string, waitSeconds ...int) (er
 	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("SettleApi err :%s", err)
-		return err
 	}
 	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
 	ch := channeltype.ChannelDataDetail{}
