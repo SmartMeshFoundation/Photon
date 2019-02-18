@@ -773,23 +773,6 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	tr.FakeLockSecretHash = utils.NewRandomHash()
 	log.Trace(fmt.Sprintf("send direct transfer, use fake lockSecertHash %s to trace transfer status", tr.FakeLockSecretHash.String()))
 	//// 构造SentTransferDetail
-	//blockNumber := rs.BlockNumber.Load().(int64)
-	//std := &models.SentTransferDetail{
-	//	Key:           utils.EmptyHash.String(),
-	//	BlockNumber:   blockNumber,
-	//	TokenAddress:  tokenAddress,
-	//	TargetAddress: target,
-	//	Amount:        amount,
-	//	Data:          data,
-	//	IsDircet:      true,
-	//	//SendingTime:   time.Now().Unix(),
-	//	//FinishTime:    time.Now().Unix(),
-	//	Status:            models.TransferStatusInit,
-	//	StatusMessage:     "",
-	//	ChannelIdentifier: utils.EmptyHash,
-	//	OpenBlockNumber:   0,
-	//	Nonce:             0,
-	//}
 	//rs.dao.NewSentTransferDetail(tokenAddress, target, amount, data, true, tr.FakeLockSecretHash)
 	rs.dao.NewTransferStatus(tokenAddress, tr.FakeLockSecretHash)
 	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
