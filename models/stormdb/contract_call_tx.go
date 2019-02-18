@@ -6,6 +6,8 @@ import (
 
 	"encoding/json"
 
+	"strings"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -117,9 +119,22 @@ func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumb
 		selectList = append(selectList, q.Eq("OpenBlockNumber", openBlockNumber))
 	}
 	if txType != "" {
-		selectList = append(selectList, q.Eq("Type", txType))
+		txTypeStr := string(txType)
+		if strings.Contains(txTypeStr, ",") {
+			ss := strings.Split(txTypeStr, ",")
+			selectList = append(selectList, q.In("Type", ss))
+		} else {
+			selectList = append(selectList, q.Eq("Type", txType))
+		}
 	}
 	if status != "" {
+		txStatusStr := string(status)
+		if strings.Contains(txStatusStr, ",") {
+			ss := strings.Split(txStatusStr, ",")
+			selectList = append(selectList, q.In("Status", ss))
+		} else {
+			selectList = append(selectList, q.Eq("Status", status))
+		}
 		selectList = append(selectList, q.Eq("Status", status))
 	}
 	var l []*models.TXInfoSerialization

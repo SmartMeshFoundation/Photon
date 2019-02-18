@@ -772,6 +772,8 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	*/
 	tr.FakeLockSecretHash = utils.NewRandomHash()
 	log.Trace(fmt.Sprintf("send direct transfer, use fake lockSecertHash %s to trace transfer status", tr.FakeLockSecretHash.String()))
+	//// 构造SentTransferDetail
+	//rs.dao.NewSentTransferDetail(tokenAddress, target, amount, data, true, tr.FakeLockSecretHash)
 	rs.dao.NewTransferStatus(tokenAddress, tr.FakeLockSecretHash)
 	err = rs.sendAsync(directChannel.PartnerState.Address, tr)
 	if err != nil {
@@ -1827,6 +1829,19 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 				return
 			}
 		}
+		retry := 0
+		for {
+			channel := rs.getChannelWithAddr(channelIdentifier)
+			if channel.State != channeltype.StateClosed {
+				time.Sleep(time.Second)
+				retry++
+				if retry > 10 {
+					break
+				}
+				continue
+			}
+			break
+		}
 		if !isSecretRegistered {
 			// register
 			err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
@@ -1834,6 +1849,23 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 				result.Result <- rerr.ErrRegisterSecret.Errorf("ForceUnlock : register secret fail %s", err.Error())
 				return
 			}
+			retry = 0
+			for {
+				isSecretRegistered, err = rs.Chain.SecretRegistryProxy.IsSecretRegistered(secret)
+				if err != nil {
+					result.Result <- rerr.ErrRegisterSecret.Errorf("ForceUnlock : register secret fail %s", err.Error())
+					return
+				}
+				if isSecretRegistered {
+					break
+				}
+				retry++
+				if retry > 10 {
+					break
+				}
+				time.Sleep(time.Second)
+			}
+
 		}
 		// unlock
 		log.Trace(fmt.Sprintf("forceUnlock unlock : partnerAddress=%s, transferAmount=%d, expiration=%d, amount=%d,lockSecretHash=%s,proof=%s lockHash=%s \n",

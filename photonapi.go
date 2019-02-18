@@ -1179,8 +1179,8 @@ type ContractCallTXQueryParams struct {
 func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*models.TXInfo, err error) {
 	channelIdentifier := utils.EmptyHash
 	openBlockNumber := int64(0)
-	var txType models.TXInfoType = ""
-	var txStatus models.TXInfoStatus = ""
+	var txType models.TXInfoType
+	var txStatus models.TXInfoStatus
 	if req.ChannelIdentifier != "" {
 		channelIdentifier = common.HexToHash(req.ChannelIdentifier)
 	}

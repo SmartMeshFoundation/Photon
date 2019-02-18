@@ -252,7 +252,6 @@ func (node *PhotonNode) Close(channelIdentifier string, waitSeconds ...int) (err
 	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
-		return err
 	}
 	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
 	ch := channeltype.ChannelDataDetail{}
@@ -298,9 +297,8 @@ func (node *PhotonNode) Settle(channelIdentifier string, waitSeconds ...int) (er
 	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("SettleApi err :%s", err)
-		return err
 	}
-	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	Logger.Println(fmt.Sprintf("settle channel returned=%s", string(body)))
 	ch := channeltype.ChannelDataDetail{}
 	err = json.Unmarshal(body, &ch)
 	if err != nil {
@@ -316,8 +314,8 @@ func (node *PhotonNode) Settle(channelIdentifier string, waitSeconds ...int) (er
 	for i = 0; i < ws; i++ {
 		time.Sleep(time.Second)
 		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
-		//找到这个channel了才返回
-		if err == nil {
+		//找不到到这个channel了才返回
+		if err != nil {
 			break
 		}
 	}

@@ -978,7 +978,7 @@ func (a *API) FindPath(targetStr, tokenStr, amountStr string) (result string) {
 }
 
 /*
-ContractCallTXQuery 合约调用TX查询接口,4个参数均可传空值,空值即为不限制
+ContractCallTXQuery 合约调用TX查询接口,4个参数均可传空值,空值即为不限制,4个参数对应的查询条件关系为and
 channelIdentifierStr 有值时按通道ID查询
 openBlockNumber 有值时按通道OpenBlockNumber查询,一般配合channelIdentifierStr参数一起使用,以精确定位到某一个通道
 txTypeStr 有值时按tx类型查询,取值:
