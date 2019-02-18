@@ -1827,6 +1827,19 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 				return
 			}
 		}
+		retry := 0
+		for {
+			channel := rs.getChannelWithAddr(channelIdentifier)
+			if channel.State != channeltype.StateClosed {
+				time.Sleep(time.Second)
+				retry++
+				if retry > 10 {
+					break
+				}
+				continue
+			}
+			break
+		}
 		if !isSecretRegistered {
 			// register
 			err = rs.Chain.SecretRegistryProxy.RegisterSecret(secret)
