@@ -75,30 +75,41 @@ func ContractCallError(err error) StandardError {
 	return ErrUnkownSpectrumRPCError.AppendError(err)
 }
 
+var m = make(map[int]struct{})
+
+func newError(errCode int, errMsg string) StandardError {
+	_, ok := m[errCode]
+	if ok {
+		panic(fmt.Sprintf("errCode %d already exist ", errCode))
+	}
+	m[errCode] = struct{}{}
+	return StandardError{errCode, errMsg}
+}
+
 var (
 	//ErrSuccess 成功
-	ErrSuccess = StandardError{ErrorCode: 0, ErrorMsg: "success"}
+	ErrSuccess = newError(0, "success")
 	//ErrUnrecognized 未知错误,
-	ErrUnrecognized = StandardError{ErrorCode: -1, ErrorMsg: "unknown error"}
+	ErrUnrecognized = newError(-1, "unknown error")
 	//ErrArgumentError 参数错误
-	ErrArgumentError = StandardError{ErrorCode: 1, ErrorMsg: "ArgumentError"}
+	ErrArgumentError = newError(1, "ArgumentError")
 	//ErrPhotonAlreadyRunning 启动了多个photon实例
-	ErrPhotonAlreadyRunning = StandardError{ErrorCode: 2, ErrorMsg: "PhotonAlreadyRunning"}
+	ErrPhotonAlreadyRunning = newError(2, "PhotonAlreadyRunning")
 	//ErrHashLengthNot32  参数错误
-	ErrHashLengthNot32 = StandardError{ErrorCode: 1000, ErrorMsg: "HashLengthNot32"}
+	ErrHashLengthNot32 = newError(1000, "HashLengthNot32")
 	/*ErrNotFound Raised when something not found
 	 */
-	ErrNotFound = StandardError{ErrorCode: 1001, ErrorMsg: "Not found"}
+	ErrNotFound = newError(1001, "Not found")
 	/*ErrInsufficientBalance Raised when the netting channel doesn't enough available capacity to
 	  pay for the transfer.
 
 	  Used for the validation of an *incoming* messages.
 	*/
-	ErrInsufficientBalance = StandardError{ErrorCode: 1002, ErrorMsg: "InsufficientBalance"}
+	ErrInsufficientBalance = newError(1002, "InsufficientBalance")
 	/*ErrInvalidAmount Raised when the user provided value is not a integer and cannot be used
 	  to defined a transfer value
 	*/
-	ErrInvalidAmount = StandardError{ErrorCode: 1003, ErrorMsg: "InvalidAmount"}
+	ErrInvalidAmount = newError(1003, "InvalidAmount")
 
 	/*ErrNoPathError Raised when there is no path to the requested target address in the
 	  payment network.
@@ -107,61 +118,61 @@ var (
 	  reach the target, it's not used if there is a path but the transfre failed
 	  because of the lack of capacity or network problems.
 	*/
-	ErrNoPathError = StandardError{ErrorCode: 1005, ErrorMsg: "NoPathError"}
+	ErrNoPathError = newError(1005, "NoPathError")
 	/*ErrSamePeerAddress Raised when a user tries to create a channel where the address of both
 	  peers is the same.
 	*/
-	ErrSamePeerAddress = StandardError{ErrorCode: 1006, ErrorMsg: "SamePeerAddress"}
+	ErrSamePeerAddress = newError(1006, "SamePeerAddress")
 	/*ErrInvalidState Raised when the user requested action cannot be done due to the current
 	  state of the channel.
 	*/
-	ErrInvalidState = StandardError{ErrorCode: 1007, ErrorMsg: "InvalidState"}
+	ErrInvalidState = newError(1007, "InvalidState")
 	//ErrTransferWhenClosed Raised when a user tries to request a transfer is a closed channel.
-	ErrTransferWhenClosed = StandardError{ErrorCode: 1008, ErrorMsg: "TransferWhenClosed"}
+	ErrTransferWhenClosed = newError(1008, "TransferWhenClosed")
 	/*ErrUnknownAddress Raised when the user provided address is valid but is not from a known
 	  node.
 	*/
-	ErrUnknownAddress = StandardError{ErrorCode: 1009, ErrorMsg: "UnknownAddress"}
+	ErrUnknownAddress = newError(1009, "UnknownAddress")
 	/*ErrInvalidLocksRoot Raised when the received message has an invalid locksroot.
 
 	  Used to reject a message when a pending lock is missing from the locksroot,
 	  otherwise if the message is accepted there is a pontential loss of token.
 	*/
-	ErrInvalidLocksRoot = StandardError{ErrorCode: 1010, ErrorMsg: "Locksroot mismatch"}
+	ErrInvalidLocksRoot = newError(1010, "Locksroot mismatch")
 	/*ErrInvalidNonce Raised when the received messages has an invalid value for the nonce.
 
 	  The nonce field must change incrementally
 	*/
-	ErrInvalidNonce = StandardError{ErrorCode: 1011, ErrorMsg: "InvalidNonce"}
+	ErrInvalidNonce = newError(1011, "InvalidNonce")
 
 	/*ErrTransferUnwanted Raised when the node is not receiving new transfers.
 	 */
-	ErrTransferUnwanted = StandardError{ErrorCode: 1012, ErrorMsg: "TransferUnwanted"}
+	ErrTransferUnwanted = newError(1012, "TransferUnwanted")
 	// ErrStopCreateNewTransfer reject new transactions
-	ErrStopCreateNewTransfer = StandardError{ErrorCode: 1013, ErrorMsg: "new transactions are not allowed"}
+	ErrStopCreateNewTransfer = newError(1013, "new transactions are not allowed")
 
 	//ErrNotAllowMediatedTransfer not allow mediated transfer when mesh
-	ErrNotAllowMediatedTransfer = StandardError{ErrorCode: 1014, ErrorMsg: "no mediated transfer on mesh only network"}
+	ErrNotAllowMediatedTransfer = newError(1014, "no mediated transfer on mesh only network")
 	//ErrDuplicateTransfer token和secret相同的交易
-	ErrDuplicateTransfer = StandardError{ErrorCode: 1015, ErrorMsg: "secret and token cannot duplicate"}
+	ErrDuplicateTransfer = newError(1015, "secret and token cannot duplicate")
 	//ErrNodeNotOnline 发送消息时,对方不在线
-	ErrNodeNotOnline = StandardError{ErrorCode: 1016, ErrorMsg: "NodeOffline"}
+	ErrNodeNotOnline = newError(1016, "NodeOffline")
 	//ErrTransferCannotCancel 试图取消已经泄露秘密的交易
-	ErrTransferCannotCancel = StandardError{ErrorCode: 1017, ErrorMsg: "TranasferCannotCancel"}
+	ErrTransferCannotCancel = newError(1017, "TranasferCannotCancel")
 	/*
 		DB error
 	*/
 
 	//ErrGeneralDBError 未归类数据库错误,需要进一步细化
-	ErrGeneralDBError = StandardError{ErrorCode: 1018, ErrorMsg: "DBError"}
+	ErrGeneralDBError = newError(1018, "DBError")
 	//ErrDBDuplicateKey 重复的key
-	ErrDBDuplicateKey = StandardError{ErrorCode: 1019, ErrorMsg: "duplicate key"}
+	ErrDBDuplicateKey = newError(1019, "duplicate key")
 	//ErrTransferTimeout 交易超时,不代表交易肯定会成功或者失败,只是在给定时间内交易没有成功而已
-	ErrTransferTimeout = StandardError{ErrorCode: 1020, ErrorMsg: "ErrTransferTimeout"}
+	ErrTransferTimeout = newError(1020, "ErrTransferTimeout")
 	//ErrUpdateButHaveTransfer 试图升级,发现还有交易在进行
-	ErrUpdateButHaveTransfer = StandardError{ErrorCode: 1021, ErrorMsg: "ErrUpdateButHaveTransfer"}
+	ErrUpdateButHaveTransfer = newError(1021, "ErrUpdateButHaveTransfer")
 	//ErrNotChargeFee 进行与收费相关的操作,但是没有启用收费
-	ErrNotChargeFee = StandardError{ErrorCode: 1022, ErrorMsg: "ErrNotChargeFee"}
+	ErrNotChargeFee = newError(1022, "ErrNotChargeFee")
 	/*
 		以太坊报公链节点报的错误
 
@@ -169,7 +180,7 @@ var (
 	*/
 
 	//ErrInsufficientBalanceForGas gas problem
-	ErrInsufficientBalanceForGas = StandardError{ErrorCode: 2000, ErrorMsg: "insufficient balance to pay for gas"}
+	ErrInsufficientBalanceForGas = newError(2000, "insufficient balance to pay for gas")
 
 	/*
 		Tx 相关
@@ -177,119 +188,119 @@ var (
 	*/
 
 	//ErrCloseChannel 链上执行关闭通道时发生了错误
-	ErrCloseChannel = StandardError{ErrorCode: 2001, ErrorMsg: "closeChannel"}
+	ErrCloseChannel = newError(2001, "closeChannel")
 	//ErrRegisterSecret 链上注册密码的时候发生了错误
-	ErrRegisterSecret = StandardError{ErrorCode: 2002, ErrorMsg: "RegisterSecret"}
+	ErrRegisterSecret = newError(2002, "RegisterSecret")
 	//ErrUnlock 链上unlock的时候发生了错误
-	ErrUnlock = StandardError{ErrorCode: 2003, ErrorMsg: "Unlock"}
+	ErrUnlock = newError(2003, "Unlock")
 	//ErrUpdateBalanceProof 链上提交balance proof发生错误
-	ErrUpdateBalanceProof = StandardError{ErrorCode: 2004, ErrorMsg: "UpdateBalanceProof"}
+	ErrUpdateBalanceProof = newError(2004, "UpdateBalanceProof")
 	//ErrPunish 链上执行punish的时候发生错误
-	ErrPunish = StandardError{ErrorCode: 2005, ErrorMsg: "punish"}
+	ErrPunish = newError(2005, "punish")
 	//ErrSettle 链上执行settle操作的时候发生错误
-	ErrSettle = StandardError{ErrorCode: 2006, ErrorMsg: "settle"}
+	ErrSettle = newError(2006, "settle")
 	//ErrDeposit 链上执行deposit发生错误
-	ErrDeposit = StandardError{ErrorCode: 2007, ErrorMsg: "deposit"}
+	ErrDeposit = newError(2007, "deposit")
 	//ErrSpectrumNotConnected 没有连接到公链.
-	ErrSpectrumNotConnected = StandardError{ErrorCode: 2008, ErrorMsg: "ErrSpectrumNotConnected"}
+	ErrSpectrumNotConnected = newError(2008, "ErrSpectrumNotConnected")
 	//ErrTxWaitMined waitMined return error
-	ErrTxWaitMined = StandardError{ErrorCode: 2008, ErrorMsg: "ErrTxWaitMined"}
+	ErrTxWaitMined = newError(2009, "ErrTxWaitMined")
 	//ErrTxReceiptStatus tx 被打包了,但是结果失败
-	ErrTxReceiptStatus = StandardError{ErrorCode: 2009, ErrorMsg: "ErrTxReceiptStatus"}
+	ErrTxReceiptStatus = newError(2010, "ErrTxReceiptStatus")
 	//ErrSecretAlreadyRegistered 尝试连上注册密码,但是密码已经注册了
-	ErrSecretAlreadyRegistered = StandardError{ErrorCode: 2010, ErrorMsg: "ErrSecretAlreadyRegistered"}
+	ErrSecretAlreadyRegistered = newError(2011, "ErrSecretAlreadyRegistered")
 	//ErrSpectrumSyncError 连接到的公链长时间不出块或者正在同步
-	ErrSpectrumSyncError = StandardError{ErrorCode: 2011, ErrorMsg: "ErrSpectrumSyncError"}
+	ErrSpectrumSyncError = newError(2012, "ErrSpectrumSyncError")
 	//ErrSpectrumBlockError 本地已处理的块数和公链汇报块数不一致,比如我本地已经处理到了50000块,但是公链节点报告现在只有3000块
-	ErrSpectrumBlockError = StandardError{ErrorCode: 2012, ErrorMsg: "ErrSpectrumBlockError"}
+	ErrSpectrumBlockError = newError(2013, "ErrSpectrumBlockError")
 	//ErrUnkownSpectrumRPCError 其他以太坊rpc错误
-	ErrUnkownSpectrumRPCError = StandardError{ErrorCode: 2999, ErrorMsg: "unkown spectrum rpc error"}
+	ErrUnkownSpectrumRPCError = newError(2999, "unkown spectrum rpc error")
 	/*ErrTokenNotFound Raised when token not found
 	 */
-	ErrTokenNotFound = StandardError{ErrorCode: 3001, ErrorMsg: "TokenNotFound"}
+	ErrTokenNotFound = newError(3001, "TokenNotFound")
 	/*ErrChannelNotFound Raised when token not found
 	 */
-	ErrChannelNotFound = StandardError{ErrorCode: 3002, ErrorMsg: "ChannelNotFound"}
+	ErrChannelNotFound = newError(3002, "ChannelNotFound")
 	//ErrNoAvailabeRoute no availabe route
-	ErrNoAvailabeRoute = StandardError{ErrorCode: 3003, ErrorMsg: "NoAvailabeRoute"}
+	ErrNoAvailabeRoute = newError(3003, "NoAvailabeRoute")
 	//ErrTransferNotFound not found transfer
-	ErrTransferNotFound = StandardError{ErrorCode: 3004, ErrorMsg: "TransferNotFound"}
+	ErrTransferNotFound = newError(3004, "TransferNotFound")
 	//ErrChannelAlreadExist 通道已存在
-	ErrChannelAlreadExist = StandardError{ErrorCode: 3005, ErrorMsg: "ChannelAlreadExist"}
+	ErrChannelAlreadExist = newError(3005, "ChannelAlreadExist")
 	/*ErrPFS PFS Error
 	向PFS发起请求错误
 	*/
-	ErrPFS = StandardError{ErrorCode: 4000, ErrorMsg: "ErrorPFS"}
+	ErrPFS = newError(4000, "ErrorPFS")
 
 	/*
 		Channel Error
 	*/
 
 	//ErrChannelNotAllowWithdraw 通道现在不能合作取现,比如有交易在进行
-	ErrChannelNotAllowWithdraw = StandardError{ErrorCode: 5000, ErrorMsg: "CannotWithdarw"}
+	ErrChannelNotAllowWithdraw = newError(5000, "CannotWithdarw")
 	//ErrChannelState 在不能执行相应操作的通道状态,试图执行某些交易,比如在关闭的通道上发起交易
-	ErrChannelState = StandardError{ErrorCode: 5001, ErrorMsg: "ErrChannelState"}
+	ErrChannelState = newError(5001, "ErrChannelState")
 	//ErrChannelSettleTimeout 没到settle时间尝试去settle
-	ErrChannelSettleTimeout = StandardError{ErrorCode: 5002, ErrorMsg: "Channel only can settle after timeout"}
+	ErrChannelSettleTimeout = newError(5002, "Channel only can settle after timeout")
 	//ErrChannelNotParticipant 给定地址不是通道的任何参与一方
-	ErrChannelNotParticipant = StandardError{ErrorCode: 5003, ErrorMsg: "NotParticipant"}
+	ErrChannelNotParticipant = newError(5003, "NotParticipant")
 	//ErrChannelLockSecretHashNotFound 通道中没有相应的锁
-	ErrChannelLockSecretHashNotFound = StandardError{ErrorCode: 5004, ErrorMsg: "ChannelNoSuchLock"}
+	ErrChannelLockSecretHashNotFound = newError(5004, "ChannelNoSuchLock")
 	//ErrChannelEndStateNoSuchLock 通道当前参与方中找不到相应的锁
-	ErrChannelEndStateNoSuchLock = StandardError{ErrorCode: 5005, ErrorMsg: "ErrChannelEndStateNoSuchLock"}
+	ErrChannelEndStateNoSuchLock = newError(5005, "ErrChannelEndStateNoSuchLock")
 	//ErrChannelLockAlreadyExpired 通道中锁已过期
-	ErrChannelLockAlreadyExpired = StandardError{ErrorCode: 5006, ErrorMsg: "ErrChannelLockAlreadyExpired"}
+	ErrChannelLockAlreadyExpired = newError(5006, "ErrChannelLockAlreadyExpired")
 	//ErrChannelBalanceDecrease 发生了降低通道balance(指的是合约中的balance)的行为
-	ErrChannelBalanceDecrease = StandardError{ErrorCode: 5007, ErrorMsg: "ErrChannelBalanceDecrease"}
+	ErrChannelBalanceDecrease = newError(5007, "ErrChannelBalanceDecrease")
 	//ErrChannelTransferAmountMismatch 收到的交易中transferamount不匹配
-	ErrChannelTransferAmountMismatch = StandardError{ErrorCode: 5008, ErrorMsg: "ErrChannelTransferAmountMismatch"}
+	ErrChannelTransferAmountMismatch = newError(5008, "ErrChannelTransferAmountMismatch")
 	//ErrChannelBalanceProofAlreadyRegisteredOnChain  已经提交过balanceproof以后试图修改本地balance proof
-	ErrChannelBalanceProofAlreadyRegisteredOnChain = StandardError{ErrorCode: 5009, ErrorMsg: "ErrChannelBalanceProofAlreadyRegisteredOnChain"}
+	ErrChannelBalanceProofAlreadyRegisteredOnChain = newError(5009, "ErrChannelBalanceProofAlreadyRegisteredOnChain")
 	//ErrChannelDuplicateLock 通道中已存在该密码的锁
-	ErrChannelDuplicateLock = StandardError{ErrorCode: 5010, ErrorMsg: "ErrChannelDuplicateLock"}
+	ErrChannelDuplicateLock = newError(5010, "ErrChannelDuplicateLock")
 	//ErrChannelTransferAmountDecrease 收到交易,TransferAmount变小了
-	ErrChannelTransferAmountDecrease = StandardError{ErrorCode: 5011, ErrorMsg: "ErrChannelTransferAmountDecrease"}
+	ErrChannelTransferAmountDecrease = newError(5011, "ErrChannelTransferAmountDecrease")
 	//ErrRemoveNotExpiredLock 试图移除没有过期的锁
-	ErrRemoveNotExpiredLock = StandardError{ErrorCode: 5012, ErrorMsg: "ErrRemoveNotExpiredLock"}
+	ErrRemoveNotExpiredLock = newError(5012, "ErrRemoveNotExpiredLock")
 	//ErrUpdateBalanceProofAfterClosed 试图在通道关闭以后还更新对方或者我的balance proof,基本意思和ErrChannelBalanceProofAlreadyRegisteredOnChain一样
-	ErrUpdateBalanceProofAfterClosed = StandardError{ErrorCode: 5013, ErrorMsg: "ErrUpdateBalanceProofAfterClosed"}
+	ErrUpdateBalanceProofAfterClosed = newError(5013, "ErrUpdateBalanceProofAfterClosed")
 	//ErrChannelIdentifierMismatch 通道id不匹配
-	ErrChannelIdentifierMismatch = StandardError{ErrorCode: 5014, ErrorMsg: "ErrChannelIdentifierMismatch"}
+	ErrChannelIdentifierMismatch = newError(5014, "ErrChannelIdentifierMismatch")
 	//ErrChannelInvalidSender 收到来自未知参与方的交易
-	ErrChannelInvalidSender = StandardError{ErrorCode: 5015, ErrorMsg: "ErrChannelInvalidSender"}
+	ErrChannelInvalidSender = newError(5015, "ErrChannelInvalidSender")
 	//ErrChannelBalanceNotMatch  合作关闭通道,取现时金额检查不匹配,
-	ErrChannelBalanceNotMatch = StandardError{ErrorCode: 5016, ErrorMsg: "ErrChannelBalanceNotMatch"}
+	ErrChannelBalanceNotMatch = newError(5016, "ErrChannelBalanceNotMatch")
 	//ErrChannelLockMisMatch 收到交易中指定的锁和本地不匹配
-	ErrChannelLockMisMatch = StandardError{ErrorCode: 5017, ErrorMsg: "ErrChannelLockMisMatch"}
+	ErrChannelLockMisMatch = newError(5017, "ErrChannelLockMisMatch")
 	//ErrChannelWithdrawAmount  合作取现的金额过大
-	ErrChannelWithdrawAmount = StandardError{ErrorCode: 5018, ErrorMsg: "ErrChannelWithdrawAmount"}
+	ErrChannelWithdrawAmount = newError(5018, "ErrChannelWithdrawAmount")
 	//ErrChannelLockExpirationTooLarge 收到交易,指定的过期时间太长了,这可能是一种攻击
-	ErrChannelLockExpirationTooLarge = StandardError{ErrorCode: 5019, ErrorMsg: "ErrChannelLockExpirationTooLarge"}
+	ErrChannelLockExpirationTooLarge = newError(5019, "ErrChannelLockExpirationTooLarge")
 	//ErrChannelRevealTimeout 指定的reveal timeout 非法
-	ErrChannelRevealTimeout = StandardError{ErrorCode: 5020, ErrorMsg: "ErrChannelRevealTimeout"}
+	ErrChannelRevealTimeout = newError(5020, "ErrChannelRevealTimeout")
 	//ErrChannelBalanceProofNil balanceproof为空
-	ErrChannelBalanceProofNil = StandardError{ErrorCode: 5021, ErrorMsg: "ErrChannelBalanceProofNil"}
+	ErrChannelBalanceProofNil = newError(5021, "ErrChannelBalanceProofNil")
 	//ErrChannelCloseClosedChannel 试图关闭已经关闭的通道
-	ErrChannelCloseClosedChannel = StandardError{ErrorCode: 5022, ErrorMsg: "ErrChannelCloseClosedChannel"}
+	ErrChannelCloseClosedChannel = newError(5022, "ErrChannelCloseClosedChannel")
 	//ErrChannelBackgroundTx 后台执行Tx发生错误
-	ErrChannelBackgroundTx = StandardError{ErrorCode: 5023, ErrorMsg: "ErrChannelBackgroundTx"}
+	ErrChannelBackgroundTx = newError(5023, "ErrChannelBackgroundTx")
 
 	/*ErrChannelWithdrawButHasLocks : we can't send a request for withdraw when there are locks.
 	 */
-	ErrChannelWithdrawButHasLocks = StandardError{ErrorCode: 5014, ErrorMsg: "ErrChannelWithdrawButHasLocks"}
+	ErrChannelWithdrawButHasLocks = newError(5024, "ErrChannelWithdrawButHasLocks")
 	/*ErrChannelCooperativeSettleButHasLocks : we can't send a request for settle when there are locks.
 	 */
-	ErrChannelCooperativeSettleButHasLocks = StandardError{ErrorCode: 5015, ErrorMsg: "ErrChannelCooperativeSettleButHasLocks"}
+	ErrChannelCooperativeSettleButHasLocks = newError(5025, "ErrChannelCooperativeSettleButHasLocks")
 	/*ErrChannelInvalidSttleTimeout Raised when the user provided timeout value is less than the minimum
 	  settle timeout
 	*/
-	ErrChannelInvalidSttleTimeout = StandardError{ErrorCode: 5003, ErrorMsg: "ErrInvalidSettleTimeout"}
+	ErrChannelInvalidSttleTimeout = newError(5026, "ErrInvalidSettleTimeout")
 	/*
 		Transport error
 	*/
 
 	//ErrTransportTypeUnknown  未知的transport层错误,
-	ErrTransportTypeUnknown = StandardError{ErrorCode: 6000, ErrorMsg: "transport type error"}
+	ErrTransportTypeUnknown = newError(6000, "transport type error")
 	//ErrSubScribeNeighbor 订阅节点在线信息错误
-	ErrSubScribeNeighbor = StandardError{ErrorCode: 6001, ErrorMsg: "ErrSubScribeNeighbor"}
+	ErrSubScribeNeighbor = newError(6001, "ErrSubScribeNeighbor")
 )
