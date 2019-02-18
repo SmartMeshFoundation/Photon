@@ -206,11 +206,13 @@ func (cg *ChannelGraph) ShortestPath(source, target common.Address, amount *big.
 	}
 	for _, v := range g2.Verticies {
 		w := feeCharger.GetNodeChargeFee(cg.index2address[v.ID], cg.TokenAddress, amount).Int64()
-		//log.Trace(fmt.Sprintf(fmt.Sprintf("setfee node=%s,fee=%d", cg.index2address[v.ID].String(), w)))
+		log.Trace(fmt.Sprintf(fmt.Sprintf("setfee node=%s,fee=%d", cg.index2address[v.ID].String(), w)))
 		if w > 0 { //for no fee policy, all nodes charge 0 ,so use the shortest path first.
 			v.SetWeight(w) // from v's fee is w.
 		}
 	}
+	log.Trace(fmt.Sprintf("g2=%s", utils.StringInterface(g2, 20)))
+	log.Trace(fmt.Sprintf("index2address=%s", utils.StringInterface(cg.index2address, 5)))
 	path, err := g2.Shortest(sourceIndex, targetIndex)
 	if err != nil {
 		return
