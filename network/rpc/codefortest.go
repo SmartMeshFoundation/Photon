@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/notify"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -27,6 +29,29 @@ var TestRPCEndpoint = os.Getenv("ETHRPCENDPOINT")
 
 //TestPrivKey for test only
 var TestPrivKey *ecdsa.PrivateKey
+
+// FakeTXINfoDao only for test
+type FakeTXINfoDao struct{}
+
+// NewPendingTXInfo :
+func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+	return
+}
+
+// SaveEventToTXInfo :
+func (dao *FakeTXINfoDao) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInfo, err error) {
+	return
+}
+
+// UpdateTXInfoStatus :
+func (dao *FakeTXINfoDao) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64) (err error) {
+	return
+}
+
+// GetTXInfoList :
+func (dao *FakeTXINfoDao) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
+	return
+}
 
 func init() {
 	if encoding.IsTest {
@@ -51,7 +76,7 @@ func MakeTestBlockChainService() *BlockChainService {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to the Ethereum client: %s\n", err))
 	}
-	bcs, err := NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), nil)
+	bcs, err := NewBlockChainService(TestPrivKey, PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), &FakeTXINfoDao{})
 	if err != nil {
 		panic(err)
 	}

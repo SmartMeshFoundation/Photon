@@ -8,7 +8,7 @@ import (
 
 	"path/filepath"
 
-	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"

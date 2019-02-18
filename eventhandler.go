@@ -655,6 +655,10 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 		return err
 	}
 	err = eh.photon.dao.RemoveNonParticipantChannel(ch.ChannelIdentifier.ChannelIdentifier)
+	/*
+		通知上层
+	*/
+	eh.photon.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
