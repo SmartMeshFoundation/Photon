@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -109,35 +110,41 @@ func (t *TokenProxy) TransferAsync(spender common.Address, value *big.Int) (resu
 }
 
 //TransferWithFallback ERC223 TokenFallback,进入缓冲池以后就认为不可能会失败,不等待打包
-func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, extraData []byte) (err error) {
+func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, extraData []byte, txParams *models.DepositTXParams) (err error) {
 	tx, err := t.Token.Transfer(t.bcs.Auth, to, value, extraData)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	go func() {
-		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			//todo 异步通知App?
-			//rerr.ErrTxWaitMined.AppendError(err)
-			log.Error(fmt.Sprintf("TransferWithFallback to=%s,value=%s extradata=%s,err=%s",
-				utils.APex2(to), value, hex.EncodeToString(extraData), err,
-			))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			//todo 异步通知App?
-			log.Error(fmt.Sprintf("TransferWithFallback failed %s,receipt=%s", utils.APex(t.Address), receipt))
-			//rerr.ErrTxReceiptStatus.AppendError(err)
-			return
-		}
-		log.Info(fmt.Sprintf("TransferWithFallback success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(to), value, tx.Hash().String()))
-
-	}()
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//go func() {
+	//	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		//todo 异步通知App?
+	//		//rerr.ErrTxWaitMined.AppendError(err)
+	//		log.Error(fmt.Sprintf("TransferWithFallback to=%s,value=%s extradata=%s,err=%s",
+	//			utils.APex2(to), value, hex.EncodeToString(extraData), err,
+	//		))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		//todo 异步通知App?
+	//		log.Error(fmt.Sprintf("TransferWithFallback failed %s,receipt=%s", utils.APex(t.Address), receipt))
+	//		//rerr.ErrTxReceiptStatus.AppendError(err)
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("TransferWithFallback success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(to), value, tx.Hash().String()))
+	//
+	//}()
 	return nil
 }
 
 //ApproveAndCall ERC20 extend,进入缓冲池以后就认为不可能会失败,不等待打包
-func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extraData []byte) (err error) {
+func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extraData []byte, txParams *models.DepositTXParams) (err error) {
 	tx, err := t.Token.ApproveAndCall(t.bcs.Auth, spender, value, extraData)
 	if err != nil {
 		return rerr.ContractCallError(err)
@@ -145,17 +152,23 @@ func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extr
 	log.Info(fmt.Sprintf("ApproveAndCall spender=%s,value=%s,extraData=%s,txHash=%s",
 		utils.APex(spender), value, hex.EncodeToString(extraData), tx.Hash().String(),
 	))
-	go func() {
-		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			log.Error(fmt.Sprintf("ApproveAndCall waitmined err ,txhash=%s,err=%s", tx.Hash().String(), err))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Error(fmt.Sprintf("ApproveAndCall failed %s,receipt=%s", utils.APex(t.Address), receipt))
-			return
-		}
-		log.Info(fmt.Sprintf("ApproveAndCall success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(spender), value, tx.Hash().String()))
-	}()
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//go func() {
+	//	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("ApproveAndCall waitmined err ,txhash=%s,err=%s", tx.Hash().String(), err))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		log.Error(fmt.Sprintf("ApproveAndCall failed %s,receipt=%s", utils.APex(t.Address), receipt))
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("ApproveAndCall success %s,spender=%s,value=%d,txhash=%s", utils.APex(t.Address), utils.APex(spender), value, tx.Hash().String()))
+	//}()
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 
 	"bytes"
 
+	"time"
+
 	"gitee.com/johng/gkvdb/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -47,6 +49,7 @@ func (dao *GkvDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoTy
 		IsSelfCall:        true,
 		TXParams:          txParamsStr,
 		Status:            models.TXInfoStatusPending,
+		CallTime:          time.Now().Unix(),
 	}
 	tis := txInfo.ToTXInfoSerialization()
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
@@ -89,7 +92,8 @@ func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoSta
 		return
 	}
 	tis.Status = string(status)
-	tis.PendingBlockNumber = pendingBlockNumber
+	tis.PackBlockNumber = pendingBlockNumber
+	tis.PackTime = time.Now().Unix()
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))

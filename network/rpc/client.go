@@ -246,17 +246,16 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 		log.Error(err.Error())
 		return
 	}
-	// 2. 获取pendingBlockNumber
-	var pendingBlockNumber int64
-	//tx, _, err := bcs.Client.TransactionByHash(GetQueryConext(), pendingTXInfo.TXHash)
-	//if err != nil {
-	//	err = rerr.ErrTxWaitMined.AppendError(err)
-	//	log.Error(err.Error())
-	//}
+	// 2. 获取packBlockNumber
+	var packBlockNumber int64
+	if len(receipt.Logs) > 0 {
+		packBlockNumber = int64(receipt.Logs[0].BlockNumber)
+	}
+	// 3. 处理
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		// 失败处理
 		// a.记录状态到数据库
-		err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, pendingBlockNumber)
+		err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -267,7 +266,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 	// 成功处理
 	log.Info("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type)
 	// a.记录状态到数据库
-	err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, pendingBlockNumber)
+	err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
 	if err != nil {
 		log.Error(err.Error())
 	}
@@ -275,7 +274,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 	switch pendingTXInfo.Type {
 	case models.TXInfoTypeApproveDeposit: //approve成功之后需要继续调用deposit
 		// 获取保存的参数
-		var depositParams models.DepositApproveTXParams
+		var depositParams models.DepositTXParams
 		err = json.Unmarshal([]byte(pendingTXInfo.TXParams), &depositParams)
 		if err != nil {
 			log.Error(err.Error())
@@ -294,7 +293,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 		}
 		// 保存TXInfo并注册到bcs中监控其执行结果
 		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
-		txInfo, err := bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, "")
+		txInfo, err := bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, &depositParams)
 		if err != nil {
 			log.Error(err.Error())
 			break

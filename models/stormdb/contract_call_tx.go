@@ -2,6 +2,7 @@ package stormdb
 
 import (
 	"fmt"
+	"time"
 
 	"encoding/json"
 
@@ -47,6 +48,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 		IsSelfCall:        true,
 		TXParams:          txParamsStr,
 		Status:            models.TXInfoStatusPending,
+		CallTime:          time.Now().Unix(),
 	}
 	err = model.db.Save(txInfo.ToTXInfoSerialization())
 	if err != nil {
@@ -88,7 +90,8 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		return
 	}
 	tis.Status = string(status)
-	tis.PendingBlockNumber = pendingBlockNumber
+	tis.PackBlockNumber = pendingBlockNumber
+	tis.PackTime = time.Now().Unix()
 	err = model.db.Save(&tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))

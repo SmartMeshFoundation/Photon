@@ -63,13 +63,25 @@ func makeNewChannelAndDepositData(participantAddress, partnerAddress common.Addr
 //注意此函数并不会等待交易打包,只要交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByApproveAndCall(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
-	return token.ApproveAndCall(t.Address, amount, data)
+	depositTXParams := &models.DepositTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout)}
+	return token.ApproveAndCall(t.Address, amount, data, depositTXParams)
 }
 
 //注意这个函数并不会等待交易打包完成才返回,只要确定交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByFallback(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
-	return token.TransferWithFallback(t.Address, amount, data)
+	depositTXParams := &models.DepositTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout)}
+	return token.TransferWithFallback(t.Address, amount, data, depositTXParams)
 }
 
 /*
@@ -85,7 +97,7 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(token.Address, t.Address, participantAddress, partnerAddress)
-	txParams := &models.DepositApproveTXParams{
+	txParams := &models.DepositTXParams{
 		TokenAddress:       t.token,
 		ParticipantAddress: participantAddress,
 		PartnerAddress:     partnerAddress,
@@ -222,7 +234,16 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -248,7 +269,16 @@ func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transf
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -278,7 +308,16 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUpdateBalanceProof, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUpdateBalanceProof, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -318,7 +357,16 @@ func (t *TokenNetworkProxy) Unlock(partnerAddr common.Address, transferAmount *b
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUnlock, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUnlock, channelID, 0, &models.UnlockTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		Expiration:         big.NewInt(lock.Expiration),
+		Amount:             lock.Amount,
+		LockSecretHash:     lock.LockSecretHash,
+		Proof:              proof,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -354,7 +402,15 @@ func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amoun
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, &models.ChannelSettleTXParams{
+		TokenAddress:     t.token,
+		P1Address:        p1Addr,
+		P1TransferAmount: p1Amount,
+		P1LocksRoot:      p1Locksroot,
+		P2Address:        p2Addr,
+		P2TransferAmount: p2Amount,
+		P2LocksRoot:      p2Locksroot,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -380,7 +436,15 @@ func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, &models.ChannelSettleTXParams{
+		TokenAddress:     t.token,
+		P1Address:        p1Addr,
+		P1TransferAmount: p1Amount,
+		P1LocksRoot:      p1Locksroot,
+		P2Address:        p2Addr,
+		P2TransferAmount: p2Amount,
+		P2LocksRoot:      p2Locksroot,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -412,7 +476,15 @@ func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance,
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeWithdraw, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeWithdraw, channelID, 0, &models.ChannelWithDrawTXParams{
+		TokenAddress: t.token,
+		P1Address:    p1Addr,
+		P2Address:    p2Addr,
+		P1Balance:    p1Balance,
+		P1Withdraw:   p1Withdraw,
+		P1Signature:  p1Signature,
+		P2Signature:  p2Signature,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -449,7 +521,14 @@ func (t *TokenNetworkProxy) PunishObsoleteUnlock(beneficiary, cheater common.Add
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, beneficiary, cheater)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypePunish, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypePunish, channelID, 0, &models.PunishObsoleteUnlockTXParams{
+		TokenAddress:     t.token,
+		Beneficiary:      beneficiary,
+		Cheater:          cheater,
+		LockHash:         lockhash,
+		ExtraHash:        extraHash,
+		CheaterSignature: cheaterSignature,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -485,7 +564,15 @@ func (t *TokenNetworkProxy) CooperativeSettle(p1Addr, p2Addr common.Address, p1B
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果
 	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
-	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeCooperateSettle, channelID, 0, "")
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeCooperateSettle, channelID, 0, &models.ChannelCooperativeSettleTXParams{
+		TokenAddress: t.token,
+		P1Address:    p1Addr,
+		P1Balance:    p1Balance,
+		P2Address:    p2Addr,
+		P2Balance:    p2Balance,
+		P1Signature:  p1Signature,
+		P2Signature:  p2Signatue,
+	})
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}

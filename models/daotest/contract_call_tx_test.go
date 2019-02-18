@@ -85,5 +85,5 @@ func TestModelDB_ContractCallTX(t *testing.T) {
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 	assert.EqualValues(t, models.TXInfoStatusSuccess, list[0].Status)
-	assert.EqualValues(t, 2, list[0].PendingBlockNumber)
+	assert.EqualValues(t, 2, list[0].PackBlockNumber)
 }

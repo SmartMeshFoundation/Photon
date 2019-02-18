@@ -47,7 +47,9 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 		return rerr.ContractCallError(err)
 	}
 	// 保存TXInfo并注册到bcs中监控其执行结果, 这里不好获取channelID,暂时先不存,用到的时候再说 TODO
-	txInfo, err := s.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeRegiterSecret, utils.EmptyHash, 0, "")
+	txInfo, err := s.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeRegisterSecret, utils.EmptyHash, 0, &models.SecretRegisterTxParams{
+		Secret: secret,
+	})
 	if err != nil {
 		return rerr.ErrGeneralDBError
 	}
