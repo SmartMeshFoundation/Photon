@@ -1062,7 +1062,7 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	rs.Transfer2StateManager[smkey] = stateManager
 	rs.StateMachineEventHandler.dispatch(stateManager, initTarget)
 	// notify upper
-	rs.NotifyHandler.NotifyReceiveMediatedTransfer(msg, ch)
+	rs.NotifyHandler.NotifyReceiveMediatedTransfer(msg, ch.TokenAddress)
 }
 
 func (rs *Service) startHealthCheckFor(address common.Address) {

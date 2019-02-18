@@ -15,15 +15,20 @@ import (
 
 	"sync"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -61,10 +66,15 @@ type BlockChainService struct {
 	//Auth needs by call on blockchain todo remove this
 	Auth  *bind.TransactOpts
 	mlock sync.Mutex
+	// things needs by contract call
+	NotifyHandler     *notify.Handler
+	TXInfoDao         models.TXInfoDao
+	pendingTXInfoChan chan *models.TXInfo
+	quitChan          chan error
 }
 
 //NewBlockChainService create BlockChainService
-func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient) (bcs *BlockChainService, err error) {
+func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.Address, client *helper.SafeEthClient, notifyHandler *notify.Handler, txInfoDao models.TXInfoDao) (bcs *BlockChainService, err error) {
 	bcs = &BlockChainService{
 		PrivKey:             privateKey,
 		NodeAddress:         crypto.PubkeyToAddress(privateKey.PublicKey),
@@ -73,6 +83,10 @@ func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.A
 		addressChannels:     make(map[common.Address]*TokenNetworkProxy),
 		Auth:                bind.NewKeyedTransactor(privateKey),
 		tokenNetworkAddress: registryAddress,
+		NotifyHandler:       notifyHandler,
+		TXInfoDao:           txInfoDao,
+		pendingTXInfoChan:   make(chan *models.TXInfo, 10), // TODO 这里缓冲区多大合适???
+		quitChan:            make(chan error),
 	}
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
@@ -159,6 +173,17 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 			registry:         s,
 			RegisteredSecret: make(map[common.Hash]*sync.Mutex),
 		}
+		// 1. 启动pendingTXInfoListenLoop
+		go bcs.pendingTXInfoListenLoop()
+		// 2. 获取所有pending状态的tx,并注册到监听中
+		pendingTXs, err := bcs.TXInfoDao.GetTXInfoList(utils.EmptyHash, 0, "", models.TXInfoStatusPending)
+		if err != nil {
+			log.Error(fmt.Sprintf("GetTXInfoList err %s", err))
+			return
+		}
+		for _, tx := range pendingTXs {
+			bcs.RegisterPendingTXInfo(tx)
+		}
 	}
 	bcs.RegistryProxy = r
 	return bcs.RegistryProxy
@@ -183,4 +208,121 @@ func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 // SyncProgress :
 func (bcs *BlockChainService) SyncProgress() (sp *ethereum.SyncProgress, err error) {
 	return bcs.Client.SyncProgress(context.Background())
+}
+
+// RegisterPendingTXInfo 记录Pending状态的tx,并在独立线程中轮询该tx的receipt,并更新结果到db
+func (bcs *BlockChainService) RegisterPendingTXInfo(txInfo *models.TXInfo) {
+	bcs.pendingTXInfoChan <- txInfo
+}
+
+/*
+pending状态的tx执行结果监控线程,常驻线程,启动时启动
+*/
+func (bcs *BlockChainService) pendingTXInfoListenLoop() {
+	log.Info("goroutine of pendingTXInfoListenLoop start")
+	for {
+		select {
+		case err := <-bcs.quitChan:
+			if err != nil {
+				log.Error("pendingTXInfoListenLoop quit because err = %s", err.Error())
+			}
+			return
+		case txInfo := <-bcs.pendingTXInfoChan:
+			// 针对每个进来的tx,启动一个线程来监控其执行状态
+			go bcs.checkPendingTXDone(txInfo)
+		}
+	}
+}
+
+func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
+	if pendingTXInfo.Status != models.TXInfoStatusPending {
+		log.Warn("checkPendingTXDone got tx with status=%s, maybe something wrong", pendingTXInfo.Status)
+		return
+	}
+	// 1. 等待tx执行完成
+	receipt, err := waitMined(context.Background(), bcs.Client, pendingTXInfo.TXHash)
+	if err != nil {
+		err = rerr.ErrTxWaitMined.AppendError(err)
+		log.Error(err.Error())
+		return
+	}
+	// 2. 获取packBlockNumber
+	var packBlockNumber int64
+	if len(receipt.Logs) > 0 {
+		packBlockNumber = int64(receipt.Logs[0].BlockNumber)
+	}
+	// 3. 处理
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		// 失败处理
+		// a.记录状态到数据库
+		err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		// b. 通知上层 TODO
+		log.Warn("tx receipt failed :\n%s")
+		return
+	}
+	// 成功处理
+	log.Info("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type)
+	// a.记录状态到数据库
+	err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	// b. 部分tx需要在执行成功后进行后续处理
+	switch pendingTXInfo.Type {
+	case models.TXInfoTypeApproveDeposit: //approve成功之后需要继续调用deposit
+		// 获取保存的参数
+		var depositParams models.DepositTXParams
+		err = json.Unmarshal([]byte(pendingTXInfo.TXParams), &depositParams)
+		if err != nil {
+			log.Error(err.Error())
+			break
+		}
+		// 发起deposit操作
+		proxy, err := bcs.TokenNetwork(depositParams.TokenAddress)
+		if err != nil {
+			log.Error(err.Error())
+			break
+		}
+		tx, err := proxy.GetContract().Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
+		if err != nil {
+			log.Error(err.Error())
+			break
+		}
+		// 保存TXInfo并注册到bcs中监控其执行结果
+		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
+		txInfo, err := bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, &depositParams)
+		if err != nil {
+			log.Error(err.Error())
+			break
+		}
+		bcs.RegisterPendingTXInfo(txInfo)
+	}
+}
+
+// 修改bind.WaitMined()而来,只改了参数格式,不影响功能
+func waitMined(ctx context.Context, b bind.DeployBackend, txHash common.Hash) (*types.Receipt, error) {
+	queryTicker := time.NewTicker(time.Second)
+	defer queryTicker.Stop()
+
+	logger := log.New("hash", txHash)
+	for {
+		receipt, err := b.TransactionReceipt(ctx, txHash)
+		if receipt != nil {
+			return receipt, nil
+		}
+		if err != nil {
+			logger.Trace("Receipt retrieval failed", "err", err)
+		} else {
+			logger.Trace("Transaction not yet mined")
+		}
+		// Wait for the next round.
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-queryTicker.C:
+		}
+	}
 }

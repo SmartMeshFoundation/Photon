@@ -7,10 +7,10 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
-	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -142,12 +142,12 @@ func (h *Handler) NotifyChannelStatus(ch *channeltype.ChannelDataDetail) {
 }
 
 // NotifyReceiveMediatedTransfer :通知收到了MediatedTransfer
-func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, ch *channel.Channel) {
+func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, tokenAddress common.Address) {
 	if h.stopped || msg == nil {
 		return
 	}
 	info := fmt.Sprintf("收到token=%s,amount=%d,locksecrethash=%s的交易",
-		utils.APex2(ch.TokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash))
+		utils.APex2(tokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash))
 	h.NotifyString(LevelInfo, info)
 }
 

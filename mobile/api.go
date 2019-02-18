@@ -19,6 +19,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -974,4 +975,41 @@ func (a *API) FindPath(targetStr, tokenStr, amountStr string) (result string) {
 		return dto.NewErrorMobileResponse(err)
 	}
 	return dto.NewSuccessMobileResponse(routes)
+}
+
+/*
+ContractCallTXQuery 合约调用TX查询接口,4个参数均可传空值,空值即为不限制
+channelIdentifierStr 有值时按通道ID查询
+openBlockNumber 有值时按通道OpenBlockNumber查询,一般配合channelIdentifierStr参数一起使用,以精确定位到某一个通道
+txTypeStr 有值时按tx类型查询,取值:
+	TXInfoTypeDeposit            = "ChannelDeposit"
+	TXInfoTypeClose              = "ChannelClose"
+	TXInfoTypeSettle             = "ChannelSettle"
+	TXInfoTypeCooperateSettle    = "CooperateSettle"
+	TXInfoTypeUpdateBalanceProof = "UpdateBalanceProof"
+	TXInfoTypeUnlock             = "Unlock"
+	TXInfoTypePunish             = "Punish"
+	TXInfoTypeWithdraw           = "Withdraw"
+	TXInfoTypeApproveDeposit     = "ApproveDeposit"
+	TXInfoTypeRegisterSecret     = "RegisterSecret"
+txStatusStr 有值时按tx状态查询,取值:
+	TXInfoStatusPending = "pending"
+	TXInfoStatusSuccess = "success"
+	TXInfoStatusFailed  = "failed"
+*/
+func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber int, txTypeStr, txStatusStr string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall ContractCallTXQuery result=%s", result))
+	}()
+	req := &photon.ContractCallTXQueryParams{
+		ChannelIdentifier: channelIdentifierStr,
+		OpenBlockNumber:   int64(openBlockNumber),
+		TXType:            models.TXInfoType(txTypeStr),
+		TXStatus:          models.TXInfoStatus(txTypeStr),
+	}
+	list, err := a.api.ContractCallTXQuery(req)
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(list)
 }

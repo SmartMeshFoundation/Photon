@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // KeyGetter :
@@ -181,6 +182,14 @@ type XMPPSubDao interface {
 	XMPPUnMarkAddr(addr common.Address)
 }
 
+// TXInfoDao :
+type TXInfoDao interface {
+	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams) (txInfo *TXInfo, err error)
+	SaveEventToTXInfo(event interface{}) (txInfo *TXInfo, err error)
+	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64) (err error)
+	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
+}
+
 // Dao :
 type Dao interface {
 	AckDao
@@ -203,6 +212,7 @@ type Dao interface {
 	ReceivedTransferDao
 	TransferStatusDao
 	XMPPSubDao
+	TXInfoDao
 
 	StartTx() (tx TX)
 	CloseDB()
