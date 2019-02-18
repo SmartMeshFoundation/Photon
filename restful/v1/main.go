@@ -99,6 +99,10 @@ func Start() {
 		rest.Get("/api/1/tokens", Tokens),
 		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
 		/*
+			contract call tx
+		*/
+		rest.Post("/api/1/tx/query", ContractCallTXQuery),
+		/*
 			utils
 		*/
 		rest.Get("/api/1/path/:target_address/:token/:amount", FindPath),

@@ -1160,3 +1160,33 @@ func (r *API) checkSmcStatus() error {
 	}
 	return nil
 }
+
+// ContractCallTXQueryParams 请求参数
+type ContractCallTXQueryParams struct {
+	ChannelIdentifier string              `json:"channel_identifier"`
+	OpenBlockNumber   int64               `json:"open_block_number"`
+	TXType            models.TXInfoType   `json:"tx_type"`
+	TXStatus          models.TXInfoStatus `json:"tx_status"`
+}
+
+// ContractCallTXQuery 根据条件查询所有合约调用的信息
+func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*models.TXInfo, err error) {
+	channelIdentifier := utils.EmptyHash
+	openBlockNumber := int64(0)
+	var txType models.TXInfoType = ""
+	var txStatus models.TXInfoStatus = ""
+	if req.ChannelIdentifier != "" {
+		channelIdentifier = common.HexToHash(req.ChannelIdentifier)
+	}
+	if req.OpenBlockNumber > 0 {
+		openBlockNumber = req.OpenBlockNumber
+	}
+	if req.TXType != "" {
+		txType = req.TXType
+	}
+	if req.TXStatus != "" {
+		txStatus = req.TXStatus
+	}
+	list, err = r.Photon.dao.GetTXInfoList(channelIdentifier, openBlockNumber, txType, txStatus)
+	return
+}

@@ -115,7 +115,7 @@ func (t *TokenProxy) TransferWithFallback(to common.Address, value *big.Int, ext
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	channelID := utils.CalcChannelID(txParams.TokenAddress, t.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.bcs.RegistryProxy.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
 	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
 	if err != nil {
 		return rerr.ContractCallError(err)
@@ -152,7 +152,7 @@ func (t *TokenProxy) ApproveAndCall(spender common.Address, value *big.Int, extr
 	log.Info(fmt.Sprintf("ApproveAndCall spender=%s,value=%s,extraData=%s,txHash=%s",
 		utils.APex(spender), value, hex.EncodeToString(extraData), tx.Hash().String(),
 	))
-	channelID := utils.CalcChannelID(txParams.TokenAddress, t.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.bcs.RegistryProxy.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
 	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
 	if err != nil {
 		return rerr.ContractCallError(err)

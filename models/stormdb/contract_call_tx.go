@@ -35,7 +35,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := model.GetChannelByAddress(channelIdentifier)
 		if err2 != nil {
-			log.Error(err.Error())
+			log.Error(err2.Error())
 		} else {
 			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 		}
@@ -81,7 +81,7 @@ func (model *StormDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInf
 }
 
 // UpdateTXInfoStatus :
-func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64) (err error) {
+func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64) (err error) {
 	var tis models.TXInfoSerialization
 	err = model.db.One("TXHash", txHash[:], &tis)
 	if err != nil {
@@ -90,15 +90,19 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		return
 	}
 	tis.Status = string(status)
-	tis.PackBlockNumber = pendingBlockNumber
+	tis.PackBlockNumber = packBlockNumber
 	tis.PackTime = time.Now().Unix()
+	if tis.OpenBlockNumber == 0 && tis.Type == models.TXInfoTypeDeposit {
+		// 通道第一deposit,即通道打开,记录OpenBlockNumber
+		tis.OpenBlockNumber = packBlockNumber
+	}
 	err = model.db.Save(&tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))
 		err = models.GeneratDBError(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s pendingBlockNumber=%d", txHash.String(), status, pendingBlockNumber))
+	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
 	return
 }
 

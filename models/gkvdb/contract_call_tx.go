@@ -36,7 +36,7 @@ func (dao *GkvDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoTy
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := dao.GetChannelByAddress(channelIdentifier)
 		if err2 != nil {
-			log.Error(err.Error())
+			log.Error(err2.Error())
 		} else {
 			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 		}
