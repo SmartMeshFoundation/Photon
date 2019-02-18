@@ -117,6 +117,12 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			err = rerr.ErrChannelAlreadExist
 			return
 		}
+		ch = channeltype.NewEmptySerialization()
+		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, r.Photon.NodeAddress)
+		ch.TokenAddressBytes = tokenAddress[:]
+		ch.OurAddress = r.Photon.NodeAddress
+		ch.PartnerAddressBytes = partnerAddress[:]
+		ch.State = channeltype.StateInValid
 	} else {
 		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {

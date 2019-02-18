@@ -171,7 +171,7 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	var d *ChannelData
-	if !req.NewChannel {
+	if c != nil {
 		d = &ChannelData{
 			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
 			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,

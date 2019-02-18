@@ -234,7 +234,7 @@ func (node *PhotonNode) Withdraw(channelIdentifier string, withdrawAmount int32)
 }
 
 // Close :
-func (node *PhotonNode) Close(channelIdentifier string) (err error) {
+func (node *PhotonNode) Close(channelIdentifier string, waitSeconds ...int) (err error) {
 	type ClosePayload struct {
 		State string `json:"state"`
 		Force bool   `json:"force"`
@@ -249,15 +249,40 @@ func (node *PhotonNode) Close(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
+		return err
+	}
+	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
 	}
 	return nil
 }
 
 // Settle :
-func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
+func (node *PhotonNode) Settle(channelIdentifier string, waitSeconds ...int) (err error) {
 	type SettlePayload struct {
 		State string `json:"state"`
 	}
@@ -270,9 +295,34 @@ func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("SettleApi err :%s", err)
+		return err
+	}
+	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
 	}
 	return nil
 }
@@ -317,7 +367,7 @@ func (node *PhotonNode) CooperateSettle(channelIdentifier string, waitSeconds ..
 }
 
 // OpenChannel :
-func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance, settleTimeout int64) error {
+func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance, settleTimeout int64, waitSeconds ...int) error {
 	type OpenChannelPayload struct {
 		PartnerAddress string `json:"partner_address"`
 		TokenAddress   string `json:"token_address"`
@@ -343,12 +393,35 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 		Logger.Println(fmt.Sprintf("OpenChannelApi %s err :   body=%s err=%s", req.FullURL, string(body), err.Error()))
 		return err
 	}
-
-	return err
+	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
+	}
+	return nil
 }
 
 // Deposit :
-func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int64) error {
+func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int64, waitSeconds ...int) error {
 	type OpenChannelPayload struct {
 		PartnerAddress string `json:"partner_address"`
 		TokenAddress   string `json:"token_address"`
@@ -369,11 +442,36 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
+		return err
 	}
-	return err
+	Logger.Println(fmt.Sprintf("Deposit returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
+	}
+	return nil
 }
 
 // UpdateMeshNetworkNodes :
