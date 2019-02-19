@@ -58,9 +58,10 @@ func (model *StormDB) ClearOldChainEventRecord(blockNumber uint64) {
 	for _, r := range list {
 		err2 := model.db.DeleteStruct(r)
 		if err2 != nil {
-			log.Error(fmt.Sprintf("models ClearOldChainEventRecord err=%s", err))
+			log.Error(fmt.Sprintf("models ClearOldChainEventRecord DeleteStruct err=%s", err2.Error()))
 		}
 	}
+	log.Trace("ClearOldChainEventRecord remove %d events witch blockNumber < %d", len(list), blockNumber)
 }
 
 // MakeChainEventID :

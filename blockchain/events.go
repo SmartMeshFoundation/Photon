@@ -252,8 +252,8 @@ func (be *Events) startAlarmTask() {
 		if lastSendBlockNumber != currentBlock {
 			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 		}
-		// 每100块清除一次过期流水
-		if fromBlockNumber%100 == 0 {
+		// 每5倍确认块清除一次过期流水
+		if fromBlockNumber%(5*params.ForkConfirmNumber) == 0 {
 			be.chainEventRecordDao.ClearOldChainEventRecord(uint64(fromBlockNumber))
 		}
 		// wait to next time
