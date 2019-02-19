@@ -42,10 +42,10 @@ func (model *StormDB) NewSentTransferDetail(tokenAddress, target common.Address,
 }
 
 // UpdateSentTransferDetailStatus :
-func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string, otherParams interface{}) {
-	var std models.SentTransferDetail
+func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string, otherParams interface{}) (transfer *models.SentTransferDetail) {
+	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &std)
+	err := model.db.One("Key", key, transfer)
 	if err == storm.ErrNotFound {
 		return
 	}
@@ -53,34 +53,35 @@ func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address
 		log.Error(fmt.Sprintf("UpdateStatus err %s", err))
 		return
 	}
-	std.Status = status
-	std.StatusMessage = fmt.Sprintf("%s%s\n", std.StatusMessage, statusMessage)
+	transfer.Status = status
+	transfer.StatusMessage = fmt.Sprintf("%s%s\n", transfer.StatusMessage, statusMessage)
 	if status == models.TransferStatusSuccess {
 		if otherParams != nil {
 			chID, ok := otherParams.(contracts.ChannelUniqueID)
 			if ok {
-				std.ChannelIdentifier = chID.ChannelIdentifier
-				std.OpenBlockNumber = chID.OpenBlockNumber
+				transfer.ChannelIdentifier = chID.ChannelIdentifier
+				transfer.OpenBlockNumber = chID.OpenBlockNumber
 			}
 		}
-		std.FinishTime = time.Now().Unix()
+		transfer.FinishTime = time.Now().Unix()
 	}
 	if status == models.TransferStatusCanceled || status == models.TransferStatusFailed {
-		std.FinishTime = time.Now().Unix()
+		transfer.FinishTime = time.Now().Unix()
 	}
-	err = model.db.Save(&std)
+	err = model.db.Save(transfer)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateStatus err %s", err))
 		return
 	}
 	log.Trace(fmt.Sprintf("UpdateStatus key=%s lockSecretHash=%s %s", key, lockSecretHash.String(), statusMessage))
+	return
 }
 
 // UpdateSentTransferDetailStatusMessage :
-func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) {
-	var ts models.SentTransferDetail
+func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *models.SentTransferDetail) {
+	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &ts)
+	err := model.db.One("Key", key, &transfer)
 	if err == storm.ErrNotFound {
 		return
 	}
@@ -88,13 +89,14 @@ func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.
 		log.Error(fmt.Sprintf("UpdateStatusMessage err %s", err))
 		return
 	}
-	ts.StatusMessage = fmt.Sprintf("%s%s\n", ts.StatusMessage, statusMessage)
-	err = model.db.Save(&ts)
+	transfer.StatusMessage = fmt.Sprintf("%s%s\n", transfer.StatusMessage, statusMessage)
+	err = model.db.Save(&transfer)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateStatusMessage err %s", err))
 		return
 	}
 	log.Trace(fmt.Sprintf("UpdateStatusMessage key=%s lockSecretHash=%s %s", key, lockSecretHash.String(), statusMessage))
+	return
 }
 
 // GetSentTransferDetail :

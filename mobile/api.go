@@ -751,8 +751,6 @@ type NotifyHandler interface {
 	OnStatusChange(s string)
 	//OnReceivedTransfer  receive a transfer
 	OnReceivedTransfer(tr string)
-	//OnSentTransfer a transfer sent success
-	OnSentTransfer(tr string)
 	/* OnNotify get some important message Photon want to notify upper application
 	level: 0:info,1:warn,2:error
 	info: type InfoStruct struct {
@@ -816,11 +814,6 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t, ok := <-a.api.Photon.NotifyHandler.GetSentTransferChan():
-				if ok {
-					d, err = json.Marshal(t)
-					handler.OnSentTransfer(string(d))
-				}
 			case t, ok := <-a.api.Photon.NotifyHandler.GetReceivedTransferChan():
 				if ok {
 					d, err = json.Marshal(t)

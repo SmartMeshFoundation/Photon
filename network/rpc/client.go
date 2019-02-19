@@ -251,25 +251,29 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 	if len(receipt.Logs) > 0 {
 		packBlockNumber = int64(receipt.Logs[0].BlockNumber)
 	}
+	var savedTxInfo *models.TXInfo
 	// 3. 处理
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		// 失败处理
 		// a.记录状态到数据库
-		err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber)
+		savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber)
 		if err != nil {
 			log.Error(err.Error())
 		}
-		// b. 通知上层 TODO
+		// b. 通知上层
+		bcs.NotifyHandler.NotifyContractCallTXInfo(savedTxInfo)
 		log.Warn("tx receipt failed :\n%s")
 		return
 	}
 	// 成功处理
 	log.Info("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type)
 	// a.记录状态到数据库
-	err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
+	savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
 	if err != nil {
 		log.Error(err.Error())
 	}
+	// b. 通知上层
+	bcs.NotifyHandler.NotifyContractCallTXInfo(savedTxInfo)
 	// b. 部分tx需要在执行成功后进行后续处理
 	switch pendingTXInfo.Type {
 	case models.TXInfoTypeApproveDeposit: //approve成功之后需要继续调用deposit

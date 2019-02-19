@@ -19,8 +19,6 @@ deal notice info for upper app
 */
 type Handler struct {
 
-	//sentTransferChan SentTransfer notify ,should never close
-	sentTransferChan chan *models.SentTransfer
 	//receivedTransferChan  ReceivedTransfer notify, should never close
 	receivedTransferChan chan *models.ReceivedTransfer
 	//noticeChan should never close
@@ -32,7 +30,6 @@ type Handler struct {
 // NewNotifyHandler :
 func NewNotifyHandler() *Handler {
 	return &Handler{
-		sentTransferChan:     make(chan *models.SentTransfer, 10),
 		receivedTransferChan: make(chan *models.ReceivedTransfer, 10),
 		noticeChan:           make(chan *Notice, 10),
 		stopped:              false,
@@ -42,7 +39,6 @@ func NewNotifyHandler() *Handler {
 // Stop :
 func (h *Handler) Stop() {
 	h.stopped = true
-	close(h.sentTransferChan)
 	close(h.receivedTransferChan)
 	close(h.noticeChan)
 }
@@ -51,12 +47,6 @@ func (h *Handler) Stop() {
 // return read-only, keep chan private
 func (h *Handler) GetNoticeChan() <-chan *Notice {
 	return h.noticeChan
-}
-
-// GetSentTransferChan :
-// keep chan private
-func (h *Handler) GetSentTransferChan() <-chan *models.SentTransfer {
-	return h.sentTransferChan
 }
 
 // GetReceivedTransferChan :
@@ -85,11 +75,11 @@ func (h *Handler) NotifyString(level Level, info string) {
 	})
 }
 
-// NotifyTransferStatusChange : 通知上层,不让阻塞,以免影响正常业务
-func (h *Handler) NotifyTransferStatusChange(status *models.TransferStatus) {
+// NotifySentTransferDetail : 通知上层,不让阻塞,以免影响正常业务
+func (h *Handler) NotifySentTransferDetail(sentTransferDetail *models.SentTransferDetail) {
 	h.Notify(LevelInfo, &InfoStruct{
-		Type:    InfoTypeTransferStatus,
-		Message: status,
+		Type:    InfoTypeSentTransferDetail,
+		Message: sentTransferDetail,
 	})
 }
 
@@ -151,18 +141,6 @@ func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, 
 	h.NotifyString(LevelInfo, info)
 }
 
-// NotifySentTransfer : 通知发出的交易成功了.
-func (h *Handler) NotifySentTransfer(st *models.SentTransfer) {
-	if h.stopped || st == nil {
-		return
-	}
-	select {
-	case h.sentTransferChan <- st:
-	default:
-		// never block
-	}
-}
-
 // NotifyReceiveTransfer : 通知成功收到一笔token
 func (h *Handler) NotifyReceiveTransfer(rt *models.ReceivedTransfer) {
 
@@ -174,4 +152,14 @@ func (h *Handler) NotifyReceiveTransfer(rt *models.ReceivedTransfer) {
 	default:
 		// never block
 	}
+}
+
+/*
+NotifyContractCallTXInfo 当自己发起的合约调用tx被成功打包时,通知上层
+*/
+func (h *Handler) NotifyContractCallTXInfo(txInfo *models.TXInfo) {
+	h.Notify(LevelInfo, &InfoStruct{
+		Type:    InfoTypeContractCallTXInfo,
+		Message: txInfo,
+	})
 }

@@ -177,8 +177,8 @@ type ReceivedTransferDao interface {
 // SentTransferDetailDao :
 type SentTransferDetailDao interface {
 	NewSentTransferDetail(tokenAddress, target common.Address, amount *big.Int, data string, isDirect bool, lockSecretHash common.Hash)
-	UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string, otherParams interface{})
-	UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
+	UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string, otherParams interface{}) (transfer *SentTransferDetail)
+	UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *SentTransferDetail)
 	GetSentTransferDetail(tokenAddress common.Address, lockSecretHash common.Hash) (*SentTransferDetail, error)
 	GetSentTransferDetailList(tokenAddress common.Address, fromTime, toTime int64, fromBlock, toBlock int64) (transfers []*SentTransferDetail, err error)
 }
@@ -194,7 +194,7 @@ type XMPPSubDao interface {
 type TXInfoDao interface {
 	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams) (txInfo *TXInfo, err error)
 	SaveEventToTXInfo(event interface{}) (txInfo *TXInfo, err error)
-	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64) (err error)
+	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64) (txInfo *TXInfo, err error)
 	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
 }
 

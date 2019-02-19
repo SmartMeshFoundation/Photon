@@ -33,7 +33,7 @@ func (dao *FakeTXINfoDao) SaveEventToTXInfo(event interface{}) (txInfo *models.T
 }
 
 // UpdateTXInfoStatus :
-func (dao *FakeTXINfoDao) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64) (err error) {
+func (dao *FakeTXINfoDao) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64) (txInfo *models.TXInfo, err error) {
 	return
 }
 

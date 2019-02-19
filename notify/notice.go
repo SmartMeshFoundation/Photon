@@ -29,8 +29,8 @@ type Notice struct {
 const (
 	//InfoTypeString 0 简单的string通知
 	InfoTypeString = iota
-	//InfoTypeTransferStatus 1 发起的交易状态发生了变化
-	InfoTypeTransferStatus
+	//InfoTypeSentTransferDetail 1 发起的交易状态发生了变化, Message类型微models.SentTransferDetail
+	InfoTypeSentTransferDetail
 	//InfoTypeChannelCallID 2 关于通道的操作,有了结果
 	InfoTypeChannelCallID
 	//InfoTypeChannelStatus 3 通道状态发生了变化,包括但不限于
@@ -40,6 +40,9 @@ const (
 	//partner_locked_amount
 	//state
 	InfoTypeChannelStatus
+
+	// InfoTypeContractCallTXInfo 4 自己发起的tx执行完成,通知执行结果,Message类型为models.TXInfo
+	InfoTypeContractCallTXInfo
 )
 
 //InfoStruct for notify to mobile

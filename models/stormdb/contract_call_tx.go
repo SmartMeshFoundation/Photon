@@ -86,7 +86,7 @@ func (model *StormDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInf
 }
 
 // UpdateTXInfoStatus :
-func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64) (err error) {
+func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64) (txInfo *models.TXInfo, err error) {
 	var tis models.TXInfoSerialization
 	err = model.db.One("TXHash", txHash[:], &tis)
 	if err != nil {
@@ -114,6 +114,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		return
 	}
 	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
+	txInfo = tis.ToTXInfo()
 	return
 }
 

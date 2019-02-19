@@ -1470,8 +1470,9 @@ func (rs *Service) cancelTransfer(req *cancelTransferReq) (result *utils.AsyncRe
 		LockSecretHash: req.LockSecretHash,
 	}
 	rs.StateMachineEventHandler.dispatch(manager, stateChange)
-	rs.dao.UpdateSentTransferDetailStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "transfer cancel", nil)
-	rs.NotifyTransferStatusChange(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	std := rs.dao.UpdateSentTransferDetailStatus(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "transfer cancel", nil)
+	//rs.NotifyTransferStatusChange(req.TokenAddress, req.LockSecretHash, models.TransferStatusCanceled, "交易撤销")
+	rs.NotifyHandler.NotifySentTransferDetail(std)
 	result.Result <- nil
 	return
 }
@@ -1495,8 +1496,9 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		if r, ok := rs.Transfer2Result[smkey]; ok {
 			r.Result <- nil
 		}
-		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer send success,transfer success", ch.ChannelIdentifier)
-		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
+		std := rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer send success,transfer success", ch.ChannelIdentifier)
+		//rs.NotifyTransferStatusChange(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
+		rs.NotifyHandler.NotifySentTransferDetail(std)
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1516,8 +1518,9 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			log.Error(err.Error())
 			return
 		}
-		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock send success,transfer success", ch.ChannelIdentifier)
-		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		std := rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock send success,transfer success", ch.ChannelIdentifier)
+		//rs.NotifyTransferStatusChange(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
+		rs.NotifyHandler.NotifySentTransferDetail(std)
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
 		if err != nil {
@@ -1979,12 +1982,6 @@ func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.
 	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
 }
 
-//NotifyTransferStatusChange notify status change of a sending transfer
-func (rs *Service) NotifyTransferStatusChange(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string) {
-	rs.NotifyHandler.NotifyTransferStatusChange(&models.TransferStatus{
-		LockSecretHash: lockSecretHash,
-		TokenAddress:   tokenAddress,
-		Status:         status,
-		StatusMessage:  statusMessage,
-	})
-}
+////NotifyTransferStatusChange notify status change of a sending transfer
+//func (rs *Service) NotifyTransferStatusChange(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string) {
+//}
