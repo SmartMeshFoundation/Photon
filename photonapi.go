@@ -674,8 +674,8 @@ func (r *API) GetSentTransfers(tokenAddress common.Address, from, to int64) ([]*
 /*
 GetReceivedTransfers query received transfers from dao
 */
-func (r *API) GetReceivedTransfers(from, to int64) ([]*models.ReceivedTransfer, error) {
-	return r.Photon.dao.GetReceivedTransferInBlockRange(from, to)
+func (r *API) GetReceivedTransfers(tokenAddress common.Address, from, to int64) ([]*models.ReceivedTransfer, error) {
+	return r.Photon.dao.GetReceivedTransferList(tokenAddress, from, to)
 }
 
 //Stop stop for mobile app
@@ -1126,7 +1126,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	if err != nil {
 		return
 	}
-	rts, err := r.GetReceivedTransfers(-1, -1)
+	rts, err := r.GetReceivedTransfers(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}

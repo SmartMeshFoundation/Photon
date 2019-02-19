@@ -719,7 +719,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 
 //1. 必须能够处理重复的ContractChannelWithdrawStateChange
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
-	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
+	log.Trace(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil

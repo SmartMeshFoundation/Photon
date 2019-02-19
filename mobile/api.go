@@ -714,11 +714,15 @@ func (a *API) GetSentTransfers(tokenAddressStr string, from, to int64) (result s
 GetReceivedTransfers retuns list of received transfer between `from_block` and `to_block`
 it contains token swap
 */
-func (a *API) GetReceivedTransfers(from, to int64) (result string) {
+func (a *API) GetReceivedTransfers(tokenAddressStr string, from, to int64) (result string) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall GetReceivedTransfers result=%s", result))
 	}()
-	trs, err := a.api.GetReceivedTransfers(from, to)
+	tokenAddress := utils.EmptyAddress
+	if tokenAddressStr != "" {
+		tokenAddress = common.HexToAddress(tokenAddressStr)
+	}
+	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)

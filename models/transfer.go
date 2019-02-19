@@ -28,6 +28,7 @@ type ReceivedTransfer struct {
 	OpenBlockNumber   int64
 	ChannelIdentifier common.Hash    `json:"channel_identifier"`
 	TokenAddress      common.Address `json:"token_address"`
+	TokenAddressBytes []byte         `json:"-"`
 	FromAddress       common.Address `json:"initiator_address"`
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`

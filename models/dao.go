@@ -163,8 +163,7 @@ type TokenDao interface {
 type ReceivedTransferDao interface {
 	NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *ReceivedTransfer
 	GetReceivedTransfer(key string) (*ReceivedTransfer, error)
-	GetReceivedTransferInBlockRange(fromBlock, toBlock int64) (transfers []*ReceivedTransfer, err error)
-	GetReceivedTransferInTimeRange(from, to time.Time) (transfers []*ReceivedTransfer, err error)
+	GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock int64) (transfers []*ReceivedTransfer, err error)
 }
 
 //// TransferStatusDao :

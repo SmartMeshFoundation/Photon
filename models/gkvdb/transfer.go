@@ -1,52 +1,17 @@
 package gkvdb
 
 import (
-	"math"
 	"math/big"
 	"time"
 
 	"fmt"
 
+	"gitee.com/johng/gkvdb/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-/*
-NewSentTransfer save a new sent transfer to db,this transfer must be success
-*/
-func (dao *GkvDB) NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.SentTransfer {
-	if lockSecretHash == utils.EmptyHash {
-		// direct transfer, use fakeLockSecretHash
-		lockSecretHash = utils.NewRandomHash()
-	}
-	key := fmt.Sprintf("%s-%d-%d", channelIdentifier.String(), openBlockNumber, nonce)
-	st := &models.SentTransfer{
-		Key:               key,
-		BlockNumber:       blockNumber,
-		ChannelIdentifier: channelIdentifier,
-		TokenAddress:      tokenAddr,
-		ToAddress:         toAddr,
-		Nonce:             nonce,
-		Amount:            amount,
-		Data:              data,
-		OpenBlockNumber:   openBlockNumber,
-		TimeStamp:         time.Now().Format(time.RFC3339),
-	}
-	var ost models.SentTransfer
-	err := dao.getKeyValueToBucket(models.BucketSentTransfer, key, &ost)
-	if err == nil {
-		log.Error(fmt.Sprintf("NewSentTransfer, but already exist, old=\n%s,new=\n%s",
-			utils.StringInterface(ost, 2), utils.StringInterface(st, 2)))
-		return nil
-	}
-	err = dao.saveKeyValueToBucket(models.BucketSentTransfer, key, st)
-	if err != nil {
-		log.Error(fmt.Sprintf("save SentTransfer err %s", err))
-	}
-	return st
-}
 
 //NewReceivedTransfer save a new received transfer to db
 func (dao *GkvDB) NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *models.ReceivedTransfer {
@@ -60,6 +25,7 @@ func (dao *GkvDB) NewReceivedTransfer(blockNumber int64, channelIdentifier commo
 		BlockNumber:       blockNumber,
 		ChannelIdentifier: channelIdentifier,
 		TokenAddress:      tokenAddr,
+		TokenAddressBytes: tokenAddr[:],
 		FromAddress:       fromAddr,
 		Nonce:             nonce,
 		Amount:            amount,
@@ -81,13 +47,6 @@ func (dao *GkvDB) NewReceivedTransfer(blockNumber int64, channelIdentifier commo
 	return st
 }
 
-//GetSentTransfer return the sent transfer by key
-func (dao *GkvDB) GetSentTransfer(key string) (*models.SentTransfer, error) {
-	var s models.SentTransfer
-	err := dao.getKeyValueToBucket(models.BucketSentTransfer, key, &s)
-	return &s, err
-}
-
 //GetReceivedTransfer return the received transfer by key
 func (dao *GkvDB) GetReceivedTransfer(key string) (*models.ReceivedTransfer, error) {
 	var r models.ReceivedTransfer
@@ -96,107 +55,38 @@ func (dao *GkvDB) GetReceivedTransfer(key string) (*models.ReceivedTransfer, err
 	return &r, err
 }
 
-//GetSentTransferInBlockRange returns the sent transfer between from and to blocks
-func (dao *GkvDB) GetSentTransferInBlockRange(fromBlock, toBlock int64) (transfers []*models.SentTransfer, err error) {
-	if fromBlock < 0 {
-		fromBlock = 0
-	}
-	if toBlock < 0 {
-		toBlock = math.MaxInt64
-	}
-	tb, err := dao.db.Table(models.BucketSentTransfer)
+//GetReceivedTransferList returns the received transfer between from and to blocks
+func (dao *GkvDB) GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock int64) (transfers []*models.ReceivedTransfer, err error) {
+	var tb *gkvdb.Table
+	tb, err = dao.db.Table(models.BucketReceivedTransfer)
 	if err != nil {
-		panic(err)
+		err = models.GeneratDBError(err)
+		return
 	}
 	buf := tb.Values(-1)
-	if buf == nil && len(buf) == 0 {
+	if buf == nil || len(buf) == 0 {
 		return
 	}
 	for _, v := range buf {
-		var st models.SentTransfer
+		var st models.ReceivedTransfer
 		gobDecode(v, &st)
-		if st.BlockNumber >= fromBlock && st.BlockNumber <= toBlock {
-			transfers = append(transfers, &st)
-		}
+		appendReceivedTransferIfMatch(&transfers, &st, tokenAddress, fromBlock, toBlock)
 	}
 	return
 }
 
-//GetReceivedTransferInBlockRange returns the received transfer between from and to blocks
-func (dao *GkvDB) GetReceivedTransferInBlockRange(fromBlock, toBlock int64) (transfers []*models.ReceivedTransfer, err error) {
-	if fromBlock < 0 {
-		fromBlock = 0
+func appendReceivedTransferIfMatch(list *[]*models.ReceivedTransfer, st *models.ReceivedTransfer, tokenAddress common.Address, fromBlock, toBlock int64) {
+	var b1, b2, b3 bool
+	if tokenAddress == utils.EmptyAddress || st.TokenAddress == tokenAddress {
+		b1 = true
 	}
-	if toBlock < 0 {
-		toBlock = math.MaxInt64
+	if fromBlock <= 0 || st.BlockNumber >= fromBlock {
+		b2 = true
 	}
-	tb, err := dao.db.Table(models.BucketReceivedTransfer)
-	if err != nil {
-		panic(err)
+	if toBlock <= 0 || st.BlockNumber <= toBlock {
+		b3 = true
 	}
-	buf := tb.Values(-1)
-	if buf == nil && len(buf) == 0 {
-		return
+	if b1 && b2 && b3 {
+		*list = append(*list, st)
 	}
-	for _, v := range buf {
-		var rt models.ReceivedTransfer
-		gobDecode(v, &rt)
-		if rt.BlockNumber >= fromBlock && rt.BlockNumber <= toBlock {
-			transfers = append(transfers, &rt)
-		}
-	}
-	return
-}
-
-//GetSentTransferInTimeRange returns the sent transfer between from and to blocks
-func (dao *GkvDB) GetSentTransferInTimeRange(from, to time.Time) (transfers []*models.SentTransfer, err error) {
-
-	tb, err := dao.db.Table(models.BucketSentTransfer)
-	if err != nil {
-		panic(err)
-	}
-	buf := tb.Values(-1)
-	if buf == nil && len(buf) == 0 {
-		return
-	}
-	for _, v := range buf {
-		var st models.SentTransfer
-		gobDecode(v, &st)
-		t, err := time.Parse(time.RFC3339, st.TimeStamp)
-		if err != nil {
-			log.Warn(fmt.Sprintf("time parse for %s err %s", utils.StringInterface(st, 3), err))
-			continue
-		}
-		log.Trace(fmt.Sprintf("from=%d,to=%d,t=%d", from.Unix(), to.Unix(), t.Unix()))
-		if t.After(from) && t.Before(to) {
-			transfers = append(transfers, &st)
-		}
-	}
-	return
-}
-
-//GetReceivedTransferInTimeRange returns the received transfer between from and to blocks
-func (dao *GkvDB) GetReceivedTransferInTimeRange(from, to time.Time) (transfers []*models.ReceivedTransfer, err error) {
-
-	tb, err := dao.db.Table(models.BucketReceivedTransfer)
-	if err != nil {
-		panic(err)
-	}
-	buf := tb.Values(-1)
-	if buf == nil && len(buf) == 0 {
-		return
-	}
-	for _, v := range buf {
-		var rt models.ReceivedTransfer
-		gobDecode(v, &rt)
-		t, err := time.Parse(time.RFC3339, rt.TimeStamp)
-		if err != nil {
-			log.Warn(fmt.Sprintf("time parse for %s err %s", utils.StringInterface(rt, 3), err))
-			continue
-		}
-		if t.After(from) && t.Before(to) {
-			transfers = append(transfers, &rt)
-		}
-	}
-	return
 }
