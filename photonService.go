@@ -190,7 +190,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	if err != nil {
 		return
 	}
-	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain)
+	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.dao)
 	// fee module
 	if config.EnableMediationFee {
 		// pathfinder
@@ -1495,7 +1495,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 		if r, ok := rs.Transfer2Result[smkey]; ok {
 			r.Result <- nil
 		}
-		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer send success,transfer success", ch)
+		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer send success,transfer success", ch.ChannelIdentifier)
 		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.FakeLockSecretHash, models.TransferStatusSuccess, "DirectTransfer 发送成功,交易成功")
 	case *encoding.MediatedTransfer:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)
@@ -1516,7 +1516,7 @@ func (rs *Service) handleSentMessage(sentMessage *protocolMessage) {
 			log.Error(err.Error())
 			return
 		}
-		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock send success,transfer success", ch)
+		rs.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock send success,transfer success", ch.ChannelIdentifier)
 		rs.NotifyTransferStatusChange(ch.TokenAddress, msg.LockSecretHash(), models.TransferStatusSuccess, "UnLock 发送成功,交易成功.")
 	case *encoding.AnnounceDisposedResponse:
 		ch, err := rs.findChannelByIdentifier(msg.ChannelIdentifier)

@@ -1051,7 +1051,8 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 	//log.Trace(fmt.Sprintf("ch0=%s", utils.StringInterface(NewChannelSerialization(ch0), 3)))
 	log.Trace(fmt.Sprintf("req=%s", req))
 	req.Sign(ch0.ExternState.privKey, req)
-	err = ch0.RegisterCooperativeSettleRequest(req)
+	//err = ch0.RegisterCooperativeSettleRequest(req)
+	ch0.State = channeltype.StateCooprativeSettle
 	if err != nil {
 		t.Error(err)
 		return
@@ -1079,9 +1080,10 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = ch1.RegisterCooperativeSettleResponse(res)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	// 目前在通道状态中区分了自己settle还是对方settle,所这里不能双方都注册request和response,只能一方注册request,一方注册response
+	//err = ch1.RegisterCooperativeSettleResponse(res)
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
 }

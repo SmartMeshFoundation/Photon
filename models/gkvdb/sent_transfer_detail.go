@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"gitee.com/johng/gkvdb/gkvdb"
-	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/ethereum/go-ethereum/common"
@@ -56,10 +56,10 @@ func (dao *GkvDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lo
 	std.Status = status
 	std.StatusMessage = fmt.Sprintf("%s%s\n", std.StatusMessage, statusMessage)
 	if status == models.TransferStatusSuccess && otherParams != nil {
-		ch, ok := otherParams.(*channel.Channel)
+		chID, ok := otherParams.(contracts.ChannelUniqueID)
 		if ok {
-			std.ChannelIdentifier = ch.ChannelIdentifier.ChannelIdentifier
-			std.OpenBlockNumber = ch.ChannelIdentifier.OpenBlockNumber
+			std.ChannelIdentifier = chID.ChannelIdentifier
+			std.OpenBlockNumber = chID.OpenBlockNumber
 		}
 		std.FinishTime = time.Now().Unix()
 	}

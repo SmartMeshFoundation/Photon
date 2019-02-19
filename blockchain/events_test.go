@@ -15,9 +15,11 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/codefortest"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 func init() {
@@ -37,12 +39,27 @@ func (r *fakeRPCModule) GetSecretRegistryAddress() common.Address {
 	return r.SecretRegistryAddress
 }
 
+type fakeChainEventRecordDao struct{}
+
+func (f *fakeChainEventRecordDao) NewDeliveredChainEvent(id models.ChainEventID, blockNumber uint64) {
+	return
+}
+func (f *fakeChainEventRecordDao) CheckChainEventDelivered(id models.ChainEventID) (blockNumber uint64, delivered bool) {
+	return
+}
+func (f *fakeChainEventRecordDao) ClearOldChainEventRecord(blockNumber uint64) {
+	return
+}
+func (f *fakeChainEventRecordDao) MakeChainEventID(l *types.Log) models.ChainEventID {
+	return [25]byte{}
+}
+
 func TestNewBlockChainEvents(t *testing.T) {
 	client, err := codefortest.GetEthClient()
 	if err != nil {
 		panic(err)
 	}
-	be := NewBlockChainEvents(client, &fakeRPCModule{})
+	be := NewBlockChainEvents(client, &fakeRPCModule{}, &fakeChainEventRecordDao{})
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}
@@ -55,7 +72,7 @@ func TestEvents_Start(t *testing.T) {
 	}
 	be := NewBlockChainEvents(client, &fakeRPCModule{
 		RegistryAddress: rpc.TestGetTokenNetworkRegistryAddress(),
-	})
+	}, &fakeChainEventRecordDao{})
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}
@@ -112,7 +129,7 @@ func TestEvents_Start2(t *testing.T) {
 	}
 	be := NewBlockChainEvents(client, &fakeRPCModule{
 		RegistryAddress: common.HexToAddress("0x71849b4f2fd77146f17298a363c1a750a14fc2ba"),
-	})
+	}, &fakeChainEventRecordDao{})
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}

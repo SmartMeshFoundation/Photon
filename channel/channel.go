@@ -1154,6 +1154,7 @@ func (c *Channel) CreateCooperativeSettleRequest() (s *encoding.SettleRequest, e
 }
 
 //RegisterCooperativeSettleRequest check settle request and update state
+//该方法在收到对方的CooperativeRequest时调用,自己发送CooperativeRequest时不应该使用该方法
 func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) error {
 	err := c.preCheckSettleDataInMessage(msg, &msg.SettleDataInMessage)
 	if err != nil {

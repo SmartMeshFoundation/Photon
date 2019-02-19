@@ -6,9 +6,9 @@ import (
 
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/asdine/storm/q"
@@ -57,10 +57,10 @@ func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address
 	std.StatusMessage = fmt.Sprintf("%s%s\n", std.StatusMessage, statusMessage)
 	if status == models.TransferStatusSuccess {
 		if otherParams != nil {
-			ch, ok := otherParams.(*channel.Channel)
+			chID, ok := otherParams.(contracts.ChannelUniqueID)
 			if ok {
-				std.ChannelIdentifier = ch.ChannelIdentifier.ChannelIdentifier
-				std.OpenBlockNumber = ch.ChannelIdentifier.OpenBlockNumber
+				std.ChannelIdentifier = chID.ChannelIdentifier
+				std.OpenBlockNumber = chID.OpenBlockNumber
 			}
 		}
 		std.FinishTime = time.Now().Unix()

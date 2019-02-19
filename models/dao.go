@@ -198,6 +198,14 @@ type TXInfoDao interface {
 	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
 }
 
+// ChainEventRecordDao :
+type ChainEventRecordDao interface {
+	NewDeliveredChainEvent(id ChainEventID, blockNumber uint64)
+	CheckChainEventDelivered(id ChainEventID) (blockNumber uint64, delivered bool)
+	ClearOldChainEventRecord(blockNumber uint64)
+	MakeChainEventID(l *types.Log) ChainEventID
+}
+
 // Dao :
 type Dao interface {
 	AckDao
@@ -220,6 +228,7 @@ type Dao interface {
 	XMPPSubDao
 	TXInfoDao
 	SentTransferDetailDao
+	ChainEventRecordDao
 
 	StartTx() (tx TX)
 	CloseDB()
