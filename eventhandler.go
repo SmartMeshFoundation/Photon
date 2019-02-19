@@ -583,6 +583,10 @@ func (eh *stateMachineEventHandler) handleBalance(st *mediatedtransfer.ContractB
 		//log.Trace(fmt.Sprintf("ContractBalanceStateChange i'm not a participant,channelIdentifier=%s", utils.HPex(st.ChannelIdentifier)))
 		return nil
 	}
+	if st.GetBlockNumber() < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractBalanceStateChange , ignore ")
+		return nil
+	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
