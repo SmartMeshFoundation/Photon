@@ -176,7 +176,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		// 1. 启动pendingTXInfoListenLoop
 		go bcs.pendingTXInfoListenLoop()
 		// 2. 获取所有pending状态的tx,并注册到监听中
-		pendingTXs, err := bcs.TXInfoDao.GetTXInfoList(utils.EmptyHash, 0, "", models.TXInfoStatusPending)
+		pendingTXs, err := bcs.TXInfoDao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusPending)
 		if err != nil {
 			log.Error(fmt.Sprintf("GetTXInfoList err %s", err))
 			return

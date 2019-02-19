@@ -151,13 +151,13 @@ type TokenDao interface {
 	AddToken(token common.Address, tokenNetworkAddress common.Address) error
 }
 
-// SentTransferDao :
-type SentTransferDao interface {
-	NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *SentTransfer
-	GetSentTransfer(key string) (*SentTransfer, error)
-	GetSentTransferInBlockRange(fromBlock, toBlock int64) (transfers []*SentTransfer, err error)
-	GetSentTransferInTimeRange(from, to time.Time) (transfers []*SentTransfer, err error)
-}
+//// SentTransferDao :
+//type SentTransferDao interface {
+//	NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *SentTransfer
+//	GetSentTransfer(key string) (*SentTransfer, error)
+//	GetSentTransferInBlockRange(fromBlock, toBlock int64) (transfers []*SentTransfer, err error)
+//	GetSentTransferInTimeRange(from, to time.Time) (transfers []*SentTransfer, err error)
+//}
 
 // ReceivedTransferDao :
 type ReceivedTransferDao interface {
@@ -167,12 +167,21 @@ type ReceivedTransferDao interface {
 	GetReceivedTransferInTimeRange(from, to time.Time) (transfers []*ReceivedTransfer, err error)
 }
 
-// TransferStatusDao :
-type TransferStatusDao interface {
-	NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash)
-	UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string)
-	UpdateTransferStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
-	GetTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) (*TransferStatus, error)
+//// TransferStatusDao :
+//type TransferStatusDao interface {
+//	NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash)
+//	UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string)
+//	UpdateTransferStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
+//	GetTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) (*TransferStatus, error)
+//}
+
+// SentTransferDetailDao :
+type SentTransferDetailDao interface {
+	NewSentTransferDetail(tokenAddress, target common.Address, amount *big.Int, data string, isDirect bool, lockSecretHash common.Hash)
+	UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string, otherParams interface{})
+	UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
+	GetSentTransferDetail(tokenAddress common.Address, lockSecretHash common.Hash) (*SentTransferDetail, error)
+	GetSentTransferDetailList(tokenAddress common.Address, fromTime, toTime int64, fromBlock, toBlock int64) (transfers []*SentTransferDetail, err error)
 }
 
 // XMPPSubDao :
@@ -187,7 +196,7 @@ type TXInfoDao interface {
 	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams) (txInfo *TXInfo, err error)
 	SaveEventToTXInfo(event interface{}) (txInfo *TXInfo, err error)
 	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64) (err error)
-	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
+	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
 }
 
 // Dao :
@@ -208,11 +217,10 @@ type Dao interface {
 	ReceivedAnnounceDisposedDao
 	SettledChannelDao
 	TokenDao
-	SentTransferDao
 	ReceivedTransferDao
-	TransferStatusDao
 	XMPPSubDao
 	TXInfoDao
+	SentTransferDetailDao
 
 	StartTx() (tx TX)
 	CloseDB()

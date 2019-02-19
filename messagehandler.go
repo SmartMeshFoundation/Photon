@@ -129,7 +129,7 @@ func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash())
 	for _, c := range channels {
-		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("receive RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
@@ -159,7 +159,7 @@ func (mh *photonMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash)
 	for _, c := range channels {
-		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("receive SecretRequest, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
@@ -340,7 +340,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	} else {
 		mh.photon.StateMachineEventHandler.dispatch(sm, stateChange)
 	}
-	mh.photon.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
+	mh.photon.dao.UpdateSentTransferDetailStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("receive AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 

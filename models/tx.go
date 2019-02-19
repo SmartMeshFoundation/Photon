@@ -39,17 +39,18 @@ const (
 
 // TXInfo 记录已经提交到公链节点的tx信息
 type TXInfo struct {
-	TXHash            common.Hash   `json:"tx_hash"`
-	ChannelIdentifier common.Hash   `json:"channel_identifier"` // 结合OpenBlockNumber唯一确定一个通道
-	OpenBlockNumber   int64         `json:"open_block_number"`
-	Type              TXInfoType    `json:"type"`
-	IsSelfCall        bool          `json:"is_self_call"` // 是否自己发起的
-	TXParams          string        `json:"tx_params"`    // 保存调用tx的参数信息,json格式,内容根据TXType不同而不同,仅自己发起的部分tx里面会带此参数
-	Status            TXInfoStatus  `json:"tx_status"`
-	Events            []interface{} `json:"events"`            // 保存这个tx成功之后对应的所有事件
-	PackBlockNumber   int64         `json:"pack_block_number"` // tx最终所在的块号
-	CallTime          int64         `json:"call_time"`         // tx发起时间戳
-	PackTime          int64         `json:"pack_time"`         // tx打包时间戳
+	TXHash            common.Hash    `json:"tx_hash"`
+	ChannelIdentifier common.Hash    `json:"channel_identifier"` // 结合OpenBlockNumber唯一确定一个通道
+	OpenBlockNumber   int64          `json:"open_block_number"`
+	TokenAddress      common.Address `json:"token_address"`
+	Type              TXInfoType     `json:"type"`
+	IsSelfCall        bool           `json:"is_self_call"` // 是否自己发起的
+	TXParams          string         `json:"tx_params"`    // 保存调用tx的参数信息,json格式,内容根据TXType不同而不同,仅自己发起的部分tx里面会带此参数
+	Status            TXInfoStatus   `json:"tx_status"`
+	Events            []interface{}  `json:"events"`            // 保存这个tx成功之后对应的所有事件
+	PackBlockNumber   int64          `json:"pack_block_number"` // tx最终所在的块号
+	CallTime          int64          `json:"call_time"`         // tx发起时间戳
+	PackTime          int64          `json:"pack_time"`         // tx打包时间戳
 }
 
 // String :
@@ -67,6 +68,7 @@ func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 		TXHash:            ti.TXHash[:],
 		ChannelIdentifier: ti.ChannelIdentifier[:],
 		OpenBlockNumber:   ti.OpenBlockNumber,
+		TokenAddress:      ti.TokenAddress[:],
 		Type:              string(ti.Type),
 		IsSelfCall:        ti.IsSelfCall,
 		TXParams:          ti.TXParams,
@@ -83,6 +85,7 @@ type TXInfoSerialization struct {
 	TXHash            []byte        `storm:"id"`
 	ChannelIdentifier []byte        `storm:"index"` // 结合OpenBlockNumber唯一确定一个通道
 	OpenBlockNumber   int64         `storm:"index"`
+	TokenAddress      []byte        `storm:"index"`
 	Type              string        `storm:"index"`
 	IsSelfCall        bool          `storm:"index"` // 是否自己发起的
 	TXParams          string        // 保存调用tx的参数信息,json格式,内容根据TXType不同而不同,仅自己发起的部分tx里面会带此参数
@@ -99,6 +102,7 @@ func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 		TXHash:            common.BytesToHash(tis.TXHash),
 		ChannelIdentifier: common.BytesToHash(tis.ChannelIdentifier),
 		OpenBlockNumber:   tis.OpenBlockNumber,
+		TokenAddress:      common.BytesToAddress(tis.TokenAddress),
 		Type:              TXInfoType(tis.Type),
 		IsSelfCall:        tis.IsSelfCall,
 		TXParams:          tis.TXParams,

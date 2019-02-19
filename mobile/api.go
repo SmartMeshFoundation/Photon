@@ -693,12 +693,16 @@ func (a *API) EthereumStatus() (result string) {
 /*
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
-func (a *API) GetSentTransfers(from, to int64) (result string) {
+func (a *API) GetSentTransfers(tokenAddressStr string, from, to int64) (result string) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall GetSentTransfers result=%s", result))
 	}()
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := a.api.GetSentTransfers(from, to)
+	tokenAddress := utils.EmptyAddress
+	if tokenAddressStr != "" {
+		tokenAddress = common.HexToAddress(tokenAddressStr)
+	}
+	trs, err := a.api.GetSentTransfers(tokenAddress, from, to)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -874,7 +878,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	ts, err := a.api.Photon.GetDao().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
+	ts, err := a.api.Photon.GetDao().GetSentTransferDetail(tokenAddress, common.HexToHash(lockSecretHashStr))
 	if err != nil {
 		log.Error(fmt.Sprintf("err =%s", err))
 		return dto.NewErrorMobileResponse(err)
@@ -997,13 +1001,14 @@ txStatusStr 有值时按tx状态查询,取值:
 	TXInfoStatusSuccess = "success"
 	TXInfoStatusFailed  = "failed"
 */
-func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber int, txTypeStr, txStatusStr string) (result string) {
+func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber int, tokenAddressStr, txTypeStr, txStatusStr string) (result string) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall ContractCallTXQuery result=%s", result))
 	}()
 	req := &photon.ContractCallTXQueryParams{
 		ChannelIdentifier: channelIdentifierStr,
 		OpenBlockNumber:   int64(openBlockNumber),
+		TokenAddress:      tokenAddressStr,
 		TXType:            models.TXInfoType(txTypeStr),
 		TXStatus:          models.TXInfoStatus(txTypeStr),
 	}

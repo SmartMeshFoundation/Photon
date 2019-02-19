@@ -40,7 +40,7 @@ func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
 	}()
 	from, to := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := API.GetSentTransfers(from, to)
+	trs, err := API.GetSentTransfers(utils.EmptyAddress, from, to)
 	resp = dto.NewAPIResponse(err, trs)
 }
 
@@ -147,7 +147,7 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
-	ts, err := API.Photon.GetDao().GetTransferStatus(tokenAddr, lockSecretHash)
+	ts, err := API.Photon.GetDao().GetSentTransferDetail(tokenAddr, lockSecretHash)
 	resp = dto.NewAPIResponse(err, ts)
 }
 

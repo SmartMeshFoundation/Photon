@@ -106,7 +106,7 @@ func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoSta
 
 // GetTXInfoList :
 // 如果参数不为空,则根据参数查询
-func (dao *GkvDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
+func (dao *GkvDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
 	var tb *gkvdb.Table
 	tb, err = dao.db.Table(models.BucketTXInfo)
 	if err != nil {
@@ -120,13 +120,13 @@ func (dao *GkvDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber i
 	for _, v := range buf {
 		var tis models.TXInfoSerialization
 		gobDecode(v, &tis)
-		appendIfMatch(&list, &tis, channelIdentifier, openBlockNumber, txType, status)
+		appendTXInfoIfMatch(&list, &tis, channelIdentifier, openBlockNumber, tokenAddress, txType, status)
 	}
 	return
 }
 
-func appendIfMatch(list *[]*models.TXInfo, tis *models.TXInfoSerialization, channelIdentifier common.Hash, openBlockNumber int64, txType models.TXInfoType, status models.TXInfoStatus) {
-	var b1, b2, b3, b4 bool
+func appendTXInfoIfMatch(list *[]*models.TXInfo, tis *models.TXInfoSerialization, channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) {
+	var b1, b2, b3, b4, b5 bool
 	if channelIdentifier == utils.EmptyHash || bytes.Compare(tis.ChannelIdentifier, channelIdentifier[:]) == 0 {
 		b1 = true
 	}
@@ -139,7 +139,10 @@ func appendIfMatch(list *[]*models.TXInfo, tis *models.TXInfoSerialization, chan
 	if status == "" || tis.Status == string(status) {
 		b4 = true
 	}
-	if b1 && b2 && b3 && b4 {
+	if tokenAddress == utils.EmptyAddress || bytes.Compare(tis.TokenAddress, tokenAddress[:]) == 0 {
+		b5 = true
+	}
+	if b1 && b2 && b3 && b4 && b5 {
 		*list = append(*list, tis.ToTXInfo())
 	}
 }

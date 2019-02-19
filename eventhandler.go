@@ -110,7 +110,8 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	err = revealMessage.Sign(eh.photon.PrivateKey, revealMessage)
 	err = eh.photon.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
-		eh.photon.dao.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
+		eh.photon.dao.UpdateSentTransferDetailStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret sending target=%s", utils.APex2(event.Receiver)), nil)
+		//eh.photon.dao.UpdateTransferStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
 		eh.photon.NotifyTransferStatusChange(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret 正在发送 target=%s", utils.APex2(event.Receiver)))
 	}
 	return err
@@ -194,7 +195,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	err = eh.photon.sendAsync(receiver, mtr)
 	if err == nil {
-		eh.photon.dao.UpdateTransferStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
+		eh.photon.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer sending target=%s", utils.APex2(receiver)), nil)
 		eh.photon.NotifyTransferStatusChange(ch.TokenAddress, mtr.LockSecretHash, models.TransferStatusCanCancel, fmt.Sprintf("MediatedTransfer 正在发送 target=%s", utils.APex2(receiver)))
 	}
 	return
@@ -223,7 +224,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(receiver, tr)
 	if err == nil {
-		eh.photon.dao.UpdateTransferStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock 正在发送 target=%s", utils.APex2(receiver)))
+		eh.photon.dao.UpdateSentTransferDetailStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock sending target=%s", utils.APex2(receiver)))
 	}
 	return
 }
@@ -382,7 +383,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	eh.photon.conditionQuit("EventRemoveExpiredHashlockTransferBefore")
 	err = eh.photon.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
 	err = eh.photon.sendAsync(ch.PartnerState.Address, tr)
-	eh.photon.dao.UpdateTransferStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
+	eh.photon.dao.UpdateSentTransferDetailStatus(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("transfer timeout err=%s", e2.Reason), nil)
 	eh.photon.NotifyTransferStatusChange(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	return
 }
@@ -434,11 +435,11 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		if err != nil {
 			log.Error(fmt.Sprintf("UpdateChannelNoTx err %s", err))
 		}
-		st := eh.photon.dao.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.ChannelIdentifier.OpenBlockNumber, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
-		eh.photon.NotifyHandler.NotifySentTransfer(st)
+		//st := eh.photon.dao.NewSentTransfer(eh.photon.GetBlockNumber(), e2.ChannelIdentifier, ch.ChannelIdentifier.OpenBlockNumber, ch.TokenAddress, e2.Target, ch.GetNextNonce(), e2.Amount, e2.LockSecretHash, e2.Data)
+		//eh.photon.NotifyHandler.NotifySentTransfer(st)
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferSentFailed:
-		eh.photon.dao.UpdateTransferStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
+		eh.photon.dao.UpdateSentTransferDetailStatus(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("transfer fail err=%s", e2.Reason), nil)
 		eh.photon.NotifyTransferStatusChange(e2.Token, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易失败 err=%s", e2.Reason))
 		eh.finishOneTransfer(event)
 	case *transfer.EventTransferReceivedSuccess:

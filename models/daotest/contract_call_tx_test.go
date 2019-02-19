@@ -18,7 +18,7 @@ func TestModelDB_ContractCallTX(t *testing.T) {
 	openBlockNumber := int64(5)
 
 	// 0. find
-	list, err := dao.GetTXInfoList(utils.EmptyHash, 0, "", models.TXInfoStatusPending)
+	list, err := dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusPending)
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
@@ -28,52 +28,52 @@ func TestModelDB_ContractCallTX(t *testing.T) {
 	assert.Empty(t, err)
 
 	// 2. find all
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, "", "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
 	// 3. find by channelIdentifier
-	list, err = dao.GetTXInfoList(channelIdentifier, 0, "", "")
+	list, err = dao.GetTXInfoList(channelIdentifier, 0, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
-	list, err = dao.GetTXInfoList(utils.NewRandomHash(), 0, "", "")
+	list, err = dao.GetTXInfoList(utils.NewRandomHash(), 0, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
 	// 4. find by OpenBlockNumber
-	list, err = dao.GetTXInfoList(utils.EmptyHash, openBlockNumber, "", "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, openBlockNumber, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 2, "", "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 2, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
 	// 5. find by channelIdentifier && OpenBlockNumber
-	list, err = dao.GetTXInfoList(channelIdentifier, openBlockNumber, "", "")
+	list, err = dao.GetTXInfoList(channelIdentifier, openBlockNumber, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
-	list, err = dao.GetTXInfoList(channelIdentifier, 2, "", "")
+	list, err = dao.GetTXInfoList(channelIdentifier, 2, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
 	// 8. find by type
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, models.TXInfoTypeDeposit, "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, models.TXInfoTypeDeposit, "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, models.TXInfoTypeClose, "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, models.TXInfoTypeClose, "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
 	// 7. find by status
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, "", models.TXInfoStatusPending)
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusPending)
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, "", models.TXInfoStatusSuccess)
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusSuccess)
 	assert.Empty(t, err)
 	assert.EqualValues(t, 0, len(list))
 
@@ -81,7 +81,7 @@ func TestModelDB_ContractCallTX(t *testing.T) {
 	err = dao.UpdateTXInfoStatus(tx.Hash(), models.TXInfoStatusSuccess, 2)
 	assert.Empty(t, err)
 
-	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, "", "")
+	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", "")
 	assert.Empty(t, err)
 	assert.EqualValues(t, 1, len(list))
 	assert.EqualValues(t, models.TXInfoStatusSuccess, list[0].Status)

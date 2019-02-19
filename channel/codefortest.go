@@ -38,7 +38,7 @@ func (dao *FakeTXINfoDao) UpdateTXInfoStatus(txHash common.Hash, status models.T
 }
 
 // GetTXInfoList :
-func (dao *FakeTXINfoDao) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
+func (dao *FakeTXINfoDao) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
 	return
 }
 

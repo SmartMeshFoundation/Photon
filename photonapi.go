@@ -667,8 +667,8 @@ func (r *API) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock
 /*
 GetSentTransfers query sent transfers from dao
 */
-func (r *API) GetSentTransfers(from, to int64) ([]*models.SentTransfer, error) {
-	return r.Photon.dao.GetSentTransferInBlockRange(from, to)
+func (r *API) GetSentTransfers(tokenAddress common.Address, from, to int64) ([]*models.SentTransferDetail, error) {
+	return r.Photon.dao.GetSentTransferDetailList(tokenAddress, -1, -1, from, to)
 }
 
 /*
@@ -1122,7 +1122,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	data.ChannelNum = len(cs)
 	// Transfers
-	sts, err := r.GetSentTransfers(-1, -1)
+	sts, err := r.GetSentTransfers(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1171,6 +1171,7 @@ func (r *API) checkSmcStatus() error {
 type ContractCallTXQueryParams struct {
 	ChannelIdentifier string              `json:"channel_identifier"`
 	OpenBlockNumber   int64               `json:"open_block_number"`
+	TokenAddress      string              `json:"token_address"`
 	TXType            models.TXInfoType   `json:"tx_type"`
 	TXStatus          models.TXInfoStatus `json:"tx_status"`
 }
@@ -1181,11 +1182,15 @@ func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*model
 	openBlockNumber := int64(0)
 	var txType models.TXInfoType
 	var txStatus models.TXInfoStatus
+	tokenAddress := utils.EmptyAddress
 	if req.ChannelIdentifier != "" {
 		channelIdentifier = common.HexToHash(req.ChannelIdentifier)
 	}
 	if req.OpenBlockNumber > 0 {
 		openBlockNumber = req.OpenBlockNumber
+	}
+	if req.TokenAddress != "" {
+		tokenAddress = common.HexToAddress(req.TokenAddress)
 	}
 	if req.TXType != "" {
 		txType = req.TXType
@@ -1193,6 +1198,6 @@ func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*model
 	if req.TXStatus != "" {
 		txStatus = req.TXStatus
 	}
-	list, err = r.Photon.dao.GetTXInfoList(channelIdentifier, openBlockNumber, txType, txStatus)
+	list, err = r.Photon.dao.GetTXInfoList(channelIdentifier, openBlockNumber, tokenAddress, txType, txStatus)
 	return
 }

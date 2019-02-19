@@ -34,18 +34,21 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 			txParamsStr = string(buf)
 		}
 	}
+	tokenAddress := utils.EmptyAddress
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := model.GetChannelByAddress(channelIdentifier)
 		if err2 != nil {
 			log.Error(err2.Error())
 		} else {
 			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
+			tokenAddress = c.TokenAddress()
 		}
 	}
 	txInfo = &models.TXInfo{
 		TXHash:            tx.Hash(),
 		ChannelIdentifier: channelIdentifier,
 		OpenBlockNumber:   openBlockNumber,
+		TokenAddress:      tokenAddress,
 		Type:              txType,
 		IsSelfCall:        true,
 		TXParams:          txParamsStr,
@@ -95,8 +98,14 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 	tis.PackBlockNumber = packBlockNumber
 	tis.PackTime = time.Now().Unix()
 	if tis.OpenBlockNumber == 0 && tis.Type == models.TXInfoTypeDeposit {
-		// 通道第一deposit,即通道打开,记录OpenBlockNumber
+		// 通道第一deposit,即通道打开,记录OpenBlockNumber和TokenAddress
 		tis.OpenBlockNumber = packBlockNumber
+		ch, err2 := model.GetChannelByAddress(common.BytesToHash(tis.ChannelIdentifier))
+		if err2 != nil {
+			log.Error(err2.Error())
+		} else {
+			tis.TokenAddress = ch.TokenAddressBytes
+		}
 	}
 	err = model.db.Save(&tis)
 	if err != nil {
@@ -110,13 +119,16 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 
 // GetTXInfoList :
 // 如果参数不为空,则根据参数查询
-func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
+func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
 	var selectList []q.Matcher
 	if channelIdentifier != utils.EmptyHash {
 		selectList = append(selectList, q.Eq("ChannelIdentifier", channelIdentifier[:]))
 	}
 	if openBlockNumber != 0 {
 		selectList = append(selectList, q.Eq("OpenBlockNumber", openBlockNumber))
+	}
+	if tokenAddress != utils.EmptyAddress {
+		selectList = append(selectList, q.Eq("TokenAddress", tokenAddress[:]))
 	}
 	if txType != "" {
 		txTypeStr := string(txType)

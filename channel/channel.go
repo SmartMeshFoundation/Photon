@@ -1029,7 +1029,7 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 		len(c.OurState.Lock2UnclaimedLocks) > 0 {
 		return rerr.ErrChannelWithdrawButHasLocks
 	}
-	c.State = channeltype.StateWithdraw
+	c.State = channeltype.StatePartnerWithdrawing
 	return nil
 }
 
@@ -1109,7 +1109,9 @@ func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error 
 		len(c.OurState.Lock2PendingLocks) > 0 {
 		return rerr.ErrChannelWithdrawButHasLocks
 	}
-	c.State = channeltype.StateWithdraw
+	if c.State != channeltype.StateWithdraw {
+		return rerr.ErrChannelState.Printf("receive withdraw response but my channel state is %s", c.State)
+	}
 	return nil
 }
 
@@ -1174,7 +1176,7 @@ func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) 
 		len(c.OurState.Lock2UnclaimedLocks) > 0 {
 		return rerr.ErrChannelCooperativeSettleButHasLocks
 	}
-	c.State = channeltype.StateCooprativeSettle
+	c.State = channeltype.StatePartnerCooperativeSettling
 	return nil
 }
 
@@ -1228,7 +1230,9 @@ func (c *Channel) RegisterCooperativeSettleResponse(msg *encoding.SettleResponse
 	if err != nil {
 		return err
 	}
-	c.State = channeltype.StateCooprativeSettle
+	if c.State != channeltype.StateCooprativeSettle {
+		return rerr.ErrChannelState.Printf("receive cooperative settle response but my channel state is %s", c.State)
+	}
 	return nil
 }
 
