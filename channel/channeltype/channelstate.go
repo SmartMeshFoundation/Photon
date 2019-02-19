@@ -63,7 +63,7 @@ const (
 	// StatePartnerCooperativeSettling 用户收到对方发来的CooperativeSettle请求并同意后,将通道置为该状态
 	StatePartnerCooperativeSettling
 
-	// StatePartnerWithdrawing 用户收到的了对方发来的withdraw请求并同意后
+	// StatePartnerWithdrawing 用户收到的了对方发来的withdraw请求并同意后,将通道置为该状态
 	StatePartnerWithdrawing
 )
 
@@ -120,8 +120,12 @@ func (s State) String() string {
 		return "settling"
 	case StateWithdraw:
 		return "withdrawing"
+	case StatePartnerWithdrawing:
+		return "partnerWithdrawing"
 	case StateCooprativeSettle:
 		return "cooperativeSettling"
+	case StatePartnerCooperativeSettling:
+		return "partnerCooperativeSettling"
 	case StatePrepareForWithdraw:
 		return "prepareForWithdraw"
 	case StatePrepareForCooperativeSettle:
