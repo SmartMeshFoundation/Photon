@@ -284,6 +284,13 @@ func (rs *Service) Start() (err error) {
 		err = rs.startSubscribeNeighborStatus()
 		return
 	}
+	// 刷新所有通道状态信息到pfs
+	for _, cg := range rs.Token2ChannelGraph {
+		for _, ch := range cg.ChannelIdentifier2Channel {
+			rs.submitBalanceProofToPfs(ch)
+			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
+		}
+	}
 	return nil
 }
 
