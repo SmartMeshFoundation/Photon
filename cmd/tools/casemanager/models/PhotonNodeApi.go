@@ -579,8 +579,8 @@ func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) 
 	return
 }
 
-//GetSentTransfers query node's sent transfer
-func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err error) {
+//GetSentTransferDetails query node's sent transfer
+func (node *PhotonNode) GetSentTransferDetails() (trs []*models.SentTransferDetail, err error) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/querysenttransfer",
 		Method:  http.MethodGet,
@@ -588,7 +588,7 @@ func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err erro
 	}
 	body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("GetSentTransfers err :%s", err))
+		Logger.Println(fmt.Sprintf("GetSentTransferDetails err :%s", err))
 		return
 	}
 	err = json.Unmarshal(body, &trs)
@@ -617,8 +617,8 @@ func (node *PhotonNode) GetReceivedTransfers() (trs []*models.ReceivedTransfer, 
 	return
 }
 
-//GetTransferStatus :
-func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status *models.TransferStatus, err error) {
+//GetSentTransferDetail :
+func (node *PhotonNode) GetSentTransferDetail(token, locksecrethash string) (status *models.SentTransferDetail, err error) {
 	req := &Req{
 		FullURL: fmt.Sprintf(node.Host+"/api/1/transferstatus/%s/%s", token, locksecrethash),
 		Method:  http.MethodGet,
@@ -626,7 +626,7 @@ func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status 
 	}
 	body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("GetTransferStatus err :%s", err))
+		Logger.Println(fmt.Sprintf("GetSentTransferDetail err :%s", err))
 		return
 	}
 	err = json.Unmarshal(body, &status)

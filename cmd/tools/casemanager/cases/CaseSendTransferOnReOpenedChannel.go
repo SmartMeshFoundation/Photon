@@ -36,9 +36,9 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeClose")
 	N0.SendTrans(env.Tokens[0].TokenAddress.String(), 1, N1.Address, true)
-	trs, err := N0.GetSentTransfers()
+	trs, err := N0.GetSentTransferDetails()
 	if err != nil {
-		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransfers err %s", err))
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransferDetails err %s", err))
 	}
 	if len(trs) != 1 {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "trs 1 err")
@@ -88,9 +88,9 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	if !c01new.CheckPartnerBalance(1) {
 		return cm.caseFail(env.CaseName)
 	}
-	trs, err = N0.GetSentTransfers()
+	trs, err = N0.GetSentTransferDetails()
 	if err != nil {
-		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransfers 2 err %s", err))
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("GetSentTransferDetails 2 err %s", err))
 	}
 	models.Logger.Printf("trs=%s", utils.StringInterface(trs, 3))
 	if len(trs) != 2 {

@@ -665,9 +665,9 @@ func (r *API) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock
 }
 
 /*
-GetSentTransfers query sent transfers from dao
+GetSentTransferDetails query sent transfers from dao
 */
-func (r *API) GetSentTransfers(tokenAddress common.Address, from, to int64) ([]*models.SentTransferDetail, error) {
+func (r *API) GetSentTransferDetails(tokenAddress common.Address, from, to int64) ([]*models.SentTransferDetail, error) {
 	return r.Photon.dao.GetSentTransferDetailList(tokenAddress, -1, -1, from, to)
 }
 
@@ -1122,7 +1122,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	data.ChannelNum = len(cs)
 	// Transfers
-	sts, err := r.GetSentTransfers(utils.EmptyAddress, -1, -1)
+	sts, err := r.GetSentTransferDetails(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}

@@ -470,7 +470,7 @@ transfer:
     "sync": true
 }
 
-the caller should call GetTransferStatus periodically to query this transfer's latest status.
+the caller should call GetSentTransferDetail periodically to query this transfer's latest status.
 */
 func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (result string) {
 	defer func() {
@@ -695,14 +695,14 @@ GetSentTransfers retuns list of sent transfer between `from_block` and `to_block
 */
 func (a *API) GetSentTransfers(tokenAddressStr string, from, to int64) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("ApiCall GetSentTransfers result=%s", result))
+		log.Trace(fmt.Sprintf("ApiCall GetSentTransferDetails result=%s", result))
 	}()
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	tokenAddress := utils.EmptyAddress
 	if tokenAddressStr != "" {
 		tokenAddress = common.HexToAddress(tokenAddressStr)
 	}
-	trs, err := a.api.GetSentTransfers(tokenAddress, from, to)
+	trs, err := a.api.GetSentTransferDetails(tokenAddress, from, to)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -865,7 +865,7 @@ example returns:
 */
 func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetTransferStatus tokenAddressStr=%s,lockSecretHashStr=%s, result=%s\n",
+		log.Trace(fmt.Sprintf("Api GetSentTransferDetail tokenAddressStr=%s,lockSecretHashStr=%s, result=%s\n",
 			tokenAddressStr, lockSecretHashStr, result,
 		))
 	}()

@@ -30,17 +30,17 @@ type TransferData struct {
 }
 
 /*
-GetSentTransfers returns list of sent transfer between `from_block` and `to_block`
+GetSentTransferDetails returns list of sent transfer between `from_block` and `to_block`
 */
-func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
+func GetSentTransferDetails(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransfers ,err=%s", resp.ToFormatString()))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransferDetails ,err=%s", resp.ToFormatString()))
 		writejson(w, resp)
 	}()
 	from, to := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := API.GetSentTransfers(utils.EmptyAddress, from, to)
+	trs, err := API.GetSentTransferDetails(utils.EmptyAddress, from, to)
 	resp = dto.NewAPIResponse(err, trs)
 }
 
@@ -132,11 +132,11 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(req)
 }
 
-// GetTransferStatus : query transfer status by lockSecretHash
-func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
+// GetSentTransferDetail : query transfer status by lockSecretHash
+func GetSentTransferDetail(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> GetTransferStatus ,err=%s", resp.ToFormatString()))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransferDetail ,err=%s", resp.ToFormatString()))
 		writejson(w, resp)
 	}()
 	lockSecretHashStr := r.PathParam("locksecrethash")

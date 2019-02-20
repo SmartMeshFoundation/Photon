@@ -149,8 +149,7 @@ func init() {
 }
 
 func (model *StormDB) initDb() {
-	err := model.db.Init(&models.SentTransfer{})
-	err = model.db.Init(&models.ReceivedTransfer{})
+	err := model.db.Init(&models.ReceivedTransfer{})
 	err = model.db.Set(models.BucketBlockNumber, models.KeyBlockNumber, 0)
 	if err != nil {
 		log.Error(fmt.Sprintf("db err %s", err))

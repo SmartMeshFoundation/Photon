@@ -59,10 +59,10 @@ func Start() {
 		/*
 			transfers
 		*/
-		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
+		rest.Get("/api/1/querysenttransfer", GetSentTransferDetails),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
 		rest.Post("/api/1/transfers/:token/:target", Transfers),
-		rest.Get("/api/1/transferstatus/:token/:locksecrethash", GetTransferStatus),
+		rest.Get("/api/1/transferstatus/:token/:locksecrethash", GetSentTransferDetail),
 		rest.Post("/api/1/transfercancel/:token/:locksecrethash", CancelTransfer),
 		/*
 			transfer with specified secret

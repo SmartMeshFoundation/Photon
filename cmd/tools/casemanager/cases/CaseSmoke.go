@@ -64,12 +64,12 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return fmt.Errorf("check partner balance error")
 	}
 
-	trs, err := n0.GetSentTransfers()
+	trs, err := n0.GetSentTransferDetails()
 	if err != nil {
-		return fmt.Errorf("GetSentTransfers err %s", err)
+		return fmt.Errorf("GetSentTransferDetails err %s", err)
 	}
 	if len(trs) != 1 || trs[0].Amount.Uint64() != 1 {
-		return fmt.Errorf("GetSentTransfers err trs=%s", utils.StringInterface(trs, 3))
+		return fmt.Errorf("GetSentTransferDetails err trs=%s", utils.StringInterface(trs, 3))
 	}
 	n1.GetChannelWith(n0, tokenAddress).Println("after transfer")
 	rrs, err := n1.GetReceivedTransfers()
@@ -125,7 +125,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if !c01new.CheckLockSelf(1) {
 		return fmt.Errorf("CancelTransfer check lock err ")
 	}
-	st, err := n0.GetTransferStatus(tokenAddress, secrethash)
+	st, err := n0.GetSentTransferDetail(tokenAddress, secrethash)
 	if err != nil {
 		return err
 	}

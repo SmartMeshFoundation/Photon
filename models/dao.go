@@ -151,28 +151,12 @@ type TokenDao interface {
 	AddToken(token common.Address, tokenNetworkAddress common.Address) error
 }
 
-//// SentTransferDao :
-//type SentTransferDao interface {
-//	NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *SentTransfer
-//	GetSentTransfer(key string) (*SentTransfer, error)
-//	GetSentTransferInBlockRange(fromBlock, toBlock int64) (transfers []*SentTransfer, err error)
-//	GetSentTransferInTimeRange(from, to time.Time) (transfers []*SentTransfer, err error)
-//}
-
 // ReceivedTransferDao :
 type ReceivedTransferDao interface {
 	NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *ReceivedTransfer
 	GetReceivedTransfer(key string) (*ReceivedTransfer, error)
 	GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock int64) (transfers []*ReceivedTransfer, err error)
 }
-
-//// TransferStatusDao :
-//type TransferStatusDao interface {
-//	NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash)
-//	UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string)
-//	UpdateTransferStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
-//	GetTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) (*TransferStatus, error)
-//}
 
 // SentTransferDetailDao :
 type SentTransferDetailDao interface {
