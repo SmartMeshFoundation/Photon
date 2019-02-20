@@ -226,7 +226,7 @@ func (be *Events) startAlarmTask() {
 			continue
 		}
 		if len(stateChanges) > 0 {
-			log.Trace(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), currentBlock+1, lastedBlock))
+			log.Trace(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), fromBlockNumber, lastedBlock))
 		}
 
 		// refresh block number and notify PhotonService

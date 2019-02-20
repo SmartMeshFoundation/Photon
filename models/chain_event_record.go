@@ -3,7 +3,7 @@ package models
 import "encoding/gob"
 
 // ChainEventID 一个链上事件的唯一ID, txHash+logIndex
-type ChainEventID [25]byte
+type ChainEventID string
 
 // ChainEventStatus :
 type ChainEventStatus string

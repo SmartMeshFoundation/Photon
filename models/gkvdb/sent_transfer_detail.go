@@ -45,7 +45,7 @@ func (dao *GkvDB) NewSentTransferDetail(tokenAddress, target common.Address, amo
 func (dao *GkvDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string, otherParams interface{}) (transfer *models.SentTransferDetail) {
 	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := dao.getKeyValueToBucket(models.BucketTransferStatus, key, &transfer)
+	err := dao.getKeyValueToBucket(models.BucketTransferStatus, key, transfer)
 	if err == ErrorNotFound {
 		return
 	}
@@ -66,7 +66,7 @@ func (dao *GkvDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lo
 	if status == models.TransferStatusCanceled || status == models.TransferStatusFailed {
 		transfer.FinishTime = time.Now().Unix()
 	}
-	err = dao.saveKeyValueToBucket(models.BucketSentTransferDetail, transfer.Key, &transfer)
+	err = dao.saveKeyValueToBucket(models.BucketSentTransferDetail, transfer.Key, transfer)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateStatus err %s", err))
 		return
@@ -79,7 +79,7 @@ func (dao *GkvDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lo
 func (dao *GkvDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *models.SentTransferDetail) {
 	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := dao.getKeyValueToBucket(models.BucketTransferStatus, key, &transfer)
+	err := dao.getKeyValueToBucket(models.BucketTransferStatus, key, transfer)
 	if err == storm.ErrNotFound {
 		return
 	}
@@ -88,7 +88,7 @@ func (dao *GkvDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Addr
 		return
 	}
 	transfer.StatusMessage = fmt.Sprintf("%s%s\n", transfer.StatusMessage, statusMessage)
-	err = dao.saveKeyValueToBucket(models.BucketSentTransferDetail, transfer.Key, &transfer)
+	err = dao.saveKeyValueToBucket(models.BucketSentTransferDetail, transfer.Key, transfer)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateStatusMessage err %s", err))
 		return

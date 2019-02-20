@@ -81,7 +81,7 @@ func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address
 func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *models.SentTransferDetail) {
 	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
-	err := model.db.One("Key", key, &transfer)
+	err := model.db.One("Key", key, transfer)
 	if err == storm.ErrNotFound {
 		return
 	}
@@ -90,7 +90,7 @@ func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.
 		return
 	}
 	transfer.StatusMessage = fmt.Sprintf("%s%s\n", transfer.StatusMessage, statusMessage)
-	err = model.db.Save(&transfer)
+	err = model.db.Save(transfer)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateStatusMessage err %s", err))
 		return

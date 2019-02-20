@@ -6,6 +6,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/asdine/storm"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -69,8 +70,8 @@ func (dao *GkvDB) ClearOldChainEventRecord(blockNumber uint64) {
 
 // MakeChainEventID :
 func (dao *GkvDB) MakeChainEventID(l *types.Log) models.ChainEventID {
-	var e models.ChainEventID
-	copy(e[:], l.TxHash[:])
-	e[24] = byte(l.Index)
-	return e
+	var t [25]byte
+	copy(t[:], l.TxHash[:])
+	t[24] = byte(l.Index)
+	return models.ChainEventID(common.Bytes2Hex(t[:]))
 }
