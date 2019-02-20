@@ -71,9 +71,9 @@ type Events struct {
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
 	client              *helper.SafeEthClient
-	pollPeriod          time.Duration // 轮询周期,必须与公链出块间隔一致
-	stopChan            chan int      // has stopped?
-	//txDone              map[eventID]uint64         // 该map记录最近30块内处理的events流水,用于事件去重
+	pollPeriod          time.Duration              // 轮询周期,必须与公链出块间隔一致
+	stopChan            chan int                   // has stopped?
+	txDone              map[eventID]uint64         // 该map记录最近30块内处理的events流水,用于事件去重
 	firstStart          bool                       //保证ContractHistoryEventCompleteStateChange 只会发送一次
 	chainEventRecordDao models.ChainEventRecordDao // 事件处理记录保存
 }
@@ -84,7 +84,7 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 		StateChangeChannel:  make(chan transfer.StateChange, 10),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
-		//txDone:              make(map[eventID]uint64),
+		txDone:              make(map[eventID]uint64),
 		firstStart:          true,
 		chainEventRecordDao: chainEventRecordDao,
 	}
@@ -252,9 +252,15 @@ func (be *Events) startAlarmTask() {
 		if lastSendBlockNumber != currentBlock {
 			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 		}
-		// 每5倍确认块清除一次过期流水
-		if fromBlockNumber%(5*params.ForkConfirmNumber) == 0 {
-			be.chainEventRecordDao.ClearOldChainEventRecord(uint64(fromBlockNumber))
+		//// 每5倍确认块清除一次过期流水
+		//if fromBlockNumber%(5*params.ForkConfirmNumber) == 0 {
+		//	be.chainEventRecordDao.ClearOldChainEventRecord(uint64(fromBlockNumber))
+		//}
+		// 清除过期流水
+		for key, blockNumber := range be.txDone {
+			if blockNumber <= uint64(fromBlockNumber) {
+				delete(be.txDone, key)
+			}
 		}
 		// wait to next time
 		//time.Sleep(be.pollPeriod)
@@ -304,15 +310,23 @@ func (be *Events) getLogsFromChain(fromBlock int64, toBlock int64) (logs []types
 func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtransfer.ContractStateChange, err error) {
 	for _, l := range logs {
 		eventName := topicToEventName[l.Topics[0]]
-		chainEventRecordID := be.chainEventRecordDao.MakeChainEventID(&l)
 		// 根据已处理流水去重
-		if doneBlockNumber, delivered := be.chainEventRecordDao.CheckChainEventDelivered(chainEventRecordID); delivered {
+		if doneBlockNumber, ok := be.txDone[makeEventID(&l)]; ok {
 			if doneBlockNumber == l.BlockNumber {
 				//log.Trace(fmt.Sprintf("get event txhash=%s repeated,ignore...", l.TxHash.String()))
 				continue
 			}
 			log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
 		}
+		//chainEventRecordID := be.chainEventRecordDao.MakeChainEventID(&l)
+		//// 根据已处理流水去重
+		//if doneBlockNumber, delivered := be.chainEventRecordDao.CheckChainEventDelivered(chainEventRecordID); delivered {
+		//	if doneBlockNumber == l.BlockNumber {
+		//		//log.Trace(fmt.Sprintf("get event txhash=%s repeated,ignore...", l.TxHash.String()))
+		//		continue
+		//	}
+		//	log.Warn(fmt.Sprintf("event tx=%s happened at %d, but now happend at %d ", l.TxHash.String(), doneBlockNumber, l.BlockNumber))
+		//}
 
 		// open,deposit,withdraw事件延迟确认,开关默认关闭,方便测试
 		if params.EnableForkConfirm && needConfirm(eventName) {
@@ -402,8 +416,8 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 			log.Warn(fmt.Sprintf("receive unkonwn type event from chain : \n%s\n", utils.StringInterface(l, 3)))
 		}
 		// 记录处理流水
-		be.chainEventRecordDao.NewDeliveredChainEvent(chainEventRecordID, l.BlockNumber)
-		//be.txDone[makeEventID(&l)] = l.BlockNumber
+		//be.chainEventRecordDao.NewDeliveredChainEvent(chainEventRecordID, l.BlockNumber)
+		be.txDone[makeEventID(&l)] = l.BlockNumber
 	}
 	return
 }

@@ -51,7 +51,7 @@ func (f *fakeChainEventRecordDao) ClearOldChainEventRecord(blockNumber uint64) {
 	return
 }
 func (f *fakeChainEventRecordDao) MakeChainEventID(l *types.Log) models.ChainEventID {
-	return [25]byte{}
+	return ""
 }
 
 func TestNewBlockChainEvents(t *testing.T) {
