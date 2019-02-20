@@ -266,6 +266,14 @@ func (rs *Service) Start() (err error) {
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
 	}
+	// 刷新所有通道状态信息到pfs
+	for _, cg := range rs.Token2ChannelGraph {
+		for _, ch := range cg.ChannelIdentifier2Channel {
+			rs.submitBalanceProofToPfs(ch)
+			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
+		}
+	}
+
 	/*
 		将protocol接受消息移到历史事件处理之后,
 		保证不在历史事件处理完毕之前进入事件主循环.
@@ -283,13 +291,6 @@ func (rs *Service) Start() (err error) {
 	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
 		err = rs.startSubscribeNeighborStatus()
 		return
-	}
-	// 刷新所有通道状态信息到pfs
-	for _, cg := range rs.Token2ChannelGraph {
-		for _, ch := range cg.ChannelIdentifier2Channel {
-			rs.submitBalanceProofToPfs(ch)
-			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
-		}
 	}
 	return nil
 }
