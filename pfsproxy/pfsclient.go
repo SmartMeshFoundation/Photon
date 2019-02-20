@@ -58,9 +58,10 @@ example :
 }
 */
 type submitBalancePayload struct {
-	BalanceProof     *balanceProof `json:"balance_proof"`
-	BalanceSignature []byte        `json:"balance_signature"`
-	LockAmount       *big.Int      `json:"lock_amount"`
+	BalanceProof     *balanceProof  `json:"balance_proof"`
+	BalanceSignature []byte         `json:"balance_signature"`
+	ProofSigner      common.Address `json:"proof_signer"`
+	LockAmount       *big.Int       `json:"lock_amount"`
 }
 
 type balanceProof struct {
@@ -84,6 +85,7 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 	_, err = buf.Write(p.BalanceProof.AdditionHash[:])
 	_, err = buf.Write(p.BalanceProof.Signature)
 	_, err = buf.Write(utils.BigIntTo32Bytes(p.LockAmount))
+	_, err = buf.Write(p.ProofSigner[:])
 	if err != nil {
 		log.Error(fmt.Sprintf("signData err %s", err))
 	}
@@ -97,7 +99,7 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 /*
 SubmitBalance :
 */
-func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, signature []byte) (err error) {
+func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, proofSigner common.Address, signature []byte) (err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
 		return ErrNotInit
 	}
@@ -111,7 +113,8 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 			AdditionHash:      additionHash,
 			Signature:         signature,
 		},
-		LockAmount: lockAmount,
+		LockAmount:  lockAmount,
+		ProofSigner: proofSigner,
 	}
 	payload.sign(pfg.privateKey)
 	req := &req{

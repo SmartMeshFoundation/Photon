@@ -1767,6 +1767,7 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 		bpPartner.LocksRoot,
 		ch.ChannelIdentifier.ChannelIdentifier,
 		bpPartner.MessageHash,
+		ch.PartnerState.Address,
 		bpPartner.Signature,
 	)
 	if err != nil {
