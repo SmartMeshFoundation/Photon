@@ -928,25 +928,43 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 	case *mediatedtransfer.ContractTokenAddedStateChange:
 		err = eh.HandleTokenAdded(st2)
 	case *mediatedtransfer.ContractNewChannelStateChange:
+		eh.photon.conditionQuit("EventNewChannelFromChainBeforeDeal")
 		err = eh.handleChannelNew(st2)
+		eh.photon.conditionQuit("EventNewChannelFromChainAfterDeal")
 	case *mediatedtransfer.ContractBalanceStateChange:
+		eh.photon.conditionQuit("EventDepositFromChainBeforeDeal")
 		err = eh.handleBalance(st2)
+		eh.photon.conditionQuit("EventDepositFromChainAfterDeal")
 	case *mediatedtransfer.ContractClosedStateChange:
+		eh.photon.conditionQuit("EventChannelCloseFromChainBeforeDeal")
 		err = eh.handleClosed(st2)
+		eh.photon.conditionQuit("EventChannelCloseFromChainAfterDeal")
 	case *mediatedtransfer.ContractSettledStateChange:
+		eh.photon.conditionQuit("EventChannelSettleFromChainBeforeDeal")
 		err = eh.handleSettled(st2)
+		eh.photon.conditionQuit("EventChannelSettleFromChainAfterDeal")
 	case *mediatedtransfer.ContractSecretRevealOnChainStateChange:
 		err = eh.handleSecretRegisteredOnChain(st2)
 	case *mediatedtransfer.ContractUnlockStateChange:
+		eh.photon.conditionQuit("EventUnlockFromChainBeforeDeal")
 		err = eh.handleUnlockOnChain(st2)
+		eh.photon.conditionQuit("EventUnlockFromChainAfterDeal")
 	case *mediatedtransfer.ContractPunishedStateChange:
+		eh.photon.conditionQuit("EventPunishFromChainBeforeDeal")
 		err = eh.handlePunishedOnChain(st2)
+		eh.photon.conditionQuit("EventPunishFromChainAfterDeal")
 	case *mediatedtransfer.ContractBalanceProofUpdatedStateChange:
+		eh.photon.conditionQuit("EventUpdateBalanceProofFromChainBeforeDeal")
 		err = eh.handleBalanceProofOnChain(st2)
+		eh.photon.conditionQuit("EventUpdateBalanceProofFromChainAfterDeal")
 	case *mediatedtransfer.ContractCooperativeSettledStateChange:
+		eh.photon.conditionQuit("EventCooperativeSettleFromChainBeforeDeal")
 		err = eh.handleCooperativeSettled(st2)
+		eh.photon.conditionQuit("EventCooperativeSettleFromChainAfterDeal")
 	case *mediatedtransfer.ContractChannelWithdrawStateChange:
+		eh.photon.conditionQuit("EventWithdrawFromChainBeforeDeal")
 		err = eh.handleWithdraw(st2)
+		eh.photon.conditionQuit("EventWithdrawFromChainAfterDeal")
 	case *transfer.BlockStateChange:
 		err = eh.handleBlockStateChange(st2)
 	default:
