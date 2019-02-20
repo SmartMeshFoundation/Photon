@@ -38,20 +38,20 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	assert.EqualValues(t, len(trs), 2)
+	assert.EqualValues(t, len(trs), 1)
 	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 5)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	assert.EqualValues(t, len(trs), 3)
+	assert.EqualValues(t, len(trs), 2)
 
 	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	//assert.EqualValues(t, len(trs), 0)
+	assert.EqualValues(t, len(trs), 0)
 	//from := time.Now().Add(0 - time.Minute)
 	//to := time.Now().Add(time.Minute)
 	//trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, from, to)
