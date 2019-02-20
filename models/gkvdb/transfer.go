@@ -31,7 +31,7 @@ func (dao *GkvDB) NewReceivedTransfer(blockNumber int64, channelIdentifier commo
 		Amount:            amount,
 		Data:              data,
 		OpenBlockNumber:   openBlockNumber,
-		TimeStamp:         time.Now().Format(time.RFC3339),
+		TimeStamp:         time.Now().Unix(),
 	}
 	var ost models.ReceivedTransfer
 	err := dao.getKeyValueToBucket(models.BucketReceivedTransfer, key, &ost)

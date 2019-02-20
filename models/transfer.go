@@ -19,7 +19,7 @@ type ReceivedTransfer struct {
 	Nonce             uint64         `json:"nonce"`
 	Amount            *big.Int       `json:"amount"`
 	Data              string         `json:"data"`
-	TimeStamp         string         `json:"time_stamp"`
+	TimeStamp         int64          `json:"time_stamp"`
 }
 
 func init() {

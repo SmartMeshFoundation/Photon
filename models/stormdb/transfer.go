@@ -32,7 +32,7 @@ func (model *StormDB) NewReceivedTransfer(blockNumber int64, channelIdentifier c
 		Amount:            amount,
 		Data:              data,
 		OpenBlockNumber:   openBlockNumber,
-		TimeStamp:         time.Now().Format(time.RFC3339),
+		TimeStamp:         time.Now().Unix(),
 	}
 	if ost, err := model.GetReceivedTransfer(key); err == nil {
 		log.Error(fmt.Sprintf("NewReceivedTransfer, but already exist, old=\n%s,new=\n%s",
