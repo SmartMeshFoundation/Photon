@@ -266,13 +266,6 @@ func (rs *Service) Start() (err error) {
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
 	}
-	// 刷新所有通道状态信息到pfs
-	for _, cg := range rs.Token2ChannelGraph {
-		for _, ch := range cg.ChannelIdentifier2Channel {
-			rs.submitBalanceProofToPfs(ch)
-			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
-		}
-	}
 
 	/*
 		将protocol接受消息移到历史事件处理之后,
@@ -1589,6 +1582,13 @@ func (rs *Service) handleEthRPCConnectionOK() {
 		err := fm.SubmitFeePolicyToPFS()
 		if err != nil {
 			log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err.Error()))
+		}
+	}
+	// 重连或启动时，刷新所有通道状态信息到pfs
+	for _, cg := range rs.Token2ChannelGraph {
+		for _, ch := range cg.ChannelIdentifier2Channel {
+			rs.submitBalanceProofToPfs(ch)
+			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
 		}
 	}
 }
