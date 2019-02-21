@@ -253,7 +253,7 @@ func (node *PhotonNode) Close(channelIdentifier string, waitSeconds ...int) (err
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
 	}
-	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	Logger.Println(fmt.Sprintf("close channel returned=%s", string(body)))
 	ch := channeltype.ChannelDataDetail{}
 	err = json.Unmarshal(body, &ch)
 	if err != nil {

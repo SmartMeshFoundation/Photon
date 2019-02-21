@@ -129,6 +129,10 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			err = rerr.ErrChannelNotFound
 			return
 		}
+		if ch.State != channeltype.StateOpened {
+			err = rerr.ErrChannelState.Append(fmt.Sprintf("can not deposit to %s channel", ch.State))
+			return
+		}
 	}
 	result := r.Photon.depositAndOpenChannelClient(tokenAddress, partnerAddress, settleTimeout, deposit, newChannel)
 	err = <-result.Result
