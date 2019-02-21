@@ -17,8 +17,10 @@
 package debug
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -105,6 +107,36 @@ var glogger *log.GlogHandler
 func init() {
 }
 
+//获取本机mac地址作为id,如果有多个mac就拼在一起,长度不超过32,如果没有mac地址,就返回一个随机字符串
+func mac() string {
+	m := make(map[string]bool)
+	// 获取本机的MAC地址
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		panic("Error : " + err.Error())
+	}
+	for _, inter := range interfaces {
+		mac := hex.EncodeToString(inter.HardwareAddr) //获取本机MAC地址
+		if !m[mac] {
+			m[mac] = true
+			//fmt.Println("MAC = ", mac)
+		} else {
+			continue
+		}
+	}
+	var r string
+	for s := range m {
+		r += s
+	}
+	if r == "" {
+		r = utils.RandomString(20)
+	}
+	if len(r) > 32 {
+		r = r[:32]
+	}
+	return r
+}
+
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) (err error) {
@@ -114,7 +146,7 @@ func Setup(ctx *cli.Context) (err error) {
 	if doDebug {
 		addr := ctx.GlobalString("address")
 		if len(addr) == 0 {
-			addr = utils.RandomString(20)
+			addr = mac() //主要用于meshbox的启动,他的地址不通过参数指定,但是需要固定
 		}
 		if params.MobileMode {
 			addr += "-mobile"
