@@ -22,6 +22,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -34,6 +35,7 @@ import (
 
 // TestEnv env manager for test
 type TestEnv struct {
+	Conn                *ethclient.Client
 	CaseName            string
 	Main                string
 	DataDir             string
@@ -104,6 +106,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	if err != nil {
 		Logger.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
+	env.Conn = conn
 	_, key := promptAccount(env.KeystorePath)
 	tokenNetworkAddress, tokenNetwork := loadTokenNetworkContract(c, conn, key)
 	env.TokenNetwork = tokenNetwork
@@ -222,6 +225,14 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 				Token:        token,
 				TokenAddress: tokenAddress,
 			})
+		} else if addr == "smttoken" {
+			token, tokenAddress := deploySMTToken(env, conn, key)
+			Logger.Printf("New SMTToken =%s\n", tokenAddress.String())
+			tokens = append(tokens, &Token{
+				Name:         option,
+				Token:        token,
+				TokenAddress: tokenAddress,
+			})
 		} else {
 			env.UseOldToken = true
 			tokenAddress := common.HexToAddress(addr)
@@ -237,6 +248,28 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 		}
 	}
 	Logger.Println("Load Tokens SUCCESS")
+	return
+}
+func deploySMTToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
+	var err error
+	auth := bind.NewKeyedTransactor(key)
+	auth.Value = big.NewInt(1)
+	tokenAddress, tx, _, err := smttoken.DeploySMTToken(auth, conn, "", common.HexToAddress(env.TokenNetworkAddress))
+	if err != nil {
+		log.Fatalf("Failed to DeploySMTToken: %v", err)
+	}
+	fmt.Printf("SMTToken deploy tx=%s\n", tx.Hash().String())
+	ctx := context.Background()
+	_, err = bind.WaitDeployed(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to deploy contact when mining :%v", err)
+	}
+	fmt.Printf("DeploySMTToken complete... tokenAddress=%s\n", tokenAddress.String())
+
+	token, err = contracts.NewToken(tokenAddress, conn)
+	if err != nil {
+		panic(fmt.Sprintf("err for newtoken err %s", err))
+	}
 	return
 }
 func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {

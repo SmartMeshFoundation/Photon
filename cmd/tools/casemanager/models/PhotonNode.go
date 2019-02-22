@@ -11,8 +11,15 @@ import (
 	"os"
 	"os/exec"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 )
+
+// PhotonNodeRuntime case运行过程中存储临时数据的地方
+type PhotonNodeRuntime struct {
+	MainChainBalance *big.Int // 主链货币余额
+}
 
 // PhotonNode a photon node
 type PhotonNode struct {
@@ -24,6 +31,7 @@ type PhotonNode struct {
 	ConditionQuit *params.ConditionQuit
 	DebugCrash    bool
 	Running       bool
+	Runtime       PhotonNodeRuntime
 }
 
 // Start start a photon node

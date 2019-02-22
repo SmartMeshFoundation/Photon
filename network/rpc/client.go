@@ -262,11 +262,11 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 		}
 		// b. 通知上层
 		bcs.NotifyHandler.NotifyContractCallTXInfo(savedTxInfo)
-		log.Warn("tx receipt failed :\n%s")
+		log.Warn(fmt.Sprintf("tx receipt failed :\n%s", utils.StringInterface(savedTxInfo, 3)))
 		return
 	}
 	// 成功处理
-	log.Info("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type)
+	log.Info(fmt.Sprintf("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type))
 	// a.记录状态到数据库
 	savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
 	if err != nil {

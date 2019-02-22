@@ -196,3 +196,6 @@ var ForkConfirmNumber int64 = 17
 
 // MaxTransferDataLen : 交易附件信息最大长度
 var MaxTransferDataLen = 256
+
+// SMTTokenName SMTToken名,固定
+const SMTTokenName = "SMTToken"

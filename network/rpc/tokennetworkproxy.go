@@ -11,8 +11,11 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -169,6 +172,40 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 //	return t.newChannelAndDepositByApprove(token, participantAddress, partnerAddress, settleTimeout, amount)
 //}
 
+/*
+
+ */
+func (t *TokenNetworkProxy) newChannelAndDepositOnSMTToken(tokenAddress common.Address, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+	log.Info(fmt.Sprintf("deposit on SMTToken address=%s", tokenAddress.String()))
+	smtTokenProxy, err := smttoken.NewSMTToken(tokenAddress, t.bcs.Client)
+	if err != nil {
+		log.Error(fmt.Sprintf("smttoken.NewSMTToken err = %s", err))
+		return rerr.ContractCallError(err)
+	}
+	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
+	// 在Auth中设置金额,不用t.bcs.Auth,避免影响其他交易
+	auth := bind.NewKeyedTransactor(t.bcs.PrivKey)
+	auth.Value = amount
+	tx, err := smtTokenProxy.BuyAndTransfer(auth, t.bcs.tokenNetworkAddress, data)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	txParams := &models.DepositTXParams{
+		TokenAddress:       tokenAddress,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout),
+	}
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.bcs.RegistryProxy.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	return
+}
+
 /*NewChannelAndDepositAsync create channel async
 创建通道并存款和存款分两种情况,
 一,只有一个Tx就能完成的情况,那么和关闭通道,settle通道处理流程是一样的
@@ -189,6 +226,14 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 	token, err := t.bcs.Token(tokenAddr)
 	if err != nil {
 		return rerr.ContractCallError(err)
+	}
+	// 获取tokenName,如果是SMTToken,即主链币代理合约,
+	name, err := token.Token.Name(nil)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	if name == params.SMTTokenName {
+		return t.newChannelAndDepositOnSMTToken(tokenAddr, participantAddress, partnerAddress, settleTimeout, amount)
 	}
 	err = t.newChannelAndDepositByFallback(token, participantAddress, partnerAddress, settleTimeout, amount)
 	if err == nil {
