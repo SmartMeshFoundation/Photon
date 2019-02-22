@@ -12,9 +12,11 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 .*/
 
 pragma solidity ^0.4.24;
+import "./ERC223_interface.sol";
+import "./ERC223_receiving_contract.sol";
 import "./openzeppelin-token/ERC20/StandardToken.sol";
 
-contract SMTToken is StandardToken {
+contract SMTToken is ERC223,StandardToken {
 
 
 
@@ -57,7 +59,7 @@ contract SMTToken is StandardToken {
    * @param _value Amount of tokens that will be transferred.
    * @param _data  Transaction metadata.
    */
-    function transfer(address _to, uint256 _value, bytes _data) public {
+    function transfer(address _to, uint256 _value, bytes _data) external {
         // Standard function transfer similar to ERC20 transfer with no _data .
         // Added due to backwards compatibility reasons .
         uint codeLength;
@@ -79,14 +81,33 @@ contract SMTToken is StandardToken {
     function buyAndTransfer(address _to, bytes _data) public payable {
         require(msg.value>0); //不能充值0
         buy(); //先充值,充值完成就转走
-        transfer(_to,msg.value,_data);
+        transferHelper(_to,msg.value,_data);
+    }
+    //临时方便,长期肯定不能这么做
+    function transferHelper(address _to, uint256 _value, bytes _data) internal {
+        // Standard function transfer similar to ERC20 transfer with no _data .
+        // Added due to backwards compatibility reasons .
+        uint codeLength;
+
+        assembly {
+        // Retrieve the size of the code on target address, this needs assembly .
+            codeLength := extcodesize(_to)
+        }
+
+        balances[msg.sender] = balances[msg.sender].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+        if(codeLength>0) {
+            ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
+            receiver.tokenFallback(msg.sender, _value, _data);
+        }
+        emit Transfer(msg.sender, _to, _value, _data);
     }
     //钱退回账户的过程,特殊处理一下.
     /**
-* @dev Transfer token for a specified address
-* @param _to The address to transfer to.
-* @param _value The amount to be transferred.
-*/
+    * @dev Transfer token for a specified address
+    * @param _to The address to transfer to.
+    * @param _value The amount to be transferred.
+    */
     function transfer(address _to, uint256 _value) public returns (bool) {
         require(_value <= balances[msg.sender]);
         require(_to != address(0));
@@ -95,7 +116,7 @@ contract SMTToken is StandardToken {
         balances[_to] = balances[_to].add(_value);
         emit Transfer(msg.sender, _to, _value);
         if (msg.sender==tokenNetwork) { //来自特殊地址的转账,直接提现到账户中
-            sell(_value);
+            sellFrom(_to,_value);
         }
         return true;
     }
@@ -119,7 +140,7 @@ contract SMTToken is StandardToken {
     }
     //从token 退回到个人账户中
     function sell(uint256 amount) public {
-        sell(msg.sender,amount);
+        sellFrom(msg.sender,amount);
     }
 
 

@@ -1,7 +1,7 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package tokenerc223
+package smttoken
 
 import (
 	"math/big"
@@ -1882,123 +1882,123 @@ func (_ERC223ReceivingContract *ERC223ReceivingContractTransactorSession) TokenF
 	return _ERC223ReceivingContract.Contract.TokenFallback(&_ERC223ReceivingContract.TransactOpts, _from, _value, _data)
 }
 
-// HumanERC223TokenABI is the input ABI used to generate the binding from.
-const HumanERC223TokenABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"version\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_subtractedValue\",\"type\":\"uint256\"}],\"name\":\"decreaseApproval\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transfer\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"transfer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_addedValue\",\"type\":\"uint256\"}],\"name\":\"increaseApproval\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_spender\",\"type\":\"address\"}],\"name\":\"allowance\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_initialAmount\",\"type\":\"uint256\"},{\"name\":\"_tokenSymbol\",\"type\":\"string\"},{\"name\":\"_decimals\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"spender\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"},{\"indexed\":true,\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"Transfer\",\"type\":\"event\"}]"
+// SMTTokenABI is the input ABI used to generate the binding from.
+const SMTTokenABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"version\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"tokenNetwork\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_subtractedValue\",\"type\":\"uint256\"}],\"name\":\"decreaseApproval\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"buy\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transfer\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"transfer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_addedValue\",\"type\":\"uint256\"}],\"name\":\"increaseApproval\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_spender\",\"type\":\"address\"}],\"name\":\"allowance\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"sell\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"buyAndTransfer\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_tokenSymbol\",\"type\":\"string\"},{\"name\":\"_tokenNetwork\",\"type\":\"address\"}],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"},{\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"spender\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"},{\"indexed\":true,\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"Transfer\",\"type\":\"event\"}]"
 
-// HumanERC223TokenBin is the compiled bytecode used for deploying new contracts.
-const HumanERC223TokenBin = `0x60c0604052600460808190527f48302e310000000000000000000000000000000000000000000000000000000060a090815261003e91600691906100f3565b5034801561004b57600080fd5b50604051610dfc380380610dfc833981016040818152825160208085015183860151336000908152808452859020849055600184905584860190945260128086527f455243323233546f6b656e446563696d616c000000000000000000000000000092909501918252919491909101926100c7916003916100f3565b506004805460ff191660ff831617905581516100ea9060059060208501906100f3565b5050505061018e565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061013457805160ff1916838001178555610161565b82800160010185558215610161579182015b82811115610161578251825591602001919060010190610146565b5061016d929150610171565b5090565b61018b91905b8082111561016d5760008155600101610177565b90565b610c5f8061019d6000396000f3006080604052600436106100c45763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166306fdde0381146100c9578063095ea7b31461015357806318160ddd1461019857806323b872dd146101bf578063313ce567146101f657806354fd4d5014610221578063661884631461023657806370a082311461026757806395d89b4114610295578063a9059cbb146102aa578063be45fd62146102db578063d73dd6231461031b578063dd62ed3e1461034c575b600080fd5b3480156100d557600080fd5b506100de610380565b6040805160208082528351818301528351919283929083019185019080838360005b83811015610118578181015183820152602001610100565b50505050905090810190601f1680156101455780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561015f57600080fd5b5061018473ffffffffffffffffffffffffffffffffffffffff6004351660243561040e565b604080519115158252519081900360200190f35b3480156101a457600080fd5b506101ad610481565b60408051918252519081900360200190f35b3480156101cb57600080fd5b5061018473ffffffffffffffffffffffffffffffffffffffff60043581169060243516604435610487565b34801561020257600080fd5b5061020b610657565b6040805160ff9092168252519081900360200190f35b34801561022d57600080fd5b506100de610660565b34801561024257600080fd5b5061018473ffffffffffffffffffffffffffffffffffffffff600435166024356106bb565b34801561027357600080fd5b506101ad73ffffffffffffffffffffffffffffffffffffffff600435166107de565b3480156102a157600080fd5b506100de610806565b3480156102b657600080fd5b5061018473ffffffffffffffffffffffffffffffffffffffff60043516602435610861565b3480156102e757600080fd5b506103196004803573ffffffffffffffffffffffffffffffffffffffff16906024803591604435918201910135610967565b005b34801561032757600080fd5b5061018473ffffffffffffffffffffffffffffffffffffffff60043516602435610b23565b34801561035857600080fd5b506101ad73ffffffffffffffffffffffffffffffffffffffff60043581169060243516610bd6565b6003805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156104065780601f106103db57610100808354040283529160200191610406565b820191906000526020600020905b8154815290600101906020018083116103e957829003601f168201915b505050505081565b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff8716808552908352818420869055815186815291519394909390927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925928290030190a350600192915050565b60015490565b73ffffffffffffffffffffffffffffffffffffffff83166000908152602081905260408120548211156104b957600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526002602090815260408083203384529091529020548211156104f657600080fd5b73ffffffffffffffffffffffffffffffffffffffff8316151561051857600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526020819052604090205461054e908363ffffffff610c0e16565b73ffffffffffffffffffffffffffffffffffffffff8086166000908152602081905260408082209390935590851681522054610590908363ffffffff610c2016565b73ffffffffffffffffffffffffffffffffffffffff8085166000908152602081815260408083209490945591871681526002825282812033825290915220546105df908363ffffffff610c0e16565b73ffffffffffffffffffffffffffffffffffffffff808616600081815260026020908152604080832033845282529182902094909455805186815290519287169391927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35060019392505050565b60045460ff1681565b6006805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156104065780601f106103db57610100808354040283529160200191610406565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff861684529091528120548083106107295733600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff8816845290915281205561076b565b610739818463ffffffff610c0e16565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff891684529091529020555b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff89168085529083529281902054815190815290519293927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925929181900390910190a35060019392505050565b73ffffffffffffffffffffffffffffffffffffffff1660009081526020819052604090205490565b6005805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156104065780601f106103db57610100808354040283529160200191610406565b3360009081526020819052604081205482111561087d57600080fd5b73ffffffffffffffffffffffffffffffffffffffff8316151561089f57600080fd5b336000908152602081905260409020546108bf908363ffffffff610c0e16565b336000908152602081905260408082209290925573ffffffffffffffffffffffffffffffffffffffff8516815220546108fe908363ffffffff610c2016565b73ffffffffffffffffffffffffffffffffffffffff8416600081815260208181526040918290209390935580518581529051919233927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9281900390910190a350600192915050565b33600090815260208190526040812054853b919061098b908663ffffffff610c0e16565b336000908152602081905260408082209290925573ffffffffffffffffffffffffffffffffffffffff8816815220546109ca908663ffffffff610c2016565b73ffffffffffffffffffffffffffffffffffffffff8716600090815260208190526040812091909155821115610ab257506040517fc0ee0b8a00000000000000000000000000000000000000000000000000000000815233600482018181526024830187905260606044840190815260648401869052889373ffffffffffffffffffffffffffffffffffffffff85169363c0ee0b8a9390928a928a928a929091608401848480828437820191505095505050505050600060405180830381600087803b158015610a9957600080fd5b505af1158015610aad573d6000803e3d6000fd5b505050505b838360405180838380828437604080519190930181900381208b8252925192955073ffffffffffffffffffffffffffffffffffffffff8c1694503393507fe19260aff97b920c7df27010903aeb9c8d2be5d310a2c67824cf3f15396e4c1692908190036020019150a4505050505050565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff86168452909152812054610b64908363ffffffff610c2016565b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff89168085529083529281902085905580519485525191937f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925929081900390910190a350600192915050565b73ffffffffffffffffffffffffffffffffffffffff918216600090815260026020908152604080832093909416825291909152205490565b600082821115610c1a57fe5b50900390565b81810182811015610c2d57fe5b929150505600a165627a7a723058201e137009f154f1920213969c6587df7ce2c8cffc5d259495562912ff9e87b81c0029`
+// SMTTokenBin is the compiled bytecode used for deploying new contracts.
+const SMTTokenBin = `0x60c0604052600460808190527f48302e310000000000000000000000000000000000000000000000000000000060a090815262000040916006919062000116565b506040516200139138038062001391833981016040818152825160208085015183850190935260088085527f534d54546f6b656e000000000000000000000000000000000000000000000000919094019081529301929091620000a69160039162000116565b506004805460ff191660121790558151620000c990600590602085019062000116565b5060003411620000d857600080fd5b336000908152602081905260409020349081905560015560078054600160a060020a031916600160a060020a039290921691909117905550620001bb565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106200015957805160ff191683800117855562000189565b8280016001018555821562000189579182015b82811115620001895782518255916020019190600101906200016c565b50620001979291506200019b565b5090565b620001b891905b80821115620001975760008155600101620001a2565b90565b6111c680620001cb6000396000f3006080604052600436106100f05763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166306fdde038114610102578063095ea7b31461018c57806318160ddd146101d157806323b872dd146101f8578063313ce5671461022f57806354fd4d501461025a5780635983368c1461026f57806366188463146102ad57806370a08231146102de57806395d89b411461030c578063a6f2ae3a14610321578063a9059cbb1461032b578063be45fd621461035c578063d73dd6231461039a578063dd62ed3e146103cb578063e4849b32146103ff578063e5a975dd14610417575b3480156100fc57600080fd5b50600080fd5b34801561010e57600080fd5b5061011761047e565b6040805160208082528351818301528351919283929083019185019080838360005b83811015610151578181015183820152602001610139565b50505050905090810190601f16801561017e5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561019857600080fd5b506101bd73ffffffffffffffffffffffffffffffffffffffff6004351660243561050c565b604080519115158252519081900360200190f35b3480156101dd57600080fd5b506101e661057f565b60408051918252519081900360200190f35b34801561020457600080fd5b506101bd73ffffffffffffffffffffffffffffffffffffffff60043581169060243516604435610585565b34801561023b57600080fd5b50610244610755565b6040805160ff9092168252519081900360200190f35b34801561026657600080fd5b5061011761075e565b34801561027b57600080fd5b506102846107b9565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b3480156102b957600080fd5b506101bd73ffffffffffffffffffffffffffffffffffffffff600435166024356107d5565b3480156102ea57600080fd5b506101e673ffffffffffffffffffffffffffffffffffffffff600435166108f8565b34801561031857600080fd5b50610117610920565b61032961097b565b005b34801561033757600080fd5b506101bd73ffffffffffffffffffffffffffffffffffffffff600435166024356109d0565b34801561036857600080fd5b506103296004803573ffffffffffffffffffffffffffffffffffffffff16906024803591604435918201910135610b00565b3480156103a657600080fd5b506101bd73ffffffffffffffffffffffffffffffffffffffff60043516602435610cbc565b3480156103d757600080fd5b506101e673ffffffffffffffffffffffffffffffffffffffff60043581169060243516610d6f565b34801561040b57600080fd5b50610329600435610da7565b60408051602060046024803582810135601f810185900485028601850190965285855261032995833573ffffffffffffffffffffffffffffffffffffffff16953695604494919390910191908190840183828082843750949750610db49650505050505050565b6003805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156105045780601f106104d957610100808354040283529160200191610504565b820191906000526020600020905b8154815290600101906020018083116104e757829003601f168201915b505050505081565b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff8716808552908352818420869055815186815291519394909390927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925928290030190a350600192915050565b60015490565b73ffffffffffffffffffffffffffffffffffffffff83166000908152602081905260408120548211156105b757600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526002602090815260408083203384529091529020548211156105f457600080fd5b73ffffffffffffffffffffffffffffffffffffffff8316151561061657600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526020819052604090205461064c908363ffffffff610dd816565b73ffffffffffffffffffffffffffffffffffffffff808616600090815260208190526040808220939093559085168152205461068e908363ffffffff610dea16565b73ffffffffffffffffffffffffffffffffffffffff8085166000908152602081815260408083209490945591871681526002825282812033825290915220546106dd908363ffffffff610dd816565b73ffffffffffffffffffffffffffffffffffffffff808616600081815260026020908152604080832033845282529182902094909455805186815290519287169391927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35060019392505050565b60045460ff1681565b6006805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156105045780601f106104d957610100808354040283529160200191610504565b60075473ffffffffffffffffffffffffffffffffffffffff1681565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff861684529091528120548083106108435733600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff88168452909152812055610885565b610853818463ffffffff610dd816565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff891684529091529020555b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff89168085529083529281902054815190815290519293927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925929181900390910190a35060019392505050565b73ffffffffffffffffffffffffffffffffffffffff1660009081526020819052604090205490565b6005805460408051602060026001851615610100026000190190941693909304601f810184900484028201840190925281815292918301828280156105045780601f106104d957610100808354040283529160200191610504565b336000818152602081815260408083208054349081019091556001805482019055815190815290517fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a3565b336000908152602081905260408120548211156109ec57600080fd5b73ffffffffffffffffffffffffffffffffffffffff83161515610a0e57600080fd5b33600090815260208190526040902054610a2e908363ffffffff610dd816565b336000908152602081905260408082209290925573ffffffffffffffffffffffffffffffffffffffff851681522054610a6d908363ffffffff610dea16565b73ffffffffffffffffffffffffffffffffffffffff8416600081815260208181526040918290209390935580518581529051919233927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9281900390910190a360075473ffffffffffffffffffffffffffffffffffffffff16331415610af757610af78383610dfd565b50600192915050565b33600090815260208190526040812054853b9190610b24908663ffffffff610dd816565b336000908152602081905260408082209290925573ffffffffffffffffffffffffffffffffffffffff881681522054610b63908663ffffffff610dea16565b73ffffffffffffffffffffffffffffffffffffffff8716600090815260208190526040812091909155821115610c4b57506040517fc0ee0b8a00000000000000000000000000000000000000000000000000000000815233600482018181526024830187905260606044840190815260648401869052889373ffffffffffffffffffffffffffffffffffffffff85169363c0ee0b8a9390928a928a928a929091608401848480828437820191505095505050505050600060405180830381600087803b158015610c3257600080fd5b505af1158015610c46573d6000803e3d6000fd5b505050505b838360405180838380828437604080519190930181900381208b8252925192955073ffffffffffffffffffffffffffffffffffffffff8c1694503393507fe19260aff97b920c7df27010903aeb9c8d2be5d310a2c67824cf3f15396e4c1692908190036020019150a4505050505050565b33600090815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff86168452909152812054610cfd908363ffffffff610dea16565b33600081815260026020908152604080832073ffffffffffffffffffffffffffffffffffffffff89168085529083529281902085905580519485525191937f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925929081900390910190a350600192915050565b73ffffffffffffffffffffffffffffffffffffffff918216600090815260026020908152604080832093909416825291909152205490565b610db13382610dfd565b50565b60003411610dc157600080fd5b610dc961097b565b610dd4823483610f42565b5050565b600082821115610de457fe5b50900390565b81810182811015610df757fe5b92915050565b73ffffffffffffffffffffffffffffffffffffffff8216600090815260208190526040902054811115610e9157604080517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601560248201527f496e73756666696369656e742062616c616e63652e0000000000000000000000604482015290519081900360640190fd5b73ffffffffffffffffffffffffffffffffffffffff8216600081815260208190526040808220805485900390556001805485900390555183156108fc0291849190818181858888f19350505050158015610eef573d6000803e3d6000fd5b5060408051828152905160009173ffffffffffffffffffffffffffffffffffffffff8516917fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9181900360200190a35050565b33600090815260208190526040812054843b9190610f66908563ffffffff610dd816565b336000908152602081905260408082209290925573ffffffffffffffffffffffffffffffffffffffff871681522054610fa5908563ffffffff610dea16565b73ffffffffffffffffffffffffffffffffffffffff86166000908152602081905260408120919091558211156110d157506040517fc0ee0b8a000000000000000000000000000000000000000000000000000000008152336004820181815260248301869052606060448401908152855160648501528551889473ffffffffffffffffffffffffffffffffffffffff86169463c0ee0b8a9490938a938a9360840190602085019080838360005b8381101561106a578181015183820152602001611052565b50505050905090810190601f1680156110975780820380516001836020036101000a031916815260200191505b50945050505050600060405180830381600087803b1580156110b857600080fd5b505af11580156110cc573d6000803e3d6000fd5b505050505b826040518082805190602001908083835b6020831061111f57805182527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe090920191602091820191016110e2565b51815160209384036101000a6000190180199092169116179052604080519290940182900382208a8352935193955073ffffffffffffffffffffffffffffffffffffffff8b16945033937fe19260aff97b920c7df27010903aeb9c8d2be5d310a2c67824cf3f15396e4c169350918290030190a450505050505600a165627a7a72305820935dd9ba390cc99359b00e3af4a91abc0bb2e49fc35c40f62e295834f22e89be0029`
 
-// DeployHumanERC223Token deploys a new Ethereum contract, binding an instance of HumanERC223Token to it.
-func DeployHumanERC223Token(auth *bind.TransactOpts, backend bind.ContractBackend, _initialAmount *big.Int, _tokenSymbol string, _decimals uint8) (common.Address, *types.Transaction, *HumanERC223Token, error) {
-	parsed, err := abi.JSON(strings.NewReader(HumanERC223TokenABI))
+// DeploySMTToken deploys a new Ethereum contract, binding an instance of SMTToken to it.
+func DeploySMTToken(auth *bind.TransactOpts, backend bind.ContractBackend, _tokenSymbol string, _tokenNetwork common.Address) (common.Address, *types.Transaction, *SMTToken, error) {
+	parsed, err := abi.JSON(strings.NewReader(SMTTokenABI))
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(HumanERC223TokenBin), backend, _initialAmount, _tokenSymbol, _decimals)
+	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SMTTokenBin), backend, _tokenSymbol, _tokenNetwork)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
-	return address, tx, &HumanERC223Token{HumanERC223TokenCaller: HumanERC223TokenCaller{contract: contract}, HumanERC223TokenTransactor: HumanERC223TokenTransactor{contract: contract}, HumanERC223TokenFilterer: HumanERC223TokenFilterer{contract: contract}}, nil
+	return address, tx, &SMTToken{SMTTokenCaller: SMTTokenCaller{contract: contract}, SMTTokenTransactor: SMTTokenTransactor{contract: contract}, SMTTokenFilterer: SMTTokenFilterer{contract: contract}}, nil
 }
 
-// HumanERC223Token is an auto generated Go binding around an Ethereum contract.
-type HumanERC223Token struct {
-	HumanERC223TokenCaller     // Read-only binding to the contract
-	HumanERC223TokenTransactor // Write-only binding to the contract
-	HumanERC223TokenFilterer   // Log filterer for contract events
+// SMTToken is an auto generated Go binding around an Ethereum contract.
+type SMTToken struct {
+	SMTTokenCaller     // Read-only binding to the contract
+	SMTTokenTransactor // Write-only binding to the contract
+	SMTTokenFilterer   // Log filterer for contract events
 }
 
-// HumanERC223TokenCaller is an auto generated read-only Go binding around an Ethereum contract.
-type HumanERC223TokenCaller struct {
+// SMTTokenCaller is an auto generated read-only Go binding around an Ethereum contract.
+type SMTTokenCaller struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// HumanERC223TokenTransactor is an auto generated write-only Go binding around an Ethereum contract.
-type HumanERC223TokenTransactor struct {
+// SMTTokenTransactor is an auto generated write-only Go binding around an Ethereum contract.
+type SMTTokenTransactor struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// HumanERC223TokenFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
-type HumanERC223TokenFilterer struct {
+// SMTTokenFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type SMTTokenFilterer struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// HumanERC223TokenSession is an auto generated Go binding around an Ethereum contract,
+// SMTTokenSession is an auto generated Go binding around an Ethereum contract,
 // with pre-set call and transact options.
-type HumanERC223TokenSession struct {
-	Contract     *HumanERC223Token // Generic contract binding to set the session for
+type SMTTokenSession struct {
+	Contract     *SMTToken         // Generic contract binding to set the session for
 	CallOpts     bind.CallOpts     // Call options to use throughout this session
 	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
 }
 
-// HumanERC223TokenCallerSession is an auto generated read-only Go binding around an Ethereum contract,
+// SMTTokenCallerSession is an auto generated read-only Go binding around an Ethereum contract,
 // with pre-set call options.
-type HumanERC223TokenCallerSession struct {
-	Contract *HumanERC223TokenCaller // Generic contract caller binding to set the session for
-	CallOpts bind.CallOpts           // Call options to use throughout this session
+type SMTTokenCallerSession struct {
+	Contract *SMTTokenCaller // Generic contract caller binding to set the session for
+	CallOpts bind.CallOpts   // Call options to use throughout this session
 }
 
-// HumanERC223TokenTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
+// SMTTokenTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
 // with pre-set transact options.
-type HumanERC223TokenTransactorSession struct {
-	Contract     *HumanERC223TokenTransactor // Generic contract transactor binding to set the session for
-	TransactOpts bind.TransactOpts           // Transaction auth options to use throughout this session
+type SMTTokenTransactorSession struct {
+	Contract     *SMTTokenTransactor // Generic contract transactor binding to set the session for
+	TransactOpts bind.TransactOpts   // Transaction auth options to use throughout this session
 }
 
-// HumanERC223TokenRaw is an auto generated low-level Go binding around an Ethereum contract.
-type HumanERC223TokenRaw struct {
-	Contract *HumanERC223Token // Generic contract binding to access the raw methods on
+// SMTTokenRaw is an auto generated low-level Go binding around an Ethereum contract.
+type SMTTokenRaw struct {
+	Contract *SMTToken // Generic contract binding to access the raw methods on
 }
 
-// HumanERC223TokenCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
-type HumanERC223TokenCallerRaw struct {
-	Contract *HumanERC223TokenCaller // Generic read-only contract binding to access the raw methods on
+// SMTTokenCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
+type SMTTokenCallerRaw struct {
+	Contract *SMTTokenCaller // Generic read-only contract binding to access the raw methods on
 }
 
-// HumanERC223TokenTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
-type HumanERC223TokenTransactorRaw struct {
-	Contract *HumanERC223TokenTransactor // Generic write-only contract binding to access the raw methods on
+// SMTTokenTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
+type SMTTokenTransactorRaw struct {
+	Contract *SMTTokenTransactor // Generic write-only contract binding to access the raw methods on
 }
 
-// NewHumanERC223Token creates a new instance of HumanERC223Token, bound to a specific deployed contract.
-func NewHumanERC223Token(address common.Address, backend bind.ContractBackend) (*HumanERC223Token, error) {
-	contract, err := bindHumanERC223Token(address, backend, backend, backend)
+// NewSMTToken creates a new instance of SMTToken, bound to a specific deployed contract.
+func NewSMTToken(address common.Address, backend bind.ContractBackend) (*SMTToken, error) {
+	contract, err := bindSMTToken(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223Token{HumanERC223TokenCaller: HumanERC223TokenCaller{contract: contract}, HumanERC223TokenTransactor: HumanERC223TokenTransactor{contract: contract}, HumanERC223TokenFilterer: HumanERC223TokenFilterer{contract: contract}}, nil
+	return &SMTToken{SMTTokenCaller: SMTTokenCaller{contract: contract}, SMTTokenTransactor: SMTTokenTransactor{contract: contract}, SMTTokenFilterer: SMTTokenFilterer{contract: contract}}, nil
 }
 
-// NewHumanERC223TokenCaller creates a new read-only instance of HumanERC223Token, bound to a specific deployed contract.
-func NewHumanERC223TokenCaller(address common.Address, caller bind.ContractCaller) (*HumanERC223TokenCaller, error) {
-	contract, err := bindHumanERC223Token(address, caller, nil, nil)
+// NewSMTTokenCaller creates a new read-only instance of SMTToken, bound to a specific deployed contract.
+func NewSMTTokenCaller(address common.Address, caller bind.ContractCaller) (*SMTTokenCaller, error) {
+	contract, err := bindSMTToken(address, caller, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223TokenCaller{contract: contract}, nil
+	return &SMTTokenCaller{contract: contract}, nil
 }
 
-// NewHumanERC223TokenTransactor creates a new write-only instance of HumanERC223Token, bound to a specific deployed contract.
-func NewHumanERC223TokenTransactor(address common.Address, transactor bind.ContractTransactor) (*HumanERC223TokenTransactor, error) {
-	contract, err := bindHumanERC223Token(address, nil, transactor, nil)
+// NewSMTTokenTransactor creates a new write-only instance of SMTToken, bound to a specific deployed contract.
+func NewSMTTokenTransactor(address common.Address, transactor bind.ContractTransactor) (*SMTTokenTransactor, error) {
+	contract, err := bindSMTToken(address, nil, transactor, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223TokenTransactor{contract: contract}, nil
+	return &SMTTokenTransactor{contract: contract}, nil
 }
 
-// NewHumanERC223TokenFilterer creates a new log filterer instance of HumanERC223Token, bound to a specific deployed contract.
-func NewHumanERC223TokenFilterer(address common.Address, filterer bind.ContractFilterer) (*HumanERC223TokenFilterer, error) {
-	contract, err := bindHumanERC223Token(address, nil, nil, filterer)
+// NewSMTTokenFilterer creates a new log filterer instance of SMTToken, bound to a specific deployed contract.
+func NewSMTTokenFilterer(address common.Address, filterer bind.ContractFilterer) (*SMTTokenFilterer, error) {
+	contract, err := bindSMTToken(address, nil, nil, filterer)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223TokenFilterer{contract: contract}, nil
+	return &SMTTokenFilterer{contract: contract}, nil
 }
 
-// bindHumanERC223Token binds a generic wrapper to an already deployed contract.
-func bindHumanERC223Token(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(HumanERC223TokenABI))
+// bindSMTToken binds a generic wrapper to an already deployed contract.
+func bindSMTToken(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
+	parsed, err := abi.JSON(strings.NewReader(SMTTokenABI))
 	if err != nil {
 		return nil, err
 	}
@@ -2009,330 +2009,419 @@ func bindHumanERC223Token(address common.Address, caller bind.ContractCaller, tr
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_HumanERC223Token *HumanERC223TokenRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
-	return _HumanERC223Token.Contract.HumanERC223TokenCaller.contract.Call(opts, result, method, params...)
+func (_SMTToken *SMTTokenRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+	return _SMTToken.Contract.SMTTokenCaller.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_HumanERC223Token *HumanERC223TokenRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.HumanERC223TokenTransactor.contract.Transfer(opts)
+func (_SMTToken *SMTTokenRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SMTToken.Contract.SMTTokenTransactor.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_HumanERC223Token *HumanERC223TokenRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.HumanERC223TokenTransactor.contract.Transact(opts, method, params...)
+func (_SMTToken *SMTTokenRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _SMTToken.Contract.SMTTokenTransactor.contract.Transact(opts, method, params...)
 }
 
 // Call invokes the (constant) contract method with params as input values and
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_HumanERC223Token *HumanERC223TokenCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
-	return _HumanERC223Token.Contract.contract.Call(opts, result, method, params...)
+func (_SMTToken *SMTTokenCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+	return _SMTToken.Contract.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_HumanERC223Token *HumanERC223TokenTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.contract.Transfer(opts)
+func (_SMTToken *SMTTokenTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SMTToken.Contract.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_HumanERC223Token *HumanERC223TokenTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.contract.Transact(opts, method, params...)
+func (_SMTToken *SMTTokenTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _SMTToken.Contract.contract.Transact(opts, method, params...)
 }
 
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(_owner address, _spender address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCaller) Allowance(opts *bind.CallOpts, _owner common.Address, _spender common.Address) (*big.Int, error) {
+func (_SMTToken *SMTTokenCaller) Allowance(opts *bind.CallOpts, _owner common.Address, _spender common.Address) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "allowance", _owner, _spender)
+	err := _SMTToken.contract.Call(opts, out, "allowance", _owner, _spender)
 	return *ret0, err
 }
 
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(_owner address, _spender address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenSession) Allowance(_owner common.Address, _spender common.Address) (*big.Int, error) {
-	return _HumanERC223Token.Contract.Allowance(&_HumanERC223Token.CallOpts, _owner, _spender)
+func (_SMTToken *SMTTokenSession) Allowance(_owner common.Address, _spender common.Address) (*big.Int, error) {
+	return _SMTToken.Contract.Allowance(&_SMTToken.CallOpts, _owner, _spender)
 }
 
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(_owner address, _spender address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) Allowance(_owner common.Address, _spender common.Address) (*big.Int, error) {
-	return _HumanERC223Token.Contract.Allowance(&_HumanERC223Token.CallOpts, _owner, _spender)
+func (_SMTToken *SMTTokenCallerSession) Allowance(_owner common.Address, _spender common.Address) (*big.Int, error) {
+	return _SMTToken.Contract.Allowance(&_SMTToken.CallOpts, _owner, _spender)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCaller) BalanceOf(opts *bind.CallOpts, _owner common.Address) (*big.Int, error) {
+func (_SMTToken *SMTTokenCaller) BalanceOf(opts *bind.CallOpts, _owner common.Address) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "balanceOf", _owner)
+	err := _SMTToken.contract.Call(opts, out, "balanceOf", _owner)
 	return *ret0, err
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenSession) BalanceOf(_owner common.Address) (*big.Int, error) {
-	return _HumanERC223Token.Contract.BalanceOf(&_HumanERC223Token.CallOpts, _owner)
+func (_SMTToken *SMTTokenSession) BalanceOf(_owner common.Address) (*big.Int, error) {
+	return _SMTToken.Contract.BalanceOf(&_SMTToken.CallOpts, _owner)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) BalanceOf(_owner common.Address) (*big.Int, error) {
-	return _HumanERC223Token.Contract.BalanceOf(&_HumanERC223Token.CallOpts, _owner)
+func (_SMTToken *SMTTokenCallerSession) BalanceOf(_owner common.Address) (*big.Int, error) {
+	return _SMTToken.Contract.BalanceOf(&_SMTToken.CallOpts, _owner)
 }
 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() constant returns(uint8)
-func (_HumanERC223Token *HumanERC223TokenCaller) Decimals(opts *bind.CallOpts) (uint8, error) {
+func (_SMTToken *SMTTokenCaller) Decimals(opts *bind.CallOpts) (uint8, error) {
 	var (
 		ret0 = new(uint8)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "decimals")
+	err := _SMTToken.contract.Call(opts, out, "decimals")
 	return *ret0, err
 }
 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() constant returns(uint8)
-func (_HumanERC223Token *HumanERC223TokenSession) Decimals() (uint8, error) {
-	return _HumanERC223Token.Contract.Decimals(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenSession) Decimals() (uint8, error) {
+	return _SMTToken.Contract.Decimals(&_SMTToken.CallOpts)
 }
 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() constant returns(uint8)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) Decimals() (uint8, error) {
-	return _HumanERC223Token.Contract.Decimals(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenCallerSession) Decimals() (uint8, error) {
+	return _SMTToken.Contract.Decimals(&_SMTToken.CallOpts)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCaller) Name(opts *bind.CallOpts) (string, error) {
+func (_SMTToken *SMTTokenCaller) Name(opts *bind.CallOpts) (string, error) {
 	var (
 		ret0 = new(string)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "name")
+	err := _SMTToken.contract.Call(opts, out, "name")
 	return *ret0, err
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenSession) Name() (string, error) {
-	return _HumanERC223Token.Contract.Name(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenSession) Name() (string, error) {
+	return _SMTToken.Contract.Name(&_SMTToken.CallOpts)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) Name() (string, error) {
-	return _HumanERC223Token.Contract.Name(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenCallerSession) Name() (string, error) {
+	return _SMTToken.Contract.Name(&_SMTToken.CallOpts)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCaller) Symbol(opts *bind.CallOpts) (string, error) {
+func (_SMTToken *SMTTokenCaller) Symbol(opts *bind.CallOpts) (string, error) {
 	var (
 		ret0 = new(string)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "symbol")
+	err := _SMTToken.contract.Call(opts, out, "symbol")
 	return *ret0, err
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenSession) Symbol() (string, error) {
-	return _HumanERC223Token.Contract.Symbol(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenSession) Symbol() (string, error) {
+	return _SMTToken.Contract.Symbol(&_SMTToken.CallOpts)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) Symbol() (string, error) {
-	return _HumanERC223Token.Contract.Symbol(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenCallerSession) Symbol() (string, error) {
+	return _SMTToken.Contract.Symbol(&_SMTToken.CallOpts)
+}
+
+// TokenNetwork is a free data retrieval call binding the contract method 0x5983368c.
+//
+// Solidity: function tokenNetwork() constant returns(address)
+func (_SMTToken *SMTTokenCaller) TokenNetwork(opts *bind.CallOpts) (common.Address, error) {
+	var (
+		ret0 = new(common.Address)
+	)
+	out := ret0
+	err := _SMTToken.contract.Call(opts, out, "tokenNetwork")
+	return *ret0, err
+}
+
+// TokenNetwork is a free data retrieval call binding the contract method 0x5983368c.
+//
+// Solidity: function tokenNetwork() constant returns(address)
+func (_SMTToken *SMTTokenSession) TokenNetwork() (common.Address, error) {
+	return _SMTToken.Contract.TokenNetwork(&_SMTToken.CallOpts)
+}
+
+// TokenNetwork is a free data retrieval call binding the contract method 0x5983368c.
+//
+// Solidity: function tokenNetwork() constant returns(address)
+func (_SMTToken *SMTTokenCallerSession) TokenNetwork() (common.Address, error) {
+	return _SMTToken.Contract.TokenNetwork(&_SMTToken.CallOpts)
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCaller) TotalSupply(opts *bind.CallOpts) (*big.Int, error) {
+func (_SMTToken *SMTTokenCaller) TotalSupply(opts *bind.CallOpts) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "totalSupply")
+	err := _SMTToken.contract.Call(opts, out, "totalSupply")
 	return *ret0, err
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenSession) TotalSupply() (*big.Int, error) {
-	return _HumanERC223Token.Contract.TotalSupply(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenSession) TotalSupply() (*big.Int, error) {
+	return _SMTToken.Contract.TotalSupply(&_SMTToken.CallOpts)
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() constant returns(uint256)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) TotalSupply() (*big.Int, error) {
-	return _HumanERC223Token.Contract.TotalSupply(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenCallerSession) TotalSupply() (*big.Int, error) {
+	return _SMTToken.Contract.TotalSupply(&_SMTToken.CallOpts)
 }
 
 // Version is a free data retrieval call binding the contract method 0x54fd4d50.
 //
 // Solidity: function version() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCaller) Version(opts *bind.CallOpts) (string, error) {
+func (_SMTToken *SMTTokenCaller) Version(opts *bind.CallOpts) (string, error) {
 	var (
 		ret0 = new(string)
 	)
 	out := ret0
-	err := _HumanERC223Token.contract.Call(opts, out, "version")
+	err := _SMTToken.contract.Call(opts, out, "version")
 	return *ret0, err
 }
 
 // Version is a free data retrieval call binding the contract method 0x54fd4d50.
 //
 // Solidity: function version() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenSession) Version() (string, error) {
-	return _HumanERC223Token.Contract.Version(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenSession) Version() (string, error) {
+	return _SMTToken.Contract.Version(&_SMTToken.CallOpts)
 }
 
 // Version is a free data retrieval call binding the contract method 0x54fd4d50.
 //
 // Solidity: function version() constant returns(string)
-func (_HumanERC223Token *HumanERC223TokenCallerSession) Version() (string, error) {
-	return _HumanERC223Token.Contract.Version(&_HumanERC223Token.CallOpts)
+func (_SMTToken *SMTTokenCallerSession) Version() (string, error) {
+	return _SMTToken.Contract.Version(&_SMTToken.CallOpts)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(_spender address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactor) Approve(opts *bind.TransactOpts, _spender common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.contract.Transact(opts, "approve", _spender, _value)
+func (_SMTToken *SMTTokenTransactor) Approve(opts *bind.TransactOpts, _spender common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "approve", _spender, _value)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(_spender address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenSession) Approve(_spender common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.Approve(&_HumanERC223Token.TransactOpts, _spender, _value)
+func (_SMTToken *SMTTokenSession) Approve(_spender common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.Approve(&_SMTToken.TransactOpts, _spender, _value)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(_spender address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactorSession) Approve(_spender common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.Approve(&_HumanERC223Token.TransactOpts, _spender, _value)
+func (_SMTToken *SMTTokenTransactorSession) Approve(_spender common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.Approve(&_SMTToken.TransactOpts, _spender, _value)
+}
+
+// Buy is a paid mutator transaction binding the contract method 0xa6f2ae3a.
+//
+// Solidity: function buy() returns()
+func (_SMTToken *SMTTokenTransactor) Buy(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "buy")
+}
+
+// Buy is a paid mutator transaction binding the contract method 0xa6f2ae3a.
+//
+// Solidity: function buy() returns()
+func (_SMTToken *SMTTokenSession) Buy() (*types.Transaction, error) {
+	return _SMTToken.Contract.Buy(&_SMTToken.TransactOpts)
+}
+
+// Buy is a paid mutator transaction binding the contract method 0xa6f2ae3a.
+//
+// Solidity: function buy() returns()
+func (_SMTToken *SMTTokenTransactorSession) Buy() (*types.Transaction, error) {
+	return _SMTToken.Contract.Buy(&_SMTToken.TransactOpts)
+}
+
+// BuyAndTransfer is a paid mutator transaction binding the contract method 0xe5a975dd.
+//
+// Solidity: function buyAndTransfer(_to address, _data bytes) returns()
+func (_SMTToken *SMTTokenTransactor) BuyAndTransfer(opts *bind.TransactOpts, _to common.Address, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "buyAndTransfer", _to, _data)
+}
+
+// BuyAndTransfer is a paid mutator transaction binding the contract method 0xe5a975dd.
+//
+// Solidity: function buyAndTransfer(_to address, _data bytes) returns()
+func (_SMTToken *SMTTokenSession) BuyAndTransfer(_to common.Address, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.Contract.BuyAndTransfer(&_SMTToken.TransactOpts, _to, _data)
+}
+
+// BuyAndTransfer is a paid mutator transaction binding the contract method 0xe5a975dd.
+//
+// Solidity: function buyAndTransfer(_to address, _data bytes) returns()
+func (_SMTToken *SMTTokenTransactorSession) BuyAndTransfer(_to common.Address, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.Contract.BuyAndTransfer(&_SMTToken.TransactOpts, _to, _data)
 }
 
 // DecreaseApproval is a paid mutator transaction binding the contract method 0x66188463.
 //
 // Solidity: function decreaseApproval(_spender address, _subtractedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactor) DecreaseApproval(opts *bind.TransactOpts, _spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.contract.Transact(opts, "decreaseApproval", _spender, _subtractedValue)
+func (_SMTToken *SMTTokenTransactor) DecreaseApproval(opts *bind.TransactOpts, _spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "decreaseApproval", _spender, _subtractedValue)
 }
 
 // DecreaseApproval is a paid mutator transaction binding the contract method 0x66188463.
 //
 // Solidity: function decreaseApproval(_spender address, _subtractedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenSession) DecreaseApproval(_spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.DecreaseApproval(&_HumanERC223Token.TransactOpts, _spender, _subtractedValue)
+func (_SMTToken *SMTTokenSession) DecreaseApproval(_spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.DecreaseApproval(&_SMTToken.TransactOpts, _spender, _subtractedValue)
 }
 
 // DecreaseApproval is a paid mutator transaction binding the contract method 0x66188463.
 //
 // Solidity: function decreaseApproval(_spender address, _subtractedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactorSession) DecreaseApproval(_spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.DecreaseApproval(&_HumanERC223Token.TransactOpts, _spender, _subtractedValue)
+func (_SMTToken *SMTTokenTransactorSession) DecreaseApproval(_spender common.Address, _subtractedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.DecreaseApproval(&_SMTToken.TransactOpts, _spender, _subtractedValue)
 }
 
 // IncreaseApproval is a paid mutator transaction binding the contract method 0xd73dd623.
 //
 // Solidity: function increaseApproval(_spender address, _addedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactor) IncreaseApproval(opts *bind.TransactOpts, _spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.contract.Transact(opts, "increaseApproval", _spender, _addedValue)
+func (_SMTToken *SMTTokenTransactor) IncreaseApproval(opts *bind.TransactOpts, _spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "increaseApproval", _spender, _addedValue)
 }
 
 // IncreaseApproval is a paid mutator transaction binding the contract method 0xd73dd623.
 //
 // Solidity: function increaseApproval(_spender address, _addedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenSession) IncreaseApproval(_spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.IncreaseApproval(&_HumanERC223Token.TransactOpts, _spender, _addedValue)
+func (_SMTToken *SMTTokenSession) IncreaseApproval(_spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.IncreaseApproval(&_SMTToken.TransactOpts, _spender, _addedValue)
 }
 
 // IncreaseApproval is a paid mutator transaction binding the contract method 0xd73dd623.
 //
 // Solidity: function increaseApproval(_spender address, _addedValue uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactorSession) IncreaseApproval(_spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.IncreaseApproval(&_HumanERC223Token.TransactOpts, _spender, _addedValue)
+func (_SMTToken *SMTTokenTransactorSession) IncreaseApproval(_spender common.Address, _addedValue *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.IncreaseApproval(&_SMTToken.TransactOpts, _spender, _addedValue)
+}
+
+// Sell is a paid mutator transaction binding the contract method 0xe4849b32.
+//
+// Solidity: function sell(amount uint256) returns()
+func (_SMTToken *SMTTokenTransactor) Sell(opts *bind.TransactOpts, amount *big.Int) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "sell", amount)
+}
+
+// Sell is a paid mutator transaction binding the contract method 0xe4849b32.
+//
+// Solidity: function sell(amount uint256) returns()
+func (_SMTToken *SMTTokenSession) Sell(amount *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.Sell(&_SMTToken.TransactOpts, amount)
+}
+
+// Sell is a paid mutator transaction binding the contract method 0xe4849b32.
+//
+// Solidity: function sell(amount uint256) returns()
+func (_SMTToken *SMTTokenTransactorSession) Sell(amount *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.Sell(&_SMTToken.TransactOpts, amount)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xbe45fd62.
 //
 // Solidity: function transfer(_to address, _value uint256, _data bytes) returns()
-func (_HumanERC223Token *HumanERC223TokenTransactor) Transfer(opts *bind.TransactOpts, _to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
-	return _HumanERC223Token.contract.Transact(opts, "transfer", _to, _value, _data)
+func (_SMTToken *SMTTokenTransactor) Transfer(opts *bind.TransactOpts, _to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "transfer", _to, _value, _data)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xbe45fd62.
 //
 // Solidity: function transfer(_to address, _value uint256, _data bytes) returns()
-func (_HumanERC223Token *HumanERC223TokenSession) Transfer(_to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.Transfer(&_HumanERC223Token.TransactOpts, _to, _value, _data)
+func (_SMTToken *SMTTokenSession) Transfer(_to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.Contract.Transfer(&_SMTToken.TransactOpts, _to, _value, _data)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xbe45fd62.
 //
 // Solidity: function transfer(_to address, _value uint256, _data bytes) returns()
-func (_HumanERC223Token *HumanERC223TokenTransactorSession) Transfer(_to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.Transfer(&_HumanERC223Token.TransactOpts, _to, _value, _data)
+func (_SMTToken *SMTTokenTransactorSession) Transfer(_to common.Address, _value *big.Int, _data []byte) (*types.Transaction, error) {
+	return _SMTToken.Contract.Transfer(&_SMTToken.TransactOpts, _to, _value, _data)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(_from address, _to address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactor) TransferFrom(opts *bind.TransactOpts, _from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.contract.Transact(opts, "transferFrom", _from, _to, _value)
+func (_SMTToken *SMTTokenTransactor) TransferFrom(opts *bind.TransactOpts, _from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.contract.Transact(opts, "transferFrom", _from, _to, _value)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(_from address, _to address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenSession) TransferFrom(_from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.TransferFrom(&_HumanERC223Token.TransactOpts, _from, _to, _value)
+func (_SMTToken *SMTTokenSession) TransferFrom(_from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.TransferFrom(&_SMTToken.TransactOpts, _from, _to, _value)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(_from address, _to address, _value uint256) returns(bool)
-func (_HumanERC223Token *HumanERC223TokenTransactorSession) TransferFrom(_from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
-	return _HumanERC223Token.Contract.TransferFrom(&_HumanERC223Token.TransactOpts, _from, _to, _value)
+func (_SMTToken *SMTTokenTransactorSession) TransferFrom(_from common.Address, _to common.Address, _value *big.Int) (*types.Transaction, error) {
+	return _SMTToken.Contract.TransferFrom(&_SMTToken.TransactOpts, _from, _to, _value)
 }
 
-// HumanERC223TokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the HumanERC223Token contract.
-type HumanERC223TokenApprovalIterator struct {
-	Event *HumanERC223TokenApproval // Event containing the contract specifics and raw log
+// SMTTokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the SMTToken contract.
+type SMTTokenApprovalIterator struct {
+	Event *SMTTokenApproval // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -2346,7 +2435,7 @@ type HumanERC223TokenApprovalIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *HumanERC223TokenApprovalIterator) Next() bool {
+func (it *SMTTokenApprovalIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -2355,7 +2444,7 @@ func (it *HumanERC223TokenApprovalIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(HumanERC223TokenApproval)
+			it.Event = new(SMTTokenApproval)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -2370,7 +2459,7 @@ func (it *HumanERC223TokenApprovalIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(HumanERC223TokenApproval)
+		it.Event = new(SMTTokenApproval)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -2386,19 +2475,19 @@ func (it *HumanERC223TokenApprovalIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *HumanERC223TokenApprovalIterator) Error() error {
+func (it *SMTTokenApprovalIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *HumanERC223TokenApprovalIterator) Close() error {
+func (it *SMTTokenApprovalIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// HumanERC223TokenApproval represents a Approval event raised by the HumanERC223Token contract.
-type HumanERC223TokenApproval struct {
+// SMTTokenApproval represents a Approval event raised by the SMTToken contract.
+type SMTTokenApproval struct {
 	Owner   common.Address
 	Spender common.Address
 	Value   *big.Int
@@ -2408,7 +2497,7 @@ type HumanERC223TokenApproval struct {
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
 // Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
-func (_HumanERC223Token *HumanERC223TokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*HumanERC223TokenApprovalIterator, error) {
+func (_SMTToken *SMTTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*SMTTokenApprovalIterator, error) {
 
 	var ownerRule []interface{}
 	for _, ownerItem := range owner {
@@ -2419,17 +2508,17 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) FilterApproval(opts *bind.Fil
 		spenderRule = append(spenderRule, spenderItem)
 	}
 
-	logs, sub, err := _HumanERC223Token.contract.FilterLogs(opts, "Approval", ownerRule, spenderRule)
+	logs, sub, err := _SMTToken.contract.FilterLogs(opts, "Approval", ownerRule, spenderRule)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223TokenApprovalIterator{contract: _HumanERC223Token.contract, event: "Approval", logs: logs, sub: sub}, nil
+	return &SMTTokenApprovalIterator{contract: _SMTToken.contract, event: "Approval", logs: logs, sub: sub}, nil
 }
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
 // Solidity: e Approval(owner indexed address, spender indexed address, value uint256)
-func (_HumanERC223Token *HumanERC223TokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *HumanERC223TokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
+func (_SMTToken *SMTTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *SMTTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
 	for _, ownerItem := range owner {
@@ -2440,7 +2529,7 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) WatchApproval(opts *bind.Watc
 		spenderRule = append(spenderRule, spenderItem)
 	}
 
-	logs, sub, err := _HumanERC223Token.contract.WatchLogs(opts, "Approval", ownerRule, spenderRule)
+	logs, sub, err := _SMTToken.contract.WatchLogs(opts, "Approval", ownerRule, spenderRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2450,8 +2539,8 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) WatchApproval(opts *bind.Watc
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(HumanERC223TokenApproval)
-				if err := _HumanERC223Token.contract.UnpackLog(event, "Approval", log); err != nil {
+				event := new(SMTTokenApproval)
+				if err := _SMTToken.contract.UnpackLog(event, "Approval", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -2472,9 +2561,9 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) WatchApproval(opts *bind.Watc
 	}), nil
 }
 
-// HumanERC223TokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the HumanERC223Token contract.
-type HumanERC223TokenTransferIterator struct {
-	Event *HumanERC223TokenTransfer // Event containing the contract specifics and raw log
+// SMTTokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the SMTToken contract.
+type SMTTokenTransferIterator struct {
+	Event *SMTTokenTransfer // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -2488,7 +2577,7 @@ type HumanERC223TokenTransferIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *HumanERC223TokenTransferIterator) Next() bool {
+func (it *SMTTokenTransferIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -2497,7 +2586,7 @@ func (it *HumanERC223TokenTransferIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(HumanERC223TokenTransfer)
+			it.Event = new(SMTTokenTransfer)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -2512,7 +2601,7 @@ func (it *HumanERC223TokenTransferIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(HumanERC223TokenTransfer)
+		it.Event = new(SMTTokenTransfer)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -2528,19 +2617,19 @@ func (it *HumanERC223TokenTransferIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *HumanERC223TokenTransferIterator) Error() error {
+func (it *SMTTokenTransferIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *HumanERC223TokenTransferIterator) Close() error {
+func (it *SMTTokenTransferIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// HumanERC223TokenTransfer represents a Transfer event raised by the HumanERC223Token contract.
-type HumanERC223TokenTransfer struct {
+// SMTTokenTransfer represents a Transfer event raised by the SMTToken contract.
+type SMTTokenTransfer struct {
 	From  common.Address
 	To    common.Address
 	Value *big.Int
@@ -2551,7 +2640,7 @@ type HumanERC223TokenTransfer struct {
 // FilterTransfer is a free log retrieval operation binding the contract event 0xe19260aff97b920c7df27010903aeb9c8d2be5d310a2c67824cf3f15396e4c16.
 //
 // Solidity: e Transfer(from indexed address, to indexed address, value uint256, data indexed bytes)
-func (_HumanERC223Token *HumanERC223TokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address, data [][]byte) (*HumanERC223TokenTransferIterator, error) {
+func (_SMTToken *SMTTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address, data [][]byte) (*SMTTokenTransferIterator, error) {
 
 	var fromRule []interface{}
 	for _, fromItem := range from {
@@ -2567,17 +2656,17 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) FilterTransfer(opts *bind.Fil
 		dataRule = append(dataRule, dataItem)
 	}
 
-	logs, sub, err := _HumanERC223Token.contract.FilterLogs(opts, "Transfer", fromRule, toRule, dataRule)
+	logs, sub, err := _SMTToken.contract.FilterLogs(opts, "Transfer", fromRule, toRule, dataRule)
 	if err != nil {
 		return nil, err
 	}
-	return &HumanERC223TokenTransferIterator{contract: _HumanERC223Token.contract, event: "Transfer", logs: logs, sub: sub}, nil
+	return &SMTTokenTransferIterator{contract: _SMTToken.contract, event: "Transfer", logs: logs, sub: sub}, nil
 }
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xe19260aff97b920c7df27010903aeb9c8d2be5d310a2c67824cf3f15396e4c16.
 //
 // Solidity: e Transfer(from indexed address, to indexed address, value uint256, data indexed bytes)
-func (_HumanERC223Token *HumanERC223TokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *HumanERC223TokenTransfer, from []common.Address, to []common.Address, data [][]byte) (event.Subscription, error) {
+func (_SMTToken *SMTTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *SMTTokenTransfer, from []common.Address, to []common.Address, data [][]byte) (event.Subscription, error) {
 
 	var fromRule []interface{}
 	for _, fromItem := range from {
@@ -2593,7 +2682,7 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) WatchTransfer(opts *bind.Watc
 		dataRule = append(dataRule, dataItem)
 	}
 
-	logs, sub, err := _HumanERC223Token.contract.WatchLogs(opts, "Transfer", fromRule, toRule, dataRule)
+	logs, sub, err := _SMTToken.contract.WatchLogs(opts, "Transfer", fromRule, toRule, dataRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2603,8 +2692,8 @@ func (_HumanERC223Token *HumanERC223TokenFilterer) WatchTransfer(opts *bind.Watc
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(HumanERC223TokenTransfer)
-				if err := _HumanERC223Token.contract.UnpackLog(event, "Transfer", log); err != nil {
+				event := new(SMTTokenTransfer)
+				if err := _SMTToken.contract.UnpackLog(event, "Transfer", log); err != nil {
 					return err
 				}
 				event.Raw = log
