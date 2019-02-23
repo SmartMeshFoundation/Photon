@@ -186,7 +186,7 @@ func (t *TokenNetworkProxy) newChannelAndDepositOnSMTToken(tokenAddress common.A
 	// 在Auth中设置金额,不用t.bcs.Auth,避免影响其他交易
 	auth := bind.NewKeyedTransactor(t.bcs.PrivKey)
 	auth.Value = amount
-	tx, err := smtTokenProxy.BuyAndTransfer(auth, t.bcs.tokenNetworkAddress, data)
+	tx, err := smtTokenProxy.BuyAndTransfer(auth, data)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}

@@ -1561,12 +1561,12 @@ func (m *SettleRequest) UnPack(data []byte) error {
 	m.Participant1Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant1Signature)
 	if err != nil || n != signatureLength {
-		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+		return fmt.Errorf("SettleRequest UnPack Participant1Signature err=%v,n=%d", err, n)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)
 	if err != nil || (n != signatureLength) {
-		return fmt.Errorf("WithdrawRequest UnPack Signature err=%v,n=%d", err, n)
+		return fmt.Errorf("SettleRequest UnPack Signature err=%v,n=%d", err, n)
 	}
 	return m.verifySignature(data)
 }
@@ -1585,7 +1585,7 @@ func (m *SettleRequest) verifySignature(data []byte) error {
 			utils.APex2(m.Sender), utils.APex2(m.Participant1))
 	}
 	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant1Signature))
-	datahash = utils.Sha3(m.signDataForContract())
+	datahash = utils.Sha3(m.SignDataForContract())
 	addr, err := utils.Ecrecover(datahash, m.Participant1Signature)
 	if err != nil {
 		return err
@@ -1596,7 +1596,9 @@ func (m *SettleRequest) verifySignature(data []byte) error {
 	}
 	return nil
 }
-func (m *SettleRequest) signDataForContract() []byte {
+
+//SignDataForContract 生成合约调用签名数据
+func (m *SettleRequest) SignDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
@@ -1616,7 +1618,7 @@ func (m *SettleRequest) signDataForContract() []byte {
 
 //Sign is SignedMessager
 func (m *SettleRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
-	m.Participant1Signature, err = utils.SignData(key, m.signDataForContract())
+	m.Participant1Signature, err = utils.SignData(key, m.SignDataForContract())
 	if err != nil {
 		return
 	}
@@ -1722,7 +1724,7 @@ func (m *SettleResponse) verifySignature(data []byte) error {
 			utils.APex2(m.Sender), utils.APex2(m.Participant2))
 	}
 	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant2Signature))
-	datahash = utils.Sha3(m.signDataForContract())
+	datahash = utils.Sha3(m.SignDataForContract())
 	addr, err := utils.Ecrecover(datahash, m.Participant2Signature)
 	if err != nil {
 		return err
@@ -1733,7 +1735,9 @@ func (m *SettleResponse) verifySignature(data []byte) error {
 	}
 	return nil
 }
-func (m *SettleResponse) signDataForContract() []byte {
+
+//SignDataForContract 生成合约调用数据
+func (m *SettleResponse) SignDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
@@ -1753,7 +1757,7 @@ func (m *SettleResponse) signDataForContract() []byte {
 
 //Sign is SignedMessager
 func (m *SettleResponse) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
-	m.Participant2Signature, err = utils.SignData(key, m.signDataForContract())
+	m.Participant2Signature, err = utils.SignData(key, m.SignDataForContract())
 	if err != nil {
 		return
 	}
