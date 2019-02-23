@@ -1237,6 +1237,17 @@ func (rs *Service) prepareCooperativeSettleChannel(channelIdentifier common.Hash
 		result.Result <- rerr.ErrChannelNotFound
 		return
 	}
+	// 查询该通道上是否存在pending状态的deposit,如果有,不允许
+	txTypes := fmt.Sprintf("%s,%s", models.TXInfoTypeApproveDeposit, models.TXInfoTypeDeposit)
+	pendingDepositList, err := rs.dao.GetTXInfoList(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber, utils.EmptyAddress, models.TXInfoType(txTypes), models.TXInfoStatusPending)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	if len(pendingDepositList) > 0 {
+		result.Result <- rerr.ErrChannelState.Append("can not CooperativeSettle channel when deposit")
+		return
+	}
 	log.Trace(fmt.Sprintf("prepareCooperativeSettleChannel settle channel %s\n", utils.HPex(channelIdentifier)))
 	err = c.PrepareForCooperativeSettle()
 	if err != nil {
@@ -1279,6 +1290,17 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
 		result.Result <- rerr.ErrNodeNotOnline.Printf("node %s is not online", c.PartnerState.Address.String())
+		return
+	}
+	// 查询该通道上是否存在pending状态的deposit,如果有,不允许
+	txTypes := fmt.Sprintf("%s,%s", models.TXInfoTypeApproveDeposit, models.TXInfoTypeDeposit)
+	pendingDepositList, err := rs.dao.GetTXInfoList(c.ChannelIdentifier.ChannelIdentifier, c.ChannelIdentifier.OpenBlockNumber, utils.EmptyAddress, models.TXInfoType(txTypes), models.TXInfoStatusPending)
+	if err != nil {
+		result.Result <- err
+		return
+	}
+	if len(pendingDepositList) > 0 {
+		result.Result <- rerr.ErrChannelState.Append("can not withdraw on channel when deposit")
 		return
 	}
 	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
