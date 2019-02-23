@@ -253,7 +253,6 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 func deploySMTToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
 	var err error
 	auth := bind.NewKeyedTransactor(key)
-	auth.Value = big.NewInt(1)
 	tokenAddress, tx, _, err := smttoken.DeploySMTToken(auth, conn, "", common.HexToAddress(env.TokenNetworkAddress))
 	if err != nil {
 		log.Fatalf("Failed to DeploySMTToken: %v", err)

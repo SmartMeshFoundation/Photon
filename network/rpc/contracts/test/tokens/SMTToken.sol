@@ -65,7 +65,7 @@ contract SMTToken is ERC223,StandardToken {
         // Retrieve the size of the code on target address, this needs assembly .
             codeLength := extcodesize(_to)
         }
-        balances[_to] = balances[_to].add(_value);
+//        balances[_to] = balances[_to].add(_value);
         if(codeLength>0) {
             ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
             receiver.tokenFallback(msg.sender, _value, _data);
@@ -80,9 +80,9 @@ contract SMTToken is ERC223,StandardToken {
     */
     function transfer(address _to, uint256 _value) public returns (bool) {
         require(msg.sender==tokenNetwork); //只能是token network转回来,其他没用.
-        require(_value <= balances[msg.sender]);
+//        require(_value <= balances[msg.sender]);
         require(_to != address(0));
-        balances[msg.sender] = balances[msg.sender].sub(_value);
+//        balances[msg.sender] = balances[msg.sender].sub(_value);
         _to.transfer(_value); // 退回给这个账户
         return true;
     }
