@@ -744,10 +744,9 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 	if err != nil {
 		return nil
 	}
-	if ch.ChannelIdentifier.OpenBlockNumber == st.BlockNumber {
-		log.Warn(fmt.Sprintf("receive duplicate ContractChannelWithdrawStateChange=%s",
-			utils.StringInterface(st, 3),
-		))
+	// 考虑到极小状况下会在崩溃重启后收到重复的上一个通道发生的事件,如果这里不验证块号,可能出现上一个channel的withdraw事件在新channel上被处理的BUG,导致新channel失败
+	if st.BlockNumber < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractChannelWithdrawStateChange , ignore ")
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
