@@ -138,7 +138,12 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	if i == cm.HighMediumWaitSeconds {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
 	}
-
+	// 12.5 N2 deposit
+	err = N2.Deposit(N1.Address, tokenAddress, depositAmount2)
+	if err != nil {
+		models.Logger.Println(err)
+		return cm.caseFail(env.CaseName)
+	}
 	// 13. N1 Close
 	err = N1.Close(c12.ChannelIdentifier)
 	if err != nil {
@@ -151,7 +156,6 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	time.Sleep(1000 * time.Second)
 	return nil
 }
 
