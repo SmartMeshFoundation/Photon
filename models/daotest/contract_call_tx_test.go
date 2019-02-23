@@ -78,7 +78,7 @@ func TestModelDB_ContractCallTX(t *testing.T) {
 	assert.EqualValues(t, 0, len(list))
 
 	// 8. update
-	_, err = dao.UpdateTXInfoStatus(tx.Hash(), models.TXInfoStatusSuccess, 2)
+	_, err = dao.UpdateTXInfoStatus(tx.Hash(), models.TXInfoStatusSuccess, 2, 10000)
 	assert.Empty(t, err)
 
 	list, err = dao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", "")
