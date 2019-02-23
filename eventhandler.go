@@ -676,6 +676,12 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 	if err != nil {
 		return nil
 	}
+	// 如果用户在100块合作settle通道,101块又一次打开,然后photon在100+确认块之前崩溃,那么重启后会重复收到该这2次事件,如果这里不验证settle的块号,会导致通道数据被清空
+	// 所以这里忽略掉小于OpenBlockNumber的合作Settle事件
+	if st.SettledBlock < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractSettledStateChange , ignore ")
+		return nil
+	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handleBalance ChannelStateTransition err=%s", err))
@@ -708,6 +714,12 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 			}
 		}
 		return eh.photon.dao.RemoveNonParticipantChannel(st.ChannelIdentifier)
+	}
+	// 如果用户在100块合作settle通道,101块又一次打开,然后photon在100+确认块之前崩溃,那么重启后会重复收到该这2次事件,如果这里不验证settle的块号,会导致通道数据被清空
+	// 所以这里忽略掉小于OpenBlockNumber的合作Settle事件
+	if st.SettledBlock < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractCooperativeSettledStateChange , ignore ")
+		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
@@ -764,6 +776,11 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 	if err != nil {
 		return nil
 	}
+	// 考虑到极小状况下会在崩溃重启后收到重复的上一个通道发生的事件,如果这里不验证块号,影响不大,但验证一下肯定没有问题
+	if st.BlockNumber < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractUnlockStateChange , ignore ")
+		return nil
+	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handle unlock ChannelStateTransition err=%s", err))
@@ -798,6 +815,11 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 		))
 		return nil
 	}
+	// 考虑到极小状况下会在崩溃重启后收到重复的上一个通道发生的事件,如果这里不验证块号,影响不大,但验证一下肯定没有问题
+	if st.BlockNumber < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractPunishedStateChange , ignore ")
+		return nil
+	}
 	err = eh.ChannelStateTransition(ch, st)
 	if err != nil {
 		log.Error(fmt.Sprintf("handle punish ChannelStateTransition err=%s", err))
@@ -812,6 +834,11 @@ func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransf
 	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
+		return nil
+	}
+	// 考虑到极小状况下会在崩溃重启后收到重复的上一个通道发生的事件,如果这里不验证块号,影响不大,但验证一下肯定没有问题
+	if st.BlockNumber < ch.ChannelIdentifier.OpenBlockNumber {
+		log.Error("got repeat ContractBalanceProofUpdatedStateChange , ignore ")
 		return nil
 	}
 	err = eh.ChannelStateTransition(ch, st)
