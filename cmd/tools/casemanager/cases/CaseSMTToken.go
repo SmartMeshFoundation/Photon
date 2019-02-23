@@ -7,6 +7,8 @@ import (
 
 	"fmt"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -28,7 +30,7 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	}()
 	// 源数据
 	// original data
-	settleTimeout := int64(500)
+	settleTimeout := int64(100)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N1, N2 := env.Nodes[0], env.Nodes[1]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
@@ -100,7 +102,56 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	}
 	// 8. 打印N1,N2余额
 	showBalance(env, "after settle", N1, N2)
+
+	// 9. N1 重新open
+	depositAmount1 = int64(200)
+	err = N1.OpenChannel(N2.Address, tokenAddress, depositAmount1, settleTimeout)
+	if err != nil {
+		models.Logger.Println(err)
+		return cm.caseFail(env.CaseName)
+	}
+	// 10. 查询通道数据,并校验对等
+	c12 = N1.GetChannelWith(N2, tokenAddress).Println("after N1 openAndDeposit 200")
+	if !c12.CheckEqualByPartnerNode(env) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
+	}
+	if !c12.CheckSelfBalance(int32(depositAmount1)) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
+	}
+	// 11. N1 withdraw
+	withdrawAmount := int32(100)
+	N1.Withdraw(c12.ChannelIdentifier, withdrawAmount)
+
+	// 12. 查询通道数据,并校验对等
+	i := 0
+	for i = 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		c12 = N1.GetChannelWith(N2, tokenAddress).Println("after N1 openAndDeposit 200")
+		if !c12.CheckEqualByPartnerNode(env) {
+			continue
+		}
+		if !c12.CheckSelfBalance(int32(depositAmount1) - withdrawAmount) {
+			continue
+		}
+		break
+	}
+	if i == cm.HighMediumWaitSeconds {
+		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
+	}
+
+	// 13. N1 Close
+	err = N1.Close(c12.ChannelIdentifier)
+	if err != nil {
+		models.Logger.Println(err)
+		return cm.caseFail(env.CaseName)
+	}
+	// 14. N1 Settle
+	err = cm.trySettleInSeconds(int(c12.SettleTimeout)+257+10, N1, c12.ChannelIdentifier)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
+	time.Sleep(1000 * time.Second)
 	return nil
 }
 
