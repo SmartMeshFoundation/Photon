@@ -86,7 +86,7 @@ func (model *StormDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInf
 }
 
 // UpdateTXInfoStatus :
-func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64) (txInfo *models.TXInfo, err error) {
+func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64, gasUsed uint64) (txInfo *models.TXInfo, err error) {
 	var tis models.TXInfoSerialization
 	err = model.db.One("TXHash", txHash[:], &tis)
 	if err != nil {
@@ -97,6 +97,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 	tis.Status = string(status)
 	tis.PackBlockNumber = packBlockNumber
 	tis.PackTime = time.Now().Unix()
+	tis.GasUsed = gasUsed
 	if tis.OpenBlockNumber == 0 && tis.Type == models.TXInfoTypeDeposit {
 		// 通道第一deposit,即通道打开,记录OpenBlockNumber和TokenAddress
 		tis.OpenBlockNumber = packBlockNumber

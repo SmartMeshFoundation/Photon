@@ -83,7 +83,7 @@ func (dao *GkvDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInfo, e
 }
 
 // UpdateTXInfoStatus :
-func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64) (txInfo *models.TXInfo, err error) {
+func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64, gasUsed uint64) (txInfo *models.TXInfo, err error) {
 	var tis models.TXInfoSerialization
 	err = dao.getKeyValueToBucket(models.BucketTXInfo, txHash[:], &tis)
 	if err != nil {
@@ -94,6 +94,7 @@ func (dao *GkvDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoSta
 	tis.Status = string(status)
 	tis.PackBlockNumber = pendingBlockNumber
 	tis.PackTime = time.Now().Unix()
+	tis.GasUsed = gasUsed
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateTXInfoStatus err %s", err))

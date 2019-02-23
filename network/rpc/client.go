@@ -256,7 +256,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 	if receipt.Status != types.ReceiptStatusSuccessful {
 		// 失败处理
 		// a.记录状态到数据库
-		savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber)
+		savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusFailed, packBlockNumber, receipt.GasUsed)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -268,7 +268,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 	// 成功处理
 	log.Info(fmt.Sprintf("tx[txHash=%s,type=%s] receipt success", pendingTXInfo.TXHash.String(), pendingTXInfo.Type))
 	// a.记录状态到数据库
-	savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber)
+	savedTxInfo, err = bcs.TXInfoDao.UpdateTXInfoStatus(pendingTXInfo.TXHash, models.TXInfoStatusSuccess, packBlockNumber, receipt.GasUsed)
 	if err != nil {
 		log.Error(err.Error())
 	}

@@ -51,6 +51,7 @@ type TXInfo struct {
 	PackBlockNumber   int64          `json:"pack_block_number"` // tx最终所在的块号
 	CallTime          int64          `json:"call_time"`         // tx发起时间戳
 	PackTime          int64          `json:"pack_time"`         // tx打包时间戳
+	GasUsed           uint64         `json:"gas_used"`          // 消耗的gas
 }
 
 // String :
@@ -77,6 +78,7 @@ func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 		PackBlockNumber:   ti.PackBlockNumber,
 		CallTime:          ti.CallTime,
 		PackTime:          ti.PackTime,
+		GasUsed:           ti.GasUsed,
 	}
 }
 
@@ -94,6 +96,7 @@ type TXInfoSerialization struct {
 	PackBlockNumber   int64         `storm:"index"` // tx最终所在的块号
 	CallTime          int64         `storm:"index"`
 	PackTime          int64         `storm:"index"`
+	GasUsed           uint64
 }
 
 // ToTXInfo :
@@ -111,6 +114,7 @@ func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 		PackBlockNumber:   tis.PackBlockNumber,
 		CallTime:          tis.CallTime,
 		PackTime:          tis.PackTime,
+		GasUsed:           tis.GasUsed,
 	}
 }
 
