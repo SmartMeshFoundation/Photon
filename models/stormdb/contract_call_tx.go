@@ -54,6 +54,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 		TXParams:          txParamsStr,
 		Status:            models.TXInfoStatusPending,
 		CallTime:          time.Now().Unix(),
+		GasPrice:          tx.GasPrice().Uint64(),
 	}
 	err = model.db.Save(txInfo.ToTXInfoSerialization())
 	if err != nil {

@@ -50,6 +50,7 @@ func (dao *GkvDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoTy
 		TXParams:          txParamsStr,
 		Status:            models.TXInfoStatusPending,
 		CallTime:          time.Now().Unix(),
+		GasPrice:          tx.GasPrice().Uint64(),
 	}
 	tis := txInfo.ToTXInfoSerialization()
 	err = dao.saveKeyValueToBucket(models.BucketTXInfo, tis.TXHash, tis)
