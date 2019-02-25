@@ -20,6 +20,16 @@ import (
 
 // NewPendingTXInfo 创建pending状态的TXInfo,即自己发起的tx
 func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+	tokenAddress := utils.EmptyAddress
+	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
+		c, err2 := model.GetChannelByAddress(channelIdentifier)
+		if err2 != nil {
+			log.Error(err2.Error())
+		} else {
+			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
+			tokenAddress = c.TokenAddress()
+		}
+	}
 	var txParamsStr string
 	if txParams != nil {
 		if s, ok := txParams.(string); ok {
@@ -33,15 +43,8 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 			}
 			txParamsStr = string(buf)
 		}
-	}
-	tokenAddress := utils.EmptyAddress
-	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
-		c, err2 := model.GetChannelByAddress(channelIdentifier)
-		if err2 != nil {
-			log.Error(err2.Error())
-		} else {
-			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-			tokenAddress = c.TokenAddress()
+		if p, ok := txParams.(*models.DepositTXParams); ok && tokenAddress == utils.EmptyAddress {
+			tokenAddress = p.TokenAddress
 		}
 	}
 	txInfo = &models.TXInfo{
