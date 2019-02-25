@@ -24,7 +24,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := model.GetChannelByAddress(channelIdentifier)
 		if err2 != nil {
-			log.Error(err2.Error())
+			//log.Error(err2.Error())
 		} else {
 			openBlockNumber = c.ChannelIdentifier.OpenBlockNumber
 			tokenAddress = c.TokenAddress()
@@ -107,7 +107,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		tis.OpenBlockNumber = packBlockNumber
 		ch, err2 := model.GetChannelByAddress(common.BytesToHash(tis.ChannelIdentifier))
 		if err2 != nil {
-			log.Error(err2.Error())
+			//log.Error(err2.Error())
 		} else {
 			tis.TokenAddress = ch.TokenAddressBytes
 		}
