@@ -1007,7 +1007,7 @@ func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber i
 		OpenBlockNumber:   int64(openBlockNumber),
 		TokenAddress:      tokenAddressStr,
 		TXType:            models.TXInfoType(txTypeStr),
-		TXStatus:          models.TXInfoStatus(txTypeStr),
+		TXStatus:          models.TXInfoStatus(txStatusStr),
 	}
 	list, err := a.api.ContractCallTXQuery(req)
 	if err != nil {
