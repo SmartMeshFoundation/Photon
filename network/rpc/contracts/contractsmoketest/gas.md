@@ -16,6 +16,13 @@
 * unlock:68585 单个锁
 * punish: 34448 
 
+# 专用于smt token的gas话费
+ChannelDeposit(open and deposit)     : 73824--->88062
+ChannelDeposit                  : 52555 --->51495
+CooperateSettle   : 52901  --->78174 
+ChannelSettle       : 38086 --> 51352
+Withdraw             : 78202 ---> 83213
+
 ## 记录
 smoke_test.go:184: 0x292650fee408320D888e06ed89D938294Ea42f99 approve token 0xE514fbb7e751CdF59C9e765C58b6daFcF7B97D49 for 0xF5DEcCfb4935eF57B500807a5214120ADDC86f74,gasUsed=30216,gasLimit=30216
 INFO [12-29|11:11:12.116] Deposit complete...,gasLimit=70928,gasUsed=70764 fn=smoke_test.go:creatAChannelAndDeposit:165
