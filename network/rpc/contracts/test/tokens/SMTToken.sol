@@ -12,13 +12,18 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 .*/
 
 pragma solidity ^0.4.24;
-import "./ERC223_interface.sol";
+
 import "./ERC223_receiving_contract.sol";
 import "./openzeppelin-token/ERC20/StandardToken.sol";
+/// @title an interface for Token.
+/// @notice it contains various utility functions that will be used by a token.
+interface TokensNetworkInterface {
+    function chain_id() external view returns (uint256); //必须大于0
+    function contract_version() external view returns (string); //必须是0.6_
+    function signature_prefix() external view returns (string); //必须是'\x19Spectrum Signed Message:\n'
 
-contract SMTToken is ERC223,StandardToken {
-
-
+}
+contract SMTToken is  StandardToken {
 
     /*
     NOTE:
@@ -44,35 +49,23 @@ contract SMTToken is ERC223,StandardToken {
         symbol = _tokenSymbol;                               // Set the symbol for display purposes
         totalSupply_ = 1; //这个参数没啥用,专用于token network,维持为0
         tokenNetwork=_tokenNetwork;
+        //要检测指定的这个tokennetwork地址是有效的
+        TokensNetworkInterface tn=TokensNetworkInterface(_tokenNetwork);
+        require(tn.chain_id()>0);
+        require(keccak256(tn.contract_version())==keccak256("0.6._"));
+        require(keccak256(tn.signature_prefix())==keccak256('\x19Spectrum Signed Message:\n'));
     }
     function () external { revert(); }
 
-    function transfer(address _to, uint256 _value, bytes _data) external {
-      revert(); //不支持
-    }
+
     //调用这个合约存钱,创建channel,调用方式和调用  只能给指定合约充值
     function buyAndTransfer( bytes _data) public payable {
         require(msg.value>0); //不能充值0
-        transferHelper(tokenNetwork,msg.value,_data);
+        //只允许充值到tokensNetwork合约中
+        ERC223ReceivingContract receiver = ERC223ReceivingContract(tokenNetwork);
+        receiver.tokenFallback(msg.sender, msg.value, _data);
     }
-    //临时方便,长期肯定不能这么做
-    function transferHelper(address _to, uint256 _value, bytes _data) internal {
-        // Standard function transfer similar to ERC20 transfer with no _data .
-        // Added due to backwards compatibility reasons .
-        uint codeLength;
-
-        assembly {
-        // Retrieve the size of the code on target address, this needs assembly .
-            codeLength := extcodesize(_to)
-        }
-//        balances[_to] = balances[_to].add(_value);
-        if(codeLength>0) {
-            ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-            receiver.tokenFallback(msg.sender, _value, _data);
-        }
-    }
-
-    //钱退回账户的过程,特殊处理一下.
+    //钱退回账户的过程,特殊处理
     /**
     * @dev Transfer token for a specified address
     * @param _to The address to transfer to.
@@ -85,5 +78,26 @@ contract SMTToken is ERC223,StandardToken {
 //        balances[msg.sender] = balances[msg.sender].sub(_value);
         _to.transfer(_value); // 退回给这个账户
         return true;
+    }
+
+    //以下函数都应该禁用,只是为了符合erc223的接口罢了
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    )
+    public
+    returns (bool){
+        revert();
+    }
+    function approve(address _spender, uint256 _value) public returns (bool) {
+        revert();
+    }
+    function increaseApproval(address _spender, uint256 _addedValue) public returns (bool) {
+        revert();
+    }
+    function decreaseApproval(address _spender, uint256 _subtractedValue) public returns (bool)
+    {
+        revert();
     }
 }
