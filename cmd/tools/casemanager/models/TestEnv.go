@@ -53,6 +53,7 @@ type TestEnv struct {
 	Channels            []*Channel
 	Keys                []*ecdsa.PrivateKey `json:"-"`
 	UseOldToken         bool
+	PFSMain             string // pfs可执行文件全路径
 }
 
 // Logger : global case logger
@@ -101,6 +102,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
 	env.Debug = c.RdBool("COMMON", "debug", true)
 	env.UseOldToken = false
+	env.PFSMain = c.RdString("COMMON", "pfs_main", "photon-pathfinding-service")
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
@@ -482,10 +484,27 @@ func (env *TestEnv) ClearHistoryData() {
 		if name == ".photon" {
 			err := os.RemoveAll(path)
 			if err != nil {
-				fmt.Println("delet dir error:", err)
+				fmt.Println("delete dir error:", err)
 			}
 		}
 		Logger.Println("Clear history data SUCCESS ")
+		return nil
+	})
+	err = filepath.Walk(".", func(path string, fi os.FileInfo, err error) error {
+		if nil == fi {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		name := fi.Name()
+		if name == ".pfsdb" {
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Println("delete dir error:", err)
+			}
+			Logger.Println("Clear pfs history data SUCCESS ")
+		}
 		return nil
 	})
 	if err != nil {
@@ -531,4 +550,20 @@ func (env *TestEnv) Println(header string) {
 		panic(err)
 	}
 	Logger.Println(string(buf))
+}
+
+// StartPFS 启动本地pfs节点
+func (env *TestEnv) StartPFS() {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-pfs")
+	var param []string
+	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
+	param = append(param, "--port=7000")
+	param = append(param, "--dbtype=sqlite3")
+	param = append(param, "--dbconnection=.pfsdb")
+	param = append(param, "--debug")
+	param = append(param, "--verbosity=5")
+	go ExecShell(env.PFSMain, param, logfile, true)
+	// TODO 校验启动完成
+	return
 }

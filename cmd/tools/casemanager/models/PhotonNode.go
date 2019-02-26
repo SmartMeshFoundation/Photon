@@ -125,6 +125,63 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 	}
 }
 
+func removeParam(params []string, remove string) []string {
+	//从参数中找到remove,然后删除
+	i := 0
+	for i = 0; i < len(params); i++ {
+		if params[i] == remove {
+			break
+		}
+	}
+	if i >= 0 && i < len(params) {
+		params = append(params[:i], params[i+1:]...)
+	}
+	return params
+}
+
+// StartWithFeeAndPFS :
+func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	params := node.getParamStrWithoutNoNetwork(env)
+	//从参数中找到diable-fee,然后删除
+	removeParam(params, "--disable-fee")
+	removeParam(params, "--nonetwork")
+	// 添加casemanager自带的pfs
+	params = append(params, "--pfs=http://127.0.0.1:7000")
+	go ExecShell(env.Main, params, logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to StartWithFee, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
+		count++
+		if count > 400 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s StartWithFee with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
+	}
+	time.Sleep(10 * time.Second)
+	node.Running = true
+	if !env.UseMatrix && env.XMPPServer == "" {
+		for _, n := range env.Nodes {
+			if n.Running {
+				n.UpdateMeshNetworkNodes(env.Nodes...)
+			}
+		}
+	}
+}
+
 // StartWithFee start a photon node with --fee
 func (node *PhotonNode) StartWithFee(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
