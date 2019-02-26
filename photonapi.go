@@ -93,16 +93,16 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	if revealTimeout <= 0 {
 		revealTimeout = r.Photon.Config.RevealTimeout
 	}
-	if !newChannel && settleTimeout != 0 {
-		err = rerr.ErrArgumentError.Append("settleTimeout must be zero when newChannel is false ")
-		return
-	}
-	if settleTimeout <= 0 {
-		settleTimeout = r.Photon.Config.SettleTimeout
-	}
-	if settleTimeout <= revealTimeout {
-		err = rerr.ErrChannelInvalidSttleTimeout
-		return
+	if newChannel {
+		if settleTimeout <= 0 {
+			settleTimeout = r.Photon.Config.SettleTimeout
+		}
+		if settleTimeout <= revealTimeout {
+			err = rerr.ErrChannelInvalidSttleTimeout
+			return
+		}
+	} else {
+		settleTimeout = 0
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
 		err = rerr.ErrInvalidAmount
