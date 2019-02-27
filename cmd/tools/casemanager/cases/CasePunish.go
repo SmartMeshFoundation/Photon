@@ -37,8 +37,8 @@ func (cm *CaseManager) CasePunish() (err error) {
 	N0.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
 	})
-	N1.Start(env)
-	N2.Start(env)
+	cm.startNodes(env, N1, N2)
+
 	secret, _, err := N0.GenerateSecret()
 	if err != nil {
 		return

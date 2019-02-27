@@ -30,8 +30,8 @@ func (cm *CaseManager) CrashCaseRecvAck05() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点3,6
-	N3.Start(env)
-	N6.Start(env)
+	cm.startNodes(env, N3, N6)
+
 	// 启动节点2, ReceiveRevealSecretAck
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveRevealSecretAck",

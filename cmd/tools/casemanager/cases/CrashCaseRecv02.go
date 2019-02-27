@@ -31,9 +31,7 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 	N1, N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2,36
-	N2.Start(env)
-	N3.Start(env)
-	N6.Start(env)
+	cm.startNodes(env, N2, N3, N6)
 	// 启动节点1, ReceiveSecretRequestStateChange
 	N1.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveSecretRequestStateChange",

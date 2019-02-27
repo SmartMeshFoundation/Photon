@@ -302,7 +302,7 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	return DeviceTypeOther, false
 }
 
-//HandlePeerFound notify from mdns
+//HandlePeerFound notification  from mdns
 func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	log.Info(fmt.Sprintf("peer found id=%s,addr=%s", id, addr))
 	ut.intranetNodes[common.HexToAddress(id)] = addr

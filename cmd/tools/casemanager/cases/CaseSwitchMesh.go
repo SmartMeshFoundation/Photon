@@ -24,8 +24,7 @@ func (cm *CaseManager) CaseSwitchMesh() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	N0.Start(env)
-	N1.Start(env)
+	cm.startNodes(env, N0, N1)
 
 	err = N0.Transfer(env.Tokens[0].TokenAddress.String(), 1, N1.Address, false)
 	if err != nil {

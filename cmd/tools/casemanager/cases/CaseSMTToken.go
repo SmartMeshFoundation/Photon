@@ -36,8 +36,7 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点1，2
 	// start node 2, 3
-	N1.Start(env)
-	N2.Start(env)
+	cm.startNodes(env, N1, N2)
 	// 1. 打印N1,N2余额
 	showBalance(env, "begin", N1, N2)
 	// 2. N1创建通道

@@ -33,9 +33,8 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点2,3,6
-	N2.Start(env)
-	N3.Start(env)
-	N6.Start(env)
+	cm.startNodes(env, N2, N3, N6)
+
 	// 启动节点1, BeforeSendRevealSecret
 	N1.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "EventSendRevealSecretBefore",

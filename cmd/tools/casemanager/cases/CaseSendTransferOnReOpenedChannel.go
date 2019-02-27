@@ -29,8 +29,7 @@ func (cm *CaseManager) CaseSendTransferOnReOpenedChannel() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	N0.Start(env)
-	N1.Start(env)
+	cm.startNodes(env, N0, N1)
 
 	// 获取channel信息
 	// get channel info
