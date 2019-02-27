@@ -825,7 +825,7 @@ Calls:
  *			2.1 taker should contain lockSecretHash, but no secret.
  *			2.2 maker should contain lockSecretHash and secret.
  */
-func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash, data string) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	var availableRoutes []*route.State
 	var err error
 	targetAmount := new(big.Int).Sub(amount, fee)
@@ -835,17 +835,38 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		result.Result <- rerr.ErrTokenNotFound
 		return
 	}
-	/*
-		只有在没有直接通道的情况下才找PFS询问路由
-	*/
-	if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
-		availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
-		if err != nil {
-			result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
-			return
+	// 用户指定了路由的话,采用用户指定的路由,否则从pfs或者本地查询路由
+	if routeInfo != nil && len(routeInfo) > 0 {
+		log.Trace("get available routes from user req")
+		for _, path := range routeInfo {
+			if path.Result == nil || path.Result[0] == "" {
+				continue
+			}
+			partnerAddress := common.HexToAddress(path.Result[0])
+			ch := rs.getChannel(tokenAddress, partnerAddress)
+			if ch == nil {
+				continue
+			}
+			r := route.NewState(ch)
+			r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, tokenAddress, amount)
+			r.TotalFee = path.Fee
+			availableRoutes = append(availableRoutes, r)
 		}
 	} else {
-		availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
+		/*
+			只有在没有直接通道的情况下才找PFS询问路由
+		*/
+		if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
+			log.Trace("get available routes from pfs")
+			availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
+			if err != nil {
+				result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
+				return
+			}
+		} else {
+			log.Trace("get available routes from local channel graph")
+			availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
+		}
 	}
 	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
 	if len(availableRoutes) <= 0 {
@@ -909,7 +930,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 1. user start a mediated transfer
 2. user start a mediated transfer with secret
 */
-func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash, data string) (result *utils.AsyncResult) {
+func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult) {
 	lockSecretHash := utils.EmptyHash
 	if secret != utils.EmptyHash {
 		lockSecretHash = utils.ShaSecret(secret.Bytes())
@@ -940,7 +961,7 @@ func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, am
 	*/
 	rs.dao.NewSentTransferDetail(tokenAddress, target, amount, data, false, lockSecretHash)
 	//rs.dao.NewTransferStatus(tokenAddress, lockSecretHash)
-	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret, data)
+	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret, data, routeInfo)
 	result.LockSecretHash = lockSecretHash
 	return
 }
@@ -1383,7 +1404,7 @@ func (rs *Service) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResu
 	}
 	rs.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	rs.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret, "")
+	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret, "", nil)
 	return
 }
 
@@ -1437,7 +1458,7 @@ func (rs *Service) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokensw
 		taker and maker may have direct channels on these two tokens.
 	*/
 	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
-	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "")
+	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "", nil)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return false
@@ -1624,7 +1645,7 @@ func (rs *Service) handleReq(req *apiReq) {
 		if r.IsDirectTransfer {
 			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount, r.Data)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret, r.Data)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret, r.Data, r.RouteInfo)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)

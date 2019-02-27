@@ -251,8 +251,8 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //Transfer transfer and wait
-func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer, data)
+func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -270,8 +270,8 @@ func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, targ
 }
 
 // TransferAsync :
-func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
+func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -285,38 +285,10 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *b
 }
 
 //TransferInternal :
-func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	//tokens := r.Tokens()
-	//found := false
-	//for _, t := range tokens {
-	//	if t == tokenAddress {
-	//		found = true
-	//		break
-	//	}
-	//}
-	//if !found {
-	//	err = errors.New("token not exist")
-	//	return
-	//}
-	//if isDirectTransfer {
-	//	var c *channeltype.Serialization
-	//	c, err = r.Photon.dao.GetChannel(tokenAddress, target)
-	//	if err != nil {
-	//		err = fmt.Errorf("no direct channel token:%s,partner:%s", tokenAddress.String(), target.String())
-	//		return
-	//	}
-	//	if c.State != channeltype.StateOpened {
-	//		err = fmt.Errorf("channel %s not opened", c.ChannelIdentifier)
-	//		return
-	//	}
-	//}
-	//if amount.Cmp(utils.BigInt0) <= 0 {
-	//	err = rerr.ErrInvalidAmount
-	//	return
-	//}
+func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
 		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
-	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
+	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
 	return
 }
 

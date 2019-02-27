@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
@@ -472,10 +473,10 @@ transfer:
 
 the caller should call GetSentTransferDetail periodically to query this transfer's latest status.
 */
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (result string) {
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string, routeInfoStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s \nout transfer=\n%s ",
-			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, result,
+		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s routeInfo=%s\nout transfer=\n%s ",
+			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, result, routeInfoStr,
 		))
 	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
@@ -506,7 +507,19 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	tr, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data)
+	// 解析指定的路由info
+	var routeInfo []pfsproxy.FindPathResponse
+	if routeInfoStr == "" {
+		routeInfo = nil
+	} else {
+		err = json.Unmarshal([]byte(routeInfoStr), &routeInfo)
+		if err != nil {
+			err = fmt.Errorf("parse route info err=%s", err.Error())
+			err = rerr.ErrArgumentError.AppendError(err)
+			return dto.NewErrorMobileResponse(err)
+		}
+	}
+	tr, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data, routeInfo)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)

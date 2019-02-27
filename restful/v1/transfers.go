@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,16 +18,17 @@ import (
 
 //TransferData post for transfers
 type TransferData struct {
-	Initiator      string   `json:"initiator_address"`
-	Target         string   `json:"target_address"`
-	Token          string   `json:"token_address"`
-	Amount         *big.Int `json:"amount"`
-	Secret         string   `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
-	LockSecretHash string   `json:"lockSecretHash"`
-	Fee            *big.Int `json:"fee,omitempty"`
-	IsDirect       bool     `json:"is_direct,omitempty"`
-	Sync           bool     `json:"sync,omitempty"` //是否同步
-	Data           string   `json:"data"`           // 交易附加信息,长度不超过256
+	Initiator      string                      `json:"initiator_address"`
+	Target         string                      `json:"target_address"`
+	Token          string                      `json:"token_address"`
+	Amount         *big.Int                    `json:"amount"`
+	Secret         string                      `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
+	LockSecretHash string                      `json:"lockSecretHash"`
+	Fee            *big.Int                    `json:"fee,omitempty"`
+	IsDirect       bool                        `json:"is_direct,omitempty"`
+	Sync           bool                        `json:"sync,omitempty"` //是否同步
+	Data           string                      `json:"data"`           // 交易附加信息,长度不超过256
+	RouteInfo      []pfsproxy.FindPathResponse `json:"route_info"`     // 指定的路由信息
 }
 
 /*
@@ -114,9 +116,9 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data)
+		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data, req.RouteInfo)
 	} else {
-		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data)
+		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data, req.RouteInfo)
 	}
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(err)

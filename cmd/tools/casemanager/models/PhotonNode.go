@@ -14,6 +14,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // PhotonNodeRuntime case运行过程中存储临时数据的地方
@@ -358,6 +359,11 @@ func (node *PhotonNode) StartWithConditionQuit(env *TestEnv, c *params.Condition
 	node.ConditionQuit = c
 	node.DebugCrash = true
 	node.Start(env)
+}
+
+// GetAddress :
+func (node *PhotonNode) GetAddress() common.Address {
+	return common.HexToAddress(node.Address)
 }
 
 // ExecShell : run shell commands

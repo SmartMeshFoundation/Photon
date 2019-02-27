@@ -24,6 +24,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -566,4 +567,39 @@ func (env *TestEnv) StartPFS() {
 	go ExecShell(env.PFSMain, param, logfile, true)
 	// TODO 校验启动完成
 	return
+}
+
+// GetPfsProxy :
+func (env *TestEnv) GetPfsProxy(privateKey *ecdsa.PrivateKey) pfsproxy.PfsProxy {
+	return pfsproxy.NewPfsProxy("http://127.0.0.1:7000", privateKey)
+}
+
+// GetPrivateKeyByAccount :
+func (env *TestEnv) GetPrivateKeyByNode(node *PhotonNode) (key *ecdsa.PrivateKey) {
+	account := common.HexToAddress(node.Address)
+	am := accounts.NewAccountManager(env.KeystorePath)
+	if len(am.Accounts) == 0 {
+		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", env.KeystorePath))
+		os.Exit(1)
+	}
+	keyBin, err := am.GetPrivateKey(account, globalPassword)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", account.String()))
+		os.Exit(1)
+	}
+	key, err = crypto.ToECDSA(keyBin)
+	if err != nil {
+		log.Println(fmt.Sprintf("private key to bytes err %s", err))
+		os.Exit(1)
+	}
+	return
+}
+
+// MarshalIndent :
+func MarshalIndent(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }
