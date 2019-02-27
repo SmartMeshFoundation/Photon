@@ -1,7 +1,10 @@
 package network
 
 import (
+	"context"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
 	"fmt"
 
@@ -134,6 +137,8 @@ type UDPTransport struct {
 	lock          sync.RWMutex
 	name          string
 	log           log.Logger
+	msrv          mdns.Service
+	cf            context.CancelFunc
 }
 
 //NewUDPTransport create UDPTransport
@@ -148,6 +153,15 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		log:           log.New("name", name),
 		intranetNodes: make(map[common.Address]*net.UDPAddr),
 	}
+	ctx, cf := context.WithCancel(context.Background())
+	msrv, err := mdns.NewMdnsService(ctx, port, name, time.Second)
+	if err != nil {
+		cf()
+		return
+	}
+	t.cf = cf
+	t.msrv = msrv
+	t.msrv.RegisterNotifee(t)
 	return
 }
 
@@ -241,7 +255,9 @@ func (ut *UDPTransport) getHostPort(addr common.Address) (ua *net.UDPAddr, err e
 func (ut *UDPTransport) setHostPort(nodes map[common.Address]*net.UDPAddr) {
 	ut.lock.Lock()
 	defer ut.lock.Unlock()
-	ut.intranetNodes = nodes
+	for k, v := range nodes {
+		ut.intranetNodes[k] = v
+	}
 }
 
 //RegisterProtocol register receiver
@@ -251,6 +267,15 @@ func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 
 //Stop UDP connection
 func (ut *UDPTransport) Stop() {
+	if ut.cf != nil {
+		ut.cf()
+	}
+	if ut.msrv != nil {
+		err := ut.msrv.Close()
+		if err != nil {
+			log.Error(fmt.Sprintf("udp transport stop err %s", err))
+		}
+	}
 	ut.stopReceiving = true
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
@@ -275,4 +300,10 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 		return DeviceTypeOther, true
 	}
 	return DeviceTypeOther, false
+}
+
+//HandlePeerFound notify from mdns
+func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+	log.Info(fmt.Sprintf("peer found id=%s,addr=%s", id, addr))
+	ut.intranetNodes[common.HexToAddress(id)] = addr
 }

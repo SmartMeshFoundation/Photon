@@ -72,3 +72,49 @@ func TestUDPTransport(t *testing.T) {
 		}
 	}
 }
+
+func TestUDPTransportWithMDNS(t *testing.T) {
+	addr1 := utils.NewRandomAddress()
+	addr2 := utils.NewRandomAddress()
+	udp1 := MakeTestUDPTransport(addr1.String(), 40000)
+	udp2 := MakeTestUDPTransport(addr2.String(), 40001)
+
+	d1 := newDummyProtocol("u1")
+	d2 := newDummyProtocol("u2")
+	udp1.RegisterProtocol(d1)
+	udp2.RegisterProtocol(d2)
+	udp1.Start()
+	udp2.Start()
+	defer udp1.Stop()
+	defer udp2.Stop()
+	time.Sleep(time.Second * 2) //休息一段时间,等待对方上线通知
+	deviceType, isOnline := udp1.NodeStatus(addr2)
+	if deviceType != DeviceTypeOther || !isOnline {
+		t.Error("node status error")
+		return
+	}
+	deviceType, isOnline = udp2.NodeStatus(addr1)
+	if deviceType != DeviceTypeOther || !isOnline {
+		t.Error("node status error")
+		return
+	}
+	deviceType, isOnline = udp1.NodeStatus(utils.NewRandomAddress())
+	if isOnline {
+		t.Error("should unkown")
+		return
+	}
+	data := []byte("abc")
+	err := udp1.Send(addr2, data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	select {
+	case <-time.After(time.Millisecond * 100):
+		t.Error("timeout")
+	case data2 := <-d2.data:
+		if !bytes.Equal(data2, data) {
+			t.Error("not equal")
+		}
+	}
+}

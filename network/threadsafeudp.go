@@ -14,7 +14,9 @@ type SafeUDPConnection struct {
 func NewSafeUDPConnection(protocol string, laddr *net.UDPAddr) (*SafeUDPConnection, error) {
 	suc := new(SafeUDPConnection)
 	var err error
-	suc.UDPConn, err = net.ListenUDP(protocol, laddr)
+	addr2 := *laddr
+	addr2.IP = net.ParseIP("0.0.0.0") //确保listen的是0.0.0.0
+	suc.UDPConn, err = net.ListenUDP(protocol, &addr2)
 	return suc, err
 }
 
