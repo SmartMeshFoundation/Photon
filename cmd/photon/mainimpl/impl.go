@@ -353,11 +353,11 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), "127.0.0.1", cfg.Port, nil, policy)
+		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), "127.0.0.1", cfg.Port, nil, policy)
 		return
 	case params.UDPOnly:
 		policy := network.NewTokenBucket(10, 1, time.Now)
-		transport, err = network.NewUDPTransport(utils.APex2(bcs.NodeAddress), cfg.Host, cfg.Port, nil, policy)
+		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), cfg.Host, cfg.Port, nil, policy)
 	case params.XMPPOnly:
 		transport = network.NewXMPPTransport(utils.APex2(bcs.NodeAddress), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
 	case params.MixUDPXMPP:

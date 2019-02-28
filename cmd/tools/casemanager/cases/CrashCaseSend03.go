@@ -34,8 +34,7 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 		QuitEvent: "EventSendUnlockAfter",
 	})
 	// 启动节点3，6
-	N3.Start(env)
-	N6.Start(env)
+	cm.startNodes(env, N3, N6)
 
 	// 初始数据记录
 	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()

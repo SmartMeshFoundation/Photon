@@ -30,8 +30,8 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2,3
-	N2.Start(env)
-	N3.Start(env)
+	cm.startNodes(env, N2, N3)
+
 	// 启动节点6, ActionInitTargetStateChange
 	N6.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ActionInitTargetStateChange",

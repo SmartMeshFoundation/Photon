@@ -112,9 +112,10 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 	}
 	for _, n := range env.Nodes {
 		if n.Running {
-			n.UpdateMeshNetworkNodes(nodes...)
+			//n.UpdateMeshNetworkNodes(nodes...)
 		}
 	}
+	time.Sleep(time.Second * 2)
 	return
 }
 

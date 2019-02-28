@@ -22,10 +22,9 @@ func (cm *CaseManager) CaseFee() (err error) {
 	N0, N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点
-	N0.Start(env)
 	N1.StartWithFee(env)
 	N2.StartWithFee(env)
-	N3.Start(env)
+	cm.startNodes(env, N0, N3)
 
 	cm.logSeparatorLine("Test 1 : transfer with fee 0, should FAIL")
 	transferAmount = 10000

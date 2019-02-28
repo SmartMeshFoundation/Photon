@@ -24,8 +24,8 @@ func (cm *CaseManager) CaseTransferWithSecret() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	N0.Start(env)
-	N1.Start(env)
+	cm.startNodes(env, N0, N1)
+
 	secret, SecretHash, err := N0.GenerateSecret()
 	if err != nil {
 		return cm.caseFail(env.CaseName)

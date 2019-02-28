@@ -55,14 +55,17 @@ Send message
 func (t *MixTransport) Send(receiver common.Address, data []byte) error {
 	_, isOnline := t.udp.NodeStatus(receiver)
 	if isOnline {
-		return t.udp.Send(receiver, data)
-	} else if t.xmpp != nil {
-		return t.xmpp.Send(receiver, data)
-	} else {
-		err := fmt.Errorf("no valid %s send to %s , message=%s,response hash=%s", t.name, utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:])))
-		log.Error(err.Error())
-		return err
+		err := t.udp.Send(receiver, data)
+		if err != nil {
+			log.Error(fmt.Sprintf("udp send to %s err %s", utils.APex2(receiver), err))
+		}
 	}
+	if t.xmpp != nil {
+		return t.xmpp.Send(receiver, data)
+	}
+	err := fmt.Errorf("no valid %s send to %s , message=%s,response hash=%s", t.name, utils.APex2(receiver), encoding.MessageType(data[0]), utils.HPex(utils.Sha3(data, receiver[:])))
+	log.Error(err.Error())
+	return err
 }
 
 //Start the two transporter
