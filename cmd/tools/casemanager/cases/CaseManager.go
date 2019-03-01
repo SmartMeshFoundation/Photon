@@ -127,21 +127,21 @@ func (c *CaseManager) RunOne(caseName string) {
 	} else {
 		_, err = fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}
-	_, err = fmt.Println("Pelease check log in ./log")
+	_, err = fmt.Println("Please check log in ./log")
 	_ = err
 }
 
 // caseFail :
 func (c *CaseManager) caseFail(caseName string) error {
-	models.Logger.Println(caseName + " END ====> TFAILED")
-	return fmt.Errorf("Case [%s] TFAILED", caseName)
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
 
 // caseFail :
 func (c *CaseManager) caseFailWithWrongChannelData(caseName string, channelName string) error {
 	models.Logger.Println(channelName + " data wrong !!!")
-	models.Logger.Println(caseName + " END ====> TFAILED")
-	return fmt.Errorf("Case [%s] TFAILED", caseName)
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
 
 func (c *CaseManager) logSeparatorLine(s string) {

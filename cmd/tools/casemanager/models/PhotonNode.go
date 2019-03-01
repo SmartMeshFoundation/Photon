@@ -80,7 +80,7 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 			}
 		}
 	}
-	time.Sleep(time.Second * 2) //等两秒,保证mdns生效
+	time.Sleep(time.Second * 6) //等两秒,保证mdns生效
 }
 
 // Start start a photon node
@@ -125,7 +125,7 @@ func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
 			}
 		}
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 6)
 }
 
 func removeParam(params []string, remove string) []string {
@@ -179,7 +179,7 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	if !env.UseMatrix && env.XMPPServer == "" {
 		for _, n := range env.Nodes {
 			if n.Running {
-				n.UpdateMeshNetworkNodes(env.Nodes...)
+				//n.UpdateMeshNetworkNodes(env.Nodes...)
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (node *PhotonNode) StartWithFee(env *TestEnv) {
 			}
 		}
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 6)
 }
 
 // StartWithoutUpdateMeshNetworkNodes : Start start a photon node

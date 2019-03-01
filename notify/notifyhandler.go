@@ -3,8 +3,6 @@ package notify
 import (
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon/log"
-
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
@@ -124,7 +122,7 @@ func (h *Handler) NotifyChannelCallIDSuccess(callID string, channel *channeltype
 
 //NotifyChannelStatus 通知channel发生了变化,包括balance,locked_amount,state等等
 func (h *Handler) NotifyChannelStatus(ch *channeltype.ChannelDataDetail) {
-	log.Trace(fmt.Sprintf("notify channel status changed:%s", utils.StringInterface(ch, 5)))
+	//log.Trace(fmt.Sprintf("notify channel status changed:%s", utils.StringInterface(ch, 5)))
 	h.Notify(LevelInfo, &InfoStruct{
 		Type:    InfoTypeChannelStatus,
 		Message: ch,

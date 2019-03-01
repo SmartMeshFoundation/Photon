@@ -574,7 +574,7 @@ func (env *TestEnv) GetPfsProxy(privateKey *ecdsa.PrivateKey) pfsproxy.PfsProxy 
 	return pfsproxy.NewPfsProxy("http://127.0.0.1:7000", privateKey)
 }
 
-// GetPrivateKeyByAccount :
+// GetPrivateKeyByNode :
 func (env *TestEnv) GetPrivateKeyByNode(node *PhotonNode) (key *ecdsa.PrivateKey) {
 	account := common.HexToAddress(node.Address)
 	am := accounts.NewAccountManager(env.KeystorePath)

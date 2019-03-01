@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 )
 
 // GetChannelWith :
@@ -121,11 +122,12 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 
 // TransferPayload API  http body
 type TransferPayload struct {
-	Amount   int32  `json:"amount"`
-	Fee      int64  `json:"fee"`
-	IsDirect bool   `json:"is_direct"`
-	Secret   string `json:"secret"`
-	Sync     bool   `json:"sync"`
+	Amount    int32                       `json:"amount"`
+	Fee       int64                       `json:"fee"`
+	IsDirect  bool                        `json:"is_direct"`
+	Secret    string                      `json:"secret"`
+	Sync      bool                        `json:"sync"`
+	RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
 }
 
 // Transfer send a transfer
@@ -148,6 +150,30 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 		return err
 	}
 	return nil
+}
+
+// SendTransWithRouteInfo send a transfer with route info from pfs
+func (node *PhotonNode) SendTransWithRouteInfo(tokenAddress string, amount int32, targetAddress string, routeInfo []pfsproxy.FindPathResponse, fee int64) {
+	if routeInfo == nil || len(routeInfo) == 0 {
+		panic("should not call SendTransWithRouteInfo")
+	}
+	p, err := json.Marshal(TransferPayload{
+		Amount:    amount,
+		Fee:       fee,
+		IsDirect:  false,
+		Sync:      true,
+		RouteInfo: routeInfo,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 60,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransWithRouteInfo err :%s,body=%s", err, string(body)))
+	}
 }
 
 // SendTrans send a transfer, should be instead of Transfer
