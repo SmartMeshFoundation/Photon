@@ -936,6 +936,12 @@
 			"revisionTime": "2013-06-17T15:30:13Z"
 		},
 		{
+			"checksumSHA1": "QKPYBt8x1OP9RV7knJHu6cSQjlQ=",
+			"path": "github.com/miekg/dns",
+			"revision": "4bda1db8399af2743f88be0ddb0761dfa89f2853",
+			"revisionTime": "2018-08-16T16:10:20Z"
+		},
+		{
 			"checksumSHA1": "2jsbDTvwxafPp7FJjJ8IIFlTLjs=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/mohae/deepcopy",
 			"path": "github.com/mohae/deepcopy",
