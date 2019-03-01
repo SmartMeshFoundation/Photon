@@ -1159,6 +1159,12 @@
 			"revisionTime": "2018-09-01T20:24:07Z"
 		},
 		{
+			"checksumSHA1": "2LpxYGSf068307b7bhAuVjvzLLc=",
+			"path": "golang.org/x/crypto/ed25519",
+			"revision": "56440b844dfe139a8ac053f4ecac0b20b79058f4",
+			"revisionTime": "2018-08-02T22:11:18Z"
+		},
+		{
 			"checksumSHA1": "1MGpGDQqnUoRpv7VEcQrXOBydXE=",
 			"path": "golang.org/x/crypto/pbkdf2",
 			"revision": "8c653846df49742c4c85ec37e5d9f8d3ba657895",
