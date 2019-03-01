@@ -92,8 +92,8 @@ func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.A
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
 	bcs.Auth.GasPrice = big.NewInt(params.DefaultGasPrice)
 
-	bcs.Registry(registryAddress, client.Status == netshare.Connected)
-	return bcs, nil
+	_, err = bcs.Registry(registryAddress, client.Status == netshare.Connected)
+	return
 }
 func (bcs *BlockChainService) getQueryOpts() *bind.CallOpts {
 	return &bind.CallOpts{
@@ -143,26 +143,29 @@ func (bcs *BlockChainService) TokenNetworkWithoutCheck(tokenAddress common.Addre
 }
 
 // Registry Return a proxy to interact with Registry.
-func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain bool) (t *RegistryProxy) {
+func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain bool) (t *RegistryProxy, err error) {
 	if bcs.RegistryProxy != nil && bcs.RegistryProxy.ch != nil {
-		return bcs.RegistryProxy
+		return bcs.RegistryProxy, nil
 	}
 	r := &RegistryProxy{
 		Address: address,
 	}
 	if hasConnectChain {
-		reg, err := contracts.NewTokensNetwork(address, bcs.Client)
+		var reg *contracts.TokensNetwork
+		reg, err = contracts.NewTokensNetwork(address, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
 			return
 		}
 		r.ch = reg
-		secAddr, err := r.ch.SecretRegistry(nil)
+		var secAddr common.Address
+		secAddr, err = r.ch.SecretRegistry(nil)
 		if err != nil {
 			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
 			return
 		}
-		s, err := contracts.NewSecretRegistry(secAddr, bcs.Client)
+		var s *contracts.SecretRegistry
+		s, err = contracts.NewSecretRegistry(secAddr, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
 			return
@@ -176,7 +179,8 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		// 1. 启动pendingTXInfoListenLoop
 		go bcs.pendingTXInfoListenLoop()
 		// 2. 获取所有pending状态的tx,并注册到监听中
-		pendingTXs, err := bcs.TXInfoDao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusPending)
+		var pendingTXs []*models.TXInfo
+		pendingTXs, err = bcs.TXInfoDao.GetTXInfoList(utils.EmptyHash, 0, utils.EmptyAddress, "", models.TXInfoStatusPending)
 		if err != nil {
 			log.Error(fmt.Sprintf("GetTXInfoList err %s", err))
 			return
@@ -186,7 +190,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		}
 	}
 	bcs.RegistryProxy = r
-	return bcs.RegistryProxy
+	return bcs.RegistryProxy, nil
 }
 
 // GetRegistryAddress :
