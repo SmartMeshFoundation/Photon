@@ -249,9 +249,12 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
 	if cfg.PfsHost == "" {
-		cfg.PfsHost, err = getDefaultPFSByEthClient(client)
+		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress)
 		if err != nil {
-			log.Warn(fmt.Sprintf("getDefaultPFSByEthClient err %s", err))
+			log.Error(fmt.Sprintf("getDefaultPFSByTokenNetworkAddress err %s", err))
+			//client.Close()
+			//dao.CloseDB()
+			//return
 		}
 	}
 	// get ChainID
@@ -579,14 +582,12 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	return
 }
-func getDefaultPFSByEthClient(client *helper.SafeEthClient) (pfs string, err error) {
-	var genesisBlockHash common.Hash
-	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
-	if err != nil {
-		log.Error(err.Error())
+func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs string, err error) {
+	pfs, ok := params.GenesisBlockHashToPFS[tokenNetworkAddress]
+	if !ok {
+		err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
 		return
 	}
-	pfs = params.GenesisBlockHashToPFS[genesisBlockHash]
 	return
 }
 

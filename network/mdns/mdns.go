@@ -121,7 +121,7 @@ func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
 
 	m.lk.Lock()
 	for _, n := range m.notifees {
-		go n.HandlePeerFound(e.Info, &net.UDPAddr{
+		n.HandlePeerFound(e.Info, &net.UDPAddr{
 			IP:   e.AddrV4,
 			Port: e.Port,
 		})
