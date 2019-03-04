@@ -561,13 +561,16 @@ func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.Sa
 			if err != nil {
 				return
 			}
+			log.Info(fmt.Sprintf("start with TokenNetworkAddress default : %s", registryAddress.String()))
 		} else {
 			registryAddress = config.RegistryAddress
+			log.Info(fmt.Sprintf("start with TokenNetworkAddress in param : %s", registryAddress.String()))
 		}
 		//等交验完合约没问题以后再存,否则合约有问题还需要重新来过
 		//dao.SaveContractStatus(registryAddress)
 	} else {
 		registryAddress = dbRegistryAddress
+		log.Info(fmt.Sprintf("start with TokenNetworkAddress in db : %s", registryAddress.String()))
 	}
 	return
 }
