@@ -81,12 +81,15 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 	}
 
 	// Get host information if no host is specified.
+	var hostnameOrigin string
+	hostnameOrigin = hostName
 	if hostName == "" {
 		var err error
 		hostName, err = os.Hostname()
 		if err != nil {
 			return nil, fmt.Errorf("could not determine host: %v", err)
 		}
+		hostnameOrigin = hostName
 		hostName = fmt.Sprintf("%s.", hostName)
 	}
 	if err := validateFQDN(hostName); err != nil {
@@ -104,7 +107,10 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 			ips, err = net.LookupIP(tmpHostName)
 
 			if err != nil {
-				return nil, fmt.Errorf("could not determine host IP addresses for %s", hostName)
+				ips, err2 = net.LookupIP(hostnameOrigin)
+				if err2 != nil {
+					return nil, fmt.Errorf("could not determine host IP addresses for %s", hostName)
+				}
 			}
 		}
 	}
