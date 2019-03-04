@@ -107,6 +107,7 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 			ips, err = net.LookupIP(tmpHostName)
 
 			if err != nil {
+				var err2 error
 				ips, err2 = net.LookupIP(hostnameOrigin)
 				if err2 != nil {
 					return nil, fmt.Errorf("could not determine host IP addresses for %s", hostName)
