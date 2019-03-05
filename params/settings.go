@@ -199,3 +199,6 @@ var MaxTransferDataLen = 256
 
 // SMTTokenName SMTToken名,固定
 const SMTTokenName = "SMTToken"
+
+// DefaultMDNSKeepalive 默认mdns下2秒内检测不到在线,将该节点标志为下线
+var DefaultMDNSKeepalive int64 = 2

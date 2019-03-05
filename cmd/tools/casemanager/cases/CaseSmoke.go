@@ -53,6 +53,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if err != nil {
 		return err
 	}
+	time.Sleep(time.Second)
 	c01new := n0.GetChannelWith(n1, tokenAddress).Println("after transfer")
 	if !c01new.CheckLockBoth(0) {
 		return fmt.Errorf("transfer check lock err ")
@@ -201,6 +202,5 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
 		return fmt.Errorf(" token swap check receiving banlance 0 err")
 	}
-
 	return nil
 }

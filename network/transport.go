@@ -17,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -127,18 +128,19 @@ we need stop listen when switch to background
 restart listen when switch foreground
 */
 type UDPTransport struct {
-	protocol      ProtocolReceiver
-	conn          *SafeUDPConnection
-	UAddr         *net.UDPAddr
-	policy        Policier
-	stopped       bool
-	stopReceiving bool
-	intranetNodes map[common.Address]*net.UDPAddr
-	lock          sync.RWMutex
-	name          string
-	log           log.Logger
-	msrv          mdns.Service
-	cf            context.CancelFunc
+	protocol               ProtocolReceiver
+	conn                   *SafeUDPConnection
+	UAddr                  *net.UDPAddr
+	policy                 Policier
+	stopped                bool
+	stopReceiving          bool
+	intranetNodes          map[common.Address]*net.UDPAddr
+	intranetNodesTimestamp map[common.Address]int64
+	lock                   sync.RWMutex
+	name                   string
+	log                    log.Logger
+	msrv                   mdns.Service
+	cf                     context.CancelFunc
 }
 
 //NewUDPTransport create UDPTransport
@@ -148,10 +150,11 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 			IP:   net.ParseIP(host),
 			Port: port,
 		},
-		protocol:      protocol,
-		policy:        policy,
-		log:           log.New("name", name),
-		intranetNodes: make(map[common.Address]*net.UDPAddr),
+		protocol:               protocol,
+		policy:                 policy,
+		log:                    log.New("name", name),
+		intranetNodes:          make(map[common.Address]*net.UDPAddr),
+		intranetNodesTimestamp: make(map[common.Address]int64),
 	}
 	ctx, cf := context.WithCancel(context.Background())
 	msrv, err := mdns.NewMdnsService(ctx, port, name, time.Second)
@@ -304,6 +307,28 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 
 //HandlePeerFound notification  from mdns
 func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
-	log.Info(fmt.Sprintf("peer found id=%s,addr=%s", id, addr))
-	ut.intranetNodes[common.HexToAddress(id)] = addr
+	idFound := common.HexToAddress(id)
+	alreadyFound := false
+	// 清除过期数据,即标志下线
+	now := time.Now().Unix()
+	var idsToDelete []common.Address
+	for idTemp := range ut.intranetNodes {
+		if now-ut.intranetNodesTimestamp[idTemp] > params.DefaultMDNSKeepalive {
+			idsToDelete = append(idsToDelete, idTemp)
+		}
+		if idTemp == idFound {
+			alreadyFound = true
+		}
+	}
+	for _, idToDelete := range idsToDelete {
+		delete(ut.intranetNodes, idToDelete)
+		delete(ut.intranetNodesTimestamp, idToDelete)
+		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
+	}
+	// 标志发现的节点
+	if !alreadyFound {
+		log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+	}
+	ut.intranetNodes[idFound] = addr
+	ut.intranetNodesTimestamp[idFound] = now
 }

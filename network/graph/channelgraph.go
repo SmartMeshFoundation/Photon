@@ -211,8 +211,8 @@ func (cg *ChannelGraph) ShortestPath(source, target common.Address, amount *big.
 			v.SetWeight(w) // from v's fee is w.
 		}
 	}
-	log.Trace(fmt.Sprintf("g2=%s", utils.StringInterface(g2, 20)))
-	log.Trace(fmt.Sprintf("index2address=%s", utils.StringInterface(cg.index2address, 5)))
+	//log.Trace(fmt.Sprintf("g2=%s", utils.StringInterface(g2, 20)))
+	//log.Trace(fmt.Sprintf("index2address=%s", utils.StringInterface(cg.index2address, 5)))
 	path, err := g2.Shortest(sourceIndex, targetIndex)
 	if err != nil {
 		return
