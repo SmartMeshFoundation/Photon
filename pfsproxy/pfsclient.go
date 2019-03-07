@@ -13,6 +13,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -182,6 +183,15 @@ type FindPathResponse struct {
 	Result  []string `json:"result"`
 }
 
+// GetPath get path array
+func (fpr *FindPathResponse) GetPath() []common.Address {
+	var p []common.Address
+	for _, s := range fpr.Result {
+		p = append(p, common.HexToAddress(s))
+	}
+	return p
+}
+
 /*
 FindPath : find path
 */
@@ -210,11 +220,13 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	log.Debug(req.ToString())
 	if err != nil {
 		log.Error("PfgAPI FindPath %s err :%s", req.FullURL, err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("connect to pfs error %s", err))
 		return
 	}
 	if statusCode != 200 {
 		err = fmt.Errorf("PfgAPI FindPath %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
 		log.Error(err.Error())
+		err = rerr.ErrNoAvailabeRoute
 		return
 	}
 	err = json.Unmarshal(body, &resp)
