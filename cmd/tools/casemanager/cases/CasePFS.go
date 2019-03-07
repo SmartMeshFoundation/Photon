@@ -52,6 +52,14 @@ func (cm *CaseManager) CasePFS() (err error) {
 		models.Logger.Println(err)
 		return cm.caseFail(env.CaseName)
 	}
+	// 4. 查询n0-n1,金额=10000的path,expect 0-1
+	transferAmount = big.NewInt(10000)
+	pfsProxy = env.GetPfsProxy(env.GetPrivateKeyByNode(n0))
+	err = testFindPath(pfsProxy, tokenAddress, n0, n1, transferAmount, []*models.PhotonNode{n1})
+	if err != nil {
+		models.Logger.Println(err)
+		return cm.caseFail(env.CaseName)
+	}
 	// 3. 查询
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return nil
