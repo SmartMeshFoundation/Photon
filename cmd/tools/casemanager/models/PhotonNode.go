@@ -185,55 +185,6 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	}
 }
 
-// StartWithFee start a photon node with --fee
-func (node *PhotonNode) StartWithFee(env *TestEnv) {
-	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStr(env, false)
-	var i = -1
-	//从参数中找到diable-fee,然后删除
-	for i = 0; i < len(params); i++ {
-		if params[i] == "--disable-fee" {
-			break
-		}
-	}
-	if i >= 0 && i < len(params) {
-		params = append(params[:i], params[i+1:]...)
-	}
-	go ExecShell(env.Main, params, logfile, true)
-
-	count := 0
-	t := time.Now()
-	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithFee, sleep 100ms...\n", node.Name)
-		time.Sleep(time.Millisecond * 100)
-		count++
-		if count > 400 {
-			if node.ConditionQuit != nil {
-				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
-			} else {
-				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
-			}
-			panic("Start photon node TIMEOUT")
-		}
-	}
-	used := time.Since(t)
-	if node.DebugCrash {
-		Logger.Printf("NODE %s %s StartWithFee with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
-	} else {
-		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
-	}
-	time.Sleep(10 * time.Second)
-	node.Running = true
-	if !env.UseMatrix && env.XMPPServer == "" {
-		for _, n := range env.Nodes {
-			if n.Running {
-				//n.UpdateMeshNetworkNodes(env.Nodes...)
-			}
-		}
-	}
-	time.Sleep(time.Second * 6)
-}
-
 // StartWithoutUpdateMeshNetworkNodes : Start start a photon node
 func (node *PhotonNode) StartWithoutUpdateMeshNetworkNodes(env *TestEnv, pprof ...bool) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)

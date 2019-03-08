@@ -24,7 +24,6 @@ type TransferData struct {
 	Amount         *big.Int                    `json:"amount"`
 	Secret         string                      `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
 	LockSecretHash string                      `json:"lockSecretHash"`
-	Fee            *big.Int                    `json:"fee,omitempty"`
 	IsDirect       bool                        `json:"is_direct,omitempty"`
 	Sync           bool                        `json:"sync,omitempty"` //是否同步
 	Data           string                      `json:"data"`           // 交易附加信息,长度不超过256
@@ -99,13 +98,6 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrInvalidAmount.Append("invalid amount"))
 		return
 	}
-	if req.Fee == nil {
-		req.Fee = utils.BigInt0
-	}
-	if req.Fee.Cmp(utils.BigInt0) < 0 {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid amount"))
-		return
-	}
 	if len(req.Secret) != 0 && len(req.Secret) != 64 && (strings.HasPrefix(req.Secret, "0x") && len(req.Secret) != 66) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid secret"))
 		return
@@ -116,16 +108,13 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data, req.RouteInfo)
+		result, err = API.Transfer(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data, req.RouteInfo)
 	} else {
-		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data, req.RouteInfo)
+		result, err = API.TransferAsync(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data, req.RouteInfo)
 	}
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(err)
 		return
-	}
-	if req.Fee.Cmp(utils.BigInt0) == 0 {
-		req.Fee = nil
 	}
 	req.Initiator = API.Photon.NodeAddress.String()
 	req.Target = target

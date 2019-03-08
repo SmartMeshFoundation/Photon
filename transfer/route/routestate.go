@@ -7,7 +7,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
-	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -25,13 +24,15 @@ type State struct {
 	IsSend            bool             //用这个 route 来发送还是接收?	// whether this route is used to send or receive.
 	Fee               *big.Int         // how much fee to this channel charge charge .
 	TotalFee          *big.Int         // how much fee for all path when initiator use this route
+	Path              []common.Address // 2019-03消息升级,路由中保存该条路径上所有节点,有序
 }
 
 //NewState create route state
-func NewState(ch *channel.Channel) *State {
+func NewState(ch *channel.Channel, path []common.Address) *State {
 	return &State{
 		ChannelIdentifier: ch.ChannelIdentifier.ChannelIdentifier,
 		ch:                ch,
+		Path:              path,
 	}
 }
 
@@ -108,13 +109,14 @@ type RoutesState struct {
 //NewRoutesState create routes state from availabes routes
 func NewRoutesState(availables []*State) *RoutesState {
 	rs := &RoutesState{}
-	m := make(map[common.Address]bool)
+	//m := make(map[common.Address]bool)
 	for _, r := range availables {
-		_, ok := m[r.HopNode()]
-		if ok {
-			log.Warn("duplicate route for the same address supplied.")
-			continue
-		}
+		// 2019-03 消息升级后可能存在多条路径的开头部分节点重复,这里取消校验
+		//_, ok := m[r.HopNode()]
+		//if ok {
+		//	log.Warn("duplicate route for the same address supplied.")
+		//	continue
+		//}
 		rs.AvailableRoutes = append(rs.AvailableRoutes, r)
 	}
 	return rs

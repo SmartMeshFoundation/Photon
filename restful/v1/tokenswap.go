@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
@@ -39,12 +40,13 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrStopCreateNewTransfer)
 	}
 	type Req struct {
-		Role            string   `json:"role"`
-		SendingAmount   *big.Int `json:"sending_amount"`
-		SendingToken    string   `json:"sending_token"`
-		ReceivingAmount *big.Int `json:"receiving_amount"`
-		ReceivingToken  string   `json:"receiving_token"`
-		Secret          string   `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		Role            string                      `json:"role"`
+		SendingAmount   *big.Int                    `json:"sending_amount"`
+		SendingToken    string                      `json:"sending_token"`
+		ReceivingAmount *big.Int                    `json:"receiving_amount"`
+		ReceivingToken  string                      `json:"receiving_token"`
+		Secret          string                      `json:"secret"`     // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		RouteInfo       []pfsproxy.FindPathResponse `json:"route_info"` // 指定的路由信息
 	}
 	targetstr := r.PathParam("target")
 	lockSecretHash := r.PathParam("locksecrethash")
@@ -86,10 +88,10 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		err = API.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
-			API.Photon.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret)
+			API.Photon.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret, req.RouteInfo)
 	} else if req.Role == "taker" {
 		err = API.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
-			target, API.Photon.NodeAddress, req.ReceivingAmount, req.SendingAmount)
+			target, API.Photon.NodeAddress, req.ReceivingAmount, req.SendingAmount, req.RouteInfo)
 	} else {
 		err = rerr.ErrArgumentError.Errorf("Provided invalid token swap role %s", req.Role)
 	}

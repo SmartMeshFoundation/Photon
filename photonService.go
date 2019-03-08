@@ -825,21 +825,36 @@ Calls:
  *			2.1 taker should contain lockSecretHash, but no secret.
  *			2.2 maker should contain lockSecretHash and secret.
  */
-func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
+func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Address, amount *big.Int, lockSecretHash common.Hash, expiration int64, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, stateManager *transfer.StateManager) {
 	var availableRoutes []*route.State
-	var err error
-	targetAmount := new(big.Int).Sub(amount, fee)
+	//var err error
+	//targetAmount := new(big.Int).Sub(amount, fee)
 	result = utils.NewAsyncResult()
 	g := rs.getToken2ChannelGraph(tokenAddress)
 	if g == nil {
 		result.Result <- rerr.ErrTokenNotFound
 		return
 	}
-	// 用户指定了路由的话,采用用户指定的路由,否则从pfs或者本地查询路由
-	if routeInfo != nil && len(routeInfo) > 0 {
+	// 2019-03消息升级过后,如果参数没有RouteInfo,仅支持与target直接拥有通道的情况下发送交易或是在不收费的网络下使用本地路由
+	if routeInfo == nil || len(routeInfo) == 0 {
+		// 当前为不支持收费的网络下时,使用本地路由
+		if rs.PfsProxy == nil {
+			log.Trace("get available routes without fee from local channel graph")
+			availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, amount, graph.EmptyExlude, rs)
+		} else {
+			log.Trace("get available routes to partner from local channel graph")
+			ch := rs.getChannel(tokenAddress, target)
+			if ch != nil {
+				r := route.NewState(ch, []common.Address{ch.PartnerState.Address})
+				r.TotalFee = utils.BigInt0
+				availableRoutes = append(availableRoutes, r)
+			}
+		}
+	} else {
+		// 用户指定了路由的话,采用用户指定的路由,否则从pfs或者本地查询路由
 		log.Trace("get available routes from user req")
 		for _, path := range routeInfo {
-			if path.Result == nil || path.Result[0] == "" {
+			if path.Result == nil || len(path.Result) == 0 {
 				continue
 			}
 			partnerAddress := common.HexToAddress(path.Result[0])
@@ -847,28 +862,13 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 			if ch == nil {
 				continue
 			}
-			r := route.NewState(ch)
-			r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, tokenAddress, amount)
+			r := route.NewState(ch, path.GetPath())
+			//r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, tokenAddress, amount) // 发起方不收取手续费
 			r.TotalFee = path.Fee
 			availableRoutes = append(availableRoutes, r)
 		}
-	} else {
-		/*
-			只有在没有直接通道的情况下才找PFS询问路由
-		*/
-		if rs.PfsProxy != nil && g.PartenerAddress2Channel[target] == nil {
-			log.Trace("get available routes from pfs")
-			availableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, target, tokenAddress, targetAmount, true)
-			if err != nil {
-				result.Result <- fmt.Errorf("get route from pathfinder failed %s", err)
-				return
-			}
-		} else {
-			log.Trace("get available routes from local channel graph")
-			availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, targetAmount, graph.EmptyExlude, rs)
-		}
 	}
-	//log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
+	log.Trace(fmt.Sprintf("availableRoutes=%s", utils.StringInterface(availableRoutes, 3)))
 	if len(availableRoutes) <= 0 {
 		result.Result <- rerr.ErrNoAvailabeRoute
 		return
@@ -880,11 +880,12 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	/*
 		when user specified fee, for test or other purpose.
 	*/
-	if fee.Cmp(utils.BigInt0) > 0 {
-		for _, r := range availableRoutes {
-			r.TotalFee = fee //use the user's fee to replace algorithm's
-		}
-	}
+	// 2019-03消息升级过后,手续费以RouteInfo参数中的为准
+	//if fee.Cmp(utils.BigInt0) > 0 {
+	//	for _, r := range availableRoutes {
+	//		r.TotalFee = fee //use the user's fee to replace algorithm's
+	//	}
+	//}
 	routesState := route.NewRoutesState(availableRoutes)
 	transferState := &mediatedtransfer.LockedTransferState{
 		TargetAmount:   new(big.Int).Set(amount),
@@ -930,7 +931,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 1. user start a mediated transfer
 2. user start a mediated transfer with secret
 */
-func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, fee *big.Int, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult) {
+func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, amount *big.Int, secret common.Hash, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult) {
 	lockSecretHash := utils.EmptyHash
 	if secret != utils.EmptyHash {
 		lockSecretHash = utils.ShaSecret(secret.Bytes())
@@ -961,7 +962,7 @@ func (rs *Service) startMediatedTransfer(tokenAddress, target common.Address, am
 	*/
 	rs.dao.NewSentTransferDetail(tokenAddress, target, amount, data, false, lockSecretHash)
 	//rs.dao.NewTransferStatus(tokenAddress, lockSecretHash)
-	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, fee, lockSecretHash, 0, secret, data, routeInfo)
+	result, _ = rs.startMediatedTransferInternal(tokenAddress, target, amount, lockSecretHash, 0, secret, data, routeInfo)
 	result.LockSecretHash = lockSecretHash
 	return
 }
@@ -987,15 +988,20 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		// do nothing.
 		return
 	}
-	targetAmount := new(big.Int).Sub(msg.PaymentAmount, msg.Fee)
+	var avaiableRoutes []*route.State
 	amount := msg.PaymentAmount
-	targetAddr := msg.Target
+	//targetAddr := msg.Target
 	fromChannel := ch
-	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs)
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, amount, rs, msg.Path)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	if stateManager != nil {
 		if stateManager.Name != mediator.NameMediatorTransition {
 			log.Error(fmt.Sprintf("receive mediator transfer,but i'm not a mediator,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
+			return
+		}
+		// 2019-03 消息升级后,仅在不收费的情况下支持重复交易
+		if rs.PfsProxy != nil {
+			log.Error(fmt.Sprintf("receive repeate mediator transfer,but i'm not a disable-fee node ,msg=%s,stateManager=%s", msg, utils.StringInterface(stateManager, 3)))
 			return
 		}
 		stateChange := &mediatedtransfer.MediatorReReceiveStateChange{
@@ -1006,24 +1012,54 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		}
 		rs.StateMachineEventHandler.dispatch(stateManager, stateChange)
 	} else {
-		ourAddress := rs.NodeAddress
-		exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		var avaiableRoutes []*route.State
-		if rs.PfsProxy != nil {
-			var err error
-			avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount, false)
-			if err != nil {
-				log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
+		// 2019-03 消息升级后,路由以mtr中带有的path为准,有且只有一条,如果在不支持手续费的网络中,则根据本地路由继续交易
+		if len(msg.Path) == 0 {
+			if rs.PfsProxy != nil {
+				log.Error("receive MediatedTransfer without route info,ignore")
+				return
 			}
-		} else {
+			exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
 			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-			//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
-			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
+			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, msg.Target, amount, msg.PaymentAmount, exclude, rs)
+		} else {
+			// 获取下一跳的通道
+			myIndexInPath := -1
+			for i, addr := range msg.Path {
+				if addr == rs.NodeAddress {
+					myIndexInPath = i
+					break
+				}
+			}
+			if myIndexInPath == -1 {
+				log.Error("can not found myself in msg.Path")
+				return
+			}
+			nextChan := rs.getChannel(ch.TokenAddress, msg.Path[myIndexInPath+1])
+			// 构造路由,手续费根据TargetAmount在下家通道中的费率计算
+			availableRoute := route.NewState(nextChan, msg.Path)
+			targetAmount := new(big.Int).Sub(msg.PaymentAmount, msg.Fee)
+			availableRoute.Fee = rs.FeePolicy.GetNodeChargeFee(nextChan.PartnerState.Address, nextChan.TokenAddress, targetAmount)
+			avaiableRoutes = append(avaiableRoutes, availableRoute)
 		}
+
+		//ourAddress := rs.NodeAddress
+		//exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
+		//var avaiableRoutes []*route.State
+		//if rs.PfsProxy != nil {
+		//	var err error
+		//	avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount, false)
+		//	if err != nil {
+		//		log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
+		//	}
+		//} else {
+		//	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
+		//	//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
+		//	avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
+		//}
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
-			OurAddress:  ourAddress,
+			OurAddress:  rs.NodeAddress,
 			FromTranfer: fromTransfer,
 			Routes:      routesState,
 			FromRoute:   fromRoute,
@@ -1073,7 +1109,7 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 			utils.APex2(g.OurAddress), utils.APex2(msg.Sender), utils.APex2(g.TokenAddress)))
 		return
 	}
-	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs)
+	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs, msg.Path)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
 		OurAddress:  rs.NodeAddress,
@@ -1404,7 +1440,7 @@ func (rs *Service) tokenSwapMaker(tokenswap *TokenSwap) (result *utils.AsyncResu
 	}
 	rs.SentMediatedTransferListenerMap[&sentMtrHook] = true
 	rs.ReceivedMediatedTrasnferListenerMap[&receiveMtrHook] = true
-	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, utils.BigInt0, tokenswap.LockSecretHash, 0, tokenswap.Secret, "", nil)
+	result, _ = rs.startMediatedTransferInternal(tokenswap.FromToken, tokenswap.ToNodeAddress, tokenswap.FromAmount, tokenswap.LockSecretHash, 0, tokenswap.Secret, "", tokenswap.RouteInfo)
 	return
 }
 
@@ -1458,7 +1494,7 @@ func (rs *Service) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokensw
 		taker and maker may have direct channels on these two tokens.
 	*/
 	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
-	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, utils.BigInt0, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "", nil)
+	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "", tokenswap.RouteInfo)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
 		return false
@@ -1648,7 +1684,7 @@ func (rs *Service) handleReq(req *apiReq) {
 		if r.IsDirectTransfer {
 			result = rs.directTransferAsync(r.TokenAddress, r.Target, r.Amount, r.Data)
 		} else {
-			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Fee, r.Secret, r.Data, r.RouteInfo)
+			result = rs.startMediatedTransfer(r.TokenAddress, r.Target, r.Amount, r.Secret, r.Data, r.RouteInfo)
 		}
 	case newChannelReqName:
 		r := req.Req.(*newChannelReq)
@@ -1836,7 +1872,7 @@ func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, 
 		if ch == nil {
 			continue
 		}
-		r := route.NewState(ch)
+		r := route.NewState(ch, path.GetPath())
 		r.Fee = rs.FeePolicy.GetNodeChargeFee(partnerAddress, token, amount)
 		r.TotalFee = path.Fee
 		routes = append(routes, r)

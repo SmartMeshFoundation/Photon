@@ -473,10 +473,10 @@ transfer:
 
 the caller should call GetSentTransferDetail periodically to query this transfer's latest status.
 */
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string, routeInfoStr string) (result string) {
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, secretStr string, isDirect bool, data string, routeInfoStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s routeInfo=%s\nout transfer=\n%s ",
-			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, result, routeInfoStr,
+		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,secretStr=%s,isDirect=%v, data=%s routeInfo=%s\nout transfer=\n%s ",
+			tokenAddress, targetAddress, amountstr, secretStr, isDirect, data, result, routeInfoStr,
 		))
 	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
@@ -500,7 +500,6 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		return dto.NewErrorMobileResponse(err)
 	}
 	amount, _ := new(big.Int).SetString(amountstr, 0)
-	fee, _ := new(big.Int).SetString(feestr, 0)
 	secret := common.HexToHash(secretStr)
 	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = errors.New("amount should be positive")
@@ -519,7 +518,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 			return dto.NewErrorMobileResponse(err)
 		}
 	}
-	tr, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data, routeInfo)
+	tr, err := a.api.TransferAsync(tokenAddr, amount, targetAddr, secret, isDirect, data, routeInfo)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -531,7 +530,6 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	req.Token = tokenAddress
 	req.Amount = amount
 	req.Secret = secretStr
-	req.Fee = fee
 	req.Data = data
 	return dto.NewSuccessMobileResponse(req)
 }

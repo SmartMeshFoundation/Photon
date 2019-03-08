@@ -81,7 +81,7 @@ func TestEndState(t *testing.T) {
 		TransferAmount:    transferedAmount,
 		Locksroot:         locksroot,
 	}
-	mtr := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+	mtr := encoding.NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	mtr.Sign(bcs.PrivKey, mtr)
 	err := state1.registerMediatedMessage(mtr)
 	if err != nil {
@@ -203,7 +203,7 @@ func TestSenderCannotOverSpend(t *testing.T) {
 	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
 	amount := balance1
 	expiration := blockNumber + int64(settleTimeout)
-	sentMediatedTransfer0, err := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")))
+	sentMediatedTransfer0, err := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")), []common.Address{})
 	if err != nil {
 		t.Error(err)
 		return
@@ -225,7 +225,7 @@ func TestSenderCannotOverSpend(t *testing.T) {
 		TransferAmount:    utils.BigInt0,
 		Locksroot:         locksroot2,
 	}
-	sentMediatedTransfer1 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0)
+	sentMediatedTransfer1 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	sentMediatedTransfer1.Sign(privkey1, sentMediatedTransfer1)
 	err = testChannel.RegisterTransfer(blockNumber, sentMediatedTransfer1)
 	if err != rerr.ErrInsufficientBalance {
@@ -248,7 +248,7 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 	testChannel, _ := NewChannel(ourState, partnerState, externState, tokenAddress, &externState.ChannelIdentifier, revealTimeout, settleTimeout)
 	amount1 := balance2
 	expiration := blockNumber + int64(settleTimeout)
-	receiveMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")))
+	receiveMediatedTransfer0, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")), []common.Address{})
 	receiveMediatedTransfer0.Sign(privkey2, receiveMediatedTransfer0)
 	err := testChannel.RegisterTransfer(blockNumber, receiveMediatedTransfer0)
 	if err != nil {
@@ -270,7 +270,7 @@ func TestReceiverCannotSpendLockedAmount(t *testing.T) {
 		TransferAmount:    utils.BigInt0,
 		Locksroot:         locksroot2,
 	}
-	sendMediatedTransfer0 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0)
+	sendMediatedTransfer0 := encoding.NewMediatedTransfer(bp, lock2, address2, address1, utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	sendMediatedTransfer0.Sign(privkey1, sendMediatedTransfer0)
 	if testChannel.RegisterTransfer(blockNumber, sendMediatedTransfer0) != rerr.ErrInsufficientBalance {
 		t.Error("RegisterTransfer should be failed ")
@@ -336,7 +336,7 @@ func TestPythonChannel(t *testing.T) {
 	hashlock := utils.ShaSecret(secret[:])
 	var amount2 = big.NewInt(10)
 	expiration := blockNumber + int64(settleTimeout) - 5
-	mediatedTransfer, _ := testchannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount2, expiration, hashlock)
+	mediatedTransfer, _ := testchannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount2, expiration, hashlock, []common.Address{})
 	mediatedTransfer.Sign(privkey1, mediatedTransfer)
 	testchannel.RegisterTransfer(blockNumber, mediatedTransfer)
 
@@ -557,7 +557,7 @@ func TestInterwovenTransfers(t *testing.T) {
 		secret := transfersSecret[i]
 		expiration := blockNumber + settleTimeout - 1
 		var mtr *encoding.MediatedTransfer
-		mtr, err = ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, utils.ShaSecret(secret[:]))
+		mtr, err = ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, utils.ShaSecret(secret[:]), []common.Address{})
 		assert.Equal(t, err, nil)
 		mtr.Sign(ch0.ExternState.privKey, mtr)
 		err = ch0.RegisterTransfer(blockNumber, mtr)
@@ -644,7 +644,7 @@ func TestRegisterInvalidTransfer(t *testing.T) {
 	expiration := blockNumber + int64(settleTimeout) - 1
 	secret := utils.ShaSecret([]byte("secret"))
 	hashlock := utils.ShaSecret(secret[:])
-	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, hashlock)
+	transfer1, err := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch1.OurState.Address, utils.BigInt0, amount, expiration, hashlock, []common.Address{})
 	assert.Equal(t, err, nil)
 	transfer1.Sign(ch0.ExternState.privKey, transfer1)
 	err = ch0.RegisterTransfer(blockNumber, transfer1)
@@ -703,7 +703,7 @@ func TestChannelMustAcceptExpiredLocks(t *testing.T) {
 		TransferAmount:    big.NewInt(1),
 		Locksroot:         utils.Sha3(lock.AsBytes()),
 	}
-	transfer := encoding.NewMediatedTransfer(bp, lock, utils.EmptyAddress, utils.EmptyAddress, utils.BigInt0)
+	transfer := encoding.NewMediatedTransfer(bp, lock, utils.EmptyAddress, utils.EmptyAddress, utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	transfer.Sign(privkey2, transfer)
 	err := testChannel.RegisterTransfer(blockNumber+int64(settleTimeout)+1, transfer)
 	assert.Equal(t, err, nil)
@@ -725,7 +725,7 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 	amount1 := balance2
 	expiration := blockNumber + int64(settleTimeout)
 	//smtr: the mediated transfer i sent out
-	smtr, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")))
+	smtr, _ := testChannel.CreateMediatedTransfer(address1, address2, utils.BigInt0, amount1, expiration, utils.ShaSecret([]byte("test_locked_amount_cannot_be_spent")), []common.Address{})
 	smtr.Sign(privkey1, smtr)
 	err := testChannel.RegisterTransfer(blockNumber, smtr)
 	if err != nil {
@@ -749,7 +749,7 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		TransferAmount:    big.NewInt(0),
 		Locksroot:         locksroot2,
 	}
-	rmtr := encoding.NewMediatedTransfer(bp, lock2, address1, address2, utils.BigInt0)
+	rmtr := encoding.NewMediatedTransfer(bp, lock2, address1, address2, utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	rmtr.Sign(privkey2, rmtr)
 	err = testChannel.RegisterTransfer(blockNumber, rmtr)
 	if err != nil {
@@ -822,7 +822,7 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 	ch0, ch1 := makePairChannel()
 	expiration := blockNumber + int64(ch0.SettleTimeout)
 	lockSecretHash := utils.ShaSecret([]byte("123"))
-	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash, []common.Address{})
 	err := smtr.Sign(ch0.ExternState.privKey, smtr)
 	if err != nil {
 		t.Error(err)
@@ -990,7 +990,7 @@ func TestChannel_RegisterCooperativeSettleRequest(t *testing.T) {
 	expiration := blockNumber + int64(ch0.SettleTimeout)
 	secret := utils.ShaSecret([]byte("123"))
 	lockSecretHash := utils.ShaSecret(secret[:])
-	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash)
+	smtr, _ := ch0.CreateMediatedTransfer(ch0.OurState.Address, ch0.PartnerState.Address, utils.BigInt0, big.NewInt(1), expiration, lockSecretHash, []common.Address{})
 	err := smtr.Sign(ch0.ExternState.privKey, smtr)
 	if err != nil {
 		t.Error(err)

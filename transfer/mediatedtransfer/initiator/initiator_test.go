@@ -9,6 +9,8 @@ import (
 
 	"os"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -241,6 +243,8 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 	}
 	var beforeState mediatedtransfer.InitiatorState
 	utils.DeepCopy(&beforeState, currentState)
+	beforeState.Route.Path = []common.Address{}
+	beforeState.Message.Path = []common.Address{}
 
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{
@@ -248,6 +252,7 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 		Sender: utest.ADDR, //wrong sender
 	}
 	events := sm.Dispatch(stateChange)
+
 	assert(t, len(events), 0)
 	assert(t, currentState.RevealSecret != nil, true)
 	assert(t, sm.CurrentState, currentState)
@@ -390,4 +395,13 @@ func assertStateEqual(t *testing.T, currentState, beforeState *mediatedtransfer.
 	assert(t, currentState.OurAddress, beforeState.OurAddress)
 	assert(t, currentState.BlockNumber, beforeState.BlockNumber)
 	//assert(t, currentState, beforeState)
+}
+
+// marshalIndent :
+func marshalIndent(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }

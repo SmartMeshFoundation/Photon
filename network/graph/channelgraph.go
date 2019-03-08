@@ -364,7 +364,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}
-		routeState := Channel2RouteState(c, nw.neighbor, targetAmount, feeCharger)
+		routeState := Channel2RouteState(c, nw.neighbor, targetAmount, feeCharger, []common.Address{})
 		if routeState.Fee.Cmp(utils.BigInt0) > 0 {
 			routeState.TotalFee = big.NewInt(int64(nw.weight))
 		} else { //no fee policy,
@@ -397,8 +397,8 @@ func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *c
 }
 
 //Channel2RouteState create a routeState from a channel
-func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *route.State {
-	rs := route.NewState(c)
+func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger, path []common.Address) *route.State {
+	rs := route.NewState(c, path)
 	rs.Fee = charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount)
 	return rs
 }

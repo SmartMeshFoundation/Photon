@@ -130,7 +130,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		Fee:            tryRoute.TotalFee,
 		Data:           state.Transfer.Data,
 	}
-	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
+	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode(), tryRoute.Path)
 	if len(state.Routes.CanceledRoutes) > 0 {
 		/*
 			保存上次尝试的路由信息,否则当发起方收到AnnounceDisposed的时候,尝试新路由时,会出现异常

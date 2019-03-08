@@ -1,6 +1,8 @@
 package cases
 
 import (
+	"math/big"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
@@ -17,25 +19,32 @@ func (cm *CaseManager) CaseFee() (err error) {
 	}()
 	// 源数据
 	var transferAmount int32
-	var fee int64
-	tokenAddress := env.Tokens[0].TokenAddress.String()
+	tokenAddress := env.Tokens[0].TokenAddress
+	tokenAddressStr := tokenAddress.String()
 	N0, N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
+	env.StartPFS()
 	// 启动节点
-	N1.StartWithFee(env)
-	N2.StartWithFee(env)
-	cm.startNodes(env, N0, N3)
+	N0.StartWithFeeAndPFS(env)
+	N1.StartWithFeeAndPFS(env)
+	N2.StartWithFeeAndPFS(env)
+	N3.StartWithFeeAndPFS(env)
 
+	// 获取路由
+	routeInfo := N0.FindPath(N3, tokenAddress, transferAmount)
+	if len(routeInfo) != 1 {
+		return cm.caseFail(env.CaseName)
+	}
 	cm.logSeparatorLine("Test 1 : transfer with fee 0, should FAIL")
 	transferAmount = 10000
-	fee = 0
-	C01 := N0.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
-	C12 := N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
-	C23 := N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new := N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new := N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new := N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	routeInfo[0].Fee = big.NewInt(0)
+	C01 := N0.GetChannelWith(N1, tokenAddressStr).PrintDataBeforeTransfer()
+	C12 := N1.GetChannelWith(N2, tokenAddressStr).PrintDataBeforeTransfer()
+	C23 := N2.GetChannelWith(N3, tokenAddressStr).PrintDataBeforeTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new := N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new := N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new := N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
@@ -48,14 +57,14 @@ func (cm *CaseManager) CaseFee() (err error) {
 
 	cm.logSeparatorLine("Test 2 : transfer with fee 2, should SUCCESS")
 	transferAmount = 10000
-	fee = 2
+	routeInfo[0].Fee = big.NewInt(2)
 	C01 = C01new
 	C12 = C12new
 	C23 = C23new
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new = N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new = N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new = N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount + 2) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
@@ -68,14 +77,14 @@ func (cm *CaseManager) CaseFee() (err error) {
 
 	cm.logSeparatorLine("Test 3 : transfer with fee 3, should SUCCESS")
 	transferAmount = 10000
-	fee = 3
+	routeInfo[0].Fee = big.NewInt(3)
 	C01 = C01new
 	C12 = C12new
 	C23 = C23new
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new = N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new = N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new = N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount + 3) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
@@ -88,14 +97,14 @@ func (cm *CaseManager) CaseFee() (err error) {
 
 	cm.logSeparatorLine("Test 4 : transfer with fee 5 and transferAmount < 10000, should SUCCESS")
 	transferAmount = 5000
-	fee = 5
+	routeInfo[0].Fee = big.NewInt(5)
 	C01 = C01new
 	C12 = C12new
 	C23 = C23new
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new = N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new = N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new = N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount + 5) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
@@ -108,14 +117,14 @@ func (cm *CaseManager) CaseFee() (err error) {
 
 	cm.logSeparatorLine("Test 5 : transfer with fee 0 and transferAmount < 10000, should SUCCESS")
 	transferAmount = 5000
-	fee = 0
+	routeInfo[0].Fee = big.NewInt(0)
 	C01 = C01new
 	C12 = C12new
 	C23 = C23new
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new = N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new = N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new = N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}
@@ -128,14 +137,14 @@ func (cm *CaseManager) CaseFee() (err error) {
 
 	cm.logSeparatorLine("Test 6 : transfer with fee 20000 and transferAmount = 10000, should SUCCESS")
 	transferAmount = 10000
-	fee = 20000
+	routeInfo[0].Fee = big.NewInt(20000)
 	C01 = C01new
 	C12 = C12new
 	C23 = C23new
-	N0.SendTransSyncWithFee(tokenAddress, transferAmount, N3.Address, false, fee)
-	C01new = N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
-	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
-	C23new = N2.GetChannelWith(N3, tokenAddress).PrintDataAfterTransfer()
+	N0.SendTransWithRouteInfo(N3, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+	C12new = N1.GetChannelWith(N2, tokenAddressStr).PrintDataAfterTransfer()
+	C23new = N2.GetChannelWith(N3, tokenAddressStr).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount + 20000) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
 	}

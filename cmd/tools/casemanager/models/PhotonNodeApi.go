@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/kataras/go-errors"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -123,7 +124,6 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 // TransferPayload API  http body
 type TransferPayload struct {
 	Amount    int32                       `json:"amount"`
-	Fee       int64                       `json:"fee"`
 	IsDirect  bool                        `json:"is_direct"`
 	Secret    string                      `json:"secret"`
 	Sync      bool                        `json:"sync"`
@@ -134,7 +134,6 @@ type TransferPayload struct {
 func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddress string, isDirect bool) error {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: isDirect,
 		Sync:     true,
 	})
@@ -153,19 +152,18 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 }
 
 // SendTransWithRouteInfo send a transfer with route info from pfs
-func (node *PhotonNode) SendTransWithRouteInfo(tokenAddress string, amount int32, targetAddress string, routeInfo []pfsproxy.FindPathResponse, fee int64) {
+func (node *PhotonNode) SendTransWithRouteInfo(target *PhotonNode, tokenAddress string, amount int32, routeInfo []pfsproxy.FindPathResponse) {
 	if routeInfo == nil || len(routeInfo) == 0 {
-		panic("should not call SendTransWithRouteInfo")
+		routeInfo = node.FindPath(target, common.HexToAddress(tokenAddress), amount)
 	}
 	p, err := json.Marshal(TransferPayload{
 		Amount:    amount,
-		Fee:       fee,
 		IsDirect:  false,
 		Sync:      true,
 		RouteInfo: routeInfo,
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + target.Address,
 		Method:  http.MethodPost,
 		Payload: string(p),
 		Timeout: time.Second * 60,
@@ -180,7 +178,6 @@ func (node *PhotonNode) SendTransWithRouteInfo(tokenAddress string, amount int32
 func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: isDirect,
 		Sync:     true,
 	})
@@ -196,31 +193,10 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 }
 
-// SendTransSyncWithFee send a transfer, should be instead of Transfer
-func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, targetAddress string, isDirect bool, fee int64) {
-	p, err := json.Marshal(TransferPayload{
-		Amount:   amount,
-		Fee:      fee,
-		IsDirect: isDirect,
-		Sync:     true,
-	})
-	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
-		Method:  http.MethodPost,
-		Payload: string(p),
-		Timeout: time.Second * 60,
-	}
-	_, err = req.Invoke()
-	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
-	}
-}
-
 //SendTransWithSecret send a transfer
 func (node *PhotonNode) SendTransWithSecret(tokenAddress string, amount int32, targetAddress string, secretSeed string) {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: false,
 		Secret:   secretSeed,
 		Sync:     true,
@@ -761,14 +737,15 @@ func (node *PhotonNode) PrepareUpdate() (err error) {
 
 // TokenSwap send a transfer
 func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivingtoken, role, secret string,
-	sendingAmount, receivingAmount int) error {
+	sendingAmount, receivingAmount int, routeInfo []pfsproxy.FindPathResponse) error {
 	type TokenSwapPayload struct {
-		Role            string `json:"role"`
-		SendingAmount   int    `json:"sending_amount"`
-		SendingToken    string `json:"sending_token"`
-		ReceivingAmount int    `json:"receiving_amount"`
-		ReceivingToken  string `json:"receiving_token"`
-		Secret          string `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		Role            string                      `json:"role"`
+		SendingAmount   int                         `json:"sending_amount"`
+		SendingToken    string                      `json:"sending_token"`
+		ReceivingAmount int                         `json:"receiving_amount"`
+		ReceivingToken  string                      `json:"receiving_token"`
+		Secret          string                      `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		RouteInfo       []pfsproxy.FindPathResponse `json:"route_info"`
 	}
 	p, err := json.Marshal(TokenSwapPayload{
 		Role:            role,
@@ -777,6 +754,7 @@ func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivin
 		ReceivingAmount: receivingAmount,
 		ReceivingToken:  receivingtoken,
 		Secret:          secret,
+		RouteInfo:       routeInfo,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/token_swaps/" + target + "/" + locksecrethash,
@@ -880,4 +858,27 @@ func (node *PhotonNode) RegisterSecret(secret string) (err error) {
 	Logger.Printf("RegisterSecret body=%s", string(body))
 	return
 
+}
+
+// FindPath :
+func (node *PhotonNode) FindPath(target *PhotonNode, tokenAddress common.Address, amount int32) (path []pfsproxy.FindPathResponse) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/path/%s/%s/%d", target.Address, tokenAddress.String(), amount),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	var resp []pfsproxy.FindPathResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		Logger.Println(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	path = resp
+	Logger.Printf("FindPath get RouteInfo from %s to %s on token %s :\n%s", node.Name, target.Name, tokenAddress.String(), MarshalIndent(path))
+	return
 }

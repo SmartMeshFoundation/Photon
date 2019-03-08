@@ -173,6 +173,12 @@ var (
 	ErrUpdateButHaveTransfer = newError(1021, "ErrUpdateButHaveTransfer")
 	//ErrNotChargeFee 进行与收费相关的操作,但是没有启用收费
 	ErrNotChargeFee = newError(1022, "ErrNotChargeFee")
+
+	/*
+		路由导致的交易err
+	*/
+	// ErrTransferCannotSendWithoutRouteInfo 交易发起方不带RouteInfo参数发起MediatedTransfer时,报错
+	ErrTransferCannotSendWithoutRouteInfo = newError(1023, "can not send mediated transfer without route info")
 	/*
 		以太坊报公链节点报的错误
 

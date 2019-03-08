@@ -773,7 +773,7 @@ Args:
         message can be received.
 	fee: 手续费
 */
-func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, expiration int64, lockSecretHash common.Hash) (tr *encoding.MediatedTransfer, err error) {
+func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, expiration int64, lockSecretHash common.Hash, path []common.Address) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
 		return nil, rerr.ChannelStateError(c.State).Errorf("transfer not possible, no funding or channel closed")
 	}
@@ -791,7 +791,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 	transferAmount := from.TransferAmount()
 	nonce := c.GetNextNonce()
 	bp := encoding.NewBalanceProof(nonce, transferAmount, updatedLocksroot, &c.ChannelIdentifier)
-	tr = encoding.NewMediatedTransfer(bp, lock, target, initiator, fee)
+	tr = encoding.NewMediatedTransfer(bp, lock, target, initiator, fee, path)
 	return
 }
 

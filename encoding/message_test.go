@@ -177,7 +177,7 @@ func TestMediatedTransfer(t *testing.T) {
 		Expiration:     4589895, //expiration block number
 		LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 	}
-	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
+	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), []common.Address{utils.NewRandomAddress()})
 	m1.Sign(GetTestPrivKey(), m1)
 	data := m1.Pack()
 	m2 := new(MediatedTransfer)

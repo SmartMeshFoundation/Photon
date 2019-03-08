@@ -44,7 +44,7 @@ func (cm *CaseManager) CaseTransferWithRouteInfo() (err error) {
 	// 3. 发送交易
 	c01 := n0.GetChannelWith(n1, tokenAddressStr).Println("before transfer")
 	c12 := n1.GetChannelWith(n2, tokenAddressStr).Println("before transfer")
-	n0.SendTransWithRouteInfo(tokenAddressStr, int32(transferAmount.Int64()), n2.Address, route, route[0].Fee.Int64())
+	n0.SendTransWithRouteInfo(n2, tokenAddressStr, int32(transferAmount.Int64()), route)
 	// 4. 余额校验
 	err = cm.tryInSeconds(5, func() error {
 		c01new := n0.GetChannelWith(n1, tokenAddressStr).Println("after transfer")

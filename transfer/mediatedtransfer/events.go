@@ -27,10 +27,11 @@ type EventSendMediatedTransfer struct {
 	// because which channel receives MediatedTransfer and leads me to send a new Transfer
 	// If I am the transfer initiator, then FromChannel should be null.
 	FromChannel common.Hash
+	Path        []common.Address //2019-03 消息升级后,带全路径path
 }
 
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
-func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
+func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address, path []common.Address) *EventSendMediatedTransfer {
 	return &EventSendMediatedTransfer{
 		Token:          transfer.Token,
 		Amount:         new(big.Int).Set(transfer.Amount),
@@ -40,6 +41,7 @@ func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common
 		Expiration:     transfer.Expiration,
 		Receiver:       receiver,
 		Fee:            transfer.Fee,
+		Path:           path,
 	}
 }
 

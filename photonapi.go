@@ -146,9 +146,9 @@ TokenSwapAndWait Start an atomic swap operation by sending a MediatedTransfer wi
     `taker_token`.
 */
 func (r *API) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int, secret string) error {
+	makerAmount, takerAmount *big.Int, secret string, routeInfo []pfsproxy.FindPathResponse) error {
 	result, err := r.tokenSwapAsync(lockSecretHash, makerToken, takerToken, makerAddress, takerAddress,
-		makerAmount, takerAmount, secret)
+		makerAmount, takerAmount, secret, routeInfo)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func (r *API) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, ma
 }
 
 func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int, secret string) (result *utils.AsyncResult, err error) {
+	makerAmount, takerAmount *big.Int, secret string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = rerr.ErrTokenNotFound
@@ -178,6 +178,7 @@ func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, make
 		ToToken:         takerToken,
 		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
+		RouteInfo:       routeInfo,
 	}
 	result = r.Photon.tokenSwapMakerClient(tokenSwap)
 	return
@@ -191,7 +192,7 @@ ExpectTokenSwap Register an expected transfer for this node.
     `maker_address` for `taker_asset` with `taker_amount`.
 */
 func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int) (err error) {
+	makerAmount, takerAmount *big.Int, routeInfo []pfsproxy.FindPathResponse) (err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = rerr.ErrTokenNotFound
@@ -210,6 +211,7 @@ func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, mak
 		ToToken:         takerToken,
 		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
+		RouteInfo:       routeInfo,
 	}
 	r.Photon.tokenSwapTakerClient(tokenSwap)
 	return nil
@@ -251,8 +253,8 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //Transfer transfer and wait
-func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
+func (r *API) Transfer(token common.Address, amount *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(token, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -270,8 +272,8 @@ func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, targ
 }
 
 // TransferAsync :
-func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
+func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -285,10 +287,10 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *b
 }
 
 //TransferInternal :
-func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
 		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
-	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data, routeInfo)
+	result = r.Photon.transferAsyncClient(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	return
 }
 
