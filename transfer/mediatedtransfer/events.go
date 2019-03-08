@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -131,6 +132,7 @@ type EventSendAnnounceDisposed struct {
 	Expiration     int64
 	Token          common.Address
 	Receiver       common.Address
+	Reason         rerr.StandardError
 }
 
 /*

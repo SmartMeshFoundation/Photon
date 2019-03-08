@@ -96,6 +96,12 @@ func (rs *State) StateName() string {
 	return "State"
 }
 
+// CanceledRoute 保存失败原因
+type CanceledRoute struct {
+	Route  *State
+	Reason string
+}
+
 /*
 RoutesState is Routing state.
 */
@@ -103,7 +109,7 @@ type RoutesState struct {
 	AvailableRoutes []*State
 	IgnoredRoutes   []*State
 	RefundedRoutes  []*State
-	CanceledRoutes  []*State
+	CanceledRoutes  []*CanceledRoute
 }
 
 //NewRoutesState create routes state from availabes routes

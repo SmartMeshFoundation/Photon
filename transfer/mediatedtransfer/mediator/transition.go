@@ -263,11 +263,56 @@ Finds the first route available that may be used.
 3.时间还足够安全
 */
 
-func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) *route.State {
+func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) (routeCanUse *route.State, err error) {
 	for len(rss.AvailableRoutes) > 0 {
 		route := rss.AvailableRoutes[0]
+		ch := route.Channel()
 		rss.AvailableRoutes = rss.AvailableRoutes[1:]
 		lockTimeout := timeoutBlocks - route.RevealTimeout()
+		// 通道状态校验
+		if !route.CanTransfer() {
+			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because state=%s",
+				utils.APex(ch.OurState.Address),
+				utils.APex(ch.PartnerState.Address),
+				ch.State)
+			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+			continue
+		}
+		// 通道余额校验
+		if route.AvailableBalance().Cmp(transferAmount) < 0 {
+			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because balance not enough",
+				utils.APex(ch.OurState.Address),
+				utils.APex(ch.PartnerState.Address))
+			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+			continue
+		}
+		// 该笔交易的lock剩余时间校验
+		if lockTimeout <= 0 {
+			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because too near to lock expiration",
+				utils.APex(ch.OurState.Address),
+				utils.APex(ch.PartnerState.Address))
+			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+			continue
+		}
+		// 手续费校验
+		if fee.Cmp(route.Fee) < 0 {
+			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because no enough fee: need %d ,left fee %d",
+				utils.APex(ch.OurState.Address),
+				utils.APex(ch.PartnerState.Address),
+				route.Fee.Int64(),
+				fee.Int64())
+			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+			continue
+		}
+		if route.HopNode() == fromRoute.HopNode() {
+			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because cycle route",
+				utils.APex(ch.OurState.Address),
+				utils.APex(ch.PartnerState.Address))
+			rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+			continue
+		}
+		routeCanUse = route
+		break
 		/*
 				1.通道金额足够
 				2. 给出的收费也够
@@ -276,12 +321,12 @@ func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int
 				5. 不能使用再次使用上家做下一跳.
 			 有可能形成环路的时候,上家已经在我认为可用的路由节点中,但是实际上就是从他发过来的 lockedTransfer
 		*/
-		if route.CanTransfer() && route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 && route.HopNode() != fromRoute.HopNode() {
-			return route
-		}
-		rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
+		//if route.CanTransfer() && route.AvailableBalance().Cmp(transferAmount) >= 0 && lockTimeout > 0 && fee.Cmp(route.Fee) >= 0 && route.HopNode() != fromRoute.HopNode() {
+		//	return route
+		//}
+		//rss.IgnoredRoutes = append(rss.IgnoredRoutes, route)
 	}
-	return nil
+	return
 }
 
 /*
@@ -300,49 +345,50 @@ Given a payer transfer tries a new route to proceed with the mediation.
 */
 func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.LockedTransferState,
 	routesState *route.RoutesState, timeoutBlocks int, blockNumber int64) (
-	transferPair *mediatedtransfer.MediationPairState, events []transfer.Event) {
+	transferPair *mediatedtransfer.MediationPairState, events []transfer.Event, err error) {
 	if timeoutBlocks <= 0 {
 		panic("timeoutBlocks<=0")
 	}
 	if int64(timeoutBlocks) > payerTransfer.Expiration-blockNumber {
 		panic("timeoutBlocks >payerTransfer.Expiration-blockNumber")
 	}
-	payeeRoute := nextRoute(payerRoute, routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
-	if payeeRoute != nil {
-		/*
-					有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.
-				这个地方需要一个例子,例子是什么呢?
-			如果 timeoutBlocks 超过 settle timout 会有什么问题呢
-
-		*/
-		if timeoutBlocks >= payeeRoute.SettleTimeout() {
-			timeoutBlocks = payeeRoute.SettleTimeout()
-		}
-		//不再减少时间,没有必要了,只要这个时间不超过 payee 的 settle timeout 即可
-		lockTimeout := timeoutBlocks //- payeeRoute.RevealTimeout()
-		lockExpiration := int64(lockTimeout) + blockNumber
-		payeeTransfer := &mediatedtransfer.LockedTransferState{
-			TargetAmount:   payerTransfer.TargetAmount,
-			Amount:         big.NewInt(0).Sub(payerTransfer.Amount, payeeRoute.Fee),
-			Token:          payerTransfer.Token,
-			Initiator:      payerTransfer.Initiator,
-			Target:         payerTransfer.Target,
-			Expiration:     lockExpiration,
-			LockSecretHash: payerTransfer.LockSecretHash,
-			Secret:         payerTransfer.Secret,
-			Fee:            big.NewInt(0).Sub(payerTransfer.Fee, payeeRoute.Fee),
-		}
-		if payeeRoute.HopNode() == payeeTransfer.Target {
-			//i'm the last hop,so take the rest of the fee
-			payeeTransfer.Fee = utils.BigInt0
-			payeeTransfer.Amount = payerTransfer.TargetAmount
-		}
-		//todo log how many tokens fee for this transfer .
-		transferPair = mediatedtransfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
-		eventSendMediatedTransfer := mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode(), payeeRoute.Path)
-		eventSendMediatedTransfer.FromChannel = payerRoute.ChannelIdentifier
-		events = []transfer.Event{eventSendMediatedTransfer}
+	payeeRoute, err := nextRoute(payerRoute, routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
+	if payeeRoute == nil {
+		return
 	}
+	/*
+				有可能 payeeroute 的 settle timeout 比较小,从而导致我指定的lockexpiration 特别大,从而对我不利.
+			这个地方需要一个例子,例子是什么呢?
+		如果 timeoutBlocks 超过 settle timout 会有什么问题呢
+
+	*/
+	if timeoutBlocks >= payeeRoute.SettleTimeout() {
+		timeoutBlocks = payeeRoute.SettleTimeout()
+	}
+	//不再减少时间,没有必要了,只要这个时间不超过 payee 的 settle timeout 即可
+	lockTimeout := timeoutBlocks //- payeeRoute.RevealTimeout()
+	lockExpiration := int64(lockTimeout) + blockNumber
+	payeeTransfer := &mediatedtransfer.LockedTransferState{
+		TargetAmount:   payerTransfer.TargetAmount,
+		Amount:         big.NewInt(0).Sub(payerTransfer.Amount, payeeRoute.Fee),
+		Token:          payerTransfer.Token,
+		Initiator:      payerTransfer.Initiator,
+		Target:         payerTransfer.Target,
+		Expiration:     lockExpiration,
+		LockSecretHash: payerTransfer.LockSecretHash,
+		Secret:         payerTransfer.Secret,
+		Fee:            big.NewInt(0).Sub(payerTransfer.Fee, payeeRoute.Fee),
+	}
+	if payeeRoute.HopNode() == payeeTransfer.Target {
+		//i'm the last hop,so take the rest of the fee
+		payeeTransfer.Fee = utils.BigInt0
+		payeeTransfer.Amount = payerTransfer.TargetAmount
+	}
+	//todo log how many tokens fee for this transfer .
+	transferPair = mediatedtransfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
+	eventSendMediatedTransfer := mediatedtransfer.NewEventSendMediatedTransfer(payeeTransfer, payeeRoute.HopNode(), payeeRoute.Path)
+	eventSendMediatedTransfer.FromChannel = payerRoute.ChannelIdentifier
+	events = []transfer.Event{eventSendMediatedTransfer}
 	return
 }
 
@@ -485,6 +531,7 @@ func eventsForRefund(refundRoute *route.State, refundTransfer *mediatedtransfer.
 		LockSecretHash: refundTransfer.LockSecretHash,
 		Expiration:     refundTransfer.Expiration,
 		Receiver:       refundRoute.HopNode(),
+		Reason:         reason,
 	}
 	events = append(events, rtr2)
 	return
@@ -699,11 +746,17 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	//	timeoutBlocks, utils.StringInterface(payerRoute, 3), utils.StringInterface(payerTransfer, 3),
 	//	state.BlockNumber,
 	//))
+	var err error
 	if timeoutBlocks > 0 {
-		transferPair, events = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
+		transferPair, events, err = nextTransferPair(payerRoute, payerTransfer, state.Routes, timeoutBlocks, state.BlockNumber)
 	}
 	if transferPair == nil {
-		log.Warn("no usable route, reject")
+		if err != nil {
+			log.Warn(err.Error())
+		} else {
+			log.Warn("no usable route, reject")
+			err = rerr.ErrNoAvailabeRoute
+		}
 		/*
 			回退此交易,相当于没收到过一样处理
 
@@ -713,7 +766,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		 */
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
-		refundEvents := eventsForRefund(originalRoute, originalTransfer, rerr.ErrNoAvailabeRoute)
+		refundEvents := eventsForRefund(originalRoute, originalTransfer, err.(rerr.StandardError))
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   refundEvents,

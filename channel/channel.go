@@ -863,7 +863,7 @@ CreateAnnouceDisposed  声明我放弃收到的某个锁
  *	CreateAnnouceDisposed : function to create message of AnnounceDisposed
  *	Note that it claims that I have abandoned a lock.
  */
-func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposed, err error) {
+func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber int64, reason rerr.StandardError) (tr *encoding.AnnounceDisposed, err error) {
 	lock, _, _, err := c.PartnerState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
 	if err != nil {
 		return
@@ -873,7 +873,7 @@ func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber 
 	}
 	rp.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	rp.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	tr = encoding.NewAnnounceDisposed(rp, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
+	tr = encoding.NewAnnounceDisposed(rp, reason.ErrorCode, reason.ErrorMsg)
 	return
 }
 

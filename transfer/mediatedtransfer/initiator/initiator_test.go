@@ -73,7 +73,9 @@ func TestNextRoute(t *testing.T) {
 	//open this will panic,how to test panic?
 	//err := tryNewRoute(state)
 	//assert.Equal(t, err != nil, true)
-	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
+	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, &route.CanceledRoute{
+		Route: state.Route,
+	})
 	state.Route = nil
 	tryNewRoute(state)
 	/*

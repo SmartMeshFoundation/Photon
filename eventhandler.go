@@ -241,7 +241,7 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 		log.Error(err.Error())
 		return
 	}
-	mtr, err := ch.CreateAnnouceDisposed(event.LockSecretHash, eh.photon.GetBlockNumber())
+	mtr, err := ch.CreateAnnouceDisposed(event.LockSecretHash, eh.photon.GetBlockNumber(), event.Reason)
 	if err != nil {
 		return
 	}

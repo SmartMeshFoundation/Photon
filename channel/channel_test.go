@@ -840,7 +840,7 @@ func TestChannel_RegisterAnnounceDisposedTransferResponse(t *testing.T) {
 		return
 	}
 	assertMirror(ch0, ch1, t)
-	req, err := ch1.CreateAnnouceDisposed(lockSecretHash, blockNumber)
+	req, err := ch1.CreateAnnouceDisposed(lockSecretHash, blockNumber, rerr.ErrNoAvailabeRoute)
 	if err != nil {
 		t.Error(err)
 		return
