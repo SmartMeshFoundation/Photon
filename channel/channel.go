@@ -873,7 +873,7 @@ func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber 
 	}
 	rp.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	rp.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	tr = encoding.NewAnnounceDisposed(rp)
+	tr = encoding.NewAnnounceDisposed(rp, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	return
 }
 

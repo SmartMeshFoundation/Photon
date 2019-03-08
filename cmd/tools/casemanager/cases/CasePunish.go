@@ -83,7 +83,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 		if (c.OurBalanceProof.ContractTransferAmount != nil && c.OurBalanceProof.ContractTransferAmount.Uint64() != 0) ||
 			c.OurBalanceProof.ContractLocksRoot != utils.EmptyHash ||
 			c.OurBalanceProof.ContractNonce != 0xffffffffffffffff {
-			models.Logger.Printf("c=%s", utils.StringInterface(c, 5))
+			//models.Logger.Printf("c=%s", utils.StringInterface(c, 5))
 			continue
 		}
 		break

@@ -1096,22 +1096,29 @@ type AnnounceDisposedProof struct {
 type AnnounceDisposed struct {
 	SignedMessage
 	AnnounceDisposedProof
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //String is fmt.Stringer
 func (m *AnnounceDisposed) String() string {
 	return fmt.Sprintf("Message{type=AnnounceDisposed Lock=%s,"+
-		"ChannelIdentifier=%s-%d}",
+		"ChannelIdentifier=%s-%d ErrorCode=%d ErrorMsg=%s Signature=%s}",
 		m.Lock,
 		utils.HPex(m.ChannelIdentifier),
 		m.OpenBlockNumber,
+		m.ErrorCode,
+		m.ErrorMsg,
+		common.Bytes2Hex(m.Signature),
 	)
 }
 
 //NewAnnounceDisposed create AnnounceDisposed
-func NewAnnounceDisposed(rp *AnnounceDisposedProof) *AnnounceDisposed {
+func NewAnnounceDisposed(rp *AnnounceDisposedProof, errorCode int, errMsg string) *AnnounceDisposed {
 	p := &AnnounceDisposed{
 		AnnounceDisposedProof: *rp,
+		ErrorCode:             errorCode,
+		ErrorMsg:              errMsg,
 	}
 	p.CmdID = AnnounceDisposedTransferCmdID
 	return p
@@ -1126,6 +1133,15 @@ func (m *AnnounceDisposed) Pack() []byte {
 	_, err = buf.Write(m.Lock.AsBytes())
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1146,6 +1162,17 @@ func (m *AnnounceDisposed) UnPack(data []byte) error {
 	err = m.Lock.FromReader(buf)
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
+	}
 	m.Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Signature)
 	if err != nil || n != signatureLength {
@@ -1162,6 +1189,13 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	_, err = buf.Write(lockhash[:])
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	//// 2019-03 添加错误码及错误信息,这里不能添加,否则需要修改合约
+	//err = binary.Write(buf, binary.BigEndian, m.ErrorCode)
+	//errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	//err = binary.Write(buf, binary.BigEndian, len(errorMsgBytes))
+	//if len(errorMsgBytes) > 0 {
+	//	_, err = buf.Write(errorMsgBytes)
+	//}
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	_, err = buf.Write(datahash[:])
 	if err != nil {

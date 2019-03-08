@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"math/big"
 
@@ -416,7 +417,7 @@ func TestEventsForRefund(t *testing.T) {
 	refundRoute := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, revealTimeout, 0, utils.NewRandomHash())
 	refundTransfer := utest.MakeTransfer(amount, initiator, target, expiration, utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 
-	refundEvents := eventsForRefund(refundRoute, refundTransfer)
+	refundEvents := eventsForRefund(refundRoute, refundTransfer, rerr.ErrNoAvailabeRoute)
 	ev, ok := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 	assert(t, ev.Expiration < blockNumber+int64(timeoutBlocks), true)

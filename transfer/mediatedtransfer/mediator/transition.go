@@ -12,6 +12,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/route"
@@ -473,7 +474,7 @@ Refund the transfer.
     Returns:
         create a annouceDisposed event
 */
-func eventsForRefund(refundRoute *route.State, refundTransfer *mediatedtransfer.LockedTransferState) (events []transfer.Event) {
+func eventsForRefund(refundRoute *route.State, refundTransfer *mediatedtransfer.LockedTransferState, reason rerr.StandardError) (events []transfer.Event) {
 	/*
 		原封不动声明放弃此锁即可
 	*/
@@ -712,7 +713,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		 */
 		originalTransfer := payerTransfer
 		originalRoute := payerRoute
-		refundEvents := eventsForRefund(originalRoute, originalTransfer)
+		refundEvents := eventsForRefund(originalRoute, originalTransfer, rerr.ErrNoAvailabeRoute)
 		return &transfer.TransitionResult{
 			NewState: state,
 			Events:   refundEvents,
@@ -737,7 +738,7 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 		log.Warn(fmt.Sprintf("holding too much lock of %s, reject new mediated transfer from him", utils.APex2(payerChannel.PartnerState.Address)))
 		return &transfer.TransitionResult{
 			NewState: state,
-			Events:   eventsForRefund(payerRoute, payerTransfer),
+			Events:   eventsForRefund(payerRoute, payerTransfer, rerr.ErrRejectTransferBecauseChannelHoldingTooMuchLock),
 		}
 	}
 	/*
@@ -786,7 +787,7 @@ func cancelCurrentRoute(state *mediatedtransfer.MediatorState, refundChannelIden
 	*/
 	if transferPair.PayerRoute.ClosedBlock() != 0 {
 		log.Warn("channel already closed, stop trying new route")
-		it.Events = eventsForRefund(transferPair.PayerRoute, transferPair.PayerTransfer)
+		it.Events = eventsForRefund(transferPair.PayerRoute, transferPair.PayerTransfer, rerr.ErrRejectTransferBecausePayerChannelClosed)
 		return it
 	}
 	it = mediateTransfer(state, transferPair.PayerRoute, transferPair.PayerTransfer)

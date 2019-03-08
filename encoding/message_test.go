@@ -201,7 +201,7 @@ func TestNewAnnounceDisposedTransfer(t *testing.T) {
 			LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 		},
 	}
-	m1 := NewAnnounceDisposed(bp)
+	m1 := NewAnnounceDisposed(bp, 1, "success")
 	err := m1.Sign(GetTestPrivKey(), m1)
 	if err != nil {
 		t.Error(err)
