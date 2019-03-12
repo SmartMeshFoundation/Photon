@@ -11,6 +11,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -274,9 +275,12 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
-		Sender:  mediatorAddress,
-		Token:   token,
-		Message: nil,
+		Sender: mediatorAddress,
+		Token:  token,
+		Message: &encoding.AnnounceDisposed{
+			ErrorCode: 1,
+			ErrorMsg:  "test error",
+		},
 		Lock: &mtree.Lock{
 			Expiration:     currentState.Transfer.Expiration,
 			LockSecretHash: currentState.LockSecretHash,
