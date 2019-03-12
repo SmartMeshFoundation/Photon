@@ -1468,22 +1468,50 @@ type WithdrawReponseData struct {
 type WithdrawResponse struct {
 	SignedMessage
 	WithdrawReponseData
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //NewWithdrawResponse create withdraw response from `WithdrawReponseData`
-func NewWithdrawResponse(wd *WithdrawReponseData) *WithdrawResponse {
+func NewWithdrawResponse(wd *WithdrawReponseData, errorCode int, errorMsg string) *WithdrawResponse {
 	m := &WithdrawResponse{
 		WithdrawReponseData: *wd,
+		ErrorCode:           errorCode,
+		ErrorMsg:            errorMsg,
 	}
 	m.CmdID = WithdrawResponseCmdID
 	return m
 }
+
+// NewErrorWithdrawResponseAndSign 创建返回错误信息的SettleResponse
+func NewErrorWithdrawResponseAndSign(req *WithdrawRequest, privateKey *ecdsa.PrivateKey, errorCode int, errorMsg string) (res *WithdrawResponse) {
+	res = &WithdrawResponse{
+		ErrorCode: errorCode,
+		ErrorMsg:  errorMsg,
+	}
+	// 这里填充无效数据,仅为了过验证
+	res.CmdID = WithdrawResponseCmdID
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.OpenBlockNumber = req.OpenBlockNumber
+	res.Participant1 = utils.EmptyAddress
+	res.Participant2 = crypto.PubkeyToAddress(privateKey.PublicKey)
+	res.Participant1Balance = big.NewInt(0)
+	res.Participant1Withdraw = big.NewInt(0)
+	err2 := res.Sign(privateKey, res)
+	if err2 != nil {
+		panic(fmt.Sprintf("sign message for withdraw response err %s", err2))
+	}
+	return
+}
+
 func (m *WithdrawResponse) String() string {
 	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant2=%s,"+
-		"Participant1Balance=%s,Participant1Withdraw=%s,",
+		"Participant1Balance=%s,Participant1Withdraw=%s,ErrorCode=%d,ErrorMsg=%s",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
 		utils.APex2(m.Participant1), utils.APex2(m.Participant2),
 		m.Participant1Balance, m.Participant1Withdraw,
+		m.ErrorCode, m.ErrorMsg,
 	)
 }
 
@@ -1500,6 +1528,15 @@ func (m *WithdrawResponse) Pack() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
 	_, err = buf.Write(m.Participant2Signature)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1526,6 +1563,17 @@ func (m *WithdrawResponse) UnPack(data []byte) error {
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
 		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+	}
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)
@@ -1736,22 +1784,49 @@ SettleResponse 相应对方合作关闭通道要求
 type SettleResponse struct {
 	SignedMessage
 	SettleResponseData
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //NewSettleResponse create settle response from `SettleResponseData`
-func NewSettleResponse(wd *SettleResponseData) *SettleResponse {
+func NewSettleResponse(wd *SettleResponseData, errorCode int, errorMsg string) *SettleResponse {
 	m := &SettleResponse{
 		SettleResponseData: *wd,
+		ErrorCode:          errorCode,
+		ErrorMsg:           errorMsg,
 	}
 	m.CmdID = SettleResponseCmdID
 	return m
 }
+
+// NewErrorCooperativeSettleResponseAndSign 创建返回错误信息的SettleResponse
+func NewErrorCooperativeSettleResponseAndSign(req *SettleRequest, privateKey *ecdsa.PrivateKey, errorCode int, errorMsg string) (res *SettleResponse) {
+	res = &SettleResponse{
+		ErrorCode: errorCode,
+		ErrorMsg:  errorMsg,
+	}
+	// 这里填充无效数据,仅为了过验证
+	res.CmdID = SettleResponseCmdID
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.OpenBlockNumber = req.OpenBlockNumber
+	res.Participant1 = utils.EmptyAddress
+	res.Participant1Balance = big.NewInt(0)
+	res.Participant2 = crypto.PubkeyToAddress(privateKey.PublicKey)
+	res.Participant2Balance = big.NewInt(0)
+	err2 := res.Sign(privateKey, res)
+	if err2 != nil {
+		panic(fmt.Sprintf("sign message for settle response err %s", err2))
+	}
+	return
+}
+
 func (m *SettleResponse) String() string {
 	return fmt.Sprintf("Message{type=SettleResponse Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
-		"Participant2=%s,Participant2Balance=%s}",
+		"Participant2=%s,Participant2Balance=%s,ErrorCode=%d,ErrorMsg=%s}",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
 		utils.APex2(m.Participant1), m.Participant1Balance,
 		utils.APex2(m.Participant2), m.Participant2Balance,
+		m.ErrorCode, m.ErrorMsg,
 	)
 }
 
@@ -1768,6 +1843,15 @@ func (m *SettleResponse) Pack() []byte {
 	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(m.Participant2Signature)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1794,6 +1878,17 @@ func (m *SettleResponse) UnPack(data []byte) error {
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
 		return fmt.Errorf("SettleResponse UnPack Participant2Signature err=%v,n=%d", err, n)
+	}
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)

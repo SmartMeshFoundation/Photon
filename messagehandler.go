@@ -89,10 +89,42 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		err = mh.messageRemoveExpiredHashlockTransfer(m2)
 	case *encoding.SettleRequest:
 		err = mh.messageSettleRequest(m2)
+		if err != nil {
+			var errorCode int
+			var errorMsg string
+			if e2, ok := err.(rerr.StandardError); ok {
+				errorCode = e2.ErrorCode
+				errorMsg = e2.ErrorMsg
+			} else {
+				errorCode = rerr.ErrUnknown.ErrorCode
+				errorMsg = err.Error()
+			}
+			msg := encoding.NewErrorCooperativeSettleResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			err2 := mh.photon.sendAsync(m2.Sender, msg)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
+			}
+		}
 	case *encoding.SettleResponse:
 		err = mh.messageSettleResponse(m2)
 	case *encoding.WithdrawRequest:
 		err = mh.messageWithdrawRequest(m2)
+		if err != nil {
+			var errorCode int
+			var errorMsg string
+			if e2, ok := err.(rerr.StandardError); ok {
+				errorCode = e2.ErrorCode
+				errorMsg = e2.ErrorMsg
+			} else {
+				errorCode = rerr.ErrUnknown.ErrorCode
+				errorMsg = err.Error()
+			}
+			msg := encoding.NewErrorWithdrawResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			err2 := mh.photon.sendAsync(m2.Sender, msg)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
+			}
+		}
 	case *encoding.WithdrawResponse:
 		err = mh.messageWithdrawResponse(m2)
 	default:
@@ -634,6 +666,13 @@ func (mh *photonMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	return nil
 }
 func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的SettleResponse
+		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
+	}
 	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
@@ -729,6 +768,13 @@ func (mh *photonMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	return nil
 }
 func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的SettleResponse
+		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
+	}
 	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {

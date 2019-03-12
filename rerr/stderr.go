@@ -307,4 +307,7 @@ var (
 	ErrTransportTypeUnknown = newError(6000, "transport type error")
 	//ErrSubScribeNeighbor 订阅节点在线信息错误
 	ErrSubScribeNeighbor = newError(6001, "ErrSubScribeNeighbor")
+
+	// ErrUnknown 未知错误
+	ErrUnknown = newError(9999, "unknown error")
 )

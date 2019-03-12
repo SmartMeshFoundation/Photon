@@ -26,6 +26,8 @@ import (
 
 	"encoding/binary"
 
+	"encoding/json"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -268,4 +270,13 @@ func WriteVarInt(w io.Writer, val uint64) error {
 		return err
 	}
 	return binary.Write(w, binary.LittleEndian, val)
+}
+
+// ToJSONFormat :
+func ToJSONFormat(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }

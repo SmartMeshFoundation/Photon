@@ -13,6 +13,10 @@ import (
 
 	"math/big"
 
+	"path/filepath"
+
+	"strings"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -318,6 +322,52 @@ func (node *PhotonNode) StartWithConditionQuit(env *TestEnv, c *params.Condition
 // GetAddress :
 func (node *PhotonNode) GetAddress() common.Address {
 	return common.HexToAddress(node.Address)
+}
+
+// ClearHistoryData :
+func (node *PhotonNode) ClearHistoryData(dataDir string) {
+	if dataDir == "" {
+		return
+	}
+	userDbPath := strings.ToLower(node.Address[2:10])
+	err := filepath.Walk(dataDir, func(path string, fi os.FileInfo, err error) error {
+		if nil == fi {
+			return err
+		}
+		if !fi.IsDir() {
+			return nil
+		}
+		name := fi.Name()
+
+		if name == userDbPath {
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Println("delete dir error:", err)
+			}
+			Logger.Printf("Clear history data of node %s %s SUCCESS", node.Name, node.Address)
+		}
+		return nil
+	})
+	err = filepath.Walk(".", func(path string, fi os.FileInfo, err error) error {
+		if nil == fi {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		name := fi.Name()
+		if name == userDbPath {
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Println("delete dir error:", err)
+			}
+			Logger.Println("Clear pfs history data SUCCESS ")
+		}
+		return nil
+	})
+	if err != nil {
+		Logger.Println("No history data ")
+	}
 }
 
 // ExecShell : run shell commands

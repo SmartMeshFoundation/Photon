@@ -3,8 +3,6 @@ package cases
 import (
 	"math/big"
 
-	"time"
-
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
@@ -157,6 +155,5 @@ func (cm *CaseManager) CaseFee() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	time.Sleep(1000 * time.Second)
 	return
 }

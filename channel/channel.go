@@ -976,7 +976,7 @@ func (c *Channel) preCheckSettleDataInMessage(tr encoding.SignedMessager, sd *en
 	if state1.Address == sd.Participant1 {
 		if state1.Balance(state2).Cmp(sd.Participant1Balance) != 0 ||
 			state2.Balance(state1).Cmp(sd.Participant2Balance) != 0 {
-			return
+			return rerr.ErrChannelBalanceNotMatch
 		}
 	} else {
 		if state2.Balance(state1).Cmp(sd.Participant1Balance) != 0 ||
@@ -1074,7 +1074,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *enco
 	wd.Participant2 = c.OurState.Address
 	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
 	wd.Participant1Withdraw = req.Participant1Withdraw
-	w = encoding.NewWithdrawResponse(wd)
+	w = encoding.NewWithdrawResponse(wd, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	/*
 		再次验证信息正确性,
 	*/
@@ -1213,7 +1213,7 @@ func (c *Channel) CreateCooperativeSettleResponse(req *encoding.SettleRequest) (
 	d.Participant1 = c.PartnerState.Address
 	d.Participant1Balance = c.PartnerState.Balance(c.OurState)
 
-	res = encoding.NewSettleResponse(d)
+	res = encoding.NewSettleResponse(d, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	/*
 		再次验证信息正确性,
 	*/
