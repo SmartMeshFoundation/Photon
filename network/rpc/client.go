@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"math/big"
@@ -239,6 +240,7 @@ func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 }
 
 func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
+	defer rpanic.PanicRecover("checkPendingTXDone")
 	if pendingTXInfo.Status != models.TXInfoStatusPending {
 		log.Warn("checkPendingTXDone got tx with status=%s, maybe something wrong", pendingTXInfo.Status)
 		return
