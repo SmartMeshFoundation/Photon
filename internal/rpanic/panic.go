@@ -32,6 +32,10 @@ var notifier []string
 //永不关闭.
 var notifyChan chan error
 
+func init() {
+	InitPhotonPanic()
+}
+
 //InitPhotonPanic init my panic system
 func InitPhotonPanic() {
 	errChan = make(chan error, 20)
@@ -51,13 +55,13 @@ func PanicRecover(ctx string) {
 	if err := recover(); err != nil {
 		err2 := fmt.Errorf("%s occured err %s", ctx, err)
 		log.Error(err2.Error())
-		utils.PrintStack()
+		log.Error(string(utils.Stack()))
 		if params.MobileMode {
 			errChan <- err2
 		} else {
 			log.Error(fmt.Sprintf("panic info.... %s", err2))
-			log.Error(string(utils.Stack()))
-			//panic(err2)
+			//log.Error(string(utils.Stack()))
+			panic(err2)
 		}
 
 	}

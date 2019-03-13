@@ -815,6 +815,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			var d []byte
 			select {
 			case err = <-rpanic.GetNotify():
+				log.Error(fmt.Sprintf("photon panic because of unkown err %s", err))
 				handler.OnError(32, err.Error())
 			case s := <-a.api.Photon.EthConnectionStatus:
 				cs.EthStatus = s

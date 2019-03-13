@@ -644,7 +644,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error) {
 	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s ", tokenAddress.String()))
 	var tokenNetwork *rpc.TokenNetworkProxy
-	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenAddress)
+	tokenNetwork, err = rs.Chain.TokenNetwork(tokenAddress)
 	if err != nil {
 		return
 	}
