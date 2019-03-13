@@ -5,8 +5,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
-	"errors"
-
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
@@ -119,10 +117,10 @@ func (t *MatrixMixTransport) NodeStatus(addr common.Address) (deviceType string,
 
 //GetNotify notification of connection status change
 func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
-	if t.matirx != nil {
-		return t.matirx.statusChan, nil
-	}
-	return nil, errors.New("connection not established")
+	//if t.matirx != nil {
+	return t.matirx.statusChan, nil
+	//}
+	//return nil, errors.New("connection not established")
 }
 
 //SetMatrixDB get the status change notification of partner node

@@ -5,8 +5,6 @@ import (
 
 	"crypto/ecdsa"
 
-	"errors"
-
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
@@ -120,10 +118,10 @@ func (t *MixTransport) NodeStatus(addr common.Address) (deviceType string, isOnl
 
 //GetNotify notification of connection status change
 func (t *MixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
-	if t.xmpp.conn != nil {
-		return t.xmpp.statusChan, nil
-	}
-	return nil, errors.New("connection not established")
+	//if t.xmpp.conn != nil {
+	return t.xmpp.statusChan, nil
+	//}
+	//return nil, errors.New("connection not established")
 }
 
 //SubscribeNeighbor get the status change notification of partner node
