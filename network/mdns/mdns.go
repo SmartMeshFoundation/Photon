@@ -2,6 +2,7 @@ package mdns
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -91,7 +92,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 			Domain:  "local",
 			Entries: entriesCh,
 			Service: ServiceTag,
-			Timeout: m.interval,
+			Timeout: m.interval * 5,
 		}
 
 		err := mdns.Query(qp)
@@ -99,7 +100,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 			log.Error("mdns lookup error: ", err)
 		}
 		close(entriesCh)
-		//log.Debug("mdns query complete")
+		log.Debug("mdns query complete")
 
 		select {
 		case <-ticker.C:
@@ -112,7 +113,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 }
 
 func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
-	//log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
+	log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
 
 	if e.Info == m.myid {
 		//log.Debug("got our own mdns entry, skipping")
