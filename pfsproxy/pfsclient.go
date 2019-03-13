@@ -125,16 +125,18 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	log.Debug(req.ToString())
 	if err != nil {
+		log.Error(req.ToString())
 		log.Error("PfgAPI SubmitBalance %s err :%s", req.FullURL, err)
 		return
 	}
 	if statusCode != 200 {
+		log.Error(req.ToString())
 		err = fmt.Errorf("PfgAPI SubmitBalance %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
-		log.Error(err.Error())
+		//log.Error(err.Error())
 		return
 	}
+	log.Debug(fmt.Sprintf("PfgAPI SubmitBalance of channel %s SUCCESS", channelIdentifier.String()))
 	return nil
 }
 
