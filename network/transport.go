@@ -309,9 +309,9 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 //HandlePeerFound notification  from mdns
 func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	//由于mdns在低版本的华为,vivo手机有问题,暂时屏蔽
-	//if ut != nil {
-	//	return
-	//}
+	if ut != nil {
+		return
+	}
 	ut.lock.RLock()
 	defer ut.lock.RUnlock()
 	idFound := common.HexToAddress(id)
