@@ -1,8 +1,6 @@
 package cases
 
 import (
-	"time"
-
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
@@ -35,12 +33,17 @@ func (cm *CaseManager) CaseDeposit() (err error) {
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
-	// check
-	c01new := N0.GetChannelWith(N1, tokenAddress).Println("after deposit")
-	if !c01new.CheckEqualByPartnerNode(env) || !c01new.CheckSelfBalance(c01.Balance+50) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+	err = cm.tryInSeconds(cm.HighMediumWaitSeconds, func() error {
+		// check
+		c01new := N0.GetChannelWith(N1, tokenAddress).Println("after deposit")
+		if !c01new.CheckEqualByPartnerNode(env) || !c01new.CheckSelfBalance(c01.Balance+50) {
+			return cm.caseFailWithWrongChannelData(env.CaseName, c01new.Name)
+		}
+		return nil
+	})
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
-	time.Sleep(1000 * time.Second)
 	return nil
 }
