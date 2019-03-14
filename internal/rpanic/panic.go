@@ -73,7 +73,7 @@ func RegisterErrorNotifier(name string) {
 	notifier = append(notifier, name)
 }
 
-//startNotify  start notify system,只针对每个 PhotonService 实例启动一次.
+//startNotify  start notify system,只针对反复重启的 PhotonService 实例只启动一次.
 func startNotify() {
 	if params.MobileMode {
 		go func() {
