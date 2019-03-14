@@ -130,7 +130,7 @@ var PunishBlockNumber int64
 var MatrixServerConfig = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
 	//"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
-	//"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
+	"transport13.smartmesh.cn": "http://transport13.smartmesh.cn:8008",
 }
 
 //AliasFragment  is discovery AliasFragment

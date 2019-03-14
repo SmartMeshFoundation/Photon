@@ -36,10 +36,16 @@ func (cm *CaseManager) CaseCooperateSettleError() (err error) {
 	N1.ClearHistoryData(env.DataDir)
 	N1.Start(env)
 
+	if cm.UseMatrix{
+		time.Sleep(time.Second *5)
+	}
 	// Cooperate settle
 	err = N0.CooperateSettle(c01.ChannelIdentifier, -1)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
+	}
+	if cm.UseMatrix{
+		time.Sleep(time.Second *10)
 	}
 	// 等待N0接收消息
 	time.Sleep(time.Second * 2)

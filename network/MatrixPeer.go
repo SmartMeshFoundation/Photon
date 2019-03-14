@@ -118,6 +118,7 @@ if one of the `candidateUsers` is offline,status is offline
 if all of the `candidateUsers` is UNAVAILABLE,status is unkown
 */
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
+	peer.candidateUsers[userID] = &gomatrix.UserInfo{"","", userID}
 	var status peerStatus
 	switch presence {
 	case ONLINE:
@@ -127,6 +128,8 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
+	status=peerStatusOnline
+	peer.candidateUsersStatus[userID] = status
 	user := peer.candidateUsers[userID]
 	if user == nil {
 		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",

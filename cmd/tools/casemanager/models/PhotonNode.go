@@ -64,7 +64,9 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 			} else {
 				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
 			}
-			panic("Start photon node TIMEOUT")
+			if !env.UseMatrix {
+				panic("Start photon node TIMEOUT")
+			}
 		}
 	}
 	used := time.Since(t)
@@ -90,6 +92,9 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 // Start start a photon node
 func (node *PhotonNode) Start(env *TestEnv, otherarg ...bool) {
 	node.startInternal(env, otherarg...)
+	if env.UseMatrix{
+		time.Sleep(time.Second * 5)
+	}
 }
 
 // StartWithParams start a photon node with --fee
@@ -264,6 +269,13 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
 		} else {
 			param = append(param, "--nonetwork")
+		}
+	}else{
+		param = append(param, "--matrix")
+		if time.Now().Nanosecond()%2==0{
+			param = append(param, "--matrix-server=transport01.smartmesh.cn")
+		}else {
+			param = append(param, "--matrix-server=transport13.smartmesh.cn")
 		}
 	}
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)

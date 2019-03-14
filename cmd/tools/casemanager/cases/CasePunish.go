@@ -59,6 +59,13 @@ func (cm *CaseManager) CasePunish() (err error) {
 	go N0.SendTransWithSecret(tokenAddress, transAmount, N2.Address, secret)
 	time.Sleep(time.Second * 3)
 	// N0 crash
+	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return fmt.Errorf("n0 should shutdown")
 	}

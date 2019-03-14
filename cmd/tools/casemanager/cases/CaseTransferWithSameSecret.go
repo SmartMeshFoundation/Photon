@@ -31,7 +31,9 @@ func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	cm.startNodes(env, N0, N1, N2)
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 获取channel信息
 	// get channel info
 	N0.GetChannelWith(N1, tokenAddress).Println("before transfer")

@@ -36,7 +36,9 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveAnnounceDisposedStateChange",
 	})
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 15)
+	}
 	// 2. 记录所有通道历史数据
 	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
@@ -47,6 +49,9 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 
 	// 3. 节点1向节点6转账45token
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	i := 0
 	for i = 0; i < cm.LowWaitSeconds; i++ {
 		time.Sleep(time.Second * 1)
@@ -95,6 +100,9 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	}
 	// 6. 重启节点2，交易失败
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	for i = 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second * 1)
 

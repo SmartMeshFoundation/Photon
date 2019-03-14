@@ -45,12 +45,21 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	N0.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveSecretRequestStateChange",
 	})
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 获取channel信息
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should not running")
 	}
@@ -61,7 +70,7 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	}
 
 	var i = 0
-	for i = 0; i < 100; i++ {
+	for i = 0; i < 200; i++ {
 		var c channeltype.ChannelDataDetail
 		time.Sleep(time.Second)
 		c, err = N0.SpecifiedChannel(c01.ChannelIdentifier)

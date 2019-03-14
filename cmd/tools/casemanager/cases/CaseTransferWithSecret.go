@@ -35,7 +35,9 @@ func (cm *CaseManager) CaseTransferWithSecret() (err error) {
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeSendTransWithSecret")
 	go N0.SendTransWithSecret(tokenAddress, 1, N1.Address, secret)
 	time.Sleep(3 * time.Second)
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	//没有发送密码允许,对方肯定接收不到
 	c01new := N0.GetChannelWith(N1, tokenAddress).Println("after send transfer with secret")
 	if c01new.CheckSelfBalance(c01.Balance - 1) {
