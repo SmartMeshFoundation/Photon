@@ -127,7 +127,7 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 	statusCode, body, err := req.Invoke()
 	if err != nil {
 		//log.Error(req.ToString())
-		log.Error(fmt.Sprintf("PfgAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err))
+		err = fmt.Errorf("PfgAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
 		return
 	}
 	if statusCode != 200 {

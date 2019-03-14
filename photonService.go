@@ -1846,7 +1846,7 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 		bpPartner.Signature,
 	)
 	if err != nil {
-		log.Error(fmt.Sprintf("updateBalanceProofToPfs err = %s", err.Error()))
+		log.Error(err.Error())
 	}
 }
 
