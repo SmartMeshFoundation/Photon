@@ -150,6 +150,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 			IP:   net.ParseIP(host),
 			Port: port,
 		},
+		name:                   name,
 		protocol:               protocol,
 		policy:                 policy,
 		log:                    log.New("name", name),
@@ -311,6 +312,8 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	if ut != nil {
 		return
 	}
+	ut.lock.RLock()
+	defer ut.lock.RUnlock()
 	idFound := common.HexToAddress(id)
 	alreadyFound := false
 	// 清除过期数据,即标志下线
@@ -329,10 +332,12 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		delete(ut.intranetNodesTimestamp, idToDelete)
 		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
 	}
-	// 标志发现的节点
-	if !alreadyFound {
-		log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+	// 标记发现的除自己以外的节点
+	if id != ut.name {
+		if !alreadyFound {
+			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+		}
+		ut.intranetNodes[idFound] = addr
+		ut.intranetNodesTimestamp[idFound] = now
 	}
-	ut.intranetNodes[idFound] = addr
-	ut.intranetNodesTimestamp[idFound] = now
 }
