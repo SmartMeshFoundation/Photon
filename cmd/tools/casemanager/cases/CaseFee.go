@@ -8,6 +8,9 @@ import (
 
 // CaseFee : test for fee module
 func (cm *CaseManager) CaseFee() (err error) {
+	if cm.IsAutoRun {
+		return
+	}
 	env, err := models.NewTestEnv("./cases/CaseFee.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
