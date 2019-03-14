@@ -46,11 +46,22 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	})
 	// 获取channel信息
 	// get channel info
+	if cm.UseMatrix{
+		time.Sleep(time.Second*5)
+	}
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")
 	N1.GetChannelWith(N2, tokenAddress).Println("before send  trans")
 
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	// 崩溃判断
+	// 验证n0 n1崩溃
+	for i := 0; i < cm.MediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() && !N1.IsRunning(){
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should quit")
 	}
@@ -64,7 +75,9 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	}
 	//N0务必启启动,尝试发送removeExpiredHashlock失败
 	N0.ReStartWithoutConditionquit(env)
-
+	if cm.UseMatrix{
+		time.Sleep(time.Second*5)
+	}
 	var i = 0
 	settleTime := c01.SettleTimeout + 3600/14
 	for i = 0; i < int(settleTime); i++ {

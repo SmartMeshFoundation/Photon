@@ -38,6 +38,12 @@ func (cm *CaseManager) CrashCase009() (err error) {
 	go n0.SendTrans(tokenAddress, transAmount, n2.Address, false)
 	time.Sleep(time.Second * 3)
 	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !n0.IsRunning(){
+			break
+		}
+	}
 	if n0.IsRunning() {
 		msg := "Node " + n0.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

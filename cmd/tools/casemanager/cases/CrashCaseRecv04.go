@@ -38,11 +38,19 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveAnnounceDisposedStateChange",
 	})
-
+	if cm.UseMatrix{
+		time.Sleep(time.Second*5)
+	}
 	// 3. 节点1向节点6转账45token
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N2.IsRunning() {
+			break
+		}
+	}
 	if N2.IsRunning() {
 		msg = "Node " + N2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)
@@ -78,6 +86,9 @@ func (cm *CaseManager) CrashCaseRecv04() (err error) {
 
 	// 6. 重启节点2
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix{
+		time.Sleep(time.Second*5)
+	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 查询重启后数据

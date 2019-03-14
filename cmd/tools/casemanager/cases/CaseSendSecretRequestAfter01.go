@@ -52,6 +52,12 @@ func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	go N1.SendTrans(tokenAddress, transAmount, N3.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N3.IsRunning() {
+			break
+		}
+	}
 	if N3.IsRunning() {
 		msg := "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

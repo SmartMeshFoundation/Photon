@@ -46,6 +46,12 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 	caseManager.HighMediumWaitSeconds = 300
 	caseManager.RunSlow = runSlow
 	caseManager.Cases = make(map[string]reflect.Value)
+	//
+	if useMatrix{
+		caseManager.LowWaitSeconds = 10+100
+		caseManager.MediumWaitSeconds = 50+160 //config for settle time
+		caseManager.HighMediumWaitSeconds = 300+100
+	}
 	// use reflect to load all cases
 	_, err = fmt.Println("load cases...")
 	vf := reflect.ValueOf(caseManager)
@@ -102,7 +108,7 @@ func (c *CaseManager) RunAll(skip string) {
 		_, err = fmt.Println(v)
 	}
 	_, err = fmt.Println("Pelease check log in ./log")
-	if errorMsg != "" {
+	if errorMsg != "" && skip != "true"{
 		panic(errorMsg)
 	}
 	_ = err

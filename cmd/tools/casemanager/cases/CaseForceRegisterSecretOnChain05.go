@@ -62,6 +62,12 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain05() (err error) {
 
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() && !N1.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should quit")
 	}
