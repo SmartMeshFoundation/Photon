@@ -7,6 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
+
 	"github.com/miekg/dns"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -284,7 +287,7 @@ func (c *client) query(params *QueryParam) error {
 			if inp == nil {
 				continue
 			}
-
+			log.Debug(fmt.Sprintf("query receive inp=%s", utils.StringInterface(inp, 3)))
 			// Check if this entry is complete
 			if inp.complete() {
 				if inp.sent {
