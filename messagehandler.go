@@ -666,13 +666,6 @@ func (mh *photonMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	return nil
 }
 func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleResponse) error {
-	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
-		// 失败的SettleResponse
-		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
-		return nil
-	}
 	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
@@ -696,6 +689,14 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	 */
 	if ch.State != channeltype.StateCooprativeSettle {
 		return fmt.Errorf("receive settle response but channel state is %s", ch.State)
+	}
+	// 错误的response处理放在通道状态校验之后,过滤掉不是自己发起的SettleRequest的response
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的SettleResponse
+		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
 	}
 	err := ch.RegisterCooperativeSettleResponse(msg)
 	if err != nil {
@@ -768,13 +769,6 @@ func (mh *photonMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	return nil
 }
 func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawResponse) error {
-	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
-		// 失败的SettleResponse
-		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
-		return nil
-	}
 	graph := mh.photon.getChannelGraph(msg.ChannelIdentifier)
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
 	if graph == nil {
@@ -786,6 +780,14 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	}
 	if ch.State != channeltype.StateWithdraw {
 		return fmt.Errorf("receive WithdrawResponse request but channel state is %s", ch.State)
+	}
+	// 错误的response处理放在通道状态校验之后,过滤掉不是自己发起的WithdrawRequest的response
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的WithdrawResponse
+		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
 	}
 	/*
 		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册
