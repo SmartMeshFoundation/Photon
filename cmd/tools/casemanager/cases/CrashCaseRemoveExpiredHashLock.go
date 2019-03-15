@@ -51,6 +51,12 @@ func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N1.IsRunning() {
+			break
+		}
+	}
 	if N1.IsRunning() {
 		msg = "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

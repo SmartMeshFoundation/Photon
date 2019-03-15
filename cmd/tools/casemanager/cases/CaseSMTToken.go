@@ -37,6 +37,9 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	// 启动节点1，2
 	// start node 2, 3
 	cm.startNodes(env, N1, N2)
+	if cm.UseMatrix{
+		time.Sleep(time.Second*5)
+	}
 	// 1. 打印N1,N2余额
 	showBalance(env, "begin", N1, N2)
 	// 2. N1创建通道
