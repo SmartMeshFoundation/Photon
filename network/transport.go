@@ -150,6 +150,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 			IP:   net.ParseIP(host),
 			Port: port,
 		},
+		name:                   name,
 		protocol:               protocol,
 		policy:                 policy,
 		log:                    log.New("name", name),
@@ -307,13 +308,20 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 
 //HandlePeerFound notification  from mdns
 func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
 	idFound := common.HexToAddress(id)
 	alreadyFound := false
 	// 清除过期数据,即标志下线
 	now := time.Now().Unix()
 	var idsToDelete []common.Address
 	for idTemp := range ut.intranetNodes {
-		if now-ut.intranetNodesTimestamp[idTemp] > params.DefaultMDNSKeepalive {
+		saveTime, ok := ut.intranetNodesTimestamp[idTemp]
+		if !ok {
+			// 不处理非自己发现的节点
+			continue
+		}
+		if now-saveTime > params.DefaultMDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
 		}
 		if idTemp == idFound {
@@ -326,9 +334,11 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
 	}
 	// 标志发现的节点
-	if !alreadyFound {
-		log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+	if id != ut.name {
+		if !alreadyFound {
+			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+		}
+		ut.intranetNodes[idFound] = addr
+		ut.intranetNodesTimestamp[idFound] = now
 	}
-	ut.intranetNodes[idFound] = addr
-	ut.intranetNodesTimestamp[idFound] = now
 }
