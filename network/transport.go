@@ -320,7 +320,12 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	now := time.Now().Unix()
 	var idsToDelete []common.Address
 	for idTemp := range ut.intranetNodes {
-		if now-ut.intranetNodesTimestamp[idTemp] > params.DefaultMDNSKeepalive {
+		saveTime, ok := ut.intranetNodesTimestamp[idTemp]
+		if !ok {
+			// 仅处理mdns发现的节点,其他方式放入map的节点不处理
+			continue
+		}
+		if now-saveTime > params.DefaultMDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
 		}
 		if idTemp == idFound {
