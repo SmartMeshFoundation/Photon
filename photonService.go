@@ -1637,6 +1637,9 @@ func (rs *Service) handleEthRPCConnectionOK() {
 	// 重连或启动时，刷新所有通道状态信息到pfs
 	for _, cg := range rs.Token2ChannelGraph {
 		for _, ch := range cg.ChannelIdentifier2Channel {
+			if ch.State != channeltype.StateOpened {
+				continue
+			}
 			rs.submitBalanceProofToPfs(ch)
 			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
 		}
