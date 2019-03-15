@@ -92,7 +92,7 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 // Start start a photon node
 func (node *PhotonNode) Start(env *TestEnv, otherarg ...bool) {
 	node.startInternal(env, otherarg...)
-	if env.UseMatrix{
+	if env.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}
 }
@@ -159,7 +159,7 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	removeParam(params, "--disable-fee")
 	removeParam(params, "--nonetwork")
 	// 添加casemanager自带的pfs
-	params = append(params, "--pfs=http://127.0.0.1:7000")
+	params = append(params, "--pfs=http://127.0.0.1:17000")
 	go ExecShell(env.Main, params, logfile, true)
 
 	count := 0
@@ -270,11 +270,11 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 		} else {
 			param = append(param, "--nonetwork")
 		}
-	}else{
+	} else {
 		param = append(param, "--matrix")
-		if time.Now().Nanosecond()%2==0{
+		if time.Now().Nanosecond()%2 == 0 {
 			param = append(param, "--matrix-server=transport01.smartmesh.cn")
-		}else {
+		} else {
 			param = append(param, "--matrix-server=transport13.smartmesh.cn")
 		}
 	}

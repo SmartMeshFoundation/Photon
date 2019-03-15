@@ -95,7 +95,7 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 	if err := validateFQDN(hostName); err != nil {
 		return nil, fmt.Errorf("hostName %q is not a fully-qualified domain name: %v", hostName, err)
 	}
-
+	ips = GetLocalIP()
 	if len(ips) == 0 {
 		var err error
 		ips, err = net.LookupIP(hostName)
@@ -110,11 +110,13 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 				var err2 error
 				ips, err2 = net.LookupIP(hostnameOrigin)
 				if err2 != nil {
-					return nil, fmt.Errorf("could not determine host IP addresses for %s", hostName)
+					//确保不因为mdns出错
+					ips = GetLocalIP()
 				}
 			}
 		}
 	}
+	fmt.Printf("ips=%+v\n", ips)
 	for _, ip := range ips {
 		if ip.To4() == nil && ip.To16() == nil {
 			return nil, fmt.Errorf("invalid IP address in IPs list: %v", ip)
@@ -133,6 +135,21 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 		instanceAddr: fmt.Sprintf("%s.%s.%s.", instance, trimDot(service), trimDot(domain)),
 		enumAddr:     fmt.Sprintf("_services._dns-sd._udp.%s.", trimDot(domain)),
 	}, nil
+}
+func GetLocalIP() (ips []net.IP) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				ips = append(ips, ipnet.IP)
+			}
+		}
+	}
+	return
 }
 
 // trimDot is used to trim the dots from the start or end of a string

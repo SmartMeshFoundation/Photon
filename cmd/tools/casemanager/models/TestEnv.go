@@ -24,6 +24,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenstandard"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -236,6 +237,14 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 				Token:        token,
 				TokenAddress: tokenAddress,
 			})
+		} else if addr == "newERC20" {
+			token, tokenAddress := deployERC20Token(env, conn, key)
+			Logger.Printf("New ERC20 =%s\n", tokenAddress.String())
+			tokens = append(tokens, &Token{
+				Name:         option,
+				Token:        token,
+				TokenAddress: tokenAddress,
+			})
 		} else {
 			env.UseOldToken = true
 			tokenAddress := common.HexToAddress(addr)
@@ -253,6 +262,33 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 	Logger.Println("Load Tokens SUCCESS")
 	return
 }
+
+func deployERC20Token(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
+	var err error
+	tokenAddress = newERC20Token(key, conn)
+	token, err = contracts.NewToken(tokenAddress, conn)
+	if err != nil {
+		panic(fmt.Sprintf("err for newtoken err %s", err))
+	}
+	am := accounts.NewAccountManager(env.KeystorePath)
+	var accounts []common.Address
+	for _, node := range env.Nodes {
+		address := common.HexToAddress(node.Address)
+		accounts = append(accounts, address)
+		keyBin, err := am.GetPrivateKey(address, globalPassword)
+		if err != nil {
+			Logger.Fatalf("password error for %s", address.String())
+		}
+		keyTemp, err := crypto.ToECDSA(keyBin)
+		if err != nil {
+			Logger.Fatalf("ToECDSA err %s", err)
+		}
+		env.Keys = append(env.Keys, keyTemp)
+	}
+	transferMoneyForAccounts(key, conn, accounts, token)
+	return
+}
+
 func deploySMTToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
 	var err error
 	auth := bind.NewKeyedTransactor(key)
@@ -299,6 +335,22 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey)
 	transferMoneyForAccounts(key, conn, accounts, token)
 	return
 }
+func newERC20Token(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.Address) {
+	auth := bind.NewKeyedTransactor(key)
+	tokenAddr, tx, _, err := tokenstandard.DeployHumanStandardToken(auth, conn, big.NewInt(500000000), "test symoble", 0)
+	if err != nil {
+		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
+	}
+	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
+	ctx := context.Background()
+	_, err = bind.WaitDeployed(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to deploy contact when mining :%v", err)
+	}
+	fmt.Printf("DeployHumanStandardToken complete... tokenAddress=%s\n", tokenAddr.String())
+	return
+}
+
 func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
 	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(500000000), "test symoble", 0)
@@ -559,7 +611,7 @@ func (env *TestEnv) StartPFS() {
 	var param []string
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
-	param = append(param, "--port=7000")
+	param = append(param, "--port=17000")
 	param = append(param, "--dbtype=sqlite3")
 	param = append(param, "--dbconnection=.pfsdb")
 	param = append(param, "--debug")
