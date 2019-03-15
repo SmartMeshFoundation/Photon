@@ -312,8 +312,8 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	if ut != nil {
 		return
 	}
-	ut.lock.RLock()
-	defer ut.lock.RUnlock()
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
 	idFound := common.HexToAddress(id)
 	alreadyFound := false
 	// 清除过期数据,即标志下线
