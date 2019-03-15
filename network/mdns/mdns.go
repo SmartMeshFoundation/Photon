@@ -20,7 +20,7 @@ func init() {
 var logger = log.New("pgk", "mdns")
 
 //ServiceTag 服务类型
-const ServiceTag = "_photon._udp"
+const ServiceTag = "_photon"
 
 //Service interface for mdns
 type Service interface {
@@ -49,7 +49,7 @@ func NewMdnsService(ctx context.Context, port int, myid string, interval time.Du
 	info := []string{myid}
 	ips := mdns.GetLocalIP()
 	log.Info(fmt.Sprintf("NewMDNSService ips=%s", ips))
-	service, err := mdns.NewMDNSService(myid, ServiceTag, "", "", port, nil, info)
+	service, err := mdns.NewMDNSService(myid, ServiceTag, "", "", port, ips, info)
 	if err != nil {
 		return nil, err
 	}

@@ -284,7 +284,6 @@ func (c *client) query(params *QueryParam) error {
 			if inp == nil {
 				continue
 			}
-
 			// Check if this entry is complete
 			if inp.complete() {
 				if inp.sent {
