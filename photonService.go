@@ -1814,6 +1814,9 @@ func (rs *Service) submitBalanceProofToPfsLoop() {
 			continue
 		}
 		for _, ch := range chs {
+			if ch.State != channeltype.StateOpened {
+				continue
+			}
 			tn, err2 := rs.Chain.TokenNetwork(ch.TokenAddress())
 			if err2 != nil {
 				log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop TokenNetwork err : %s", err2.Error()))
