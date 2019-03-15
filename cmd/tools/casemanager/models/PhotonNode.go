@@ -154,7 +154,7 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	removeParam(params, "--disable-fee")
 	removeParam(params, "--nonetwork")
 	// 添加casemanager自带的pfs
-	params = append(params, "--pfs=http://127.0.0.1:7000")
+	params = append(params, "--pfs=http://127.0.0.1:17000")
 	go ExecShell(env.Main, params, logfile, true)
 
 	count := 0

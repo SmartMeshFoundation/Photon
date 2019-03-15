@@ -611,7 +611,7 @@ func (env *TestEnv) StartPFS() {
 	var param []string
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
-	param = append(param, "--port=7000")
+	param = append(param, "--port=17000")
 	param = append(param, "--dbtype=sqlite3")
 	param = append(param, "--dbconnection=.pfsdb")
 	param = append(param, "--debug")
