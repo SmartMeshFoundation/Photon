@@ -57,16 +57,18 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 	}
 	// 6. 中间数据记录
 	models.Logger.Println("------------ Data After Crash ------------")
-	cd32middle := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
-	cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+	N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
+	//cd32middle := N3.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
+	//cd36middle := N3.GetChannelWith(N6, tokenAddress).PrintDataAfterCrash()
 	// 校验cd32, 2锁定45
-	if !cd32middle.CheckLockPartner(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
-	}
-	// 校验cd36，3锁定45
-	if !cd36middle.CheckLockSelf(transAmount) {
-		return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
-	}
+	//if !cd32middle.CheckLockPartner(transAmount) {
+	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd32middle.Name)
+	//}
+	//// 校验cd36，3锁定45
+	//if !cd36middle.CheckLockSelf(transAmount) {
+	//	return cm.caseFailWithWrongChannelData(env.CaseName, cd36middle.Name)
+	//}
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
