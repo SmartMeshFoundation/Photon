@@ -32,14 +32,14 @@ func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	cm.startNodes(env, N0, N1, N2)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 	}
 	// 获取channel信息
 	// get channel info
 	N0.GetChannelWith(N1, tokenAddress).Println("before transfer")
 	secret := utils.NewRandomHash()
 	secretHash := utils.ShaSecret(secret[:])
-	go N0.SendTransWithSecret(env.Tokens[0].TokenAddress.String(), 1, N2.Address, secret.String())
+	N0.SendTransWithSecret(env.Tokens[0].TokenAddress.String(), 1, N2.Address, secret.String())
 
 	time.Sleep(time.Second * 5)
 	log.Trace("allow reveal secret")
@@ -48,7 +48,7 @@ func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
 	N0.GetChannelWith(N1, tokenAddress).Println("after transfer")
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before next transfer")
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before next transfer")
-	go N0.SendTransWithSecret(tokenAddress, 1, N2.Address, secret.String())
+	N0.SendTransWithSecret(tokenAddress, 1, N2.Address, secret.String())
 	time.Sleep(time.Second * 3)
 	N0.AllowSecret(secretHash.String(), tokenAddress)
 	time.Sleep(time.Second * 3)
@@ -58,7 +58,11 @@ func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
 		不能发生崩溃
 		交易要么都失败,要么都成功.
 	*/
-	err = cm.tryInSeconds(cm.HighMediumWaitSeconds, func() error {
+	timeForTimeout := cm.HighMediumWaitSeconds
+	if cm.UseMatrix {
+		timeForTimeout = cm.HighMediumWaitSeconds + 300
+	}
+	err = cm.tryInSeconds(timeForTimeout, func() error {
 		if !N0.IsRunning() {
 			return fmt.Errorf("n0 should not crash")
 		}
