@@ -27,8 +27,13 @@ if [ $? -ne 0 ]; then
 fi
 cp photon $GOPATH/bin/
 
+# run deploygethmatrix.sh
+cd ../tools/deploygeth
+chmod +x ./deploygethmatrix.sh
+./deploygethmatrix.sh
+
 # build casemaneger
-cd ../tools/casemanager
+cd ../casemanager
 go build
 rm log/*
 
