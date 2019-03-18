@@ -39,13 +39,13 @@ func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	})
 	// 启动节点1,3,4
 	cm.startNodes(env, N1, N3, N4)
-	if cm.UseMatrix{
-		time.Sleep(time.Second * 5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
 	}
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	// 节点2向节点6转账20token
-	go N1.SendTrans(tokenAddress, transAmount, N4.Address, false)
+	N1.SendTrans(tokenAddress, transAmount, N4.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
@@ -63,7 +63,11 @@ func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	if !c32new.CheckLockPartner(transAmount) {
 		return fmt.Errorf("CheckLockPartner 2 err %s", err)
 	}
-	err = cm.tryInSeconds(cm.MediumWaitSeconds, func() error {
+	waitForTimeout := cm.MediumWaitSeconds
+	if cm.UseMatrix {
+		waitForTimeout = cm.MediumWaitSeconds + 250
+	}
+	err = cm.tryInSeconds(waitForTimeout, func() error {
 		models.Logger.Println("check...")
 		var c channeltype.ChannelDataDetail
 		c, err = N3.SpecifiedChannel(c32new.ChannelIdentifier)
@@ -87,6 +91,9 @@ func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	}
 	// 重启节点2，
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	err = cm.tryInSeconds(cm.MediumWaitSeconds, func() error {
 		models.Logger.Println("check...")
 		c32new = N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
