@@ -276,6 +276,10 @@ func (rs *Service) Start() (err error) {
 		这么做有可能因为接收到过多的消息,而阻塞接受线程,导致消息丢失.但是因为没有处理,对方一定会反复重新发送.
 	*/
 	rs.Protocol.StartReceive()
+	/*
+		启动定时提交balance_proof到pfs的线程
+	*/
+	go rs.submitBalanceProofToPfsLoop()
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -640,7 +644,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error) {
 	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s ", tokenAddress.String()))
 	var tokenNetwork *rpc.TokenNetworkProxy
-	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenAddress)
+	tokenNetwork, err = rs.Chain.TokenNetwork(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -1839,6 +1843,34 @@ func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (
 	return
 }
 
+func (rs *Service) submitBalanceProofToPfsLoop() {
+	log.Trace("submitBalanceProofToPfsLoop start...")
+	for {
+		time.Sleep(3 * time.Second)
+		chs, err := rs.dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+		if err != nil {
+			log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop GetChannelList err : %s", err.Error()))
+			continue
+		}
+		for _, ch := range chs {
+			if ch.State != channeltype.StateOpened {
+				continue
+			}
+			tn, err2 := rs.Chain.TokenNetwork(ch.TokenAddress())
+			if err2 != nil {
+				log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop TokenNetwork err : %s", err2.Error()))
+				continue
+			}
+			c, err2 := rs.channelSerilization2Channel(ch, tn)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop channelSerilization2Channel err : %s", err2.Error()))
+				continue
+			}
+			rs.submitBalanceProofToPfs(c)
+		}
+	}
+}
+
 func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 	if rs.PfsProxy == nil {
 		return
@@ -1856,7 +1888,7 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 		bpPartner.Signature,
 	)
 	if err != nil {
-		log.Error(fmt.Sprintf("updateBalanceProofToPfs err = %s", err.Error()))
+		log.Error(err.Error())
 	}
 }
 

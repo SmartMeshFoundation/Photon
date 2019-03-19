@@ -13,6 +13,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
@@ -164,5 +165,55 @@ func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
 		writejson(w, resp)
 	}()
 	result, err := API.SystemStatus()
+	resp = dto.NewAPIResponse(err, result)
+}
+
+// GetIncomeDetailsRequest :
+type GetIncomeDetailsRequest struct {
+	TokenAddress string `json:"token_address"`
+	FromTime     int64  `json:"from_time"`
+	ToTime       int64  `json:"to_time"`
+	Limit        int    `json:"limit"`
+}
+
+// GetIncomeDetails :
+func GetIncomeDetails(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetIncomeDetails ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	req := &GetIncomeDetailsRequest{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	tokenAddress := common.HexToAddress(req.TokenAddress)
+	result, err := API.GetIncomeDetails(tokenAddress, req.FromTime, req.ToTime, req.Limit)
+	resp = dto.NewAPIResponse(err, result)
+}
+
+// GetOneWeekIncomeRequest :
+type GetOneWeekIncomeRequest struct {
+	TokenAddress string `json:"token_address"`
+	Days         int    `json:"days"`
+}
+
+// GetDaysIncome :
+func GetDaysIncome(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetDaysIncome ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	req := &GetOneWeekIncomeRequest{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	tokenAddress := common.HexToAddress(req.TokenAddress)
+	result, err := API.GetDaysIncome(tokenAddress, req.Days)
 	resp = dto.NewAPIResponse(err, result)
 }

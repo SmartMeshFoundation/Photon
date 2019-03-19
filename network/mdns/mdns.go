@@ -2,6 +2,7 @@ package mdns
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -19,7 +20,7 @@ func init() {
 var logger = log.New("pgk", "mdns")
 
 //ServiceTag 服务类型
-const ServiceTag = "_photon._udp"
+const ServiceTag = "_photon"
 
 //Service interface for mdns
 type Service interface {
@@ -46,8 +47,9 @@ type mdnsService struct {
 func NewMdnsService(ctx context.Context, port int, myid string, interval time.Duration) (Service, error) {
 
 	info := []string{myid}
-
-	service, err := mdns.NewMDNSService(myid, ServiceTag, "", "", port, nil, info)
+	ips := mdns.GetLocalIP()
+	log.Info(fmt.Sprintf("NewMDNSService ips=%s", ips))
+	service, err := mdns.NewMDNSService(myid, ServiceTag, "", "", port, ips, info)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +93,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 			Domain:  "local",
 			Entries: entriesCh,
 			Service: ServiceTag,
-			Timeout: m.interval,
+			Timeout: m.interval * 5,
 		}
 
 		err := mdns.Query(qp)
@@ -99,7 +101,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 			log.Error("mdns lookup error: ", err)
 		}
 		close(entriesCh)
-		//log.Debug("mdns query complete")
+		log.Debug("mdns query complete")
 
 		select {
 		case <-ticker.C:
@@ -112,7 +114,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 }
 
 func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
-	//log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
+	log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
 
 	//if e.Info == m.myid {
 	//	//log.Debug("got our own mdns entry, skipping")

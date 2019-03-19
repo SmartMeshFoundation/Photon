@@ -8,6 +8,8 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/asdine/storm"
+	"github.com/asdine/storm/q"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -32,13 +34,26 @@ func (model *StormDB) SaveFeeChargeRecord(r *models.FeeChargeRecord) (err error)
 }
 
 // GetAllFeeChargeRecord :
-func (model *StormDB) GetAllFeeChargeRecord() (records []*models.FeeChargeRecord, err error) {
+func (model *StormDB) GetAllFeeChargeRecord(tokenAddress common.Address, fromTime, toTime int64) (records []*models.FeeChargeRecord, err error) {
+	var selectList []q.Matcher
+	if tokenAddress != utils.EmptyAddress {
+		selectList = append(selectList, q.Eq("TokenAddress", tokenAddress[:]))
+	}
+	if fromTime > 0 {
+		selectList = append(selectList, q.Gte("Timestamp", fromTime))
+	}
+	if toTime > 0 {
+		selectList = append(selectList, q.Lt("Timestamp", toTime))
+	}
 	var rs []*models.FeeChargerRecordSerialization
-	err = model.db.All(&rs)
-	if err != nil {
-		err = fmt.Errorf("GetAllFeeChargeRecord err %s", err)
-		err = models.GeneratDBError(err)
-		return
+	if len(selectList) == 0 {
+		err = model.db.All(&rs)
+	} else {
+		q := model.db.Select(selectList...)
+		err = q.Find(&rs)
+	}
+	if err == storm.ErrNotFound {
+		err = nil
 	}
 	for _, r := range rs {
 		records = append(records, r.ToFeeChargeRecord())

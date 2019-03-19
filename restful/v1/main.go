@@ -112,6 +112,12 @@ func Start() {
 		rest.Get("/api/1/fee", GetAllFeeChargeRecord),
 
 		/*
+			income
+		*/
+		rest.Post("/api/1/income/details", GetIncomeDetails),
+		rest.Post("/api/1/income/days", GetDaysIncome),
+
+		/*
 			test
 		*/
 		rest.Get("/api/1/stop", Stop),

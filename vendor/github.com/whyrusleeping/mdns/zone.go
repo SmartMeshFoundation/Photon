@@ -95,7 +95,6 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 	if err := validateFQDN(hostName); err != nil {
 		return nil, fmt.Errorf("hostName %q is not a fully-qualified domain name: %v", hostName, err)
 	}
-	ips = GetLocalIP()
 	if len(ips) == 0 {
 		var err error
 		ips, err = net.LookupIP(hostName)
@@ -122,7 +121,6 @@ func NewMDNSService(instance, service, domain, hostName string, port int, ips []
 			return nil, fmt.Errorf("invalid IP address in IPs list: %v", ip)
 		}
 	}
-
 	return &MDNSService{
 		Instance:     instance,
 		Service:      service,
