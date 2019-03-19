@@ -100,6 +100,9 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		for _, canceledRoute := range state.Routes.CanceledRoutes {
 			transferFailed.Reason = fmt.Sprintf("%s,%s", transferFailed.Reason, canceledRoute.Reason)
 		}
+		if transferFailed.Reason == "" {
+			transferFailed.Reason = "no route available"
+		}
 		events := []transfer.Event{transferFailed}
 		removeManager := &mt.EventRemoveStateManager{
 			Key: utils.Sha3(state.LockSecretHash[:], state.Transfer.Token[:]),
