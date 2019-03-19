@@ -573,6 +573,7 @@ func eventsForRevealSecret(transfersPair []*mediatedtransfer.MediationPairState,
 				OutChannel:     pair.PayeeRoute.ChannelIdentifier,
 				Fee:            new(big.Int).Sub(pair.PayerTransfer.Fee, pair.PayeeTransfer.Fee),
 				Timestamp:      time.Now().Unix(),
+				BlockNumber:    blockNumber,
 			})
 		}
 	}

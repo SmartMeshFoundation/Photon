@@ -55,7 +55,7 @@ func (model *StormDB) GetReceivedTransfer(key string) (*models.ReceivedTransfer,
 }
 
 //GetReceivedTransferList returns the received transfer between from and to blocks
-func (model *StormDB) GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock int64) (transfers []*models.ReceivedTransfer, err error) {
+func (model *StormDB) GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock, fromTime, toTime int64) (transfers []*models.ReceivedTransfer, err error) {
 	var selectList []q.Matcher
 	if tokenAddress != utils.EmptyAddress {
 		selectList = append(selectList, q.Eq("TokenAddressBytes", tokenAddress[:]))
@@ -65,6 +65,12 @@ func (model *StormDB) GetReceivedTransferList(tokenAddress common.Address, fromB
 	}
 	if toBlock > 0 {
 		selectList = append(selectList, q.Lt("BlockNumber", toBlock))
+	}
+	if fromTime > 0 {
+		selectList = append(selectList, q.Gte("TimeStamp", fromTime))
+	}
+	if toTime > 0 {
+		selectList = append(selectList, q.Lt("TimeStamp", toTime))
 	}
 	if len(selectList) == 0 {
 		err = model.db.All(&transfers)

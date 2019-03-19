@@ -33,20 +33,20 @@ func TestModelDB_NewReceivedTransfer(t *testing.T) {
 	dao.NewReceivedTransfer(3, caddr, openBlockNumber, taddr, taddr, 4, big.NewInt(10), lockSecertHash, "123")
 	dao.NewReceivedTransfer(5, caddr, openBlockNumber, taddr, taddr, 6, big.NewInt(10), lockSecertHash, "123")
 
-	trs, err := dao.GetReceivedTransferList(utils.EmptyAddress, 0, 3)
+	trs, err := dao.GetReceivedTransferList(utils.EmptyAddress, 0, 3, -1, -1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, len(trs), 1)
-	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 5)
+	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 5, -1, -1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assert.EqualValues(t, len(trs), 2)
 
-	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 1)
+	trs, err = dao.GetReceivedTransferList(utils.EmptyAddress, 0, 1, -1, -1)
 	if err != nil {
 		t.Error(err)
 		return

@@ -128,6 +128,7 @@ type TransferPayload struct {
 	Secret    string                      `json:"secret"`
 	Sync      bool                        `json:"sync"`
 	RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
+	Data      string                      `json:"data"`
 }
 
 // Transfer send a transfer
@@ -203,6 +204,7 @@ func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, 
 		Fee:      fee,
 		IsDirect: isDirect,
 		Sync:     true,
+		Data:     "test",
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
