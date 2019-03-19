@@ -162,6 +162,7 @@ func (node *PhotonNode) SendTransWithRouteInfo(target *PhotonNode, tokenAddress 
 		IsDirect:  false,
 		Sync:      true,
 		RouteInfo: routeInfo,
+		Data:      "test",
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + target.Address,
