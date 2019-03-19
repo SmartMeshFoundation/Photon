@@ -333,7 +333,7 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		delete(ut.intranetNodesTimestamp, idToDelete)
 		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
 	}
-	// 标志发现的节点
+	// 标记发现的除自己以外的节点
 	if id != ut.name {
 		if !alreadyFound {
 			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))

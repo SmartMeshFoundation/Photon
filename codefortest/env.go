@@ -12,7 +12,6 @@ import (
 
 	accountModule "github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/models/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
@@ -130,18 +129,18 @@ func NewTestDB(dbPath string) (dao models.Dao) {
 		}
 	}
 	var err error
-	if os.Getenv("PHOTON_DB") == "gkv" {
-		fmt.Println("use gkv db")
-		dao, err = gkvdb.OpenDb(dbPath)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		fmt.Println("use storm db")
-		dao, err = stormdb.OpenDb(dbPath)
-		if err != nil {
-			panic(err)
-		}
+	//if os.Getenv("PHOTON_DB") == "gkv" {
+	//	fmt.Println("use gkv db")
+	//	dao, err = gkvdb.OpenDb(dbPath)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//} else {
+	fmt.Println("use storm db")
+	dao, err = stormdb.OpenDb(dbPath)
+	if err != nil {
+		panic(err)
 	}
+	//}
 	return
 }

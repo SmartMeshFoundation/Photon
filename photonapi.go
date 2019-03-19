@@ -17,6 +17,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 
+	"sort"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -652,8 +654,8 @@ func (r *API) GetSentTransferDetails(tokenAddress common.Address, from, to int64
 /*
 GetReceivedTransfers query received transfers from dao
 */
-func (r *API) GetReceivedTransfers(tokenAddress common.Address, from, to int64) ([]*models.ReceivedTransfer, error) {
-	return r.Photon.dao.GetReceivedTransferList(tokenAddress, from, to)
+func (r *API) GetReceivedTransfers(tokenAddress common.Address, fromBlock, toBlock, fromTime, toTime int64) ([]*models.ReceivedTransfer, error) {
+	return r.Photon.dao.GetReceivedTransferList(tokenAddress, fromBlock, toBlock, fromTime, toTime)
 }
 
 //Stop stop for mobile app
@@ -1017,7 +1019,7 @@ func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	}
 	var data responce
 
-	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord()
+	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1104,7 +1106,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	if err != nil {
 		return
 	}
-	rts, err := r.GetReceivedTransfers(utils.EmptyAddress, -1, -1)
+	rts, err := r.GetReceivedTransfers(utils.EmptyAddress, -1, -1, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1177,5 +1179,130 @@ func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*model
 		txStatus = req.TXStatus
 	}
 	list, err = r.Photon.dao.GetTXInfoList(channelIdentifier, openBlockNumber, tokenAddress, txType, txStatus)
+	return
+}
+
+// 手续类型常量
+const incomeTypeTransfer = "0" // 转账收益
+const incomeTypeFee = "1"      // 手续费收益
+
+// IncomeDetail 收益接口返回的收益明细信息
+type IncomeDetail struct {
+	Amount    *big.Int `json:"amount"`
+	Data      string   `json:"data"`
+	Type      string   `json:"type"` // 0=转账收益 1-手续费收益
+	TimeStamp int64    `json:"time_stamp"`
+}
+
+type incomeDetailSorter []*IncomeDetail
+
+func (s incomeDetailSorter) Len() int {
+	return len(s)
+}
+
+func (s incomeDetailSorter) Less(i, j int) bool {
+	return s[i].TimeStamp < s[j].TimeStamp
+}
+func (s incomeDetailSorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// GetIncomeDetails 收益明细查询接口,这里的收益包含手续费收益和收到的data不为""的交易
+func (r *API) GetIncomeDetails(tokenAddress common.Address, fromTime, toTime int64, limit int) (list []*IncomeDetail, err error) {
+	receivedTransfers, err := r.Photon.dao.GetReceivedTransferList(tokenAddress, -1, -1, fromTime, toTime)
+	if err != nil {
+		return
+	}
+	feeRecords, err := r.Photon.dao.GetAllFeeChargeRecord(tokenAddress, fromTime, toTime)
+	if err != nil {
+		return
+	}
+	for _, rt := range receivedTransfers {
+		if rt.Data == "" {
+			// 过滤data为""的
+			continue
+		}
+		list = append(list, &IncomeDetail{
+			Amount:    rt.Amount,
+			Data:      rt.Data,
+			Type:      incomeTypeTransfer,
+			TimeStamp: rt.TimeStamp,
+		})
+	}
+	for _, f := range feeRecords {
+		list = append(list, &IncomeDetail{
+			Amount:    f.Fee,
+			Data:      f.Data,
+			Type:      incomeTypeFee,
+			TimeStamp: f.Timestamp,
+		})
+	}
+	// 排序,并裁剪至limit
+	sort.Stable(incomeDetailSorter(list))
+	if limit > 0 && len(list) > limit {
+		list = list[:limit]
+	}
+	return
+}
+
+// OneDayIncome 一天的收益统计
+type OneDayIncome struct {
+	Amount    *big.Int `json:"amount"`
+	TimeStamp int64    `json:"time_stamp"`
+}
+
+// DaysIncome 一周的收益统计
+type DaysIncome struct {
+	TokenAddress common.Address  `json:"token_address"`
+	TotalAmount  *big.Int        `json:"total_amount"`
+	Days         int             `json:"days"`
+	Details      []*OneDayIncome `json:"details"`
+}
+
+// GetDaysIncome 获取过去n天的收益统计
+func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp *DaysIncome, err error) {
+	if n <= 0 {
+		// 默认7天
+		n = 7
+	}
+	now := time.Now()
+	t := now.AddDate(0, 0, 0-n)
+	fromTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	toTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	incomeDetailList, err := r.GetIncomeDetails(tokenAddress, fromTime.Unix(), toTime.Unix(), -1)
+	if err != nil {
+		return
+	}
+	resp = &DaysIncome{
+		TokenAddress: tokenAddress,
+		TotalAmount:  big.NewInt(0),
+		Days:         n,
+	}
+	if len(incomeDetailList) == 0 {
+		return
+	}
+	var nowDay *OneDayIncome
+	for _, incomeDetail := range incomeDetailList {
+		resp.TotalAmount = resp.TotalAmount.Add(resp.TotalAmount, incomeDetail.Amount)
+		if nowDay == nil {
+			t := time.Unix(incomeDetail.TimeStamp, 0)
+			nowDay = &OneDayIncome{
+				Amount:    incomeDetail.Amount,
+				TimeStamp: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix(),
+			}
+		} else {
+			if incomeDetail.TimeStamp-nowDay.TimeStamp >= 24*3600 {
+				resp.Details = append(resp.Details, nowDay)
+				t := time.Unix(incomeDetail.TimeStamp, 0)
+				nowDay = &OneDayIncome{
+					Amount:    incomeDetail.Amount,
+					TimeStamp: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix(),
+				}
+			} else {
+				nowDay.Amount = nowDay.Amount.Add(nowDay.Amount, incomeDetail.Amount)
+			}
+		}
+	}
 	return
 }

@@ -60,10 +60,9 @@ type BlockChainService struct {
 	tokenNetworkAddress common.Address
 	SecretRegistryProxy *SecretRegistryProxy
 	//Client if eth rpc client
-	Client          *helper.SafeEthClient
-	addressTokens   map[common.Address]*TokenProxy
-	addressChannels map[common.Address]*TokenNetworkProxy
-	RegistryProxy   *RegistryProxy
+	Client        *helper.SafeEthClient
+	addressTokens map[common.Address]*TokenProxy
+	RegistryProxy *RegistryProxy
 	//Auth needs by call on blockchain todo remove this
 	Auth  *bind.TransactOpts
 	mlock sync.Mutex
@@ -81,7 +80,6 @@ func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.A
 		NodeAddress:         crypto.PubkeyToAddress(privateKey.PublicKey),
 		Client:              client,
 		addressTokens:       make(map[common.Address]*TokenProxy),
-		addressChannels:     make(map[common.Address]*TokenNetworkProxy),
 		Auth:                bind.NewKeyedTransactor(privateKey),
 		tokenNetworkAddress: registryAddress,
 		NotifyHandler:       notifyHandler,
@@ -123,24 +121,7 @@ func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy,
 
 //TokenNetwork return a proxy to interact with a NettingChannelContract.
 func (bcs *BlockChainService) TokenNetwork(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
-	bcs.mlock.Lock()
-	defer bcs.mlock.Unlock()
-	_, ok := bcs.addressChannels[tokenAddress]
-	if !ok {
-		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
-	}
-	return bcs.addressChannels[tokenAddress], nil
-}
-
-//TokenNetworkWithoutCheck return a proxy to interact with a NettingChannelContract,don't check this address is valid or not
-func (bcs *BlockChainService) TokenNetworkWithoutCheck(tokenAddress common.Address) (t *TokenNetworkProxy, err error) {
-	bcs.mlock.Lock()
-	defer bcs.mlock.Unlock()
-	_, ok := bcs.addressChannels[tokenAddress]
-	if !ok {
-		bcs.addressChannels[tokenAddress] = &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}
-	}
-	return bcs.addressChannels[tokenAddress], nil
+	return &TokenNetworkProxy{bcs.RegistryProxy, bcs, tokenAddress}, nil
 }
 
 // Registry Return a proxy to interact with Registry.
@@ -191,6 +172,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		}
 	}
 	bcs.RegistryProxy = r
+	log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
 	return bcs.RegistryProxy, nil
 }
 
@@ -296,6 +278,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 			log.Error(err.Error())
 			break
 		}
+		//log.Info(fmt.Sprintf("RegistryProxy proxy=%s", utils.StringInterface(proxy, 5)))
 		tx, err := proxy.GetContract().Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
 		if err != nil {
 			log.Error(err.Error())

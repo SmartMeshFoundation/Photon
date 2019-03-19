@@ -402,6 +402,8 @@ func (eh *stateMachineEventHandler) eventSaveFeeChargeRecord(e *mediatedtransfer
 		OutChannel:     e.OutChannel,
 		Fee:            e.Fee,
 		Timestamp:      e.Timestamp,
+		Data:           e.Data,
+		BlockNumber:    e.BlockNumber,
 	}
 	return eh.photon.dao.SaveFeeChargeRecord(r)
 }
