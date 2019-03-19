@@ -735,7 +735,7 @@ func (a *API) GetReceivedTransfers(tokenAddressStr string, from, to int64) (resu
 	if tokenAddressStr != "" {
 		tokenAddress = common.HexToAddress(tokenAddressStr)
 	}
-	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to)
+	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to, -1, -1)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)

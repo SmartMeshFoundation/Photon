@@ -14,14 +14,16 @@ import (
 type FeeChargerRecordSerialization struct {
 	Key            []byte `storm:"id"`
 	LockSecretHash []byte `storm:"index"`
-	TokenAddress   []byte
+	TokenAddress   []byte `storm:"index"`
 	TransferFrom   []byte
 	TransferTo     []byte
 	TransferAmount *big.Int
 	InChannel      []byte
 	OutChannel     []byte
 	Fee            *big.Int
-	Timestamp      int64
+	Timestamp      int64 `storm:"index"`
+	Data           string
+	BlockNumber    int64 `storm:"index"`
 }
 
 // ToFeeChargeRecord :
@@ -37,6 +39,8 @@ func (rs *FeeChargerRecordSerialization) ToFeeChargeRecord() *FeeChargeRecord {
 		OutChannel:     common.BytesToHash(rs.OutChannel),
 		Fee:            rs.Fee,
 		Timestamp:      rs.Timestamp,
+		Data:           rs.Data,
+		BlockNumber:    rs.BlockNumber,
 	}
 }
 
@@ -53,6 +57,8 @@ type FeeChargeRecord struct {
 	OutChannel     common.Hash    `json:"out_channel"` // 我付款的channelID
 	Fee            *big.Int       `json:"fee"`
 	Timestamp      int64          `json:"timestamp"` // 时间戳,time.Unix()
+	Data           string         `json:"data"`
+	BlockNumber    int64          `json:"block_number"`
 }
 
 // ToString :
@@ -77,6 +83,8 @@ func (r *FeeChargeRecord) ToSerialized() *FeeChargerRecordSerialization {
 		OutChannel:     r.OutChannel[:],
 		Fee:            r.Fee,
 		Timestamp:      r.Timestamp,
+		Data:           r.Data,
+		BlockNumber:    r.BlockNumber,
 	}
 }
 

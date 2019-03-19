@@ -21,7 +21,7 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 		LockSecretHash: lockSecretHash1,
 	}
 
-	all, err := dao.GetAllFeeChargeRecord()
+	all, err := dao.GetAllFeeChargeRecord(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		t.Errorf(err.Error())
 		return
@@ -32,7 +32,7 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 		t.Errorf(err.Error())
 		return
 	}
-	all, err = dao.GetAllFeeChargeRecord()
+	all, err = dao.GetAllFeeChargeRecord(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		t.Errorf(err.Error())
 		return
@@ -54,7 +54,7 @@ func TestModelDB_FeeChargeRecord(t *testing.T) {
 		t.Errorf(err.Error())
 		return
 	}
-	all, err = dao.GetAllFeeChargeRecord()
+	all, err = dao.GetAllFeeChargeRecord(utils.EmptyAddress, -1, -1)
 	fmt.Println(len(all))
 	if err != nil {
 		t.Errorf(err.Error())

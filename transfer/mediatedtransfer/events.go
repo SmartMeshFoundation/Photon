@@ -227,6 +227,8 @@ type EventSaveFeeChargeRecord struct {
 	OutChannel     common.Hash    `json:"out_channel"` // 我付款的channelID
 	Fee            *big.Int       `json:"fee"`
 	Timestamp      int64          `json:"timestamp"` // 时间戳,time.Unix()
+	Data           string         `json:"data"`
+	BlockNumber    int64          `json:"block_number"`
 }
 
 func init() {
