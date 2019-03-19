@@ -55,6 +55,14 @@ type protocolMessage struct {
 	Message  encoding.Messager
 }
 
+// BuildInfo 保存构建信息
+type BuildInfo struct {
+	GoVersion string `json:"go_version"`
+	GitCommit string `json:"git_commit"`
+	BuildDate string `json:"build_date"`
+	Version   string `json:"version"`
+}
+
 //SecretRequestPredictor return true to ignore this message,otherwise continue to process
 type SecretRequestPredictor func(msg *encoding.SecretRequest) (ignore bool)
 
@@ -129,6 +137,7 @@ type Service struct {
 	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
+	BuildInfo                             *BuildInfo
 }
 
 //NewPhotonService create photon service
@@ -161,6 +170,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		StopCreateNewTransfers:                false,
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
+		BuildInfo:                             new(BuildInfo),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newPhotonMessageHandler(rs)
@@ -746,8 +756,12 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		return
 	}
 	directChannel := g.GetPartenerAddress2Channel(target)
-	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
+	if directChannel == nil || !directChannel.CanTransfer() {
 		result.Result <- rerr.ErrChannelNotFound.Append("no available direct channel")
+		return
+	}
+	if directChannel.Distributable().Cmp(amount) < 0 {
+		result.Result <- rerr.ErrChannelNoEnoughBalance
 		return
 	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
@@ -2106,6 +2120,14 @@ func (rs *Service) registerSecretToStateManagerFromUser(req *registerSecretReq) 
 func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.AsyncResult) {
 	secret := req.Secret
 	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
+}
+
+// SetBuildInfo 启动时保存构建信息
+func (rs *Service) SetBuildInfo(goVersion, gitCommit, buildDate, version string) {
+	rs.BuildInfo.GoVersion = goVersion
+	rs.BuildInfo.GitCommit = gitCommit
+	rs.BuildInfo.BuildDate = buildDate
+	rs.BuildInfo.Version = version
 }
 
 ////NotifyTransferStatusChange notify status change of a sending transfer

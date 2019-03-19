@@ -325,6 +325,8 @@ func mainCtx(ctx *cli.Context) (err error) {
 		transport.Stop()
 		return
 	}
+	// 保存构建信息
+	service.SetBuildInfo(GoVersion, GitCommit, BuildDate, Version)
 	err = service.Start()
 	if err != nil {
 		log.Error(fmt.Sprintf("photon service start error %s", err))

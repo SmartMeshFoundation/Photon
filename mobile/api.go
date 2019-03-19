@@ -1027,3 +1027,8 @@ func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber i
 	}
 	return dto.NewSuccessMobileResponse(list)
 }
+
+// Version 获取版本信息
+func (a *API) Version() string {
+	return dto.NewSuccessMobileResponse(a.api.GetBuildInfo())
+}

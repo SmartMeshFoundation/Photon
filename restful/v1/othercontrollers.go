@@ -217,3 +217,13 @@ func GetDaysIncome(w rest.ResponseWriter, r *rest.Request) {
 	result, err := API.GetDaysIncome(tokenAddress, req.Days)
 	resp = dto.NewAPIResponse(err, result)
 }
+
+//GetBuildInfo :
+func GetBuildInfo(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetBuildInfo ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	resp = dto.NewSuccessAPIResponse(API.GetBuildInfo())
+}

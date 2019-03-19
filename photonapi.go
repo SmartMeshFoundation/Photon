@@ -1306,3 +1306,8 @@ func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp *DaysIncom
 	}
 	return
 }
+
+// GetBuildInfo 获取当前版本信息
+func (r *API) GetBuildInfo() *BuildInfo {
+	return r.Photon.BuildInfo
+}
