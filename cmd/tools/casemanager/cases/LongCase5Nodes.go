@@ -6,6 +6,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
@@ -234,6 +235,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	N1.Shutdown(env)
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 7)
+	} else {
+		// 等待mdns检测下线
+		time.Sleep(time.Second * time.Duration(params.DefaultMDNSKeepalive))
 	}
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
