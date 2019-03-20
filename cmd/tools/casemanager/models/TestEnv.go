@@ -27,12 +27,16 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenstandard"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
+	"math"
+	"time"
 )
 
 // TestEnv env manager for test
@@ -56,6 +60,7 @@ type TestEnv struct {
 	Keys                []*ecdsa.PrivateKey `json:"-"`
 	UseOldToken         bool
 	PFSMain             string // pfs可执行文件全路径
+	UseNewAccount       bool
 }
 
 // Logger : global case logger
@@ -112,10 +117,32 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	}
 	env.Conn = conn
 	_, key := promptAccount(env.KeystorePath)
+	env.Nodes = loadNodes(c)
+	//必须先调用转账
+	{ //create new account for test every time
+		Logger.Println("transfer eth..")
+		env.UseNewAccount = c.RdBool("NEWACCOUNT", "debug", false)
+		if env.UseNewAccount {
+			countList, err := CreateTmpKeyStore(len(env.Nodes))
+			if err != nil {
+				Logger.Fatalf(fmt.Sprintf("create random-new node account failed,err = %s", err))
+			}
+			for i := 0; i < len(env.Nodes); i++ {
+				env.Nodes[i].Address = countList[i]
+			}
+			env.KeystorePath = TmpKeyStoreDir
+			var newAccountAddress []common.Address
+			for i := 0; i < len(env.Nodes); i++ {
+				newAccountAddress = append(newAccountAddress, common.HexToAddress(env.Nodes[i].Address))
+			}
+			transferMoneyForNewAccounts(key, conn, newAccountAddress)
+		}
+		Logger.Println("transfer eth complete")
+	}
+
 	tokenNetworkAddress, tokenNetwork := loadTokenNetworkContract(c, conn, key)
 	env.TokenNetwork = tokenNetwork
 	env.TokenNetworkAddress = tokenNetworkAddress.String()
-	env.Nodes = loadNodes(c)
 	env.Tokens = loadTokenAddrs(c, env, conn, key)
 	env.Channels = loadAndBuildChannels(c, env, conn)
 	env.KillAllPhotonNodes()
@@ -123,6 +150,100 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.Println(env.CaseName + " env:")
 	Logger.Println("Env Prepare SUCCESS")
 	return
+}
+
+//TmpKeyStoreDir :
+var TmpKeyStoreDir = "../../../testdata/casemanager-keystore-tmp"
+
+// CreateTmpKeyStore :
+func CreateTmpKeyStore(accountCount int) ([]string, error) {
+	if utils.Exists(TmpKeyStoreDir) {
+		os.RemoveAll(TmpKeyStoreDir)
+	}
+	time.Sleep(time.Millisecond * 20)
+	if !utils.Exists(TmpKeyStoreDir) {
+		err := os.MkdirAll(TmpKeyStoreDir, os.ModePerm)
+		if err != nil {
+			return nil, fmt.Errorf("tmpKeyStoreDir:%s doesn't exist and cannot create %v", TmpKeyStoreDir, err)
+		}
+	}
+	passphrase := "123"
+	var countList []string
+	for i := 0; i < accountCount; i++ {
+		ks := keystore.NewKeyStore(TmpKeyStoreDir, keystore.StandardScryptN, keystore.LightScryptP)
+		defer ks.Close()
+		account, err := ks.NewAccount(passphrase)
+		if err != nil {
+			return nil, fmt.Errorf("NewAccount error,err=%s", err)
+		}
+		countList = append(countList, account.Address.Hex())
+		log.Println(fmt.Sprintf("Create temp eth account %s", account.Address.Hex()))
+	}
+	return countList, nil
+}
+
+func getAmount(x *big.Int) *big.Int {
+	y := new(big.Int)
+	y = y.Mul(x, big.NewInt(int64(math.Pow10(-0))))
+	return y
+}
+
+// transfer10ToAccount : impl chain.Chain
+func transferToAccount(conn *ethclient.Client, key *ecdsa.PrivateKey, accountTo common.Address, amount *big.Int, nonce uint64) (err error) {
+	if amount == nil || amount.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+	ctx := context.Background()
+	auth := bind.NewKeyedTransactor(key)
+	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
+	/*nonce, err = conn.NonceAt(ctx, fromAddr, nil)
+	if err != nil {
+		return err
+	}*/
+	//nonce
+	msg := ethereum.CallMsg{From: fromAddr, To: &accountTo, Value: amount, Data: nil}
+	gasLimit, err := conn.EstimateGas(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("failed to estimate gas needed: %v", err)
+	}
+	gasPrice, err := conn.SuggestGasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to suggest gas price: %v", err)
+	}
+	chainID, err := conn.NetworkID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get networkID : %v", err)
+	}
+	rawTx := types.NewTransaction(nonce, accountTo, amount, gasLimit, getAmount(gasPrice), nil)
+	signedTx, err := auth.Signer(types.NewEIP155Signer(chainID), auth.From, rawTx)
+	if err != nil {
+		return err
+	}
+	if err = conn.SendTransaction(ctx, signedTx); err != nil {
+		return fmt.Errorf("conn.SendTransaction : %v,nonce=%v,accountTo=%s,amount=%s,gasLimit=%v,gasPrice=%s", err, nonce, accountTo.Hex(), amount.String(), gasLimit, getAmount(gasPrice).String())
+	}
+	_, err = bind.WaitMined(ctx, conn, signedTx)
+	return
+}
+
+//
+func transferMoneyForNewAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(accounts))
+	nonce, err := conn.PendingNonceAt(context.Background(), crypto.PubkeyToAddress(key.PublicKey))
+	if err != nil {
+		log.Fatalf("get old nonce failed err: %s", err)
+	}
+	for index, account := range accounts {
+		go func(account2 common.Address, i int) {
+			err := transferToAccount(conn, key, account2, big.NewInt(50000000000000000), nonce+uint64(i))
+			if err != nil {
+				log.Fatalf("Failed to Transfer: %s", err)
+			}
+			wg.Done()
+		}(account, index)
+	}
+	wg.Wait()
 }
 
 func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (tokenNetworkAddress common.Address, tokenNetwork *contracts.TokensNetwork) {
