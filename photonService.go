@@ -138,6 +138,7 @@ type Service struct {
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
+	ChanSubmitBalanceProofToPFS           chan *channel.Channel
 }
 
 //NewPhotonService create photon service
@@ -171,6 +172,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 		BuildInfo:                             new(BuildInfo),
+		ChanSubmitBalanceProofToPFS:           make(chan *channel.Channel, 100),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newPhotonMessageHandler(rs)
@@ -1860,50 +1862,77 @@ func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (
 func (rs *Service) submitBalanceProofToPfsLoop() {
 	log.Trace("submitBalanceProofToPfsLoop start...")
 	for {
-		time.Sleep(3 * time.Second)
-		chs, err := rs.dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
-		if err != nil {
-			log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop GetChannelList err : %s", err.Error()))
-			continue
+		if rs.PfsProxy == nil {
+			log.Trace("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
+			return
 		}
-		for _, ch := range chs {
-			if ch.State != channeltype.StateOpened {
-				continue
+		ch, ok := <-rs.ChanSubmitBalanceProofToPFS
+		if !ok {
+			log.Trace("submitBalanceProofToPfsLoop stop because chan close")
+			return
+		}
+		bpPartner := ch.PartnerState.BalanceProofState
+		err := rs.PfsProxy.SubmitBalance(
+			bpPartner.Nonce,
+			bpPartner.TransferAmount,
+			ch.Outstanding(),
+			ch.ChannelIdentifier.OpenBlockNumber,
+			bpPartner.LocksRoot,
+			ch.ChannelIdentifier.ChannelIdentifier,
+			bpPartner.MessageHash,
+			ch.PartnerState.Address,
+			bpPartner.Signature,
+		)
+		if err == pfsproxy.ErrConnect {
+			log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
+			// 网络错误,重发3次
+			for i := 0; i < 3; i++ {
+				err = rs.PfsProxy.SubmitBalance(
+					bpPartner.Nonce,
+					bpPartner.TransferAmount,
+					ch.Outstanding(),
+					ch.ChannelIdentifier.OpenBlockNumber,
+					bpPartner.LocksRoot,
+					ch.ChannelIdentifier.ChannelIdentifier,
+					bpPartner.MessageHash,
+					ch.PartnerState.Address,
+					bpPartner.Signature,
+				)
+				if err == pfsproxy.ErrConnect {
+					continue
+				}
 			}
-			tn, err2 := rs.Chain.TokenNetwork(ch.TokenAddress())
-			if err2 != nil {
-				log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop TokenNetwork err : %s", err2.Error()))
-				continue
-			}
-			c, err2 := rs.channelSerilization2Channel(ch, tn)
-			if err2 != nil {
-				log.Error(fmt.Sprintf("submitBalanceProofToPfsLoop channelSerilization2Channel err : %s", err2.Error()))
-				continue
-			}
-			rs.submitBalanceProofToPfs(c)
+		}
+		if err != nil {
+			log.Error(err.Error())
 		}
 	}
 }
 
 func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
-	if rs.PfsProxy == nil {
-		return
+	select {
+	case rs.ChanSubmitBalanceProofToPFS <- ch:
+	default:
+		// never block
 	}
-	bpPartner := ch.PartnerState.BalanceProofState
-	err := rs.PfsProxy.SubmitBalance(
-		bpPartner.Nonce,
-		bpPartner.TransferAmount,
-		ch.Outstanding(),
-		ch.ChannelIdentifier.OpenBlockNumber,
-		bpPartner.LocksRoot,
-		ch.ChannelIdentifier.ChannelIdentifier,
-		bpPartner.MessageHash,
-		ch.PartnerState.Address,
-		bpPartner.Signature,
-	)
-	if err != nil {
-		log.Error(err.Error())
-	}
+	//if rs.PfsProxy == nil {
+	//	return
+	//}
+	//bpPartner := ch.PartnerState.BalanceProofState
+	//err := rs.PfsProxy.SubmitBalance(
+	//	bpPartner.Nonce,
+	//	bpPartner.TransferAmount,
+	//	ch.Outstanding(),
+	//	ch.ChannelIdentifier.OpenBlockNumber,
+	//	bpPartner.LocksRoot,
+	//	ch.ChannelIdentifier.ChannelIdentifier,
+	//	bpPartner.MessageHash,
+	//	ch.PartnerState.Address,
+	//	bpPartner.Signature,
+	//)
+	//if err != nil {
+	//	log.Error(err.Error())
+	//}
 }
 
 func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (routes []*route.State, err error) {

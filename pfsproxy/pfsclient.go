@@ -23,6 +23,9 @@ import (
 // ErrNotInit :
 var ErrNotInit = errors.New("pfgClient not init")
 
+// ErrConnect :
+var ErrConnect = errors.New("pfsClient connect to pfs error")
+
 /*
 pfsClient :
 */
@@ -127,16 +130,16 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 	statusCode, body, err := req.Invoke()
 	if err != nil {
 		//log.Error(req.ToString())
-		err = fmt.Errorf("PfgAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
-		return
+		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
+		return ErrConnect
 	}
 	if statusCode != 200 {
 		//log.Error(req.ToString())
-		err = fmt.Errorf("PfgAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
+		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
 		//log.Error(err.Error())
 		return
 	}
-	log.Debug(fmt.Sprintf("PfgAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
+	log.Debug(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
 	return nil
 }
 
