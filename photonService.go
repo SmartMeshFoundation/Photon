@@ -138,7 +138,7 @@ type Service struct {
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
-	ChanSubmitBalanceProofToPFS           chan *channel.Channel
+	ChanSubmitBalanceProofToPFS           chan *channel.Channel // 供submitBalanceProofToPfsLoop线程使用
 }
 
 //NewPhotonService create photon service
