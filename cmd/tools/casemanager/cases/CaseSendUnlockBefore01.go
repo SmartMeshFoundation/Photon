@@ -21,7 +21,7 @@ CaseSendUnlockBefore01 :
 */
 func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendUnlockBefore01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -44,7 +44,7 @@ func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	})
 	// 启动节点3，6
 	cm.startNodes(env, N1, N3)
-	if cm.UseMatrix{
+	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}
 	// 初始数据记录
@@ -56,7 +56,7 @@ func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	//  崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
-		if !N2.IsRunning(){
+		if !N2.IsRunning() {
 			break
 		}
 	}

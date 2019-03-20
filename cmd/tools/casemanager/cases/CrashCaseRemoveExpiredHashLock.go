@@ -16,7 +16,7 @@ import (
 //等待锁过期以后,相关节点都不应该持有任何锁
 func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	if !cm.RunSlow {
-		return //等待时间太长,忽略
+		return ErrorSkip //等待时间太长,忽略
 	}
 	env, err := models.NewTestEnv("./cases/CrashCaseRemoveExpiredHashLock.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

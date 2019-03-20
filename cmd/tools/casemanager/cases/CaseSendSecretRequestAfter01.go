@@ -22,7 +22,7 @@ CaseSendSecretRequestAfter01 :
 */
 func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendSecretRequestAfter01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

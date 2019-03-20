@@ -20,6 +20,9 @@ func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
+// ErrorSkip 用于跳过某个case时返回,方便统计
+var ErrorSkip = errors.New("skip")
+
 // CaseManager include env and cases
 type CaseManager struct {
 	Cases                 map[string]reflect.Value
@@ -47,10 +50,10 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 	caseManager.RunSlow = runSlow
 	caseManager.Cases = make(map[string]reflect.Value)
 	//
-	if useMatrix{
-		caseManager.LowWaitSeconds = 10+100
-		caseManager.MediumWaitSeconds = 50+160 //config for settle time
-		caseManager.HighMediumWaitSeconds = 300+100
+	if useMatrix {
+		caseManager.LowWaitSeconds = 10 + 100
+		caseManager.MediumWaitSeconds = 50 + 160 //config for settle time
+		caseManager.HighMediumWaitSeconds = 300 + 100
 	}
 	// use reflect to load all cases
 	_, err = fmt.Println("load cases...")
@@ -81,6 +84,7 @@ func (c *CaseManager) RunAll(skip string) {
 	sort.Strings(keys)
 	errorMsg := ""
 	success := 0
+	total := len(keys)
 	for _, k := range keys {
 		v := c.Cases[k]
 		rs := v.Call(nil)
@@ -88,11 +92,16 @@ func (c *CaseManager) RunAll(skip string) {
 			success++
 		} else {
 			err := rs[0].Interface().(error)
+			if err == ErrorSkip {
+				total--
+				fmt.Printf("%s SKIP \n", k)
+				continue
+			}
 			if err == nil {
-				_, err = fmt.Printf("%s SUCCESS\n", k)
+				fmt.Printf("%s SUCCESS\n", k)
 			} else {
 				errorMsg = fmt.Sprintf("%s FAILED!!!,err=%s\n", k, err)
-				_, err = fmt.Printf(errorMsg)
+				fmt.Println(errorMsg)
 				c.FailedCaseNames = append(c.FailedCaseNames, k)
 				if skip != "true" {
 					break
@@ -102,13 +111,13 @@ func (c *CaseManager) RunAll(skip string) {
 
 	}
 	_, err = fmt.Println("Casemanager Result:")
-	_, err = fmt.Printf("Cases num : %d,successed=%d\n", len(keys), success)
+	_, err = fmt.Printf("Cases num : %d,successed=%d\n", total, success)
 	_, err = fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
 	for _, v := range c.FailedCaseNames {
 		_, err = fmt.Println(v)
 	}
 	_, err = fmt.Println("Pelease check log in ./log")
-	if errorMsg != "" && skip != "true"{
+	if errorMsg != "" && skip != "true" {
 		panic(errorMsg)
 	}
 	_ = err

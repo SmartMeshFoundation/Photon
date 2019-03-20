@@ -15,7 +15,7 @@ import (
 // CasePFS :
 func (cm *CaseManager) CasePFS() (err error) {
 	if !cm.RunThisCaseOnly {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CasePFS.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

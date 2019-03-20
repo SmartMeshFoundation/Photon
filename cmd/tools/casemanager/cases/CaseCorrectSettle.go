@@ -22,7 +22,7 @@ func init() {
 // CaseCorrectSettle :
 func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseCorrectSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

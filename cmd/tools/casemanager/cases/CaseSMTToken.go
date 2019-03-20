@@ -17,7 +17,7 @@ import (
 // 测试SMTToken
 func (cm *CaseManager) CaseSMTToken() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSMTToken.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -37,8 +37,8 @@ func (cm *CaseManager) CaseSMTToken() (err error) {
 	// 启动节点1，2
 	// start node 2, 3
 	cm.startNodes(env, N1, N2)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	// 1. 打印N1,N2余额
 	showBalance(env, "begin", N1, N2)

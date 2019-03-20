@@ -13,7 +13,7 @@ import (
 // CaseForceRegisterSecretOnChain02 :
 func (cm *CaseManager) CaseForceRegisterSecretOnChain02() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseForceRegisterSecretOnChain02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

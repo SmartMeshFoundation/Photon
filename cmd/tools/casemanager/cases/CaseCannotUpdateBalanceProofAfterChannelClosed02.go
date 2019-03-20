@@ -18,7 +18,7 @@ func init() {
 // CaseCannotUpdateBalanceProofAfterChannelClosed02 :
 func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseCannotUpdateBalanceProofAfterChannelClosed02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -46,8 +46,8 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	})
 	// 获取channel信息
 	// get channel info
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")
 	N1.GetChannelWith(N2, tokenAddress).Println("before send  trans")
@@ -58,7 +58,7 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	// 验证n0 n1崩溃
 	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
-		if !N0.IsRunning() && !N1.IsRunning(){
+		if !N0.IsRunning() && !N1.IsRunning() {
 			break
 		}
 	}
@@ -75,8 +75,8 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	}
 	//N0务必启启动,尝试发送removeExpiredHashlock失败
 	N0.ReStartWithoutConditionquit(env)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	var i = 0
 	settleTime := c01.SettleTimeout + 3600/14

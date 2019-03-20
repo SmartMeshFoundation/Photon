@@ -12,7 +12,7 @@ import (
 // CaseEthNonce :
 func (cm *CaseManager) CaseEthNonce() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseEthNonce.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

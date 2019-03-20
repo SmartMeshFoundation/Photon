@@ -11,7 +11,7 @@ import (
 // CrashCase012 : only for local test
 func (cm *CaseManager) CrashCase012() (err error) {
 	if !cm.RunThisCaseOnly {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CrashCase012.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -40,7 +40,7 @@ func (cm *CaseManager) CrashCase012() (err error) {
 	// 崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
-		if !n1.IsRunning(){
+		if !n1.IsRunning() {
 			break
 		}
 	}
