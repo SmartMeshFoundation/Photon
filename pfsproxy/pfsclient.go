@@ -23,6 +23,9 @@ import (
 // ErrNotInit :
 var ErrNotInit = errors.New("pfgClient not init")
 
+// ErrConnect :
+var ErrConnect = errors.New("pfsClient connect to pfs error")
+
 /*
 pfsClient :
 */
@@ -125,16 +128,18 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SubmitBalance %s err :%s", req.FullURL, err)
-		return
+		//log.Error(req.ToString())
+		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
+		return ErrConnect
 	}
 	if statusCode != 200 {
-		err = fmt.Errorf("PfgAPI SubmitBalance %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
-		log.Error(err.Error())
+		//log.Error(req.ToString())
+		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
+		//log.Error(err.Error())
 		return
 	}
+	log.Debug(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
 	return nil
 }
 
@@ -219,7 +224,7 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI FindPath %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI FindPath %s err :%s", req.FullURL, err))
 		err = rerr.ErrPFS.Append(fmt.Sprintf("connect to pfs error %s", err))
 		return
 	}
@@ -315,7 +320,7 @@ func (pfg *pfsClient) SetAccountFee(feeConstant *big.Int, feePercent int64) (err
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SetAccountFeeRate %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI SetAccountFeeRate %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
@@ -342,7 +347,7 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI GetAccountFee %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI GetAccountFee %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
@@ -379,7 +384,7 @@ func (pfg *pfsClient) SetTokenFee(feeConstant *big.Int, feePercent int64, tokenA
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SetTokenFee %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI SetTokenFee %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
@@ -406,7 +411,7 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI GetTokenFee %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI GetTokenFee %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
@@ -443,7 +448,7 @@ func (pfg *pfsClient) SetChannelFee(feeConstant *big.Int, feePercent int64, chan
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI SetChannelFee %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI SetChannelFee %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
@@ -470,7 +475,7 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 	statusCode, body, err := req.Invoke()
 	log.Debug(req.ToString())
 	if err != nil {
-		log.Error("PfgAPI GetChannelFee %s err :%s", req.FullURL, err)
+		log.Error(fmt.Sprintf("PfgAPI GetChannelFee %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {

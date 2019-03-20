@@ -11,7 +11,7 @@ import (
 // CaseTokenSwapWithFee :
 func (cm *CaseManager) CaseTokenSwapWithFee() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseTokenSwapWithFee.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 
@@ -128,6 +128,7 @@ type TransferPayload struct {
 	Secret    string                      `json:"secret"`
 	Sync      bool                        `json:"sync"`
 	RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
+	Data      string                      `json:"data"`
 }
 
 // Transfer send a transfer
@@ -161,6 +162,7 @@ func (node *PhotonNode) SendTransWithRouteInfo(target *PhotonNode, tokenAddress 
 		IsDirect:  false,
 		Sync:      true,
 		RouteInfo: routeInfo,
+		Data:      "test",
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + target.Address,

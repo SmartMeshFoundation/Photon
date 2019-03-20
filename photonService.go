@@ -55,6 +55,14 @@ type protocolMessage struct {
 	Message  encoding.Messager
 }
 
+// BuildInfo 保存构建信息
+type BuildInfo struct {
+	GoVersion string `json:"go_version"`
+	GitCommit string `json:"git_commit"`
+	BuildDate string `json:"build_date"`
+	Version   string `json:"version"`
+}
+
 //SecretRequestPredictor return true to ignore this message,otherwise continue to process
 type SecretRequestPredictor func(msg *encoding.SecretRequest) (ignore bool)
 
@@ -129,6 +137,8 @@ type Service struct {
 	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
+	BuildInfo                             *BuildInfo
+	ChanSubmitBalanceProofToPFS           chan *channel.Channel // 供submitBalanceProofToPfsLoop线程使用
 }
 
 //NewPhotonService create photon service
@@ -161,6 +171,8 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		StopCreateNewTransfers:                false,
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
+		BuildInfo:                             new(BuildInfo),
+		ChanSubmitBalanceProofToPFS:           make(chan *channel.Channel, 100),
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newPhotonMessageHandler(rs)
@@ -276,6 +288,10 @@ func (rs *Service) Start() (err error) {
 		这么做有可能因为接收到过多的消息,而阻塞接受线程,导致消息丢失.但是因为没有处理,对方一定会反复重新发送.
 	*/
 	rs.Protocol.StartReceive()
+	/*
+		启动定时提交balance_proof到pfs的线程
+	*/
+	go rs.submitBalanceProofToPfsLoop()
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -640,7 +656,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error) {
 	log.Trace(fmt.Sprintf("registerTokenNetwork tokenaddress=%s ", tokenAddress.String()))
 	var tokenNetwork *rpc.TokenNetworkProxy
-	tokenNetwork, err = rs.Chain.TokenNetworkWithoutCheck(tokenAddress)
+	tokenNetwork, err = rs.Chain.TokenNetwork(tokenAddress)
 	if err != nil {
 		return
 	}
@@ -742,8 +758,12 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		return
 	}
 	directChannel := g.GetPartenerAddress2Channel(target)
-	if directChannel == nil || !directChannel.CanTransfer() || directChannel.Distributable().Cmp(amount) < 0 {
+	if directChannel == nil || !directChannel.CanTransfer() {
 		result.Result <- rerr.ErrChannelNotFound.Append("no available direct channel")
+		return
+	}
+	if directChannel.Distributable().Cmp(amount) < 0 {
+		result.Result <- rerr.ErrChannelNoEnoughBalance
 		return
 	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
@@ -1839,25 +1859,80 @@ func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (
 	return
 }
 
+func (rs *Service) submitBalanceProofToPfsLoop() {
+	log.Trace("submitBalanceProofToPfsLoop start...")
+	for {
+		if rs.PfsProxy == nil {
+			log.Trace("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
+			return
+		}
+		ch, ok := <-rs.ChanSubmitBalanceProofToPFS
+		if !ok {
+			log.Trace("submitBalanceProofToPfsLoop stop because chan close")
+			return
+		}
+		bpPartner := ch.PartnerState.BalanceProofState
+		err := rs.PfsProxy.SubmitBalance(
+			bpPartner.Nonce,
+			bpPartner.TransferAmount,
+			ch.Outstanding(),
+			ch.ChannelIdentifier.OpenBlockNumber,
+			bpPartner.LocksRoot,
+			ch.ChannelIdentifier.ChannelIdentifier,
+			bpPartner.MessageHash,
+			ch.PartnerState.Address,
+			bpPartner.Signature,
+		)
+		if err == pfsproxy.ErrConnect {
+			log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
+			// 网络错误,重发3次
+			for i := 0; i < 3; i++ {
+				err = rs.PfsProxy.SubmitBalance(
+					bpPartner.Nonce,
+					bpPartner.TransferAmount,
+					ch.Outstanding(),
+					ch.ChannelIdentifier.OpenBlockNumber,
+					bpPartner.LocksRoot,
+					ch.ChannelIdentifier.ChannelIdentifier,
+					bpPartner.MessageHash,
+					ch.PartnerState.Address,
+					bpPartner.Signature,
+				)
+				if err == pfsproxy.ErrConnect {
+					continue
+				}
+			}
+		}
+		if err != nil {
+			log.Error(err.Error())
+		}
+	}
+}
+
 func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
-	if rs.PfsProxy == nil {
-		return
+	select {
+	case rs.ChanSubmitBalanceProofToPFS <- ch:
+	default:
+		// never block
 	}
-	bpPartner := ch.PartnerState.BalanceProofState
-	err := rs.PfsProxy.SubmitBalance(
-		bpPartner.Nonce,
-		bpPartner.TransferAmount,
-		ch.Outstanding(),
-		ch.ChannelIdentifier.OpenBlockNumber,
-		bpPartner.LocksRoot,
-		ch.ChannelIdentifier.ChannelIdentifier,
-		bpPartner.MessageHash,
-		ch.PartnerState.Address,
-		bpPartner.Signature,
-	)
-	if err != nil {
-		log.Error(fmt.Sprintf("updateBalanceProofToPfs err = %s", err.Error()))
-	}
+	//if rs.PfsProxy == nil {
+	//	return
+	//}
+	//bpPartner := ch.PartnerState.BalanceProofState
+	//err := rs.PfsProxy.SubmitBalance(
+	//	bpPartner.Nonce,
+	//	bpPartner.TransferAmount,
+	//	ch.Outstanding(),
+	//	ch.ChannelIdentifier.OpenBlockNumber,
+	//	bpPartner.LocksRoot,
+	//	ch.ChannelIdentifier.ChannelIdentifier,
+	//	bpPartner.MessageHash,
+	//	ch.PartnerState.Address,
+	//	bpPartner.Signature,
+	//)
+	//if err != nil {
+	//	log.Error(err.Error())
+	//}
 }
 
 func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (routes []*route.State, err error) {
@@ -2074,6 +2149,14 @@ func (rs *Service) registerSecretToStateManagerFromUser(req *registerSecretReq) 
 func (rs *Service) registerSecretOnChain(req *registerSecretReq) (result *utils.AsyncResult) {
 	secret := req.Secret
 	return rs.Chain.SecretRegistryProxy.RegisterSecretAsync(secret)
+}
+
+// SetBuildInfo 启动时保存构建信息
+func (rs *Service) SetBuildInfo(goVersion, gitCommit, buildDate, version string) {
+	rs.BuildInfo.GoVersion = goVersion
+	rs.BuildInfo.GitCommit = gitCommit
+	rs.BuildInfo.BuildDate = buildDate
+	rs.BuildInfo.Version = version
 }
 
 ////NotifyTransferStatusChange notify status change of a sending transfer

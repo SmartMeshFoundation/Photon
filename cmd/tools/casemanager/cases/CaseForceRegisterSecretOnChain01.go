@@ -17,7 +17,7 @@ func init() {
 // CaseForceRegisterSecretOnChain01 :
 func (cm *CaseManager) CaseForceRegisterSecretOnChain01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseForceRegisterSecretOnChain01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

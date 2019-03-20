@@ -733,7 +733,7 @@ func (a *API) GetReceivedTransfers(tokenAddressStr string, from, to int64) (resu
 	if tokenAddressStr != "" {
 		tokenAddress = common.HexToAddress(tokenAddressStr)
 	}
-	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to)
+	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to, -1, -1)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -813,6 +813,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			var d []byte
 			select {
 			case err = <-rpanic.GetNotify():
+				log.Error(fmt.Sprintf("photon panic because of unkown err %s", err))
 				handler.OnError(32, err.Error())
 			case s := <-a.api.Photon.EthConnectionStatus:
 				cs.EthStatus = s
@@ -1025,4 +1026,9 @@ func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber i
 		return dto.NewErrorMobileResponse(err)
 	}
 	return dto.NewSuccessMobileResponse(list)
+}
+
+// Version 获取版本信息
+func (a *API) Version() string {
+	return dto.NewSuccessMobileResponse(a.api.GetBuildInfo())
 }

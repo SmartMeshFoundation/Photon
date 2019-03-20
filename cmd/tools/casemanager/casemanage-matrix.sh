@@ -38,7 +38,7 @@ go build
 rm log/*
 
 # run casemanager
-./casemanager --case=all --auto --matrix
+./casemanager --case=all --auto --matrix --slow
 if [ $? -ne 0 ]; then
     echo "casemanager run failed"
     tar -cvf /home/gotest/tmp/casemanager-matrix.log.tar /home/gotest/casemanage-matrix.log /home/gotest/goproj/src/github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/log

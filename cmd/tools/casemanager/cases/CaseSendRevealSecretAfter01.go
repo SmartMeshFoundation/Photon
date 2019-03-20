@@ -19,7 +19,7 @@ CaseSendRevealSecretAfter01 :
 */
 func (cm *CaseManager) CaseSendRevealSecretAfter01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendRevealSecretAfter01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

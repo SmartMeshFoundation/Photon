@@ -33,7 +33,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/models/gkvdb"
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
@@ -223,19 +222,19 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	// open db
 	var dao models.Dao
-	if ctx.IsSet("db") && ctx.String("db") == "gkv" {
-		err = checkDbMeta(cfg.DataBasePath, "gkv")
-		if err != nil {
-			return
-		}
-		dao, err = gkvdb.OpenDb(cfg.DataBasePath)
-	} else {
-		err = checkDbMeta(cfg.DataBasePath, "boltdb")
-		if err != nil {
-			return
-		}
-		dao, err = stormdb.OpenDb(cfg.DataBasePath)
+	//if ctx.IsSet("db") && ctx.String("db") == "gkv" {
+	//	err = checkDbMeta(cfg.DataBasePath, "gkv")
+	//	if err != nil {
+	//		return
+	//	}
+	//	dao, err = gkvdb.OpenDb(cfg.DataBasePath)
+	//} else {
+	err = checkDbMeta(cfg.DataBasePath, "boltdb")
+	if err != nil {
+		return
 	}
+	dao, err = stormdb.OpenDb(cfg.DataBasePath)
+	//}
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
 		client.Close()
@@ -326,6 +325,8 @@ func mainCtx(ctx *cli.Context) (err error) {
 		transport.Stop()
 		return
 	}
+	// 保存构建信息
+	service.SetBuildInfo(GoVersion, GitCommit, BuildDate, Version)
 	err = service.Start()
 	if err != nil {
 		log.Error(fmt.Sprintf("photon service start error %s", err))

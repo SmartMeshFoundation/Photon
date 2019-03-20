@@ -16,7 +16,7 @@ CaseSendUnlockBefore02 ##构建1->2->3->4,2->4直接通道金额不够，设置2
 */
 func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendUnlockBefore02.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

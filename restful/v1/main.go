@@ -107,9 +107,20 @@ func Start() {
 		*/
 		rest.Get("/api/1/path/:target_address/:token/:amount", FindPath),
 		rest.Get("/api/1/secret", GetRandomSecret), // api to provide random secret and lockSecretHash pair
+		rest.Get("/api/1/version", GetBuildInfo),
+
+		/*
+			fee policy
+		*/
 		rest.Get("/api/1/fee_policy", GetFeePolicy),
 		rest.Post("/api/1/fee_policy", SetFeePolicy),
 		rest.Get("/api/1/fee", GetAllFeeChargeRecord),
+
+		/*
+			income
+		*/
+		rest.Post("/api/1/income/details", GetIncomeDetails),
+		rest.Post("/api/1/income/days", GetDaysIncome),
 
 		/*
 			test

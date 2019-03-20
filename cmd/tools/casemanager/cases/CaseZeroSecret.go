@@ -14,7 +14,7 @@ import (
 // CaseZeroSecret :发送方指定密码为全0来进行交易,是否会造成意外.
 func (cm *CaseManager) CaseZeroSecret() (err error) {
 	if !cm.RunThisCaseOnly {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseZeroSecret.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

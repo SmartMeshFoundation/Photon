@@ -104,7 +104,7 @@ type SentEnvelopMessagerDao interface {
 // FeeChargeRecordDao :
 type FeeChargeRecordDao interface {
 	SaveFeeChargeRecord(r *FeeChargeRecord) (err error)
-	GetAllFeeChargeRecord() (records []*FeeChargeRecord, err error)
+	GetAllFeeChargeRecord(tokenAddress common.Address, fromTime, toTime int64) (records []*FeeChargeRecord, err error)
 	GetFeeChargeRecordByLockSecretHash(lockSecretHash common.Hash) (records []*FeeChargeRecord, err error)
 }
 
@@ -155,7 +155,7 @@ type TokenDao interface {
 type ReceivedTransferDao interface {
 	NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *ReceivedTransfer
 	GetReceivedTransfer(key string) (*ReceivedTransfer, error)
-	GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock int64) (transfers []*ReceivedTransfer, err error)
+	GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock, fromTime, toTime int64) (transfers []*ReceivedTransfer, err error)
 }
 
 // SentTransferDetailDao :

@@ -12,7 +12,7 @@ import (
 // CaseCrashEventNewChannel n0找n1打开通道并存款,n0崩溃条件EventNewChannelFromChainBeforeDeal, 恢复后验证双方状态
 func (cm *CaseManager) CaseCrashEventNewChannel() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseCrashEventNewChannel.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

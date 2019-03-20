@@ -56,7 +56,7 @@ func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 		writejson(w, resp)
 	}()
 	from, to := getFromTo(r)
-	trs, err := API.GetReceivedTransfers(utils.EmptyAddress, from, to)
+	trs, err := API.GetReceivedTransfers(utils.EmptyAddress, from, to, -1, -1)
 	resp = dto.NewAPIResponse(err, trs)
 }
 
