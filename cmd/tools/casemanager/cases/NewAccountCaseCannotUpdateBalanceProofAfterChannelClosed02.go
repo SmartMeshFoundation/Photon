@@ -15,7 +15,7 @@ func init() {
 
 }
 
-// CaseCannotUpdateBalanceProofAfterChannelClosed02 :
+// NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed02 :
 func (cm *CaseManager) NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed02() (err error) {
 	if !cm.RunSlow {
 		return

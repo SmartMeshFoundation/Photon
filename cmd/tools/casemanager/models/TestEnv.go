@@ -158,7 +158,10 @@ var TmpKeyStoreDir = "../../../testdata/casemanager-keystore-tmp"
 // CreateTmpKeyStore :
 func CreateTmpKeyStore(accountCount int) ([]string, error) {
 	if utils.Exists(TmpKeyStoreDir) {
-		os.RemoveAll(TmpKeyStoreDir)
+		err := os.RemoveAll(TmpKeyStoreDir)
+		if err != nil {
+			return nil, fmt.Errorf("Remove old account error,err=%s", err)
+		}
 	}
 	time.Sleep(time.Millisecond * 20)
 	if !utils.Exists(TmpKeyStoreDir) {

@@ -6,7 +6,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
-// CaseCooperateSettle :
+// NewAccountCaseCooperateSettle :
 func (cm *CaseManager) NewAccountCaseCooperateSettle() (err error) {
 	env, err := models.NewTestEnv("./cases/NewAccountCaseCooperateSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

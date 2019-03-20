@@ -19,7 +19,7 @@ func init() {
 
 }
 
-// CaseCorrectSettle :
+// NewAccountCaseCorrectSettle :
 func (cm *CaseManager) NewAccountCaseCorrectSettle() (err error) {
 	if !cm.RunSlow {
 		return
