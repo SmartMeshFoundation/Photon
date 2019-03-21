@@ -69,6 +69,9 @@ func (cm *CaseManager) CaseCrashEventClose() (err error) {
 	}
 	// 4.重启n0
 	n0.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 5. 校验双方通道状态
 	c01 = n0.GetChannelWith(n1, tokenAddress).Println("after restart")
 	if c01 == nil {

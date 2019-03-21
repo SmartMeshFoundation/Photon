@@ -64,6 +64,9 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should not running")
 	}
 	N0.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	err = N0.Close(c01.ChannelIdentifier)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
