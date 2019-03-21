@@ -39,7 +39,7 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 		QuitEvent: "ReceiveAnnounceDisposedStateChange",
 	})
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 	}
 	// 3. 节点1向节点6转账45token
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)

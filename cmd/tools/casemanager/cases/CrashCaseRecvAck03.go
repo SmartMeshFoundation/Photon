@@ -37,6 +37,9 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveMediatedTransferAck",
 	})
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
@@ -72,6 +75,9 @@ func (cm *CaseManager) CrashCaseRecvAck03() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 

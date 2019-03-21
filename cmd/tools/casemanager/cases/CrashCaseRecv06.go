@@ -39,6 +39,9 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	N1.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "EventSendRevealSecretBefore",
 	})
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	// 初始数据记录
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
