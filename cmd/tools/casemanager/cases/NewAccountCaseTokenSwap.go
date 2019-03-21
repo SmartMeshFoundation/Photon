@@ -7,7 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
-// CaseTokenSwap :
+// NewAccountCaseTokenSwap :
 func (cm *CaseManager) NewAccountCaseTokenSwap() (err error) {
 	if !cm.RunSlow {
 		return ErrorSkip

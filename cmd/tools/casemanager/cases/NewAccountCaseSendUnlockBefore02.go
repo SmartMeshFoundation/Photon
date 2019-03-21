@@ -11,7 +11,7 @@ import (
 )
 
 /*
-CaseSendUnlockBefore02 ##构建1->2->3->4,2->4直接通道金额不够，设置2的奔溃事件EventSendUnlockBefore
+NewAccountCaseSendUnlockBefore02 ##构建1->2->3->4,2->4直接通道金额不够，设置2的奔溃事件EventSendUnlockBefore
 #2崩溃后2-3锁钱，重启后锁保留，锁超时后,3连上注册密码,最后转账成功
 */
 func (cm *CaseManager) NewAccountCaseSendUnlockBefore02() (err error) {
