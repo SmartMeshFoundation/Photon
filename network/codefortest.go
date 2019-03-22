@@ -35,7 +35,7 @@ func (p *dummyProtocol) receive(data []byte) {
 
 //MakeTestUDPTransport test only
 func MakeTestUDPTransport(name string, port int) *UDPTransport {
-	t, err := NewUDPTransport(name, "127.0.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
+	t, err := NewUDPTransport(name, "127.1.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
 	if err != nil {
 		panic(err)
 	}
