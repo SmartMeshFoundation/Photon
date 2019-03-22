@@ -36,7 +36,9 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	N6.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ActionInitTargetStateChange",
 	})
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 记录初始数据
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()

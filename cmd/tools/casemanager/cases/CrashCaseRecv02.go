@@ -36,7 +36,9 @@ func (cm *CaseManager) CrashCaseRecv02() (err error) {
 	N1.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveSecretRequestStateChange",
 	})
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	// 记录初始数据
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()

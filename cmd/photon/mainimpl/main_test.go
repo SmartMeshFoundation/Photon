@@ -102,7 +102,7 @@ func TestStart(t *testing.T) {
 	api.Stop()
 	// 5. nonetwork启动, must success
 	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
-	os.Args[len(os.Args)-2] = fmt.Sprintf("--nonetwork")
+	//os.Args[len(os.Args)-2] = fmt.Sprintf("--nonetwork")
 	os.Args[len(os.Args)-1] = fmt.Sprintf("")
 	api, err = StartMain()
 	assert.Empty(t, err)

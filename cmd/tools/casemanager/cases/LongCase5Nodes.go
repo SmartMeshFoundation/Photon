@@ -234,10 +234,10 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 18 ---->")
 	N1.Shutdown(env)
 	if cm.UseMatrix {
-		time.Sleep(params.DefaultMDNSKeepalive + time.Second*7)
+		time.Sleep(time.Second*time.Duration(params.DefaultMDNSKeepalive) + time.Second*7)
 	} else {
 		// 等待mdns检测下线
-		time.Sleep(params.DefaultMDNSKeepalive)
+		time.Sleep(time.Second * time.Duration(params.DefaultMDNSKeepalive))
 	}
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
@@ -250,7 +250,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	C24 = N2.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
 	err = N0.Transfer(tokenAddress, transferAmount, N2.Address, false)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
@@ -271,7 +271,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 21 ---->")
 	err = N0.Transfer(tokenAddress, transferAmount, N1.Address, false)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 	if err == nil {
 		return cm.caseFail(env.CaseName)
@@ -282,7 +282,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 22 ---->")
 	N1.ReStartWithoutConditionquit(env)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 
 	// step 23 : N3 sends all 100 tokens to N2 on payments of 1 token/each.
@@ -295,7 +295,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("mass transfer i=%d,err=%s", i, err.Error()))
 		}
 		if cm.UseMatrix {
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 10)
 		}
 	}
 	//等30秒,确认100笔交易成功
@@ -309,7 +309,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 24 ---->")
 	depositAmount = 160
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 	err = N0.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
@@ -337,7 +337,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 27 ---->")
 	err = N0.Transfer(tokenAddress, transferAmount, N3.Address, false)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
@@ -373,7 +373,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 29 ---->")
 	err = N2.Deposit(N4.Address, tokenAddress, depositAmount)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(time.Second * 10)
 	}
 	if err == nil {
 		return cm.caseFail(env.CaseName)
