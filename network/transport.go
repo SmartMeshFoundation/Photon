@@ -135,7 +135,7 @@ type UDPTransport struct {
 	stopped                bool
 	stopReceiving          bool
 	intranetNodes          map[common.Address]*net.UDPAddr
-	intranetNodesTimestamp map[common.Address]int64
+	intranetNodesTimestamp map[common.Address]time.Time
 	lock                   sync.RWMutex
 	name                   string
 	log                    log.Logger
@@ -155,17 +155,18 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		policy:                 policy,
 		log:                    log.New("name", name),
 		intranetNodes:          make(map[common.Address]*net.UDPAddr),
-		intranetNodesTimestamp: make(map[common.Address]int64),
+		intranetNodesTimestamp: make(map[common.Address]time.Time),
 	}
-	ctx, cf := context.WithCancel(context.Background())
-	msrv, err := mdns.NewMdnsService(ctx, port, name, time.Second)
-	if err != nil {
-		cf()
-		return
+	if host != "127.0.0.1" {
+		ctx, cf := context.WithCancel(context.Background())
+		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
+		if err != nil {
+			cf()
+			return
+		}
+		t.cf = cf
+		t.msrv.RegisterNotifee(t)
 	}
-	t.cf = cf
-	t.msrv = msrv
-	t.msrv.RegisterNotifee(t)
 	return
 }
 
@@ -313,7 +314,7 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	idFound := common.HexToAddress(id)
 	alreadyFound := false
 	// 清除过期数据,即标志下线
-	now := time.Now().Unix()
+	now := time.Now()
 	var idsToDelete []common.Address
 	for idTemp := range ut.intranetNodes {
 		saveTime, ok := ut.intranetNodesTimestamp[idTemp]
@@ -321,7 +322,7 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 			// 不处理非自己发现的节点
 			continue
 		}
-		if now-saveTime > params.DefaultMDNSKeepalive {
+		if now.Sub(saveTime) > params.DefaultMDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
 		}
 		if idTemp == idFound {
