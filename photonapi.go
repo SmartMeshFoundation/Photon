@@ -1270,7 +1270,7 @@ func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp *DaysIncom
 	fromTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	toTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
-	incomeDetailList, err := r.GetIncomeDetails(tokenAddress, fromTime.Unix(), toTime.Unix(), -1)
+	incomeDetailList, err := r.GetIncomeDetails(tokenAddress, -1, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1282,9 +1282,18 @@ func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp *DaysIncom
 	if len(incomeDetailList) == 0 {
 		return
 	}
-	var nowDay *OneDayIncome
+	// 统计总收益
+	var detailList []*IncomeDetail
 	for _, incomeDetail := range incomeDetailList {
 		resp.TotalAmount = resp.TotalAmount.Add(resp.TotalAmount, incomeDetail.Amount)
+		if incomeDetail.TimeStamp >= fromTime.Unix() && incomeDetail.TimeStamp < toTime.Unix() {
+			detailList = append(detailList, incomeDetail)
+		}
+	}
+	// 统计每天收益
+	sort.Stable(incomeDetailSorter(detailList))
+	var nowDay *OneDayIncome
+	for _, incomeDetail := range detailList {
 		if nowDay == nil {
 			t := time.Unix(incomeDetail.TimeStamp, 0)
 			nowDay = &OneDayIncome{
