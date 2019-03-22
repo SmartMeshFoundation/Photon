@@ -201,4 +201,7 @@ var MaxTransferDataLen = 256
 const SMTTokenName = "SMTToken"
 
 // DefaultMDNSKeepalive 默认mdns下20秒内检测不到在线,将该节点标志为下线
-var DefaultMDNSKeepalive int64 = 20
+var DefaultMDNSKeepalive = 20 * time.Second
+
+//DefaultMDNSQueryInterval  默认轮询间隔是1s,在测试代码中会更改他,以提高效率
+var DefaultMDNSQueryInterval = time.Second

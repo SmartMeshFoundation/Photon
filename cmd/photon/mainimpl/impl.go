@@ -27,7 +27,7 @@ import (
 
 	"plugin"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/internal/debug"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
@@ -126,7 +126,7 @@ func StartMain() (*photon.API, error) {
 			Value: "",
 		},
 		cli.BoolFlag{
-			Name:  "nonetwork",
+			Name:  "debug-nonetwork",
 			Usage: "disable network, for example ,when we want to settle all channels,only for test, should not be used in production",
 		},
 		cli.BoolFlag{
@@ -184,6 +184,16 @@ func StartMain() (*photon.API, error) {
 			Name:  "db",
 			Usage: "use --db=gkv when need photon run with gkvdb,default db is boltdb,photon doesn't support change db type once db is created.",
 		},
+		cli.StringFlag{
+			Name:  "debug-mdns-interval",
+			Usage: "for test only",
+			Value: "1s",
+		},
+		cli.StringFlag{
+			Name:  "debug-mdns-keepalive", //mdns多久不响应就认为下线
+			Usage: "for test only",
+			Value: "20s",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -222,13 +232,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	// open db
 	var dao models.Dao
-	//if ctx.IsSet("db") && ctx.String("db") == "gkv" {
-	//	err = checkDbMeta(cfg.DataBasePath, "gkv")
-	//	if err != nil {
-	//		return
-	//	}
-	//	dao, err = gkvdb.OpenDb(cfg.DataBasePath)
-	//} else {
 	err = checkDbMeta(cfg.DataBasePath, "boltdb")
 	if err != nil {
 		return
@@ -464,7 +467,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
 	}
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
-	if ctx.Bool("nonetwork") {
+	if ctx.Bool("debug-nonetwork") {
 		config.NetworkMode = params.NoNetwork
 	} else if ctx.Bool("matrix") {
 		config.NetworkMode = params.MixUDPMatrix
@@ -482,9 +485,6 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if len(ctx.String("matrix-server")) > 0 {
 		s := ctx.String("matrix-server")
 		log.Info(fmt.Sprintf("use matrix server %s", s))
-		/*params.MatrixServerConfig = map[string]string{
-			s: fmt.Sprintf("http://%s:8008", s),
-		}*/
 	}
 
 	if ctx.IsSet("reveal-timeout") {
@@ -494,10 +494,6 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		}
 	}
 	config.PfsHost = ctx.String("pfs")
-	//if len(config.PfsHost) > 0 && config.NetworkMode != params.MixUDPXMPP {
-	//	err = fmt.Errorf("photon start with pfs %s, but not use xmpp, exit", config.PfsHost)
-	//	return
-	//}
 
 	if ctx.Bool("enable-fork-confirm") {
 		log.Info("fork-confirm enable...")
@@ -507,6 +503,21 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		config.HTTPUsername = ctx.String("http-username")
 		config.HTTPPassword = ctx.String("http-password")
 	}
+	mi := ctx.String("debug-mdns-interval")
+	dur, err := time.ParseDuration(mi)
+	if err != nil {
+		err = fmt.Errorf("arg debug-mdns-interval err %s", err)
+		return
+	}
+	params.DefaultMDNSQueryInterval = dur
+	log.Info(fmt.Sprintf("mdns query interval=%s", params.DefaultMDNSQueryInterval))
+	mo := ctx.String("debug-mdns-keepalive")
+	dur, err = time.ParseDuration(mo)
+	if err != nil {
+		err = fmt.Errorf("arg debug-mdns-keepalive err %s", err)
+		return
+	}
+	params.DefaultMDNSKeepalive = dur
 	return
 }
 

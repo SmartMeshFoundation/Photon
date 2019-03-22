@@ -234,10 +234,10 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 18 ---->")
 	N1.Shutdown(env)
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 7)
+		time.Sleep(params.DefaultMDNSKeepalive + time.Second*7)
 	} else {
 		// 等待mdns检测下线
-		time.Sleep(time.Second * time.Duration(params.DefaultMDNSKeepalive))
+		time.Sleep(params.DefaultMDNSKeepalive)
 	}
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
