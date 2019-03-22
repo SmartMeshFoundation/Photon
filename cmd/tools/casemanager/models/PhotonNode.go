@@ -50,7 +50,7 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 	if len(otherflag) > 1 {
 		nonetwork = otherflag[1]
 	}
-	go ExecShell(env.Main, node.getParamStr(env, dopprof), logfile, true)
+	go ExecShell(env.Main, node.getParamStr(env, dopprof, nonetwork), logfile, true)
 
 	count := 0
 	t := time.Now()
@@ -97,46 +97,6 @@ func (node *PhotonNode) Start(env *TestEnv, otherarg ...bool) {
 	}
 }
 
-// StartWithParams start a photon node with --fee
-func (node *PhotonNode) StartWithParams(env *TestEnv, otherParams ...string) {
-	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStrWithoutNoNetwork(env)
-	params = append(params, otherParams...)
-	go ExecShell(env.Main, params, logfile, true)
-
-	count := 0
-	t := time.Now()
-	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithParams, sleep 100ms...\n", node.Name)
-		time.Sleep(time.Millisecond * 100)
-		count++
-		if count > 400 {
-			if node.ConditionQuit != nil {
-				Logger.Printf("NODE %s %s StartWithParams with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
-			} else {
-				Logger.Printf("NODE %s %s StartWithParams TIMEOUT\n", node.Address, node.Host)
-			}
-			panic("Start photon node TIMEOUT")
-		}
-	}
-	used := time.Since(t)
-	if node.DebugCrash {
-		Logger.Printf("NODE %s %s StartWithParams with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
-	} else {
-		Logger.Printf("NODE %s %s StartWithParams in %fs", node.Address, node.Host, used.Seconds())
-	}
-	time.Sleep(10 * time.Second)
-	node.Running = true
-	if !env.UseMatrix && env.XMPPServer == "" {
-		for _, n := range env.Nodes {
-			if n.Running {
-				//n.UpdateMeshNetworkNodes(env.Nodes...)
-			}
-		}
-	}
-	time.Sleep(time.Second * 6)
-}
-
 func removeParam(params []string, remove string) []string {
 	//从参数中找到remove,然后删除
 	i := 0
@@ -154,10 +114,9 @@ func removeParam(params []string, remove string) []string {
 // StartWithFeeAndPFS :
 func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStrWithoutNoNetwork(env)
+	params := node.getParamStr(env, false, false)
 	//从参数中找到diable-fee,然后删除
 	removeParam(params, "--disable-fee")
-	removeParam(params, "--nonetwork")
 	// 添加casemanager自带的pfs
 	params = append(params, "--pfs=http://127.0.0.1:17000")
 	go ExecShell(env.Main, params, logfile, true)
@@ -201,7 +160,7 @@ func (node *PhotonNode) StartWithoutUpdateMeshNetworkNodes(env *TestEnv, pprof .
 	if len(pprof) > 0 {
 		dopprof = pprof[0]
 	}
-	go ExecShell(env.Main, node.getParamStr(env, dopprof), logfile, true)
+	go ExecShell(env.Main, node.getParamStr(env, dopprof, false), logfile, true)
 
 	count := 0
 	t := time.Now()
@@ -251,7 +210,7 @@ func (node *PhotonNode) ReStartWithoutConditionquitAndNetwork(env *TestEnv) {
 	node.Start(env, false, true)
 }
 
-func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
+func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []string {
 	var param []string
 	param = append(param, "--datadir="+env.DataDir)
 	param = append(param, "--api-address="+node.APIAddress)
@@ -261,14 +220,17 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
 	param = append(param, "--password-file="+env.PasswordFile)
 	param = append(param, "--disable-fee")
+	param = append(param, "--debug-mdns-interval=50ms")
+	param = append(param, "--debug-mdns-keepalive=1s")
 	if pprof {
 		param = append(param, "--pprof")
+	}
+	if nonetwork {
+		param = append(param, "--debug-nonetwork")
 	}
 	if !env.UseMatrix {
 		if env.XMPPServer != "" {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
-		} else {
-			param = append(param, "--nonetwork")
 		}
 	} else {
 		param = append(param, "--matrix")
@@ -281,38 +243,6 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool) []string {
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
 	param = append(param, "--debug")
-	if node.DebugCrash == true {
-		buf, err := json.Marshal(node.ConditionQuit)
-		if err != nil {
-			panic(err)
-		}
-		param = append(param, "--debugcrash")
-		param = append(param, "--conditionquit="+string(buf))
-	}
-	return param
-}
-
-func (node *PhotonNode) getParamStrWithoutNoNetwork(env *TestEnv) []string {
-	var param []string
-	param = append(param, "--datadir="+env.DataDir)
-	param = append(param, "--api-address="+node.APIAddress)
-	param = append(param, "--listen-address="+node.ListenAddress)
-	param = append(param, "--address="+node.Address)
-	param = append(param, "--keystore-path="+env.KeystorePath)
-	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
-	param = append(param, "--password-file="+env.PasswordFile)
-	if !env.UseMatrix {
-		if env.XMPPServer != "" {
-			param = append(param, "--xmpp-server="+env.XMPPServer)
-		} else {
-			param = append(param, "--nonetwork")
-		}
-	}
-	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
-	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
-	if env.Debug == true {
-		param = append(param, "--debug")
-	}
 	if node.DebugCrash == true {
 		buf, err := json.Marshal(node.ConditionQuit)
 		if err != nil {

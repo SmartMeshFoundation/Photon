@@ -101,7 +101,7 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 			log.Error("mdns lookup error: ", err)
 		}
 		close(entriesCh)
-		log.Debug("mdns query complete")
+		//log.Debug("mdns query complete")
 
 		select {
 		case <-ticker.C:
