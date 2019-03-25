@@ -3,7 +3,7 @@ package restful
 import (
 	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/params"
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	v1 "github.com/SmartMeshFoundation/Photon/restful/v1"
 )
 
 func init() {

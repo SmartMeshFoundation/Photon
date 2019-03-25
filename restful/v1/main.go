@@ -1,11 +1,13 @@
 package v1
 
 import (
+	"context"
 	"net/http"
+	"os"
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -30,11 +32,14 @@ var HTTPUsername = ""
 // HTTPPassword is password needed when call http api
 var HTTPPassword = ""
 
+//QuitChain stop http server
+var QuitChain chan struct{}
+
 /*
 Start the restful server
 */
 func Start() {
-
+	QuitChain = make(chan struct{})
 	api := rest.NewApi()
 	if Config.Debug {
 		api.Use(rest.DefaultDevStack...)
@@ -173,13 +178,21 @@ func Start() {
 	}
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
-	log.Crit(fmt.Sprintf("http listen and serve :%s", http.ListenAndServe(listen, api.MakeHandler())))
+	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
+	go server.ListenAndServe()
+	<-QuitChain
+	err = server.Shutdown(context.Background())
+	if err != nil {
+		log.Crit(fmt.Sprintf("server shutdown err %s", err))
+	}
 }
 
 /*
 Stop for app user, call this api before quit.
 */
 func Stop(w rest.ResponseWriter, r *rest.Request) {
+	defer close(QuitChain)
+	defer os.Exit(0)
 	//test only
 	API.Stop()
 	w.Header().Set("Content-Type", "text/plain")

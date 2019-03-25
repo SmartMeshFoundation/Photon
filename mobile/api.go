@@ -17,14 +17,14 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/params"
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	v1 "github.com/SmartMeshFoundation/Photon/restful/v1"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -598,6 +598,9 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
+	if v1.QuitChain != nil {
+		close(v1.QuitChain)
+	}
 	//test only
 	a.api.Stop()
 }
