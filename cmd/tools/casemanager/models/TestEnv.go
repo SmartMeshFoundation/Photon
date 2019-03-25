@@ -20,6 +20,9 @@ import (
 
 	"strconv"
 
+	"math"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
@@ -35,8 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/huamou/config"
-	"math"
-	"time"
 )
 
 // TestEnv env manager for test
@@ -740,6 +741,9 @@ func (env *TestEnv) StartPFS() {
 	param = append(param, "--dbconnection=.pfsdb")
 	param = append(param, "--debug")
 	param = append(param, "--verbosity=5")
+	if env.UseMatrix {
+		param = append(param, "--matrix")
+	}
 	go ExecShell(env.PFSMain, param, logfile, true)
 	// TODO 校验启动完成
 	return
