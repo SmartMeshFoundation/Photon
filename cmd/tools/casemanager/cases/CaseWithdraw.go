@@ -32,6 +32,8 @@ func (cm *CaseManager) CaseWithdraw() (err error) {
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("BeforeWithdraw")
 
+	// 等待mdns节点发现
+	time.Sleep(time.Second)
 	// withdraw
 	N0.Withdraw(c01.ChannelIdentifier, withdrawAmount)
 	//time.Sleep(10 * time.Second)
