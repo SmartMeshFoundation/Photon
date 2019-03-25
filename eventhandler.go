@@ -229,7 +229,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 		eh.photon.dao.UpdateSentTransferDetailStatusMessage(event.Token, event.LockSecretHash, fmt.Sprintf("Unlock sending target=%s", utils.APex2(receiver)))
 	}
 	// 清空Token2LockSecretHash2Channels
-	delete(eh.photon.Token2LockSecretHash2Channels[ch.TokenAddress], event.LockSecretHash)
+	eh.photon.removeToken2LockSecretHash2channel(event.LockSecretHash, ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtransfer.EventSendAnnounceDisposed, stateManager *transfer.StateManager) (err error) {
@@ -298,7 +298,7 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	}
 	err = eh.photon.sendAsync(receiver, mtr)
 	// 清空Token2LockSecretHash2Channels
-	delete(eh.photon.Token2LockSecretHash2Channels[ch.TokenAddress], event.LockSecretHash)
+	eh.photon.removeToken2LockSecretHash2channel(event.LockSecretHash, ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventContractSendRegisterSecret(event *mediatedtransfer.EventContractSendRegisterSecret) (err error) {
@@ -393,7 +393,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 	//eh.photon.NotifyTransferStatusChange(ch.TokenAddress, e2.LockSecretHash, models.TransferStatusFailed, fmt.Sprintf("交易超时失败 err=%s", e2.Reason))
 	eh.photon.NotifyHandler.NotifySentTransferDetail(std)
 	// 清空Token2LockSecretHash2Channels
-	delete(eh.photon.Token2LockSecretHash2Channels[ch.TokenAddress], e2.LockSecretHash)
+	eh.photon.removeToken2LockSecretHash2channel(e2.LockSecretHash, ch)
 	return
 }
 
