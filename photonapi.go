@@ -1209,12 +1209,18 @@ func (s incomeDetailSorter) Swap(i, j int) {
 
 // GetIncomeDetails 收益明细查询接口,这里的收益包含手续费收益和收到的data不为""的交易
 func (r *API) GetIncomeDetails(tokenAddress common.Address, fromTime, toTime int64, limit int) (list []*IncomeDetail, err error) {
+	if tokenAddress == utils.EmptyAddress {
+		err = rerr.ErrGeneralDBError.Append("token address can not be empty")
+		return
+	}
 	receivedTransfers, err := r.Photon.dao.GetReceivedTransferList(tokenAddress, -1, -1, fromTime, toTime)
 	if err != nil {
+		err = rerr.ErrGeneralDBError.Append(err.Error())
 		return
 	}
 	feeRecords, err := r.Photon.dao.GetAllFeeChargeRecord(tokenAddress, fromTime, toTime)
 	if err != nil {
+		err = rerr.ErrGeneralDBError.Append(err.Error())
 		return
 	}
 	for _, rt := range receivedTransfers {
@@ -1260,58 +1266,63 @@ type DaysIncome struct {
 }
 
 // GetDaysIncome 获取过去n天的收益统计
-func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp *DaysIncome, err error) {
+func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp []*DaysIncome, err error) {
 	if n <= 0 {
 		// 默认7天
 		n = 7
 	}
+	var tokenList []common.Address
+	if tokenAddress != utils.EmptyAddress {
+		tokenList = append(tokenList, tokenAddress)
+	} else {
+		tokenList = r.GetTokenList()
+	}
+	if len(tokenList) == 0 {
+		return
+	}
+	// 起始时间
 	now := time.Now()
 	t := now.AddDate(0, 0, 0-n)
 	fromTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	toTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
-	incomeDetailList, err := r.GetIncomeDetails(tokenAddress, -1, -1, -1)
-	if err != nil {
-		return
-	}
-	resp = &DaysIncome{
-		TokenAddress: tokenAddress,
-		TotalAmount:  big.NewInt(0),
-		Days:         n,
-	}
-	if len(incomeDetailList) == 0 {
-		return
-	}
-	// 统计总收益
-	var detailList []*IncomeDetail
-	for _, incomeDetail := range incomeDetailList {
-		resp.TotalAmount = resp.TotalAmount.Add(resp.TotalAmount, incomeDetail.Amount)
-		if incomeDetail.TimeStamp >= fromTime.Unix() && incomeDetail.TimeStamp < toTime.Unix() {
-			detailList = append(detailList, incomeDetail)
+	/*
+		构造每个token对应的DaysIncome
+	*/
+	for _, token := range tokenList {
+		incomeDetailList, err2 := r.GetIncomeDetails(token, -1, -1, -1)
+		if err2 != nil {
+			err = err2
+			return
 		}
-	}
-	// 统计每天收益
-	sort.Stable(incomeDetailSorter(detailList))
-	var nowDay *OneDayIncome
-	for _, incomeDetail := range detailList {
-		if nowDay == nil {
-			t := time.Unix(incomeDetail.TimeStamp, 0)
-			nowDay = &OneDayIncome{
-				Amount:    incomeDetail.Amount,
-				TimeStamp: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix(),
+		r := &DaysIncome{
+			TokenAddress: token,
+			TotalAmount:  big.NewInt(0),
+			Days:         n,
+		}
+		// 统计总收益
+		var detailList []*IncomeDetail
+		for _, incomeDetail := range incomeDetailList {
+			r.TotalAmount = r.TotalAmount.Add(r.TotalAmount, incomeDetail.Amount)
+			if incomeDetail.TimeStamp >= fromTime.Unix() && incomeDetail.TimeStamp < toTime.Unix() {
+				detailList = append(detailList, incomeDetail)
 			}
-		} else {
-			if incomeDetail.TimeStamp-nowDay.TimeStamp >= 24*3600 {
-				resp.Details = append(resp.Details, nowDay)
-				t := time.Unix(incomeDetail.TimeStamp, 0)
-				nowDay = &OneDayIncome{
-					Amount:    incomeDetail.Amount,
-					TimeStamp: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix(),
+		}
+		// 统计过去N天中每天的收益,没收益的天补0
+		for i := 0; i < n; i++ {
+			begin := fromTime.AddDate(0, 0, i)
+			end := begin.AddDate(0, 0, 1)
+			day := &OneDayIncome{
+				Amount:    big.NewInt(0),
+				TimeStamp: begin.Unix(),
+			}
+			for _, detail := range detailList {
+				if detail.TimeStamp >= begin.Unix() && detail.TimeStamp < end.Unix() {
+					day.Amount = day.Amount.Add(day.Amount, detail.Amount)
 				}
-			} else {
-				nowDay.Amount = nowDay.Amount.Add(nowDay.Amount, incomeDetail.Amount)
 			}
+			r.Details = append(r.Details, day)
 		}
+		resp = append(resp, r)
 	}
 	return
 }
