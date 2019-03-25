@@ -359,6 +359,7 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 	}
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
+		params.EnableMDNS = false
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), "127.0.0.1", cfg.Port, nil, policy)
 		return

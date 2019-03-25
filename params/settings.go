@@ -205,3 +205,6 @@ var DefaultMDNSKeepalive = 20 * time.Second
 
 //DefaultMDNSQueryInterval  默认轮询间隔是1s,在测试代码中会更改他,以提高效率
 var DefaultMDNSQueryInterval = time.Second
+
+//EnableMDNS 是否启用mdns
+var EnableMDNS = true
