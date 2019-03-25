@@ -258,6 +258,8 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash(), ch)
 	return nil
 }
 
@@ -295,6 +297,8 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
 }
 
@@ -427,6 +431,8 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
 }
 

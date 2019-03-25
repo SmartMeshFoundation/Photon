@@ -2162,3 +2162,33 @@ func (rs *Service) SetBuildInfo(goVersion, gitCommit, buildDate, version string)
 ////NotifyTransferStatusChange notify status change of a sending transfer
 //func (rs *Service) NotifyTransferStatusChange(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string) {
 //}
+
+/*
+在处理完一个通道中的锁之后,释放该锁在这个map中占据的内存
+*/
+func (rs *Service) removeToken2LockSecretHash2channel(secretHash common.Hash, ch *channel.Channel) {
+	if ch == nil {
+		return
+	}
+	m, ok := rs.Token2LockSecretHash2Channels[ch.TokenAddress]
+	if !ok {
+		return
+	}
+	chs, ok := m[secretHash]
+	if !ok {
+		return
+	}
+	index := -1
+	for i, c := range chs {
+		if c.ChannelIdentifier.ChannelIdentifier == ch.ChannelIdentifier.ChannelIdentifier &&
+			c.ChannelIdentifier.OpenBlockNumber == ch.ChannelIdentifier.OpenBlockNumber {
+			index = i
+		}
+	}
+	if index >= 0 {
+		chs = append(chs[:index], chs[index+1:]...)
+	}
+	if len(chs) == 0 {
+		delete(m, secretHash)
+	}
+}
