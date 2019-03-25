@@ -143,7 +143,7 @@ type UDPTransport struct {
 	cf                     context.CancelFunc
 }
 
-//NewUDPTransport create UDPTransport
+//NewUDPTransport create UDPTransport,name必须是完整的地址
 func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, policy Policier) (t *UDPTransport, err error) {
 	t = &UDPTransport{
 		UAddr: &net.UDPAddr{
