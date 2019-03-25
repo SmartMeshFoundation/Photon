@@ -158,7 +158,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		intranetNodesTimestamp: make(map[common.Address]time.Time),
 	}
 	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
-	if host != "127.0.0.1" {
+	if params.EnableMDNS {
 		ctx, cf := context.WithCancel(context.Background())
 		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
 		if err != nil {
