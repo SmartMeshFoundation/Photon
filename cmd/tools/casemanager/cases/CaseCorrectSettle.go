@@ -41,10 +41,11 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N1, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRequestStateChange",
-	})
+	cm.startNodes(env, N1, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRequestStateChange",
+		}),
+	)
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}
@@ -63,7 +64,7 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should not running")
 	}
-	N0.ReStartWithoutConditionquit(env)
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}

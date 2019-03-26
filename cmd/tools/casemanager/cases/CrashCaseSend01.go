@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/params"
+
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 // CrashCaseSend01 场景一：EventSendMediatedTransferAfter
@@ -29,12 +30,10 @@ func (cm *CaseManager) CrashCaseSend01() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	N1, N2 := env.Nodes[0], env.Nodes[1]
 
-	// 1. /启动节点 EventSendMediatedTransferAfter
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendMediatedTransferAfter",
-	})
-	// 2. 启动节点2
-	N2.Start(env)
+	cm.startNodes(env, N2, // 1. /启动节点 EventSendMediatedTransferAfter
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendMediatedTransferAfter",
+		}))
 	// 3. 初始数据记录
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	// 4. 从节点0发起到节点1的转账

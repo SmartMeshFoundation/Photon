@@ -30,12 +30,12 @@ func (cm *CaseManager) CrashCaseRecv03() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点1,3,4,5,6,7
-	cm.startNodes(env, N1, N3, N4, N5, N6)
+	cm.startNodes(env, N1, N3, N4, N5, N6,
 
-	// 启动节点2, ReceiveTransferRefundStateChange
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveAnnounceDisposedStateChange",
-	})
+		// 启动节点2, ReceiveTransferRefundStateChange
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveAnnounceDisposedStateChange",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 15)
 	}

@@ -36,13 +36,13 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain05() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretAfter",
-	})
+	cm.startNodes(env, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}),
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretAfter",
+		}))
 	// 获取channel信息
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")

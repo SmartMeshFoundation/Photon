@@ -35,12 +35,11 @@ func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	N1, N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2,36
-	cm.startNodes(env, N2, N3, N6)
-
-	// 启动节点1, ReceiveSecretRequestStateChange
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRequestStateChange",
-	})
+	cm.startNodes(env, N2, N3, N6,
+		// 启动节点1, ReceiveSecretRequestStateChange
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRequestStateChange",
+		}))
 
 	// 记录初始数据
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()

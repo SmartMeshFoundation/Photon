@@ -32,14 +32,13 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点2,3,6
-	cm.startNodes(env, N2, N3)
-
-	// 启动节点6, SecretRequestRecevieAck
-	N6.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRequestAck",
-	})
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	cm.startNodes(env, N2, N3,
+		// 启动节点6, SecretRequestRecevieAck
+		N6.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRequestAck",
+		}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	// 初始数据记录
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
@@ -74,8 +73,8 @@ func (cm *CaseManager) CrashCaseRecvAck01() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N6.ReStartWithoutConditionquit(env)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)

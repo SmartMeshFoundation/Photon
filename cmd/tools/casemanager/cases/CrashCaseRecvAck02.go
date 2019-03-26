@@ -32,12 +32,11 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点3,6
-	cm.startNodes(env, N3, N6)
-
-	// 启动节点2, ReceiveSecretRequestAck
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveRevealSecretAck",
-	})
+	cm.startNodes(env, N3, N6,
+		// 启动节点2, ReceiveSecretRequestAck
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveRevealSecretAck",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 10)
 	}

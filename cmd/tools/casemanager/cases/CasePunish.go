@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -34,10 +35,9 @@ func (cm *CaseManager) CasePunish() (err error) {
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点,让节点0发送SendAnnounce
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, N1, N2, N0.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
-	})
-	cm.startNodes(env, N1, N2)
+	}))
 
 	secret, _, err := N0.GenerateSecret()
 	if err != nil {

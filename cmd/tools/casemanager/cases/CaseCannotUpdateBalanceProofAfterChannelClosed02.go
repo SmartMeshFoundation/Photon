@@ -37,13 +37,14 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretAfter",
-	})
+	cm.startNodes(env, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}),
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretAfter",
+		}),
+	)
 	// 获取channel信息
 	// get channel info
 	if cm.UseMatrix {
@@ -68,13 +69,15 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed02() (err e
 	if N1.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n1 should quit")
 	}
-	N1.ReStartWithoutConditionquit(env)
+	cm.startNodes(env,
+		N1.RestartName().SetConditionQuit(nil),
+		N0.RestartName().SetConditionQuit(nil),
+	)
 	err = N1.Close(c01.ChannelIdentifier)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
 	}
 	//N0务必启启动,尝试发送removeExpiredHashlock失败
-	N0.ReStartWithoutConditionquit(env)
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}

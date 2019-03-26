@@ -31,12 +31,11 @@ func (cm *CaseManager) CrashCaseSend04() (err error) {
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
-	cm.startNodes(env, N2, N3)
-
-	// 启动节点6, EventSendSecretRequestAfter
-	N6.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendSecretRequestAfter",
-	})
+	cm.startNodes(env, N2, N3,
+		// 启动节点6, EventSendSecretRequestAfter
+		N6.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendSecretRequestAfter",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}

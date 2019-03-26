@@ -36,21 +36,15 @@ type PhotonNode struct {
 	ConditionQuit *params.ConditionQuit
 	DebugCrash    bool
 	Running       bool
+	NoNetwork     bool
+	DoPprof       bool
 	Runtime       PhotonNodeRuntime
 }
 
 // Start start a photon node
-func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
+func (node *PhotonNode) startInternal(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	dopprof := false
-	nonetwork := false //是否完全不和其他节点通信
-	if len(otherflag) > 0 {
-		dopprof = otherflag[0]
-	}
-	if len(otherflag) > 1 {
-		nonetwork = otherflag[1]
-	}
-	go ExecShell(env.Main, node.getParamStr(env, dopprof, nonetwork), logfile, true)
+	go ExecShell(env.Main, node.getParamStr(env, node.DoPprof, node.NoNetwork), logfile, true)
 
 	count := 0
 	t := time.Now()
@@ -76,21 +70,11 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
 	}
 	node.Running = true
-	if nonetwork { //启动以后不更新其他节点信息,这样就无法和别的节点进行通信了
-		return
-	}
-	if !env.UseMatrix && env.XMPPServer == "" {
-		for _, n := range env.Nodes {
-			if n.Running {
-				//n.UpdateMeshNetworkNodes(env.Nodes...)
-			}
-		}
-	}
 }
 
 // Start start a photon node
-func (node *PhotonNode) Start(env *TestEnv, otherarg ...bool) {
-	node.startInternal(env, otherarg...)
+func (node *PhotonNode) Start(env *TestEnv) {
+	node.startInternal(env)
 	if env.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}
@@ -146,63 +130,29 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	node.Running = true
 }
 
-// StartWithoutUpdateMeshNetworkNodes : Start start a photon node
-func (node *PhotonNode) StartWithoutUpdateMeshNetworkNodes(env *TestEnv, pprof ...bool) {
-	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	dopprof := false
-	if len(pprof) > 0 {
-		dopprof = pprof[0]
-	}
-	go ExecShell(env.Main, node.getParamStr(env, dopprof, false), logfile, true)
-
-	count := 0
-	t := time.Now()
-	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to start, sleep 100ms...\n", node.Name)
-		time.Sleep(time.Millisecond * 100)
-		count++
-		if count > 400 {
-			if node.ConditionQuit != nil {
-				Logger.Printf("NODE %s %s start with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
-			} else {
-				Logger.Printf("NODE %s %s start TIMEOUT\n", node.Address, node.Host)
-			}
-			panic("Start photon node TIMEOUT")
-		}
-	}
-	used := time.Since(t)
-	if node.DebugCrash {
-		Logger.Printf("NODE %s %s start with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
-	} else {
-		Logger.Printf("NODE %s %s start in %fs", node.Address, node.Host, used.Seconds())
-	}
-	node.Running = true
-}
-
-// ReStartWithoutConditionQuitAndUpdateMethNetworkNodes : Restart start a photon node
-func (node *PhotonNode) ReStartWithoutConditionQuitAndUpdateMethNetworkNodes(env *TestEnv) {
-	node.DebugCrash = false
-	node.ConditionQuit = nil
-	node.Name = node.Name + "Restart"
-	node.StartWithoutUpdateMeshNetworkNodes(env)
-}
-
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
-	node.DebugCrash = false
-	node.ConditionQuit = nil
-	node.Name = node.Name + "Restart"
-	node.Start(env, false)
+	node.RestartName().SetConditionQuit(nil).Start(env)
+	time.Sleep(time.Second)
 }
 
-// ReStartWithoutConditionquitAndNetwork : Restart start a photon node
-func (node *PhotonNode) ReStartWithoutConditionquitAndNetwork(env *TestEnv) {
-	node.DebugCrash = false
-	node.ConditionQuit = nil
+//RestartName name添加restart的链式调用
+func (node *PhotonNode) RestartName() *PhotonNode {
 	node.Name = node.Name + "Restart"
-	node.Start(env, false, true)
+	return node
 }
 
+//SetNoNetwork 不与其他节点通信
+func (node *PhotonNode) SetNoNetwork() *PhotonNode {
+	node.NoNetwork = true
+	return node
+}
+
+//SetDoPprof 调试用
+func (node *PhotonNode) SetDoPprof() *PhotonNode {
+	node.DoPprof = true
+	return node
+}
 func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []string {
 	var param []string
 	param = append(param, "--datadir="+env.DataDir)
@@ -250,11 +200,15 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []
 	return param
 }
 
-// StartWithConditionQuit start a photon node whit condition quit
-func (node *PhotonNode) StartWithConditionQuit(env *TestEnv, c *params.ConditionQuit) {
+//SetConditionQuit 链式调用
+func (node *PhotonNode) SetConditionQuit(c *params.ConditionQuit) *PhotonNode {
 	node.ConditionQuit = c
-	node.DebugCrash = true
-	node.Start(env)
+	if c == nil {
+		node.DebugCrash = false
+	} else {
+		node.DebugCrash = true
+	}
+	return node
 }
 
 // GetAddress :

@@ -3,10 +3,11 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 // CrashCaseSend03 场景三：EventSendBalanceProofAfter
@@ -29,12 +30,13 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2, EventSendRevealSecretAfter
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendUnlockAfter",
-	})
+
 	// 启动节点3，6
-	cm.startNodes(env, N3, N6)
+	cm.startNodes(env, N3, N6,
+		// 启动节点2, EventSendRevealSecretAfter
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendUnlockAfter",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 7)
 	}
