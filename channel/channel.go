@@ -752,7 +752,7 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int) (tr *encoding.DirectTran
 		return nil, rerr.ErrInsufficientBalance
 	}
 	transferAmount := new(big.Int).Add(from.TransferAmount(), amount)
-	currentLocksroot := to.Tree.MerkleRoot()
+	currentLocksroot := from.Tree.MerkleRoot()
 	nonce := c.GetNextNonce()
 	bp := encoding.NewBalanceProof(nonce, transferAmount, currentLocksroot, &c.ChannelIdentifier)
 	tr = encoding.NewDirectTransfer(bp)
