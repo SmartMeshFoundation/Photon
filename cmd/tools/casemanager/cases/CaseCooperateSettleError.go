@@ -34,18 +34,20 @@ func (cm *CaseManager) CaseCooperateSettleError() (err error) {
 	// n1删除数据并重启
 	N1.Shutdown(env)
 	N1.ClearHistoryData(env.DataDir)
-	N1.Start(env)
+	N1.ReStartWithoutConditionquit(env)
 
-	if cm.UseMatrix{
-		time.Sleep(time.Second *5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	} else {
+		time.Sleep(cm.MDNSLifeTime)
 	}
 	// Cooperate settle
 	err = N0.CooperateSettle(c01.ChannelIdentifier, -1)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
-	if cm.UseMatrix{
-		time.Sleep(time.Second *10)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
 	}
 	// 等待N0接收消息
 	time.Sleep(time.Second * 2)
