@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/network/mdns"
+
 	"fmt"
 
 	"encoding/json"
@@ -62,6 +64,7 @@ type TestEnv struct {
 	UseOldToken         bool
 	PFSMain             string // pfs可执行文件全路径
 	UseNewAccount       bool
+	MDNSServiceTag      string
 }
 
 // Logger : global case logger
@@ -149,6 +152,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.KillAllPhotonNodes()
 	env.ClearHistoryData()
 	env.Println(env.CaseName + " env:")
+	env.MDNSServiceTag = mdns.ServiceTag + utils.RandomString(7)
 	Logger.Println("Env Prepare SUCCESS")
 	return
 }

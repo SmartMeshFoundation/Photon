@@ -86,7 +86,6 @@ func (node *PhotonNode) startInternal(env *TestEnv, otherflag ...bool) {
 			}
 		}
 	}
-	time.Sleep(time.Second * 6) //等两秒,保证mdns生效
 }
 
 // Start start a photon node
@@ -222,13 +221,16 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []
 	param = append(param, "--disable-fee")
 	param = append(param, "--debug-mdns-interval=50ms")
 	param = append(param, "--debug-mdns-keepalive=1s")
+	param = append(param, "--debug-mdns-servicetag="+env.MDNSServiceTag)
 	if pprof {
 		param = append(param, "--pprof")
 	}
 	if nonetwork {
 		param = append(param, "--debug-nonetwork")
 	}
+
 	if !env.UseMatrix {
+		param = append(param, "--debug-udp-only")
 		if env.XMPPServer != "" {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
 		}

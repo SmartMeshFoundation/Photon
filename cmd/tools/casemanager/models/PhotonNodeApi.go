@@ -95,7 +95,7 @@ func (node *PhotonNode) IsRunning() bool {
 	return true
 }
 
-// Shutdown check by api address
+// Shutdown check by api address,保证退出的时候已经关闭
 func (node *PhotonNode) Shutdown(env *TestEnv) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/debug/shutdown",
@@ -104,20 +104,13 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 		Timeout: time.Second * 3,
 	}
 	go req.Invoke()
-	time.Sleep(10 * time.Second)
-	node.Running = false
-	var nodes []*PhotonNode
-	for _, n := range env.Nodes {
-		if n.Running {
-			nodes = append(nodes, n)
+	//尝试等待node退出
+	for i := 0; i < 100; i++ {
+		time.Sleep(time.Millisecond * 100)
+		if !node.IsRunning() {
+			return
 		}
 	}
-	for _, n := range env.Nodes {
-		if n.Running {
-			//n.UpdateMeshNetworkNodes(nodes...)
-		}
-	}
-	time.Sleep(time.Second * 2)
 	return
 }
 
