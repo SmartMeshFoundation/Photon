@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -32,12 +34,12 @@ func TestMdnsDiscovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sa, err := NewMdnsService(ctx, 3000, "imc", time.Second)
+	sa, err := NewMdnsService(ctx, 3000, "ima", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := NewMdnsService(ctx, 3001, "imd", time.Second)
+	sb, err := NewMdnsService(ctx, 3001, "imb", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +52,7 @@ func TestMdnsDiscovery(t *testing.T) {
 
 	sa.RegisterNotifee(n)
 
-	time.Sleep(time.Second * 15)
+	time.Sleep(params.DefaultMDNSQueryInterval * 2)
 	req := require.New(t)
 	//req.Len(n.m, 1, "found b ")
 	req.NotNil(n.m["imb"], "found b ")
