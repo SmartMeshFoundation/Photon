@@ -161,7 +161,7 @@ func (node *PhotonNode) SendTransWithRouteInfo(target *PhotonNode, tokenAddress 
 		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + target.Address,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 60,
+		Timeout: time.Second * 20,
 	}
 	body, err := req.Invoke()
 	if err != nil {

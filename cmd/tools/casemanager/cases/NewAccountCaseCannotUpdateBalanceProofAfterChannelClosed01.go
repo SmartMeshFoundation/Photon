@@ -17,7 +17,7 @@ func init() {
 // NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed01 :
 func (cm *CaseManager) NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {

@@ -47,7 +47,7 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点1向节点6转账20token
-	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	//time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {

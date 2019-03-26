@@ -38,14 +38,14 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	N2.StartWithConditionQuit(env, &params.ConditionQuit{
 		QuitEvent: "ReceiveRevealSecretAck",
 	})
-	if cm.UseMatrix{
-		time.Sleep(time.Second*10)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
 	}
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点2向节点6转账
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
@@ -74,8 +74,8 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)

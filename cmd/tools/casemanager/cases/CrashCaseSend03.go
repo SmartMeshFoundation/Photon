@@ -35,14 +35,14 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 	})
 	// 启动节点3，6
 	cm.startNodes(env, N3, N6)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*7)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
 	}
 	// 初始数据记录
 	cd32 := N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd63 := N6.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	// 节点2向节点6转账20token
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	//time.Sleep(time.Second * 3)
 	//  崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
@@ -66,8 +66,8 @@ func (cm *CaseManager) CrashCaseSend03() (err error) {
 	}
 	// 重启节点2，自动发送之前中断的交易
 	N2.ReStartWithoutConditionquit(env)
-	if cm.UseMatrix{
-		time.Sleep(time.Second*5)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)

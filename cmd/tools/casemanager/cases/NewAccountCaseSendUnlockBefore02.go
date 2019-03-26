@@ -45,7 +45,7 @@ func (cm *CaseManager) NewAccountCaseSendUnlockBefore02() (err error) {
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	// 节点2向节点6转账20token
-	N1.SendTrans(tokenAddress, transAmount, N4.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N4.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
