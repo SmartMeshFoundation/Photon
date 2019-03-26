@@ -755,7 +755,7 @@ func (env *TestEnv) StartPFS() {
 
 // GetPfsProxy :
 func (env *TestEnv) GetPfsProxy(privateKey *ecdsa.PrivateKey) pfsproxy.PfsProxy {
-	return pfsproxy.NewPfsProxy("http://127.0.0.1:7000", privateKey)
+	return pfsproxy.NewPfsProxy("http://127.0.0.1:17000", privateKey)
 }
 
 // GetPrivateKeyByNode :

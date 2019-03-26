@@ -115,7 +115,8 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStr(env, false, false)
 	//从参数中找到diable-fee,然后删除
-	removeParam(params, "--disable-fee")
+	params = removeParam(params, "--disable-fee")
+	params = removeParam(params, "--debug-udp-only")
 	// 添加casemanager自带的pfs
 	params = append(params, "--pfs=http://127.0.0.1:17000")
 	go ExecShell(env.Main, params, logfile, true)
@@ -143,13 +144,6 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	}
 	time.Sleep(10 * time.Second)
 	node.Running = true
-	if !env.UseMatrix && env.XMPPServer == "" {
-		for _, n := range env.Nodes {
-			if n.Running {
-				//n.UpdateMeshNetworkNodes(env.Nodes...)
-			}
-		}
-	}
 }
 
 // StartWithoutUpdateMeshNetworkNodes : Start start a photon node
