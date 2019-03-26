@@ -27,10 +27,9 @@ func (cm *CaseManager) CrashCase005() (err error) {
 	transAmount := int32(150)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n2, n0)
-	n1.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, n2, n0, n1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedBefore",
-	})
+	}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()

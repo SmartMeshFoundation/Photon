@@ -32,12 +32,11 @@ func (cm *CaseManager) CaseCrashEventClose() (err error) {
 	depositAmount := int64(100)
 	settleTimeout := int64(100)
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-
-	// 0. start
-	n0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventChannelCloseFromChainBeforeDeal",
-	})
-	n1.Start(env)
+	cm.startNodes(env, n1,
+		n0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventChannelCloseFromChainBeforeDeal",
+		}),
+	)
 	// 1. open
 	err = n0.OpenChannel(n1.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {

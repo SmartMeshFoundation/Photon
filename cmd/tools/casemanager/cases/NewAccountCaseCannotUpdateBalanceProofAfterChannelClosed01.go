@@ -36,10 +36,10 @@ func (cm *CaseManager) NewAccountCaseCannotUpdateBalanceProofAfterChannelClosed0
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N1, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
+	cm.startNodes(env, N1, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}))
 
 	// 获取channel信息
 	// get channel info

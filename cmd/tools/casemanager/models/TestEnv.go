@@ -177,15 +177,22 @@ func CreateTmpKeyStore(accountCount int) ([]string, error) {
 	}
 	passphrase := "123"
 	var countList []string
+	ks := keystore.NewKeyStore(TmpKeyStoreDir, keystore.StandardScryptN, keystore.LightScryptP)
+	defer ks.Close()
+	accountChan := make(chan string, 1)
 	for i := 0; i < accountCount; i++ {
-		ks := keystore.NewKeyStore(TmpKeyStoreDir, keystore.StandardScryptN, keystore.LightScryptP)
-		defer ks.Close()
-		account, err := ks.NewAccount(passphrase)
-		if err != nil {
-			return nil, fmt.Errorf("NewAccount error,err=%s", err)
-		}
-		countList = append(countList, account.Address.Hex())
-		log.Println(fmt.Sprintf("Create temp eth account %s", account.Address.Hex()))
+		go func() {
+			account, err := ks.NewAccount(passphrase)
+			if err != nil {
+				panic(fmt.Sprintf("new account err %s", err))
+			}
+			accountChan <- account.Address.Hex()
+			log.Println(fmt.Sprintf("Create temp eth account %s", account.Address.Hex()))
+		}()
+	}
+	for i := 0; i < accountCount; i++ {
+		a := <-accountChan
+		countList = append(countList, a)
 	}
 	return countList, nil
 }
@@ -448,18 +455,35 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey)
 	}
 	am := accounts.NewAccountManager(env.KeystorePath)
 	var accounts []common.Address
+	type accountAndKey struct {
+		address common.Address
+		key     *ecdsa.PrivateKey
+	}
+	accountChan := make(chan accountAndKey)
 	for _, node := range env.Nodes {
 		address := common.HexToAddress(node.Address)
 		accounts = append(accounts, address)
-		keyBin, err := am.GetPrivateKey(address, globalPassword)
-		if err != nil {
-			Logger.Fatalf("password error for %s", address.String())
-		}
-		keyTemp, err := crypto.ToECDSA(keyBin)
-		if err != nil {
-			Logger.Fatalf("ToECDSA err %s", err)
-		}
-		env.Keys = append(env.Keys, keyTemp)
+		go func(address common.Address) {
+			//这个操作非常花时间, 要并行操作
+			keyBin, err := am.GetPrivateKey(address, globalPassword)
+			if err != nil {
+				Logger.Fatalf("password error for %s", address.String())
+			}
+			keyTemp, err := crypto.ToECDSA(keyBin)
+			if err != nil {
+				Logger.Fatalf("ToECDSA err %s", err)
+			}
+			accountChan <- accountAndKey{address, keyTemp}
+		}(address)
+	}
+	m := make(map[common.Address]*ecdsa.PrivateKey)
+	for i := 0; i < len(env.Nodes); i++ {
+		a := <-accountChan
+		m[a.address] = a.key
+	}
+	for i := 0; i < len(env.Nodes); i++ {
+		address := common.HexToAddress(env.Nodes[i].Address)
+		env.Keys = append(env.Keys, m[address])
 	}
 	transferMoneyForAccounts(key, conn, accounts, token)
 	return
@@ -544,7 +568,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	wg := sync.WaitGroup{}
 	wg.Add(len(options))
 	for _, o := range options {
-		func(option string) {
+		go func(option string) {
 			defer wg.Done()
 			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 			_, token := env.GetTokenByName(s[2])

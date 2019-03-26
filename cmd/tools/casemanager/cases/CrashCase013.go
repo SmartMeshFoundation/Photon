@@ -27,10 +27,10 @@ func (cm *CaseManager) CrashCase013() (err error) {
 	transAmount := int32(10)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n1)
-	n0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveDirectTransferAck",
-	})
+	cm.startNodes(env, n1,
+		n0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveDirectTransferAck",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	// 转账

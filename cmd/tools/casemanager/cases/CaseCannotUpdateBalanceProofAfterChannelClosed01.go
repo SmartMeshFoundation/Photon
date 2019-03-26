@@ -34,12 +34,13 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err e
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2，3
-	// start node 2, 3
-	cm.startNodes(env, N1, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
+	// 启动节点0,2，3
+	// start node  0,2, 3
+	cm.startNodes(env, N1, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}),
+	)
 
 	// 获取channel信息
 	// get channel info
@@ -78,8 +79,7 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err e
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
 	}
 	//N0务必启启动,尝试发送unlock失败.
-	N0.ReStartWithoutConditionquit(env)
-
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil))
 	settleTime := c01.SettleTimeout + 3600/14
 	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
 

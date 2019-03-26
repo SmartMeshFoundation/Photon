@@ -191,16 +191,15 @@ func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNod
 	wg.Add(n)
 	for i := 0; i < n; i++ {
 		go func(index int) {
-			dopprof := false
 			if index == 0 {
-				dopprof = true
+				nodes[index].SetDoPprof()
 			}
-			nodes[index].Start(env, dopprof)
+			nodes[index].Start(env)
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
-	time.Sleep(time.Second * 3)
+	time.Sleep(c.MDNSLifeTime)
 }
 
 func (c *CaseManager) startNodesWithFee(env *models.TestEnv, nodes ...*models.PhotonNode) {

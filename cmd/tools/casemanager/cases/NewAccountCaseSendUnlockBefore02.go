@@ -33,12 +33,13 @@ func (cm *CaseManager) NewAccountCaseSendUnlockBefore02() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N1, N2, N3, N4 := env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2,
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendUnlockBefore",
-	})
+
 	// 启动节点1,3,4
-	cm.startNodes(env, N1, N3, N4)
+	cm.startNodes(env, N1, N3, N4,
+		// 启动节点2,
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendUnlockBefore",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 10)
 	}

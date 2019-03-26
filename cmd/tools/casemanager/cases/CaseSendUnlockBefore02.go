@@ -3,11 +3,12 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -33,12 +34,11 @@ func (cm *CaseManager) CaseSendUnlockBefore02() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N1, N2, N3, N4 := env.Nodes[1], env.Nodes[2], env.Nodes[3], env.Nodes[4]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2,
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
+
+	// 启动节点1,2,3,4
+	cm.startNodes(env, N1, N3, N4, N2.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendUnlockBefore",
-	})
-	// 启动节点1,3,4
-	cm.startNodes(env, N1, N3, N4)
+	}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 10)
 	}

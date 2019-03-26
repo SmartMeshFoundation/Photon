@@ -27,10 +27,10 @@ func (cm *CaseManager) CrashCase010() (err error) {
 	transAmount := int32(10)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n0, n2)
-	n1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveUnlockStateChange",
-	})
+	cm.startNodes(env, n0, n2,
+		n1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveUnlockStateChange",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()

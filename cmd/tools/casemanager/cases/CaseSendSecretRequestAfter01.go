@@ -3,10 +3,11 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -40,10 +41,9 @@ func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点1, EventSendSecretRequestAfter
-	N3.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, N1, N2, N3.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendSecretRequestAfter",
-	})
-	cm.startNodes(env, N1, N2)
+	}))
 
 	// 初始数据记录
 	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()

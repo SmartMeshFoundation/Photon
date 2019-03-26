@@ -14,6 +14,7 @@ import (
 // 节点1向节点6发送45个token，（提前进行两次转账，降低部分余额，节点3和节点7余额： 30 90），
 // 因此，节点3要回退节点2，节点2崩；节点1锁定45，节点2，节点3锁定45，节点6未锁定；重启节点2后，重启转账失败，cd12,23,27全锁定，cd36无锁定
 func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
+	start := time.Now()
 	env, err := models.NewTestEnv("./cases/NewAccountCrashCaseRecv04.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -23,6 +24,7 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 			env.KillAllPhotonNodes()
 		}
 	}()
+	models.Logger.Printf("newtestenv time=%s", time.Since(start))
 	// 源数据
 	var transAmount int32
 	var msg string
@@ -32,18 +34,17 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点1,3,6,7
-	cm.startNodes(env, N1, N3, N6, N7)
-
-	// 启动节点2, ReceiveTransferRefundStateChange
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveAnnounceDisposedStateChange",
-	})
+	cm.startNodes(env, N1, N3, N6, N7,
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveAnnounceDisposedStateChange",
+		}))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 10)
 	}
+	models.Logger.Printf("startnodes time=%s", time.Since(start))
 	// 3. 节点1向节点6转账45token
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 1)
 	// 4. 崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
@@ -56,6 +57,7 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
+	models.Logger.Printf("crashtest time=%s", time.Since(start))
 	// 6. 中间数据记录
 	models.Logger.Println("------------ Data After Crash ------------")
 	cd12middle := N1.GetChannelWith(N2, tokenAddress).PrintDataAfterCrash()
@@ -85,10 +87,11 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 	}
 
 	// 6. 重启节点2
-	N2.ReStartWithoutConditionquit(env)
+	cm.startNodes(env, N2.RestartName().SetConditionQuit(nil))
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}
+	models.Logger.Printf("n2restart time=%s", time.Since(start))
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 		// 查询重启后数据
@@ -129,5 +132,6 @@ func (cm *CaseManager) NewAccountCrashCaseRecv04() (err error) {
 		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 		return
 	}
+	models.Logger.Printf("conditiontest time=%s", time.Since(start))
 	return cm.caseFail(env.CaseName)
 }

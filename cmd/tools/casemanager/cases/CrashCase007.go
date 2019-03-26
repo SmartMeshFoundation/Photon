@@ -27,13 +27,13 @@ func (cm *CaseManager) CrashCase007() (err error) {
 	transAmount := int32(150)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n2)
-	n1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendAnnouncedDisposedBefore",
-	})
-	n0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventRemoveExpiredHashlockTransferBefore",
-	})
+	cm.startNodes(env, n2,
+		n1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendAnnouncedDisposedBefore",
+		}),
+		n0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventRemoveExpiredHashlockTransferBefore",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()

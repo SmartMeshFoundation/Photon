@@ -31,12 +31,11 @@ func (cm *CaseManager) CrashCaseRecvAck04() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点2,4,5,6
-	cm.startNodes(env, N2, N4, N5, N6)
-
-	// 启动节点3, RefundTransferRecevieAck
-	N3.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveAnnounceDisposedAck",
-	})
+	cm.startNodes(env, N2, N4, N5, N6,
+		// 启动节点3, RefundTransferRecevieAck
+		N3.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveAnnounceDisposedAck",
+		}))
 	// 初始数据记录
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N6.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()

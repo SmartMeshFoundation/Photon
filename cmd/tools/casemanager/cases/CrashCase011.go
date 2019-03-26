@@ -28,7 +28,7 @@ func (cm *CaseManager) CrashCase011() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
 	cm.startNodes(env, n0, n2, n3, n4, n5, n6)
-	n1.StartWithConditionQuit(env, &params.ConditionQuit{
+	n1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "MediatorReReceiveStateChange",
 	})
 	// 初始数据记录
