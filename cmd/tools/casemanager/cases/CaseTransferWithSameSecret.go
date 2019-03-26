@@ -16,10 +16,14 @@ import (
 # 交易成败与否不不关键,不能发生崩溃,中间节点不能丢钱.
 */
 func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
+	if !cm.RunSlow {
+		return ErrorSkip
+	}
 	env, err := models.NewTestEnv("./cases/CaseTransferWithSameSecret.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
 	}
+
 	defer func() {
 		if env.Debug == false {
 			env.KillAllPhotonNodes()
@@ -39,19 +43,19 @@ func (cm *CaseManager) CaseTransferWithSameSecret() (err error) {
 	N0.GetChannelWith(N1, tokenAddress).Println("before transfer")
 	secret := utils.NewRandomHash()
 	secretHash := utils.ShaSecret(secret[:])
-	N0.SendTransWithSecret(env.Tokens[0].TokenAddress.String(), 1, N2.Address, secret.String())
+	go N0.SendTransWithSecret(env.Tokens[0].TokenAddress.String(), 1, N2.Address, secret.String())
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 1)
 	log.Trace("allow reveal secret")
 	N0.AllowSecret(secretHash.String(), tokenAddress)
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 1)
 	N0.GetChannelWith(N1, tokenAddress).Println("after transfer")
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before next transfer")
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before next transfer")
-	N0.SendTransWithSecret(tokenAddress, 1, N2.Address, secret.String())
-	time.Sleep(time.Second * 3)
+	go N0.SendTransWithSecret(tokenAddress, 1, N2.Address, secret.String())
+	time.Sleep(time.Second * 1)
 	N0.AllowSecret(secretHash.String(), tokenAddress)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 1)
 
 	/*
 		检测结果:
