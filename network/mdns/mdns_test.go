@@ -4,13 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
+
+func init() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+}
 
 type DiscoveryNotifee struct {
 	m map[string]*net.UDPAddr
@@ -26,12 +32,12 @@ func TestMdnsDiscovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sa, err := NewMdnsService(ctx, 3000, "ima", time.Second)
+	sa, err := NewMdnsService(ctx, 3000, "imc", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := NewMdnsService(ctx, 3001, "imb", time.Second)
+	sb, err := NewMdnsService(ctx, 3001, "imd", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

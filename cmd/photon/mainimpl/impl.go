@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/network/mdns"
+
 	"encoding/hex"
 
 	"path"
@@ -193,6 +195,15 @@ func StartMain() (*photon.API, error) {
 			Name:  "debug-mdns-keepalive", //mdns多久不响应就认为下线
 			Usage: "for test only",
 			Value: "20s",
+		},
+		cli.StringFlag{
+			Name:  "debug-mdns-servicetag",
+			Usage: "for test only",
+			Value: mdns.ServiceTag,
+		},
+		cli.BoolFlag{
+			Name:  "debug-udp-only",
+			Usage: "for test only",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
@@ -470,6 +481,8 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.IgnoreMediatedNodeRequest = ctx.Bool("ignore-mediatednode-request")
 	if ctx.Bool("debug-nonetwork") {
 		config.NetworkMode = params.NoNetwork
+	} else if ctx.Bool("debug-udp-only") {
+		config.NetworkMode = params.UDPOnly
 	} else if ctx.Bool("matrix") {
 		config.NetworkMode = params.MixUDPMatrix
 	} else {
@@ -519,6 +532,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		return
 	}
 	params.DefaultMDNSKeepalive = dur
+	mdns.ServiceTag = ctx.String("debug-mdns-servicetag")
 	return
 }
 
