@@ -84,11 +84,13 @@ func (c *CaseManager) RunAll(skip string) {
 	for k := range c.Cases {
 		keys = append(keys, k)
 	}
+	eachUsed := make(map[string]int64)
 	sort.Strings(keys)
 	errorMsg := ""
 	success := 0
 	total := len(keys)
 	for _, k := range keys {
+		s := time.Now()
 		v := c.Cases[k]
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
@@ -111,13 +113,17 @@ func (c *CaseManager) RunAll(skip string) {
 				}
 			}
 		}
-
+		eachUsed[k] = time.Now().Unix() - s.Unix()
 	}
 	_, err = fmt.Println("Casemanager Result:")
 	_, err = fmt.Printf("Cases num : %d,successed=%d\n", total, success)
 	_, err = fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
 	for _, v := range c.FailedCaseNames {
 		_, err = fmt.Println(v)
+	}
+	_, err = fmt.Printf("Time used: \n")
+	for k, u := range eachUsed {
+		fmt.Printf("%d seconds : %s\n", u, k)
 	}
 	_, err = fmt.Println("Pelease check log in ./log")
 	if errorMsg != "" && skip != "true" {
@@ -130,6 +136,7 @@ func (c *CaseManager) RunAll(skip string) {
 func (c *CaseManager) RunOne(caseName string) {
 	var err error
 	if v, ok := c.Cases[caseName]; ok {
+		s := time.Now().Unix()
 		_, err = fmt.Println("----------------------------->Start to run case " + caseName + "...")
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
@@ -142,6 +149,7 @@ func (c *CaseManager) RunOne(caseName string) {
 				_, err = fmt.Printf("%s FAILED!!! err=%s\n", caseName, err)
 			}
 		}
+		fmt.Printf("Time used : %d seconds\n", time.Now().Unix()-s)
 	} else {
 		_, err = fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}

@@ -47,7 +47,7 @@ func (cm *CaseManager) CaseSendRevealSecretAfter01() (err error) {
 	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	// 节点1向节点3转账
-	N1.SendTrans(tokenAddress, transAmount, N3.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N3.Address, false)
 	//time.Sleep(time.Second * 3)
 	//  崩溃判断
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
