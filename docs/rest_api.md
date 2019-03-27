@@ -51,23 +51,41 @@ Hey guys, welcome to Photon REST API Reference page. This is an API Spec for Pho
 ```
 
 Channel structure description ： 
+
 - `error_code`:  Error code
+
 - `error_message`: Error Code description
+
 - `channel_identifier`:  Address for a channel
+
 - `open_block_number` : Block height when a channel opens
+
 - `partner_address`: The address of the other participant of the channel
+
 - `balance`: Available Balance of the channel participant
+
 - `partner_balance` : Available Balance of the other participant of the channel 
+
 - `locked_amount`: The locked amount of the participant
-- `partner_locked_amount`: The locked amount of the other participant 
+
+- `partner_locked_amount`: The locked amount of the other participant
+
 - `token_address`: Address for tokens in this channel
+
 - `state` :The digits denoting for the channel states
+
 - `StateString` :The string literal for the Channel States
+
 -  `settle_timeout`: Some amount of block denoting time period for transaction settlement,which must greater than `reveal_timeout`.
+
 -  `reveal_timeout`: The block height at which nodes registering `secret`,the default value is 30, and if modified, it can be setting at node startup with `-- reveal-timeout` 
+
 -  `closed_block`: The block height at channel closure
+
 -  `settled_block`: The block height at channel settlement
+
 -  `our_balance_proof`: The balance proof data of the participant
+
 -  `partner_balance_proof`: The balance proof data of the partner
 
 State|StateString|Description
@@ -1102,6 +1120,7 @@ Note: With help of the interface  `/api/1/secret`,  channel participants can rec
 Note: If `tokenswap`is exchanged through direct channels between the two parties, no `route_info` information is needed; otherwise, as with transfer, the route information of the destination should be introduced into `taker`and `maker` requests respectively, and the indirect channel `tokenswap`should be assigned routes and charges.
 
 ## Switch to no network
+
  `GET /api/1/switch/*(Boolean)*` 
 
 This interface is provided to switch to no-network state,by the way,this is mainly provided for APP, if the interface is called, the indirect transaction is prohibited.
@@ -1111,7 +1130,9 @@ This interface is provided to switch to no-network state,by the way,this is main
 `GET ：http://{{ip2}}/api/1/switch/true`
 
 **Parameters:**
+
 - Boolean  
+
   - `true` - Switch to no network
   - `false` -With the network connection
 
@@ -1120,6 +1141,7 @@ This interface is provided to switch to no-network state,by the way,this is main
   Note: Although the node can use this interface to switch to the no-network state, if the node sends a direct transfer transaction to other nodes with direct channels, it can still succeed. Therefore, the interface is not completely "no network", but only achieves the shielding function of indirect transactions.
 
 **Example Response :**  
+
   ```json
 {
     "error_code": 0,
@@ -1146,8 +1168,10 @@ when the node information were registered, the transfer will take the UDP mode o
    "ip_port":"192.168.14.13:60002"
 }]
 ```
-**Example Response :**   
+**Example Response :**  
+
 **200 OK**  
+
 ```json
 {
     "error_code": 0,
@@ -1155,7 +1179,6 @@ when the node information were registered, the transfer will take the UDP mode o
     "data": "ok"
 }
 ```
-
 
 ## Set the fee policy
  ` POST /api/1/fee_policy `
@@ -1201,6 +1224,7 @@ The interface is called by the user to provide the PFS with the charging rate of
  The priority of the three charging modes is：`channel_fee`>`token_fee`>`account_fee`
 
 **Example Response :**  
+
  ```json 
 {
     "error_code": 0,
@@ -1259,7 +1283,8 @@ Query the node charging information, which connect to default PFS server. If the
 
   `GET： http://{{ip2}}/api/1/fee`
 
-**Example Response :**  
+**Example Response :** 
+
 200 OK
 
 ```json 
@@ -1349,6 +1374,7 @@ Post /api/1/income/details
 Detailed revenue of query nodes, including fee revenue and direct revenue.
 
  **Example Request :**  
+ 
  ```json
 {
      "token_address":"0x0000", // Filter by token query
@@ -1395,6 +1421,7 @@ Detailed revenue of query nodes, including fee revenue and direct revenue.
   Note: type   0=transfer revenue 1-fee revenue
 
 ### N-day Revenue Query
+
 Post /api/1/fee/query
 
  Detailed revenue of past N-day of query nodes
@@ -1442,6 +1469,7 @@ Get /api/1/version
  Version Information Query Interface
  
  **Example Response :**
+ 
  ```json
    {
             "error_code": 0,
