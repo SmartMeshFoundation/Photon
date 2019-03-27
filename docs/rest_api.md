@@ -207,11 +207,12 @@ errorcode|errormessage|Description
 }
 ```
 **Status Codes:**  
-- `200 OK` 
+
+ `200 OK` 
 
 
 ##  Query the registered token
- ` GET /api/1/tokens` 
+ `GET /api/1/tokens` 
   
   Return the token address which can be used in the offchain transfer.
 
@@ -234,11 +235,13 @@ errorcode|errormessage|Description
     ]
 }
 ```
-**Status Codes:**  
-- `200 OK` 
+**Status Codes:** 
+
+`200 OK` 
 
 
 ## Get all the channel partners of this token
+
  `GET /api/1/tokens/*(token_address)*/partners`
 
    Return all channels of this node under this token.
@@ -266,6 +269,7 @@ errorcode|errormessage|Description
 }
 ```
 **Status Codes:**  
+
 - `200 OK` 
 
  If the node has not created the channel with the token, then respond the message:
@@ -277,7 +281,6 @@ errorcode|errormessage|Description
     "data": null
 }
 ```
-
  
 ## Query all the channels of the node
    `GET /api/1/channels`  
