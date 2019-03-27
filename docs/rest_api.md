@@ -1,26 +1,58 @@
 # Photon REST API Reference  
 
-Hey guys, welcome to Photon REST API Reference page. This is an API Spec for Photon version 1.0, which adds a lot more new features, such as, support multi-token functions, channel charging,etc. Please note that this reference is still updating. If any problem, feel free to submit at our Issue.
+Hey guys, welcome to Photon REST API Reference page. This is an API Spec for Photon version 1.1, which adds a lot more new features, such as, support multi-token functions, support SMT mortgage,use mDNS to solve node discovery, use PFS to support channel charging,etc. Please note that this reference is still updating. If any problem, feel free to submit at our Issue.
 
 ##  Channel Structure  
 ```json
-    {
-        "channel_identifier": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
-        "open_block_number": 3158573,
-        "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-        "balance": 100000000000000000000,
-        "partner_balance": 100000000000000000000,
+   {
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+        "open_block_number": 1872482,
+        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+        "balance": 1e+22,
+        "partner_balance": 1e+22,
         "locked_amount": 0,
         "partner_locked_amount": 0,
-        "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
         "state": 1,
-        "StateString": "opened",
-        "settle_timeout": 150,
-        "reveal_timeout": 5
+        "state_string": "opened",
+        "settle_timeout": 100,
+        "reveal_timeout": 30,
+        "closed_block": 0,
+        "settled_block": 0,
+        "our_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "partner_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
     }
+}
 ```
 
 Channel structure description ： 
+- `error_code`:  Error code
+- `error_message`: Error Code description
 - `channel_identifier`:  Address for a channel
 - `open_block_number` : Block height when a channel opens
 - `partner_address`: The address of the other participant of the channel
@@ -33,6 +65,10 @@ Channel structure description ：
 - `StateString` :The string literal for the Channel States
 -  `settle_timeout`: Some amount of block denoting time period for transaction settlement,which must greater than `reveal_timeout`.
 -  `reveal_timeout`: The block height at which nodes registering `secret`,the default value is 30, and if modified, it can be setting at node startup with `-- reveal-timeout` 
+-  `closed_block`: The block height at channel closure
+-  `settled_block`: The block height at channel settlement
+-  `our_balance_proof`: The balance proof data of the participant
+-  `partner_balance_proof`: The balance proof data of the partner
 
 State|StateString|Description
 ---|---|---
@@ -47,6 +83,90 @@ State|StateString|Description
 8|prepareForCooperativeSettle| The participant received  ` CooperativeSettle ` request,but there is ongoing transactions and the channel cannot be cooperatively settled. At this time , if the participant still want to cooperative settle the channel, he can wait until the transaction is completed. In order to prevent new transactions from occurring during the waiting period,  the 'prepareForCooperativeSettle' can be set as the mark to stop accepting new transactions and wait for the current transaction to be completed. Then he can call the CooperativeSettle to settle the channel. 
  9|prepareForWithdraw|The participant receives the request to initiate `withdraw`,but the participant or the partner still hold the locks,he cannot withdraw tokens from the channel. At this time , if the participant still want to withdraw tokens from the channel, he need to wait for the locked transaction to be unlocked. In order to prevent new transactions from occurring during the waiting period,  the 'prepareForWithdraw' can be set as the mark to stop accepting new transactions and wait for the current transaction to be unlocked. Then he can call the `withdraw` to withdraw the token from the channel. 
 10|unkown|StateError
+11|StatePartnerCooperativeSettling|After the user receives and agrees the CooperativeSettle request from the other party, the channel is set to this state.
+12|StatePartnerWithdrawing|After the user receives and agrees the withdraw request from the other party, the channel is set to this state.
+
+Among them, App can see only 1-9 states, other states can not be directly observed, which is internal use.  **prepareForWithdraw and prepareForCooperativeSettle will not appear on the mobile phone** , only appear when the meshbox  be used as intermediate node of the transaction.
+
+Currently, the interface results are changed from polling to synchronization. All  returns of the interfaces contain error codes and error messages. ErrCode 0 indicates success, and others indicate errors. It is meaningful to parse data fields when ErrCode is 0. Below are some error codes and message descriptions.
+
+errorcode|errormessage|Description
+---|---|---
+0 |SUCCESS|Successful call
+-1|unknown error|Unknown error
+1|ArgumentError|Parameter error
+2|PhotonAlreadyRunning|Start multiple photon instances
+1000|HashLengthNot32|Parameter error
+1001|Not found|Not found
+1002|InsufficientBalance|There is not enough banalce in the channel to pay for transfers.
+1003|InvalidAmount|The values supplied by the User are not integers and cannot be used to define a transfer value.
+1005|NoPathError|No route to the requested destination address, excluding the case of inadequate channel capacity.
+1006|SamePeerAddress|When a user attempts to create a channel, the addresses of the nodes on both sides are the same.
+1007|InvalidState|The user's request for behavior is inconsistent with the current channel state.
+1008|TransferWhenClosed|When the channel is closed, the user attempts to initiate a request for transfer.
+1009|UnknownAddress|The addresses provided by users are valid, but not from known nodes.
+1010|Locksroot mismatch|The received message contains an invalid locksroot, which is rejected when a pending lock is lost from the locksroot.
+1011|InvalidNonce|The messages received from the partner contain invalid nonce values, which must be incremented in turn.
+1012|TransferUnwanted|Nodes did not receive new transfers
+1013|new transactions are not allowed|Stop creating new transfers and reject new transactions
+1014|no mediated transfer on mesh only network| Indirect transfer is not allowed on Mesh network.
+1015|secret and token cannot duplicate| Same token and same secret transactions are not allowed.
+1016|NodeOffline|When sending a message, the other party is not online.
+1017|TranasferCannotCancel| Failure to attempt to cancel a transfer that the secret has leaked. 
+1018|DBError| Uncategorized database errors
+1019|duplicate key| Duplicate key
+1020|ErrTransferTimeout|Transaction timeout ,which do not mean that the transaction will succeed or fail, but the transaction is not succeeded in a given time.
+1021|ErrUpdateButHaveTransfer|Trying to upgrade and discovering that there are still transactions going on.
+1022|ErrNotChargeFee|Operations related to charges are performed, but charges are not enabled.
+2000|insufficient balance to pay for gas|Not enough balance to pay gas
+2001|closeChannel|An error occurred while closing the channel on the chain.
+2002|RegisterSecret|An error occurred while registering a secret on the chain.
+2003|Unlock|An error occurred while unlock the locks on the chain.
+2004|UpdateBalanceProof|An error occurred while submitting balance proof on the chain.
+2005|punish|An error occurred while executing punish on the chain.
+2006|settle|An error occurred while performing settle on the chain.
+2007|deposit|An error occurred while executing deposit on the chain.
+2008|ErrSpectrumNotConnected|Not connected to the public chain（spectrum).
+2009|ErrTxWaitMined|Wait for returning error of mining.
+2010|ErrTxReceiptStatus|The transfer was packaged, but it failed.
+2011|ErrSecretAlreadyRegistered|Attempt to connect to the public chain to register the secret, but the secret has been registered.
+2012|ErrSpectrumSyncError|Photon has connected to the public chain, but did not create the block for a long time or was synchronized.
+2013|ErrSpectrumBlockError|The number of locally processed blocks is not consistent with the number which public chain reporting blocks.
+2999|unkown spectrum rpc error|Other Ethereum RPC errors
+3001|TokenNotFound|No corresponding token was found
+3002|ChannelNotFound|No corresponding channel was found
+3003|NoAvailabeRoute|No available routes
+3004|TransferNotFound|No corresponding transfer was found.
+3005|ChannelAlreadExist|Channels already exist.
+5000|CannotWithdarw|Channels are not cooperatively withdraw now, such as transactions in progress.
+5001|ErrChannelState|The channel state in which the corresponding operation cannot be performed, one attempt to execute certain transactions, such as initiating transactions on closed channels.
+5002|Channel only can settle after timeout|Attempt the settle the channel before the timeout
+5003|NotParticipant|The given address is not one of the participants of the channel.
+5004|ChannelNoSuchLock|There is no corresponding lock in the channel.
+5005|ErrChannelEndStateNoSuchLock|The corresponding lock cannot be found in the current participant of the channel
+5006|ErrChannelLockAlreadyExpired|The lock in the channel has expired.
+5007|ErrChannelBalanceDecrease|There has been a reduction in channel balance(which means the balance in the contract).
+5008|ErrChannelTransferAmountMismatch|Transferamount was mismatched in received transactions.
+5009|ErrChannelBalanceProofAlreadyRegisteredOnChain| Attempts to modify local balance proof after submitting balanceproof
+5010|ErrChannelDuplicateLock|A lock for this secret already exists in the channel.
+5011|ErrChannelTransferAmountDecrease|The transaction is received, but transferamount became smaller.
+5012|ErrRemoveNotExpiredLock|Attempt to remove an unexpired lock.
+5013|ErrUpdateBalanceProofAfterClosed|Trying to update balance proof of the  participant or the partner after the channel closed
+5014|ErrChannelIdentifierMismatch|Channel ID mismatch
+5015|ErrChannelInvalidSender|Receiving transactions from unknown participants
+5016|ErrChannelBalanceNotMatch|Cooperating to close the channel, the amount check of withdraw was mismatched.
+5017|ErrChannelLockMisMatch|The specified locks in the received transaction do not match local locks.
+5018|ErrChannelWithdrawAmount|Excessive amount to withdraw
+5019|ErrChannelLockExpirationTooLarge|Receiving a transaction, the specified expiration time is too long.
+5020|ErrChannelRevealTimeout|The specified reveal timeout is illegal. 
+5021|ErrChannelBalanceProofNil|The balanceproof is null.
+5022|ErrChannelCloseClosedChannel|Attempts to close closed channel.
+5023|ErrChannelBackgroundTx|BackgroundError in transaction execution. 
+5024|ErrChannelWithdrawButHasLocks|Withdraw requests cannot be sent in the existence of locks.
+5025|ErrChannelCooperativeSettleButHasLocks| CooperativeSettle requests cannot be sent in the existence of locks.
+5026|ErrInvalidSettleTimeout|The timeout value submitted by the user is less than the minimum settle timeout value.
+6000|transport type error|Unknown transport layer errors.
+6001|ErrSubScribeNeighbor|Subscriber online information error
 
 ##  Query node address
 
@@ -61,7 +181,9 @@ State|StateString|Description
 **Example Response :**  
 ```json
 {
-    "our_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92"
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40"
 }
 ```
 **Status Codes:**  
@@ -79,17 +201,21 @@ State|StateString|Description
 
 **Example Response :**  
 ```json
-[
-     "0xC07D1D6e8F20F2a90B205762a0BAC0B611c490DC",
-    "0x2a7Af974B7bB88703180d6AFF9a656BB4Dbba809",
-    "0x8B916406c1ecCC5B15865b7BC7aF5fA90c01Fc59",
-    "0x489CEE6beAA894898d0890f4c6d750cA3D8176A4"
-]
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": [
+        "0xF0123C3267Af5CbBFAB985d39171f5F5758C0900",
+        "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+        "0x270831A3C8dB8e515ba4ee2c6b3087E58e8DD1C7",
+        "0x481Df7AC195d000546592e7D39488134FdCd042A",
+        "0xB5F80e9013d62A891B062595C3E864B3D4612a78"
+    ]
+}
 ```
 **Status Codes:**  
 - `200 OK` 
 
-If the node has not registered the token, then respond the message " NULL".
 
 ## Get all the channel partners of this token
  `GET /api/1/tokens/*(token_address)*/partners`
@@ -98,29 +224,37 @@ If the node has not registered the token, then respond the message " NULL".
 
 **Example Request :**  
 
-`GET http://{{ip2}}/api/1/tokens/0x2a7Af974B7bB88703180d6AFF9a656BB4Dbba809/partners`
+`GET http://{{ip2}}/api/1/tokens/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/partners`
 
 **Example Response :** 
 ```json
-[
-    {
-        "partner_address": "0xd5dC7504e0b448b1c62D86306AE8e4a5836Fc1A1",
-        "channel": "api/1/channles/0x019ed640b5c6f8a714a77a754e793cd162df164f7e96f88a2beefbd1c576980d"
-    },
-    {
-        "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
-        "channel": "api/1/channles/0x081f7a9771994de9f06edb52cb60a0fe3b9bbebd4c1240c267967c7e3fa433f5"
-    },
-    {
-        "partner_address": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40",
-        "channel": "api/1/channles/0xf25edb59e35544e060ecfcef6e6a0ba619ff905a132295957e11ffdc2206fc24"
-    }
-]
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": [
+        {
+            "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
+            "channel": "api/1/channles/0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966"
+        },
+        {
+            "partner_address": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40",
+            "channel": "api/1/channles/0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5"
+        }
+    ]
+}
 ```
 **Status Codes:**  
 - `200 OK` 
 
- If the node has not created the channel with the token, then respond the message " NULL".
+ If the node has not created the channel with the token, then respond the message:
+ 
+ ```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": null
+}
+```
 
  
 ## Query all the channels of the node
@@ -134,55 +268,29 @@ Return all the unsettled channels of the node.
 
 **Example Response :**  
 ```json
-[
-     {
-        "channel_identifier": "0x8b48df693d6ceeb40c6285b9820171e204d2218088f506b6d8dd415ef690edd7",
-        "open_block_number": 14495292,
-        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
-        "balance": 100000000000000000000,
-        "partner_balance": 100000000000000000000,
-        "locked_amount": 0,
-        "partner_locked_amount": 0,
-        "token_address": "0x8B916406c1ecCC5B15865b7BC7aF5fA90c01Fc59",
-        "state": 1,
-        "state_string": "opened",
-        "settle_timeout": 100,
-        "reveal_timeout": 30
-    },
+{
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": [
     {
-        "channel_identifier": "0xc704dad871ed767dd2ed3d40c7ed2db6c047e82749613bf1458d7ab0a65ba4f1",
-        "open_block_number": 14495300,
-        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
-        "balance": 0,
-        "partner_balance": 100000000000000000000,
-        "locked_amount": 0,
-        "partner_locked_amount": 0,
-        "token_address": "0x489CEE6beAA894898d0890f4c6d750cA3D8176A4",
-        "state": 1,
-        "state_string": "opened",
-        "settle_timeout": 100,
-        "reveal_timeout": 30
-    },
-    {
-        "channel_identifier": "0xf25edb59e35544e060ecfcef6e6a0ba619ff905a132295957e11ffdc2206fc24",
-        "open_block_number": 14660842,
-        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
-        "balance": 7987,
-        "partner_balance": 12013,
-        "locked_amount": 0,
-        "partner_locked_amount": 0,
-        "token_address": "0x2a7Af974B7bB88703180d6AFF9a656BB4Dbba809",
-        "state": 1,
-        "state_string": "opened",
-        "settle_timeout": 100,
-        "reveal_timeout": 30
+      "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+      "open_block_number": 1872482,
+      "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+      "balance": 10000000000000000000000,
+      "partner_balance": 10000000000000000000000,
+      "locked_amount": 0,
+      "partner_locked_amount": 0,
+      "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+      "state": 1,
+      "state_string": "opened",
+      "settle_timeout": 100,
+      "reveal_timeout": 30
     }
-]
+  ]
+}
 ```
 **Status Codes:**  
 - `200 OK` 
-
-If the node has not created the channel with other nodes, then respond the message " NULL".
 
 ## Query specific channel of the node
   `GET /api/1/channels/*(channel_identifier)* `
@@ -191,60 +299,53 @@ Query the specific channel and return all the information about the channel.
 
 **Example Request :**  
 
-`GET http://{{ip1}}/api/1/channels/0xf25edb59e35544e060ecfcef6e6a0ba619ff905a132295957e11ffdc2206fc24`
+`GET http://{{ip1}}/api/1/channels/0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5`
 
 **Example Response :**  
 ```json
 {
-    "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
-    "open_block_number": 2899911,
-    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-    "balance": 80000000000000000000,
-    "patner_balance": 120000000000000000000,
-    "locked_amount": 0,
-    "partner_locked_amount": 0,
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "state": 1,
-    "StateString": "opened",
-    "settle_timeout": 150,
-    "reveal_timeout": 0,
-    "ClosedBlock": 0,
-    "SettledBlock": 0,
-    "OurUnkownSecretLocks": {},
-    "OurKnownSecretLocks": {},
-    "PartnerUnkownSecretLocks": {},
-    "PartnerKnownSecretLocks": {},
-    "OurLeaves": null,
-    "PartnerLeaves": null,
-    "OurBalanceProof": {
-        "Nonce": 2,
-        "TransferAmount": 20000000000000000000,
-        "LocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "ChannelIdentifier": {
-            "ChannelIdentifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
-            "OpenBlockNumber": 2899911
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+        "open_block_number": 1872482,
+        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+        "balance": 1e+22,
+        "partner_balance": 1e+22,
+        "locked_amount": 0,
+        "partner_locked_amount": 0,
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+        "state": 1,
+        "state_string": "opened",
+        "settle_timeout": 100,
+        "reveal_timeout": 30,
+        "closed_block": 0,
+        "settled_block": 0,
+        "our_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
         },
-        "MessageHash": "0x93a656c5b673759c76083439790a9f7b91c7656b41ef8884e098517e15461427",
-        "Signature": "BCspERU5NQvgm3zB55mK/YWRBErqhgcPiGZMVgIfgz1bzO7iplEOQ/An6F8cLIXMt06RjQmsfOc4yjWRDFSzYBw=",
-        "ContractTransferAmount": 0,
-        "ContractNonce": 2,
-        "ContractLocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
-    },
-    "PartnerBalanceProof": {
-        "Nonce": 0,
-        "TransferAmount": 0,
-        "LocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "ChannelIdentifier": {
-            "ChannelIdentifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
-            "OpenBlockNumber": 0
-        },
-        "MessageHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "Signature": null,
-        "ContractTransferAmount": 0,
-        "ContractNonce": 0,
-        "ContractLocksRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
-    },
-    "Signature": null
+        "partner_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    }
 }
 ```
 **Status Codes:**  
@@ -283,29 +384,34 @@ deposit interfaces contain two behaviors：
 **PAYLOAD:** 
 ```json 
 {
-    "partner_address": "0x7d289f1cBd70d5c3c6F56c09f812F6407f6458B7",
-    "token_address": "0xadE88bC1519867e7091f83D763cf61918d50244a",
+    "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
     "balance": 10000000000000000000000,
-    "settle_timeout": 100,
-    "new_channel": true
+    "settle_timeout":0,
+     "new_channel":false
+   
 }
 ```
 
 **Example Response :**  
 ```json
 {
-    "channel_identifier": "0x16305a3a4e1b8f1ee167be895c60a9a77551ea1db40077a3a897cb1a75dadab1",
-    "open_block_number": 1607480,
-    "partner_address": "0x7d289f1cBd70d5c3c6F56c09f812F6407f6458B7",
-    "balance": 10000000000000000000000,
-    "partner_balance": 0,
-    "locked_amount": 0,
-    "partner_locked_amount": 0,
-    "token_address": "0xadE88bC1519867e7091f83D763cf61918d50244a",
-    "state": 1,
-    "state_string": "opened",
-    "settle_timeout": 100,
-    "reveal_timeout": 30
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+        "open_block_number": 1872482,
+        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+        "balance": 10000000000000000000000,
+        "partner_balance": 10000000000000000000000,
+        "locked_amount": 0,
+        "partner_locked_amount": 0,
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+        "state": 1,
+        "state_string": "opened",
+        "settle_timeout": 100,
+        "reveal_timeout": 30
+    }
 }
 ```
 
@@ -333,7 +439,7 @@ When you’re ready to withdraw, you can switch the channel state to `"preparewi
 
  **Example Request :**  
 
-`PUT http://{{ip2}}/api/1/withdraw/0x081f7a9771994de9f06edb52cb60a0fe3b9bbebd4c1240c267967c7e3fa433f5`
+`PUT http://{{ip2}}/api/1/withdraw/0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5`
 
 **PAYLOAD:**  
 ```json
@@ -345,18 +451,22 @@ When you’re ready to withdraw, you can switch the channel state to `"preparewi
 
 ```json
 {
-    "channel_identifier": "0x623c5bf569977f6da37ff39da9a917eb500089ba7ae95ee894b9349db4320b16",
-    "open_block_number": 4135231,
-    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-    "balance": 100000000000000000000,
-    "partner_balance": 200000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+    "open_block_number": 1872482,
+    "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+    "balance": 20000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20",
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
     "state": 9,
-    "StateString": "prepareForWithdraw",
-    "settle_timeout": 150,
+    "state_string": "prepareForWithdraw",
+    "settle_timeout": 100,
     "reveal_timeout": 30
+  }
 }
 ```
 When you want to cancel the state of the `preparewithdraw`, you can switch the channel state to the`opened` through the parameter`"op":"cancelprepare"`.
@@ -370,18 +480,22 @@ When you want to cancel the state of the `preparewithdraw`, you can switch the c
 **Example Response :** 
 ```json
 {
-    "channel_identifier": "0x623c5bf569977f6da37ff39da9a917eb500089ba7ae95ee894b9349db4320b16",
-    "open_block_number": 4135231,
-    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-    "balance": 100000000000000000000,
-    "partner_balance": 200000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+    "open_block_number": 1872482,
+    "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+    "balance": 20000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0xc0dfdD7821c762eF38F86225BD45ff4e912fFA20",
-    "state": 9,
-    "StateString": "opened",
-    "settle_timeout": 150,
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "state": 1,
+    "state_string": "opened",
+    "settle_timeout": 100,
     "reveal_timeout": 30
+  }
 }
 ```
 Of course, as long as both channels are online and there is no lock, then you can directly `withdraw`, `op` parameters are not necessary.
@@ -397,21 +511,32 @@ When `amount`is greater than 0, the `op` parameter is meaningless.
 **Example Response :**  
 ```json
 {
-    "channel_identifier": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
-    "open_block_number": 3613578,
-    "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-    "balance": 190000000000000000000,
-    "partner_balance": 100000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+    "open_block_number": 1872482,
+    "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+    "balance": 20000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
-    "state": 7,
-    "StateString": "withdrawing",
-    "settle_timeout": 150,
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "state": 6,
+    "state_string": "withdrawing",
+    "settle_timeout": 100,
     "reveal_timeout": 30
+  }
 }
 ```
-If the withdrawn amount is larger than the available balance of the channel, an error message will be returned.such as "Error": "invalid withdraw amount, availabe=399999999999999999999,want=1000000000000000000000"”.
+If the withdrawn amount is larger than the available balance of the channel, an error message will be returned.
+```json
+{
+    "error_code": 1,
+    "error_message": "ArgumentError:errorCode: 1, errorMsg ArgumentError:invalid withdraw amount, availabe=19900000000000000000000,want=1000000000000000000000000"
+}
+```
+
 
 ##  Close the channel
 `PATCH /api/1/channels/*(channel_identifier)* `
@@ -421,7 +546,7 @@ set `force` default to `false`, meaning that channel participants cooperate sett
 
 **Example Request :**    
 
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`
+`PATCH http://{{ip2}}/api/1/channels/0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966` 
    
 **PAYLOAD:**      
 ```json
@@ -432,21 +557,33 @@ set `force` default to `false`, meaning that channel participants cooperate sett
 **Example Response :**    
 ```json
 {
-    "channel_identifier": "0xf1fa19fa6a54912e32d6e6e1aa0baa14d530385c60266886ef7c18838f6e9bdc",
-    "open_block_number": 2498052,
-    "partner_address": "0x6B9E4D89EE3828e7a477eA9AA7B62810260e27E9",
-    "balance": 0,
-    "partner_balance": 0,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966",
+    "open_block_number": 1694460,
+    "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
+    "balance": 10000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "state": 8,
-    "StateString": "cooperativeSettling",
-    "settle_timeout": 35,
-    "reveal_timeout": 5
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "state": 7,
+    "state_string": "cooperativeSettling",
+    "settle_timeout": 100,
+    "reveal_timeout": 30
+  }
 }
 ```
-Once channel partner is offline or has the locks, the cooperate settle can't be carried out.The participant should alter the`force` to `true`, wait for settle_timeout and unilateral settle the channel.
+Once channel partner is offline or has the locks, the cooperate settle can't be carried out.
+```json 
+{
+    "error_code": 1,
+    "error_message": "ArgumentError:errorCode: 1016, errorMsg NodeOffline:node 0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B is not online"
+}
+```
+
+The participant should alter the`force` to `true`, wait for settle_timeout and unilateral settle the channel.
 
 **PAYLOAD:**     
 ```json 
@@ -457,18 +594,22 @@ Once channel partner is offline or has the locks, the cooperate settle can't be 
 **Example Response :**    
 ```json
 {
-    "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
-    "open_block_number": 2560169,
-    "partner_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
-    "balance": 100000000000000000000,
-    "partner_balance": 100000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966",
+    "open_block_number": 1890493,
+    "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
+    "balance": 10000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "state": 2,
-    "StateString": "closed",
-    "settle_timeout": 150,
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "state": 4,
+    "state_string": "closing",
+    "settle_timeout": 100,
     "reveal_timeout": 30
+  }
 }
 ```
 ##  Settle the Channel
@@ -483,7 +624,7 @@ Note: Since settle_timeout does not include the penalty period (in spectrum, whi
 
 **Example Request :**  
 
-`PATCH /api/1/channels/0x97f73562938f6d538a07780b29847330e97d40bb8d0f23845a798912e76970e1`   
+`PATCH http://{{ip2}}/api/1/channels/0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966`   
 
 **PAYLOAD:**   
 ```json
@@ -496,18 +637,22 @@ Note: Since settle_timeout does not include the penalty period (in spectrum, whi
 ```json
 
 {
-    "channel_identifier": "0xc943251676c4e53b2669fbbf17ebcbb850da9cb0a907200c40f1342a37629489",
-    "open_block_number": 2575160,
-    "partner_address": "0x69C5621db8093ee9a26cc2e253f929316E6E5b92",
-    "balance": 100000000000000000000,
-    "partner_balance": 50000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "channel_identifier": "0xe4c61eac5f3f45ea62c7f021cc0aa6a774feb14fed3eaa28af16b512f7fec966",
+    "open_block_number": 1890493,
+    "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
+    "balance": 10000000000000000000000,
+    "partner_balance": 10000000000000000000000,
     "locked_amount": 0,
     "partner_locked_amount": 0,
-    "token_address": "0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2",
-    "state": 1,
-    "StateString": "settled",
-    "settle_timeout": 150,
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "state": 5,
+    "state_string": "settling",
+    "settle_timeout": 100,
     "reveal_timeout": 30
+  }
 }
 ```
 **Status Codes :**  
@@ -520,17 +665,24 @@ Note: Since settle_timeout does not include the penalty period (in spectrum, whi
 This interface is used to initiate a transfer transaction, which is currently associated with PFS by default.
 
 **Example Request :**   
-
-`POST /api/1/transfers/0x7B874444681F7AEF18D48f330a0Ba093d3d0fDD2/0xf2234A51c827196ea779a440df610F9091ffd570`
+`POST http://{{ip1}}/api/1/transfers/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/0xd5dC7504e0b448b1c62D86306AE8e4a5836Fc1A1`
 
 **PAYLOAD:**     
 ```json
-{
-    "amount":200000000000000000000000,
-    "fee":0,
+{ "amount":10000000000,
     "is_direct":false,
-    "Sync":false,
-    "data":"hello word"
+    "route_info":[
+    {
+        "path_id": 0,
+        "path_hop": 2,
+        "fee": 23611121,
+        "result": [
+            "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+            "0xc445a8c326a8fd5a3e250c7dc0efc566edcb263b",
+            "0xd5dc7504e0b448b1c62d86306ae8e4a5836fc1a1"
+        ]
+    }
+]
 }
 ```
 **Parameter implication:** 
@@ -543,15 +695,31 @@ This interface is used to initiate a transfer transaction, which is currently as
 **Example Response :**    
 ```json
 {
-    "initiator_address": "0x151E62a787d0d8d9EfFac182Eae06C559d1B68C2",
-    "target_address": "0x10b256b3C83904D524210958FA4E7F9cAFFB76c6",
-    "token_address": "0x3e9f443405072BA0147F06708E9c0b4663D1D645",
-    "amount": 200000000000000000000000,
-    "lockSecretHash": "0x98c04dd2a7e479f72b54af90728742f59f40ff89339c18ebe19846969009c883",
-    "data": "hello word"
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "initiator_address": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40",
+        "target_address": "0xd5dC7504e0b448b1c62D86306AE8e4a5836Fc1A1",
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+        "amount": 10000000000,
+        "lockSecretHash": "0x14c97ba1f3a6850d5ddec5c486d673ada87cc3a9de7f4b1a6050b61e598a2ec9",
+        "data": "",
+        "route_info": [
+            {
+                "path_id": 0,
+                "path_hop": 2,
+                "fee": 23611121,
+                "result": [
+                    "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+                    "0xc445a8c326a8fd5a3e250c7dc0efc566edcb263b",
+                    "0xd5dc7504e0b448b1c62d86306ae8e4a5836fc1a1"
+                ]
+            }
+        ]
+    }
 }
 ```
-Note: In general, the parameter "fee" uses the default value of 0, that is, the total cost of the transfer is not specified. The sender will refer to the PFS recommended fee plan for transfer; in the case where "fee" is not 0, the amount is theoretically greater than or equal to the cost value recommended by PFS, otherwise the transfer may fail, prompting “no available route”.
+Note: The new version makes the designated routing transfer. If the local photon node does not update the rate to PFS in time, there may be inconsistency between the charge and the calculation of PFS, the actual charges shall prevail.
 
 
 ## Initiate the transfer with specified secret
@@ -560,16 +728,93 @@ The normal transfer secret is automatically generated by photon. If the user wan
 
 **Example Request :**   
 
-`POST: http://{{ip1}}/api/1/transfers/0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5/0xf0f6E53d6bbB9Debf35Da6531eC9f1141cd549d5`   
+`POST http://{{ip1}}/api/1/transfers/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/0xd5dC7504e0b448b1c62D86306AE8e4a5836Fc1A1` 
 
 ```json
 {
-    "amount":20000000000000000000,
+    "amount":10000000000,
     "is_direct":false,
-    "secret":"0xad96e0d02aa2f4db096e3acdba0831f95bb09d876a5c6f44bc3f7325a0a45ea1"
-}
+    "secret":"0x9a01a92aebd7419a5645d05eb344896e25d9c919ef67efa0521996127adbc07d",
+    "route_info":[
+    {
+        "path_id": 0,
+        "path_hop": 2,
+        "fee": 23611121,
+        "result": [
+            "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+            "0xc445a8c326a8fd5a3e250c7dc0efc566edcb263b",
+            "0xd5dc7504e0b448b1c62d86306ae8e4a5836fc1a1"
+        ]
+    }
+]
+      }
 ```
 Note: The specified secret is obtained by the interface  `/api/1/secret`.
+
+**Example Response :**   
+```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "initiator_address": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40",
+        "target_address": "0xd5dC7504e0b448b1c62D86306AE8e4a5836Fc1A1",
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+        "amount": 10000000000,
+        "secret": "0x9a01a92aebd7419a5645d05eb344896e25d9c919ef67efa0521996127adbc07d",
+        "lockSecretHash": "0x1dacb8dcdc1088dad043d07aff1b812760b8ea04525d1f76961a0d46765ec9e0",
+        "data": "",
+        "route_info": [
+            {
+                "path_id": 0,
+                "path_hop": 2,
+                "fee": 23611121,
+                "result": [
+                    "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+                    "0xc445a8c326a8fd5a3e250c7dc0efc566edcb263b",
+                    "0xd5dc7504e0b448b1c62d86306ae8e4a5836fc1a1"
+                ]
+            }
+        ]
+    }
+}
+```
+ The specified secret transfer is locked.
+
+```json
+{
+            "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+            "open_block_number": 1932436,
+            "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+            "balance": 999989976388879,
+            "partner_balance": 10023611121,
+            "locked_amount": 10023611121,
+            "partner_locked_amount": 0,
+            "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+            "state": 1,
+            "state_string": "opened",
+            "settle_timeout": 100,
+            "reveal_timeout": 30
+        }
+```
+
+After registering secret with the `allow disclosure secret`interface, the lock is unlocked.
+```json
+{
+            "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+            "open_block_number": 1932436,
+            "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+            "balance": 999979952777758,
+            "partner_balance": 20047222242,
+            "locked_amount": 0,
+            "partner_locked_amount": 0,
+            "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+            "state": 1,
+            "state_string": "opened",
+            "settle_timeout": 100,
+            "reveal_timeout": 30
+        }
+```
 
 ## Get the secret
 ` GET /api/1/secret `
@@ -583,8 +828,12 @@ Through calling the interface,the caller will Get `lock_secret_hash` / `secret` 
 **Example Response :** 
 ```json
 {
-    "lock_secret_hash": "0x8e90b850fdc5475efb04600615a1619f0194be97a6c394848008f33823a7ee03",
-    "secret": "0x40a6994181d0b98efcf80431ff38f9bae6fefda303f483e7cf5b7de7e341502a"
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "lock_secret_hash": "0x4e7a5c8043a9faa93d3b094146b2ea2a65ec466e8cb3dbf7986779f802edf024",
+        "secret": "0xd01a3ee8f92664426245099d14435cf93d47feedc9bfee2908e648c7e47d60b7"
+    }
 }
 ```
 
@@ -595,7 +844,7 @@ This interface is used in combination with the specified secret transfer interfa
   
   **Example Request :**   
 
-`Post  http://{{ip1}}/api/1/transfers/allowrevealsecret`
+`Post  http://{{ip2}}/api/1/transfers/allowrevealsecret`
 
 **PAYLOAD:**   
 ```json
@@ -611,6 +860,33 @@ This interface is used in combination with the specified secret transfer interfa
 
 **Example Response:**  
 **200 ok**
+```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": null
+}
+
+```
+Query the channel,the locked amount has been unlocked.
+
+```json
+ {
+            "channel_identifier": "0xa628d9ee19415c574bc6861a2cf17c0269cb37436aa90d9f2da59d72217a14da",
+            "open_block_number": 1694480,
+            "partner_address": "0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B",
+            "balance": 1.000000000002e+22,
+            "partner_balance": 9.99999999998e+21,
+            "locked_amount": 0,
+            "partner_locked_amount": 0,
+            "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+            "state": 1,
+            "state_string": "opened",
+            "settle_timeout": 100,
+            "reveal_timeout": 30
+        }
+
+```
 
 ## Query the sent successful transfer 
   `GET /api/1/querysenttransfer` 
@@ -619,32 +895,40 @@ For the sender of the transfer, the interface can be used to query the history i
 
 **Example Request :**   
 
-`GET http://{{ip1}}/api/1/querysenttransfer`
+`GET http://{{ip2}}/api/1/querysenttransfer`
 
 **Example Response :** 
 ```json
-[
+{
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": [
     {
-        "Key": "0xd971f803c7ea39ee050bf00ec9919269cf63ee5d0e968d5fe33a1a0f0004f73d-3",
-        "block_number": 4490372,
-        "OpenBlockNumber": 0,
-        "channel_identifier": "0xd971f803c7ea39ee050bf00ec9919269cf63ee5d0e968d5fe33a1a0f0004f73d",
-        "to_address": "0x151e62a787d0d8d9effac182eae06c559d1b68c2",
-        "token_address": "0xd82e6be96a1457d33b35cded7e9326e1a40c565d",
-        "nonce": 3,
-        "amount": 10000000000000000000
+      "Key": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5-1890429-3",
+      "block_number": 1890583,
+      "open_block_number": 1890429,
+      "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+      "target_address": "0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40",
+      "token_address": "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b",
+      "nonce": 3,
+      "amount": 1000000000000000000000,
+      "data": "",
+      "time_stamp": "2019-02-18T15:22:10+08:00"
     },
     {
-        "Key": "0xd971f803c7ea39ee050bf00ec9919269cf63ee5d0e968d5fe33a1a0f0004f73d-5",
-        "block_number": 4490580,
-        "OpenBlockNumber": 0,
-        "channel_identifier": "0xd971f803c7ea39ee050bf00ec9919269cf63ee5d0e968d5fe33a1a0f0004f73d",
-        "to_address": "0x151e62a787d0d8d9effac182eae06c559d1b68c2",
-        "token_address": "0xd82e6be96a1457d33b35cded7e9326e1a40c565d",
-        "nonce": 5,
-        "amount": 10000000000000000000
+      "Key": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5-1890429-5",
+      "block_number": 1890656,
+      "open_block_number": 1890429,
+      "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+      "target_address": "0x97cd7291f93f9582ddb8e9885bf7e77e3f34be40",
+      "token_address": "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b",
+      "nonce": 5,
+      "amount": 1000000000000000000000,
+      "data": "",
+      "time_stamp": "2019-02-18T15:40:47+08:00"
     }
-]
+  ]
+}
 ```
 ## Query the received successful transfer 
    `GET /api/1/queryreceivedtransfer`
@@ -653,32 +937,40 @@ For the receiver of the transfer, the interface can be used to query the history
 
 **Example Request：**
 
-`GET http://{{ip2}}/api/1/queryreceivedtransfer`
+`GET http://{{ip1}}/api/1/queryreceivedtransfer`
 
 **Example Response :** 
 ```json
-[
+{
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": [
     {
-        "Key": "0x79b789e88c3d2173af4048498f8c1ce66f019f33a6b8b06bedef51dde72bbbc1-2",
-        "block_number": 4492809,
-        "OpenBlockNumber": 0,
-        "channel_identifier": "0x79b789e88c3d2173af4048498f8c1ce66f019f33a6b8b06bedef51dde72bbbc1",
-        "token_address": "0xd82e6be96a1457d33b35cded7e9326e1a40c565d",
-        "from_address": "0x201b20123b3c489b47fde27ce5b451a0fa55fd60",
-        "nonce": 2,
-        "amount": 10000000000000000000
+      "Key": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5-1890429-2",
+      "block_number": 1890583,
+      "OpenBlockNumber": 1890429,
+      "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+      "token_address": "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b",
+      "initiator_address": "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+      "nonce": 2,
+      "amount": 1000000000000000000000,
+      "data": "",
+      "time_stamp": "2019-02-18T15:22:10+08:00"
     },
     {
-        "Key": "0x79b789e88c3d2173af4048498f8c1ce66f019f33a6b8b06bedef51dde72bbbc1-6",
-        "block_number": 4493353,
-        "OpenBlockNumber": 0,
-        "channel_identifier": "0x79b789e88c3d2173af4048498f8c1ce66f019f33a6b8b06bedef51dde72bbbc1",
-        "token_address": "0xd82e6be96a1457d33b35cded7e9326e1a40c565d",
-        "from_address": "0x201b20123b3c489b47fde27ce5b451a0fa55fd60",
-        "nonce": 6,
-        "amount": 20000000000000000000
+      "Key": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5-1890429-4",
+      "block_number": 1890656,
+      "OpenBlockNumber": 1890429,
+      "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+      "token_address": "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b",
+      "initiator_address": "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+      "nonce": 4,
+      "amount": 1000000000000000000000,
+      "data": "",
+      "time_stamp": "2019-02-18T15:40:47+08:00"
     }
-]
+  ]
+}
 ```
 ##  Query the transaction that have not yet been received
    ` GET /api/1/getunfinishedreceivedtransfer/*(tokenaddress)*/*(locksecrethash)* `  
@@ -686,19 +978,24 @@ For the receiver of the transfer, the interface can be used to query the history
  This interface is called by the receiver, also used to specify the secret transaction scenario. The  receiver can find out that  a transaction has been received through the interface, but there is no secret. The receiver can request the sender to call allowrevealsecret to complete the transaction, otherwise the transaction will be returned after expiration.
  
  **Example Request :**    
-`GET /api/1/getunfinishedreceivedtransfer/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843`   
+`GET {{ip1}}/api/1/getunfinishedreceivedtransfer/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/0xd8875761c93aa9b804c42855601326cf722ced2be5d84fdee36c52ced95ba587`   
 
  **Example Response :** 
 ```json
 {
-    "initiator_address": "0x201B20123b3C489b47Fde27ce5b451a0fA55FD60",
-    "target_address": "0x151E62a787d0d8d9EfFac182Eae06C559d1B68C2",
-    "token_address": "0xD82E6be96a1457d33B35CdED7e9326E1A40c565D",
-    "amount": 30000000000000000000,
+  "error_code": 0,
+  "error_message": "SUCCESS",
+  "data": {
+    "initiator_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+    "target_address": "0x97Cd7291f93F9582Ddb8E9885bF7E77e3f34Be40",
+    "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
+    "amount": 1000000000000000000000,
     "secret": "",
-    "lock_secret_hash": "0x2fb55cec26a26d0212cf6bd6022aaa7426410916de09133be3b353ac1a91d843",
-    "expiration": 131,
+    "lock_secret_hash": "0xd8875761c93aa9b804c42855601326cf722ced2be5d84fdee36c52ced95ba587",
+    "expiration": 65,
+    "fee": null,
     "is_direct": false
+  }
 }
 ```
 
@@ -709,14 +1006,20 @@ There are two ways for users to send and receive transactions, that is, synchron
 
 **Example Request :**  
 
-`GET /api/1/transferstatus/0xD82E6be96a1457d33B35CdED7e9326E1A40c565D/0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82` 
+`GET http://{{ip2}}/api/1/transferstatus/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/0xd8875761c93aa9b804c42855601326cf722ced2be5d84fdee36c52ced95ba587` 
 
 **Example Response :**  
 ```json
 {
-    "LockSecretHash": "0xdb0d663a82d04fedf4f558f75d7be801ab6707ea765662919063bad93cd71c82",
-    "Status": 0,
-    "StatusMessage": "MediatedTransfer is sending target=151e\nMediatedTransfer sending success\n"
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "key": "0x232cad7f5e8f51f48bd0d15753ac0fb0996923ff42bd99c50a9060de00411d3a",
+        "lock_secret_hash": "0xd8875761c93aa9b804c42855601326cf722ced2be5d84fdee36c52ced95ba587",
+        "token_address": "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b",
+        "status": 1,
+        "status_message": "MediatedTransfer is sending target=97cd\nMediatedTransfer sending success\n"
+    }
 }
 ```
 
@@ -742,7 +1045,13 @@ In the asynchronous transaction transfer process, if the current transaction is 
 
 **Example Response :**  
 **200 OK**
-
+```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": null
+}
+```
 Note: Before using this interface, you need to query the corresponding transaction status through the interface `/api/1/transferstatus`. If it is not in the cancelable state, the interface will return an Error:"can not found transfer".
 
 ## Token exchange
@@ -753,7 +1062,7 @@ Token Swap can be used to atomic exchange within two types of tokens.
 
  Under the circumstances that valid routing strategies are existed, first invoke `taker` then `maker`,  It should be noted that the preimage of the `lock_secret_hash` which the maker introduced must be equal to the `secret` when taker adopted. Note that both taker and maker request the lock_secret_hash, the secret was given in the  maker's request parameters.
 
-Note: With help of the interface  `/api/1/secret` ,  channel participants can receive a `lock_secret_hash` / `secret` pair.
+Note: With help of the interface  `/api/1/secret`,  channel participants can receive a `lock_secret_hash` / `secret` pair.
 
 **Example Request :**    
 
@@ -790,6 +1099,7 @@ Note: With help of the interface  `/api/1/secret` ,  channel participants can re
 - `201 Created` - success 
 - `400 Bad Request` - "no route available"(the scene may be happen when the old secret was used or the intermediate node has no corresponding token)
 
+Note: If `tokenswap`is exchanged through direct channels between the two parties, no `route_info` information is needed; otherwise, as with transfer, the route information of the destination should be introduced into `taker`and `maker` requests respectively, and the indirect channel `tokenswap`should be assigned routes and charges.
 
 ## Switch to no network
  `GET /api/1/switch/*(Boolean)*` 
@@ -808,6 +1118,15 @@ This interface is provided to switch to no-network state,by the way,this is main
    When switching to no network state, only `direct transactions` can be accepted.
 
   Note: Although the node can use this interface to switch to the no-network state, if the node sends a direct transfer transaction to other nodes with direct channels, it can still succeed. Therefore, the interface is not completely "no network", but only achieves the shielding function of indirect transactions.
+
+**Example Response :**  
+  ```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": null
+}
+```
 
 ##  Update node registered information
  ` POST /api/1/updatenodes` 
@@ -829,6 +1148,13 @@ when the node information were registered, the transfer will take the UDP mode o
 ```
 **Example Response :**   
 **200 OK**  
+```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": "ok"
+}
+```
 
 
 ## Set the fee policy
@@ -874,6 +1200,15 @@ The interface is called by the user to provide the PFS with the charging rate of
 - channel_fee    Node charging at a certain channel
  The priority of the three charging modes is：`channel_fee`>`token_fee`>`account_fee`
 
+**Example Response :**  
+ ```json 
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": "ok"
+}
+```
+
 ## Query the fee policy
 `  GET /api/1/fee_policy `
 
@@ -889,14 +1224,30 @@ Query the node charging information, which connect to default PFS server. If the
 
 ```json  
 {
-    "Key": "feePolicy",
-    "account_fee": {
-        "fee_constant": 0,
-        "fee_percent": 10000,
-        "signature": null
-    },
-    "token_fee_map": {},
-    "channel_fee_map": {}
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "Key": "feePolicy",
+        "account_fee": {
+            "fee_constant": 5,
+            "fee_percent": 10000,
+            "signature": "r8WxYRc/Jei7vpy4wGMm2hAikM8enlZibeWy8FQEJut0CRH9gx/ZYA80gfesYYiXYpAl1IMci+UcfT79E9zyARs="
+        },
+        "token_fee_map": {
+            "0xb31567308ad3c42d864fb41684bb40d3a2c57e1b": {
+                "fee_constant": 5,
+                "fee_percent": 10000,
+                "signature": "r8WxYRc/Jei7vpy4wGMm2hAikM8enlZibeWy8FQEJut0CRH9gx/ZYA80gfesYYiXYpAl1IMci+UcfT79E9zyARs="
+            }
+        },
+        "channel_fee_map": {
+            "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5": {
+                "fee_constant": 5,
+                "fee_percent": 1000,
+                "signature": "EAo6sV0d665BNTrQSWJC8fnO15POkc+sbWYKVV5VQbBf5+o9kPlNbag0InYCJ/FVhTtlYtVGXL5U5WBaGVGEpBs="
+            }
+        }
+    }
 }
 ```
 ## Query node charge record
@@ -968,7 +1319,7 @@ The user invokes the interface to query whether the target node has available ro
 
 **Example Request :**  
 
-`GET：http://{{ip1}}/api/1/path/0xEfB2e46724f675381ce0b3F70Ea66383061924E9/0x5b9d594750bb54f95E372F17a04a70E488284f64/100`
+`GET：http://{{ip1}}/api/1/path/0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/1000000000000000000000`
   
 **Example Response :**  
 
@@ -976,18 +1327,133 @@ The user invokes the interface to query whether the target node has available ro
 
 ```json 
 {
-        "path_id": 0,
-        "path_hop": 2,
-        "fee": 10,
-        "result": [
-            "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
-            "0x8a32108d269c11f8db859ca7fac8199ca87a2722",
-            "0xefb2e46724f675381ce0b3f70ea66383061924e9"
-        ]
-    } 
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": [
+        {
+            "path_id": 0,
+            "path_hop": 1,
+            "fee": 1000000000000000005,
+            "result": [
+                "0x3bc7726c489e617571792ac0cd8b70df8a5d0e22",
+                "0xc445a8c326a8fd5a3e250c7dc0efc566edcb263b"
+            ]
+        }
+    ]
+}
 ```
 
+### Revenue Detail Query
+Post /api/1/income/details
 
+Detailed revenue of query nodes, including fee revenue and direct revenue.
+
+ **Example Request :**  
+ ```json
+{
+     "token_address":"0x0000", // Filter by token query
+    "from_time":1552901182, // Filtering by the server time of the photon node where the transaction occurred
+    "to_time":1552901182, //Filtering by the server time of the photon node where the transaction occurred
+    "limit":100, // The maximum number of returned items for this query,which is not limited by default
+}
+```
+
+**Example Response :**
+
+```json
+            {
+                "error_code": 0,
+                "error_message": "SUCCESS",
+                "data": [
+                    {
+                        "amount": 1,
+                        "data": "",
+                        "type": "1",
+                        "time_stamp": 1552969089
+                    },
+                    {
+                        "amount": 2,
+                        "data": "",
+                        "type": "1",
+                        "time_stamp": 1552969089
+                    },
+                    {
+                        "amount": 5,
+                        "data": "",
+                        "type": "1",
+                        "time_stamp": 1552969090
+                    },
+                    {
+                        "amount": 19999,
+                        "data": "",
+                        "type": "1",
+                        "time_stamp": 1552969091
+                    }
+                ]
+            }
+```
+  Note: type   0=transfer revenue 1-fee revenue
+
+### N-day Revenue Query
+Post /api/1/fee/query
+
+ Detailed revenue of past N-day of query nodes
+
+ **Example Request :**
+
+ ```json
+            {
+                    "token_address":"0x0000", // Filter by token query
+                    "days":7 // Query the revenue statistics of the past 7 days, excluding the current day
+            }
+```
+**Example Response :**
+
+```json
+              {
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": [
+        {
+            "token_address": "0x8fb0e62caa6ec21a6920b769bb35a07e62a0f8bc",
+            "total_amount": 20007,
+            "days": 3,
+            "details": [
+                {
+                    "amount": 0,
+                    "time_stamp": 1553184000
+                },
+                {
+                    "amount": 0,
+                    "time_stamp": 1553270400
+                },
+                {
+                    "amount": 0,
+                    "time_stamp": 1553356800
+                }
+            ]
+        }
+    ]
+}
+```
+### Version query
+Get /api/1/version
+
+ Version Information Query Interface
+ 
+ **Example Response :**
+ ```json
+   {
+            "error_code": 0,
+            "error_message": "SUCCESS",
+            "data": {
+                "go_version": "goversiongo1.11linux/amd64",
+                "git_commit": "17b4d194449e2da643c7b0309063720b602a0b2d",
+                "build_date": "2019-03-19-17:01:58",
+                "version": "1.1.0--17b4"
+            }
+        }
+```
 
 
 
