@@ -1151,7 +1151,7 @@ This interface is provided to switch to no-network state,by the way,this is main
 
 **Example Response :**  
 
-  ```json
+```json
 {
     "error_code": 0,
     "error_message": "SUCCESS",
@@ -1234,7 +1234,7 @@ The interface is called by the user to provide the PFS with the charging rate of
 
 **Example Response :**  
 
- ```json 
+```json 
 {
     "error_code": 0,
     "error_message": "SUCCESS",
@@ -1356,9 +1356,6 @@ The user invokes the interface to query whether the target node has available ro
 `GET：http://{{ip1}}/api/1/path/0xC445a8C326A8fD5a3e250C7dc0EFc566eDcB263B/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/1000000000000000000000`
   
 **Example Response :**  
-
-200 OK
-
 ```json 
 {
     "error_code": 0,
@@ -1376,7 +1373,6 @@ The user invokes the interface to query whether the target node has available ro
     ]
 }
 ```
-
 ### Revenue Detail Query
 Post /api/1/income/details
 
@@ -1384,7 +1380,7 @@ Detailed revenue of query nodes, including fee revenue and direct revenue.
 
  **Example Request :**  
  
- ```json
+```json
 {
      "token_address":"0x0000", // Filter by token query
     "from_time":1552901182, // Filtering by the server time of the photon node where the transaction occurred
@@ -1443,6 +1439,7 @@ Post /api/1/fee/query
                     "days":7 // Query the revenue statistics of the past 7 days, excluding the current day
             }
 ```
+
 **Example Response :**
 
 ```json
@@ -1479,7 +1476,7 @@ Get /api/1/version
  
  **Example Response :**
  
- ```json
+```json
    {
             "error_code": 0,
             "error_message": "SUCCESS",
