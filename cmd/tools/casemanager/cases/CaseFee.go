@@ -28,10 +28,7 @@ func (cm *CaseManager) CaseFee() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	env.StartPFS()
 	// 启动节点
-	N0.StartWithFeeAndPFS(env)
-	N1.StartWithFeeAndPFS(env)
-	N2.StartWithFeeAndPFS(env)
-	N3.StartWithFeeAndPFS(env)
+	cm.startNodesWithFee(env, N0, N1, N2, N3)
 
 	// 获取路由
 	routeInfo := N0.FindPath(N3, tokenAddress, transferAmount)
