@@ -17,11 +17,13 @@
 package debug
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"sort"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -109,24 +111,17 @@ func init() {
 
 //获取本机mac地址作为id,如果有多个mac就拼在一起,长度不超过32,如果没有mac地址,就返回一个随机字符串
 func mac() string {
-	m := make(map[string]bool)
 	// 获取本机的MAC地址
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		panic("Error : " + err.Error())
 	}
-	for _, inter := range interfaces {
-		mac := hex.EncodeToString(inter.HardwareAddr) //获取本机MAC地址
-		if !m[mac] {
-			m[mac] = true
-			//fmt.Println("MAC = ", mac)
-		} else {
-			continue
-		}
-	}
+	sort.Slice(interfaces, func(i, j int) bool {
+		return bytes.Compare(interfaces[i].HardwareAddr, interfaces[j].HardwareAddr) < 0
+	})
 	var r string
-	for s := range m {
-		r += s
+	for _, s := range interfaces {
+		r += hex.EncodeToString(s.HardwareAddr)
 	}
 	if r == "" {
 		r = utils.RandomString(20)
