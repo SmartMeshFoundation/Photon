@@ -3,6 +3,7 @@
 Hey guys, welcome to Photon REST API Reference page. This is an API Spec for Photon version 1.1, which adds a lot more new features, such as, support multi-token functions, support SMT mortgage,use mDNS to solve node discovery, use PFS to support channel charging,etc. Please note that this reference is still updating. If any problem, feel free to submit at our Issue.
 
 ##  Channel Structure  
+
 ```json
    {
     "error_code": 0,
@@ -196,7 +197,8 @@ errorcode|errormessage|Description
 
 `GET  http://{{ip1}}/api/1/address`
 
-**Example Response :**  
+**Example Response :** 
+
 ```json
 {
     "error_code": 0,
@@ -218,6 +220,7 @@ errorcode|errormessage|Description
 `GET  http://{{ip1}}/api/1/tokens`
 
 **Example Response :**  
+
 ```json
 {
     "error_code": 0,
@@ -245,6 +248,7 @@ errorcode|errormessage|Description
 `GET http://{{ip2}}/api/1/tokens/0xB31567308AD3c42D864FB41684bB40d3A2c57E1b/partners`
 
 **Example Response :** 
+
 ```json
 {
     "error_code": 0,
@@ -285,6 +289,7 @@ Return all the unsettled channels of the node.
  `GET  http://{{ip1}}/api/1/channels`
 
 **Example Response :**  
+
 ```json
 {
   "error_code": 0,
@@ -320,6 +325,7 @@ Query the specific channel and return all the information about the channel.
 `GET http://{{ip1}}/api/1/channels/0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5`
 
 **Example Response :**  
+
 ```json
 {
     "error_code": 0,
@@ -412,6 +418,7 @@ deposit interfaces contain two behaviors：
 ```
 
 **Example Response :**  
+
 ```json
 {
     "error_code": 0,
@@ -444,8 +451,6 @@ If the channel exists and the parameter `new_channel` is set to true, an "Error"
 If the channel does not exist and the parameter `new_channel` is set to false, an "Error" is prompted: "channel does not exist"
 
 Setting `settle_timeout` to be non-zero when the channel already exists will prompt "settleTimeout must be zero when newChannel is false"
-
-
 
 
 ## Withdraw from the channel  
@@ -496,6 +501,7 @@ When you want to cancel the state of the `preparewithdraw`, you can switch the c
 }
 ```
 **Example Response :** 
+
 ```json
 {
   "error_code": 0,
