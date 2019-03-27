@@ -10,9 +10,6 @@ import (
 
 // CaseTransferWithRouteInfo :
 func (cm *CaseManager) CaseTransferWithRouteInfo() (err error) {
-	if !cm.RunThisCaseOnly {
-		return ErrorSkip
-	}
 	env, err := models.NewTestEnv("./cases/CaseTransferWithRouteInfo.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return

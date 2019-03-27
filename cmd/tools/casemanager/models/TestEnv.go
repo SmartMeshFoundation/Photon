@@ -669,6 +669,9 @@ func (env *TestEnv) KillAllPhotonNodes() {
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = append(pstr2, "-9")
+		pstr2 = append(pstr2, "photon-pathfinding-service")
+		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
 	Logger.Println("Kill all photon nodes SUCCESS")
 }

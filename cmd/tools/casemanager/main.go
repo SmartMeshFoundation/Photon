@@ -71,10 +71,8 @@ func Main(ctx *cli.Context) (err error) {
 		fmt.Println("Start Casemanager Test...")
 		// run case
 		if caseName == "all" {
-			//caseManager.RunThisCaseOnly = true
 			caseManager.RunAll(ctx.String("skip"))
 		} else {
-			caseManager.RunThisCaseOnly = true
 			caseManager.RunSlow = true
 			caseManager.RunOne(caseName)
 		}
