@@ -1185,7 +1185,7 @@ when the node information were registered, the transfer will take the UDP mode o
 {
     "error_code": 0,
     "error_message": "SUCCESS",
-    "data": "ok"
+    "data": ok
 }
 ```
 
@@ -1234,11 +1234,11 @@ The interface is called by the user to provide the PFS with the charging rate of
 
 **Example Response :**  
 
-```json 
+```json
 {
     "error_code": 0,
     "error_message": "SUCCESS",
-    "data": "ok"
+    "data": ok
 }
 ```
 
