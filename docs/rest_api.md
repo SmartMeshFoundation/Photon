@@ -270,7 +270,7 @@ errorcode|errormessage|Description
 
  If the node has not created the channel with the token, then respond the message:
  
- ```json
+```json
 {
     "error_code": 0,
     "error_message": "SUCCESS",
