@@ -1,7 +1,17 @@
 package debug
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestSetup(t *testing.T) {
-	t.Logf("mac=%s", mac())
+	req := require.New(t)
+	m1 := mac()
+	req.EqualValues(m1, mac())
+	req.EqualValues(m1, mac())
+	req.EqualValues(m1, mac())
+	req.EqualValues(m1, mac())
+	req.EqualValues(m1, mac())
 }
