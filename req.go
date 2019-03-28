@@ -3,6 +3,7 @@ package photon
 import (
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -27,6 +28,7 @@ type TokenSwap struct {
 	ToToken         common.Address
 	ToAmount        *big.Int
 	ToNodeAddress   common.Address //the node address of the owner of the `to_token`
+	RouteInfo       []pfsproxy.FindPathResponse
 }
 
 const transferReqName = "transfer"
@@ -55,10 +57,10 @@ type transferReq struct {
 	TokenAddress     common.Address
 	Amount           *big.Int
 	Target           common.Address
-	Fee              *big.Int
 	Secret           common.Hash
 	IsDirectTransfer bool
 	Data             string
+	RouteInfo        []pfsproxy.FindPathResponse
 }
 
 /*
@@ -136,7 +138,7 @@ Transfer `amount` between this node and `target`.
            - Network speed, making the transfer sufficiently fast so it doesn't
              expire.
 */
-func (rs *Service) transferAsyncClient(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) *utils.AsyncResult {
+func (rs *Service) transferAsyncClient(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) *utils.AsyncResult {
 	req := &apiReq{
 		ReqID: utils.RandomString(10),
 		Name:  transferReqName,
@@ -145,9 +147,9 @@ func (rs *Service) transferAsyncClient(tokenAddress common.Address, amount *big.
 			Amount:           amount,
 			Target:           target,
 			Secret:           secret,
-			Fee:              fee,
 			IsDirectTransfer: isDirectTransfer,
 			Data:             data,
+			RouteInfo:        routeInfo,
 		},
 	}
 	return rs.sendReqClient(req)

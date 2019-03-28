@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // KeyGetter :
@@ -103,7 +104,7 @@ type SentEnvelopMessagerDao interface {
 // FeeChargeRecordDao :
 type FeeChargeRecordDao interface {
 	SaveFeeChargeRecord(r *FeeChargeRecord) (err error)
-	GetAllFeeChargeRecord() (records []*FeeChargeRecord, err error)
+	GetAllFeeChargeRecord(tokenAddress common.Address, fromTime, toTime int64) (records []*FeeChargeRecord, err error)
 	GetFeeChargeRecordByLockSecretHash(lockSecretHash common.Hash) (records []*FeeChargeRecord, err error)
 }
 
@@ -150,28 +151,20 @@ type TokenDao interface {
 	AddToken(token common.Address, tokenNetworkAddress common.Address) error
 }
 
-// SentTransferDao :
-type SentTransferDao interface {
-	NewSentTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, toAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *SentTransfer
-	GetSentTransfer(key string) (*SentTransfer, error)
-	GetSentTransferInBlockRange(fromBlock, toBlock int64) (transfers []*SentTransfer, err error)
-	GetSentTransferInTimeRange(from, to time.Time) (transfers []*SentTransfer, err error)
-}
-
 // ReceivedTransferDao :
 type ReceivedTransferDao interface {
 	NewReceivedTransfer(blockNumber int64, channelIdentifier common.Hash, openBlockNumber int64, tokenAddr, fromAddr common.Address, nonce uint64, amount *big.Int, lockSecretHash common.Hash, data string) *ReceivedTransfer
 	GetReceivedTransfer(key string) (*ReceivedTransfer, error)
-	GetReceivedTransferInBlockRange(fromBlock, toBlock int64) (transfers []*ReceivedTransfer, err error)
-	GetReceivedTransferInTimeRange(from, to time.Time) (transfers []*ReceivedTransfer, err error)
+	GetReceivedTransferList(tokenAddress common.Address, fromBlock, toBlock, fromTime, toTime int64) (transfers []*ReceivedTransfer, err error)
 }
 
-// TransferStatusDao :
-type TransferStatusDao interface {
-	NewTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash)
-	UpdateTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string)
-	UpdateTransferStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string)
-	GetTransferStatus(tokenAddress common.Address, lockSecretHash common.Hash) (*TransferStatus, error)
+// SentTransferDetailDao :
+type SentTransferDetailDao interface {
+	NewSentTransferDetail(tokenAddress, target common.Address, amount *big.Int, data string, isDirect bool, lockSecretHash common.Hash)
+	UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status TransferStatusCode, statusMessage string, otherParams interface{}) (transfer *SentTransferDetail)
+	UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *SentTransferDetail)
+	GetSentTransferDetail(tokenAddress common.Address, lockSecretHash common.Hash) (*SentTransferDetail, error)
+	GetSentTransferDetailList(tokenAddress common.Address, fromTime, toTime int64, fromBlock, toBlock int64) (transfers []*SentTransferDetail, err error)
 }
 
 // XMPPSubDao :
@@ -179,6 +172,22 @@ type XMPPSubDao interface {
 	XMPPMarkAddrSubed(addr common.Address)
 	XMPPIsAddrSubed(addr common.Address) bool
 	XMPPUnMarkAddr(addr common.Address)
+}
+
+// TXInfoDao :
+type TXInfoDao interface {
+	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams) (txInfo *TXInfo, err error)
+	SaveEventToTXInfo(event interface{}) (txInfo *TXInfo, err error)
+	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64, gasUsed uint64) (txInfo *TXInfo, err error)
+	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)
+}
+
+// ChainEventRecordDao :
+type ChainEventRecordDao interface {
+	NewDeliveredChainEvent(id ChainEventID, blockNumber uint64)
+	CheckChainEventDelivered(id ChainEventID) (blockNumber uint64, delivered bool)
+	ClearOldChainEventRecord(blockNumber uint64)
+	MakeChainEventID(l *types.Log) ChainEventID
 }
 
 // Dao :
@@ -199,10 +208,11 @@ type Dao interface {
 	ReceivedAnnounceDisposedDao
 	SettledChannelDao
 	TokenDao
-	SentTransferDao
 	ReceivedTransferDao
-	TransferStatusDao
 	XMPPSubDao
+	TXInfoDao
+	SentTransferDetailDao
+	ChainEventRecordDao
 
 	StartTx() (tx TX)
 	CloseDB()

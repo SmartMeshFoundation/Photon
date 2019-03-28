@@ -12,7 +12,7 @@ import (
 // LongCase5Nodes :
 func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/LongCase5Nodes.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -33,13 +33,18 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 1 : Start 5 Atmosphere nodes
 	models.Logger.Println("step 1 ---->")
 	cm.startNodes(env, N0, N1, N2, N3, N4)
-
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	// step 2 : Create the following channels: N0 - N1, N1 - N2, N2 - N3 with 100 deposit
 	models.Logger.Println("step 2 ---->")
 	depositAmount := int64(100)
 	err = N0.OpenChannel(N1.Address, tokenAddress, depositAmount, settleTimeout)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
+	}
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
 	}
 	C01 := N0.GetChannelWith(N1, tokenAddress)
 	if C01 == nil {
@@ -68,6 +73,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	err = N2.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
@@ -94,6 +102,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	C24 := N2.GetChannelWith(N4, tokenAddress)
 	if C24 == nil {
 		return cm.caseFail(env.CaseName)
@@ -104,6 +115,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 10 ---->")
 	depositAmount = 50
 	err = N2.Deposit(N4.Address, tokenAddress, depositAmount)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -124,6 +138,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 13 ---->")
 	depositAmount = 25
 	err = N4.Deposit(N0.Address, tokenAddress, depositAmount)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -139,6 +156,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 	time.Sleep(1 * time.Second)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	C01new := N0.GetChannelWith(N1, tokenAddress).PrintDataAfterTransfer()
 	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
@@ -160,6 +180,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		return cm.caseFail(env.CaseName)
 	}
 	time.Sleep(1 * time.Second)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	C12new = N1.GetChannelWith(N2, tokenAddress).PrintDataAfterTransfer()
 	if !C12new.CheckSelfBalance(C12.Balance + C12.PartnerBalance) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C12new.Name)
@@ -168,6 +191,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 16 : N2 tries to send another > 25 tokens payment to N1 (fail no route with enough capacity)
 	models.Logger.Println("step 16 ---->")
 	transferAmount = 30
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	err = N2.Transfer(tokenAddress, transferAmount, N1.Address, false)
 	if err == nil {
 		return cm.caseFail(env.CaseName)
@@ -184,6 +210,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		err = N2.Transfer(tokenAddress, 1, N1.Address, false)
 		if err != nil {
 			return cm.caseFail(env.CaseName)
+		}
+		if cm.UseMatrix {
+			time.Sleep(time.Second * 5)
 		}
 	}
 	time.Sleep(6 * time.Second)
@@ -203,6 +232,12 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 18 : N1 shuts down
 	models.Logger.Println("step 18 ---->")
 	N1.Shutdown(env)
+	if cm.UseMatrix {
+		time.Sleep(cm.MDNSLifeTime + time.Second*7)
+	} else {
+		// 等待mdns检测下线
+		time.Sleep(cm.MDNSLifeTime)
+	}
 	if N1.IsRunning() {
 		return cm.caseFail(env.CaseName)
 	}
@@ -213,6 +248,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	C04 = N0.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
 	C24 = N2.GetChannelWith(N4, tokenAddress).PrintDataBeforeTransfer()
 	err = N0.Transfer(tokenAddress, transferAmount, N2.Address, false)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -231,6 +269,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 21 : N0 tries to make a payment to N1 (Node is offline - fails)
 	models.Logger.Println("step 21 ---->")
 	err = N0.Transfer(tokenAddress, transferAmount, N1.Address, false)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	if err == nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -239,6 +280,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 22 : N1 is back online
 	models.Logger.Println("step 22 ---->")
 	N1.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 
 	// step 23 : N3 sends all 100 tokens to N2 on payments of 1 token/each.
 	models.Logger.Println("step 23 ---->")
@@ -248,6 +292,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 		err = N3.Transfer(tokenAddress, 2, N2.Address, false)
 		if err != nil {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("mass transfer i=%d,err=%s", i, err.Error()))
+		}
+		if cm.UseMatrix {
+			time.Sleep(time.Second * 10)
 		}
 	}
 	//等30秒,确认100笔交易成功
@@ -260,6 +307,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 24 : N0 deposits 160 tokens on his channel with N1
 	models.Logger.Println("step 24 ---->")
 	depositAmount = 160
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	err = N0.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
 		return cm.caseFail(env.CaseName)
@@ -285,6 +335,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 27 : assert
 	models.Logger.Println("step 27 ---->")
 	err = N0.Transfer(tokenAddress, transferAmount, N3.Address, false)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	if err != nil {
 		return cm.caseFail(env.CaseName)
 	}
@@ -318,6 +371,9 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	// step 29 : N2 tries to make a deposit in the channel that is being closed (fail 409)
 	models.Logger.Println("step 29 ---->")
 	err = N2.Deposit(N4.Address, tokenAddress, depositAmount)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	if err == nil {
 		return cm.caseFail(env.CaseName)
 	}

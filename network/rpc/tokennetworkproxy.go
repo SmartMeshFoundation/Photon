@@ -9,12 +9,14 @@ import (
 	"bytes"
 
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 //RegistryProxy 只是为了表达方便,兼容以前代码,todo 完全去掉registry信息
@@ -64,13 +66,25 @@ func makeNewChannelAndDepositData(participantAddress, partnerAddress common.Addr
 //注意此函数并不会等待交易打包,只要交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByApproveAndCall(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
-	return token.ApproveAndCall(t.Address, amount, data)
+	depositTXParams := &models.DepositTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout)}
+	return token.ApproveAndCall(t.Address, amount, data, depositTXParams)
 }
 
 //注意这个函数并不会等待交易打包完成才返回,只要确定交易进入了缓冲池就返回
 func (t *TokenNetworkProxy) newChannelAndDepositByFallback(token *TokenProxy, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
 	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
-	return token.TransferWithFallback(t.Address, amount, data)
+	depositTXParams := &models.DepositTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout)}
+	return token.TransferWithFallback(t.Address, amount, data, depositTXParams)
 }
 
 /*
@@ -84,36 +98,50 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("Approve %s, txhash=%s", utils.APex(t.Address), tx.Hash().String()))
-	go func() {
-		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			log.Error(fmt.Sprintf("Approve waitmined err,txhash=%s,err=%s", tx.Hash().String(), err))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Error(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(t.Address), receipt))
-			return
-		}
-		log.Info(fmt.Sprintf("Approve success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(t.Address), amount))
-
-		tx, err = t.GetContract().Deposit(t.bcs.Auth, t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout))
-		if err != nil {
-			return
-		}
-		log.Info(fmt.Sprintf("OpenChannelWithDeposit  txhash=%s", tx.Hash().String()))
-		receipt, err = bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			log.Error(fmt.Sprintf("OpenChannelWithDeposit waitmined err, txhash=%s,err=%s", tx.Hash().String(), err))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Error(fmt.Sprintf("OpenChannelWithDeposit failed %s", receipt))
-			return
-		}
-		log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s txhash=%s", utils.APex(t.Address), tx.Hash().String()))
-		return
-	}()
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(token.Address, t.Address, participantAddress, partnerAddress)
+	txParams := &models.DepositTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout),
+	}
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeApproveDeposit, channelID, 0, txParams)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("Approve %s, txhash=%s", utils.APex(t.Address), tx.Hash().String()))
+	//go func() {
+	//	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("Approve waitmined err,txhash=%s,err=%s", tx.Hash().String(), err))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		log.Error(fmt.Sprintf("Approve failed %s,receipt=%s", utils.APex(t.Address), receipt))
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("Approve success %s,spender=%s,value=%d", utils.APex(t.Address), utils.APex(t.Address), amount))
+	//
+	//	tx, err = t.GetContract().Deposit(t.bcs.Auth, t.token, participantAddress, partnerAddress, amount, uint64(settleTimeout))
+	//	if err != nil {
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("OpenChannelWithDeposit  txhash=%s", tx.Hash().String()))
+	//	receipt, err = bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("OpenChannelWithDeposit waitmined err, txhash=%s,err=%s", tx.Hash().String(), err))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		log.Error(fmt.Sprintf("OpenChannelWithDeposit failed %s", receipt))
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("OpenChannelWithDeposit success %s txhash=%s", utils.APex(t.Address), tx.Hash().String()))
+	//	return
+	//}()
 	return nil
 
 }
@@ -144,6 +172,40 @@ func (t *TokenNetworkProxy) newChannelAndDepositByApprove(token *TokenProxy, par
 //	return t.newChannelAndDepositByApprove(token, participantAddress, partnerAddress, settleTimeout, amount)
 //}
 
+/*
+
+ */
+func (t *TokenNetworkProxy) newChannelAndDepositOnSMTToken(tokenAddress common.Address, participantAddress, partnerAddress common.Address, settleTimeout int, amount *big.Int) (err error) {
+	log.Info(fmt.Sprintf("deposit on SMTToken address=%s", tokenAddress.String()))
+	smtTokenProxy, err := smttoken.NewSMTToken(tokenAddress, t.bcs.Client)
+	if err != nil {
+		log.Error(fmt.Sprintf("smttoken.NewSMTToken err = %s", err))
+		return rerr.ContractCallError(err)
+	}
+	data := makeNewChannelAndDepositData(participantAddress, partnerAddress, settleTimeout)
+	// 在Auth中设置金额,不用t.bcs.Auth,避免影响其他交易
+	auth := bind.NewKeyedTransactor(t.bcs.PrivKey)
+	auth.Value = amount
+	tx, err := smtTokenProxy.BuyAndTransfer(auth, data)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	txParams := &models.DepositTXParams{
+		TokenAddress:       tokenAddress,
+		ParticipantAddress: participantAddress,
+		PartnerAddress:     partnerAddress,
+		Amount:             amount,
+		SettleTimeout:      uint64(settleTimeout),
+	}
+	channelID := utils.CalcChannelID(txParams.TokenAddress, t.bcs.RegistryProxy.Address, txParams.ParticipantAddress, txParams.PartnerAddress)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, txParams)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	return
+}
+
 /*NewChannelAndDepositAsync create channel async
 创建通道并存款和存款分两种情况,
 一,只有一个Tx就能完成的情况,那么和关闭通道,settle通道处理流程是一样的
@@ -164,6 +226,14 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 	token, err := t.bcs.Token(tokenAddr)
 	if err != nil {
 		return rerr.ContractCallError(err)
+	}
+	// 获取tokenName,如果是SMTToken,即主链币代理合约,
+	name, err := token.Token.Name(nil)
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	if name == params.SMTTokenName {
+		return t.newChannelAndDepositOnSMTToken(tokenAddr, participantAddress, partnerAddress, settleTimeout, amount)
 	}
 	err = t.newChannelAndDepositByFallback(token, participantAddress, partnerAddress, settleTimeout, amount)
 	if err == nil {
@@ -207,16 +277,32 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("CloseChannel  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("CloseChannel failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("CloseChannel tx execution failed")
-	}
-	log.Info(fmt.Sprintf("CloseChannel success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("CloseChannel  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Info(fmt.Sprintf("CloseChannel failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("CloseChannel tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("CloseChannel success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
 	return nil
 }
 
@@ -226,19 +312,35 @@ func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transf
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("CloseChannel  txhash=%s", tx.Hash().String()))
-	go func() {
-		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			log.Error(fmt.Sprintf("CloseChannel error ,partner=%s,error=%s", err, utils.APex2(partnerAddr)))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Error(fmt.Sprintf("CloseChannel failed %s", receipt))
-			return
-		}
-		log.Info(fmt.Sprintf("CloseChannel success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
-	}()
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeClose, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("CloseChannel  txhash=%s", tx.Hash().String()))
+	//go func() {
+	//	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("CloseChannel error ,partner=%s,error=%s", err, utils.APex2(partnerAddr)))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		log.Error(fmt.Sprintf("CloseChannel failed %s", receipt))
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("CloseChannel success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
+	//}()
 
 	return nil
 }
@@ -249,16 +351,32 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("UpdateBalanceProof  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUpdateBalanceProof, channelID, 0, &models.ChannelCloseOrChannelUpdateBalanceProofTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		LocksRoot:          locksRoot,
+		Nonce:              nonce,
+		ExtraHash:          extraHash,
+		Signature:          signature,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("UpdateBalanceProof failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("UpdateBalanceProof tx execution failed")
-	}
-	log.Info(fmt.Sprintf("UpdateBalanceProof success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("UpdateBalanceProof  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Info(fmt.Sprintf("UpdateBalanceProof failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("UpdateBalanceProof tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("UpdateBalanceProof success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
 	return nil
 }
 
@@ -282,16 +400,32 @@ func (t *TokenNetworkProxy) Unlock(partnerAddr common.Address, transferAmount *b
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("Unlock  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, t.bcs.Auth.From, partnerAddr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeUnlock, channelID, 0, &models.UnlockTXParams{
+		TokenAddress:       t.token,
+		ParticipantAddress: t.bcs.Auth.From,
+		PartnerAddress:     partnerAddr,
+		TransferAmount:     transferAmount,
+		Expiration:         big.NewInt(lock.Expiration),
+		Amount:             lock.Amount,
+		LockSecretHash:     lock.LockSecretHash,
+		Proof:              proof,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Info(fmt.Sprintf("Unlock failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("Unlock tx execution failed")
-	}
-	log.Info(fmt.Sprintf("Unlock success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("Unlock  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Info(fmt.Sprintf("Unlock failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("Unlock tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("Unlock success %s ,partner=%s", utils.APex(t.Address), utils.APex(partnerAddr)))
 	return nil
 }
 
@@ -311,16 +445,31 @@ func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amoun
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("SettleChannel  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, &models.ChannelSettleTXParams{
+		TokenAddress:     t.token,
+		P1Address:        p1Addr,
+		P1TransferAmount: p1Amount,
+		P1LocksRoot:      p1Locksroot,
+		P2Address:        p2Addr,
+		P2TransferAmount: p2Amount,
+		P2LocksRoot:      p2Locksroot,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Warn(fmt.Sprintf("SettleChannel failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("SettleChannel tx execution failed")
-	}
-	log.Info(fmt.Sprintf("SettleChannel success %s ", utils.APex(t.Address)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("SettleChannel  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Warn(fmt.Sprintf("SettleChannel failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("SettleChannel tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("SettleChannel success %s ", utils.APex(t.Address)))
 	return nil
 }
 
@@ -330,19 +479,34 @@ func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("SettleChannel  txhash=%s", tx.Hash().String()))
-	go func() {
-		receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
-		if err != nil {
-			log.Error(fmt.Sprintf("SettleChannel waitmined err %s", err))
-			return
-		}
-		if receipt.Status != types.ReceiptStatusSuccessful {
-			log.Error(fmt.Sprintf("SettleChannel failed %s", receipt))
-			return
-		}
-		log.Info(fmt.Sprintf("SettleChannel success %s ", utils.APex(t.Address)))
-	}()
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeSettle, channelID, 0, &models.ChannelSettleTXParams{
+		TokenAddress:     t.token,
+		P1Address:        p1Addr,
+		P1TransferAmount: p1Amount,
+		P1LocksRoot:      p1Locksroot,
+		P2Address:        p2Addr,
+		P2TransferAmount: p2Amount,
+		P2LocksRoot:      p2Locksroot,
+	})
+	if err != nil {
+		return rerr.ContractCallError(err)
+	}
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("SettleChannel  txhash=%s", tx.Hash().String()))
+	//go func() {
+	//	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//	if err != nil {
+	//		log.Error(fmt.Sprintf("SettleChannel waitmined err %s", err))
+	//		return
+	//	}
+	//	if receipt.Status != types.ReceiptStatusSuccessful {
+	//		log.Error(fmt.Sprintf("SettleChannel failed %s", receipt))
+	//		return
+	//	}
+	//	log.Info(fmt.Sprintf("SettleChannel success %s ", utils.APex(t.Address)))
+	//}()
 	return nil
 }
 
@@ -355,16 +519,31 @@ func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance,
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("Withdraw  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeWithdraw, channelID, 0, &models.ChannelWithDrawTXParams{
+		TokenAddress: t.token,
+		P1Address:    p1Addr,
+		P2Address:    p2Addr,
+		P1Balance:    p1Balance,
+		P1Withdraw:   p1Withdraw,
+		P1Signature:  p1Signature,
+		P2Signature:  p2Signature,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Warn(fmt.Sprintf("Withdraw failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("Withdraw tx execution failed")
-	}
-	log.Info(fmt.Sprintf("Withdraw success %s ", utils.APex(t.Address)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("Withdraw  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Warn(fmt.Sprintf("Withdraw failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("Withdraw tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("Withdraw success %s ", utils.APex(t.Address)))
 	return nil
 }
 
@@ -385,16 +564,30 @@ func (t *TokenNetworkProxy) PunishObsoleteUnlock(beneficiary, cheater common.Add
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("PunishObsoleteUnlock  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, beneficiary, cheater)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypePunish, channelID, 0, &models.PunishObsoleteUnlockTXParams{
+		TokenAddress:     t.token,
+		Beneficiary:      beneficiary,
+		Cheater:          cheater,
+		LockHash:         lockhash,
+		ExtraHash:        extraHash,
+		CheaterSignature: cheaterSignature,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Warn(fmt.Sprintf("PunishObsoleteUnlock failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("PunishObsoleteUnlock tx execution failed")
-	}
-	log.Info(fmt.Sprintf("PunishObsoleteUnlock success %s ", utils.APex(t.Address)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("PunishObsoleteUnlock  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Warn(fmt.Sprintf("PunishObsoleteUnlock failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("PunishObsoleteUnlock tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("PunishObsoleteUnlock success %s ", utils.APex(t.Address)))
 	return nil
 }
 
@@ -414,16 +607,31 @@ func (t *TokenNetworkProxy) CooperativeSettle(p1Addr, p2Addr common.Address, p1B
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	log.Info(fmt.Sprintf("CooperativeSettle  txhash=%s", tx.Hash().String()))
-	receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	// 保存TXInfo并注册到bcs中监控其执行结果
+	channelID := utils.CalcChannelID(t.token, t.Address, p1Addr, p2Addr)
+	txInfo, err := t.bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeCooperateSettle, channelID, 0, &models.ChannelCooperativeSettleTXParams{
+		TokenAddress: t.token,
+		P1Address:    p1Addr,
+		P1Balance:    p1Balance,
+		P2Address:    p2Addr,
+		P2Balance:    p2Balance,
+		P1Signature:  p1Signature,
+		P2Signature:  p2Signatue,
+	})
 	if err != nil {
-		return rerr.ErrTxWaitMined.AppendError(err)
+		return rerr.ContractCallError(err)
 	}
-	if receipt.Status != types.ReceiptStatusSuccessful {
-		log.Warn(fmt.Sprintf("CooperativeSettle failed %s", receipt))
-		return rerr.ErrTxReceiptStatus.Append("CooperativeSettle tx execution failed")
-	}
-	log.Info(fmt.Sprintf("CooperativeSettle success %s ", utils.APex(t.Address)))
+	t.bcs.RegisterPendingTXInfo(txInfo)
+	//log.Info(fmt.Sprintf("CooperativeSettle  txhash=%s", tx.Hash().String()))
+	//receipt, err := bind.WaitMined(GetCallContext(), t.bcs.Client, tx)
+	//if err != nil {
+	//	return rerr.ErrTxWaitMined.AppendError(err)
+	//}
+	//if receipt.Status != types.ReceiptStatusSuccessful {
+	//	log.Warn(fmt.Sprintf("CooperativeSettle failed %s", receipt))
+	//	return rerr.ErrTxReceiptStatus.Append("CooperativeSettle tx execution failed")
+	//}
+	//log.Info(fmt.Sprintf("CooperativeSettle success %s ", utils.APex(t.Address)))
 	return nil
 }
 

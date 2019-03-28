@@ -3,10 +3,11 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -21,7 +22,7 @@ CaseSendUnlockBefore01 :
 */
 func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendUnlockBefore01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -38,13 +39,13 @@ func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2,
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
+	// 启动节点1,2,3
+	cm.startNodes(env, N1, N3, N2.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendUnlockBefore",
-	})
-	// 启动节点3，6
-	cm.startNodes(env, N1, N3)
-
+	}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 初始数据记录
 	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
@@ -52,6 +53,12 @@ func (cm *CaseManager) CaseSendUnlockBefore01() (err error) {
 	go N1.SendTrans(tokenAddress, transAmount, N3.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N2.IsRunning() {
+			break
+		}
+	}
 	if N2.IsRunning() {
 		msg := "Node " + N2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

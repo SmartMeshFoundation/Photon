@@ -30,13 +30,14 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2,3
-	N2.Start(env)
-	N3.Start(env)
-	// 启动节点6, ActionInitTargetStateChange
-	N6.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ActionInitTargetStateChange",
-	})
-
+	cm.startNodes(env, N2, N3,
+		// 启动节点6, ActionInitTargetStateChange
+		N6.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ActionInitTargetStateChange",
+		}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 记录初始数据
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
@@ -45,6 +46,12 @@ func (cm *CaseManager) CrashCaseRecv01() (err error) {
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N6.IsRunning() {
+			break
+		}
+	}
 	if N6.IsRunning() {
 		msg = "Node " + N6.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

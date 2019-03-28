@@ -15,6 +15,8 @@ import (
 
 	"encoding/hex"
 
+	"encoding/json"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -23,6 +25,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+// MessageVersionControlMap 保存每个消息支持的最低版本号
+var MessageVersionControlMap = map[int16]int16{
+	MediatedTransferCmdID: int16(1), // 2019-03 MediatedTransfer消息升级,带上了Path,不兼容verison<1的版本
+}
 
 //MessageType is the type of message for receive and send
 type MessageType int
@@ -76,10 +83,6 @@ const (
 
 const signatureLength = 65
 
-func init() {
-
-}
-
 var errPacketLength = errors.New("packet length error")
 
 //MessagePacker serialize of a message
@@ -117,7 +120,8 @@ type Messager interface {
 
 //CmdStruct base of message
 type CmdStruct struct {
-	CmdID       int32
+	CmdID       int16
+	Version     int16
 	InternalTag interface{} //for save to database
 }
 
@@ -139,6 +143,29 @@ func (cmd *CmdStruct) SetTag(tag interface{}) {
 //Name of this message
 func (cmd *CmdStruct) Name() string {
 	return MessageType(cmd.CmdID).String()
+}
+
+// WriteCmdStructToBuf write cmdID and version into buf
+func (cmd *CmdStruct) WriteCmdStructToBuf(buf *bytes.Buffer) (err error) {
+	err = binary.Write(buf, binary.LittleEndian, cmd.CmdID)
+	err = binary.Write(buf, binary.LittleEndian, cmd.Version)
+	return
+}
+
+// ReadCmdStructFromBuf read CmdStruct from buf
+func (cmd *CmdStruct) ReadCmdStructFromBuf(buf *bytes.Buffer) (err error) {
+	var t int16
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if err != nil {
+		return
+	}
+	cmd.CmdID = t
+	err = binary.Read(buf, binary.LittleEndian, &t)
+	if err != nil {
+		return
+	}
+	cmd.Version = t
+	return
 }
 
 //SignedMessager interface of message that needs signed
@@ -218,7 +245,8 @@ func NewAck(sender common.Address, echo common.Hash) *Ack {
 func (ack *Ack) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, ack.CmdID)
+	err = ack.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, ack.CmdID)
 	_, err = buf.Write(ack.Sender[:])
 	_, err = buf.Write(ack.Echo[:])
 	if err != nil {
@@ -230,12 +258,10 @@ func (ack *Ack) Pack() []byte {
 //UnPack is implements of MessageUnpacker
 func (ack *Ack) UnPack(data []byte) error {
 	var err error
-	var t int32
-	ack.CmdID = AckCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != ack.CmdID {
-		panic(fmt.Sprintf("Ack Unpack cmdid should be 0,but get %d", t))
+	err = ack.ReadCmdStructFromBuf(buf)
+	if AckCmdID != ack.CmdID {
+		panic(fmt.Sprintf("Ack Unpack cmdid should be 0,but get %d", ack.CmdID))
 	}
 	_, err = buf.Read(ack.Sender[:])
 	n, err := buf.Read(ack.Echo[:])
@@ -338,7 +364,8 @@ func NewPing(nonce int64) *Ping {
 func (p *Ping) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, p.CmdID) //only one byte
+	err = p.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, p.CmdID) //only one byte
 	err = binary.Write(buf, binary.BigEndian, p.Nonce)
 	_, err = buf.Write(p.Signature)
 	if err != nil {
@@ -349,17 +376,16 @@ func (p *Ping) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (p *Ping) UnPack(data []byte) error {
-	var t int32
 	var err error
-	p.CmdID = PingCmdID
 	if len(data) != 77 { //stun response here
 		return errPacketLength
 	}
 
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != p.CmdID {
-		return fmt.Errorf("Ping Unpack cmdid should be  1,but get %d", t)
+	err = p.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if PingCmdID != p.CmdID {
+		return fmt.Errorf("Ping Unpack cmdid should be  1,but get %d", p.CmdID)
 	}
 	err = binary.Read(buf, binary.BigEndian, &p.Nonce)
 	p.Signature = make([]byte, signatureLength)
@@ -397,7 +423,8 @@ func NewSecretRequest(lockSecretHash common.Hash, paymentAmount *big.Int) *Secre
 func (sr *SecretRequest) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, sr.CmdID) //only one byte..
+	err = sr.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, sr.CmdID) //only one byte..
 	_, err = buf.Write(sr.LockSecretHash[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(sr.PaymentAmount))
 	_, err = buf.Write(sr.Signature)
@@ -409,13 +436,12 @@ func (sr *SecretRequest) Pack() []byte {
 
 //UnPack is MessageUnpacker
 func (sr *SecretRequest) UnPack(data []byte) error {
-	var t int32
 	var err error
-	sr.CmdID = SecretRequestCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != sr.CmdID {
-		return fmt.Errorf("SecretRequest Unpack cmdid should be  3,but get %d", t)
+	err = sr.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if SecretRequestCmdID != sr.CmdID {
+		return fmt.Errorf("SecretRequest Unpack cmdid should be  3,but get %d", sr.CmdID)
 	}
 	_, err = buf.Read(sr.LockSecretHash[:])
 	sr.PaymentAmount = utils.ReadBigInt(buf)
@@ -479,7 +505,8 @@ func (rs *RevealSecret) LockSecretHash() common.Hash {
 func (rs *RevealSecret) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, rs.CmdID) //only one byte.
+	//err = binary.Write(buf, binary.LittleEndian, rs.CmdID) //only one byte.
+	err = rs.WriteCmdStructToBuf(buf)
 	_, err = buf.Write(rs.LockSecret[:])
 	// write data
 	dataLen := uint64(len(rs.Data))
@@ -496,13 +523,11 @@ func (rs *RevealSecret) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (rs *RevealSecret) UnPack(data []byte) error {
-	var t int32
 	var err error
-	rs.CmdID = RevealSecretCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != rs.CmdID {
-		return fmt.Errorf("RevealSecret Unpack cmdid should be  11,but get %d", t)
+	err = rs.ReadCmdStructFromBuf(buf)
+	if RevealSecretCmdID != rs.CmdID {
+		return fmt.Errorf("RevealSecret Unpack cmdid should be  11,but get %d", rs.CmdID)
 	}
 	_, err = buf.Read(rs.LockSecret[:])
 	// readData
@@ -712,7 +737,8 @@ func NewUnlock(bp *BalanceProof, lockSecret common.Hash) *UnLock {
 func (s *UnLock) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, s.CmdID) //only one byte.
+	err = s.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, s.CmdID) //only one byte.
 	_, err = buf.Write(s.LockSecret[:])
 	s.EnvelopMessage.pack(buf)
 	if err != nil {
@@ -723,13 +749,12 @@ func (s *UnLock) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (s *UnLock) UnPack(data []byte) error {
-	var t int32
 	var err error
-	s.CmdID = UnlockCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != s.CmdID {
-		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
+	err = s.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if UnlockCmdID != s.CmdID {
+		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", s.CmdID)
 	}
 	_, err = buf.Read(s.LockSecret[:])
 	err = s.EnvelopMessage.unpack(buf)
@@ -773,7 +798,8 @@ func NewRemoveExpiredHashlockTransfer(bp *BalanceProof, lockSecretHash common.Ha
 func (m *RemoveExpiredHashlockTransfer) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
 	_, err = buf.Write(m.LockSecretHash[:])
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
@@ -784,13 +810,12 @@ func (m *RemoveExpiredHashlockTransfer) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *RemoveExpiredHashlockTransfer) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = RemoveExpiredLockCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if RemoveExpiredLockCmdID != m.CmdID {
+		return fmt.Errorf("Ack Secret cmdid should be  4,but get %d", m.CmdID)
 	}
 	_, err = buf.Read(m.LockSecretHash[:])
 	err = m.EnvelopMessage.unpack(buf)
@@ -851,7 +876,8 @@ func NewDirectTransfer(bp *BalanceProof) *DirectTransfer {
 //Pack is MessagePacker
 func (m *DirectTransfer) Pack() []byte {
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	err := m.WriteCmdStructToBuf(buf)
+	//err := binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
 	if err != nil {
 		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
 	}
@@ -870,14 +896,13 @@ func (m *DirectTransfer) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *DirectTransfer) UnPack(data []byte) error {
-	var t int32
-	m.CmdID = DirectTransferCmdID
 	buf := bytes.NewBuffer(data)
-	err := binary.Read(buf, binary.LittleEndian, &t)
+	err := m.ReadCmdStructFromBuf(buf)
+	//err := binary.Read(buf, binary.LittleEndian, &t)
 	if err != nil {
 		return err
 	}
-	if t != m.CmdID {
+	if DirectTransferCmdID != m.CmdID {
 		return errors.New("DirectTransfer unpack cmdid error")
 	}
 	// readData
@@ -928,18 +953,19 @@ type MediatedTransfer struct {
 	Target         common.Address
 	Initiator      common.Address
 	Fee            *big.Int
+	Path           []common.Address // 2019-03 消息升级后,带全路径信息
 }
 
 //String is fmt.Stringer
 func (m *MediatedTransfer) String() string {
-	return fmt.Sprintf("Message{type=MediatedTransfer expiration=%d,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,%s}",
+	return fmt.Sprintf("Message{type=MediatedTransfer expiration=%d,target=%s,initiator=%s,hashlock=%s,amount=%s,fee=%s,path=%s,%s}",
 		m.Expiration, utils.APex2(m.Target), utils.APex2(m.Initiator),
-		utils.HPex(m.LockSecretHash), m.PaymentAmount, m.Fee, m.EnvelopMessage.String())
+		utils.HPex(m.LockSecretHash), m.PaymentAmount, m.Fee, m.GetPathStr(), m.EnvelopMessage.String())
 }
 
 //NewMediatedTransfer create MediatedTransfer
 func NewMediatedTransfer(bp *BalanceProof, lock *mtree.Lock,
-	target, initiator common.Address, fee *big.Int) *MediatedTransfer {
+	target, initiator common.Address, fee *big.Int, path []common.Address) *MediatedTransfer {
 	p := &MediatedTransfer{
 		Target:         target,
 		Initiator:      initiator,
@@ -947,8 +973,10 @@ func NewMediatedTransfer(bp *BalanceProof, lock *mtree.Lock,
 		PaymentAmount:  lock.Amount,
 		LockSecretHash: lock.LockSecretHash,
 		Expiration:     lock.Expiration,
+		Path:           path, // 2019-03 消息升级后,带全路径信息
 	}
 	p.CmdID = MediatedTransferCmdID
+	p.Version = MessageVersionControlMap[MediatedTransferCmdID]
 	p.EnvelopMessage.fromBalanceProof(bp)
 	return p
 }
@@ -966,7 +994,8 @@ func (m *MediatedTransfer) GetLock() *mtree.Lock {
 func (m *MediatedTransfer) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //one byte
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID) //one byte
 	//HTLC
 	err = binary.Write(buf, binary.BigEndian, m.Expiration)
 	_, err = buf.Write(m.LockSecretHash[:])
@@ -975,6 +1004,12 @@ func (m *MediatedTransfer) Pack() []byte {
 	_, err = buf.Write(m.Target[:])
 	_, err = buf.Write(m.Initiator[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Fee))
+	// 2019-03 消息升级,带全路径信息
+	pathLen := int32(len(m.Path))
+	err = binary.Write(buf, binary.BigEndian, pathLen)
+	for _, addr := range m.Path {
+		_, err = buf.Write(addr[:])
+	}
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
 		log.Crit(fmt.Sprintf("MediatedTransfer Pack err %s", err))
@@ -984,13 +1019,15 @@ func (m *MediatedTransfer) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *MediatedTransfer) UnPack(data []byte) error {
-	var t int32
 	var err error
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	m.CmdID = t
-	if m.CmdID != MediatedTransferCmdID && m.CmdID != AnnounceDisposedTransferCmdID {
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if m.CmdID != MediatedTransferCmdID {
 		return errors.New("MediatedTransfer unpack cmd error")
+	}
+	if m.Version < MessageVersionControlMap[MediatedTransferCmdID] {
+		return fmt.Errorf("MediatedTransfer unpack cmd error, version too low ,expect version %d ,but got %d", MessageVersionControlMap[MediatedTransferCmdID], m.Version)
 	}
 	//HTLC
 	err = binary.Read(buf, binary.BigEndian, &m.Expiration)
@@ -1000,11 +1037,33 @@ func (m *MediatedTransfer) UnPack(data []byte) error {
 	_, err = buf.Read(m.Target[:])
 	_, err = buf.Read(m.Initiator[:])
 	m.Fee = utils.ReadBigInt(buf)
+	// 2019-03 消息升级,带全路径信息
+	var pathLen int32
+	err = binary.Read(buf, binary.BigEndian, &pathLen)
+	m.Path = []common.Address{}
+	for i := int32(0); i < pathLen; i++ {
+		var addr common.Address
+		_, err = buf.Read(addr[:])
+		m.Path = append(m.Path, addr)
+	}
 	err = m.EnvelopMessage.unpack(buf)
 	if err != nil {
 		return err
 	}
 	return m.verifySignature(data)
+}
+
+// GetPathStr get string of path to print
+func (m *MediatedTransfer) GetPathStr() string {
+	if m.Path == nil {
+		return ""
+	}
+	buf, err := json.Marshal(m.Path)
+	if err != nil {
+		log.Error(fmt.Sprintf("MediatedTransfer.GetPathStr() err : %s", err.Error()))
+		return ""
+	}
+	return string(buf)
 }
 
 //GetMtrFromLockedTransfer returns the MediatedTransfer ,the caller must maker sure this message is a  locked transfer
@@ -1037,22 +1096,29 @@ type AnnounceDisposedProof struct {
 type AnnounceDisposed struct {
 	SignedMessage
 	AnnounceDisposedProof
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //String is fmt.Stringer
 func (m *AnnounceDisposed) String() string {
 	return fmt.Sprintf("Message{type=AnnounceDisposed Lock=%s,"+
-		"ChannelIdentifier=%s-%d}",
+		"ChannelIdentifier=%s-%d ErrorCode=%d ErrorMsg=%s Signature=%s}",
 		m.Lock,
 		utils.HPex(m.ChannelIdentifier),
 		m.OpenBlockNumber,
+		m.ErrorCode,
+		m.ErrorMsg,
+		common.Bytes2Hex(m.Signature),
 	)
 }
 
 //NewAnnounceDisposed create AnnounceDisposed
-func NewAnnounceDisposed(rp *AnnounceDisposedProof) *AnnounceDisposed {
+func NewAnnounceDisposed(rp *AnnounceDisposedProof, errorCode int, errMsg string) *AnnounceDisposed {
 	p := &AnnounceDisposed{
 		AnnounceDisposedProof: *rp,
+		ErrorCode:             errorCode,
+		ErrorMsg:              errMsg,
 	}
 	p.CmdID = AnnounceDisposedTransferCmdID
 	return p
@@ -1062,10 +1128,20 @@ func NewAnnounceDisposed(rp *AnnounceDisposedProof) *AnnounceDisposed {
 func (m *AnnounceDisposed) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID)
 	_, err = buf.Write(m.Lock.AsBytes())
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1075,18 +1151,28 @@ func (m *AnnounceDisposed) Pack() []byte {
 
 //UnPack implements MessageUnPacker
 func (m *AnnounceDisposed) UnPack(data []byte) error {
-	var t int32
 	var err error
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != AnnounceDisposedTransferCmdID {
-		return fmt.Errorf("AnnounceDisposed UnPack cmd error,expect=%d,got=%d", AnnounceDisposedTransferCmdID, t)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	err = m.ReadCmdStructFromBuf(buf)
+	if m.CmdID != AnnounceDisposedTransferCmdID {
+		return fmt.Errorf("AnnounceDisposed UnPack cmd error,expect=%d,got=%d", AnnounceDisposedTransferCmdID, m.CmdID)
 	}
-	m.CmdID = t
 	m.Lock = new(mtree.Lock)
 	err = m.Lock.FromReader(buf)
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
+	}
 	m.Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Signature)
 	if err != nil || n != signatureLength {
@@ -1103,6 +1189,13 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	_, err = buf.Write(lockhash[:])
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
+	//// 2019-03 添加错误码及错误信息,这里不能添加,否则需要修改合约
+	//err = binary.Write(buf, binary.BigEndian, m.ErrorCode)
+	//errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	//err = binary.Write(buf, binary.BigEndian, len(errorMsgBytes))
+	//if len(errorMsgBytes) > 0 {
+	//	_, err = buf.Write(errorMsgBytes)
+	//}
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	_, err = buf.Write(datahash[:])
 	if err != nil {
@@ -1180,7 +1273,8 @@ func NewAnnounceDisposedResponse(bp *BalanceProof, lockSecretHash common.Hash) *
 func (m *AnnounceDisposedResponse) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
 	_, err = buf.Write(m.LockSecretHash[:])
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
@@ -1191,13 +1285,12 @@ func (m *AnnounceDisposedResponse) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *AnnounceDisposedResponse) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = AnnounceDisposedTransferResponseCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("AnnounceDisposedResponse UnPack cmdid should be  4,but get %d", t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if AnnounceDisposedTransferResponseCmdID != m.CmdID {
+		return fmt.Errorf("AnnounceDisposedResponse UnPack cmdid should be  4,but get %d", m.CmdID)
 	}
 	_, err = buf.Read(m.LockSecretHash[:])
 	err = m.EnvelopMessage.unpack(buf)
@@ -1259,7 +1352,8 @@ func (m *WithdrawRequest) String() string {
 func (m *WithdrawRequest) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID)
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
@@ -1276,13 +1370,12 @@ func (m *WithdrawRequest) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *WithdrawRequest) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = WithdrawRequestCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if WithdrawRequestCmdID != m.CmdID {
+		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, m.CmdID)
 	}
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
@@ -1375,22 +1468,50 @@ type WithdrawReponseData struct {
 type WithdrawResponse struct {
 	SignedMessage
 	WithdrawReponseData
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //NewWithdrawResponse create withdraw response from `WithdrawReponseData`
-func NewWithdrawResponse(wd *WithdrawReponseData) *WithdrawResponse {
+func NewWithdrawResponse(wd *WithdrawReponseData, errorCode int, errorMsg string) *WithdrawResponse {
 	m := &WithdrawResponse{
 		WithdrawReponseData: *wd,
+		ErrorCode:           errorCode,
+		ErrorMsg:            errorMsg,
 	}
 	m.CmdID = WithdrawResponseCmdID
 	return m
 }
+
+// NewErrorWithdrawResponseAndSign 创建返回错误信息的SettleResponse
+func NewErrorWithdrawResponseAndSign(req *WithdrawRequest, privateKey *ecdsa.PrivateKey, errorCode int, errorMsg string) (res *WithdrawResponse) {
+	res = &WithdrawResponse{
+		ErrorCode: errorCode,
+		ErrorMsg:  errorMsg,
+	}
+	// 这里填充无效数据,仅为了过验证
+	res.CmdID = WithdrawResponseCmdID
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.OpenBlockNumber = req.OpenBlockNumber
+	res.Participant1 = utils.EmptyAddress
+	res.Participant2 = crypto.PubkeyToAddress(privateKey.PublicKey)
+	res.Participant1Balance = big.NewInt(0)
+	res.Participant1Withdraw = big.NewInt(0)
+	err2 := res.Sign(privateKey, res)
+	if err2 != nil {
+		panic(fmt.Sprintf("sign message for withdraw response err %s", err2))
+	}
+	return
+}
+
 func (m *WithdrawResponse) String() string {
 	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant2=%s,"+
-		"Participant1Balance=%s,Participant1Withdraw=%s,",
+		"Participant1Balance=%s,Participant1Withdraw=%s,ErrorCode=%d,ErrorMsg=%s",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
 		utils.APex2(m.Participant1), utils.APex2(m.Participant2),
 		m.Participant1Balance, m.Participant1Withdraw,
+		m.ErrorCode, m.ErrorMsg,
 	)
 }
 
@@ -1398,7 +1519,8 @@ func (m *WithdrawResponse) String() string {
 func (m *WithdrawResponse) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID)
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
@@ -1406,6 +1528,15 @@ func (m *WithdrawResponse) Pack() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
 	_, err = buf.Write(m.Participant2Signature)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1415,13 +1546,12 @@ func (m *WithdrawResponse) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *WithdrawResponse) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = WithdrawResponseCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if WithdrawResponseCmdID != m.CmdID {
+		return fmt.Errorf("WithdrawRequest UnPack cmdid expect=%d,got=%d", WithdrawRequestCmdID, m.CmdID)
 	}
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
@@ -1433,6 +1563,17 @@ func (m *WithdrawResponse) UnPack(data []byte) error {
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
 		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+	}
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)
@@ -1527,7 +1668,8 @@ func (m *SettleRequest) String() string {
 func (m *SettleRequest) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID)
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
@@ -1544,13 +1686,12 @@ func (m *SettleRequest) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *SettleRequest) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = SettleRequestCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("SettleRequest UnPack cmdid expect=%d,got=%d", SettleRequestCmdID, t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if SettleRequestCmdID != m.CmdID {
+		return fmt.Errorf("SettleRequest UnPack cmdid expect=%d,got=%d", SettleRequestCmdID, m.CmdID)
 	}
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
@@ -1561,12 +1702,12 @@ func (m *SettleRequest) UnPack(data []byte) error {
 	m.Participant1Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant1Signature)
 	if err != nil || n != signatureLength {
-		return fmt.Errorf("WithdrawRequest UnPack Participant1Signature err=%v,n=%d", err, n)
+		return fmt.Errorf("SettleRequest UnPack Participant1Signature err=%v,n=%d", err, n)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)
 	if err != nil || (n != signatureLength) {
-		return fmt.Errorf("WithdrawRequest UnPack Signature err=%v,n=%d", err, n)
+		return fmt.Errorf("SettleRequest UnPack Signature err=%v,n=%d", err, n)
 	}
 	return m.verifySignature(data)
 }
@@ -1585,7 +1726,7 @@ func (m *SettleRequest) verifySignature(data []byte) error {
 			utils.APex2(m.Sender), utils.APex2(m.Participant1))
 	}
 	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant1Signature))
-	datahash = utils.Sha3(m.signDataForContract())
+	datahash = utils.Sha3(m.SignDataForContract())
 	addr, err := utils.Ecrecover(datahash, m.Participant1Signature)
 	if err != nil {
 		return err
@@ -1596,7 +1737,9 @@ func (m *SettleRequest) verifySignature(data []byte) error {
 	}
 	return nil
 }
-func (m *SettleRequest) signDataForContract() []byte {
+
+//SignDataForContract 生成合约调用签名数据
+func (m *SettleRequest) SignDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
@@ -1616,7 +1759,7 @@ func (m *SettleRequest) signDataForContract() []byte {
 
 //Sign is SignedMessager
 func (m *SettleRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
-	m.Participant1Signature, err = utils.SignData(key, m.signDataForContract())
+	m.Participant1Signature, err = utils.SignData(key, m.SignDataForContract())
 	if err != nil {
 		return
 	}
@@ -1641,22 +1784,49 @@ SettleResponse 相应对方合作关闭通道要求
 type SettleResponse struct {
 	SignedMessage
 	SettleResponseData
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_message"`
 }
 
 //NewSettleResponse create settle response from `SettleResponseData`
-func NewSettleResponse(wd *SettleResponseData) *SettleResponse {
+func NewSettleResponse(wd *SettleResponseData, errorCode int, errorMsg string) *SettleResponse {
 	m := &SettleResponse{
 		SettleResponseData: *wd,
+		ErrorCode:          errorCode,
+		ErrorMsg:           errorMsg,
 	}
 	m.CmdID = SettleResponseCmdID
 	return m
 }
+
+// NewErrorCooperativeSettleResponseAndSign 创建返回错误信息的SettleResponse
+func NewErrorCooperativeSettleResponseAndSign(req *SettleRequest, privateKey *ecdsa.PrivateKey, errorCode int, errorMsg string) (res *SettleResponse) {
+	res = &SettleResponse{
+		ErrorCode: errorCode,
+		ErrorMsg:  errorMsg,
+	}
+	// 这里填充无效数据,仅为了过验证
+	res.CmdID = SettleResponseCmdID
+	res.ChannelIdentifier = req.ChannelIdentifier
+	res.OpenBlockNumber = req.OpenBlockNumber
+	res.Participant1 = utils.EmptyAddress
+	res.Participant1Balance = big.NewInt(0)
+	res.Participant2 = crypto.PubkeyToAddress(privateKey.PublicKey)
+	res.Participant2Balance = big.NewInt(0)
+	err2 := res.Sign(privateKey, res)
+	if err2 != nil {
+		panic(fmt.Sprintf("sign message for settle response err %s", err2))
+	}
+	return
+}
+
 func (m *SettleResponse) String() string {
 	return fmt.Sprintf("Message{type=SettleResponse Channel=%s-%d,Participant1=%s,Participant1Balance=%s,"+
-		"Participant2=%s,Participant2Balance=%s}",
+		"Participant2=%s,Participant2Balance=%s,ErrorCode=%d,ErrorMsg=%s}",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
 		utils.APex2(m.Participant1), m.Participant1Balance,
 		utils.APex2(m.Participant2), m.Participant2Balance,
+		m.ErrorCode, m.ErrorMsg,
 	)
 }
 
@@ -1664,7 +1834,8 @@ func (m *SettleResponse) String() string {
 func (m *SettleResponse) Pack() []byte {
 	var err error
 	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, m.CmdID)
+	err = m.WriteCmdStructToBuf(buf)
+	//err = binary.Write(buf, binary.LittleEndian, m.CmdID)
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(m.Participant1[:])
@@ -1672,6 +1843,15 @@ func (m *SettleResponse) Pack() []byte {
 	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(m.Participant2Signature)
+	// 2019-03 添加错误码及错误信息
+	errCode := int32(m.ErrorCode)
+	err = binary.Write(buf, binary.BigEndian, errCode)
+	errorMsgBytes := utils.StringToBytes(m.ErrorMsg)
+	errorMsgBytesLen := int32(len(errorMsgBytes))
+	err = binary.Write(buf, binary.BigEndian, errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		_, err = buf.Write(errorMsgBytes)
+	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
 		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
@@ -1681,13 +1861,12 @@ func (m *SettleResponse) Pack() []byte {
 
 //UnPack is MessageUnPacker
 func (m *SettleResponse) UnPack(data []byte) error {
-	var t int32
 	var err error
-	m.CmdID = SettleResponseCmdID
 	buf := bytes.NewBuffer(data)
-	err = binary.Read(buf, binary.LittleEndian, &t)
-	if t != m.CmdID {
-		return fmt.Errorf("SettleResponse UnPack cmdid expect=%d,got=%d", SettleResponseCmdID, t)
+	err = m.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if SettleResponseCmdID != m.CmdID {
+		return fmt.Errorf("SettleResponse UnPack cmdid expect=%d,got=%d", SettleResponseCmdID, m.CmdID)
 	}
 	_, err = buf.Read(m.ChannelIdentifier[:])
 	err = binary.Read(buf, binary.BigEndian, &m.OpenBlockNumber)
@@ -1699,6 +1878,17 @@ func (m *SettleResponse) UnPack(data []byte) error {
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
 		return fmt.Errorf("SettleResponse UnPack Participant2Signature err=%v,n=%d", err, n)
+	}
+	// 2019-03 添加错误码及错误信息
+	var errCode int32
+	err = binary.Read(buf, binary.BigEndian, &errCode)
+	m.ErrorCode = int(errCode)
+	var errorMsgBytesLen int32
+	err = binary.Read(buf, binary.BigEndian, &errorMsgBytesLen)
+	if errorMsgBytesLen > 0 {
+		errorMsgBuf := make([]byte, errorMsgBytesLen)
+		_, err = buf.Read(errorMsgBuf)
+		m.ErrorMsg = utils.BytesToString(errorMsgBuf)
 	}
 	m.Signature = make([]byte, signatureLength)
 	n, err = buf.Read(m.Signature)
@@ -1722,7 +1912,7 @@ func (m *SettleResponse) verifySignature(data []byte) error {
 			utils.APex2(m.Sender), utils.APex2(m.Participant2))
 	}
 	fmt.Printf("vm=%s,sig=%s,p1sig=%s\n", m, hex.EncodeToString(m.Signature), hex.EncodeToString(m.Participant2Signature))
-	datahash = utils.Sha3(m.signDataForContract())
+	datahash = utils.Sha3(m.SignDataForContract())
 	addr, err := utils.Ecrecover(datahash, m.Participant2Signature)
 	if err != nil {
 		return err
@@ -1733,7 +1923,9 @@ func (m *SettleResponse) verifySignature(data []byte) error {
 	}
 	return nil
 }
-func (m *SettleResponse) signDataForContract() []byte {
+
+//SignDataForContract 生成合约调用数据
+func (m *SettleResponse) SignDataForContract() []byte {
 	var err error
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
@@ -1753,7 +1945,7 @@ func (m *SettleResponse) signDataForContract() []byte {
 
 //Sign is SignedMessager
 func (m *SettleResponse) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
-	m.Participant2Signature, err = utils.SignData(key, m.signDataForContract())
+	m.Participant2Signature, err = utils.SignData(key, m.SignDataForContract())
 	if err != nil {
 		return
 	}

@@ -10,9 +10,6 @@ import (
 
 // CrashCase003 : only for local test
 func (cm *CaseManager) CrashCase003() (err error) {
-	if !cm.RunThisCaseOnly {
-		return
-	}
 	env, err := models.NewTestEnv("./cases/CrashCase003.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -27,10 +24,10 @@ func (cm *CaseManager) CrashCase003() (err error) {
 	transAmount := int32(10)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n1, n0)
-	n2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretAfter",
-	})
+	cm.startNodes(env, n1, n0,
+		n2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretAfter",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()
@@ -38,6 +35,12 @@ func (cm *CaseManager) CrashCase003() (err error) {
 	go n0.SendTrans(tokenAddress, transAmount, n2.Address, false)
 	time.Sleep(time.Second * 3)
 	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !n2.IsRunning() {
+			break
+		}
+	}
 	if n2.IsRunning() {
 		msg := "Node " + n2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/network/mdns"
+
 	"fmt"
 
 	"encoding/json"
@@ -20,11 +22,19 @@ import (
 
 	"strconv"
 
+	"math"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenerc223approve"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/tokenstandard"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,6 +44,7 @@ import (
 
 // TestEnv env manager for test
 type TestEnv struct {
+	Conn                *ethclient.Client
 	CaseName            string
 	Main                string
 	DataDir             string
@@ -51,6 +62,9 @@ type TestEnv struct {
 	Channels            []*Channel
 	Keys                []*ecdsa.PrivateKey `json:"-"`
 	UseOldToken         bool
+	PFSMain             string // pfs可执行文件全路径
+	UseNewAccount       bool
+	MDNSServiceTag      string
 }
 
 // Logger : global case logger
@@ -99,23 +113,152 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.Verbosity = c.RdInt("COMMON", "verbosity", 5)
 	env.Debug = c.RdBool("COMMON", "debug", true)
 	env.UseOldToken = false
+	env.PFSMain = c.RdString("COMMON", "pfs_main", "photon-pathfinding-service")
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
 		Logger.Fatalf(fmt.Sprintf("Failed to connect to the Ethereum client: %v", err))
 	}
+	env.Conn = conn
 	_, key := promptAccount(env.KeystorePath)
+	env.Nodes = loadNodes(c)
+	//必须先调用转账
+	{ //create new account for test every time
+		Logger.Println("transfer eth..")
+		env.UseNewAccount = c.RdBool("NEWACCOUNT", "debug", false)
+		if env.UseNewAccount {
+			countList, err := CreateTmpKeyStore(len(env.Nodes))
+			if err != nil {
+				Logger.Fatalf(fmt.Sprintf("create random-new node account failed,err = %s", err))
+			}
+			for i := 0; i < len(env.Nodes); i++ {
+				env.Nodes[i].Address = countList[i]
+			}
+			env.KeystorePath = TmpKeyStoreDir
+			var newAccountAddress []common.Address
+			for i := 0; i < len(env.Nodes); i++ {
+				newAccountAddress = append(newAccountAddress, common.HexToAddress(env.Nodes[i].Address))
+			}
+			transferMoneyForNewAccounts(key, conn, newAccountAddress)
+		}
+		Logger.Println("transfer eth complete")
+	}
+
 	tokenNetworkAddress, tokenNetwork := loadTokenNetworkContract(c, conn, key)
 	env.TokenNetwork = tokenNetwork
 	env.TokenNetworkAddress = tokenNetworkAddress.String()
-	env.Nodes = loadNodes(c)
 	env.Tokens = loadTokenAddrs(c, env, conn, key)
 	env.Channels = loadAndBuildChannels(c, env, conn)
 	env.KillAllPhotonNodes()
 	env.ClearHistoryData()
 	env.Println(env.CaseName + " env:")
+	env.MDNSServiceTag = mdns.ServiceTag + utils.RandomString(7)
 	Logger.Println("Env Prepare SUCCESS")
 	return
+}
+
+//TmpKeyStoreDir :
+var TmpKeyStoreDir = "../../../testdata/casemanager-keystore-tmp"
+
+// CreateTmpKeyStore :
+func CreateTmpKeyStore(accountCount int) ([]string, error) {
+	if utils.Exists(TmpKeyStoreDir) {
+		err := os.RemoveAll(TmpKeyStoreDir)
+		if err != nil {
+			return nil, fmt.Errorf("Remove old account error,err=%s", err)
+		}
+	}
+	time.Sleep(time.Millisecond * 20)
+	if !utils.Exists(TmpKeyStoreDir) {
+		err := os.MkdirAll(TmpKeyStoreDir, os.ModePerm)
+		if err != nil {
+			return nil, fmt.Errorf("tmpKeyStoreDir:%s doesn't exist and cannot create %v", TmpKeyStoreDir, err)
+		}
+	}
+	passphrase := "123"
+	var countList []string
+	ks := keystore.NewKeyStore(TmpKeyStoreDir, keystore.StandardScryptN, keystore.LightScryptP)
+	defer ks.Close()
+	accountChan := make(chan string, 1)
+	for i := 0; i < accountCount; i++ {
+		go func() {
+			account, err := ks.NewAccount(passphrase)
+			if err != nil {
+				panic(fmt.Sprintf("new account err %s", err))
+			}
+			accountChan <- account.Address.Hex()
+			log.Println(fmt.Sprintf("Create temp eth account %s", account.Address.Hex()))
+		}()
+	}
+	for i := 0; i < accountCount; i++ {
+		a := <-accountChan
+		countList = append(countList, a)
+	}
+	return countList, nil
+}
+
+func getAmount(x *big.Int) *big.Int {
+	y := new(big.Int)
+	y = y.Mul(x, big.NewInt(int64(math.Pow10(-0))))
+	return y
+}
+
+// transfer10ToAccount : impl chain.Chain
+func transferToAccount(conn *ethclient.Client, key *ecdsa.PrivateKey, accountTo common.Address, amount *big.Int, nonce uint64) (err error) {
+	if amount == nil || amount.Cmp(big.NewInt(0)) == 0 {
+		return
+	}
+	ctx := context.Background()
+	auth := bind.NewKeyedTransactor(key)
+	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
+	/*nonce, err = conn.NonceAt(ctx, fromAddr, nil)
+	if err != nil {
+		return err
+	}*/
+	//nonce
+	msg := ethereum.CallMsg{From: fromAddr, To: &accountTo, Value: amount, Data: nil}
+	gasLimit, err := conn.EstimateGas(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("failed to estimate gas needed: %v", err)
+	}
+	gasPrice, err := conn.SuggestGasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to suggest gas price: %v", err)
+	}
+	chainID, err := conn.NetworkID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get networkID : %v", err)
+	}
+	rawTx := types.NewTransaction(nonce, accountTo, amount, gasLimit, getAmount(gasPrice), nil)
+	signedTx, err := auth.Signer(types.NewEIP155Signer(chainID), auth.From, rawTx)
+	if err != nil {
+		return err
+	}
+	if err = conn.SendTransaction(ctx, signedTx); err != nil {
+		return fmt.Errorf("conn.SendTransaction : %v,nonce=%v,accountTo=%s,amount=%s,gasLimit=%v,gasPrice=%s", err, nonce, accountTo.Hex(), amount.String(), gasLimit, getAmount(gasPrice).String())
+	}
+	_, err = bind.WaitMined(ctx, conn, signedTx)
+	return
+}
+
+//
+func transferMoneyForNewAccounts(key *ecdsa.PrivateKey, conn *ethclient.Client, accounts []common.Address) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(accounts))
+	nonce, err := conn.PendingNonceAt(context.Background(), crypto.PubkeyToAddress(key.PublicKey))
+	if err != nil {
+		log.Fatalf("get old nonce failed err: %s", err)
+	}
+	for index, account := range accounts {
+		go func(account2 common.Address, i int) {
+			err := transferToAccount(conn, key, account2, big.NewInt(50000000000000000), nonce+uint64(i))
+			if err != nil {
+				log.Fatalf("Failed to Transfer: %s", err)
+			}
+			wg.Done()
+		}(account, index)
+	}
+	wg.Wait()
 }
 
 func loadTokenNetworkContract(c *config.Config, conn *ethclient.Client, key *ecdsa.PrivateKey) (tokenNetworkAddress common.Address, tokenNetwork *contracts.TokensNetwork) {
@@ -222,6 +365,22 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 				Token:        token,
 				TokenAddress: tokenAddress,
 			})
+		} else if addr == "smttoken" {
+			token, tokenAddress := deploySMTToken(env, conn, key)
+			Logger.Printf("New SMTToken =%s\n", tokenAddress.String())
+			tokens = append(tokens, &Token{
+				Name:         option,
+				Token:        token,
+				TokenAddress: tokenAddress,
+			})
+		} else if addr == "newERC20" {
+			token, tokenAddress := deployERC20Token(env, conn, key)
+			Logger.Printf("New ERC20 =%s\n", tokenAddress.String())
+			tokens = append(tokens, &Token{
+				Name:         option,
+				Token:        token,
+				TokenAddress: tokenAddress,
+			})
 		} else {
 			env.UseOldToken = true
 			tokenAddress := common.HexToAddress(addr)
@@ -239,9 +398,10 @@ func loadTokenAddrs(c *config.Config, env *TestEnv, conn *ethclient.Client, key 
 	Logger.Println("Load Tokens SUCCESS")
 	return
 }
-func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
+
+func deployERC20Token(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
 	var err error
-	tokenAddress = newToken(key, conn)
+	tokenAddress = newERC20Token(key, conn)
 	token, err = contracts.NewToken(tokenAddress, conn)
 	if err != nil {
 		panic(fmt.Sprintf("err for newtoken err %s", err))
@@ -264,6 +424,86 @@ func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey)
 	transferMoneyForAccounts(key, conn, accounts, token)
 	return
 }
+
+func deploySMTToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
+	var err error
+	auth := bind.NewKeyedTransactor(key)
+	tokenAddress, tx, _, err := smttoken.DeploySMTToken(auth, conn, "", common.HexToAddress(env.TokenNetworkAddress))
+	if err != nil {
+		log.Fatalf("Failed to DeploySMTToken: %v", err)
+	}
+	fmt.Printf("SMTToken deploy tx=%s\n", tx.Hash().String())
+	ctx := context.Background()
+	_, err = bind.WaitDeployed(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to deploy contact when mining :%v", err)
+	}
+	fmt.Printf("DeploySMTToken complete... tokenAddress=%s\n", tokenAddress.String())
+
+	token, err = contracts.NewToken(tokenAddress, conn)
+	if err != nil {
+		panic(fmt.Sprintf("err for newtoken err %s", err))
+	}
+	return
+}
+func deployNewToken(env *TestEnv, conn *ethclient.Client, key *ecdsa.PrivateKey) (token *contracts.Token, tokenAddress common.Address) {
+	var err error
+	tokenAddress = newToken(key, conn)
+	token, err = contracts.NewToken(tokenAddress, conn)
+	if err != nil {
+		panic(fmt.Sprintf("err for newtoken err %s", err))
+	}
+	am := accounts.NewAccountManager(env.KeystorePath)
+	var accounts []common.Address
+	type accountAndKey struct {
+		address common.Address
+		key     *ecdsa.PrivateKey
+	}
+	accountChan := make(chan accountAndKey)
+	for _, node := range env.Nodes {
+		address := common.HexToAddress(node.Address)
+		accounts = append(accounts, address)
+		go func(address common.Address) {
+			//这个操作非常花时间, 要并行操作
+			keyBin, err := am.GetPrivateKey(address, globalPassword)
+			if err != nil {
+				Logger.Fatalf("password error for %s", address.String())
+			}
+			keyTemp, err := crypto.ToECDSA(keyBin)
+			if err != nil {
+				Logger.Fatalf("ToECDSA err %s", err)
+			}
+			accountChan <- accountAndKey{address, keyTemp}
+		}(address)
+	}
+	m := make(map[common.Address]*ecdsa.PrivateKey)
+	for i := 0; i < len(env.Nodes); i++ {
+		a := <-accountChan
+		m[a.address] = a.key
+	}
+	for i := 0; i < len(env.Nodes); i++ {
+		address := common.HexToAddress(env.Nodes[i].Address)
+		env.Keys = append(env.Keys, m[address])
+	}
+	transferMoneyForAccounts(key, conn, accounts, token)
+	return
+}
+func newERC20Token(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.Address) {
+	auth := bind.NewKeyedTransactor(key)
+	tokenAddr, tx, _, err := tokenstandard.DeployHumanStandardToken(auth, conn, big.NewInt(500000000), "test symoble", 0)
+	if err != nil {
+		log.Fatalf("Failed to DeployHumanStandardToken: %v", err)
+	}
+	fmt.Printf("token deploy tx=%s\n", tx.Hash().String())
+	ctx := context.Background()
+	_, err = bind.WaitDeployed(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to deploy contact when mining :%v", err)
+	}
+	fmt.Printf("DeployHumanStandardToken complete... tokenAddress=%s\n", tokenAddr.String())
+	return
+}
+
 func newToken(key *ecdsa.PrivateKey, conn *ethclient.Client) (tokenAddr common.Address) {
 	auth := bind.NewKeyedTransactor(key)
 	tokenAddr, tx, _, err := tokenerc223approve.DeployHumanERC223Token(auth, conn, big.NewInt(500000000), "test symoble", 0)
@@ -328,7 +568,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 	wg := sync.WaitGroup{}
 	wg.Add(len(options))
 	for _, o := range options {
-		func(option string) {
+		go func(option string) {
 			defer wg.Done()
 			s := strings.Split(c.RdString("CHANNEL", option, ""), ",")
 			_, token := env.GetTokenByName(s[2])
@@ -429,6 +669,9 @@ func (env *TestEnv) KillAllPhotonNodes() {
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = append(pstr2, "-9")
+		pstr2 = append(pstr2, "photon-pathfinding-service")
+		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
 	Logger.Println("Kill all photon nodes SUCCESS")
 }
@@ -450,10 +693,27 @@ func (env *TestEnv) ClearHistoryData() {
 		if name == ".photon" {
 			err := os.RemoveAll(path)
 			if err != nil {
-				fmt.Println("delet dir error:", err)
+				fmt.Println("delete dir error:", err)
 			}
 		}
 		Logger.Println("Clear history data SUCCESS ")
+		return nil
+	})
+	err = filepath.Walk(".", func(path string, fi os.FileInfo, err error) error {
+		if nil == fi {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		name := fi.Name()
+		if name == ".pfsdb" {
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Println("delete dir error:", err)
+			}
+			Logger.Println("Clear pfs history data SUCCESS ")
+		}
 		return nil
 	})
 	if err != nil {
@@ -499,4 +759,58 @@ func (env *TestEnv) Println(header string) {
 		panic(err)
 	}
 	Logger.Println(string(buf))
+}
+
+// StartPFS 启动本地pfs节点
+func (env *TestEnv) StartPFS() {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-pfs")
+	var param []string
+	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
+	param = append(param, "--port=17000")
+	param = append(param, "--dbtype=sqlite3")
+	param = append(param, "--dbconnection=.pfsdb")
+	param = append(param, "--debug")
+	param = append(param, "--verbosity=5")
+	if env.UseMatrix {
+		param = append(param, "--matrix")
+	}
+	go ExecShell(env.PFSMain, param, logfile, true)
+	// TODO 校验启动完成
+	return
+}
+
+// GetPfsProxy :
+func (env *TestEnv) GetPfsProxy(privateKey *ecdsa.PrivateKey) pfsproxy.PfsProxy {
+	return pfsproxy.NewPfsProxy("http://127.0.0.1:17000", privateKey)
+}
+
+// GetPrivateKeyByNode :
+func (env *TestEnv) GetPrivateKeyByNode(node *PhotonNode) (key *ecdsa.PrivateKey) {
+	account := common.HexToAddress(node.Address)
+	am := accounts.NewAccountManager(env.KeystorePath)
+	if len(am.Accounts) == 0 {
+		log.Fatal(fmt.Sprintf("No Ethereum accounts found in the directory %s", env.KeystorePath))
+		os.Exit(1)
+	}
+	keyBin, err := am.GetPrivateKey(account, globalPassword)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Exhausted passphrase unlock attempts for %s. Aborting ...", account.String()))
+		os.Exit(1)
+	}
+	key, err = crypto.ToECDSA(keyBin)
+	if err != nil {
+		log.Println(fmt.Sprintf("private key to bytes err %s", err))
+		os.Exit(1)
+	}
+	return
+}
+
+// MarshalIndent :
+func MarshalIndent(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }

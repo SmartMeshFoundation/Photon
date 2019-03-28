@@ -20,6 +20,9 @@ func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
 }
 
+// ErrorSkip 用于跳过某个case时返回,方便统计
+var ErrorSkip = errors.New("skip")
+
 // CaseManager include env and cases
 type CaseManager struct {
 	Cases                 map[string]reflect.Value
@@ -27,11 +30,11 @@ type CaseManager struct {
 	IsAutoRun             bool
 	UseMatrix             bool
 	RunSlow               bool //是否运行哪些长时间运行的case
-	RunThisCaseOnly       bool // 针对性测试,设置为true,表明只是想运行这一个case
 	EthEndPoint           string
 	LowWaitSeconds        int
 	MediumWaitSeconds     int
 	HighMediumWaitSeconds int
+	MDNSLifeTime          time.Duration //多久认为一个不进行mdns广播的节点下线了.
 }
 
 // NewCaseManager constructor
@@ -46,6 +49,14 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 	caseManager.HighMediumWaitSeconds = 300
 	caseManager.RunSlow = runSlow
 	caseManager.Cases = make(map[string]reflect.Value)
+	//
+	if useMatrix {
+		caseManager.LowWaitSeconds = 10 + 100
+		caseManager.MediumWaitSeconds = 50 + 160 //config for settle time
+		caseManager.HighMediumWaitSeconds = 300 + 100
+	}
+	//会通过启动参数来指定修改mdns的间隔时间 params.DefaultMDNSKeepalive修改为1秒,params.DefaultMDNSQueryInterval修改为50ms
+	caseManager.MDNSLifeTime = time.Second + time.Millisecond*50*2 //实际上是params.DefaultMDNSKeepalive + 2*params.DefaultMDNSQueryInterval
 	// use reflect to load all cases
 	_, err = fmt.Println("load cases...")
 	vf := reflect.ValueOf(caseManager)
@@ -72,37 +83,49 @@ func (c *CaseManager) RunAll(skip string) {
 	for k := range c.Cases {
 		keys = append(keys, k)
 	}
+	eachUsed := make(map[string]int64)
 	sort.Strings(keys)
 	errorMsg := ""
 	success := 0
+	total := len(keys)
 	for _, k := range keys {
+		s := time.Now()
 		v := c.Cases[k]
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
 			success++
 		} else {
 			err := rs[0].Interface().(error)
+			if err == ErrorSkip {
+				total--
+				fmt.Printf("%s SKIP \n", k)
+				continue
+			}
 			if err == nil {
-				_, err = fmt.Printf("%s SUCCESS\n", k)
+				fmt.Printf("%s SUCCESS\n", k)
 			} else {
 				errorMsg = fmt.Sprintf("%s FAILED!!!,err=%s\n", k, err)
-				_, err = fmt.Printf(errorMsg)
+				fmt.Println(errorMsg)
 				c.FailedCaseNames = append(c.FailedCaseNames, k)
 				if skip != "true" {
 					break
 				}
 			}
 		}
-
+		eachUsed[k] = time.Now().Unix() - s.Unix()
 	}
 	_, err = fmt.Println("Casemanager Result:")
-	_, err = fmt.Printf("Cases num : %d,successed=%d\n", len(keys), success)
+	_, err = fmt.Printf("Cases num : %d,successed=%d\n", total, success)
 	_, err = fmt.Printf("Fail num : %d :\n", len(c.FailedCaseNames))
 	for _, v := range c.FailedCaseNames {
 		_, err = fmt.Println(v)
 	}
+	_, err = fmt.Printf("Time used: \n")
+	for k, u := range eachUsed {
+		fmt.Printf("%d seconds : %s\n", u, k)
+	}
 	_, err = fmt.Println("Pelease check log in ./log")
-	if errorMsg != "" {
+	if errorMsg != "" && skip != "true" {
 		panic(errorMsg)
 	}
 	_ = err
@@ -112,6 +135,7 @@ func (c *CaseManager) RunAll(skip string) {
 func (c *CaseManager) RunOne(caseName string) {
 	var err error
 	if v, ok := c.Cases[caseName]; ok {
+		s := time.Now().Unix()
 		_, err = fmt.Println("----------------------------->Start to run case " + caseName + "...")
 		rs := v.Call(nil)
 		if rs[0].Interface() == nil {
@@ -124,24 +148,25 @@ func (c *CaseManager) RunOne(caseName string) {
 				_, err = fmt.Printf("%s FAILED!!! err=%s\n", caseName, err)
 			}
 		}
+		fmt.Printf("Time used : %d seconds\n", time.Now().Unix()-s)
 	} else {
 		_, err = fmt.Printf("%s doesn't exist !!! \n", caseName)
 	}
-	_, err = fmt.Println("Pelease check log in ./log")
+	_, err = fmt.Println("Please check log in ./log")
 	_ = err
 }
 
 // caseFail :
 func (c *CaseManager) caseFail(caseName string) error {
-	models.Logger.Println(caseName + " END ====> TFAILED")
-	return fmt.Errorf("Case [%s] TFAILED", caseName)
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
 
 // caseFail :
 func (c *CaseManager) caseFailWithWrongChannelData(caseName string, channelName string) error {
 	models.Logger.Println(channelName + " data wrong !!!")
-	models.Logger.Println(caseName + " END ====> TFAILED")
-	return fmt.Errorf("Case [%s] TFAILED", caseName)
+	models.Logger.Println(caseName + " END ====> FAILED")
+	return fmt.Errorf("Case [%s] FAILED", caseName)
 }
 
 func (c *CaseManager) logSeparatorLine(s string) {
@@ -165,11 +190,24 @@ func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNod
 	wg.Add(n)
 	for i := 0; i < n; i++ {
 		go func(index int) {
-			dopprof := false
 			if index == 0 {
-				dopprof = true
+				nodes[index].SetDoPprof()
 			}
-			nodes[index].Start(env, dopprof)
+			nodes[index].Start(env)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	time.Sleep(c.MDNSLifeTime)
+}
+
+func (c *CaseManager) startNodesWithFee(env *models.TestEnv, nodes ...*models.PhotonNode) {
+	n := len(nodes)
+	wg := sync.WaitGroup{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(index int) {
+			nodes[index].StartWithFeeAndPFS(env)
 			wg.Done()
 		}(i)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
@@ -16,13 +17,14 @@ import (
 
 	"strings"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/params"
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
+	v1 "github.com/SmartMeshFoundation/Photon/restful/v1"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -469,12 +471,12 @@ transfer:
     "sync": true
 }
 
-the caller should call GetTransferStatus periodically to query this transfer's latest status.
+the caller should call GetSentTransferDetail periodically to query this transfer's latest status.
 */
-func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, feestr string, secretStr string, isDirect bool, data string) (result string) {
+func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, secretStr string, isDirect bool, data string, routeInfoStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,feestr=%s,secretStr=%s, isDirect=%v, data=%s \nout transfer=\n%s ",
-			tokenAddress, targetAddress, amountstr, feestr, secretStr, isDirect, data, result,
+		log.Trace(fmt.Sprintf("Api Transfers tokenAddress=%s,targetAddress=%s,amountstr=%s,secretStr=%s,isDirect=%v, data=%s routeInfo=%s\nout transfer=\n%s ",
+			tokenAddress, targetAddress, amountstr, secretStr, isDirect, data, result, routeInfoStr,
 		))
 	}()
 	tokenAddr, err := utils.HexToAddressWithoutValidation(tokenAddress)
@@ -498,14 +500,25 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 		return dto.NewErrorMobileResponse(err)
 	}
 	amount, _ := new(big.Int).SetString(amountstr, 0)
-	fee, _ := new(big.Int).SetString(feestr, 0)
 	secret := common.HexToHash(secretStr)
 	if amount.Cmp(utils.BigInt0) <= 0 {
 		err = errors.New("amount should be positive")
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	tr, err := a.api.TransferAsync(tokenAddr, amount, fee, targetAddr, secret, isDirect, data)
+	// 解析指定的路由info
+	var routeInfo []pfsproxy.FindPathResponse
+	if routeInfoStr == "" {
+		routeInfo = nil
+	} else {
+		err = json.Unmarshal([]byte(routeInfoStr), &routeInfo)
+		if err != nil {
+			err = fmt.Errorf("parse route info err=%s", err.Error())
+			err = rerr.ErrArgumentError.AppendError(err)
+			return dto.NewErrorMobileResponse(err)
+		}
+	}
+	tr, err := a.api.TransferAsync(tokenAddr, amount, targetAddr, secret, isDirect, data, routeInfo)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -517,7 +530,6 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, fe
 	req.Token = tokenAddress
 	req.Amount = amount
 	req.Secret = secretStr
-	req.Fee = fee
 	req.Data = data
 	return dto.NewSuccessMobileResponse(req)
 }
@@ -586,6 +598,9 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
+	if v1.QuitChain != nil {
+		close(v1.QuitChain)
+	}
 	//test only
 	a.api.Stop()
 }
@@ -692,12 +707,16 @@ func (a *API) EthereumStatus() (result string) {
 /*
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
-func (a *API) GetSentTransfers(from, to int64) (result string) {
+func (a *API) GetSentTransfers(tokenAddressStr string, from, to int64) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("ApiCall GetSentTransfers result=%s", result))
+		log.Trace(fmt.Sprintf("ApiCall GetSentTransferDetails result=%s", result))
 	}()
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := a.api.GetSentTransfers(from, to)
+	tokenAddress := utils.EmptyAddress
+	if tokenAddressStr != "" {
+		tokenAddress = common.HexToAddress(tokenAddressStr)
+	}
+	trs, err := a.api.GetSentTransferDetails(tokenAddress, from, to)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -709,11 +728,15 @@ func (a *API) GetSentTransfers(from, to int64) (result string) {
 GetReceivedTransfers retuns list of received transfer between `from_block` and `to_block`
 it contains token swap
 */
-func (a *API) GetReceivedTransfers(from, to int64) (result string) {
+func (a *API) GetReceivedTransfers(tokenAddressStr string, from, to int64) (result string) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall GetReceivedTransfers result=%s", result))
 	}()
-	trs, err := a.api.GetReceivedTransfers(from, to)
+	tokenAddress := utils.EmptyAddress
+	if tokenAddressStr != "" {
+		tokenAddress = common.HexToAddress(tokenAddressStr)
+	}
+	trs, err := a.api.GetReceivedTransfers(tokenAddress, from, to, -1, -1)
 	if err != nil {
 		log.Error(err.Error())
 		return dto.NewErrorMobileResponse(err)
@@ -742,8 +765,6 @@ type NotifyHandler interface {
 	OnStatusChange(s string)
 	//OnReceivedTransfer  receive a transfer
 	OnReceivedTransfer(tr string)
-	//OnSentTransfer a transfer sent success
-	OnSentTransfer(tr string)
 	/* OnNotify get some important message Photon want to notify upper application
 	level: 0:info,1:warn,2:error
 	info: type InfoStruct struct {
@@ -795,6 +816,7 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 			var d []byte
 			select {
 			case err = <-rpanic.GetNotify():
+				log.Error(fmt.Sprintf("photon panic because of unkown err %s", err))
 				handler.OnError(32, err.Error())
 			case s := <-a.api.Photon.EthConnectionStatus:
 				cs.EthStatus = s
@@ -807,11 +829,6 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
 				handler.OnStatusChange(string(d))
-			case t, ok := <-a.api.Photon.NotifyHandler.GetSentTransferChan():
-				if ok {
-					d, err = json.Marshal(t)
-					handler.OnSentTransfer(string(d))
-				}
 			case t, ok := <-a.api.Photon.NotifyHandler.GetReceivedTransferChan():
 				if ok {
 					d, err = json.Marshal(t)
@@ -863,7 +880,7 @@ example returns:
 */
 func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string) (result string) {
 	defer func() {
-		log.Trace(fmt.Sprintf("Api GetTransferStatus tokenAddressStr=%s,lockSecretHashStr=%s, result=%s\n",
+		log.Trace(fmt.Sprintf("Api GetSentTransferDetail tokenAddressStr=%s,lockSecretHashStr=%s, result=%s\n",
 			tokenAddressStr, lockSecretHashStr, result,
 		))
 	}()
@@ -873,7 +890,7 @@ func (a *API) GetTransferStatus(tokenAddressStr string, lockSecretHashStr string
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	ts, err := a.api.Photon.GetDao().GetTransferStatus(tokenAddress, common.HexToHash(lockSecretHashStr))
+	ts, err := a.api.Photon.GetDao().GetSentTransferDetail(tokenAddress, common.HexToHash(lockSecretHashStr))
 	if err != nil {
 		log.Error(fmt.Sprintf("err =%s", err))
 		return dto.NewErrorMobileResponse(err)
@@ -974,4 +991,47 @@ func (a *API) FindPath(targetStr, tokenStr, amountStr string) (result string) {
 		return dto.NewErrorMobileResponse(err)
 	}
 	return dto.NewSuccessMobileResponse(routes)
+}
+
+/*
+ContractCallTXQuery 合约调用TX查询接口,4个参数均可传空值,空值即为不限制,4个参数对应的查询条件关系为and
+channelIdentifierStr 有值时按通道ID查询
+openBlockNumber 有值时按通道OpenBlockNumber查询,一般配合channelIdentifierStr参数一起使用,以精确定位到某一个通道
+txTypeStr 有值时按tx类型查询,取值:
+	TXInfoTypeDeposit            = "ChannelDeposit"
+	TXInfoTypeClose              = "ChannelClose"
+	TXInfoTypeSettle             = "ChannelSettle"
+	TXInfoTypeCooperateSettle    = "CooperateSettle"
+	TXInfoTypeUpdateBalanceProof = "UpdateBalanceProof"
+	TXInfoTypeUnlock             = "Unlock"
+	TXInfoTypePunish             = "Punish"
+	TXInfoTypeWithdraw           = "Withdraw"
+	TXInfoTypeApproveDeposit     = "ApproveDeposit"
+	TXInfoTypeRegisterSecret     = "RegisterSecret"
+txStatusStr 有值时按tx状态查询,取值:
+	TXInfoStatusPending = "pending"
+	TXInfoStatusSuccess = "success"
+	TXInfoStatusFailed  = "failed"
+*/
+func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber int, tokenAddressStr, txTypeStr, txStatusStr string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall ContractCallTXQuery result=%s", result))
+	}()
+	req := &photon.ContractCallTXQueryParams{
+		ChannelIdentifier: channelIdentifierStr,
+		OpenBlockNumber:   int64(openBlockNumber),
+		TokenAddress:      tokenAddressStr,
+		TXType:            models.TXInfoType(txTypeStr),
+		TXStatus:          models.TXInfoStatus(txStatusStr),
+	}
+	list, err := a.api.ContractCallTXQuery(req)
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(list)
+}
+
+// Version 获取版本信息
+func (a *API) Version() string {
+	return dto.NewSuccessMobileResponse(a.api.GetBuildInfo())
 }

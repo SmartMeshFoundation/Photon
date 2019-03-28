@@ -53,10 +53,10 @@ func CancelTransferTest(env *models.PhotonEnvReader, allowFail bool) {
 
 	// 2. get transfer status
 	case2 := &APITestCase{
-		CaseName:  "GetTransferStatus",
+		CaseName:  "GetSentTransferDetail",
 		AllowFail: allowFail,
 		Req: &models.Req{
-			APIName: "GetTransferStatus",
+			APIName: "GetSentTransferDetail",
 			FullURL: sender.Host + "/api/1/transferstatus/" + token.Address + "/" + lockSecretHash.String(),
 			Method:  http.MethodGet,
 			Timeout: time.Second * 180,

@@ -129,3 +129,9 @@ func TestUninitMapMap(t *testing.T) {
 	channelsRegistered := ts[utils.NewRandomAddress()][utils.NewRandomHash()]
 	assert.EqualValues(t, channelsRegistered == nil, true)
 }
+
+func TestSlice(t *testing.T) {
+	s := []int{1}
+	s = append(s[:0], s[1:]...)
+	fmt.Println(s)
+}

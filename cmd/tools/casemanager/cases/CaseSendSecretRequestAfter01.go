@@ -3,10 +3,11 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -22,7 +23,7 @@ CaseSendSecretRequestAfter01 :
 */
 func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSendSecretRequestAfter01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -40,10 +41,9 @@ func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点1, EventSendSecretRequestAfter
-	N3.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, N1, N2, N3.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendSecretRequestAfter",
-	})
-	cm.startNodes(env, N1, N2)
+	}))
 
 	// 初始数据记录
 	N1.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
@@ -52,6 +52,12 @@ func (cm *CaseManager) CaseSendSecretRequestAfter01() (err error) {
 	go N1.SendTrans(tokenAddress, transAmount, N3.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N3.IsRunning() {
+			break
+		}
+	}
 	if N3.IsRunning() {
 		msg := "Node " + N3.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

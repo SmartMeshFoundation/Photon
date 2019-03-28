@@ -130,7 +130,7 @@ var PunishBlockNumber int64
 var MatrixServerConfig = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
 	//"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
-	//"transport03.smartmesh.cn": "http://transport03.smartmesh.cn:8008",
+	"transport13.smartmesh.cn": "http://transport13.smartmesh.cn:8008",
 }
 
 //AliasFragment  is discovery AliasFragment
@@ -157,17 +157,17 @@ var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 }
 
 //GenesisBlockHashToPFS : default pfs provider
-var GenesisBlockHashToPFS = map[common.Hash]string{
+var GenesisBlockHashToPFS = map[common.Address]string{
 	// spectrum
-	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): "http://transport01.smartmesh.cn:7000",
+	common.HexToAddress("0x08b7d79ec4ebd53e5b89c7c062cc64bb09d063e3"): "http://transport01.smartmesh.cn:7000",
 	// spectrum test net
-	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): "http://transport01.smartmesh.cn:7001",
+	common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"): "http://transport01.smartmesh.cn:7001",
 	// ethereum
-	common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): "",
+	//common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): "",
 	// ethereum test net
-	common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): "",
+	//common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): "",
 	// ethereum private
-	common.HexToHash("0x38a88a9ddffe522df5c07585a7953f8c011c94327a494188bd0cc2410dc40a1a"): "http://transport01.smartmesh.cn:7002",
+	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): "http://transport01.smartmesh.cn:7002",
 }
 
 // DefaultEthRPCPollPeriodForTest :
@@ -196,3 +196,15 @@ var ForkConfirmNumber int64 = 17
 
 // MaxTransferDataLen : 交易附件信息最大长度
 var MaxTransferDataLen = 256
+
+// SMTTokenName SMTToken名,固定
+const SMTTokenName = "SMTToken"
+
+// DefaultMDNSKeepalive 默认mdns下20秒内检测不到在线,将该节点标志为下线
+var DefaultMDNSKeepalive = 20 * time.Second
+
+//DefaultMDNSQueryInterval  默认轮询间隔是1s,在测试代码中会更改他,以提高效率
+var DefaultMDNSQueryInterval = time.Second
+
+//EnableMDNS 是否启用mdns
+var EnableMDNS = true

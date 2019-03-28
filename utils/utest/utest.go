@@ -86,7 +86,7 @@ func MakeRoute(nodeAddress common.Address, availableBalance *big.Int, settleTime
 	ch.OurState.ContractBalance = new(big.Int).Set(availableBalance)
 	ch.RevealTimeout = revealTimeout
 	ch.ExternState.ClosedBlock = closedBlock
-	state := route.NewState(ch)
+	state := route.NewState(ch, []common.Address{})
 	state.Fee = utils.BigInt0
 	state.TotalFee = utils.BigInt0
 	return state

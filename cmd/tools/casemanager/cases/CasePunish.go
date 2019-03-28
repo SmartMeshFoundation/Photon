@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 /*
@@ -34,11 +35,10 @@ func (cm *CaseManager) CasePunish() (err error) {
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点,让节点0发送SendAnnounce
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, N1, N2, N0.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
-	})
-	N1.Start(env)
-	N2.Start(env)
+	}))
+
 	secret, _, err := N0.GenerateSecret()
 	if err != nil {
 		return
@@ -59,6 +59,13 @@ func (cm *CaseManager) CasePunish() (err error) {
 	go N0.SendTransWithSecret(tokenAddress, transAmount, N2.Address, secret)
 	time.Sleep(time.Second * 3)
 	// N0 crash
+	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return fmt.Errorf("n0 should shutdown")
 	}
@@ -83,7 +90,7 @@ func (cm *CaseManager) CasePunish() (err error) {
 		if (c.OurBalanceProof.ContractTransferAmount != nil && c.OurBalanceProof.ContractTransferAmount.Uint64() != 0) ||
 			c.OurBalanceProof.ContractLocksRoot != utils.EmptyHash ||
 			c.OurBalanceProof.ContractNonce != 0xffffffffffffffff {
-			models.Logger.Printf("c=%s", utils.StringInterface(c, 5))
+			//models.Logger.Printf("c=%s", utils.StringInterface(c, 5))
 			continue
 		}
 		break

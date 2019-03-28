@@ -9,12 +9,38 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+// FakeTXINfoDao only for test
+type FakeTXINfoDao struct{}
+
+// NewPendingTXInfo :
+func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+	return
+}
+
+// SaveEventToTXInfo :
+func (dao *FakeTXINfoDao) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInfo, err error) {
+	return
+}
+
+// UpdateTXInfoStatus :
+func (dao *FakeTXINfoDao) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, pendingBlockNumber int64, gasUsed uint64) (txInfo *models.TXInfo, err error) {
+	return
+}
+
+// GetTXInfoList :
+func (dao *FakeTXINfoDao) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
+	return
+}
 
 func newTestBlockChainService() *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
@@ -25,7 +51,7 @@ func newTestBlockChainService() *rpc.BlockChainService {
 	if err != nil {
 		log.Crit("Failed to create authorized transactor: ", err)
 	}
-	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
+	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), &FakeTXINfoDao{})
 	if err != nil {
 		panic(err)
 	}

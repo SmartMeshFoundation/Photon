@@ -5,6 +5,7 @@ import (
 
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -27,10 +28,11 @@ type EventSendMediatedTransfer struct {
 	// because which channel receives MediatedTransfer and leads me to send a new Transfer
 	// If I am the transfer initiator, then FromChannel should be null.
 	FromChannel common.Hash
+	Path        []common.Address //2019-03 消息升级后,带全路径path
 }
 
 //NewEventSendMediatedTransfer create EventSendMediatedTransfer
-func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address) *EventSendMediatedTransfer {
+func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common.Address, path []common.Address) *EventSendMediatedTransfer {
 	return &EventSendMediatedTransfer{
 		Token:          transfer.Token,
 		Amount:         new(big.Int).Set(transfer.Amount),
@@ -40,6 +42,7 @@ func NewEventSendMediatedTransfer(transfer *LockedTransferState, receiver common
 		Expiration:     transfer.Expiration,
 		Receiver:       receiver,
 		Fee:            transfer.Fee,
+		Path:           path,
 	}
 }
 
@@ -129,6 +132,7 @@ type EventSendAnnounceDisposed struct {
 	Expiration     int64
 	Token          common.Address
 	Receiver       common.Address
+	Reason         rerr.StandardError
 }
 
 /*
@@ -227,6 +231,8 @@ type EventSaveFeeChargeRecord struct {
 	OutChannel     common.Hash    `json:"out_channel"` // 我付款的channelID
 	Fee            *big.Int       `json:"fee"`
 	Timestamp      int64          `json:"timestamp"` // 时间戳,time.Unix()
+	Data           string         `json:"data"`
+	BlockNumber    int64          `json:"block_number"`
 }
 
 func init() {

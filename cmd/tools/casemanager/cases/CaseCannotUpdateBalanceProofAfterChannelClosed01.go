@@ -17,7 +17,7 @@ func init() {
 // CaseCannotUpdateBalanceProofAfterChannelClosed01 :
 func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseCannotUpdateBalanceProofAfterChannelClosed01.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -34,12 +34,13 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err e
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2，3
-	// start node 2, 3
-	cm.startNodes(env, N1, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
+	// 启动节点0,2，3
+	// start node  0,2, 3
+	cm.startNodes(env, N1, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}),
+	)
 
 	// 获取channel信息
 	// get channel info
@@ -60,13 +61,25 @@ func (cm *CaseManager) CaseCannotUpdateBalanceProofAfterChannelClosed01() (err e
 
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
+	if N0.IsRunning() {
+		msg := "Node " + N0.Name + " should be exited,but it still running, FAILED !!!"
+		models.Logger.Println(msg)
+		return fmt.Errorf(msg)
+	}
+
 	err = N1.Close(c01.ChannelIdentifier)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
 	}
 	//N0务必启启动,尝试发送unlock失败.
-	N0.ReStartWithoutConditionquit(env)
-
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil))
 	settleTime := c01.SettleTimeout + 3600/14
 	err = cm.trySettleInSeconds(int(settleTime), N1, c01.ChannelIdentifier)
 

@@ -65,6 +65,17 @@ type Serialization struct {
 	SettleTimeout          int
 }
 
+//NewEmptySerialization contstructs empty serialization to avoid panic
+func NewEmptySerialization() *Serialization {
+	return &Serialization{
+		ChannelIdentifier:      &contracts.ChannelUniqueID{},
+		OurBalanceProof:        transfer.NewEmptyBalanceProofState(),
+		PartnerBalanceProof:    transfer.NewEmptyBalanceProofState(),
+		OurContractBalance:     utils.BigInt0,
+		PartnerContractBalance: utils.BigInt0,
+	}
+}
+
 // GetKey : impl dao.KeyGetter
 func (s *Serialization) GetKey() []byte {
 	return s.Key

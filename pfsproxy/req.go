@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 // req a http request
@@ -61,11 +63,15 @@ func (r *req) Invoke() (int, []byte, error) {
 	req := r.GetReq()
 	resp, err := client.Do(req)
 	defer func() {
+		var err2 error
 		if req.Body != nil {
-			err = req.Body.Close()
+			err2 = req.Body.Close()
 		}
 		if resp != nil && resp.Body != nil {
-			err = resp.Body.Close()
+			err2 = resp.Body.Close()
+		}
+		if err2 != nil {
+			log.Error(err2.Error())
 		}
 	}()
 	if err != nil {

@@ -22,7 +22,7 @@ func init() {
 // CaseCorrectSettle :
 func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseCorrectSettle.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -41,27 +41,40 @@ func (cm *CaseManager) CaseCorrectSettle() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N1, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRequestStateChange",
-	})
-
+	cm.startNodes(env, N1, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRequestStateChange",
+		}),
+	)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 获取channel信息
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should not running")
 	}
-	N0.ReStartWithoutConditionquit(env)
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	err = N0.Close(c01.ChannelIdentifier)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("close failed %s", err))
 	}
 
 	var i = 0
-	for i = 0; i < 100; i++ {
+	for i = 0; i < 200; i++ {
 		var c channeltype.ChannelDataDetail
 		time.Sleep(time.Second)
 		c, err = N0.SpecifiedChannel(c01.ChannelIdentifier)

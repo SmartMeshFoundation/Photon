@@ -6,17 +6,19 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/kataras/go-errors"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 )
 
 // GetChannelWith :
@@ -93,7 +95,7 @@ func (node *PhotonNode) IsRunning() bool {
 	return true
 }
 
-// Shutdown check by api address
+// Shutdown check by api address,保证退出的时候已经关闭
 func (node *PhotonNode) Shutdown(env *TestEnv) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/debug/shutdown",
@@ -102,17 +104,11 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 		Timeout: time.Second * 3,
 	}
 	go req.Invoke()
-	time.Sleep(10 * time.Second)
-	node.Running = false
-	var nodes []*PhotonNode
-	for _, n := range env.Nodes {
-		if n.Running {
-			nodes = append(nodes, n)
-		}
-	}
-	for _, n := range env.Nodes {
-		if n.Running {
-			n.UpdateMeshNetworkNodes(nodes...)
+	//尝试等待node退出
+	for i := 0; i < 100; i++ {
+		time.Sleep(time.Millisecond * 100)
+		if !node.IsRunning() {
+			return
 		}
 	}
 	return
@@ -120,18 +116,18 @@ func (node *PhotonNode) Shutdown(env *TestEnv) {
 
 // TransferPayload API  http body
 type TransferPayload struct {
-	Amount   int32  `json:"amount"`
-	Fee      int64  `json:"fee"`
-	IsDirect bool   `json:"is_direct"`
-	Secret   string `json:"secret"`
-	Sync     bool   `json:"sync"`
+	Amount    int32                       `json:"amount"`
+	IsDirect  bool                        `json:"is_direct"`
+	Secret    string                      `json:"secret"`
+	Sync      bool                        `json:"sync"`
+	RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
+	Data      string                      `json:"data"`
 }
 
 // Transfer send a transfer
 func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddress string, isDirect bool) error {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: isDirect,
 		Sync:     true,
 	})
@@ -149,11 +145,34 @@ func (node *PhotonNode) Transfer(tokenAddress string, amount int32, targetAddres
 	return nil
 }
 
+// SendTransWithRouteInfo send a transfer with route info from pfs
+func (node *PhotonNode) SendTransWithRouteInfo(target *PhotonNode, tokenAddress string, amount int32, routeInfo []pfsproxy.FindPathResponse) {
+	if routeInfo == nil || len(routeInfo) == 0 {
+		routeInfo = node.FindPath(target, common.HexToAddress(tokenAddress), amount)
+	}
+	p, err := json.Marshal(TransferPayload{
+		Amount:    amount,
+		IsDirect:  false,
+		Sync:      true,
+		RouteInfo: routeInfo,
+		Data:      "test",
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + target.Address,
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("SendTransWithRouteInfo err :%s,body=%s", err, string(body)))
+	}
+}
+
 // SendTrans send a transfer, should be instead of Transfer
 func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddress string, isDirect bool) {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: isDirect,
 		Sync:     true,
 	})
@@ -169,31 +188,10 @@ func (node *PhotonNode) SendTrans(tokenAddress string, amount int32, targetAddre
 	}
 }
 
-// SendTransSyncWithFee send a transfer, should be instead of Transfer
-func (node *PhotonNode) SendTransSyncWithFee(tokenAddress string, amount int32, targetAddress string, isDirect bool, fee int64) {
-	p, err := json.Marshal(TransferPayload{
-		Amount:   amount,
-		Fee:      fee,
-		IsDirect: isDirect,
-		Sync:     true,
-	})
-	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
-		Method:  http.MethodPost,
-		Payload: string(p),
-		Timeout: time.Second * 60,
-	}
-	_, err = req.Invoke()
-	if err != nil {
-		Logger.Println(fmt.Sprintf("SendTransApi err :%s", err))
-	}
-}
-
 //SendTransWithSecret send a transfer
 func (node *PhotonNode) SendTransWithSecret(tokenAddress string, amount int32, targetAddress string, secretSeed string) {
 	p, err := json.Marshal(TransferPayload{
 		Amount:   amount,
-		Fee:      0,
 		IsDirect: false,
 		Secret:   secretSeed,
 		Sync:     true,
@@ -234,7 +232,7 @@ func (node *PhotonNode) Withdraw(channelIdentifier string, withdrawAmount int32)
 }
 
 // Close :
-func (node *PhotonNode) Close(channelIdentifier string) (err error) {
+func (node *PhotonNode) Close(channelIdentifier string, waitSeconds ...int) (err error) {
 	type ClosePayload struct {
 		State string `json:"state"`
 		Force bool   `json:"force"`
@@ -249,15 +247,39 @@ func (node *PhotonNode) Close(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("CloseApi err :%s", err)
+	}
+	Logger.Println(fmt.Sprintf("close channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
 	}
 	return nil
 }
 
 // Settle :
-func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
+func (node *PhotonNode) Settle(channelIdentifier string, waitSeconds ...int) (err error) {
 	type SettlePayload struct {
 		State string `json:"state"`
 	}
@@ -270,9 +292,33 @@ func (node *PhotonNode) Settle(channelIdentifier string) (err error) {
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		return fmt.Errorf("SettleApi err :%s", err)
+	}
+	Logger.Println(fmt.Sprintf("settle channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找不到到这个channel了才返回
+		if err != nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
 	}
 	return nil
 }
@@ -317,7 +363,7 @@ func (node *PhotonNode) CooperateSettle(channelIdentifier string, waitSeconds ..
 }
 
 // OpenChannel :
-func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance, settleTimeout int64) error {
+func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance, settleTimeout int64, waitSeconds ...int) error {
 	type OpenChannelPayload struct {
 		PartnerAddress string `json:"partner_address"`
 		TokenAddress   string `json:"token_address"`
@@ -343,12 +389,35 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 		Logger.Println(fmt.Sprintf("OpenChannelApi %s err :   body=%s err=%s", req.FullURL, string(body), err.Error()))
 		return err
 	}
-
-	return err
+	Logger.Println(fmt.Sprintf("open channel returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
+	}
+	return nil
 }
 
 // Deposit :
-func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int64) error {
+func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int64, waitSeconds ...int) error {
 	type OpenChannelPayload struct {
 		PartnerAddress string `json:"partner_address"`
 		TokenAddress   string `json:"token_address"`
@@ -369,11 +438,36 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
-	_, err = req.Invoke()
+	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
+		return err
 	}
-	return err
+	Logger.Println(fmt.Sprintf("Deposit returned=%s", string(body)))
+	ch := channeltype.ChannelDataDetail{}
+	err = json.Unmarshal(body, &ch)
+	if err != nil {
+		panic(err)
+	}
+	var ws int
+	if len(waitSeconds) > 0 {
+		ws = waitSeconds[0]
+	} else {
+		ws = 45 //d等三块,应该会被打包进去的.
+	}
+	var i int
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		_, err = node.SpecifiedChannel(ch.ChannelIdentifier)
+		//找到这个channel了才返回
+		if err == nil {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("timeout")
+	}
+	return nil
 }
 
 // UpdateMeshNetworkNodes :
@@ -483,8 +577,8 @@ func (node *PhotonNode) GenerateSecret() (secret, secretHash string, err error) 
 	return
 }
 
-//GetSentTransfers query node's sent transfer
-func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err error) {
+//GetSentTransferDetails query node's sent transfer
+func (node *PhotonNode) GetSentTransferDetails() (trs []*models.SentTransferDetail, err error) {
 	req := &Req{
 		FullURL: node.Host + "/api/1/querysenttransfer",
 		Method:  http.MethodGet,
@@ -492,7 +586,7 @@ func (node *PhotonNode) GetSentTransfers() (trs []*models.SentTransfer, err erro
 	}
 	body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("GetSentTransfers err :%s", err))
+		Logger.Println(fmt.Sprintf("GetSentTransferDetails err :%s", err))
 		return
 	}
 	err = json.Unmarshal(body, &trs)
@@ -521,8 +615,8 @@ func (node *PhotonNode) GetReceivedTransfers() (trs []*models.ReceivedTransfer, 
 	return
 }
 
-//GetTransferStatus :
-func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status *models.TransferStatus, err error) {
+//GetSentTransferDetail :
+func (node *PhotonNode) GetSentTransferDetail(token, locksecrethash string) (status *models.SentTransferDetail, err error) {
 	req := &Req{
 		FullURL: fmt.Sprintf(node.Host+"/api/1/transferstatus/%s/%s", token, locksecrethash),
 		Method:  http.MethodGet,
@@ -530,7 +624,7 @@ func (node *PhotonNode) GetTransferStatus(token, locksecrethash string) (status 
 	}
 	body, err := req.Invoke()
 	if err != nil {
-		Logger.Println(fmt.Sprintf("GetTransferStatus err :%s", err))
+		Logger.Println(fmt.Sprintf("GetSentTransferDetail err :%s", err))
 		return
 	}
 	err = json.Unmarshal(body, &status)
@@ -638,14 +732,15 @@ func (node *PhotonNode) PrepareUpdate() (err error) {
 
 // TokenSwap send a transfer
 func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivingtoken, role, secret string,
-	sendingAmount, receivingAmount int) error {
+	sendingAmount, receivingAmount int, routeInfo []pfsproxy.FindPathResponse) error {
 	type TokenSwapPayload struct {
-		Role            string `json:"role"`
-		SendingAmount   int    `json:"sending_amount"`
-		SendingToken    string `json:"sending_token"`
-		ReceivingAmount int    `json:"receiving_amount"`
-		ReceivingToken  string `json:"receiving_token"`
-		Secret          string `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		Role            string                      `json:"role"`
+		SendingAmount   int                         `json:"sending_amount"`
+		SendingToken    string                      `json:"sending_token"`
+		ReceivingAmount int                         `json:"receiving_amount"`
+		ReceivingToken  string                      `json:"receiving_token"`
+		Secret          string                      `json:"secret"` // taker无需填写,maker必填,且hash值需与url参数中的locksecrethash匹配,算法为SHA3
+		RouteInfo       []pfsproxy.FindPathResponse `json:"route_info"`
 	}
 	p, err := json.Marshal(TokenSwapPayload{
 		Role:            role,
@@ -654,6 +749,7 @@ func (node *PhotonNode) TokenSwap(target, locksecrethash, sendingtoken, receivin
 		ReceivingAmount: receivingAmount,
 		ReceivingToken:  receivingtoken,
 		Secret:          secret,
+		RouteInfo:       routeInfo,
 	})
 	req := &Req{
 		FullURL: node.Host + "/api/1/token_swaps/" + target + "/" + locksecrethash,
@@ -757,4 +853,27 @@ func (node *PhotonNode) RegisterSecret(secret string) (err error) {
 	Logger.Printf("RegisterSecret body=%s", string(body))
 	return
 
+}
+
+// FindPath :
+func (node *PhotonNode) FindPath(target *PhotonNode, tokenAddress common.Address, amount int32) (path []pfsproxy.FindPathResponse) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/path/%s/%s/%d", target.Address, tokenAddress.String(), amount),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	var resp []pfsproxy.FindPathResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		Logger.Println(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	path = resp
+	Logger.Printf("FindPath get RouteInfo from %s to %s on token %s :\n%s", node.Name, target.Name, tokenAddress.String(), MarshalIndent(path))
+	return
 }

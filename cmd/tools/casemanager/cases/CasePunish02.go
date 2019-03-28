@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/params"
+
+	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
 
 /*
@@ -32,11 +33,9 @@ func (cm *CaseManager) CasePunish02() (err error) {
 	N0, N1, N2 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点,让节点0发送SendAnnounce
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
+	cm.startNodes(env, N1, N2, N0.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
-	})
-	N1.Start(env)
-	N2.Start(env)
+	}))
 
 	secret, _, err := N0.GenerateSecret()
 	if err != nil {
@@ -58,6 +57,13 @@ func (cm *CaseManager) CasePunish02() (err error) {
 	go N0.SendTransWithSecret(tokenAddress, transAmount, N2.Address, secret)
 	time.Sleep(time.Second * 3)
 	// N0 crash
+	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return fmt.Errorf("n0 should shutdown")
 	}
@@ -65,7 +71,7 @@ func (cm *CaseManager) CasePunish02() (err error) {
 	N1.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N0)...)
 	N2.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N1)...)
 	//N0启动以后无法和N1,N2通信
-	N0.ReStartWithoutConditionquitAndNetwork(env)
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil).SetNoNetwork())
 	//N0注册密码
 	err = N0.RegisterSecret(secret)
 	if err != nil {

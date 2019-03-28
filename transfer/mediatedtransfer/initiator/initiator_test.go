@@ -9,6 +9,9 @@ import (
 
 	"os"
 
+	"encoding/json"
+
+	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -71,7 +74,9 @@ func TestNextRoute(t *testing.T) {
 	//open this will panic,how to test panic?
 	//err := tryNewRoute(state)
 	//assert.Equal(t, err != nil, true)
-	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
+	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, &route.CanceledRoute{
+		Route: state.Route,
+	})
 	state.Route = nil
 	tryNewRoute(state)
 	/*
@@ -241,6 +246,8 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 	}
 	var beforeState mediatedtransfer.InitiatorState
 	utils.DeepCopy(&beforeState, currentState)
+	beforeState.Route.Path = []common.Address{}
+	beforeState.Message.Path = []common.Address{}
 
 	sm := transfer.NewStateManager(StateTransition, currentState, NameInitiatorTransition, utils.ShaSecret([]byte("3")), utils.NewRandomAddress())
 	stateChange := &mediatedtransfer.ReceiveSecretRevealStateChange{
@@ -248,6 +255,7 @@ func TestStateWaitUnlockInvalid(t *testing.T) {
 		Sender: utest.ADDR, //wrong sender
 	}
 	events := sm.Dispatch(stateChange)
+
 	assert(t, len(events), 0)
 	assert(t, currentState.RevealSecret != nil, true)
 	assert(t, sm.CurrentState, currentState)
@@ -267,9 +275,12 @@ func TestRefundTransferNextRoute(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
-		Sender:  mediatorAddress,
-		Token:   token,
-		Message: nil,
+		Sender: mediatorAddress,
+		Token:  token,
+		Message: &encoding.AnnounceDisposed{
+			ErrorCode: 1,
+			ErrorMsg:  "test error",
+		},
 		Lock: &mtree.Lock{
 			Expiration:     currentState.Transfer.Expiration,
 			LockSecretHash: currentState.LockSecretHash,
@@ -300,9 +311,12 @@ func TestRefundTransferNoMoreRoutes(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
-		Sender:  mediatorAddress,
-		Token:   token,
-		Message: nil,
+		Sender: mediatorAddress,
+		Token:  token,
+		Message: &encoding.AnnounceDisposed{
+			ErrorCode: 1,
+			ErrorMsg:  "test error",
+		},
 		Lock: &mtree.Lock{
 			Expiration:     currentState.Transfer.Expiration,
 			LockSecretHash: currentState.LockSecretHash,
@@ -331,9 +345,12 @@ func TestRefundTransferInvalidSender(t *testing.T) {
 	}
 	currentState := makeInitiatorState(routes, targetAddress, utest.UnitTransferAmount, blockNumber, ourAddress, token)
 	stateChange := &mediatedtransfer.ReceiveAnnounceDisposedStateChange{
-		Sender:  ourAddress,
-		Token:   token,
-		Message: nil,
+		Sender: ourAddress,
+		Token:  token,
+		Message: &encoding.AnnounceDisposed{
+			ErrorCode: 1,
+			ErrorMsg:  "test error",
+		},
 		Lock: &mtree.Lock{
 			Expiration:     currentState.Transfer.Expiration,
 			LockSecretHash: currentState.LockSecretHash,
@@ -380,7 +397,8 @@ func assertStateEqual(t *testing.T, currentState, beforeState *mediatedtransfer.
 	//assert(t, reflect.DeepEqual(currentState, beforeState), true)
 	assert(t, currentState.Transfer, beforeState.Transfer)
 	assert(t, currentState.RevealSecret, beforeState.RevealSecret)
-	assert(t, currentState.Message, beforeState.Message)
+	//不比较这个是因为gob在处理空数组和nil的时候不一致
+	//assert(t, currentState.Message, beforeState.Message)
 	//不比较这个是因为gob在处理空数组和nil的时候不一致
 	//assert(t, currentState.Routes, beforeState.Routes)
 	//私有成员变量 gob 无法编码
@@ -390,4 +408,13 @@ func assertStateEqual(t *testing.T, currentState, beforeState *mediatedtransfer.
 	assert(t, currentState.OurAddress, beforeState.OurAddress)
 	assert(t, currentState.BlockNumber, beforeState.BlockNumber)
 	//assert(t, currentState, beforeState)
+}
+
+// marshalIndent :
+func marshalIndent(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }

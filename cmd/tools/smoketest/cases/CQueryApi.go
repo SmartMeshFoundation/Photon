@@ -216,10 +216,10 @@ func GetSentTransfersTest(env *models.PhotonEnvReader, allowFail bool) {
 	}
 	// run case
 	case1 := &APITestCase{
-		CaseName:  "GetSentTransfers",
+		CaseName:  "GetSentTransferDetails",
 		AllowFail: allowFail,
 		Req: &models.Req{
-			APIName: "GetSentTransfers",
+			APIName: "GetSentTransferDetails",
 			FullURL: node.Host + "/api/1/querysenttransfer",
 			Method:  http.MethodGet,
 			Payload: "",

@@ -33,21 +33,29 @@ func (cm *CaseManager) CrashCaseRecv06() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点2,3,6
-	N2.Start(env)
-	N3.Start(env)
-	N6.Start(env)
-	// 启动节点1, BeforeSendRevealSecret
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretBefore",
-	})
+	cm.startNodes(env, N2, N3, N6,
+
+		// 启动节点1, BeforeSendRevealSecret
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretBefore",
+		}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	// 初始数据记录
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
 	N2.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 	N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
 	// 3. 节点1向节点6转账20token
-	N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	//time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N1.IsRunning() {
+			break
+		}
+	}
 	if N1.IsRunning() {
 		msg = "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

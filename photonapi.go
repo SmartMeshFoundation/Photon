@@ -17,6 +17,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 
+	"sort"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -93,16 +95,16 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 	if revealTimeout <= 0 {
 		revealTimeout = r.Photon.Config.RevealTimeout
 	}
-	if !newChannel && settleTimeout != 0 {
-		err = rerr.ErrArgumentError.Append("settleTimeout must be zero when newChannel is false ")
-		return
-	}
-	if settleTimeout <= 0 {
-		settleTimeout = r.Photon.Config.SettleTimeout
-	}
-	if settleTimeout <= revealTimeout {
-		err = rerr.ErrChannelInvalidSttleTimeout
-		return
+	if newChannel {
+		if settleTimeout <= 0 {
+			settleTimeout = r.Photon.Config.SettleTimeout
+		}
+		if settleTimeout <= revealTimeout {
+			err = rerr.ErrChannelInvalidSttleTimeout
+			return
+		}
+	} else {
+		settleTimeout = 0
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
 		err = rerr.ErrInvalidAmount
@@ -117,10 +119,20 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			err = rerr.ErrChannelAlreadExist
 			return
 		}
+		ch = channeltype.NewEmptySerialization()
+		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, r.Photon.NodeAddress)
+		ch.TokenAddressBytes = tokenAddress[:]
+		ch.OurAddress = r.Photon.NodeAddress
+		ch.PartnerAddressBytes = partnerAddress[:]
+		ch.State = channeltype.StateInValid
 	} else {
 		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
 			err = rerr.ErrChannelNotFound
+			return
+		}
+		if ch.State != channeltype.StateOpened {
+			err = rerr.ErrChannelState.Append(fmt.Sprintf("can not deposit to %s channel", ch.State))
 			return
 		}
 	}
@@ -136,9 +148,9 @@ TokenSwapAndWait Start an atomic swap operation by sending a MediatedTransfer wi
     `taker_token`.
 */
 func (r *API) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int, secret string) error {
+	makerAmount, takerAmount *big.Int, secret string, routeInfo []pfsproxy.FindPathResponse) error {
 	result, err := r.tokenSwapAsync(lockSecretHash, makerToken, takerToken, makerAddress, takerAddress,
-		makerAmount, takerAmount, secret)
+		makerAmount, takerAmount, secret, routeInfo)
 	if err != nil {
 		return err
 	}
@@ -147,7 +159,7 @@ func (r *API) TokenSwapAndWait(lockSecretHash string, makerToken, takerToken, ma
 }
 
 func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int, secret string) (result *utils.AsyncResult, err error) {
+	makerAmount, takerAmount *big.Int, secret string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = rerr.ErrTokenNotFound
@@ -168,6 +180,7 @@ func (r *API) tokenSwapAsync(lockSecretHash string, makerToken, takerToken, make
 		ToToken:         takerToken,
 		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
+		RouteInfo:       routeInfo,
 	}
 	result = r.Photon.tokenSwapMakerClient(tokenSwap)
 	return
@@ -181,7 +194,7 @@ ExpectTokenSwap Register an expected transfer for this node.
     `maker_address` for `taker_asset` with `taker_amount`.
 */
 func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, makerAddress, takerAddress common.Address,
-	makerAmount, takerAmount *big.Int) (err error) {
+	makerAmount, takerAmount *big.Int, routeInfo []pfsproxy.FindPathResponse) (err error) {
 	chs, err := r.Photon.dao.GetChannelList(takerToken, utils.EmptyAddress)
 	if err != nil || len(chs) == 0 {
 		err = rerr.ErrTokenNotFound
@@ -200,6 +213,7 @@ func (r *API) ExpectTokenSwap(lockSecretHash string, makerToken, takerToken, mak
 		ToToken:         takerToken,
 		ToAmount:        new(big.Int).Set(takerAmount),
 		ToNodeAddress:   takerAddress,
+		RouteInfo:       routeInfo,
 	}
 	r.Photon.tokenSwapTakerClient(tokenSwap)
 	return nil
@@ -241,8 +255,8 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 }
 
 //Transfer transfer and wait
-func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(token, amount, fee, target, secret, isDirectTransfer, data)
+func (r *API) Transfer(token common.Address, amount *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(token, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -260,8 +274,8 @@ func (r *API) Transfer(token common.Address, amount *big.Int, fee *big.Int, targ
 }
 
 // TransferAsync :
-func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	result, err = r.TransferInternal(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
+func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
+	result, err = r.TransferInternal(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
 		return
 	}
@@ -275,38 +289,10 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, fee *b
 }
 
 //TransferInternal :
-func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, fee *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string) (result *utils.AsyncResult, err error) {
-	//tokens := r.Tokens()
-	//found := false
-	//for _, t := range tokens {
-	//	if t == tokenAddress {
-	//		found = true
-	//		break
-	//	}
-	//}
-	//if !found {
-	//	err = errors.New("token not exist")
-	//	return
-	//}
-	//if isDirectTransfer {
-	//	var c *channeltype.Serialization
-	//	c, err = r.Photon.dao.GetChannel(tokenAddress, target)
-	//	if err != nil {
-	//		err = fmt.Errorf("no direct channel token:%s,partner:%s", tokenAddress.String(), target.String())
-	//		return
-	//	}
-	//	if c.State != channeltype.StateOpened {
-	//		err = fmt.Errorf("channel %s not opened", c.ChannelIdentifier)
-	//		return
-	//	}
-	//}
-	//if amount.Cmp(utils.BigInt0) <= 0 {
-	//	err = rerr.ErrInvalidAmount
-	//	return
-	//}
+func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
 		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
-	result = r.Photon.transferAsyncClient(tokenAddress, amount, fee, target, secret, isDirectTransfer, data)
+	result = r.Photon.transferAsyncClient(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	return
 }
 
@@ -659,17 +645,17 @@ func (r *API) GetChannelEvents(channelIdentifier common.Hash, fromBlock, toBlock
 }
 
 /*
-GetSentTransfers query sent transfers from dao
+GetSentTransferDetails query sent transfers from dao
 */
-func (r *API) GetSentTransfers(from, to int64) ([]*models.SentTransfer, error) {
-	return r.Photon.dao.GetSentTransferInBlockRange(from, to)
+func (r *API) GetSentTransferDetails(tokenAddress common.Address, from, to int64) ([]*models.SentTransferDetail, error) {
+	return r.Photon.dao.GetSentTransferDetailList(tokenAddress, -1, -1, from, to)
 }
 
 /*
 GetReceivedTransfers query received transfers from dao
 */
-func (r *API) GetReceivedTransfers(from, to int64) ([]*models.ReceivedTransfer, error) {
-	return r.Photon.dao.GetReceivedTransferInBlockRange(from, to)
+func (r *API) GetReceivedTransfers(tokenAddress common.Address, fromBlock, toBlock, fromTime, toTime int64) ([]*models.ReceivedTransfer, error) {
+	return r.Photon.dao.GetReceivedTransferList(tokenAddress, fromBlock, toBlock, fromTime, toTime)
 }
 
 //Stop stop for mobile app
@@ -1033,7 +1019,7 @@ func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	}
 	var data responce
 
-	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord()
+	data.Details, err = r.Photon.dao.GetAllFeeChargeRecord(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1116,11 +1102,11 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	data.ChannelNum = len(cs)
 	// Transfers
-	sts, err := r.GetSentTransfers(-1, -1)
+	sts, err := r.GetSentTransferDetails(utils.EmptyAddress, -1, -1)
 	if err != nil {
 		return
 	}
-	rts, err := r.GetReceivedTransfers(-1, -1)
+	rts, err := r.GetReceivedTransfers(utils.EmptyAddress, -1, -1, -1, -1)
 	if err != nil {
 		return
 	}
@@ -1159,4 +1145,189 @@ func (r *API) checkSmcStatus() error {
 		return err
 	}
 	return nil
+}
+
+// ContractCallTXQueryParams 请求参数
+type ContractCallTXQueryParams struct {
+	ChannelIdentifier string              `json:"channel_identifier"`
+	OpenBlockNumber   int64               `json:"open_block_number"`
+	TokenAddress      string              `json:"token_address"`
+	TXType            models.TXInfoType   `json:"tx_type"`
+	TXStatus          models.TXInfoStatus `json:"tx_status"`
+}
+
+// ContractCallTXQuery 根据条件查询所有合约调用的信息
+func (r *API) ContractCallTXQuery(req *ContractCallTXQueryParams) (list []*models.TXInfo, err error) {
+	channelIdentifier := utils.EmptyHash
+	openBlockNumber := int64(0)
+	var txType models.TXInfoType
+	var txStatus models.TXInfoStatus
+	tokenAddress := utils.EmptyAddress
+	if req.ChannelIdentifier != "" {
+		channelIdentifier = common.HexToHash(req.ChannelIdentifier)
+	}
+	if req.OpenBlockNumber > 0 {
+		openBlockNumber = req.OpenBlockNumber
+	}
+	if req.TokenAddress != "" {
+		tokenAddress = common.HexToAddress(req.TokenAddress)
+	}
+	if req.TXType != "" {
+		txType = req.TXType
+	}
+	if req.TXStatus != "" {
+		txStatus = req.TXStatus
+	}
+	list, err = r.Photon.dao.GetTXInfoList(channelIdentifier, openBlockNumber, tokenAddress, txType, txStatus)
+	return
+}
+
+// 手续类型常量
+const incomeTypeTransfer = "0" // 转账收益
+const incomeTypeFee = "1"      // 手续费收益
+
+// IncomeDetail 收益接口返回的收益明细信息
+type IncomeDetail struct {
+	Amount    *big.Int `json:"amount"`
+	Data      string   `json:"data"`
+	Type      string   `json:"type"` // 0=转账收益 1-手续费收益
+	TimeStamp int64    `json:"time_stamp"`
+}
+
+type incomeDetailSorter []*IncomeDetail
+
+func (s incomeDetailSorter) Len() int {
+	return len(s)
+}
+
+func (s incomeDetailSorter) Less(i, j int) bool {
+	return s[i].TimeStamp < s[j].TimeStamp
+}
+func (s incomeDetailSorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// GetIncomeDetails 收益明细查询接口,这里的收益包含手续费收益和收到的data不为""的交易
+func (r *API) GetIncomeDetails(tokenAddress common.Address, fromTime, toTime int64, limit int) (list []*IncomeDetail, err error) {
+	if tokenAddress == utils.EmptyAddress {
+		err = rerr.ErrGeneralDBError.Append("token address can not be empty")
+		return
+	}
+	receivedTransfers, err := r.Photon.dao.GetReceivedTransferList(tokenAddress, -1, -1, fromTime, toTime)
+	if err != nil {
+		err = rerr.ErrGeneralDBError.Append(err.Error())
+		return
+	}
+	feeRecords, err := r.Photon.dao.GetAllFeeChargeRecord(tokenAddress, fromTime, toTime)
+	if err != nil {
+		err = rerr.ErrGeneralDBError.Append(err.Error())
+		return
+	}
+	for _, rt := range receivedTransfers {
+		if rt.Data == "" {
+			// 过滤data为""的
+			continue
+		}
+		list = append(list, &IncomeDetail{
+			Amount:    rt.Amount,
+			Data:      rt.Data,
+			Type:      incomeTypeTransfer,
+			TimeStamp: rt.TimeStamp,
+		})
+	}
+	for _, f := range feeRecords {
+		list = append(list, &IncomeDetail{
+			Amount:    f.Fee,
+			Data:      f.Data,
+			Type:      incomeTypeFee,
+			TimeStamp: f.Timestamp,
+		})
+	}
+	// 排序,并裁剪至limit
+	sort.Stable(incomeDetailSorter(list))
+	if limit > 0 && len(list) > limit {
+		list = list[:limit]
+	}
+	return
+}
+
+// OneDayIncome 一天的收益统计
+type OneDayIncome struct {
+	Amount    *big.Int `json:"amount"`
+	TimeStamp int64    `json:"time_stamp"`
+}
+
+// DaysIncome 一周的收益统计
+type DaysIncome struct {
+	TokenAddress common.Address  `json:"token_address"`
+	TotalAmount  *big.Int        `json:"total_amount"`
+	Days         int             `json:"days"`
+	Details      []*OneDayIncome `json:"details"`
+}
+
+// GetDaysIncome 获取过去n天的收益统计
+func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp []*DaysIncome, err error) {
+	if n <= 0 {
+		// 默认7天
+		n = 7
+	}
+	var tokenList []common.Address
+	if tokenAddress != utils.EmptyAddress {
+		tokenList = append(tokenList, tokenAddress)
+	} else {
+		tokenList = r.GetTokenList()
+	}
+	if len(tokenList) == 0 {
+		return
+	}
+	// 起始时间
+	now := time.Now()
+	t := now.AddDate(0, 0, 0-n)
+	fromTime := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	toTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	/*
+		构造每个token对应的DaysIncome
+	*/
+	for _, token := range tokenList {
+		incomeDetailList, err2 := r.GetIncomeDetails(token, -1, -1, -1)
+		if err2 != nil {
+			err = err2
+			return
+		}
+		r := &DaysIncome{
+			TokenAddress: token,
+			TotalAmount:  big.NewInt(0),
+			Days:         n,
+		}
+		// 统计总收益
+		var detailList []*IncomeDetail
+		for _, incomeDetail := range incomeDetailList {
+			r.TotalAmount = r.TotalAmount.Add(r.TotalAmount, incomeDetail.Amount)
+			if incomeDetail.TimeStamp >= fromTime.Unix() && incomeDetail.TimeStamp < toTime.Unix() {
+				detailList = append(detailList, incomeDetail)
+			}
+		}
+		// 统计过去N天中每天的收益,没收益的天补0
+		for i := 0; i < n; i++ {
+			begin := fromTime.AddDate(0, 0, i)
+			end := begin.AddDate(0, 0, 1)
+			day := &OneDayIncome{
+				Amount:    big.NewInt(0),
+				TimeStamp: begin.Unix(),
+			}
+			for _, detail := range detailList {
+				if detail.TimeStamp >= begin.Unix() && detail.TimeStamp < end.Unix() {
+					day.Amount = day.Amount.Add(day.Amount, detail.Amount)
+				}
+			}
+			r.Details = append(r.Details, day)
+		}
+		resp = append(resp, r)
+	}
+	return
+}
+
+// GetBuildInfo 获取当前版本信息
+func (r *API) GetBuildInfo() *BuildInfo {
+	return r.Photon.BuildInfo
 }

@@ -32,12 +32,14 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 1. 启动
 	// 启动节点3,6
-	N3.Start(env)
-	N6.Start(env)
-	// 启动节点2, ReceiveSecretRequestAck
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveRevealSecretAck",
-	})
+	cm.startNodes(env, N3, N6,
+		// 启动节点2, ReceiveSecretRequestAck
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveRevealSecretAck",
+		}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 10)
+	}
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	cd36 := N3.GetChannelWith(N6, tokenAddress).PrintDataBeforeTransfer()
@@ -45,6 +47,12 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	// 4. 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N2.IsRunning() {
+			break
+		}
+	}
 	if N2.IsRunning() {
 		msg = "Node " + N2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)
@@ -65,6 +73,9 @@ func (cm *CaseManager) CrashCaseRecvAck02() (err error) {
 
 	// 6. 重启节点2，交易自动继续
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 

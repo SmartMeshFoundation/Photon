@@ -28,12 +28,12 @@ const (
 	// Normally no incomplete transfer remains in the channel, and stop ongoing transfers and forbid openning transfers.
 	StateSettling
 
-	//StateWithdraw 用户收到或者发出了 withdraw 请求,这时候正在进行的交易只能立即放弃,因为没有任何意义了
-	// StateWithdraw : Clients send / receive `withdraw` request.
+	//StateWithdraw 用户发出了 withdraw 请求,这时候正在进行的交易只能立即放弃,因为没有任何意义了
+	// StateWithdraw : Clients send `withdraw` request.
 	// Abandon ongoing transfers
 	StateWithdraw
-	//StateCooprativeSettle 用户收到或者发出了 cooperative settle 请求,这时候正在进行的交易只能立即放弃,因为没有任何意义了
-	// StateCooprativeSettle : Clients send / receive `cooperativesettle` request.
+	//StateCooprativeSettle 用户发出了 cooperative settle 请求,这时候正在进行的交易只能立即放弃,因为没有任何意义了
+	// StateCooprativeSettle : Clients send `cooperativesettle` request.
 	// Abandon ongoing transfers
 	StateCooprativeSettle
 	/*StatePrepareForCooperativeSettle 收到了用户 cooperative 请求,但是有正在处理的交易,这时候不再接受新的交易了,可以等待一段时间,然后settle
@@ -55,6 +55,16 @@ const (
 		todo 这种情况应该的实现是关闭通道.这样真的合理吗?
 	*/
 	StateError
+
+	/*
+		新增
+	*/
+
+	// StatePartnerCooperativeSettling 用户收到对方发来的CooperativeSettle请求并同意后,将通道置为该状态
+	StatePartnerCooperativeSettling
+
+	// StatePartnerWithdrawing 用户收到的了对方发来的withdraw请求并同意后,将通道置为该状态
+	StatePartnerWithdrawing
 )
 
 //TransferCannotBeContinuedMap these states means any transfer cannot continued
@@ -78,12 +88,16 @@ func init() {
 
 	TransferCannotBeContinuedMap[StateSettling] = true
 	TransferCannotBeContinuedMap[StateWithdraw] = true
+	TransferCannotBeContinuedMap[StatePartnerWithdrawing] = true
 	TransferCannotBeContinuedMap[StateCooprativeSettle] = true
+	TransferCannotBeContinuedMap[StatePartnerCooperativeSettling] = true
 
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StatePrepareForWithdraw] = true
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StatePrepareForCooperativeSettle] = true
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StateWithdraw] = true
+	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StatePartnerWithdrawing] = true
 	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StateCooprativeSettle] = true
+	CannotReceiveAnyTransferAndAnnounceDisposedImmediately[StatePartnerCooperativeSettling] = true
 
 	CanDealUnlock[StateOpened] = true
 	CanDealUnlock[StatePrepareForCooperativeSettle] = true
@@ -106,8 +120,12 @@ func (s State) String() string {
 		return "settling"
 	case StateWithdraw:
 		return "withdrawing"
+	case StatePartnerWithdrawing:
+		return "partnerWithdrawing"
 	case StateCooprativeSettle:
 		return "cooperativeSettling"
+	case StatePartnerCooperativeSettling:
+		return "partnerCooperativeSettling"
 	case StatePrepareForWithdraw:
 		return "prepareForWithdraw"
 	case StatePrepareForCooperativeSettle:

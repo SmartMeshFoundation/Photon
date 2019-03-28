@@ -14,7 +14,7 @@ import (
 // CaseForceRegisterSecretOnChain04 :
 func (cm *CaseManager) CaseForceRegisterSecretOnChain04() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseForceRegisterSecretOnChain04.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -32,10 +32,10 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain04() (err error) {
 	N0, N1 := env.Nodes[0], env.Nodes[1]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 
-	cm.startNodes(env, N1)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
+	cm.startNodes(env, N1,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}))
 
 	// 获取channel信息
 	// get channel info

@@ -16,7 +16,7 @@ import (
 //等待锁过期以后,相关节点都不应该持有任何锁
 func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	if !cm.RunSlow {
-		return //等待时间太长,忽略
+		return ErrorSkip //等待时间太长,忽略
 	}
 	env, err := models.NewTestEnv("./cases/CrashCaseRemoveExpiredHashLock.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -35,13 +35,11 @@ func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	N1, N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2,36
-	N2.Start(env)
-	N3.Start(env)
-	N6.Start(env)
-	// 启动节点1, ReceiveSecretRequestStateChange
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRequestStateChange",
-	})
+	cm.startNodes(env, N2, N3, N6,
+		// 启动节点1, ReceiveSecretRequestStateChange
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRequestStateChange",
+		}))
 
 	// 记录初始数据
 	N2.GetChannelWith(N1, tokenAddress).PrintDataBeforeTransfer()
@@ -52,6 +50,12 @@ func (cm *CaseManager) CrashCaseRemoveExpiredHashLock() (err error) {
 	go N1.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N1.IsRunning() {
+			break
+		}
+	}
 	if N1.IsRunning() {
 		msg = "Node " + N1.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

@@ -8,10 +8,11 @@ import (
 
 	"path/filepath"
 
-	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/codefortest"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/stretchr/testify/assert"
@@ -101,7 +102,7 @@ func TestStart(t *testing.T) {
 	api.Stop()
 	// 5. nonetwork启动, must success
 	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
-	os.Args[len(os.Args)-2] = fmt.Sprintf("--nonetwork")
+	//os.Args[len(os.Args)-2] = fmt.Sprintf("--nonetwork")
 	os.Args[len(os.Args)-1] = fmt.Sprintf("")
 	api, err = StartMain()
 	assert.Empty(t, err)
@@ -171,7 +172,7 @@ func TestVerifyContractCode(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client)
+	bcs, err := rpc.NewBlockChainService(accounts[0].PrivateKey, registryAddress, client, notify.NewNotifyHandler(), &rpc.FakeTXINfoDao{})
 	if err != nil {
 		t.Error(err.Error())
 		return

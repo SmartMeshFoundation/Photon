@@ -10,9 +10,6 @@ import (
 
 // CrashCase006 : only for local test
 func (cm *CaseManager) CrashCase006() (err error) {
-	if !cm.RunThisCaseOnly {
-		return
-	}
 	env, err := models.NewTestEnv("./cases/CrashCase006.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -27,10 +24,10 @@ func (cm *CaseManager) CrashCase006() (err error) {
 	transAmount := int32(150)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n2, n1)
-	n0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendAnnouncedDisposedResponseAfter",
-	})
+	cm.startNodes(env, n2, n1,
+		n0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendAnnouncedDisposedResponseAfter",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()
@@ -38,6 +35,12 @@ func (cm *CaseManager) CrashCase006() (err error) {
 	go n0.SendTrans(tokenAddress, transAmount, n2.Address, false)
 	time.Sleep(time.Second * 3)
 	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !n0.IsRunning() {
+			break
+		}
+	}
 	if n0.IsRunning() {
 		msg := "Node " + n0.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

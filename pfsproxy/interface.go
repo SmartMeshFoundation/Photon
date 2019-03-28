@@ -15,7 +15,7 @@ type PfsProxy interface {
 	/*
 		submit partner's balance proof to pfg
 	*/
-	SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, signature []byte) error
+	SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, proofSigner common.Address, signature []byte) error
 
 	/*
 		find path

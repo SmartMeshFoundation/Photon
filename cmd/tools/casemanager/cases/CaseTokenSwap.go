@@ -10,7 +10,7 @@ import (
 // CaseTokenSwap :
 func (cm *CaseManager) CaseTokenSwap() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseTokenSwap.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -29,6 +29,9 @@ func (cm *CaseManager) CaseTokenSwap() (err error) {
 
 	cm.startNodes(env, n0, n1, n2, n3, n4, n5)
 	time.Sleep(time.Second)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	models.Logger.Println("start  token swap.")
 	secret2, secrethash2, err := n0.GenerateSecret()
 	if err != nil {
@@ -37,16 +40,19 @@ func (cm *CaseManager) CaseTokenSwap() (err error) {
 	token2 := env.Tokens[1].TokenAddress.String()
 	c01t0 := n0.GetChannelWith(n1, tokenAddress).Println("before token swap")
 	c01t1 := n0.GetChannelWith(n1, token2).Println("before token swap")
-	err = n0.TokenSwap(n4.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
+	err = n0.TokenSwap(n4.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3, nil)
 	if err != nil {
 		return fmt.Errorf(" token swap taker err=%s", err)
 	}
-	err = n4.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
+	err = n4.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1, nil)
 	if err != nil {
 		models.Logger.Println("token swap fail")
 		return fmt.Errorf(" token sdwap maker err=%s", err)
 	}
 	time.Sleep(time.Second * 3) //必须多等一会儿,否则查到的信息不准确.
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	c01t0new := n0.GetChannelWith(n1, tokenAddress).Println("after token swap")
 	c01t1new := n0.GetChannelWith(n1, token2).Println("after token swap")
 	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {

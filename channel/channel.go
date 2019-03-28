@@ -752,7 +752,7 @@ func (c *Channel) CreateDirectTransfer(amount *big.Int) (tr *encoding.DirectTran
 		return nil, rerr.ErrInsufficientBalance
 	}
 	transferAmount := new(big.Int).Add(from.TransferAmount(), amount)
-	currentLocksroot := to.Tree.MerkleRoot()
+	currentLocksroot := from.Tree.MerkleRoot()
 	nonce := c.GetNextNonce()
 	bp := encoding.NewBalanceProof(nonce, transferAmount, currentLocksroot, &c.ChannelIdentifier)
 	tr = encoding.NewDirectTransfer(bp)
@@ -773,7 +773,7 @@ Args:
         message can be received.
 	fee: 手续费
 */
-func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, expiration int64, lockSecretHash common.Hash) (tr *encoding.MediatedTransfer, err error) {
+func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *big.Int, amount *big.Int, expiration int64, lockSecretHash common.Hash, path []common.Address) (tr *encoding.MediatedTransfer, err error) {
 	if !c.CanTransfer() {
 		return nil, rerr.ChannelStateError(c.State).Errorf("transfer not possible, no funding or channel closed")
 	}
@@ -791,7 +791,7 @@ func (c *Channel) CreateMediatedTransfer(initiator, target common.Address, fee *
 	transferAmount := from.TransferAmount()
 	nonce := c.GetNextNonce()
 	bp := encoding.NewBalanceProof(nonce, transferAmount, updatedLocksroot, &c.ChannelIdentifier)
-	tr = encoding.NewMediatedTransfer(bp, lock, target, initiator, fee)
+	tr = encoding.NewMediatedTransfer(bp, lock, target, initiator, fee, path)
 	return
 }
 
@@ -863,7 +863,7 @@ CreateAnnouceDisposed  声明我放弃收到的某个锁
  *	CreateAnnouceDisposed : function to create message of AnnounceDisposed
  *	Note that it claims that I have abandoned a lock.
  */
-func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber int64) (tr *encoding.AnnounceDisposed, err error) {
+func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber int64, reason rerr.StandardError) (tr *encoding.AnnounceDisposed, err error) {
 	lock, _, _, err := c.PartnerState.TryRemoveHashLock(lockSecretHash, blockNumber, false)
 	if err != nil {
 		return
@@ -873,7 +873,7 @@ func (c *Channel) CreateAnnouceDisposed(lockSecretHash common.Hash, blockNumber 
 	}
 	rp.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	rp.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	tr = encoding.NewAnnounceDisposed(rp)
+	tr = encoding.NewAnnounceDisposed(rp, reason.ErrorCode, reason.ErrorMsg)
 	return
 }
 
@@ -976,7 +976,7 @@ func (c *Channel) preCheckSettleDataInMessage(tr encoding.SignedMessager, sd *en
 	if state1.Address == sd.Participant1 {
 		if state1.Balance(state2).Cmp(sd.Participant1Balance) != 0 ||
 			state2.Balance(state1).Cmp(sd.Participant2Balance) != 0 {
-			return
+			return rerr.ErrChannelBalanceNotMatch
 		}
 	} else {
 		if state2.Balance(state1).Cmp(sd.Participant1Balance) != 0 ||
@@ -1029,7 +1029,7 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 		len(c.OurState.Lock2UnclaimedLocks) > 0 {
 		return rerr.ErrChannelWithdrawButHasLocks
 	}
-	c.State = channeltype.StateWithdraw
+	c.State = channeltype.StatePartnerWithdrawing
 	return nil
 }
 
@@ -1074,7 +1074,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *enco
 	wd.Participant2 = c.OurState.Address
 	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
 	wd.Participant1Withdraw = req.Participant1Withdraw
-	w = encoding.NewWithdrawResponse(wd)
+	w = encoding.NewWithdrawResponse(wd, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	/*
 		再次验证信息正确性,
 	*/
@@ -1109,7 +1109,9 @@ func (c *Channel) RegisterWithdrawResponse(tr *encoding.WithdrawResponse) error 
 		len(c.OurState.Lock2PendingLocks) > 0 {
 		return rerr.ErrChannelWithdrawButHasLocks
 	}
-	c.State = channeltype.StateWithdraw
+	if c.State != channeltype.StateWithdraw {
+		return rerr.ErrChannelState.Printf("receive withdraw response but my channel state is %s", c.State)
+	}
 	return nil
 }
 
@@ -1152,6 +1154,7 @@ func (c *Channel) CreateCooperativeSettleRequest() (s *encoding.SettleRequest, e
 }
 
 //RegisterCooperativeSettleRequest check settle request and update state
+//该方法在收到对方的CooperativeRequest时调用,自己发送CooperativeRequest时不应该使用该方法
 func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) error {
 	err := c.preCheckSettleDataInMessage(msg, &msg.SettleDataInMessage)
 	if err != nil {
@@ -1174,7 +1177,7 @@ func (c *Channel) RegisterCooperativeSettleRequest(msg *encoding.SettleRequest) 
 		len(c.OurState.Lock2UnclaimedLocks) > 0 {
 		return rerr.ErrChannelCooperativeSettleButHasLocks
 	}
-	c.State = channeltype.StateCooprativeSettle
+	c.State = channeltype.StatePartnerCooperativeSettling
 	return nil
 }
 
@@ -1210,7 +1213,7 @@ func (c *Channel) CreateCooperativeSettleResponse(req *encoding.SettleRequest) (
 	d.Participant1 = c.PartnerState.Address
 	d.Participant1Balance = c.PartnerState.Balance(c.OurState)
 
-	res = encoding.NewSettleResponse(d)
+	res = encoding.NewSettleResponse(d, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	/*
 		再次验证信息正确性,
 	*/
@@ -1228,7 +1231,9 @@ func (c *Channel) RegisterCooperativeSettleResponse(msg *encoding.SettleResponse
 	if err != nil {
 		return err
 	}
-	c.State = channeltype.StateCooprativeSettle
+	if c.State != channeltype.StateCooprativeSettle {
+		return rerr.ErrChannelState.Printf("receive cooperative settle response but my channel state is %s", c.State)
+	}
 	return nil
 }
 

@@ -1,11 +1,13 @@
 package v1
 
 import (
+	"context"
 	"net/http"
+	"os"
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -30,11 +32,14 @@ var HTTPUsername = ""
 // HTTPPassword is password needed when call http api
 var HTTPPassword = ""
 
+//QuitChain stop http server
+var QuitChain chan struct{}
+
 /*
 Start the restful server
 */
 func Start() {
-
+	QuitChain = make(chan struct{})
 	api := rest.NewApi()
 	if Config.Debug {
 		api.Use(rest.DefaultDevStack...)
@@ -59,10 +64,10 @@ func Start() {
 		/*
 			transfers
 		*/
-		rest.Get("/api/1/querysenttransfer", GetSentTransfers),
+		rest.Get("/api/1/querysenttransfer", GetSentTransferDetails),
 		rest.Get("/api/1/queryreceivedtransfer", GetReceivedTransfers),
 		rest.Post("/api/1/transfers/:token/:target", Transfers),
-		rest.Get("/api/1/transferstatus/:token/:locksecrethash", GetTransferStatus),
+		rest.Get("/api/1/transferstatus/:token/:locksecrethash", GetSentTransferDetail),
 		rest.Post("/api/1/transfercancel/:token/:locksecrethash", CancelTransfer),
 		/*
 			transfer with specified secret
@@ -99,13 +104,28 @@ func Start() {
 		rest.Get("/api/1/tokens", Tokens),
 		rest.Get("/api/1/tokens/:token/partners", TokenPartners),
 		/*
+			contract call tx
+		*/
+		rest.Post("/api/1/tx/query", ContractCallTXQuery),
+		/*
 			utils
 		*/
 		rest.Get("/api/1/path/:target_address/:token/:amount", FindPath),
 		rest.Get("/api/1/secret", GetRandomSecret), // api to provide random secret and lockSecretHash pair
+		rest.Get("/api/1/version", GetBuildInfo),
+
+		/*
+			fee policy
+		*/
 		rest.Get("/api/1/fee_policy", GetFeePolicy),
 		rest.Post("/api/1/fee_policy", SetFeePolicy),
 		rest.Get("/api/1/fee", GetAllFeeChargeRecord),
+
+		/*
+			income
+		*/
+		rest.Post("/api/1/income/details", GetIncomeDetails),
+		rest.Post("/api/1/income/days", GetDaysIncome),
 
 		/*
 			test
@@ -158,13 +178,21 @@ func Start() {
 	}
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
-	log.Crit(fmt.Sprintf("http listen and serve :%s", http.ListenAndServe(listen, api.MakeHandler())))
+	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
+	go server.ListenAndServe()
+	<-QuitChain
+	err = server.Shutdown(context.Background())
+	if err != nil {
+		log.Crit(fmt.Sprintf("server shutdown err %s", err))
+	}
 }
 
 /*
 Stop for app user, call this api before quit.
 */
 func Stop(w rest.ResponseWriter, r *rest.Request) {
+	defer close(QuitChain)
+	defer os.Exit(0)
 	//test only
 	API.Stop()
 	w.Header().Set("Content-Type", "text/plain")

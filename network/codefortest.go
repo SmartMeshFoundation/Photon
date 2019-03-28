@@ -35,7 +35,8 @@ func (p *dummyProtocol) receive(data []byte) {
 
 //MakeTestUDPTransport test only
 func MakeTestUDPTransport(name string, port int) *UDPTransport {
-	t, err := NewUDPTransport(name, "127.0.0.1", port, nil, NewTokenBucket(10, 2, time.Now))
+	params.DefaultMDNSQueryInterval = time.Millisecond * 50
+	t, err := NewUDPTransport(name, "0.0.0.0", port, nil, NewTokenBucket(10, 2, time.Now))
 	if err != nil {
 		panic(err)
 	}

@@ -206,11 +206,13 @@ func (cg *ChannelGraph) ShortestPath(source, target common.Address, amount *big.
 	}
 	for _, v := range g2.Verticies {
 		w := feeCharger.GetNodeChargeFee(cg.index2address[v.ID], cg.TokenAddress, amount).Int64()
-		//log.Trace(fmt.Sprintf(fmt.Sprintf("setfee node=%s,fee=%d", cg.index2address[v.ID].String(), w)))
+		log.Trace(fmt.Sprintf(fmt.Sprintf("setfee node=%s,fee=%d", cg.index2address[v.ID].String(), w)))
 		if w > 0 { //for no fee policy, all nodes charge 0 ,so use the shortest path first.
 			v.SetWeight(w) // from v's fee is w.
 		}
 	}
+	//log.Trace(fmt.Sprintf("g2=%s", utils.StringInterface(g2, 20)))
+	//log.Trace(fmt.Sprintf("index2address=%s", utils.StringInterface(cg.index2address, 5)))
 	path, err := g2.Shortest(sourceIndex, targetIndex)
 	if err != nil {
 		return
@@ -362,7 +364,7 @@ func (cg *ChannelGraph) GetBestRoutes(nodesStatus NodesStatusGetter, ourAddress 
 			log.Debug(fmt.Sprintf("partener %s network ignored.. isOnline:%v,deviceType:%s", utils.APex(nw.neighbor), isOnline, deviceType))
 			continue
 		}
-		routeState := Channel2RouteState(c, nw.neighbor, targetAmount, feeCharger)
+		routeState := Channel2RouteState(c, nw.neighbor, targetAmount, feeCharger, []common.Address{})
 		if routeState.Fee.Cmp(utils.BigInt0) > 0 {
 			routeState.TotalFee = big.NewInt(int64(nw.weight))
 		} else { //no fee policy,
@@ -395,8 +397,8 @@ func (cg *ChannelGraph) GetPartenerAddress2Channel(address common.Address) (c *c
 }
 
 //Channel2RouteState create a routeState from a channel
-func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger) *route.State {
-	rs := route.NewState(c)
+func Channel2RouteState(c *channel.Channel, partenerAddress common.Address, amount *big.Int, charger fee.Charger, path []common.Address) *route.State {
+	rs := route.NewState(c, path)
 	rs.Fee = charger.GetNodeChargeFee(partenerAddress, c.TokenAddress, amount)
 	return rs
 }

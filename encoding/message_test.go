@@ -177,7 +177,7 @@ func TestMediatedTransfer(t *testing.T) {
 		Expiration:     4589895, //expiration block number
 		LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 	}
-	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33))
+	m1 := NewMediatedTransfer(bp, lock, utils.NewRandomAddress(), utils.NewRandomAddress(), big.NewInt(33), []common.Address{utils.NewRandomAddress()})
 	m1.Sign(GetTestPrivKey(), m1)
 	data := m1.Pack()
 	m2 := new(MediatedTransfer)
@@ -201,7 +201,7 @@ func TestNewAnnounceDisposedTransfer(t *testing.T) {
 			LockSecretHash: utils.ShaSecret([]byte("hashlock")),
 		},
 	}
-	m1 := NewAnnounceDisposed(bp)
+	m1 := NewAnnounceDisposed(bp, 1, "success")
 	err := m1.Sign(GetTestPrivKey(), m1)
 	if err != nil {
 		t.Error(err)
@@ -375,7 +375,7 @@ func TestWithdrawResponse(t *testing.T) {
 	bp.Participant2 = p2addr
 
 	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
-	m := NewWithdrawResponse(bp)
+	m := NewWithdrawResponse(bp, 1, "testxxxxx")
 	err := m.Sign(p2key, m)
 	if err != nil {
 		t.Error(err)
@@ -429,7 +429,7 @@ func TestSettleResponse(t *testing.T) {
 	bp.Participant2 = p2addr
 	bp.Participant2Balance = big.NewInt(30)
 	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))
-	m := NewSettleResponse(bp)
+	m := NewSettleResponse(bp, 1, "test1111111111111")
 	err := m.Sign(p2key, m)
 	if err != nil {
 		t.Error(err)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	mt "github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
@@ -24,11 +25,14 @@ Clear current state and try a new route.
 - Add the current route to the canceled list
 - Add the current message to the canceled transfers
 */
-func cancelCurrentRoute(state *mt.InitiatorState) *transfer.TransitionResult {
+func cancelCurrentRoute(state *mt.InitiatorState, reason string) *transfer.TransitionResult {
 	if state.RevealSecret != nil {
 		panic("cannot cancel a transfer with a RevealSecret in flight")
 	}
-	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, state.Route)
+	state.Routes.CanceledRoutes = append(state.Routes.CanceledRoutes, &route.CanceledRoute{
+		Route:  state.Route,
+		Reason: reason,
+	})
 	state.Message = nil
 	state.Route = nil
 	state.SecretRequest = nil
@@ -89,9 +93,15 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		*/
 		transferFailed := &transfer.EventTransferSentFailed{
 			LockSecretHash: state.Transfer.LockSecretHash,
-			Reason:         "no route available",
-			Target:         state.Transfer.Target,
-			Token:          state.Transfer.Token,
+			//Reason:         "no route available",
+			Target: state.Transfer.Target,
+			Token:  state.Transfer.Token,
+		}
+		for _, canceledRoute := range state.Routes.CanceledRoutes {
+			transferFailed.Reason = fmt.Sprintf("%s,%s", transferFailed.Reason, canceledRoute.Reason)
+		}
+		if transferFailed.Reason == "" {
+			transferFailed.Reason = "no route available"
 		}
 		events := []transfer.Event{transferFailed}
 		removeManager := &mt.EventRemoveStateManager{
@@ -130,13 +140,13 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		Fee:            tryRoute.TotalFee,
 		Data:           state.Transfer.Data,
 	}
-	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode())
+	msg := mt.NewEventSendMediatedTransfer(tr, tryRoute.HopNode(), tryRoute.Path)
 	if len(state.Routes.CanceledRoutes) > 0 {
 		/*
 			保存上次尝试的路由信息,否则当发起方收到AnnounceDisposed的时候,尝试新路由时,会出现异常
 		*/
 		// Store route info of previous one, or when receiving AnnounceDisposed message and try a new route, error occurs.
-		msg.FromChannel = state.Routes.CanceledRoutes[len(state.Routes.CanceledRoutes)-1].ChannelIdentifier
+		msg.FromChannel = state.Routes.CanceledRoutes[len(state.Routes.CanceledRoutes)-1].Route.ChannelIdentifier
 	}
 	state.Route = tryRoute
 	state.Transfer = tr
@@ -197,7 +207,10 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 
 func handleRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDisposedStateChange) *transfer.TransitionResult {
 	if mediator.IsValidRefund(state.Transfer, state.Route, stateChange) {
-		it := cancelCurrentRoute(state)
+		it := cancelCurrentRoute(state, rerr.StandardError{
+			ErrorCode: stateChange.Message.ErrorCode,
+			ErrorMsg:  stateChange.Message.ErrorMsg,
+		}.Error())
 		ev := &mt.EventSendAnnounceDisposedResponse{
 			LockSecretHash: stateChange.Lock.LockSecretHash,
 			Token:          state.Transfer.Token,
@@ -214,7 +227,7 @@ func handleRefund(state *mt.InitiatorState, stateChange *mt.ReceiveAnnounceDispo
 
 func handleCancelRoute(state *mt.InitiatorState, stateChange *mt.ActionCancelRouteStateChange) *transfer.TransitionResult {
 	if stateChange.LockSecretHash == state.Transfer.LockSecretHash {
-		return cancelCurrentRoute(state)
+		return cancelCurrentRoute(state, "initiator cancel")
 	}
 	return &transfer.TransitionResult{
 		NewState: state,
@@ -463,9 +476,9 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				panic(fmt.Sprintf("secret already revealed,transfer cannot canceled"))
 			}
 		case *mt.ContractCooperativeSettledStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, "partner cooperative settle channel with me")
 		case *mt.ContractChannelWithdrawStateChange:
-			it = cancelCurrentRoute(state)
+			it = cancelCurrentRoute(state, "partner withdraw on channel with me")
 		default:
 			log.Error(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
 		}

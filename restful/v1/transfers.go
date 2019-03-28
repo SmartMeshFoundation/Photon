@@ -10,6 +10,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,30 +18,30 @@ import (
 
 //TransferData post for transfers
 type TransferData struct {
-	Initiator      string   `json:"initiator_address"`
-	Target         string   `json:"target_address"`
-	Token          string   `json:"token_address"`
-	Amount         *big.Int `json:"amount"`
-	Secret         string   `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
-	LockSecretHash string   `json:"lockSecretHash"`
-	Fee            *big.Int `json:"fee,omitempty"`
-	IsDirect       bool     `json:"is_direct,omitempty"`
-	Sync           bool     `json:"sync,omitempty"` //是否同步
-	Data           string   `json:"data"`           // 交易附加信息,长度不超过256
+	Initiator      string                      `json:"initiator_address"`
+	Target         string                      `json:"target_address"`
+	Token          string                      `json:"token_address"`
+	Amount         *big.Int                    `json:"amount"`
+	Secret         string                      `json:"secret,omitempty"` // 当用户想使用自己指定的密码,而非随机密码时使用	// client can assign specific secret
+	LockSecretHash string                      `json:"lockSecretHash"`
+	IsDirect       bool                        `json:"is_direct,omitempty"`
+	Sync           bool                        `json:"sync,omitempty"` //是否同步
+	Data           string                      `json:"data"`           // 交易附加信息,长度不超过256
+	RouteInfo      []pfsproxy.FindPathResponse `json:"route_info"`     // 指定的路由信息
 }
 
 /*
-GetSentTransfers returns list of sent transfer between `from_block` and `to_block`
+GetSentTransferDetails returns list of sent transfer between `from_block` and `to_block`
 */
-func GetSentTransfers(w rest.ResponseWriter, r *rest.Request) {
+func GetSentTransferDetails(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransfers ,err=%s", resp.ToFormatString()))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransferDetails ,err=%s", resp.ToFormatString()))
 		writejson(w, resp)
 	}()
 	from, to := getFromTo(r)
 	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
-	trs, err := API.GetSentTransfers(from, to)
+	trs, err := API.GetSentTransferDetails(utils.EmptyAddress, from, to)
 	resp = dto.NewAPIResponse(err, trs)
 }
 
@@ -55,7 +56,7 @@ func GetReceivedTransfers(w rest.ResponseWriter, r *rest.Request) {
 		writejson(w, resp)
 	}()
 	from, to := getFromTo(r)
-	trs, err := API.GetReceivedTransfers(from, to)
+	trs, err := API.GetReceivedTransfers(utils.EmptyAddress, from, to, -1, -1)
 	resp = dto.NewAPIResponse(err, trs)
 }
 
@@ -97,13 +98,6 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrInvalidAmount.Append("invalid amount"))
 		return
 	}
-	if req.Fee == nil {
-		req.Fee = utils.BigInt0
-	}
-	if req.Fee.Cmp(utils.BigInt0) < 0 {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid amount"))
-		return
-	}
 	if len(req.Secret) != 0 && len(req.Secret) != 64 && (strings.HasPrefix(req.Secret, "0x") && len(req.Secret) != 66) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid secret"))
 		return
@@ -114,16 +108,13 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = API.Transfer(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data)
+		result, err = API.Transfer(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data, req.RouteInfo)
 	} else {
-		result, err = API.TransferAsync(tokenAddr, req.Amount, req.Fee, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data)
+		result, err = API.TransferAsync(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data, req.RouteInfo)
 	}
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(err)
 		return
-	}
-	if req.Fee.Cmp(utils.BigInt0) == 0 {
-		req.Fee = nil
 	}
 	req.Initiator = API.Photon.NodeAddress.String()
 	req.Target = target
@@ -132,11 +123,11 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(req)
 }
 
-// GetTransferStatus : query transfer status by lockSecretHash
-func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
+// GetSentTransferDetail : query transfer status by lockSecretHash
+func GetSentTransferDetail(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
-		log.Trace(fmt.Sprintf("Restful Api Call ----> GetTransferStatus ,err=%s", resp.ToFormatString()))
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetSentTransferDetail ,err=%s", resp.ToFormatString()))
 		writejson(w, resp)
 	}()
 	lockSecretHashStr := r.PathParam("locksecrethash")
@@ -147,7 +138,7 @@ func GetTransferStatus(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
-	ts, err := API.Photon.GetDao().GetTransferStatus(tokenAddr, lockSecretHash)
+	ts, err := API.Photon.GetDao().GetSentTransferDetail(tokenAddr, lockSecretHash)
 	resp = dto.NewAPIResponse(err, ts)
 }
 

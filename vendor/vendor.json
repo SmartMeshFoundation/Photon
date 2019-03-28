@@ -936,6 +936,12 @@
 			"revisionTime": "2013-06-17T15:30:13Z"
 		},
 		{
+			"checksumSHA1": "QKPYBt8x1OP9RV7knJHu6cSQjlQ=",
+			"path": "github.com/miekg/dns",
+			"revision": "4bda1db8399af2743f88be0ddb0761dfa89f2853",
+			"revisionTime": "2018-08-16T16:10:20Z"
+		},
+		{
 			"checksumSHA1": "2jsbDTvwxafPp7FJjJ8IIFlTLjs=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/mohae/deepcopy",
 			"path": "github.com/mohae/deepcopy",
@@ -1147,6 +1153,12 @@
 			"revisionTime": "2017-02-24T21:24:29Z"
 		},
 		{
+			"checksumSHA1": "0mAqEDpk1A/2lSVst5Y0fhGiqoc=",
+			"path": "github.com/whyrusleeping/mdns",
+			"revision": "ef14215e6b30606f4ce84174ed7a644a05cb1af3",
+			"revisionTime": "2018-09-01T20:24:07Z"
+		},
+		{
 			"checksumSHA1": "1MGpGDQqnUoRpv7VEcQrXOBydXE=",
 			"path": "golang.org/x/crypto/pbkdf2",
 			"revision": "8c653846df49742c4c85ec37e5d9f8d3ba657895",
@@ -1195,6 +1207,18 @@
 			"path": "golang.org/x/net/html/charset",
 			"revision": "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb",
 			"revisionTime": "2018-02-18T17:15:52Z"
+		},
+		{
+			"checksumSHA1": "Z7BQ04h0SVdEVNHqbilXQ0rhBdo=",
+			"path": "golang.org/x/net/ipv4",
+			"revision": "5f9ae10d9af5b1c89ae6904293b14b064d4ada23",
+			"revisionTime": "2018-04-20T07:04:21Z"
+		},
+		{
+			"checksumSHA1": "arKhUYK+A0oKiB8kCQbtc+S6RM4=",
+			"path": "golang.org/x/net/ipv6",
+			"revision": "5f9ae10d9af5b1c89ae6904293b14b064d4ada23",
+			"revisionTime": "2018-04-20T07:04:21Z"
 		},
 		{
 			"checksumSHA1": "7EZyXN0EmZLgGxZxK01IJua4c8o=",

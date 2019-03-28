@@ -1,7 +1,10 @@
 package network
 
 import (
+	"context"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
 	"fmt"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -124,29 +128,45 @@ we need stop listen when switch to background
 restart listen when switch foreground
 */
 type UDPTransport struct {
-	protocol      ProtocolReceiver
-	conn          *SafeUDPConnection
-	UAddr         *net.UDPAddr
-	policy        Policier
-	stopped       bool
-	stopReceiving bool
-	intranetNodes map[common.Address]*net.UDPAddr
-	lock          sync.RWMutex
-	name          string
-	log           log.Logger
+	protocol               ProtocolReceiver
+	conn                   *SafeUDPConnection
+	UAddr                  *net.UDPAddr
+	policy                 Policier
+	stopped                bool
+	stopReceiving          bool
+	intranetNodes          map[common.Address]*net.UDPAddr
+	intranetNodesTimestamp map[common.Address]time.Time
+	lock                   sync.RWMutex
+	name                   string
+	log                    log.Logger
+	msrv                   mdns.Service
+	cf                     context.CancelFunc
 }
 
-//NewUDPTransport create UDPTransport
+//NewUDPTransport create UDPTransport,name必须是完整的地址
 func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, policy Policier) (t *UDPTransport, err error) {
 	t = &UDPTransport{
 		UAddr: &net.UDPAddr{
 			IP:   net.ParseIP(host),
 			Port: port,
 		},
-		protocol:      protocol,
-		policy:        policy,
-		log:           log.New("name", name),
-		intranetNodes: make(map[common.Address]*net.UDPAddr),
+		name:                   name,
+		protocol:               protocol,
+		policy:                 policy,
+		log:                    log.New("name", name),
+		intranetNodes:          make(map[common.Address]*net.UDPAddr),
+		intranetNodesTimestamp: make(map[common.Address]time.Time),
+	}
+	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
+	if params.EnableMDNS {
+		ctx, cf := context.WithCancel(context.Background())
+		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
+		if err != nil {
+			cf()
+			return
+		}
+		t.cf = cf
+		t.msrv.RegisterNotifee(t)
 	}
 	return
 }
@@ -241,7 +261,9 @@ func (ut *UDPTransport) getHostPort(addr common.Address) (ua *net.UDPAddr, err e
 func (ut *UDPTransport) setHostPort(nodes map[common.Address]*net.UDPAddr) {
 	ut.lock.Lock()
 	defer ut.lock.Unlock()
-	ut.intranetNodes = nodes
+	for k, v := range nodes {
+		ut.intranetNodes[k] = v
+	}
 }
 
 //RegisterProtocol register receiver
@@ -251,6 +273,15 @@ func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 
 //Stop UDP connection
 func (ut *UDPTransport) Stop() {
+	if ut.cf != nil {
+		ut.cf()
+	}
+	if ut.msrv != nil {
+		err := ut.msrv.Close()
+		if err != nil {
+			log.Error(fmt.Sprintf("udp transport stop err %s", err))
+		}
+	}
 	ut.stopReceiving = true
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
@@ -275,4 +306,41 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 		return DeviceTypeOther, true
 	}
 	return DeviceTypeOther, false
+}
+
+//HandlePeerFound notification  from mdns
+func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
+	idFound := common.HexToAddress(id)
+	alreadyFound := false
+	// 清除过期数据,即标志下线
+	now := time.Now()
+	var idsToDelete []common.Address
+	for idTemp := range ut.intranetNodes {
+		saveTime, ok := ut.intranetNodesTimestamp[idTemp]
+		if !ok {
+			// 不处理非自己发现的节点
+			continue
+		}
+		if now.Sub(saveTime) > params.DefaultMDNSKeepalive {
+			idsToDelete = append(idsToDelete, idTemp)
+		}
+		if idTemp == idFound {
+			alreadyFound = true
+		}
+	}
+	for _, idToDelete := range idsToDelete {
+		delete(ut.intranetNodes, idToDelete)
+		delete(ut.intranetNodesTimestamp, idToDelete)
+		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
+	}
+	// 标记发现的除自己以外的节点
+	if id != ut.name {
+		if !alreadyFound {
+			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+		}
+		ut.intranetNodes[idFound] = addr
+		ut.intranetNodesTimestamp[idFound] = now
+	}
 }

@@ -10,9 +10,6 @@ import (
 
 // CrashCase013 : only for local test
 func (cm *CaseManager) CrashCase013() (err error) {
-	if !cm.RunThisCaseOnly {
-		return
-	}
 	env, err := models.NewTestEnv("./cases/CrashCase013.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -27,16 +24,22 @@ func (cm *CaseManager) CrashCase013() (err error) {
 	transAmount := int32(10)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n1)
-	n0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveDirectTransferAck",
-	})
+	cm.startNodes(env, n1,
+		n0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveDirectTransferAck",
+		}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	// 转账
 	go n0.SendTrans(tokenAddress, transAmount, n1.Address, true)
 	time.Sleep(time.Second * 3)
 	// 崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !n0.IsRunning() {
+			break
+		}
+	}
 	if n0.IsRunning() {
 		msg := "Node " + n0.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)

@@ -14,7 +14,7 @@ import (
 // CaseSmoke :
 func (cm *CaseManager) CaseSmoke() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseSmoke.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -53,6 +53,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if err != nil {
 		return err
 	}
+	time.Sleep(time.Second)
 	c01new := n0.GetChannelWith(n1, tokenAddress).Println("after transfer")
 	if !c01new.CheckLockBoth(0) {
 		return fmt.Errorf("transfer check lock err ")
@@ -64,12 +65,12 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 		return fmt.Errorf("check partner balance error")
 	}
 
-	trs, err := n0.GetSentTransfers()
+	trs, err := n0.GetSentTransferDetails()
 	if err != nil {
-		return fmt.Errorf("GetSentTransfers err %s", err)
+		return fmt.Errorf("GetSentTransferDetails err %s", err)
 	}
 	if len(trs) != 1 || trs[0].Amount.Uint64() != 1 {
-		return fmt.Errorf("GetSentTransfers err trs=%s", utils.StringInterface(trs, 3))
+		return fmt.Errorf("GetSentTransferDetails err trs=%s", utils.StringInterface(trs, 3))
 	}
 	n1.GetChannelWith(n0, tokenAddress).Println("after transfer")
 	rrs, err := n1.GetReceivedTransfers()
@@ -125,7 +126,7 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if !c01new.CheckLockSelf(1) {
 		return fmt.Errorf("CancelTransfer check lock err ")
 	}
-	st, err := n0.GetTransferStatus(tokenAddress, secrethash)
+	st, err := n0.GetSentTransferDetail(tokenAddress, secrethash)
 	if err != nil {
 		return err
 	}
@@ -156,11 +157,11 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	token2 := env.Tokens[1].TokenAddress.String()
 	c01t0 := n0.GetChannelWith(n1, tokenAddress).Println("before direct token swap")
 	c01t1 := n0.GetChannelWith(n1, token2).Println("before direct token swap")
-	err = n0.TokenSwap(n1.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
+	err = n0.TokenSwap(n1.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3, nil)
 	if err != nil {
 		return fmt.Errorf("direct token swap taker err=%s", err)
 	}
-	err = n1.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
+	err = n1.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1, nil)
 	if err != nil {
 		models.Logger.Println("direct token swap fail")
 		return fmt.Errorf("direct token sdwap maker err=%s", err)
@@ -183,11 +184,11 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	token2 = env.Tokens[1].TokenAddress.String()
 	c01t0 = n0.GetChannelWith(n1, tokenAddress).Println("before token swap")
 	c01t1 = n0.GetChannelWith(n1, token2).Println("before token swap")
-	err = n0.TokenSwap(n2.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3)
+	err = n0.TokenSwap(n2.Address, secrethash2, tokenAddress, token2, "taker", "", 1, 3, nil)
 	if err != nil {
 		return fmt.Errorf(" token swap taker err=%s", err)
 	}
-	err = n2.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1)
+	err = n2.TokenSwap(n0.Address, secrethash2, token2, tokenAddress, "maker", secret2, 3, 1, nil)
 	if err != nil {
 		models.Logger.Println("token swap fail")
 		return fmt.Errorf(" token sdwap maker err=%s", err)
@@ -201,6 +202,5 @@ func (cm *CaseManager) CaseSmoke() (err error) {
 	if !c01t1new.CheckSelfBalance(c01t1.Balance + 3) {
 		return fmt.Errorf(" token swap check receiving banlance 0 err")
 	}
-
 	return nil
 }

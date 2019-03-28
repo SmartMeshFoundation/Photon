@@ -73,7 +73,6 @@ func Main(ctx *cli.Context) (err error) {
 		if caseName == "all" {
 			caseManager.RunAll(ctx.String("skip"))
 		} else {
-			caseManager.RunThisCaseOnly = true
 			caseManager.RunSlow = true
 			caseManager.RunOne(caseName)
 		}

@@ -3,10 +3,11 @@ package cases
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 // CrashCaseSend02 场景二：EventSendRevealSecretAfter
@@ -28,22 +29,30 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	N2, N3, N6 := env.Nodes[0], env.Nodes[1], env.Nodes[2]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
-	// 启动节点2, EventSendRevealSecretAfter
-	N2.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretAfter",
-	})
-	// 启动节点3，6
-	N3.Start(env)
-	N6.Start(env)
 
+	// 启动节点3，6
+	cm.startNodes(env, N3, N6,
+		// 启动节点2, EventSendRevealSecretAfter
+		N2.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretAfter",
+		}))
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 初始数据记录
 	N3.GetChannelWith(N2, tokenAddress).PrintDataBeforeTransfer()
 	N6.GetChannelWith(N3, tokenAddress).PrintDataBeforeTransfer()
 
 	// 节点2向节点6转账20token
-	N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
+	go N2.SendTrans(tokenAddress, transAmount, N6.Address, false)
 	//time.Sleep(time.Second * 3)
 	//  崩溃判断
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N2.IsRunning() {
+			break
+		}
+	}
 	if N2.IsRunning() {
 		msg := "Node " + N2.Name + " should be exited,but it still running, FAILED !!!"
 		models.Logger.Println(msg)
@@ -56,6 +65,9 @@ func (cm *CaseManager) CrashCaseSend02() (err error) {
 
 	// 重启节点2，自动发送之前中断的交易
 	N2.ReStartWithoutConditionquit(env)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
 

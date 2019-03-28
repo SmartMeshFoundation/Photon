@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/SmartMeshFoundation/Photon/accounts"
+	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
@@ -98,7 +99,7 @@ func newTestBlockChainService(dao models.Dao) *rpc.BlockChainService {
 	}
 	privkey, addr := testGetnextValidAccount()
 	log.Trace(fmt.Sprintf("privkey=%s,addr=%s", privkey, addr.String()))
-	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn)
+	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), &channel.FakeTXINfoDao{})
 	if err != nil {
 		log.Error(err.Error())
 	}

@@ -89,10 +89,42 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		err = mh.messageRemoveExpiredHashlockTransfer(m2)
 	case *encoding.SettleRequest:
 		err = mh.messageSettleRequest(m2)
+		if err != nil {
+			var errorCode int
+			var errorMsg string
+			if e2, ok := err.(rerr.StandardError); ok {
+				errorCode = e2.ErrorCode
+				errorMsg = e2.ErrorMsg
+			} else {
+				errorCode = rerr.ErrUnknown.ErrorCode
+				errorMsg = err.Error()
+			}
+			msg := encoding.NewErrorCooperativeSettleResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			err2 := mh.photon.sendAsync(m2.Sender, msg)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
+			}
+		}
 	case *encoding.SettleResponse:
 		err = mh.messageSettleResponse(m2)
 	case *encoding.WithdrawRequest:
 		err = mh.messageWithdrawRequest(m2)
+		if err != nil {
+			var errorCode int
+			var errorMsg string
+			if e2, ok := err.(rerr.StandardError); ok {
+				errorCode = e2.ErrorCode
+				errorMsg = e2.ErrorMsg
+			} else {
+				errorCode = rerr.ErrUnknown.ErrorCode
+				errorMsg = err.Error()
+			}
+			msg := encoding.NewErrorWithdrawResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			err2 := mh.photon.sendAsync(m2.Sender, msg)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
+			}
+		}
 	case *encoding.WithdrawResponse:
 		err = mh.messageWithdrawResponse(m2)
 	default:
@@ -129,7 +161,7 @@ func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash())
 	for _, c := range channels {
-		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("收到 RevealSecret, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("receive RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
 	return nil
@@ -159,7 +191,7 @@ func (mh *photonMessageHandler) messageSecretRequest(msg *encoding.SecretRequest
 	// save log to dao
 	channels := mh.photon.findAllChannelsByLockSecretHash(msg.LockSecretHash)
 	for _, c := range channels {
-		mh.photon.dao.UpdateTransferStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("收到 SecretRequest, from=%s", utils.APex2(msg.Sender)))
+		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, stateChange.LockSecretHash, fmt.Sprintf("receive SecretRequest, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(stateChange.LockSecretHash, stateChange)
 	return nil
@@ -226,6 +258,8 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash(), ch)
 	return nil
 }
 
@@ -263,6 +297,8 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
 }
 
@@ -340,7 +376,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 	} else {
 		mh.photon.StateMachineEventHandler.dispatch(sm, stateChange)
 	}
-	mh.photon.dao.UpdateTransferStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("收到AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
+	mh.photon.dao.UpdateSentTransferDetailStatusMessage(ch.TokenAddress, msg.Lock.LockSecretHash, fmt.Sprintf("receive AnnounceDisposed from=%s", utils.APex2(msg.Sender)))
 	return nil
 }
 
@@ -395,6 +431,8 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
 	go mh.photon.submitBalanceProofToPfs(ch)
+	// 清空Token2LockSecretHash2Channels
+	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
 }
 
@@ -658,6 +696,14 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	if ch.State != channeltype.StateCooprativeSettle {
 		return fmt.Errorf("receive settle response but channel state is %s", ch.State)
 	}
+	// 错误的response处理放在通道状态校验之后,过滤掉不是自己发起的SettleRequest的response
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的SettleResponse
+		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
+	}
 	err := ch.RegisterCooperativeSettleResponse(msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterCooperativeSettleResponse error %s\n", err))
@@ -740,6 +786,14 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	}
 	if ch.State != channeltype.StateWithdraw {
 		return fmt.Errorf("receive WithdrawResponse request but channel state is %s", ch.State)
+	}
+	// 错误的response处理放在通道状态校验之后,过滤掉不是自己发起的WithdrawRequest的response
+	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
+		// 失败的WithdrawResponse
+		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
+		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
+		log.Trace(notifyString)
+		return nil
 	}
 	/*
 		要先验证一下我发出去了 withdraw request,并且金额正确,然后才能注册

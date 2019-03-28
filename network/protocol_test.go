@@ -21,6 +21,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func init() {
@@ -185,7 +186,7 @@ func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 		OpenBlockNumber:   testOpenBlockNumber,
 	})
 	mtr := encoding.NewMediatedTransfer(bp, &lock,
-		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	mtr.Sign(p1.privKey, mtr)
 	err := p1.SendAndWait(reciever, mtr, time.Minute)
 	fmt.Println(err)
@@ -196,7 +197,7 @@ func TestPhotonProtocolSendMediatedTransferExpired(t *testing.T) {
 	lock.Expiration = 3
 	p1.ChannelStatusGetter = &testChannelStatusGetterInvalid{}
 	mtr2 := encoding.NewMediatedTransfer(bp, &lock,
-		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0)
+		utils.NewRandomAddress(), utils.NewRandomAddress(), utils.BigInt0, []common.Address{utils.NewRandomAddress()})
 	mtr2.Sign(p1.privKey, mtr2)
 	err = p1.SendAndWait(reciever, mtr2, time.Minute)
 	fmt.Println(err)

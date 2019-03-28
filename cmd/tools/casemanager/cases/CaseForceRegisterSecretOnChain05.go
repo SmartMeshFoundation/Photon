@@ -17,7 +17,7 @@ func init() {
 // CaseForceRegisterSecretOnChain05 :
 func (cm *CaseManager) CaseForceRegisterSecretOnChain05() (err error) {
 	if !cm.RunSlow {
-		return
+		return ErrorSkip
 	}
 	env, err := models.NewTestEnv("./cases/CaseForceRegisterSecretOnChain05.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
@@ -36,13 +36,13 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain05() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动节点2，3
 	// start node 2, 3
-	cm.startNodes(env, N2)
-	N0.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "ReceiveSecretRevealStateChange",
-	})
-	N1.StartWithConditionQuit(env, &params.ConditionQuit{
-		QuitEvent: "EventSendRevealSecretAfter",
-	})
+	cm.startNodes(env, N2,
+		N0.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "ReceiveSecretRevealStateChange",
+		}),
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendRevealSecretAfter",
+		}))
 	// 获取channel信息
 	// get channel info
 	c01 := N0.GetChannelWith(N1, tokenAddress).Println("before send tras")
@@ -62,6 +62,12 @@ func (cm *CaseManager) CaseForceRegisterSecretOnChain05() (err error) {
 
 	go N0.SendTrans(env.Tokens[0].TokenAddress.String(), 3, N2.Address, false)
 	time.Sleep(3 * time.Second)
+	for i := 0; i < cm.HighMediumWaitSeconds; i++ {
+		time.Sleep(time.Second)
+		if !N0.IsRunning() && !N1.IsRunning() {
+			break
+		}
+	}
 	if N0.IsRunning() {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "n0 should quit")
 	}
