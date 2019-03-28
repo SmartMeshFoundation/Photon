@@ -10,9 +10,6 @@ import (
 
 // CrashCase014 : only for local test
 func (cm *CaseManager) CrashCase014() (err error) {
-	if !cm.RunThisCaseOnly {
-		return ErrorSkip
-	}
 	env, err := models.NewTestEnv("./cases/CrashCase014.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return

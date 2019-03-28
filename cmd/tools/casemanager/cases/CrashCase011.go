@@ -10,9 +10,6 @@ import (
 
 // CrashCase011 : only for local test
 func (cm *CaseManager) CrashCase011() (err error) {
-	if !cm.RunThisCaseOnly {
-		return ErrorSkip
-	}
 	env, err := models.NewTestEnv("./cases/CrashCase011.ENV", cm.UseMatrix, cm.EthEndPoint)
 	if err != nil {
 		return
@@ -27,10 +24,9 @@ func (cm *CaseManager) CrashCase011() (err error) {
 	transAmount := int32(150)
 	tokenAddress := env.Tokens[0].TokenAddress.String()
 	// 启动
-	cm.startNodes(env, n0, n2, n3, n4, n5, n6)
-	n1.SetConditionQuit(&params.ConditionQuit{
+	cm.startNodes(env, n0, n2, n3, n4, n5, n6, n1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "MediatorReReceiveStateChange",
-	})
+	}))
 	// 初始数据记录
 	n0.GetChannelWith(n1, tokenAddress).PrintDataBeforeTransfer()
 	n1.GetChannelWith(n2, tokenAddress).PrintDataBeforeTransfer()

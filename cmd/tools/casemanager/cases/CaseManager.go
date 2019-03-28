@@ -30,7 +30,6 @@ type CaseManager struct {
 	IsAutoRun             bool
 	UseMatrix             bool
 	RunSlow               bool //是否运行哪些长时间运行的case
-	RunThisCaseOnly       bool // 针对性测试,设置为true,表明只是想运行这一个case
 	EthEndPoint           string
 	LowWaitSeconds        int
 	MediumWaitSeconds     int
