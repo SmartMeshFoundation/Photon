@@ -99,7 +99,7 @@ func newFourTestMatrixTransport() (m0, m1, m2 *MatrixTransport) {
 	m1 = newTestMatrixTransport("m1", cfg1)
 	m2 = newTestMatrixTransport("m2", cfg2)
 	//m3 = newTestMatrixTransport("m3", cfg3)
-	log.Info(fmt.Sprintf("node0=%s,node1=%s,node2=%s,node3=%s",
+	log.Info(fmt.Sprintf("node0=%s,node1=%s,node2=%s",
 		utils.APex2(m0.NodeAddress),
 		utils.APex2(m1.NodeAddress),
 		utils.APex2(m2.NodeAddress)))
