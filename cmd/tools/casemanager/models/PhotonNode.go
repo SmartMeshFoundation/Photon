@@ -142,7 +142,7 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	} else {
 		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	node.Running = true
 }
 

@@ -212,7 +212,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 		if cm.UseMatrix {
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 3)
 		}
 	}
 	time.Sleep(6 * time.Second)
@@ -294,7 +294,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("mass transfer i=%d,err=%s", i, err.Error()))
 		}
 		if cm.UseMatrix {
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 3)
 		}
 	}
 	//等30秒,确认100笔交易成功
@@ -308,7 +308,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 24 ---->")
 	depositAmount = 160
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 20)
 	}
 	err = N0.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
