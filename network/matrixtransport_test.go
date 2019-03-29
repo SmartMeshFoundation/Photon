@@ -27,8 +27,8 @@ var testAddress common.Address
 var testTrustedServers = []string{
 	//"transport01.smartraiden.network",
 	"transport01.smartmesh.cn",
-	"transport02.smartmesh.cn",
-	"transport03.smartmesh.cn",
+	"transport13.smartmesh.cn",
+	//"transport03.smartmesh.cn",
 }
 
 type MockDb struct {
@@ -75,13 +75,13 @@ func init() {
 	}
 	testAddress = crypto.PubkeyToAddress(testPrivKey.PublicKey)
 }
-func getMatrixEnvConfig() (cfg1, cfg2, cfg3 map[string]string) {
+func getMatrixEnvConfig() (cfg1, cfg2 map[string]string) {
 	cfg1 = make(map[string]string)
 	cfg2 = make(map[string]string)
-	cfg3 = make(map[string]string)
+	//cfg3 = make(map[string]string)
 	cfg1["transport01.smartmesh.cn"] = "http://transport01.smartmesh.cn:8008"
-	cfg2["transport02.smartmesh.cn"] = "http://transport02.smartmesh.cn:8008"
-	cfg3["transport03.smartmesh.cn"] = "http://transport03.smartmesh.cn:8008"
+	cfg2["transport13.smartmesh.cn"] = "http://transport13.smartmesh.cn:8008"
+	//cfg3["transport03.smartmesh.cn"] = "http://transport03.smartmesh.cn:8008"
 	return
 }
 func newTestMatrixTransport(name string, cfg map[string]string) (m1 *MatrixTransport) {
@@ -92,18 +92,18 @@ func newTestMatrixTransport(name string, cfg map[string]string) (m1 *MatrixTrans
 	return m1
 }
 
-func newFourTestMatrixTransport() (m0, m1, m2, m3 *MatrixTransport) {
+func newFourTestMatrixTransport() (m0, m1, m2 *MatrixTransport) {
 	cfg0 := params.MatrixServerConfig
-	cfg1, cfg2, cfg3 := getMatrixEnvConfig()
+	cfg1, cfg2 := getMatrixEnvConfig()
 	m0 = newTestMatrixTransport("m0", cfg0)
 	m1 = newTestMatrixTransport("m1", cfg1)
 	m2 = newTestMatrixTransport("m2", cfg2)
-	m3 = newTestMatrixTransport("m3", cfg3)
-	log.Info(fmt.Sprintf("node0=%s,node1=%s,node2=%s,node3=%s",
+	//m3 = newTestMatrixTransport("m3", cfg3)
+	log.Info(fmt.Sprintf("node0=%s,node1=%s,node2=%s",
 		utils.APex2(m0.NodeAddress),
 		utils.APex2(m1.NodeAddress),
-		utils.APex2(m2.NodeAddress),
-		utils.APex2(m3.NodeAddress)))
+		utils.APex2(m2.NodeAddress)))
+	//utils.APex2(m3.NodeAddress)
 	return
 }
 
@@ -118,7 +118,7 @@ func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	cfg1, _, _ := getMatrixEnvConfig()
+	cfg1, _ := getMatrixEnvConfig()
 	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
 	m1.setDB(&MockDb{})
 	m1.setTrustServers(testTrustedServers)
@@ -156,16 +156,16 @@ func TestInvite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, m3 := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
-	m3.Start()
-	log.Info(fmt.Sprintf(" m1=%s,m2=%s,m3=%s", m1.UserID, m2.UserID, m3.UserID))
+	//m3.Start()
+	log.Info(fmt.Sprintf(" m1=%s,m2=%s", m1.UserID, m2.UserID))
 	r, err := m1.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
 		Invite:        []string{m2.UserID},
 		Visibility:    "public",
 		Preset:        "public_chat",
-		RoomAliasName: fmt.Sprintf("photon_%s_%s", utils.APex2(m1.NodeAddress), utils.APex2(m2.NodeAddress)),
+		RoomAliasName: fmt.Sprintf("photon_%s_%s_y", utils.APex2(m1.NodeAddress), utils.APex2(m2.NodeAddress)),
 	})
 	if err != nil {
 		t.Error(err)
@@ -173,7 +173,7 @@ func TestInvite(t *testing.T) {
 	}
 	t.Logf("new room=%s", r.RoomID)
 	_, err = m1.matrixcli.InviteUser(r.RoomID, &gomatrix.ReqInviteUser{
-		UserID: m3.UserID,
+		UserID: m2.UserID,
 	})
 	if err != nil {
 		t.Error(err)
@@ -186,11 +186,12 @@ func TestSendMessage(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.db.(*MockDb).addPartner(m2.NodeAddress)
 	m2.db.(*MockDb).addPartner(m1.NodeAddress)
 	m1.Start()
 	m2.Start()
+	time.Sleep(time.Second * 6)
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -269,13 +270,14 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.db.(*MockDb).addPartner(m2.NodeAddress)
 	m2.db.(*MockDb).addPartner(m1.NodeAddress)
 	m1.Start()
 	//let server sync
 	//time.Sleep(time.Second * 6)
 	m2.Start()
+	time.Sleep(time.Second * 6)
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -313,7 +315,7 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	}
 	m2.Stop()
 	time.Sleep(time.Second)
-	_, _, cfg3 := getMatrixEnvConfig()
+	_, cfg3 := getMatrixEnvConfig()
 	//m2 relogin on transport03
 	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg3)
 	if err != nil {
@@ -379,9 +381,10 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
+	time.Sleep(time.Second * 6)
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -395,16 +398,6 @@ func TestSendMessageWithoutChannel(t *testing.T) {
 		m2Chan <- string(data)
 	})
 
-	_, isOnline := m1.NodeStatus(m2.NodeAddress)
-	if isOnline {
-		t.Error("m2 should offline")
-		return
-	}
-	_, isOnline = m2.NodeStatus(m1.NodeAddress)
-	if isOnline {
-		t.Error("m1 should offline")
-		return
-	}
 	//m1 send use
 	err := m1.Send(m2.NodeAddress, []byte("aaa"))
 	if err != nil {
@@ -478,7 +471,7 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.Start()
 	m2.Start()
 	m1Chan := make(chan string)
@@ -493,16 +486,7 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 		data, _ := base64.StdEncoding.DecodeString(txt)
 		m2Chan <- string(data)
 	})
-	_, isOnline := m1.NodeStatus(m2.NodeAddress)
-	if isOnline {
-		t.Error("m2 should offline")
-		return
-	}
-	_, isOnline = m2.NodeStatus(m1.NodeAddress)
-	if isOnline {
-		t.Error("m1 should offline")
-		return
-	}
+
 	//m1 send use
 	err := m1.Send(m2.NodeAddress, []byte("aaa"))
 	if err != nil {
@@ -572,7 +556,7 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 	}
 	m2.Stop()
 	time.Sleep(time.Second)
-	_, cfg2, _ := getMatrixEnvConfig()
+	_, cfg2 := getMatrixEnvConfig()
 	//m2 relogin on transport03
 	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2)
 	m2Again.setDB(new(MockDb))
@@ -657,7 +641,7 @@ func TestRoomTimeLineEvents(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	_, m1, m2, _ := newFourTestMatrixTransport()
+	_, m1, m2 := newFourTestMatrixTransport()
 	m1.db.(*MockDb).addPartner(m2.NodeAddress)
 	m2.db.(*MockDb).addPartner(m1.NodeAddress)
 	m1.Start()
@@ -688,7 +672,7 @@ func TestRoomTimeLineEvents(t *testing.T) {
 	m2.Stop()
 
 	//重新登录,看看事件有没有问题
-	cfg1, cfg2, _ := getMatrixEnvConfig()
+	cfg1, cfg2 := getMatrixEnvConfig()
 	m1Again := NewMatrixTransport("m1", m1.key, "other", cfg1)
 	if err != nil {
 		t.Error(err)
@@ -710,7 +694,7 @@ func TestRoomTimeLineEvents(t *testing.T) {
 }
 
 func TestMatrixTransport_splitAlias(t *testing.T) {
-	prefix, isChannel, addr1, addr2, err := splitRoomAlias("#photon_y_37bd76c0187ebc21e3fd3d474d83810bb495a518_4533775cfd13a2b07bf910c04d2038fd028ff73c:transport02.smartmesh.cn")
+	prefix, isChannel, addr1, addr2, err := splitRoomAlias("#photon_y_37bd76c0187ebc21e3fd3d474d83810bb495a518_4533775cfd13a2b07bf910c04d2038fd028ff73c:transport13.smartmesh.cn")
 	if err != nil {
 		t.Error(err)
 		return
@@ -747,7 +731,7 @@ func TestLeaveUselessRoom(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	cfg1, _, _ := getMatrixEnvConfig()
+	cfg1, _ := getMatrixEnvConfig()
 	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
 	m1.setDB(&MockDb{})
 	m1.setTrustServers(testTrustedServers)

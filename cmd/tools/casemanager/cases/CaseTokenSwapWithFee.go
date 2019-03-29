@@ -31,6 +31,9 @@ func (cm *CaseManager) CaseTokenSwapWithFee() (err error) {
 	env.StartPFS()
 	cm.startNodesWithFee(env, n0, n1, n2, n3, n4, n5)
 	time.Sleep(time.Second)
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	models.Logger.Println("start  token swap.")
 	secret2, secrethash2, err := n0.GenerateSecret()
 	if err != nil {
@@ -51,6 +54,9 @@ func (cm *CaseManager) CaseTokenSwapWithFee() (err error) {
 		return fmt.Errorf(" token sdwap maker err=%s", err)
 	}
 	time.Sleep(time.Second * 3) //必须多等一会儿,否则查到的信息不准确.
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 7)
+	}
 	c01t0new := n0.GetChannelWith(n1, tokenAddress).Println("after token swap")
 	c01t1new := n0.GetChannelWith(n1, token2).Println("after token swap")
 	if !c01t0new.CheckSelfBalance(c01t0.Balance - 1) {
