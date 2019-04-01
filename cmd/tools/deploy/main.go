@@ -13,6 +13,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
+	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
@@ -72,6 +73,7 @@ func mainctx(ctx *cli.Context) error {
 }
 func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	auth := bind.NewKeyedTransactor(key)
+	// 1. deploy token network
 	chainID, err := conn.NetworkID(context.Background())
 	if err != nil {
 		log.Fatalf("failed to get network id %s", err)
@@ -85,6 +87,17 @@ func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("deploy registry complete...\n")
-	fmt.Printf("RegistryAddress=%s\n \n", tokenNetworkAddress.String())
+	fmt.Printf("deploy registry complete... RegistryAddress=%s\n", tokenNetworkAddress.String())
+	// 2. deploy SMTToken
+	tokenAddress, tx, _, err := smttoken.DeploySMTToken(auth, conn, "", tokenNetworkAddress)
+	if err != nil {
+		log.Fatalf("Failed to DeploySMTToken: %v", err)
+	}
+	fmt.Printf("SMTToken deploy tx=%s\n", tx.Hash().String())
+	_, err = bind.WaitDeployed(ctx, conn, tx)
+	if err != nil {
+		log.Fatalf("failed to deploy contact when mining :%v", err)
+	}
+	fmt.Printf("DeploySMTToken complete... tokenAddress=%s\n", tokenAddress.String())
+	return
 }
