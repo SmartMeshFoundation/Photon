@@ -690,21 +690,6 @@ func (a *API) UpdateMeshNetworkNodes(nodesstr string) (result string) {
 }
 
 /*
-EthereumStatus  query the status between Photon and ethereum
-todo fix it,remove this deprecated api
-*/
-func (a *API) EthereumStatus() (result string) {
-	defer func() {
-		log.Trace(fmt.Sprintf("ApiCall EthereumStatus result=%s", result))
-	}()
-	c := a.api.Photon.Chain
-	if c != nil && c.Client.Status == netshare.Connected {
-		dto.NewSuccessMobileResponse(result)
-	}
-	return dto.NewErrorMobileResponse(errors.New("connect failed"))
-}
-
-/*
 GetSentTransfers retuns list of sent transfer between `from_block` and `to_block`
 */
 func (a *API) GetSentTransfers(tokenAddressStr string, from, to int64) (result string) {
