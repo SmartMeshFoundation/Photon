@@ -1,8 +1,11 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"time"
+
+	mdns2 "github.com/whyrusleeping/mdns"
 
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
@@ -141,6 +144,8 @@ type UDPTransport struct {
 	log                    log.Logger
 	msrv                   mdns.Service
 	cf                     context.CancelFunc
+	monitorIP              chan struct{}
+	mdnsLock               sync.Mutex
 }
 
 //NewUDPTransport create UDPTransport,name必须是完整的地址
@@ -167,8 +172,59 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		}
 		t.cf = cf
 		t.msrv.RegisterNotifee(t)
+		t.monitorIP = make(chan struct{})
+		go t.monitorIPChange()
 	}
 	return
+}
+
+//考虑到手机或者盒子在使用photon的过程中可能会发生连接热点切换的问题,从而导致ip地址变化
+func (ut *UDPTransport) monitorIPChange() {
+	var err error
+	lastip := mdns2.GetLocalIP()
+	for {
+		select {
+		case <-time.After(time.Second * 10):
+			newip := mdns2.GetLocalIP()
+			changeip := func() {
+				log.Info(fmt.Sprintf("dectecipchange,last=%s,now=%s", lastip, newip))
+				ut.mdnsLock.Lock()
+				defer ut.mdnsLock.Unlock()
+				if ut.msrv != nil {
+					ut.cf()
+					ut.cf = nil
+					err = ut.msrv.Close()
+					if err != nil {
+						log.Error(fmt.Sprintf("close msrv err %s", err))
+					}
+					ut.msrv = nil
+				}
+				ctx, cf := context.WithCancel(context.Background())
+				ut.msrv, err = mdns.NewMdnsService(ctx, ut.UAddr.Port, ut.name, params.DefaultMDNSQueryInterval)
+				if err != nil {
+					cf()
+					return
+				}
+				ut.cf = cf
+				ut.msrv.RegisterNotifee(ut)
+				lastip = newip
+
+			}
+			if len(lastip) != len(newip) {
+				//do changeip
+				changeip()
+				break
+			}
+			for i := 0; i < len(lastip); i++ {
+				if bytes.Compare(lastip[i], newip[i]) != 0 {
+					changeip()
+					break
+				}
+			}
+		case <-ut.monitorIP:
+			return
+		}
+	}
 }
 
 //Start udp listening
@@ -273,6 +329,7 @@ func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 
 //Stop UDP connection
 func (ut *UDPTransport) Stop() {
+	ut.mdnsLock.Lock()
 	if ut.cf != nil {
 		ut.cf()
 	}
@@ -282,6 +339,10 @@ func (ut *UDPTransport) Stop() {
 			log.Error(fmt.Sprintf("udp transport stop err %s", err))
 		}
 	}
+	if ut.monitorIP != nil {
+		close(ut.monitorIP)
+	}
+	ut.mdnsLock.Unlock()
 	ut.stopReceiving = true
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)

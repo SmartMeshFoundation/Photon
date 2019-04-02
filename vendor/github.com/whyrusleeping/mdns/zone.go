@@ -1,9 +1,11 @@
 package mdns
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -149,6 +151,9 @@ func GetLocalIP() (ips []net.IP) {
 			}
 		}
 	}
+	sort.Slice(ips, func(i, j int) bool {
+		return bytes.Compare(ips[i], ips[j]) < 0
+	})
 	return
 }
 
