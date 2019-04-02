@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kataras/go-errors"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
