@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/node"
@@ -41,6 +42,10 @@ func main() {
 			Usage: `"host:port" address of ethereum JSON-RPC server.\n'
 	           'Also accepts a protocol prefix (ws:// or ipc channel) with optional port',`,
 			Value: node.DefaultIPCEndpoint("geth"),
+		},
+		cli.StringFlag{
+			Name:  "token-network-address",
+			Usage: "only deploy SMTToken with this token-network-address",
 		},
 	}
 	app.Action = mainctx
@@ -68,26 +73,32 @@ func mainctx(ctx *cli.Context) error {
 	if err != nil {
 		log.Fatalf(fmt.Sprintf("failed to parse priv key %s", err))
 	}
-	deployContract(key, conn)
+	deployContract(key, conn, ctx.String("token-network-address"))
 	return nil
 }
-func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client) {
+func deployContract(key *ecdsa.PrivateKey, conn *ethclient.Client, tokenNetworkAddressStr string) {
 	auth := bind.NewKeyedTransactor(key)
-	// 1. deploy token network
-	chainID, err := conn.NetworkID(context.Background())
-	if err != nil {
-		log.Fatalf("failed to get network id %s", err)
-	}
-	tokenNetworkAddress, tx, _, err := contracts.DeployTokensNetwork(auth, conn, chainID)
-	if err != nil {
-		log.Fatalf("failed to deploy registry %s", err)
-	}
 	ctx := context.Background()
-	_, err = bind.WaitDeployed(ctx, conn, tx)
-	if err != nil {
-		log.Fatalf("failed to deploy contact when mining :%v", err)
+	var tokenNetworkAddress common.Address
+	var tx *types.Transaction
+	if tokenNetworkAddressStr != "" {
+		tokenNetworkAddress = common.HexToAddress(tokenNetworkAddressStr)
+	} else {
+		// 1. deploy token network
+		chainID, err := conn.NetworkID(context.Background())
+		if err != nil {
+			log.Fatalf("failed to get network id %s", err)
+		}
+		tokenNetworkAddress, tx, _, err = contracts.DeployTokensNetwork(auth, conn, chainID)
+		if err != nil {
+			log.Fatalf("failed to deploy registry %s", err)
+		}
+		_, err = bind.WaitDeployed(ctx, conn, tx)
+		if err != nil {
+			log.Fatalf("failed to deploy contact when mining :%v", err)
+		}
+		fmt.Printf("deploy registry complete... RegistryAddress=%s\n", tokenNetworkAddress.String())
 	}
-	fmt.Printf("deploy registry complete... RegistryAddress=%s\n", tokenNetworkAddress.String())
 	// 2. deploy SMTToken
 	tokenAddress, tx, _, err := smttoken.DeploySMTToken(auth, conn, "", tokenNetworkAddress)
 	if err != nil {
