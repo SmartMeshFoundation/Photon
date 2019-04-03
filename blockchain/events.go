@@ -67,6 +67,7 @@ func makeEventID(l *types.Log) eventID {
 Events handles all contract events from blockchain
 */
 type Events struct {
+	EffectiveChainChan  chan bool // 有效公链/无效公链状态切换通知通道
 	StateChangeChannel  chan transfer.StateChange
 	lastBlockNumber     int64
 	rpcModuleDependency RPCModuleDependency
@@ -81,6 +82,7 @@ type Events struct {
 //NewBlockChainEvents create BlockChainEvents
 func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCModuleDependency, chainEventRecordDao models.ChainEventRecordDao) *Events {
 	be := &Events{
+		EffectiveChainChan:  make(chan bool, 5),
 		StateChangeChannel:  make(chan transfer.StateChange, 10),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
@@ -137,6 +139,7 @@ func (be *Events) notifyPhotonStartupCompleteIfNeeded(currentBlock int64) {
 		}
 	}
 }
+
 func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
 	startUpBlockNumber := be.lastBlockNumber
@@ -172,16 +175,35 @@ func (be *Events) startAlarmTask() {
 		if err != nil {
 			//无论公链发生什么错误,都应该让photon启动起来,而不是卡主
 			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
-			log.Error(fmt.Sprintf("HeaderByNumber err=%s", err))
+			log.Warn(fmt.Sprintf("HeaderByNumber err=%s", err))
 			cancelFunc()
 			if be.stopChan != nil {
 				be.pollPeriod = 0
 				go be.client.RecoverDisconnect()
 			}
+			// 连接失败直接通知上层切换到无效公链
+			be.EffectiveChainChan <- false
 			return
 		}
 		cancelFunc()
 		lastedBlock := h.Number.Int64()
+		lastedBlockTimestamp := h.Time.Int64()
+		// 由于测试环境这个值被修改为了毫秒,做一下特殊处理
+		if lastedBlockTimestamp > 9999999999 {
+			lastedBlockTimestamp = lastedBlockTimestamp / 1000
+		}
+		now := time.Now().Unix()
+		if lastedBlockTimestamp > now {
+			// 如果本地时间小于最新块的出块时间,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
+			log.Crit(fmt.Sprintf("local time error local=%d lastedBlockTimestamp=%d, please run photon again after you fix local time server", now, lastedBlockTimestamp))
+		}
+		if now-lastedBlockTimestamp >= 180 {
+			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
+			be.EffectiveChainChan <- false
+		} else if lastedBlock > currentBlock {
+			// 出块时间在3分钟内且大于当前块,被认为是有效最新块,通知上层切换到有效公链状态
+			be.EffectiveChainChan <- true
+		}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
 			if startUpBlockNumber >= lastedBlock {

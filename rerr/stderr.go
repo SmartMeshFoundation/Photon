@@ -152,7 +152,7 @@ var (
 	ErrStopCreateNewTransfer = newError(1013, "new transactions are not allowed")
 
 	//ErrNotAllowMediatedTransfer not allow mediated transfer when mesh
-	ErrNotAllowMediatedTransfer = newError(1014, "switch on offline pay， direct transfer only")
+	ErrNotAllowMediatedTransfer = newError(1014, "can not send mediated transfer when photon works without effective chain")
 	//ErrDuplicateTransfer token和secret相同的交易
 	ErrDuplicateTransfer = newError(1015, "secret and token cannot duplicate")
 	//ErrNodeNotOnline 发送消息时,对方不在线

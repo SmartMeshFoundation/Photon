@@ -139,6 +139,16 @@ type Service struct {
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
 	ChanSubmitBalanceProofToPFS           chan *channel.Channel // 供submitBalanceProofToPfsLoop线程使用
+
+	/*
+		取值规则如下:
+			1. 启动时默认公链连接无效
+			2. 当与公链连接成功且获取到的新块号>本地最新块号时,该标志位应被置为true
+			3. 当与公链连接出错时,该标志位应被置为false
+			4. 当与公链连接正常,但在3分钟内都没有收到新块时,该标志位被置为false
+			5. 当上层应用调用NotifyNetworkDown接口时,该标志位被置为false
+	*/
+	IsChainEffective bool // 当前公链状态是否有效
 }
 
 //NewPhotonService create photon service
@@ -173,6 +183,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 		BuildInfo:                             new(BuildInfo),
 		ChanSubmitBalanceProofToPFS:           make(chan *channel.Channel, 100),
+		IsChainEffective:                      false,
 	}
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newPhotonMessageHandler(rs)
@@ -407,6 +418,17 @@ func (rs *Service) loop() {
 				rs.handleEthRPCConnectionOK()
 			} else {
 				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
+			}
+		case isChainEffective := <-rs.BlockChainEvents.EffectiveChainChan:
+			if rs.IsChainEffective && !isChainEffective {
+				// 有效公链切无效公链
+				rs.IsChainEffective = isChainEffective
+				log.Info("photon works without effective chain now...")
+			}
+			if !rs.IsChainEffective && isChainEffective {
+				// 无效公链切有效公链
+				rs.IsChainEffective = isChainEffective
+				log.Info("photon works with effective chain now...")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -893,7 +915,8 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		result.Result <- rerr.ErrNoAvailabeRoute
 		return
 	}
-	if rs.Config.IsMeshNetwork {
+	// 当没有有效公链的时候,不支持发送MediatedTransfer,否则有安全隐患
+	if !rs.IsChainEffective {
 		result.Result <- rerr.ErrNotAllowMediatedTransfer
 		return
 	}

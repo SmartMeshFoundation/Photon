@@ -662,7 +662,13 @@ SwitchNetwork  switch between mesh and internet
 */
 func (a *API) SwitchNetwork(isMesh bool) {
 	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
-	a.api.Photon.Config.IsMeshNetwork = isMesh
+	if isMesh {
+		log.Trace("use NotifyNetworkDown")
+		err := a.api.NotifyNetworkDown()
+		if err != nil {
+			panic("never happen")
+		}
+	}
 }
 
 /*
@@ -687,21 +693,6 @@ func (a *API) UpdateMeshNetworkNodes(nodesstr string) (result string) {
 		return dto.NewErrorMobileResponse(err)
 	}
 	return dto.NewSuccessMobileResponse(nil)
-}
-
-/*
-EthereumStatus  query the status between Photon and ethereum
-todo fix it,remove this deprecated api
-*/
-func (a *API) EthereumStatus() (result string) {
-	defer func() {
-		log.Trace(fmt.Sprintf("ApiCall EthereumStatus result=%s", result))
-	}()
-	c := a.api.Photon.Chain
-	if c != nil && c.Client.Status == netshare.Connected {
-		dto.NewSuccessMobileResponse(result)
-	}
-	return dto.NewErrorMobileResponse(errors.New("connect failed"))
 }
 
 /*

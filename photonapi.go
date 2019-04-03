@@ -976,6 +976,9 @@ func (r *API) NotifyNetworkDown() error {
 	if t, ok := r.Photon.Protocol.Transport.(*network.MixTransport); ok {
 		t.Reconnect()
 	}
+	// 置为无效公链状态
+	//r.Photon.IsChainEffective = false
+	//log.Info("photon works without effective chain now because user call NotifyNetworkDown...")
 	return nil
 }
 
