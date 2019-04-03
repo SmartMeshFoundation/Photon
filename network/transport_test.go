@@ -41,7 +41,7 @@ func TestUDPTransport(t *testing.T) {
 	udp2.Start()
 	defer udp1.Stop()
 	defer udp2.Stop()
-	time.Sleep(params.DefaultMDNSQueryInterval * 2)
+	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5) //至少需要两个dns查询超时,才能确保nodestatus包含相应的地址
 	deviceType, isOnline := udp1.NodeStatus(addr2)
 	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")

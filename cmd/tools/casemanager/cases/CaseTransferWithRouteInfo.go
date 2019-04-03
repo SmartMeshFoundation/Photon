@@ -3,10 +3,11 @@ package cases
 import (
 	"math/big"
 
+	"errors"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kataras/go-errors"
-	"time"
 )
 
 // CaseTransferWithRouteInfo :

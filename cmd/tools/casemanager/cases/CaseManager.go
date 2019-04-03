@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kataras/go-errors"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"

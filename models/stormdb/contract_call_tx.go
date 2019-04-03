@@ -8,6 +8,8 @@ import (
 
 	"strings"
 
+	"errors"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -15,7 +17,6 @@ import (
 	"github.com/asdine/storm/q"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/kataras/go-errors"
 )
 
 // NewPendingTXInfo 创建pending状态的TXInfo,即自己发起的tx

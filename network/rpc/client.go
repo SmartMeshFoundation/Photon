@@ -172,7 +172,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		}
 	}
 	bcs.RegistryProxy = r
-	log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
+	//log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
 	return bcs.RegistryProxy, nil
 }
 
