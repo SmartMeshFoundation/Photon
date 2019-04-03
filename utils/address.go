@@ -7,7 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-const addressDefaultValidation = false
+//addressDefaultValidation for internal test
+var addressDefaultValidation = false
 
 /*
 HexToAddress convert hex encoded address string to common.Address,
