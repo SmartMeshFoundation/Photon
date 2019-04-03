@@ -662,7 +662,13 @@ SwitchNetwork  switch between mesh and internet
 */
 func (a *API) SwitchNetwork(isMesh bool) {
 	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
-	a.api.Photon.Config.IsMeshNetwork = isMesh
+	if isMesh {
+		log.Trace("use NotifyNetworkDown")
+		err := a.api.NotifyNetworkDown()
+		if err != nil {
+			panic("never happen")
+		}
+	}
 }
 
 /*

@@ -915,7 +915,8 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		result.Result <- rerr.ErrNoAvailabeRoute
 		return
 	}
-	if rs.Config.IsMeshNetwork {
+	// 当没有有效公链的时候,不支持发送MediatedTransfer,否则有安全隐患
+	if !rs.IsChainEffective {
 		result.Result <- rerr.ErrNotAllowMediatedTransfer
 		return
 	}

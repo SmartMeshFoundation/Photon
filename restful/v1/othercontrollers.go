@@ -52,7 +52,14 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
 		return
 	}
-	API.Photon.Config.IsMeshNetwork = isMesh
+	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
+	if isMesh {
+		log.Trace("use NotifyNetworkDown")
+		err := API.NotifyNetworkDown()
+		if err != nil {
+			panic("never happen")
+		}
+	}
 	resp = dto.NewSuccessAPIResponse(nil)
 }
 
