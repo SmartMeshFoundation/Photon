@@ -878,3 +878,25 @@ func (node *PhotonNode) FindPath(target *PhotonNode, tokenAddress common.Address
 	Logger.Printf("FindPath get RouteInfo from %s to %s on token %s :\n%s", node.Name, target.Name, tokenAddress.String(), MarshalIndent(path))
 	return
 }
+
+// ChangeEthRPCEndpointPort :
+func (node *PhotonNode) ChangeEthRPCEndpointPort(newPort int) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/debug/change-eth-rpc-endpoint-port/%d", newPort),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 5,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("ChangeEthRPCEndpointPort err :%s", err))
+		return
+	}
+	var resp []pfsproxy.FindPathResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		Logger.Println(fmt.Sprintf("ChangeEthRPCEndpointPort err :%s", err))
+		return
+	}
+	Logger.Printf("%s ChangeEthRPCEndpointPort to %d SUCCESS", node.Name, newPort)
+	return
+}
