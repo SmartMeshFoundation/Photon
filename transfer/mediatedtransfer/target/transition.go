@@ -5,7 +5,10 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
+	"math/big"
+
 	"github.com/SmartMeshFoundation/Photon/log"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
@@ -41,17 +44,34 @@ func eventsForRegisterSecret(state *mediatedtransfer.TargetState) (events []tran
 	return
 }
 
-//handleInitTraget Handle an ActionInitTarget state change.
-func handleInitTraget(st *mediatedtransfer.ActionInitTargetStateChange) *transfer.TransitionResult {
+//handleInitTarget Handle an ActionInitTarget state change.
+func handleInitTarget(st *mediatedtransfer.ActionInitTargetStateChange) *transfer.TransitionResult {
 	tr := st.FromTranfer
 	route := st.FromRoute
 	blockNumber := st.BlockNumber
 	state := &mediatedtransfer.TargetState{
-		OurAddress:   st.OurAddress,
-		FromRoute:    route,
-		FromTransfer: tr,
-		BlockNumber:  blockNumber,
-		Db:           st.Db,
+		OurAddress:               st.OurAddress,
+		FromRoute:                route,
+		FromTransfer:             tr,
+		BlockNumber:              blockNumber,
+		Db:                       st.Db,
+		IsEffectiveChain:         st.IsEffectiveChain,
+		EffectiveChangeTimestamp: st.EffectiveChangeTimestamp,
+	}
+	// 当节点处于无效状态时,直接发送AnnounceDispose
+	if !state.IsEffectiveChain {
+		rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
+			Token:          state.FromTransfer.Token,
+			Amount:         new(big.Int).Set(state.FromTransfer.Amount),
+			LockSecretHash: state.FromTransfer.LockSecretHash,
+			Expiration:     state.FromTransfer.Expiration,
+			Receiver:       state.FromRoute.HopNode(),
+			Reason:         rerr.ErrNotAllowMediatedTransfer,
+		}
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   []transfer.Event{rtr2},
+		}
 	}
 	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout(), blockNumber)
 	/*
@@ -254,7 +274,7 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 	if originalState == nil {
 		ait, ok := stateChange.(*mediatedtransfer.ActionInitTargetStateChange)
 		if ok {
-			it = handleInitTraget(ait)
+			it = handleInitTarget(ait)
 		}
 	} else {
 		state, ok := originalState.(*mediatedtransfer.TargetState)
@@ -277,6 +297,10 @@ func StateTransiton(originalState transfer.State, stateChange transfer.StateChan
 			//有可能在不知道密码的情况下直接收到 unlock 消息,比如
 			// Maybe we can receive unlock message without receiving secret.
 			it = handleBalanceProof(state, st2)
+		case *transfer.EffectiveChainStateChange:
+			state.IsEffectiveChain = st2.IsEffective
+			state.EffectiveChangeTimestamp = st2.LastBlockNumberTimestamp
+			log.Info(fmt.Sprintf("TargetStateManager with lockSecretHash=%s EffctiveChainState change to %v", state.FromTransfer.LockSecretHash.String(), state.IsEffectiveChain))
 		default:
 			log.Error(fmt.Sprintf("target state manager receive unkown state change,if this transfer is a token swap ,it's ok.  %s", utils.StringInterface(stateChange, 3)))
 		}

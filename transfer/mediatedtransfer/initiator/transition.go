@@ -414,6 +414,8 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				Secret:                         staii.Secret,
 				Db:                             staii.Db,
 				CancelByExceptionSecretRequest: false,
+				IsEffectiveChain:               true, // 仅有效公链的情况下才能进行MediatedTransfer,所以默认为true
+				EffectiveChangeTimestamp:       0,
 			}
 			return tryNewRoute(state)
 		}
@@ -479,6 +481,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = cancelCurrentRoute(state, "partner cooperative settle channel with me")
 		case *mt.ContractChannelWithdrawStateChange:
 			it = cancelCurrentRoute(state, "partner withdraw on channel with me")
+		case *transfer.EffectiveChainStateChange:
+			state.IsEffectiveChain = st2.IsEffective
+			state.EffectiveChangeTimestamp = st2.LastBlockNumberTimestamp
+			log.Info(fmt.Sprintf("InitiatorStateManager with lockSecretHash=%s EffctiveChainState change to %v", state.LockSecretHash.String(), state.IsEffectiveChain))
 		default:
 			log.Error(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
 		}

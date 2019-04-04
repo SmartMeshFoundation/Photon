@@ -92,8 +92,6 @@ func TestEvents_Start(t *testing.T) {
 			//if ok {
 			//	fmt.Println(BlockStateChange.BlockNumber)
 			//}
-		case t := <- be.EffectiveChainChan:
-			fmt.Println("from be.EffectiveChainChan:", t)
 		}
 	}
 }

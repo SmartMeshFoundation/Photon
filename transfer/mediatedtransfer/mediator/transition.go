@@ -742,6 +742,14 @@ func mediateTransfer(state *mediatedtransfer.MediatorState, payerRoute *route.St
 	var transferPair *mediatedtransfer.MediationPairState
 	var events []transfer.Event
 
+	// 如果当前处于无效公链状态,直接拒绝交易
+	if !state.IsEffectiveChain {
+		refundEvents := eventsForRefund(payerRoute, payerTransfer, rerr.ErrNotAllowMediatedTransfer)
+		return &transfer.TransitionResult{
+			NewState: state,
+			Events:   refundEvents,
+		}
+	}
 	timeoutBlocks := int(getTimeoutBlocks(payerRoute, payerTransfer, state.BlockNumber))
 	//log.Trace(fmt.Sprintf("timeoutBlocks=%d,payerroute=%s,payertransfer=%s,blocknumber=%d",
 	//	timeoutBlocks, utils.StringInterface(payerRoute, 3), utils.StringInterface(payerTransfer, 3),
@@ -1132,13 +1140,15 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 	if state == nil {
 		if aim, ok := stateChange.(*mediatedtransfer.ActionInitMediatorStateChange); ok {
 			state = &mediatedtransfer.MediatorState{
-				OurAddress:     aim.OurAddress,
-				Routes:         aim.Routes,
-				BlockNumber:    aim.BlockNumber,
-				Hashlock:       aim.FromTranfer.LockSecretHash,
-				Db:             aim.Db,
-				Token:          aim.FromTranfer.Token,
-				LockSecretHash: aim.FromTranfer.LockSecretHash,
+				OurAddress:               aim.OurAddress,
+				Routes:                   aim.Routes,
+				BlockNumber:              aim.BlockNumber,
+				Hashlock:                 aim.FromTranfer.LockSecretHash,
+				Db:                       aim.Db,
+				Token:                    aim.FromTranfer.Token,
+				LockSecretHash:           aim.FromTranfer.LockSecretHash,
+				IsEffectiveChain:         aim.IsEffectiveChain,
+				EffectiveChangeTimestamp: aim.EffectiveChangeTimestamp,
 			}
 			it = mediateTransfer(state, aim.FromRoute, aim.FromTranfer)
 		}
@@ -1179,6 +1189,10 @@ func StateTransition(originalState transfer.State, stateChange transfer.StateCha
 			it = cancelCurrentRoute(state, st2.ChannelIdentifier)
 		case *mediatedtransfer.ContractChannelWithdrawStateChange:
 			it = cancelCurrentRoute(state, st2.ChannelIdentifier.ChannelIdentifier)
+		case *transfer.EffectiveChainStateChange:
+			state.IsEffectiveChain = st2.IsEffective
+			state.EffectiveChangeTimestamp = st2.LastBlockNumberTimestamp
+			log.Info(fmt.Sprintf("MediatorStateManager with lockSecretHash=%s EffctiveChainState change to %v", state.LockSecretHash.String(), state.IsEffectiveChain))
 		default:
 			log.Info(fmt.Sprintf("unknown statechange :%s", utils.StringInterface(st2, 3)))
 		}

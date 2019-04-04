@@ -67,22 +67,22 @@ func makeEventID(l *types.Log) eventID {
 Events handles all contract events from blockchain
 */
 type Events struct {
-	EffectiveChainChan  chan bool // 有效公链/无效公链状态切换通知通道
-	StateChangeChannel  chan transfer.StateChange
-	lastBlockNumber     int64
-	rpcModuleDependency RPCModuleDependency
-	client              *helper.SafeEthClient
-	pollPeriod          time.Duration              // 轮询周期,必须与公链出块间隔一致
-	stopChan            chan int                   // has stopped?
-	txDone              map[eventID]uint64         // 该map记录最近30块内处理的events流水,用于事件去重
-	firstStart          bool                       //保证ContractHistoryEventCompleteStateChange 只会发送一次
-	chainEventRecordDao models.ChainEventRecordDao // 事件处理记录保存
+	StateChangeChannel       chan transfer.StateChange
+	lastBlockNumber          int64
+	lastBlockNumberTimestamp int64
+	isChainEffective         bool
+	rpcModuleDependency      RPCModuleDependency
+	client                   *helper.SafeEthClient
+	pollPeriod               time.Duration              // 轮询周期,必须与公链出块间隔一致
+	stopChan                 chan int                   // has stopped?
+	txDone                   map[eventID]uint64         // 该map记录最近30块内处理的events流水,用于事件去重
+	firstStart               bool                       //保证ContractHistoryEventCompleteStateChange 只会发送一次
+	chainEventRecordDao      models.ChainEventRecordDao // 事件处理记录保存
 }
 
 //NewBlockChainEvents create BlockChainEvents
 func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCModuleDependency, chainEventRecordDao models.ChainEventRecordDao) *Events {
 	be := &Events{
-		EffectiveChainChan:  make(chan bool, 5),
 		StateChangeChannel:  make(chan transfer.StateChange, 10),
 		rpcModuleDependency: rpcModuleDependency,
 		client:              client,
@@ -144,6 +144,7 @@ func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
 	startUpBlockNumber := be.lastBlockNumber
 	currentBlock := be.lastBlockNumber
+	currentBlockTimestamp := be.lastBlockNumberTimestamp
 	logPeriod := int64(1)
 	retryTime := 0
 	be.stopChan = make(chan int)
@@ -182,7 +183,12 @@ func (be *Events) startAlarmTask() {
 				go be.client.RecoverDisconnect()
 			}
 			// 连接失败直接通知上层切换到无效公链
-			be.EffectiveChainChan <- false
+			be.isChainEffective = false
+			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+				IsEffective:              false,
+				LastBlockNumber:          currentBlock,
+				LastBlockNumberTimestamp: currentBlockTimestamp,
+			}
 			return
 		}
 		cancelFunc()
@@ -199,10 +205,20 @@ func (be *Events) startAlarmTask() {
 		}
 		if now-lastedBlockTimestamp >= 180 {
 			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
-			be.EffectiveChainChan <- false
-		} else if lastedBlock > currentBlock {
-			// 出块时间在3分钟内且大于当前块,被认为是有效最新块,通知上层切换到有效公链状态
-			be.EffectiveChainChan <- true
+			be.isChainEffective = false
+			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+				IsEffective:              false,
+				LastBlockNumber:          lastedBlock,
+				LastBlockNumberTimestamp: lastedBlockTimestamp,
+			}
+		} else if lastedBlock > currentBlock && !be.isChainEffective {
+			// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
+			be.isChainEffective = true
+			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+				IsEffective:              true,
+				LastBlockNumber:          lastedBlock,
+				LastBlockNumberTimestamp: lastedBlockTimestamp,
+			}
 		}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
@@ -253,7 +269,9 @@ func (be *Events) startAlarmTask() {
 
 		// refresh block number and notify PhotonService
 		currentBlock = lastedBlock
+		currentBlockTimestamp = lastedBlockTimestamp
 		be.lastBlockNumber = currentBlock
+		be.lastBlockNumberTimestamp = currentBlockTimestamp
 		var lastSendBlockNumber int64
 		// notify Photon service
 		//我们需要photon service在处理相关事件的时候知道了对应的块已经发生了,否则可能因为错误的当前块数而出现逻辑错误.

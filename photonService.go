@@ -148,7 +148,8 @@ type Service struct {
 			4. 当与公链连接正常,但在3分钟内都没有收到新块时,该标志位被置为false
 			5. 当上层应用调用NotifyNetworkDown接口时,该标志位被置为false
 	*/
-	IsChainEffective bool // 当前公链状态是否有效
+	IsChainEffective         bool  // 当前公链状态是否有效
+	EffectiveChangeTimestamp int64 // 公链状态切换时间,即发生状态切换时最后一个有效块的出块时间
 }
 
 //NewPhotonService create photon service
@@ -418,17 +419,6 @@ func (rs *Service) loop() {
 				rs.handleEthRPCConnectionOK()
 			} else {
 				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
-			}
-		case isChainEffective := <-rs.BlockChainEvents.EffectiveChainChan:
-			if rs.IsChainEffective && !isChainEffective {
-				// 有效公链切无效公链
-				rs.IsChainEffective = isChainEffective
-				log.Info("photon works without effective chain now...")
-			}
-			if !rs.IsChainEffective && isChainEffective {
-				// 无效公链切有效公链
-				rs.IsChainEffective = isChainEffective
-				log.Info("photon works with effective chain now...")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -1102,13 +1092,15 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
-			OurAddress:  rs.NodeAddress,
-			FromTranfer: fromTransfer,
-			Routes:      routesState,
-			FromRoute:   fromRoute,
-			BlockNumber: blockNumber,
-			Message:     msg,
-			Db:          rs.dao,
+			OurAddress:               rs.NodeAddress,
+			FromTranfer:              fromTransfer,
+			Routes:                   routesState,
+			FromRoute:                fromRoute,
+			BlockNumber:              blockNumber,
+			Message:                  msg,
+			Db:                       rs.dao,
+			IsEffectiveChain:         rs.IsChainEffective,
+			EffectiveChangeTimestamp: rs.EffectiveChangeTimestamp,
 		}
 		stateManager = transfer.NewStateManager(mediator.StateTransition, nil, mediator.NameMediatorTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 		//rs.dao.AddStateManager(stateManager)
@@ -1155,12 +1147,14 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs, msg.Path)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
-		OurAddress:  rs.NodeAddress,
-		FromRoute:   fromRoute,
-		FromTranfer: fromTransfer,
-		BlockNumber: rs.GetBlockNumber(),
-		Message:     msg,
-		Db:          rs.dao,
+		OurAddress:               rs.NodeAddress,
+		FromRoute:                fromRoute,
+		FromTranfer:              fromTransfer,
+		BlockNumber:              rs.GetBlockNumber(),
+		Message:                  msg,
+		Db:                       rs.dao,
+		IsEffectiveChain:         rs.IsChainEffective,
+		EffectiveChangeTimestamp: rs.EffectiveChangeTimestamp,
 	}
 	stateManager = transfer.NewStateManager(target.StateTransiton, nil, target.NameTargetTransition, fromTransfer.LockSecretHash, fromTransfer.Token)
 	//rs.dao.AddStateManager(stateManager)

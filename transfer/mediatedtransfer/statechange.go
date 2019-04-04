@@ -42,13 +42,15 @@ type ActionInitInitiatorStateChange struct {
 
 //ActionInitMediatorStateChange  Initial state for a new mediator.
 type ActionInitMediatorStateChange struct {
-	OurAddress  common.Address             //This node address.
-	FromTranfer *LockedTransferState       //The received MediatedTransfer.
-	Routes      *route.RoutesState         //The current available routes.
-	FromRoute   *route.State               //The route from which the MediatedTransfer was received.
-	BlockNumber int64                      //The current block number.
-	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channeltype.Db             //get the latest channel state
+	OurAddress               common.Address             //This node address.
+	FromTranfer              *LockedTransferState       //The received MediatedTransfer.
+	Routes                   *route.RoutesState         //The current available routes.
+	FromRoute                *route.State               //The route from which the MediatedTransfer was received.
+	BlockNumber              int64                      //The current block number.
+	Message                  *encoding.MediatedTransfer //the message trigger this statechange
+	Db                       channeltype.Db             //get the latest channel state
+	IsEffectiveChain         bool
+	EffectiveChangeTimestamp int64
 }
 
 //MediatorReReceiveStateChange 中间节点再次收到 MediatedTransfer
@@ -61,12 +63,14 @@ type MediatorReReceiveStateChange struct {
 
 //ActionInitTargetStateChange Initial state for a new target.
 type ActionInitTargetStateChange struct {
-	OurAddress  common.Address       //This node address.
-	FromTranfer *LockedTransferState //The received MediatedTransfer.
-	FromRoute   *route.State         //The route from which the MediatedTransfer was received.
-	BlockNumber int64
-	Message     *encoding.MediatedTransfer //the message trigger this statechange
-	Db          channeltype.Db             //get the latest channel state
+	OurAddress               common.Address       //This node address.
+	FromTranfer              *LockedTransferState //The received MediatedTransfer.
+	FromRoute                *route.State         //The route from which the MediatedTransfer was received.
+	BlockNumber              int64
+	Message                  *encoding.MediatedTransfer //the message trigger this statechange
+	Db                       channeltype.Db             //get the latest channel state
+	IsEffectiveChain         bool
+	EffectiveChangeTimestamp int64
 }
 
 /*

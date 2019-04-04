@@ -116,7 +116,7 @@ func TestHandleInitTarget(t *testing.T) {
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
 	st := makeInitStateChange(utest.ADDR, amount, blockNumber, initiator, expire)
 	fromTransfer := st.FromTranfer
-	it := handleInitTraget(st)
+	it := handleInitTarget(st)
 	assert(t, len(it.Events) > 0, true)
 	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
@@ -134,7 +134,7 @@ func TestHandleInitTargetBadExpiration(t *testing.T) {
 
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
 	st := makeInitStateChange(utest.ADDR, amount, blockNumber, initiator, expire)
-	it := handleInitTraget(st)
+	it := handleInitTarget(st)
 	assert(t, len(it.Events), 0)
 }
 

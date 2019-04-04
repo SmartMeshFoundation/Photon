@@ -880,6 +880,25 @@ func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockSta
 	return nil
 }
 
+/*
+	处理有效公链/无效公链状态切换的相关逻辑
+*/
+func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer.EffectiveChainStateChange) (err error) {
+	isChainEffective := st.IsEffective
+	eh.photon.IsChainEffective = isChainEffective
+	eh.photon.EffectiveChangeTimestamp = st.LastBlockNumberTimestamp
+	if !isChainEffective {
+		// 有效公链切无效公链
+		log.Info("photon works without effective chain now...")
+	} else {
+		// 无效公链切有效公链
+		log.Info("photon works with effective chain now...")
+	}
+	// 下发到所有的stateManager里面,正在进行的交易自行进行对应处理
+	eh.dispatchToAllTasks(st)
+	return nil
+}
+
 //avoid dead lock
 func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
 	switch st2 := st.(type) {
@@ -1001,6 +1020,8 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		eh.photon.conditionQuit("EventWithdrawFromChainAfterDeal")
 	case *transfer.BlockStateChange:
 		err = eh.handleBlockStateChange(st2)
+	case *transfer.EffectiveChainStateChange:
+		err = eh.handleEffectiveChainStateChange(st2)
 	default:
 		err = fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())
