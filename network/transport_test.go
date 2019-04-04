@@ -83,7 +83,7 @@ func TestUDPTransportWithMDNS(t *testing.T) {
 	udp2.Start()
 	defer udp1.Stop()
 	defer udp2.Stop()
-	time.Sleep(params.DefaultMDNSQueryInterval * 2) //休息一段时间,等待对方上线通知
+	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5) //休息一段时间,等待对方上线通知
 	deviceType, isOnline := udp1.NodeStatus(addr2)
 	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")
