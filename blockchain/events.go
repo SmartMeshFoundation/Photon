@@ -11,6 +11,8 @@ import (
 
 	"strings"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
@@ -130,6 +132,21 @@ func (be *Events) Start(LastBlockNumber int64) {
 	*/
 	go be.startAlarmTask()
 }
+
+/*
+ChangeEthRPCEndpointPort 临时更换连接的公链端口,并重启AlarmTask,for test
+*/
+func (be *Events) ChangeEthRPCEndpointPort(newPort int) {
+	s := strings.Split(be.client.URL, ":")
+	s[2] = strconv.Itoa(newPort)
+	be.client.URL = strings.Join(s, ":")
+	log.Info(fmt.Sprintf("eth-rpc-endpoint change to %s", be.client.URL))
+	// 触发重启
+	if be.client.IsConnected() {
+		be.client.Client.Close()
+	}
+}
+
 func (be *Events) notifyPhotonStartupCompleteIfNeeded(currentBlock int64) {
 	if be.firstStart {
 		be.firstStart = false

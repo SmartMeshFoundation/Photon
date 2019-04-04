@@ -172,6 +172,7 @@ func Start() {
 			API.Photon.Stop()
 			utils.SystemExit(0)
 		}),
+		rest.Get("/api/1/debug/change-eth-rpc-endpoint-port/:port", ChangeEthRPCEndpointPort),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))

@@ -10,6 +10,8 @@ import (
 
 	"context"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -164,4 +166,23 @@ func RegisterSecretOnChain(w rest.ResponseWriter, r *rest.Request) {
 	secret := common.HexToHash(secretStr)
 	err := API.RegisterSecretOnChain(secret)
 	resp = dto.NewAPIResponse(err, "ok")
+}
+
+/*
+ChangeEthRPCEndpointPort :
+*/
+func ChangeEthRPCEndpointPort(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> ChangeEthRPCEndpointPort ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	newPortStr := r.PathParam("port")
+	newPort, err := strconv.Atoi(newPortStr)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	API.Photon.BlockChainEvents.ChangeEthRPCEndpointPort(newPort)
+	resp = dto.NewSuccessAPIResponse(nil)
 }

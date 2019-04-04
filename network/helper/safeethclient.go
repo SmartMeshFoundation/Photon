@@ -27,7 +27,7 @@ var errNotConnectd = rerr.ErrSpectrumNotConnected
 type SafeEthClient struct {
 	*ethclient.Client
 	lock       sync.Mutex
-	url        string
+	URL        string
 	ReConnect  map[string]chan struct{}
 	Status     netshare.Status
 	StatusChan chan netshare.Status
@@ -38,7 +38,7 @@ type SafeEthClient struct {
 func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	c := &SafeEthClient{
 		ReConnect:  make(map[string]chan struct{}),
-		url:        rawurl,
+		URL:        rawurl,
 		StatusChan: make(chan netshare.Status, 10),
 		quitChan:   make(chan struct{}),
 	}
@@ -108,7 +108,7 @@ func (c *SafeEthClient) RecoverDisconnect() {
 			//never block
 		}
 		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
-		client, err = ethclient.DialContext(ctx, c.url)
+		client, err = ethclient.DialContext(ctx, c.URL)
 		cancelFunc()
 		if err == nil {
 			err = checkConnectStatus(client)
