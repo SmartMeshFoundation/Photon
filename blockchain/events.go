@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"time"
 
 	"math/big"
@@ -159,6 +161,7 @@ func (be *Events) notifyPhotonStartupCompleteIfNeeded(currentBlock int64) {
 
 func (be *Events) startAlarmTask() {
 	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
+	rpanic.PanicRecover("startAlarmTask")
 	startUpBlockNumber := be.lastBlockNumber
 	currentBlock := be.lastBlockNumber
 	currentBlockTimestamp := be.lastBlockNumberTimestamp
@@ -211,15 +214,18 @@ func (be *Events) startAlarmTask() {
 		cancelFunc()
 		lastedBlock := h.Number.Int64()
 		lastedBlockTimestamp := h.Time.Int64()
-		// 由于测试环境这个值被修改为了毫秒,做一下特殊处理
+		// 由于测试环境这个值被修改为了毫秒,必须进行转换. 考虑到如果lastedBlockTimestamp当做秒来解释,将会是几万年以后,因此这么做是合理的
+		//todo 为9999999999加上注释,并且给一个合理的解释
 		if lastedBlockTimestamp > 9999999999 {
 			lastedBlockTimestamp = lastedBlockTimestamp / 1000
 		}
 		now := time.Now().Unix()
-		if lastedBlockTimestamp > now {
-			// 如果本地时间小于最新块的出块时间,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
+		if lastedBlockTimestamp-now > params.BlockPeriodSeconds {
+			// 如果本地时间小于最新块的出块时间15秒,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
 			log.Crit(fmt.Sprintf("local time error local=%d lastedBlockTimestamp=%d, please run photon again after you fix local time server", now, lastedBlockTimestamp))
 		}
+		//连接到了有效的公链链接,但是公链最新块在三分钟之前,可能公链已经停止同步了
+		//todo 为180定义一个数字
 		if now-lastedBlockTimestamp >= 180 {
 			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
 			be.isChainEffective = false
@@ -228,15 +234,16 @@ func (be *Events) startAlarmTask() {
 				LastBlockNumber:          lastedBlock,
 				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
-		} else if lastedBlock > currentBlock && !be.isChainEffective {
-			// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
-			be.isChainEffective = true
-			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
-				IsEffective:              true,
-				LastBlockNumber:          lastedBlock,
-				LastBlockNumberTimestamp: lastedBlockTimestamp,
-			}
 		}
+		//else if lastedBlock > currentBlock && !be.isChainEffective {
+		//	// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
+		//	be.isChainEffective = true
+		//	be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+		//		IsEffective:              true,
+		//		LastBlockNumber:          lastedBlock,
+		//		LastBlockNumberTimestamp: lastedBlockTimestamp,
+		//	}
+		//}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
 			if startUpBlockNumber >= lastedBlock {
@@ -317,6 +324,15 @@ func (be *Events) startAlarmTask() {
 		for key, blockNumber := range be.txDone {
 			if blockNumber <= uint64(fromBlockNumber) {
 				delete(be.txDone, key)
+			}
+		}
+		// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
+		if !be.isChainEffective {
+			be.isChainEffective = true
+			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+				IsEffective:              true,
+				LastBlockNumber:          lastedBlock,
+				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
 		}
 		// wait to next time

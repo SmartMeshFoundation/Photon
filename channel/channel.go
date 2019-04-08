@@ -9,6 +9,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/fee"
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
@@ -1506,4 +1507,24 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		SettledBlock:           c.ExternState.SettledBlock,
 	}
 	return s
+}
+
+/*
+GetHalfSettleTimeoutSeconds 获取一个通道的一半SettleTimeout对应的时间,单位秒
+*/
+func (c *Channel) GetHalfSettleTimeoutSeconds() int64 {
+	var resp float32
+	if params.ChainID.Int64() == params.TestPrivateChainID {
+		resp = float32(c.SettleTimeout) / 2 * float32(params.BlockPeriodSecondsForTest)
+	} else if params.ChainID.Int64() == params.TestPrivateChainID2 {
+		// 出块间隔为50ms毫秒
+		resp = float32(c.SettleTimeout) / 2 * float32(params.BlockPeriodSecondsForTest2)
+	} else {
+		resp = float32(c.SettleTimeout) / 2 * float32(params.BlockPeriodSeconds)
+	}
+	// 最小为1秒,可能出现于自动化测试中,因为自动化测试使用的私链出块间隔为50ms
+	if resp < 1 {
+		resp = 1
+	}
+	return int64(resp)
 }

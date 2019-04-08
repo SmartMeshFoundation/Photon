@@ -774,6 +774,11 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		result.Result <- rerr.ErrChannelNotFound.Append("no available direct channel")
 		return
 	}
+	if !rs.IsChainEffective && time.Now().Unix()-rs.EffectiveChangeTimestamp >= directChannel.GetHalfSettleTimeoutSeconds() {
+		result.Result <- rerr.ErrNotAllowDirectTransfer
+		return
+	}
+
 	if directChannel.Distributable().Cmp(amount) < 0 {
 		result.Result <- rerr.ErrChannelNoEnoughBalance
 		return

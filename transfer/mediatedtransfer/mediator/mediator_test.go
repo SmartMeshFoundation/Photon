@@ -8,8 +8,6 @@ import (
 
 	"math/big"
 
-	"os"
-
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
@@ -20,6 +18,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
 	assert2 "github.com/stretchr/testify/assert"
+	"os"
 )
 
 var x = big.NewInt(0)
@@ -41,11 +40,12 @@ func TestTypConversion(t *testing.T) {
 
 func makeInitStateChange(fromTransfer *mediatedtransfer.LockedTransferState, fromRoute *route.State, routes []*route.State, ourAddress common.Address) *mediatedtransfer.ActionInitMediatorStateChange {
 	return &mediatedtransfer.ActionInitMediatorStateChange{
-		OurAddress:  ourAddress,
-		FromTranfer: fromTransfer,
-		Routes:      route.NewRoutesState(routes),
-		FromRoute:   fromRoute,
-		BlockNumber: 1,
+		OurAddress:       ourAddress,
+		FromTranfer:      fromTransfer,
+		Routes:           route.NewRoutesState(routes),
+		FromRoute:        fromRoute,
+		BlockNumber:      1,
+		IsEffectiveChain: true,
 	}
 }
 func makeTransferPair(payer, payee, initiator, target common.Address, amount *big.Int, expiration int64, secret common.Hash, revealTimeout int) *mediatedtransfer.MediationPairState {
@@ -717,10 +717,11 @@ func TestMediateTransfer(t *testing.T) {
 	var routes = []*route.State{utest.MakeRoute(utest.HOP2, utest.UnitTransferAmount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())}
 	routesState := route.NewRoutesState(routes)
 	state := &mediatedtransfer.MediatorState{
-		OurAddress:  utest.ADDR,
-		Routes:      routesState,
-		BlockNumber: blockNumber,
-		Hashlock:    utest.UnitHashLock,
+		OurAddress:       utest.ADDR,
+		Routes:           routesState,
+		BlockNumber:      blockNumber,
+		Hashlock:         utest.UnitHashLock,
+		IsEffectiveChain: true,
 	}
 	payerroute, payertransfer := utest.MakeFrom(amount, utest.HOP6, expiration, utils.NewRandomAddress(), utils.EmptyHash)
 	it := mediateTransfer(state, payerroute, payertransfer)

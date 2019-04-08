@@ -559,31 +559,33 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	if err != nil {
 		return err
 	}
-	// only for test
-	dataForDebug := &struct {
-		SearchKey           string
-		TokenNetworkAddress string
-		PartnerAddress      string
-		TransferAmount      int64
-		Expiration          int64
-		Amount              int64
-		LockSecretHash      string
-		MerkleProof         []common.Hash
-		Signature           string
-	}{
-		SearchKey:           "dataForDebug",
-		TokenNetworkAddress: mh.photon.Config.RegistryAddress.String(),
-		PartnerAddress:      msg.Sender.String(),
-		TransferAmount:      msg.TransferAmount.Int64(),
-		Expiration:          msg.Expiration,
-		Amount:              msg.PaymentAmount.Int64(),
-		LockSecretHash:      msg.LockSecretHash.String(),
-		MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
-		Signature:           common.Bytes2Hex(msg.Signature),
+	if false {
+		// only for test
+		dataForDebug := &struct {
+			SearchKey           string
+			TokenNetworkAddress string
+			PartnerAddress      string
+			TransferAmount      int64
+			Expiration          int64
+			Amount              int64
+			LockSecretHash      string
+			MerkleProof         []common.Hash
+			Signature           string
+		}{
+			SearchKey:           "dataForDebug",
+			TokenNetworkAddress: mh.photon.Config.RegistryAddress.String(),
+			PartnerAddress:      msg.Sender.String(),
+			TransferAmount:      msg.TransferAmount.Int64(),
+			Expiration:          msg.Expiration,
+			Amount:              msg.PaymentAmount.Int64(),
+			LockSecretHash:      msg.LockSecretHash.String(),
+			MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
+			Signature:           common.Bytes2Hex(msg.Signature),
+		}
+		var buf []byte
+		buf, err = json.MarshalIndent(dataForDebug, "", "\t")
+		log.Trace(string(buf))
 	}
-
-	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
-	log.Trace(string(buf))
 	//mh.UpdateChannelAndSaveAck(ch, msg.Tag())
 	if msg.Target == mh.photon.NodeAddress {
 		mh.photon.targetMediatedTransfer(msg, ch)
