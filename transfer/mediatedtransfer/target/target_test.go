@@ -29,10 +29,11 @@ func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber in
 	}
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
 	init := &mediatedtransfer.ActionInitTargetStateChange{
-		OurAddress:  ourAddress,
-		FromRoute:   fromRoute,
-		FromTranfer: fromTransfer,
-		BlockNumber: blocknumber,
+		OurAddress:       ourAddress,
+		FromRoute:        fromRoute,
+		FromTranfer:      fromTransfer,
+		BlockNumber:      blocknumber,
+		IsEffectiveChain: true,
 	}
 	return init
 }
