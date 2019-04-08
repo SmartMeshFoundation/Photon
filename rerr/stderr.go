@@ -173,6 +173,8 @@ var (
 	ErrUpdateButHaveTransfer = newError(1021, "ErrUpdateButHaveTransfer")
 	//ErrNotChargeFee 进行与收费相关的操作,但是没有启用收费
 	ErrNotChargeFee = newError(1022, "ErrNotChargeFee")
+	//ErrNotAllowDirectTransfer not allow mediated transfer when mesh
+	ErrNotAllowDirectTransfer = newError(1023, "can not send direct transfer after photon worked without effective chain for a long time")
 	/*
 		以太坊报公链节点报的错误
 
