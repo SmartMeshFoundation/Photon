@@ -36,12 +36,12 @@ func TestMdnsDiscovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sa, err := NewMdnsService(ctx, 3000, "ima", time.Second)
+	sa, err := NewMdnsService(ctx, 3000, "ima", 10*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := NewMdnsService(ctx, 3001, "imb", time.Second)
+	sb, err := NewMdnsService(ctx, 3001, "imb", 10*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestMdnsDiscovery(t *testing.T) {
 
 	sa.RegisterNotifee(n)
 
-	time.Sleep(params.DefaultMDNSQueryInterval * 2)
+	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5)
 	req := require.New(t)
 	//req.Len(n.m, 1, "found b ")
 	req.NotNil(n.m["imb"], "found b ")
