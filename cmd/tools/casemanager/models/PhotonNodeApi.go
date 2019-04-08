@@ -468,6 +468,8 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 	if i == ws {
 		return errors.New("timeout")
 	}
+	//Deposit是异步处理，有些case是Deposit之后马上验证通道余额，udp和matrix都有可能验证失败，sleep 3 sencond
+	time.Sleep(time.Second * 3)
 	return nil
 }
 
