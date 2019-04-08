@@ -234,15 +234,16 @@ func (be *Events) startAlarmTask() {
 				LastBlockNumber:          lastedBlock,
 				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
-		} else if lastedBlock > currentBlock && !be.isChainEffective {
-			// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
-			be.isChainEffective = true
-			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
-				IsEffective:              true,
-				LastBlockNumber:          lastedBlock,
-				LastBlockNumberTimestamp: lastedBlockTimestamp,
-			}
 		}
+		//else if lastedBlock > currentBlock && !be.isChainEffective {
+		//	// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
+		//	be.isChainEffective = true
+		//	be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+		//		IsEffective:              true,
+		//		LastBlockNumber:          lastedBlock,
+		//		LastBlockNumberTimestamp: lastedBlockTimestamp,
+		//	}
+		//}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
 			if startUpBlockNumber >= lastedBlock {
@@ -323,6 +324,15 @@ func (be *Events) startAlarmTask() {
 		for key, blockNumber := range be.txDone {
 			if blockNumber <= uint64(fromBlockNumber) {
 				delete(be.txDone, key)
+			}
+		}
+		// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
+		if !be.isChainEffective {
+			be.isChainEffective = true
+			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
+				IsEffective:              true,
+				LastBlockNumber:          lastedBlock,
+				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
 		}
 		// wait to next time
