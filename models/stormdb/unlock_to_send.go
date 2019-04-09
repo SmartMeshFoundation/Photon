@@ -19,13 +19,13 @@ func (model *StormDB) NewUnlockToSend(lockSecretHash common.Hash, tokenAddress, 
 		Key:              key,
 		LockSecretHash:   lockSecretHash[:],
 		TokenAddress:     tokenAddress[:],
-		ReceiverAddress:  tokenAddress[:],
+		ReceiverAddress:  receiver[:],
 		SavedTimestamp:   time.Now().Unix(),
 		SavedBlockNumber: blockNumber,
 	}
 	err := model.db.Save(us)
 	if err != nil {
-		log.Error(fmt.Sprintf("save NewUnlockToSend err %s", err))
+		log.Error(fmt.Sprintf("NewUnlockToSend err %s", err))
 	}
 	return us
 }
@@ -37,7 +37,7 @@ func (model *StormDB) GetAllUnlockToSend() (list []*models.UnlockToSend) {
 		err = nil
 	}
 	if err != nil {
-		log.Error(fmt.Sprintf("save GetAllUnlockToSend err %s", err))
+		log.Error(fmt.Sprintf("GetAllUnlockToSend err %s", err))
 	}
 	return
 }
@@ -48,6 +48,6 @@ func (model *StormDB) RemoveUnlockToSend(key []byte) {
 		Key: key,
 	})
 	if err != nil {
-		log.Error(fmt.Sprintf("save RemoveUnlockToSend err %s", err))
+		log.Error(fmt.Sprintf("RemoveUnlockToSend err %s", err))
 	}
 }

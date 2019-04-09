@@ -925,7 +925,7 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 			}
 			err2 := eh.OnEvent(e, nil)
 			if err2 != nil {
-				log.Info(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db send err : %s",
+				log.Error(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db send err : %s",
 					e.LockSecretHash.String(), e.Token.String(), e.Receiver.String(), err2.Error()))
 			}
 			key := utils.Sha3(unlockToSend.LockSecretHash, unlockToSend.TokenAddress, unlockToSend.ReceiverAddress).Bytes()
