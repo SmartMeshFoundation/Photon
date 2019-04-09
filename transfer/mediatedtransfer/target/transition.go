@@ -5,10 +5,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
-	"math/big"
-
 	"github.com/SmartMeshFoundation/Photon/log"
-	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
@@ -57,21 +54,6 @@ func handleInitTarget(st *mediatedtransfer.ActionInitTargetStateChange) *transfe
 		Db:                       st.Db,
 		IsEffectiveChain:         st.IsEffectiveChain,
 		EffectiveChangeTimestamp: st.EffectiveChangeTimestamp,
-	}
-	// 当节点处于无效状态时,直接发送AnnounceDispose
-	if !state.IsEffectiveChain {
-		rtr2 := &mediatedtransfer.EventSendAnnounceDisposed{
-			Token:          state.FromTransfer.Token,
-			Amount:         new(big.Int).Set(state.FromTransfer.Amount),
-			LockSecretHash: state.FromTransfer.LockSecretHash,
-			Expiration:     state.FromTransfer.Expiration,
-			Receiver:       state.FromRoute.HopNode(),
-			Reason:         rerr.ErrNotAllowMediatedTransfer,
-		}
-		return &transfer.TransitionResult{
-			NewState: state,
-			Events:   []transfer.Event{rtr2},
-		}
 	}
 	safeToWait := mediator.IsSafeToWait(tr, route.RevealTimeout(), blockNumber)
 	/*

@@ -541,6 +541,10 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		// We need to consider cases with potential attack risks, such as sending a lock that I know the secret but not yet unlock.
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
+	// 当没有有效公链的时候,不接收MediatedTransfer
+	if !mh.photon.IsChainEffective {
+		return rerr.ErrNotAllowMediatedTransfer
+	}
 	if _, ok := mh.blockedTokens[token]; ok {
 		return rerr.ErrTransferUnwanted
 	}

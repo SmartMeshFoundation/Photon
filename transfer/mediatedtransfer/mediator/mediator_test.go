@@ -8,6 +8,8 @@ import (
 
 	"math/big"
 
+	"os"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
@@ -18,7 +20,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils/utest"
 	"github.com/ethereum/go-ethereum/common"
 	assert2 "github.com/stretchr/testify/assert"
-	"os"
 )
 
 var x = big.NewInt(0)
@@ -418,7 +419,7 @@ func TestEventsForRefund(t *testing.T) {
 	refundRoute := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, revealTimeout, 0, utils.NewRandomHash())
 	refundTransfer := utest.MakeTransfer(amount, initiator, target, expiration, utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 
-	refundEvents := eventsForRefund(refundRoute, refundTransfer, rerr.ErrNoAvailabeRoute)
+	refundEvents := eventsForRefund(refundRoute, refundTransfer, rerr.ErrNoAvailabeRoute, true)
 	ev, ok := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 	assert(t, ev.Expiration < blockNumber+int64(timeoutBlocks), true)
