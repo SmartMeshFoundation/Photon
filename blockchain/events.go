@@ -311,21 +311,7 @@ func (be *Events) startAlarmTask() {
 			}
 			be.StateChangeChannel <- sc
 		}
-		//正常启动流程是,所有历史事件处理完毕,然后再通知photon继续启动
-		be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
-		if lastSendBlockNumber != currentBlock {
-			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
-		}
-		//// 每5倍确认块清除一次过期流水
-		//if fromBlockNumber%(5*params.ForkConfirmNumber) == 0 {
-		//	be.chainEventRecordDao.ClearOldChainEventRecord(uint64(fromBlockNumber))
-		//}
-		// 清除过期流水
-		for key, blockNumber := range be.txDone {
-			if blockNumber <= uint64(fromBlockNumber) {
-				delete(be.txDone, key)
-			}
-		}
+		// 先切换有效公链,保证消息处理开始时,
 		// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
 		if !be.isChainEffective {
 			be.isChainEffective = true
@@ -333,6 +319,17 @@ func (be *Events) startAlarmTask() {
 				IsEffective:              true,
 				LastBlockNumber:          lastedBlock,
 				LastBlockNumberTimestamp: lastedBlockTimestamp,
+			}
+		}
+		//正常启动流程是,所有历史事件处理完毕,然后再通知photon继续启动
+		if lastSendBlockNumber != currentBlock {
+			be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
+		}
+		be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
+		// 清除过期流水
+		for key, blockNumber := range be.txDone {
+			if blockNumber <= uint64(fromBlockNumber) {
+				delete(be.txDone, key)
 			}
 		}
 		// wait to next time
