@@ -1701,22 +1701,6 @@ func (rs *Service) handleEthRPCConnectionOK() {
 	if err != nil {
 		log.Error(fmt.Sprintf("BlockChainService.Registry err =%s", err.Error()))
 	}
-	// 重连时上传手续费设置给PFS
-	if fm, ok := rs.FeePolicy.(*FeeModule); ok {
-		err := fm.SubmitFeePolicyToPFS()
-		if err != nil {
-			log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err.Error()))
-		}
-	}
-	// 重连或启动时，刷新所有通道状态信息到pfs
-	for _, cg := range rs.Token2ChannelGraph {
-		for _, ch := range cg.ChannelIdentifier2Channel {
-			if ch.State != channeltype.StateOpened {
-				continue
-			}
-			rs.submitBalanceProofToPfs(ch)
-		}
-	}
 }
 
 //all user's request

@@ -190,6 +190,13 @@ type ChainEventRecordDao interface {
 	MakeChainEventID(l *types.Log) ChainEventID
 }
 
+// UnlockToSendDao :
+type UnlockToSendDao interface {
+	NewUnlockToSend(lockSecretHash common.Hash, tokenAddress, receiver common.Address, blockNumber int64) *UnlockToSend
+	GetAllUnlockToSend() (list []*UnlockToSend)
+	RemoveUnlockToSend(key []byte)
+}
+
 // Dao :
 type Dao interface {
 	AckDao
@@ -213,6 +220,7 @@ type Dao interface {
 	TXInfoDao
 	SentTransferDetailDao
 	ChainEventRecordDao
+	UnlockToSendDao
 
 	StartTx() (tx TX)
 	CloseDB()

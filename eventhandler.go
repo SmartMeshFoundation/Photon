@@ -202,14 +202,20 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	return
 }
-func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
+func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof) (err error) {
+	if !eh.photon.IsChainEffective {
+		// 在无有效公链的情况下,阻止本应该发送的unlock消息并保存在数据库,当切换到有效公链的时候,再视情况决定是否发送
+		eh.photon.dao.NewUnlockToSend(event.LockSecretHash, event.Token, event.Receiver, eh.photon.GetBlockNumber())
+		log.Info(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db and wait to send after effective chain",
+			event.LockSecretHash.String(), event.Token.String(), event.Receiver.String()))
+		return
+	}
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
 	if ch == nil {
-		err = fmt.Errorf("receive EventSendBalanceProof,but cannot found the channel,there must be error, event=%s,stateManager=%s",
-			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
-		)
+		err = fmt.Errorf("receive EventSendBalanceProof,but cannot found the channel,there must be error, event=%s",
+			utils.StringInterface(event, 3))
 		log.Error(err.Error())
 		return
 	}
@@ -425,7 +431,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.photon.conditionQuit("EventSendRevealSecretAfter")
 	case *mediatedtransfer.EventSendBalanceProof:
 		//unlock and update remotely (send the LockSecretHash message)
-		err = eh.eventSendUnlock(e2, stateManager)
+		err = eh.eventSendUnlock(e2)
 		eh.photon.conditionQuit("EventSendUnlockAfter")
 	case *mediatedtransfer.EventSendSecretRequest:
 		err = eh.eventSendSecretRequest(e2, stateManager)
@@ -891,8 +897,40 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 		// 有效公链切无效公链
 		log.Info("photon works without effective chain now...")
 	} else {
-		// 无效公链切有效公链
+		// 无效公链切有效公链,包含启动时
 		log.Info("photon works with effective chain now...")
+		// 1. 上传手续费设置给PFS
+		if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
+			err2 := fm.SubmitFeePolicyToPFS()
+			if err2 != nil {
+				log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+			}
+		}
+		// 2. 刷新所有通道状态信息到pfs
+		for _, cg := range eh.photon.Token2ChannelGraph {
+			for _, ch := range cg.ChannelIdentifier2Channel {
+				if ch.State != channeltype.StateOpened {
+					continue
+				}
+				eh.photon.submitBalanceProofToPfs(ch)
+			}
+		}
+		// 3. 获取所有等待发送的Unlock消息并发送,并从db里移除
+		unlockToSendList := eh.photon.dao.GetAllUnlockToSend()
+		for _, unlockToSend := range unlockToSendList {
+			e := &mediatedtransfer.EventSendBalanceProof{
+				LockSecretHash: common.BytesToHash(unlockToSend.LockSecretHash),
+				Token:          common.BytesToAddress(unlockToSend.TokenAddress),
+				Receiver:       common.BytesToAddress(unlockToSend.ReceiverAddress),
+			}
+			err2 := eh.OnEvent(e, nil)
+			if err2 != nil {
+				log.Info(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db send err : %s",
+					e.LockSecretHash.String(), e.Token.String(), e.Receiver.String(), err2.Error()))
+			}
+			key := utils.Sha3(unlockToSend.LockSecretHash, unlockToSend.TokenAddress, unlockToSend.ReceiverAddress).Bytes()
+			eh.photon.dao.RemoveUnlockToSend(key)
+		}
 	}
 	// 下发到所有的stateManager里面,正在进行的交易自行进行对应处理
 	eh.dispatchToAllTasks(st)
