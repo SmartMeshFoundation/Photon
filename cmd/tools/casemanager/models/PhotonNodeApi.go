@@ -443,7 +443,7 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 	//记录deposit之前节点在此已存在通道的余额
 	partners, err := node.TokenPartners(tokenAddress)
 	if err != nil {
-		Logger.Println(fmt.Sprintf("DepositApi %s err :%s when get node-balance in this channel at first:%s", req.FullURL, err))
+		Logger.Println(fmt.Sprintf("DepositApi %s err :%s when get node-balance in this channel before deposit", req.FullURL, err))
 		return err
 	}
 	if len(partners) == 0 {
