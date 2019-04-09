@@ -139,7 +139,7 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 		//log.Error(err.Error())
 		return
 	}
-	log.Debug(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
+	log.Info(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
 	return nil
 }
 
@@ -286,16 +286,17 @@ func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	log.Debug(req.ToString())
+	//log.Debug(req.ToString())
 	if err != nil {
-		log.Error(fmt.Sprintf("PfgAPI SetFeePolicy %s err :%s", req.FullURL, err))
+		log.Error(fmt.Sprintf("PfsAPI SetFeePolicy %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
-		err = fmt.Errorf("PfgAPI SetFeePolicy %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
+		err = fmt.Errorf("PfsAPI SetFeePolicy %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
 		log.Error(err.Error())
 		return
 	}
+	log.Info("PfsAPI SetFeePolicy SUCCESS")
 	return nil
 }
 

@@ -1715,7 +1715,6 @@ func (rs *Service) handleEthRPCConnectionOK() {
 				continue
 			}
 			rs.submitBalanceProofToPfs(ch)
-			log.Trace(fmt.Sprintf("submitBalanceProofToPfs ch=%s ", ch.ChannelIdentifier.String()))
 		}
 	}
 }
