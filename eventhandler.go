@@ -7,12 +7,15 @@ import (
 
 	"errors"
 
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/graph"
+	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -23,7 +26,8 @@ import (
 
 //run inside loop of photon service
 type stateMachineEventHandler struct {
-	photon *Service
+	photon                             *Service
+	noEffectiveChainNotifyLoopQuitChan chan *struct{}
 }
 
 func newStateMachineEventHandler(photon *Service) *stateMachineEventHandler {
@@ -902,6 +906,8 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 	if !isChainEffective {
 		// 有效公链切无效公链
 		log.Info("photon works without effective chain now...")
+		// 1. 启动无有效公链状态下的用户提醒线程
+		go eh.startNoEffectiveChainNotifyLoop()
 	} else {
 		// 无效公链切有效公链,包含启动时
 		log.Info("photon works with effective chain now...")
@@ -937,10 +943,38 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 			key := utils.Sha3(unlockToSend.LockSecretHash, unlockToSend.TokenAddress, unlockToSend.ReceiverAddress).Bytes()
 			eh.photon.dao.RemoveUnlockToSend(key)
 		}
+		// 4. 关闭提醒线程
+		eh.stopNoEffectiveChainNotifyLoop()
 	}
 	// 下发到所有的stateManager里面,正在进行的交易自行进行对应处理
 	eh.dispatchToAllTasks(st)
 	return nil
+}
+
+func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
+	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
+		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
+	}
+	periodBlock := eh.photon.getMinSettleTimeout() / 10
+	periodSecond := time.Duration(periodBlock) * time.Second // 这里应该取MinSettleTimeout/10 * 出块间隔
+	for {
+		select {
+		case <-eh.noEffectiveChainNotifyLoopQuitChan:
+			return
+		case <-time.After(periodSecond):
+			t := time.Since(time.Unix(eh.photon.EffectiveChangeTimestamp, 0)).Round(time.Second)
+			warning := fmt.Sprintf("photon has been worked without effective block chain for about %s", t)
+			eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning)
+			log.Warn(warning)
+		}
+	}
+}
+
+func (eh *stateMachineEventHandler) stopNoEffectiveChainNotifyLoop() {
+	if eh.noEffectiveChainNotifyLoopQuitChan != nil {
+		close(eh.noEffectiveChainNotifyLoopQuitChan)
+		eh.noEffectiveChainNotifyLoopQuitChan = nil
+	}
 }
 
 //avoid dead lock

@@ -220,7 +220,7 @@ func (be *Events) startAlarmTask() {
 			lastedBlockTimestamp = lastedBlockTimestamp / 1000
 		}
 		now := time.Now().Unix()
-		if lastedBlockTimestamp-now > params.BlockPeriodSeconds {
+		if lastedBlockTimestamp-now > int64(params.BlockPeriodSeconds) {
 			// 如果本地时间小于最新块的出块时间15秒,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
 			log.Crit(fmt.Sprintf("local time error local=%d lastedBlockTimestamp=%d, please run photon again after you fix local time server", now, lastedBlockTimestamp))
 		}

@@ -2202,6 +2202,9 @@ func (rs *Service) removeToken2LockSecretHash2channel(secretHash common.Hash, ch
 	}
 }
 
+/*
+获取最小SettleTimeout值
+*/
 func (rs *Service) getMinSettleTimeout() int {
 	var minSettleTimeout int
 	// 限制最小SettleTimeout最小值

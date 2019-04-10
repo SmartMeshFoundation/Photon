@@ -202,13 +202,13 @@ var DefaultMDNSQueryInterval = time.Second
 var EnableMDNS = true
 
 // BlockPeriodSecondsForTest 测试链,1秒出块间隔
-var BlockPeriodSecondsForTest int64 = 1
+var BlockPeriodSecondsForTest = 1
 
 // BlockPeriodSecondsForTest2 自动化测试链,50毫秒出块间隔
 var BlockPeriodSecondsForTest2 float32 = 0.05
 
 // BlockPeriodSeconds spectrum或ethereum,15秒出块间隔
-var BlockPeriodSeconds int64 = 15
+var BlockPeriodSeconds = 15
 
 // IsMainNet 是否为主网
 var IsMainNet = false
