@@ -678,7 +678,6 @@ type updateTransfer struct {
 type unlock struct {
 	Lock        *mtree.Lock `json:"lock"`
 	MerkleProof []byte      `json:"merkle_proof"`
-	Secret      common.Hash `json:"secret"`
 	Signature   []byte      `json:"signature"`
 }
 
@@ -734,11 +733,10 @@ func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, third
 
 	tree := mtree.NewMerkleTree(c.PartnerLeaves)
 	var ws []*unlock
-	for _, l := range c.PartnerLock2UnclaimedLocks() {
-		proof := channel.ComputeProofForLock(l.Lock, tree)
+	for _, l := range c.PartnerLeaves {
+		proof := channel.ComputeProofForLock(l, tree)
 		w := &unlock{
-			Lock:        l.Lock,
-			Secret:      l.Secret,
+			Lock:        l,
 			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
 		}
 		w.Signature, err = signUnlockFor3rd(c, w, thirdAddr, r.Photon.PrivateKey)
