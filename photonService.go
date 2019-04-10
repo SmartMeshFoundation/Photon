@@ -1073,6 +1073,10 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 				return
 			}
 			nextChan := rs.getChannel(ch.TokenAddress, msg.Path[myIndexInPath+1])
+			if nextChan == nil {
+				log.Error(fmt.Sprintf("receive path,but channel between me and %s doesn't exist", msg.Path[myIndexInPath+1].String()))
+				return
+			}
 			// 构造路由,手续费根据TargetAmount在下家通道中的费率计算
 			availableRoute := route.NewState(nextChan, msg.Path)
 			targetAmount := new(big.Int).Sub(msg.PaymentAmount, msg.Fee)
