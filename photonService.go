@@ -1264,6 +1264,10 @@ Process user's new channel request
 */
 func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) *utils.AsyncResult {
 	if isNewChannel {
+		minSettleTimeout := rs.getMinSettleTimeout()
+		if settleTimeout <= minSettleTimeout {
+			return utils.NewAsyncResultWithError(rerr.ErrArgumentError.Append(fmt.Sprintf("settle_timeout must bigger than %d", minSettleTimeout)))
+		}
 		g := rs.Token2ChannelGraph[token]
 		if g != nil {
 			if g.GetPartenerAddress2Channel(partner) != nil {
@@ -2196,4 +2200,15 @@ func (rs *Service) removeToken2LockSecretHash2channel(secretHash common.Hash, ch
 	if len(chs) == 0 {
 		delete(m, secretHash)
 	}
+}
+
+func (rs *Service) getMinSettleTimeout() int {
+	var minSettleTimeout int
+	// 限制最小SettleTimeout最小值
+	if params.IsMainNet {
+		minSettleTimeout = params.MainNetChannelSettleTimeoutMin
+	} else {
+		minSettleTimeout = params.TestNetChannelSettleTimeoutMin
+	}
+	return minSettleTimeout
 }

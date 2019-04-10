@@ -609,6 +609,10 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 		log.Error(err.Error())
 		return
 	}
+	// 根据创世区块hash设置主网标记
+	if genesisBlockHash == params.MainNetGenesisBlockHash {
+		params.IsMainNet = true
+	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	return
 }

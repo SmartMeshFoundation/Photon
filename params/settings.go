@@ -49,17 +49,6 @@ const MaxRequestTimeout = 20 * time.Minute //longest time for a request ,for exa
 
 var gasLimitHex string
 
-//ChannelSettleTimeoutMin min settle timeout
-const ChannelSettleTimeoutMin = 6
-
-/*
-ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
- 1 year with the assumption of very fast block times of 12 seconds.
- There is a maximum to avoidpotential overflows as described here:
- https://github.com/Photon/photon/issues/1038
-*/
-const ChannelSettleTimeoutMax = 2700000
-
 //UDPMaxMessageSize message size
 const UDPMaxMessageSize = 1200
 
@@ -142,6 +131,9 @@ const DiscoveryServer = "transport01.smartmesh.cn"
 //NETWORKNAME Specify the network name of the Ethereum network to run Photon on
 var NETWORKNAME = "ropsten"
 
+// MainNetGenesisBlockHash 主网即spectrum创世区块hash
+var MainNetGenesisBlockHash = common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d")
+
 //GenesisBlockHashToDefaultRegistryAddress :
 var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// spectrum
@@ -217,3 +209,20 @@ var BlockPeriodSecondsForTest2 float32 = 0.05
 
 // BlockPeriodSeconds spectrum或ethereum,15秒出块间隔
 var BlockPeriodSeconds int64 = 15
+
+// IsMainNet 是否为主网
+var IsMainNet = false
+
+//MainNetChannelSettleTimeoutMin min settle timeout of main net,主网按一周计算,14秒一块
+const MainNetChannelSettleTimeoutMin = 43200
+
+//TestNetChannelSettleTimeoutMin min settle timeout of main net,测试网60块
+const TestNetChannelSettleTimeoutMin = 60
+
+/*
+ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
+ 1 year with the assumption of very fast block times of 12 seconds.
+ There is a maximum to avoidpotential overflows as described here:
+ https://github.com/Photon/photon/issues/1038
+*/
+const ChannelSettleTimeoutMax = 2700000
