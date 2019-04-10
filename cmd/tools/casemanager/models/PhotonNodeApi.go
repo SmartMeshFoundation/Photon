@@ -20,6 +20,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
+	"strings"
 )
 
 // GetChannelWith :
@@ -439,6 +440,30 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 		Payload: string(p),
 		Timeout: time.Second * 20,
 	}
+	//记录deposit之前节点在此已存在通道的余额
+	partners, err := node.TokenPartners(tokenAddress)
+	if err != nil {
+		Logger.Println(fmt.Sprintf("DepositApi %s err :%s when get node-balance in this channel before deposit", req.FullURL, err))
+		return err
+	}
+	if len(partners) == 0 {
+		Logger.Println(fmt.Sprintf("DepositApi %s err :%s,no channel between %s and %s in token %s", req.FullURL, err, node.Address, partnerAddress, tokenAddress))
+		return err
+	}
+	channelInfo := ""
+	for _, data := range partners {
+		if data.PartnerAddress == partnerAddress {
+			channelInfo = data.Channel
+			break
+		}
+	}
+	channelInfo = strings.Split(channelInfo, "/")[3]
+	c, err := node.SpecifiedChannel(channelInfo)
+	if err != nil {
+		Logger.Println(fmt.Sprintf("DepositApi %s err when get SpecifiedChannel:%s", req.FullURL, err))
+		return err
+	}
+	nodeBalanceBeforeDeposit := c.Balance
 	body, err := req.Invoke()
 	if err != nil {
 		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
@@ -467,6 +492,17 @@ func (node *PhotonNode) Deposit(partnerAddress, tokenAddress string, balance int
 	}
 	if i == ws {
 		return errors.New("timeout")
+	}
+	//Deposit是异步处理，有些case是Deposit之后马上验证通道余额，udp和matrix都有可能验证失败
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		cx, err := node.SpecifiedChannel(ch.ChannelIdentifier)
+		if err == nil && cx.Balance.Cmp(new(big.Int).Add(nodeBalanceBeforeDeposit, big.NewInt(balance))) == 0 {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("check result of Deposit timeout")
 	}
 	return nil
 }
