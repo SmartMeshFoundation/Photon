@@ -301,7 +301,7 @@ func (rs *Service) Start() (err error) {
 	*/
 	rs.Protocol.StartReceive()
 	/*
-		启动定时提交balance_proof到pfs的线程
+		启动定时提交balance_proof到pfs及pms的线程
 	*/
 	go rs.submitBalanceProofToPfsLoop()
 	//
@@ -410,11 +410,6 @@ func (rs *Service) loop() {
 				return
 			}
 		case s := <-rs.Chain.Client.StatusChan:
-			select {
-			case rs.EthConnectionStatus <- s:
-			default:
-				//never block
-			}
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
@@ -1870,6 +1865,10 @@ func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (
 		}
 	}
 	return
+}
+
+func (rs *Service) submitDelegateToPmsLoop() {
+	log.Trace("submitDelegateToPmsLoop start...")
 }
 
 func (rs *Service) submitBalanceProofToPfsLoop() {

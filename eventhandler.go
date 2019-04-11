@@ -15,6 +15,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/graph"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -908,9 +909,21 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 		log.Info("photon works without effective chain now...")
 		// 1. 启动无有效公链状态下的用户提醒线程
 		go eh.startNoEffectiveChainNotifyLoop()
+		// 2. 通知上层进入无网
+		select {
+		case eh.photon.EthConnectionStatus <- netshare.Disconnected:
+		default:
+			//never block
+		}
 	} else {
 		// 无效公链切有效公链,包含启动时
 		log.Info("photon works with effective chain now...")
+		// 0. 通知上层进入有网
+		select {
+		case eh.photon.EthConnectionStatus <- netshare.Connected:
+		default:
+			//never block
+		}
 		// 1. 上传手续费设置给PFS
 		if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
 			err2 := fm.SubmitFeePolicyToPFS()
