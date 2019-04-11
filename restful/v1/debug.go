@@ -41,12 +41,7 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
-	t, err := API.Photon.Chain.Token(token)
-	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
-		return
-	}
-	v, err := t.BalanceOf(addr)
+	v, err := API.GetTokenBalance(addr, token)
 	resp = dto.NewAPIResponse(err, v)
 }
 

@@ -93,6 +93,7 @@ func Start() {
 		rest.Get("/api/1/channels", GetChannelList),
 		rest.Patch("/api/1/channels/:channel", CloseSettleChannel),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
+		rest.Get("/api/1/channel-settle-block/:channel", GetChannelSettleBlock),
 
 		/*
 			Deposit
@@ -127,6 +128,10 @@ func Start() {
 		rest.Post("/api/1/income/details", GetIncomeDetails),
 		rest.Post("/api/1/income/days", GetDaysIncome),
 
+		/*
+			assets
+		*/
+		rest.Post("/api/1/assets", GetAssetsOnToken),
 		/*
 			test
 		*/

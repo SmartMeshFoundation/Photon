@@ -363,3 +363,16 @@ func BalanceUpdateForPFS(w rest.ResponseWriter, r *rest.Request) {
 	result, err := API.BalanceProofForPFS(channelIdentifier)
 	resp = dto.NewAPIResponse(err, result)
 }
+
+// GetChannelSettleBlock :
+func GetChannelSettleBlock(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetChannelSettleBlock ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	ch := r.PathParam("channel")
+	channelIdentifier := common.HexToHash(ch)
+	result := API.GetChannelSettleBlock(channelIdentifier)
+	resp = dto.NewSuccessAPIResponse(result)
+}

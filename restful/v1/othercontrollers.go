@@ -234,3 +234,28 @@ func GetBuildInfo(w rest.ResponseWriter, r *rest.Request) {
 	}()
 	resp = dto.NewSuccessAPIResponse(API.GetBuildInfo())
 }
+
+// GetAssetsOnTokenRequest :
+type GetAssetsOnTokenRequest struct {
+	TokenList []string `json:"token_list"`
+}
+
+//GetAssetsOnToken :
+func GetAssetsOnToken(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetAssetsOnToken ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	req := &GetAssetsOnTokenRequest{}
+	err := r.DecodeJsonPayload(req)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	var tokenList []common.Address
+	for _, token := range req.TokenList {
+		tokenList = append(tokenList, common.HexToAddress(token))
+	}
+	resp = dto.NewSuccessAPIResponse(API.GetAssetsOnToken(tokenList))
+}

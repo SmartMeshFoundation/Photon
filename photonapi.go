@@ -1332,3 +1332,75 @@ func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp []*DaysInc
 func (r *API) GetBuildInfo() *BuildInfo {
 	return r.Photon.BuildInfo
 }
+
+// GetChannelSettleBlockResponse :
+type GetChannelSettleBlockResponse struct {
+	BlockNumberNow              int64 `json:"block_number_now"`
+	BlockNumberChannelCanSettle int64 `json:"block_number_channel_can_settle,omitempty"`
+}
+
+// GetChannelSettleBlock :
+func (r *API) GetChannelSettleBlock(channelIdentifier common.Hash) *GetChannelSettleBlockResponse {
+	resp := &GetChannelSettleBlockResponse{}
+	// 1. 获取当前块
+	resp.BlockNumberNow = r.Photon.GetBlockNumber()
+	// 2. 获取通道SettleBlock
+	c := r.Photon.getChannelWithAddr(channelIdentifier)
+	if c == nil || c.State != channeltype.StateClosed {
+		return resp
+	}
+	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout)
+	return resp
+}
+
+// GetTokenBalance 获取账户在token上的余额
+func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
+	t, err := r.Photon.Chain.Token(token)
+	if err != nil {
+		return nil, rerr.ErrArgumentError.AppendError(err)
+	}
+	v, err := t.BalanceOf(account)
+	if err != nil {
+		return nil, rerr.ErrArgumentError.AppendError(err)
+	}
+	return v, nil
+}
+
+// GetAssetsOnTokenResponseDetail :
+type GetAssetsOnTokenResponseDetail struct {
+	TokenAddress    string `json:"token_address"`
+	BalanceOnChain  int64  `json:"balance_on_chain"`
+	BalanceInPhoton int64  `json:"balance_in_photon"`
+}
+
+// GetAssetsOnToken :
+func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenResponseDetail {
+	if len(tokenList) == 0 {
+		tokenList = r.GetTokenList()
+	}
+	var resp []*GetAssetsOnTokenResponseDetail
+	for _, token := range tokenList {
+		d := &GetAssetsOnTokenResponseDetail{
+			TokenAddress: token.String(),
+		}
+		// 1. 获取用户在链上的该token余额
+		t, err := r.GetTokenBalance(r.Photon.NodeAddress, token)
+		if err != nil {
+			log.Error(err.Error())
+		} else {
+			d.BalanceOnChain = t.Int64()
+		}
+		// 2. 获取用户在photon中的该token余额
+		balance, err := r.GetBalanceByTokenAddress(token)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		if len(balance) == 1 {
+			d.BalanceInPhoton = balance[0].Balance.Int64()
+		}
+		if d.BalanceOnChain > 0 || d.BalanceInPhoton > 0 {
+			resp = append(resp, d)
+		}
+	}
+	return resp
+}

@@ -902,6 +902,10 @@ func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockSta
 */
 func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer.EffectiveChainStateChange) (err error) {
 	isChainEffective := st.IsEffective
+	if isChainEffective == eh.photon.IsChainEffective {
+		// 过滤重复
+		return
+	}
 	eh.photon.IsChainEffective = isChainEffective
 	eh.photon.EffectiveChangeTimestamp = st.LastBlockNumberTimestamp
 	if !isChainEffective {

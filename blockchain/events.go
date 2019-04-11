@@ -226,7 +226,7 @@ func (be *Events) startAlarmTask() {
 		}
 		//连接到了有效的公链链接,但是公链最新块在三分钟之前,可能公链已经停止同步了
 		//todo 为180定义一个数字
-		if now-lastedBlockTimestamp >= 180 {
+		if now-lastedBlockTimestamp >= 180 && startUpBlockNumber == currentBlock {
 			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
 			be.isChainEffective = false
 			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
@@ -235,15 +235,6 @@ func (be *Events) startAlarmTask() {
 				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
 		}
-		//else if lastedBlock > currentBlock && !be.isChainEffective {
-		//	// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
-		//	be.isChainEffective = true
-		//	be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
-		//		IsEffective:              true,
-		//		LastBlockNumber:          lastedBlock,
-		//		LastBlockNumberTimestamp: lastedBlockTimestamp,
-		//	}
-		//}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
 			if startUpBlockNumber >= lastedBlock {
