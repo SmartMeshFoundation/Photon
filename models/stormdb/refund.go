@@ -97,3 +97,17 @@ func (model *StormDB) GetChannelAnnounceDisposed(channelIdentifier common.Hash) 
 	}
 	return anns
 }
+
+// MarkSubmittedByChannel 将一个通道上收到的所有punish都置为已委托
+func (model *StormDB) MarkLockHashCanPunishSubmittedByChannel(channelIdentifier common.Hash) {
+	list := model.GetChannelAnnounceDisposed(channelIdentifier)
+	if list != nil && len(list) > 0 {
+		for _, l := range list {
+			err := model.db.UpdateField(l, "IsSubmittedToPms", true)
+			if err != nil {
+				log.Error(fmt.Sprintf("MarkSubmittedAnnounceDispose failed, channel=%s lockHash=%s err=%s",
+					channelIdentifier.String(), common.BytesToHash(l.LockHash).String(), err.Error()))
+			}
+		}
+	}
+}

@@ -226,3 +226,6 @@ ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
  https://github.com/Photon/photon/issues/1038
 */
 const ChannelSettleTimeoutMax = 2700000
+
+// ContractPunishBlockNumber 合约上设置的专门留给punish的块
+const ContractPunishBlockNumber uint64 = 257

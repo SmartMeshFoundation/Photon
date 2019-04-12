@@ -136,6 +136,7 @@ type ReceivedAnnounceDisposedDao interface {
 	IsLockHashCanPunish(lockHash, channelIdentifier common.Hash) bool
 	GetReceivedAnnounceDisposed(lockHash, channelIdentifier common.Hash) *ReceivedAnnounceDisposed
 	GetChannelAnnounceDisposed(channelIdentifier common.Hash) []*ReceivedAnnounceDisposed
+	MarkLockHashCanPunishSubmittedByChannel(channelIdentifier common.Hash)
 }
 
 // SettledChannelDao :

@@ -70,6 +70,8 @@ type Config struct {
 	PfsHost                   string // pathfinder server host
 	HTTPUsername              string
 	HTTPPassword              string
+	PmsHost                   string // pms server host
+	PmsAddress                common.Address
 }
 
 //DefaultConfig default config

@@ -57,4 +57,14 @@ func TestNewReceivedAnnounceDisposed(t *testing.T) {
 		t.Error("should be nil")
 		return
 	}
+
+	list := dao.GetChannelAnnounceDisposed(channel)
+	for _, l := range list {
+		assert.EqualValues(t, false, l.IsSubmittedToPms)
+	}
+	dao.MarkLockHashCanPunishSubmittedByChannel(channel)
+	list = dao.GetChannelAnnounceDisposed(channel)
+	for _, l := range list {
+		assert.EqualValues(t, true, l.IsSubmittedToPms)
+	}
 }

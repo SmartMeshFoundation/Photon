@@ -31,6 +31,7 @@ type Channel struct {
 	SettleTimeout     int
 	feeCharger        fee.Charger //calc fee for each transfer?
 	State             channeltype.State
+	DelegateState     channeltype.ChannelDelegateState
 }
 
 /*
@@ -57,6 +58,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		RevealTimeout:     revealTimeout,
 		SettleTimeout:     settleTimeout,
 		State:             channeltype.StateOpened, //如果是从数据中恢复,state会直接被修改,如果是新建的则初始状态就是open
+		DelegateState:     channeltype.ChannelDelegateStateNoNeed,
 	}
 	return
 }
@@ -1500,6 +1502,7 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		OurKnownSecrets:        ourSecrets,
 		PartnerKnownSecrets:    partnerSecrets,
 		State:                  c.State,
+		DelegateState:          c.DelegateState,
 		SettleTimeout:          c.SettleTimeout,
 		OurContractBalance:     c.OurState.ContractBalance,
 		PartnerContractBalance: c.PartnerState.ContractBalance,

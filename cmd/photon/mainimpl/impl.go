@@ -170,6 +170,14 @@ func StartMain() (*photon.API, error) {
 			Name:  "pfs",
 			Usage: "pathfinder service host,example http://transport01.smartmesh.cn:7000,default ",
 		},
+		cli.StringFlag{
+			Name:  "pms",
+			Usage: "photon-monitoring service host,example http://transport01.smartmesh.cn:8000",
+		},
+		cli.StringFlag{
+			Name:  "pms-address",
+			Usage: "account address of photon-monitoring",
+		},
 		cli.BoolFlag{
 			Name:  "enable-fork-confirm",
 			Usage: "enable fork confirm when receive events from chain,default is false,default is disabled",
@@ -533,6 +541,8 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	}
 	params.DefaultMDNSKeepalive = dur
 	mdns.ServiceTag = ctx.String("debug-mdns-servicetag")
+	config.PmsHost = ctx.String("pms")
+	config.PmsAddress = common.HexToAddress(ctx.String("pms-address"))
 	return
 }
 

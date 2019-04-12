@@ -121,20 +121,20 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 		ProofSigner: proofSigner,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		//log.Error(req.ToString())
+		//log.Error(Req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
 		return ErrConnect
 	}
 	if statusCode != 200 {
-		//log.Error(req.ToString())
+		//log.Error(Req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
 		//log.Error(err.Error())
 		return
@@ -215,10 +215,10 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 		PeerFromChargeFee: !isInitiator,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/paths",
 		Method:  http.MethodPost,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -279,14 +279,14 @@ func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
 		return ErrNotInit
 	}
 	fp.Sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/feerate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(fp),
+		Payload: utils.Marshal(fp),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	//log.Debug(req.ToString())
+	//log.Debug(Req.ToString())
 	if err != nil {
 		log.Error(fmt.Sprintf("PfsAPI SetFeePolicy %s err :%s", req.FullURL, err))
 		return
@@ -312,10 +312,10 @@ func (pfg *pfsClient) SetAccountFee(feeConstant *big.Int, feePercent int64) (err
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -340,7 +340,7 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -376,10 +376,10 @@ func (pfg *pfsClient) SetTokenFee(feeConstant *big.Int, feePercent int64, tokenA
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -404,7 +404,7 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -440,10 +440,10 @@ func (pfg *pfsClient) SetChannelFee(feeConstant *big.Int, feePercent int64, chan
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -468,7 +468,7 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -490,20 +490,4 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 		panic(err)
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
-}
-
-func marshal(v interface{}) string {
-	p, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return string(p)
-}
-
-func marshalIndent(v interface{}) string {
-	p, err := json.MarshalIndent(v, "\t", "")
-	if err != nil {
-		panic(err)
-	}
-	return string(p)
 }

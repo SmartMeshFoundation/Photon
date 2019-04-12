@@ -33,6 +33,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
+	"github.com/SmartMeshFoundation/Photon/pmsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -94,6 +95,7 @@ type Service struct {
 	FeePolicy                fee.Charger //Mediation fee
 	NotifyHandler            *notify.Handler
 	PfsProxy                 pfsproxy.PfsProxy
+	PmsProxy                 pmsproxy.PmsProxy
 
 	/*
 	 */
@@ -139,6 +141,7 @@ type Service struct {
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
 	ChanSubmitBalanceProofToPFS           chan *channel.Channel // 供submitBalanceProofToPfsLoop线程使用
+	ChanSubmitDelegateToPMS               chan *channel.Channel // 供submitDelegateToPmsLoop线程使用
 
 	/*
 		取值规则如下:
@@ -184,6 +187,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
 		BuildInfo:                             new(BuildInfo),
 		ChanSubmitBalanceProofToPFS:           make(chan *channel.Channel, 100),
+		ChanSubmitDelegateToPMS:               make(chan *channel.Channel, 100),
 		IsChainEffective:                      false,
 	}
 	rs.BlockNumber.Store(int64(0))
@@ -227,6 +231,10 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		}
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
+	}
+	// pms
+	if rs.Config.PmsHost != "" && rs.Config.PmsAddress != utils.EmptyAddress {
+		rs.PmsProxy = pmsproxy.NewPmsProxy(rs.Config.PmsHost, rs.NodeAddress, rs.Config.PmsAddress)
 	}
 	return rs, nil
 }
@@ -304,6 +312,7 @@ func (rs *Service) Start() (err error) {
 		启动定时提交balance_proof到pfs及pms的线程
 	*/
 	go rs.submitBalanceProofToPfsLoop()
+	go rs.submitDelegateToPmsLoop()
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
@@ -1867,8 +1876,68 @@ func (rs *Service) findAllChannelsByLockSecretHash(lockSecretHash common.Hash) (
 	return
 }
 
+func (rs *Service) submitDelegateToPms(ch *channel.Channel) {
+	select {
+	case rs.ChanSubmitDelegateToPMS <- ch:
+	default:
+		// never block
+	}
+}
+
 func (rs *Service) submitDelegateToPmsLoop() {
 	log.Trace("submitDelegateToPmsLoop start...")
+	for {
+		if rs.PmsProxy == nil {
+			log.Trace("submitDelegateToPmsLoop stop because PmsProxy is nil")
+			return
+		}
+		ch, ok := <-rs.ChanSubmitDelegateToPMS
+		if !ok {
+			log.Trace("submitDelegateToPmsLoop stop because chan close")
+			return
+		}
+		// 1. 获取待提交数据
+		data, err := rs.GetDelegateForPms(channel.NewChannelSerialization(ch), utils.EmptyAddress)
+		if err != nil {
+			log.Error(fmt.Sprintf("submitDelegateToPmsLoop GetDelegateForPms of channel %s err : %s,ignore", ch.ChannelIdentifier.ChannelIdentifier.String(), err.Error()))
+			continue
+		}
+		// 2. 提交至pms,失败最多重试3次
+		err = rs.PmsProxy.SubmitDelegate(data)
+		if err == pmsproxy.ErrConnect {
+			// 网络错误重试3次
+			for i := 0; i < 3; i++ {
+				err = rs.PmsProxy.SubmitDelegate(data)
+				if err == pmsproxy.ErrConnect {
+					continue
+				} else {
+					break
+				}
+			}
+		}
+		// 3. 根据提交结果修改db中的channel状态
+		if err == nil {
+			ch.DelegateState = channeltype.ChannelDelegateStateSuccess
+		} else {
+			ch.DelegateState = channeltype.ChannelDelegateStateFail
+			log.Error(err.Error())
+		}
+		err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+		if err != nil {
+			log.Error("")
+			continue
+		}
+		// 4. 修改已提交的punish状态
+		rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+	}
+}
+
+func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
+	select {
+	case rs.ChanSubmitBalanceProofToPFS <- ch:
+	default:
+		// never block
+	}
 }
 
 func (rs *Service) submitBalanceProofToPfsLoop() {
@@ -1912,6 +1981,8 @@ func (rs *Service) submitBalanceProofToPfsLoop() {
 				)
 				if err == pfsproxy.ErrConnect {
 					continue
+				} else {
+					break
 				}
 			}
 		}
@@ -1919,32 +1990,6 @@ func (rs *Service) submitBalanceProofToPfsLoop() {
 			log.Error(err.Error())
 		}
 	}
-}
-
-func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
-	select {
-	case rs.ChanSubmitBalanceProofToPFS <- ch:
-	default:
-		// never block
-	}
-	//if rs.PfsProxy == nil {
-	//	return
-	//}
-	//bpPartner := ch.PartnerState.BalanceProofState
-	//err := rs.PfsProxy.SubmitBalance(
-	//	bpPartner.Nonce,
-	//	bpPartner.TransferAmount,
-	//	ch.Outstanding(),
-	//	ch.ChannelIdentifier.OpenBlockNumber,
-	//	bpPartner.LocksRoot,
-	//	ch.ChannelIdentifier.ChannelIdentifier,
-	//	bpPartner.MessageHash,
-	//	ch.PartnerState.Address,
-	//	bpPartner.Signature,
-	//)
-	//if err != nil {
-	//	log.Error(err.Error())
-	//}
 }
 
 func (rs *Service) getBestRoutesFromPfs(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (routes []*route.State, err error) {
@@ -2217,4 +2262,63 @@ func (rs *Service) getMinSettleTimeout() int {
 		minSettleTimeout = params.TestNetChannelSettleTimeoutMin
 	}
 	return minSettleTimeout
+}
+
+// GetDelegateForPms :
+func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
+	if thirdAddr == utils.EmptyAddress {
+		thirdAddr = rs.Config.PmsAddress
+	}
+	var sig []byte
+	c3 := new(pmsproxy.DelegateForPms)
+	c3.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
+	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
+	c3.TokenAddrss = c.TokenAddress()
+	c3.PartnerAddress = c.PartnerAddress()
+	if c.PartnerBalanceProof == nil {
+		result = c3
+		return
+	}
+	if c.PartnerBalanceProof.Nonce > 0 {
+		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
+		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
+		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
+		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
+		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
+		sig, err = pmsproxy.SignBalanceProofFor3rd(c, rs.PrivateKey)
+		if err != nil {
+			return
+		}
+		c3.UpdateTransfer.NonClosingSignature = sig
+	}
+
+	tree := mtree.NewMerkleTree(c.PartnerLeaves)
+	var ws []*pmsproxy.DelegateUnlock
+	for _, l := range c.PartnerLeaves {
+		proof := channel.ComputeProofForLock(l, tree)
+		w := &pmsproxy.DelegateUnlock{
+			Lock:        l,
+			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
+		}
+		w.Signature, err = pmsproxy.SignUnlockFor3rd(c, w, thirdAddr, rs.PrivateKey)
+		ws = append(ws, w)
+	}
+	c3.Unlocks = ws
+	var ps []*pmsproxy.DelegatePunish
+	for _, annouceDisposed := range rs.dao.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
+		//跳过历史 channel
+		// omit history channel
+		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
+			continue
+		}
+		p := &pmsproxy.DelegatePunish{
+			LockHash:       common.BytesToHash(annouceDisposed.LockHash),
+			AdditionalHash: annouceDisposed.AdditionalHash,
+			Signature:      annouceDisposed.Signature,
+		}
+		ps = append(ps, p)
+	}
+	c3.Punishes = ps
+	result = c3
+	return
 }
