@@ -171,7 +171,8 @@ func (c *Channel) HandleBalanceProofUpdated(updatedParticipant common.Address, t
 	endStateContractUpdated.SetContractTransferAmount(transferAmount)
 	endStateContractUpdated.SetContractLocksroot(locksRoot)
 	//我updateBalanceProof以后,要进行unlock
-	if updatedParticipant == c.OurState.Address {
+	//todo 这里实际上是合约的一个bug,updatedParticipant应该是对方的
+	if updatedParticipant == c.PartnerState.Address {
 		unlockProofs := c.PartnerState.GetCanUnlockOnChainLocks()
 		if len(unlockProofs) > 0 {
 			result := c.ExternState.Unlock(unlockProofs, c.PartnerState.contractTransferAmount())
