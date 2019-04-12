@@ -976,8 +976,16 @@ func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
 	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
 		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
 	}
+	start := time.Now()
+	hasUpdateDelegateState := false
 	periodBlock := eh.photon.getMinSettleTimeout() / 10
-	periodSecond := time.Duration(periodBlock) * time.Second // 这里应该取MinSettleTimeout/10 * 出块间隔
+	var periodBlockSecond time.Duration
+	if params.IsMainNet {
+		periodBlockSecond = time.Second * time.Duration(params.BlockPeriodSeconds)
+	} else {
+		periodBlockSecond = time.Second * time.Duration(params.BlockPeriodSecondsForTest)
+	}
+	periodSecond := time.Duration(periodBlock) * periodBlockSecond
 	for {
 		select {
 		case <-eh.noEffectiveChainNotifyLoopQuitChan:
@@ -987,6 +995,24 @@ func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
 			warning := fmt.Sprintf("photon has been worked without effective block chain for about %s", t)
 			eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning)
 			log.Warn(warning)
+			// 如果进入无效公链的时间超过了最小SettleTimeout一半的时间,修改通道pms状态,该操作直到切入有效网络之前只进行一次
+			if !hasUpdateDelegateState && time.Since(start) > time.Duration(eh.photon.getMinSettleTimeout())/2*periodBlockSecond {
+				channelList, err := eh.photon.dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+				if err != nil {
+					log.Error(err.Error())
+					continue
+				}
+				for _, c := range channelList {
+					if c.DelegateState != channeltype.ChannelDelegateStateSuccess {
+						c.DelegateState = channeltype.ChannelDelegateStateFailAndNoEffectiveChain
+						err = eh.photon.UpdateChannelNoTx(c)
+						if err != nil {
+							log.Error(err.Error())
+						}
+					}
+				}
+				hasUpdateDelegateState = true
+			}
 		}
 	}
 }
