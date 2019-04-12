@@ -79,7 +79,6 @@ func SignUnlockFor3rd(c *channeltype.Serialization, u *DelegateUnlock, thirdAddr
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
 	_, err = buf.Write([]byte(params.ContractUnlockDelegateProofMessageLength))
-	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
 	_, err = buf.Write(thirdAddress[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Lock.Expiration)))
 	_, err = buf.Write(utils.BigIntTo32Bytes(u.Lock.Amount))
