@@ -935,13 +935,17 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 				log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
 			}
 		}
-		// 2. 刷新所有通道状态信息到pfs
+		// 2. 刷新所有通道状态信息到pfs及pms
 		for _, cg := range eh.photon.Token2ChannelGraph {
 			for _, ch := range cg.ChannelIdentifier2Channel {
-				if ch.State != channeltype.StateOpened {
-					continue
+				if ch.DelegateState != channeltype.ChannelDelegateStateSuccess {
+					// 不管状态,所有尚未settle的通道都需要委托到pms
+					eh.photon.submitDelegateToPms(ch)
 				}
-				eh.photon.submitBalanceProofToPfs(ch)
+				if ch.State == channeltype.StateOpened {
+					// 仅提交open状态的通道到pfs
+					eh.photon.submitBalanceProofToPfs(ch)
+				}
 			}
 		}
 		// 3. 获取所有等待发送的Unlock消息并发送,并从db里移除

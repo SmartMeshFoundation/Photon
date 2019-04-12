@@ -14,6 +14,8 @@ import (
 
 	"sort"
 
+	"context"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
@@ -1226,6 +1228,17 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 	if err != nil {
 		return nil, rerr.ErrArgumentError.AppendError(err)
 	}
+	name, err := t.Token.Name(nil)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	if name == params.SMTTokenName {
+		v, err2 := r.Photon.Chain.Client.BalanceAt(context.Background(), account, big.NewInt(r.Photon.GetBlockNumber()))
+		if err2 != nil {
+			return nil, rerr.ErrArgumentError.AppendError(err2)
+		}
+		return v, nil
+	}
 	v, err := t.BalanceOf(account)
 	if err != nil {
 		return nil, rerr.ErrArgumentError.AppendError(err)
@@ -1235,9 +1248,9 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 
 // GetAssetsOnTokenResponseDetail :
 type GetAssetsOnTokenResponseDetail struct {
-	TokenAddress    string `json:"token_address"`
-	BalanceOnChain  int64  `json:"balance_on_chain"`
-	BalanceInPhoton int64  `json:"balance_in_photon"`
+	TokenAddress    string   `json:"token_address"`
+	BalanceOnChain  *big.Int `json:"balance_on_chain"`
+	BalanceInPhoton *big.Int `json:"balance_in_photon"`
 }
 
 // GetAssetsOnToken :
@@ -1255,7 +1268,7 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 		if err != nil {
 			log.Error(err.Error())
 		} else {
-			d.BalanceOnChain = t.Int64()
+			d.BalanceOnChain = t
 		}
 		// 2. 获取用户在photon中的该token余额
 		balance, err := r.GetBalanceByTokenAddress(token)
@@ -1263,9 +1276,9 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			log.Error(err.Error())
 		}
 		if len(balance) == 1 {
-			d.BalanceInPhoton = balance[0].Balance.Int64()
+			d.BalanceInPhoton = balance[0].Balance
 		}
-		if d.BalanceOnChain > 0 || d.BalanceInPhoton > 0 {
+		if d.BalanceOnChain.Cmp(utils.BigInt0) > 0 || d.BalanceInPhoton.Cmp(utils.BigInt0) > 0 {
 			resp = append(resp, d)
 		}
 	}
