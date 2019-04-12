@@ -74,7 +74,7 @@ func SignBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.Private
 	return utils.SignData(privkey, dataToSign)
 }
 
-// SignUnlockFor3rd
+// SignUnlockFor3rd :
 func SignUnlockFor3rd(c *channeltype.Serialization, u *DelegateUnlock, thirdAddress common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
