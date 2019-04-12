@@ -103,10 +103,12 @@ func (model *StormDB) MarkLockHashCanPunishSubmittedByChannel(channelIdentifier 
 	list := model.GetChannelAnnounceDisposed(channelIdentifier)
 	if list != nil && len(list) > 0 {
 		for _, l := range list {
-			err := model.db.UpdateField(l, "IsSubmittedToPms", true)
-			if err != nil {
-				log.Error(fmt.Sprintf("MarkSubmittedAnnounceDispose failed, channel=%s lockHash=%s err=%s",
-					channelIdentifier.String(), common.BytesToHash(l.LockHash).String(), err.Error()))
+			if !l.IsSubmittedToPms {
+				err := model.db.UpdateField(l, "IsSubmittedToPms", true)
+				if err != nil {
+					log.Error(fmt.Sprintf("MarkSubmittedAnnounceDispose failed, channel=%s lockHash=%s err=%s",
+						channelIdentifier.String(), common.BytesToHash(l.LockHash).String(), err.Error()))
+				}
 			}
 		}
 	}
