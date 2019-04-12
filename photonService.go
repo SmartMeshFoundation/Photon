@@ -2311,6 +2311,10 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
 			continue
 		}
+		// 跳过已经提交过的
+		if annouceDisposed.IsSubmittedToPms {
+			continue
+		}
 		p := &pmsproxy.DelegatePunish{
 			LockHash:       common.BytesToHash(annouceDisposed.LockHash),
 			AdditionalHash: annouceDisposed.AdditionalHash,
