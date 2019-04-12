@@ -789,7 +789,7 @@ func signUnlockFor3rd(c *channeltype.Serialization, u *unlock, thirdAddress comm
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)
 	_, err = buf.Write([]byte(params.ContractUnlockDelegateProofMessageLength))
-	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
+	//_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
 	_, err = buf.Write(thirdAddress[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Lock.Expiration)))
 	_, err = buf.Write(utils.BigIntTo32Bytes(u.Lock.Amount))
@@ -797,6 +797,7 @@ func signUnlockFor3rd(c *channeltype.Serialization, u *unlock, thirdAddress comm
 	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	//log.Trace(fmt.Sprintf("signUnlockFor3rd chainid=%s", params.ChainID))
 	if err != nil {
 		log.Error(fmt.Sprintf("buf write error %s", err))
 		return
