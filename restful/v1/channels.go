@@ -20,18 +20,20 @@ import (
 ChannelData export json data format
 */
 type ChannelData struct {
-	ChannelIdentifier   string            `json:"channel_identifier"`
-	OpenBlockNumber     int64             `json:"open_block_number"`
-	PartnerAddrses      string            `json:"partner_address"`
-	Balance             *big.Int          `json:"balance"`
-	PartnerBalance      *big.Int          `json:"partner_balance"`
-	LockedAmount        *big.Int          `json:"locked_amount"`
-	PartnerLockedAmount *big.Int          `json:"partner_locked_amount"`
-	TokenAddress        string            `json:"token_address"`
-	State               channeltype.State `json:"state"`
-	StateString         string            `json:"state_string"`
-	SettleTimeout       int               `json:"settle_timeout"`
-	RevealTimeout       int               `json:"reveal_timeout"`
+	ChannelIdentifier   string                           `json:"channel_identifier"`
+	OpenBlockNumber     int64                            `json:"open_block_number"`
+	PartnerAddrses      string                           `json:"partner_address"`
+	Balance             *big.Int                         `json:"balance"`
+	PartnerBalance      *big.Int                         `json:"partner_balance"`
+	LockedAmount        *big.Int                         `json:"locked_amount"`
+	PartnerLockedAmount *big.Int                         `json:"partner_locked_amount"`
+	TokenAddress        string                           `json:"token_address"`
+	State               channeltype.State                `json:"state"`
+	StateString         string                           `json:"state_string"`
+	DelegateState       channeltype.ChannelDelegateState `json:"delegate_state"`
+	DelegateStateString string                           `json:"delegate_state_string"`
+	SettleTimeout       int                              `json:"settle_timeout"`
+	RevealTimeout       int                              `json:"reveal_timeout"`
 }
 
 /*
@@ -57,6 +59,8 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 				PartnerBalance:      c.PartnerBalance(),
 				State:               c.State,
 				StateString:         c.State.String(),
+				DelegateState:       c.DelegateState,
+				DelegateStateString: c.DelegateState.String(),
 				TokenAddress:        c.TokenAddress().String(),
 				SettleTimeout:       c.SettleTimeout,
 				RevealTimeout:       c.RevealTimeout,

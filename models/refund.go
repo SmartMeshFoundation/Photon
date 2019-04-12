@@ -36,6 +36,7 @@ type ReceivedAnnounceDisposed struct {
 	OpenBlockNumber   int64
 	AdditionalHash    common.Hash
 	Signature         []byte
+	IsSubmittedToPms  bool
 }
 
 func init() {
@@ -53,6 +54,7 @@ func NewReceivedAnnounceDisposed(LockHash, ChannelIdentifier, additionalHash com
 		OpenBlockNumber:   openBlockNumber,
 		AdditionalHash:    additionalHash,
 		Signature:         signature,
+		IsSubmittedToPms:  false,
 	}
 }
 

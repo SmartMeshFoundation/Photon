@@ -31,6 +31,7 @@ type Channel struct {
 	SettleTimeout     int
 	feeCharger        fee.Charger //calc fee for each transfer?
 	State             channeltype.State
+	DelegateState     channeltype.ChannelDelegateState
 }
 
 /*
@@ -57,6 +58,7 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		RevealTimeout:     revealTimeout,
 		SettleTimeout:     settleTimeout,
 		State:             channeltype.StateOpened, //如果是从数据中恢复,state会直接被修改,如果是新建的则初始状态就是open
+		DelegateState:     channeltype.ChannelDelegateStateNoNeed,
 	}
 	return
 }
@@ -525,11 +527,15 @@ func (c *Channel) registerUnlock(tr *encoding.UnLock, blockNumber int64) (err er
 	if c.IsClosed() {
 		return rerr.ErrUpdateBalanceProofAfterClosed
 	}
-	fromState, _, err := c.PreCheckRecievedTransfer(tr)
+	fromState, toState, err := c.PreCheckRecievedTransfer(tr)
 	if err != nil {
 		return
 	}
 	err = fromState.registerSecretMessage(tr)
+	// 如果我是接收方,设置pms标志位
+	if toState.Address == c.OurState.Address {
+		c.DelegateState = channeltype.ChannelDelegateStateWaiting
+	}
 	return err
 }
 
@@ -573,6 +579,10 @@ func (c *Channel) registerDirectTransfer(tr *encoding.DirectTransfer, blockNumbe
 		return rerr.ErrChannelTransferAmountMismatch.Errorf("direct transfer amount too large,amount=%s,availabe=%s", amount, fromState.Distributable(toState))
 	}
 	err = fromState.registerDirectTransfer(tr)
+	// 如果我是接收方,设置pms标志位
+	if toState.Address == c.OurState.Address {
+		c.DelegateState = channeltype.ChannelDelegateStateWaiting
+	}
 	return err
 }
 
@@ -667,6 +677,10 @@ func (c *Channel) registerMediatedTranser(tr *encoding.MediatedTransfer, blockNu
 	if err == nil {
 		c.ExternState.funcRegisterChannelForHashlock(c, tr.LockSecretHash)
 	}
+	// 如果我是接收方,设置pms标志位
+	if toState.Address == c.OurState.Address {
+		c.DelegateState = channeltype.ChannelDelegateStateWaiting
+	}
 	return err
 }
 
@@ -694,7 +708,7 @@ func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNum
 		return rerr.ErrUpdateBalanceProofAfterClosed
 	}
 	msg := messager.GetEnvelopMessage()
-	fromState, _, err := c.PreCheckRecievedTransfer(messager)
+	fromState, toState, err := c.PreCheckRecievedTransfer(messager)
 	if err != nil {
 		return
 	}
@@ -719,6 +733,10 @@ func (c *Channel) registerRemoveLock(messager encoding.EnvelopMessager, blockNum
 	err = fromState.registerRemoveLock(messager, lockSecretHash)
 	if err == nil {
 		c.ExternState.db.RemoveLock(c.ChannelIdentifier.ChannelIdentifier, fromState.Address, lockSecretHash)
+	}
+	// 如果我是接收方,设置pms标志位
+	if toState.Address == c.OurState.Address {
+		c.DelegateState = channeltype.ChannelDelegateStateWaiting
 	}
 	return err
 }
@@ -1501,6 +1519,7 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		OurKnownSecrets:        ourSecrets,
 		PartnerKnownSecrets:    partnerSecrets,
 		State:                  c.State,
+		DelegateState:          c.DelegateState,
 		SettleTimeout:          c.SettleTimeout,
 		OurContractBalance:     c.OurState.ContractBalance,
 		PartnerContractBalance: c.PartnerState.ContractBalance,

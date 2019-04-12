@@ -1,4 +1,4 @@
-package pfsproxy
+package utils
 
 import (
 	"encoding/json"
@@ -12,8 +12,8 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 )
 
-// req a http request
-type req struct {
+// Req a http request
+type Req struct {
 	FullURL        string        `json:"url"`
 	Method         string        `json:"method"`
 	Payload        string        `json:"payload"`
@@ -24,7 +24,7 @@ type req struct {
 }
 
 // GetReq : get *http.Request
-func (r *req) GetReq() *http.Request {
+func (r *Req) GetReq() *http.Request {
 	var reqBody io.Reader
 	if r.Payload == "" {
 		reqBody = nil
@@ -41,7 +41,7 @@ func (r *req) GetReq() *http.Request {
 }
 
 // Invoke : send a http request
-func (r *req) Invoke() (int, []byte, error) {
+func (r *Req) Invoke() (int, []byte, error) {
 	client := http.Client{
 		Transport: &http.Transport{
 			Dial: func(netw, addr string) (net.Conn, error) {
@@ -91,7 +91,7 @@ func (r *req) Invoke() (int, []byte, error) {
 }
 
 // ToString : get json of this
-func (r *req) ToString() string {
+func (r *Req) ToString() string {
 	buf, err := json.MarshalIndent(r, "\t", "")
 	if err != nil {
 		panic(err)

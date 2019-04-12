@@ -4,10 +4,6 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/channel"
-
-	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
-
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"fmt"
@@ -15,9 +11,10 @@ import (
 	"math/big"
 
 	"bytes"
-	"crypto/ecdsa"
 
 	"sort"
+
+	"context"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -25,6 +22,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
+	"github.com/SmartMeshFoundation/Photon/pmsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -665,145 +663,15 @@ func (r *API) Stop() {
 	log.Info("stop successful..")
 }
 
-type updateTransfer struct {
-	Nonce               uint64      `json:"nonce"`
-	TransferAmount      *big.Int    `json:"transfer_amount"`
-	Locksroot           common.Hash `json:"locksroot"`
-	ExtraHash           common.Hash `json:"extra_hash"`
-	ClosingSignature    []byte      `json:"closing_signature"`
-	NonClosingSignature []byte      `json:"non_closing_signature"`
-}
-
-//第三方服务也负责链上unlock
-type unlock struct {
-	Lock        *mtree.Lock `json:"lock"`
-	MerkleProof []byte      `json:"merkle_proof"`
-	Signature   []byte      `json:"signature"`
-}
-
-//需要委托给第三方的 punish证据
-// punish proof that is delegated to third-party.
-type punish struct {
-	LockHash       common.Hash `json:"lock_hash"` //the whole lock's hash,not lock secret hash
-	AdditionalHash common.Hash `json:"additional_hash"`
-	Signature      []byte      `json:"signature"`
-}
-
-//ChannelFor3rd is for 3rd party to call update transfer
-type ChannelFor3rd struct {
-	ChannelIdentifier common.Hash    `json:"channel_identifier"`
-	OpenBlockNumber   int64          `json:"open_block_number"`
-	TokenAddrss       common.Address `json:"token_address"`
-	PartnerAddress    common.Address `json:"partner_address"`
-	UpdateTransfer    updateTransfer `json:"update_transfer"`
-	Unlocks           []*unlock      `json:"unlocks"`
-	Punishes          []*punish      `json:"punishes"`
-}
-
 /*
 ChannelInformationFor3rdParty generate all information need by 3rd party
 */
-func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
-	var sig []byte
-	c, err := r.GetChannel(ChannelIdentifier)
+func (r *API) ChannelInformationFor3rdParty(channelIdentifier common.Hash, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
+	c, err := r.Photon.dao.GetChannelByAddress(channelIdentifier)
 	if err != nil {
 		return
 	}
-	c3 := new(ChannelFor3rd)
-	c3.ChannelIdentifier = ChannelIdentifier
-	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	c3.TokenAddrss = c.TokenAddress()
-	c3.PartnerAddress = c.PartnerAddress()
-	if c.PartnerBalanceProof == nil {
-		result = c3
-		return
-	}
-	if c.PartnerBalanceProof.Nonce > 0 {
-		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
-		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
-		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
-		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
-		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
-		sig, err = signBalanceProofFor3rd(c, r.Photon.PrivateKey)
-		if err != nil {
-			return
-		}
-		c3.UpdateTransfer.NonClosingSignature = sig
-	}
-
-	tree := mtree.NewMerkleTree(c.PartnerLeaves)
-	var ws []*unlock
-	for _, l := range c.PartnerLeaves {
-		proof := channel.ComputeProofForLock(l, tree)
-		w := &unlock{
-			Lock:        l,
-			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
-		}
-		w.Signature, err = signUnlockFor3rd(c, w, thirdAddr, r.Photon.PrivateKey)
-		//log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
-		ws = append(ws, w)
-	}
-	c3.Unlocks = ws
-	var ps []*punish
-	for _, annouceDisposed := range r.Photon.dao.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
-		//跳过历史 channel
-		// omit history channel
-		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
-			continue
-		}
-		p := &punish{
-			LockHash:       common.BytesToHash(annouceDisposed.LockHash),
-			AdditionalHash: annouceDisposed.AdditionalHash,
-			Signature:      annouceDisposed.Signature,
-		}
-		ps = append(ps, p)
-	}
-	c3.Punishes = ps
-	result = c3
-	return
-}
-
-//make sure PartnerBalanceProof is not nil
-func signBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
-	if c.PartnerBalanceProof == nil {
-		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
-		return nil, rerr.ErrChannelBalanceProofNil.Append("empty PartnerBalanceProof")
-	}
-	buf := new(bytes.Buffer)
-	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte(params.ContractBalanceProofDelegateMessageLength))
-	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	_, err = buf.Write(c.PartnerBalanceProof.LocksRoot[:])
-	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
-	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
-	if err != nil {
-		log.Error(fmt.Sprintf("buf write error %s", err))
-	}
-	dataToSign := buf.Bytes()
-	return utils.SignData(privkey, dataToSign)
-}
-
-func signUnlockFor3rd(c *channeltype.Serialization, u *unlock, thirdAddress common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
-	buf := new(bytes.Buffer)
-	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte(params.ContractUnlockDelegateProofMessageLength))
-	//_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	_, err = buf.Write(thirdAddress[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Lock.Expiration)))
-	_, err = buf.Write(utils.BigIntTo32Bytes(u.Lock.Amount))
-	_, err = buf.Write(u.Lock.LockSecretHash[:])
-	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
-	//log.Trace(fmt.Sprintf("signUnlockFor3rd chainid=%s", params.ChainID))
-	if err != nil {
-		log.Error(fmt.Sprintf("buf write error %s", err))
-		return
-	}
-	dataToSign := buf.Bytes()
-	return utils.SignData(privkey, dataToSign)
+	return r.Photon.GetDelegateForPms(c, thirdAddr)
 }
 
 //EventTransferSentSuccessWrapper wrapper
@@ -1350,7 +1218,7 @@ func (r *API) GetChannelSettleBlock(channelIdentifier common.Hash) *GetChannelSe
 	if c == nil || c.State != channeltype.StateClosed {
 		return resp
 	}
-	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout)
+	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout) + int64(params.ContractPunishBlockNumber)
 	return resp
 }
 
@@ -1359,6 +1227,17 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 	t, err := r.Photon.Chain.Token(token)
 	if err != nil {
 		return nil, rerr.ErrArgumentError.AppendError(err)
+	}
+	name, err := t.Token.Name(nil)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	if name == params.SMTTokenName {
+		v, err2 := r.Photon.Chain.Client.BalanceAt(context.Background(), account, big.NewInt(r.Photon.GetBlockNumber()))
+		if err2 != nil {
+			return nil, rerr.ErrArgumentError.AppendError(err2)
+		}
+		return v, nil
 	}
 	v, err := t.BalanceOf(account)
 	if err != nil {
@@ -1369,9 +1248,9 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 
 // GetAssetsOnTokenResponseDetail :
 type GetAssetsOnTokenResponseDetail struct {
-	TokenAddress    string `json:"token_address"`
-	BalanceOnChain  int64  `json:"balance_on_chain"`
-	BalanceInPhoton int64  `json:"balance_in_photon"`
+	TokenAddress    string   `json:"token_address"`
+	BalanceOnChain  *big.Int `json:"balance_on_chain"`
+	BalanceInPhoton *big.Int `json:"balance_in_photon"`
 }
 
 // GetAssetsOnToken :
@@ -1389,7 +1268,7 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 		if err != nil {
 			log.Error(err.Error())
 		} else {
-			d.BalanceOnChain = t.Int64()
+			d.BalanceOnChain = t
 		}
 		// 2. 获取用户在photon中的该token余额
 		balance, err := r.GetBalanceByTokenAddress(token)
@@ -1397,9 +1276,9 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			log.Error(err.Error())
 		}
 		if len(balance) == 1 {
-			d.BalanceInPhoton = balance[0].Balance.Int64()
+			d.BalanceInPhoton = balance[0].Balance
 		}
-		if d.BalanceOnChain > 0 || d.BalanceInPhoton > 0 {
+		if d.BalanceOnChain.Cmp(utils.BigInt0) > 0 || d.BalanceInPhoton.Cmp(utils.BigInt0) > 0 {
 			resp = append(resp, d)
 		}
 	}

@@ -256,8 +256,9 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	smkey := utils.Sha3(lockSecretHash[:], ch.TokenAddress[:])
 	mh.balanceProof(msg, smkey)
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
-	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	// submit balance proof to pathfinder and pms
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash(), ch)
 	return nil
@@ -300,7 +301,8 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	}
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
@@ -434,7 +436,8 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	// Just store channel state.
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
@@ -488,7 +491,8 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.photon.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	return err
 }
 
@@ -596,6 +600,9 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	} else {
 		mh.photon.mediateMediatedTransfer(msg, ch)
 	}
+	// 不管我是中间节点还是目标节点,都应该提交到pms及pfs
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	/*
 		start  taker's tokenswap ,only if receive a valid mediated transfer
 	*/
