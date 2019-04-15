@@ -23,7 +23,7 @@ func (cm *CaseManager) CaseStartWithPMS() (err error) {
 	env.StartPMS()
 	// 启动节点0,1
 	cm.startNodesWithPMS(env, N0, N1)
-	cm.waitForPostman()
+	//cm.waitForPostman()
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return nil
 }
