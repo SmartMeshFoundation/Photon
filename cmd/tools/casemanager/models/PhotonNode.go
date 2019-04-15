@@ -130,6 +130,40 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 	node.Running = true
 }
 
+// StartWithPMS :
+func (node *PhotonNode) StartWithPMS(env *TestEnv) {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
+	params := node.getParamStr(env, false, false)
+	// 添加casemanager自带的pfs
+	params = append(params, "--pms=http://127.0.0.1:18000")
+	params = append(params, "--pms-address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
+	go ExecShell(env.Main, params, logfile, true)
+
+	count := 0
+	t := time.Now()
+	for !node.IsRunning() {
+		Logger.Printf("waiting for %s to StartWithPMS, sleep 100ms...\n", node.Name)
+		time.Sleep(time.Millisecond * 100)
+		count++
+		if count > 400 {
+			if node.ConditionQuit != nil {
+				Logger.Printf("NODE %s %s StartWithPMS with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
+			} else {
+				Logger.Printf("NODE %s %s StartWithPMS TIMEOUT\n", node.Address, node.Host)
+			}
+			panic("Start photon node TIMEOUT")
+		}
+	}
+	used := time.Since(t)
+	if node.DebugCrash {
+		Logger.Printf("NODE %s %s StartWithPMS with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
+	} else {
+		Logger.Printf("NODE %s %s StartWithPMS in %fs", node.Address, node.Host, used.Seconds())
+	}
+	time.Sleep(5 * time.Second)
+	node.Running = true
+}
+
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.RestartName().SetConditionQuit(nil).Start(env)

@@ -215,6 +215,20 @@ func (c *CaseManager) startNodesWithFee(env *models.TestEnv, nodes ...*models.Ph
 	time.Sleep(time.Second)
 }
 
+func (c *CaseManager) startNodesWithPMS(env *models.TestEnv, nodes ...*models.PhotonNode) {
+	n := len(nodes)
+	wg := sync.WaitGroup{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(index int) {
+			nodes[index].StartWithPMS(env)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	time.Sleep(time.Second)
+}
+
 type repeatReturnNilSuccessFunc func() error
 
 /*
@@ -268,4 +282,8 @@ func (c *CaseManager) nodesExcept(nodes []*models.PhotonNode, n *models.PhotonNo
 		r = append(r, n2)
 	}
 	return r
+}
+
+func (c *CaseManager) waitForPostman() {
+	time.Sleep(60 * time.Minute)
 }

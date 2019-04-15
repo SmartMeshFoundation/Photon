@@ -63,6 +63,7 @@ type TestEnv struct {
 	Keys                []*ecdsa.PrivateKey `json:"-"`
 	UseOldToken         bool
 	PFSMain             string // pfs可执行文件全路径
+	PMSMain             string // pms可执行文件全路径
 	UseNewAccount       bool
 	MDNSServiceTag      string
 }
@@ -86,7 +87,7 @@ func (t *logTee) Write(p []byte) (n int, err error) {
 }
 
 // NewTestEnv default contractor
-func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env *TestEnv, err error) {
+func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string, caseName ...string) (env *TestEnv, err error) {
 	bind.ReInitNonceMap()
 	c, err := config.ReadDefault(configFilePath)
 	if err != nil {
@@ -95,6 +96,9 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	}
 	env = new(TestEnv)
 	env.CaseName = c.RdString("COMMON", "case_name", "DefaultName")
+	if len(caseName) > 0 {
+		env.CaseName = caseName[0]
+	}
 	// init logger
 	logfile := "./log/" + env.CaseName + ".log"
 	logFile, err := os.Create(logfile)
@@ -114,6 +118,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.Debug = c.RdBool("COMMON", "debug", true)
 	env.UseOldToken = false
 	env.PFSMain = c.RdString("COMMON", "pfs_main", "photon-pathfinding-service")
+	env.PMSMain = c.RdString("COMMON", "pms_main", "photonmonitoring")
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
@@ -778,6 +783,21 @@ func (env *TestEnv) StartPFS() {
 	go ExecShell(env.PFSMain, param, logfile, true)
 	// TODO 校验启动完成
 	return
+}
+
+// StartPMS 启动本地pms节点
+func (env *TestEnv) StartPMS() {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-pms")
+	var param []string
+	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
+	param = append(param, "--api-port=18000")
+	param = append(param, "--verbosity=5")
+	param = append(param, "--debug")
+	param = append(param, "--address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
+	param = append(param, "--keystore-path="+env.KeystorePath)
+	param = append(param, "--password-file="+env.PasswordFile)
+	go ExecShell(env.PMSMain, param, logfile, true)
 }
 
 // GetPfsProxy :
