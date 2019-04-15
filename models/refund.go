@@ -19,7 +19,8 @@ SentAnnounceDisposed 我发出了 AnnonuceDisposed, 那么就要标记这个 cha
 type SentAnnounceDisposed struct {
 	Key               []byte `storm:"id"`
 	LockSecretHash    []byte `storm:"index"` //假设非恶意的情况下,锁肯定是不会重复的.但是我有可能在多个通道上发送 AnnounceDisposed,但是肯定不会在同一个通道上发送多次 announce disposed // Assume in honest case, locks are not repeated, but maybe I send AnnounceDisposed in multiple channels.
-	ChannelIdentifier common.Hash
+	ChannelIdentifier []byte `storm:"index"`
+	IsSubmitToPms     bool   `storm:"index"`
 }
 
 /*

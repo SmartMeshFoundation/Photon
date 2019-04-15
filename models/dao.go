@@ -128,6 +128,8 @@ type SentAnnounceDisposedDao interface {
 	MarkLockSecretHashDisposed(lockSecretHash common.Hash, channelIdentifier common.Hash) error
 	IsLockSecretHashDisposed(lockSecretHash common.Hash) bool
 	IsLockSecretHashChannelIdentifierDisposed(lockSecretHash common.Hash, ChannelIdentifier common.Hash) bool
+	GetSendAnnounceDisposeByChannel(channelIdentifier common.Hash, isSubmitToPms bool) (list []*SentAnnounceDisposed)
+	MarkSendAnnounceDisposeSubmittedByChannel(channelIdentifier common.Hash)
 }
 
 // ReceivedAnnounceDisposedDao :

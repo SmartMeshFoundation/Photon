@@ -1927,8 +1927,11 @@ func (rs *Service) submitDelegateToPmsLoop() {
 			log.Error("")
 			continue
 		}
-		// 4. 修改已提交的punish状态
-		rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+		// 4. 如果提交成功,修改已提交的punish及SendAnnounceDispose状态
+		if ch.DelegateState == channeltype.ChannelDelegateStateSuccess {
+			rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+			rs.dao.MarkSendAnnounceDisposeSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+		}
 	}
 }
 
@@ -2270,6 +2273,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		thirdAddr = rs.Config.PmsAddress
 	}
 	var sig []byte
+	// 1. 基础通道数据
 	c3 := new(pmsproxy.DelegateForPms)
 	c3.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
 	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
@@ -2279,6 +2283,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		result = c3
 		return
 	}
+	// 2. partner的BalanceProof数据
 	if c.PartnerBalanceProof.Nonce > 0 {
 		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
 		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
@@ -2291,7 +2296,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		}
 		c3.UpdateTransfer.NonClosingSignature = sig
 	}
-
+	// 3. unlock数据
 	tree := mtree.NewMerkleTree(c.PartnerLeaves)
 	var ws []*pmsproxy.DelegateUnlock
 	for _, l := range c.PartnerLeaves {
@@ -2304,6 +2309,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		ws = append(ws, w)
 	}
 	c3.Unlocks = ws
+	// 4. punish数据
 	var ps []*pmsproxy.DelegatePunish
 	for _, annouceDisposed := range rs.dao.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
 		//跳过历史 channel
@@ -2323,6 +2329,14 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		ps = append(ps, p)
 	}
 	c3.Punishes = ps
+	// 5. SendAnnounceDispose数据
+	var sas []*pmsproxy.DelegateAnnounceDisposed
+	for _, sendAnnounceDispose := range rs.dao.GetSendAnnounceDisposeByChannel(c.ChannelIdentifier.ChannelIdentifier, false) {
+		sas = append(sas, &pmsproxy.DelegateAnnounceDisposed{
+			LockSecretHash: common.BytesToHash(sendAnnounceDispose.LockSecretHash),
+		})
+	}
+	c3.AnnouceDisposed = sas
 	result = c3
 	return
 }

@@ -27,6 +27,16 @@ func TestModelDB_MarkLockSecretHashDisposed(t *testing.T) {
 	assert.EqualValues(t, r, true)
 	r = dao.IsLockSecretHashChannelIdentifierDisposed(lock2, ch)
 	assert.EqualValues(t, r, false)
+
+	l := dao.GetSendAnnounceDisposeByChannel(ch, false)
+	assert.EqualValues(t, 1, len(l))
+	assert.EqualValues(t, false, l[0].IsSubmitToPms)
+
+	dao.MarkSendAnnounceDisposeSubmittedByChannel(ch)
+
+	l = dao.GetSendAnnounceDisposeByChannel(ch, true)
+	assert.EqualValues(t, 1, len(l))
+	assert.EqualValues(t, true, l[0].IsSubmitToPms)
 }
 
 func TestNewReceivedAnnounceDisposed(t *testing.T) {

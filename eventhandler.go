@@ -280,6 +280,8 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	}
 	eh.photon.conditionQuit("EventSendAnnouncedDisposedBefore")
 	err = eh.photon.sendAsync(receiver, mtr)
+	// 提交到pms
+	eh.photon.submitDelegateToPms(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *mediatedtransfer.EventSendAnnounceDisposedResponse, stateManager *transfer.StateManager) (err error) {

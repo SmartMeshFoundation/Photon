@@ -41,15 +41,21 @@ type DelegatePunish struct {
 	Signature      []byte      `json:"signature"`
 }
 
+// DelegateAnnounceDisposed 委托给第三方的自己发出去的AnnounceDisposed
+type DelegateAnnounceDisposed struct {
+	LockSecretHash common.Hash `json:secret_hash`
+}
+
 //DelegateForPms is for 3rd party to call update transfer
 type DelegateForPms struct {
-	ChannelIdentifier common.Hash            `json:"channel_identifier"`
-	OpenBlockNumber   int64                  `json:"open_block_number"`
-	TokenAddrss       common.Address         `json:"token_address"`
-	PartnerAddress    common.Address         `json:"partner_address"`
-	UpdateTransfer    DelegateUpdateTransfer `json:"update_transfer"`
-	Unlocks           []*DelegateUnlock      `json:"unlocks"`
-	Punishes          []*DelegatePunish      `json:"punishes"`
+	ChannelIdentifier common.Hash                 `json:"channel_identifier"`
+	OpenBlockNumber   int64                       `json:"open_block_number"`
+	TokenAddrss       common.Address              `json:"token_address"`
+	PartnerAddress    common.Address              `json:"partner_address"`
+	UpdateTransfer    DelegateUpdateTransfer      `json:"update_transfer"`
+	Unlocks           []*DelegateUnlock           `json:"unlocks"`
+	Punishes          []*DelegatePunish           `json:"punishes"`
+	AnnouceDisposed   []*DelegateAnnounceDisposed `json:"annouce_disposed"`
 }
 
 //SignBalanceProofFor3rd make sure PartnerBalanceProof is not nil
