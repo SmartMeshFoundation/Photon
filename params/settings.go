@@ -137,7 +137,7 @@ var MainNetGenesisBlockHash = common.HexToHash("0x57e682b80257aad73c4f3ad98d2043
 //GenesisBlockHashToDefaultRegistryAddress :
 var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 	// spectrum
-	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): common.HexToAddress("0x08b7d79ec4ebd53e5b89c7c062cc64bb09d063e3"),
+	common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d"): common.HexToAddress("0x242e0de2B118279D1479545A131a90A8f67A2512"),
 	// spectrum test net
 	common.HexToHash("0xd011e2cc7f241996a074e2c48307df3971f5f1fe9e1f00cfa704791465d5efc3"): common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"),
 	// ethereum
@@ -151,7 +151,7 @@ var GenesisBlockHashToDefaultRegistryAddress = map[common.Hash]common.Address{
 //GenesisBlockHashToPFS : default pfs provider
 var GenesisBlockHashToPFS = map[common.Address]string{
 	// spectrum
-	common.HexToAddress("0x08b7d79ec4ebd53e5b89c7c062cc64bb09d063e3"): "http://transport01.smartmesh.cn:7000",
+	common.HexToAddress("0x242e0de2B118279D1479545A131a90A8f67A2512"): "http://transport01.smartmesh.cn:7000",
 	// spectrum test net
 	common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"): "http://transport01.smartmesh.cn:7001",
 	// ethereum
