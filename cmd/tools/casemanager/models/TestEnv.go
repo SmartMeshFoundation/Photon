@@ -677,6 +677,9 @@ func (env *TestEnv) KillAllPhotonNodes() {
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon-pathfinding-service")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = append(pstr2, "-9")
+		pstr2 = append(pstr2, "photonmonitoring")
+		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
 	Logger.Println("Kill all photon nodes SUCCESS")
 }
@@ -712,7 +715,7 @@ func (env *TestEnv) ClearHistoryData() {
 			return nil
 		}
 		name := fi.Name()
-		if name == ".pfsdb" {
+		if name == ".pfsdb" || name == ".pmsdb" {
 			err := os.RemoveAll(path)
 			if err != nil {
 				fmt.Println("delete dir error:", err)
@@ -797,6 +800,7 @@ func (env *TestEnv) StartPMS() {
 	param = append(param, "--address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
 	param = append(param, "--keystore-path="+env.KeystorePath)
 	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--datadir=.pmsdb")
 	go ExecShell(env.PMSMain, param, logfile, true)
 }
 
