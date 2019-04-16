@@ -9,6 +9,9 @@ import (
 
 // CasePMS :
 func (cm *CaseManager) CasePMS() (err error) {
+	if !cm.RunSlow {
+		return ErrorSkip
+	}
 	env, err := models.NewTestEnv("./cases/CasePMS.ENV", cm.UseMatrix, cm.EthEndPoint, "CasePMS")
 	if err != nil {
 		return

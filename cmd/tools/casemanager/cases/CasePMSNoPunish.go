@@ -10,6 +10,9 @@ import (
 
 // CasePMSNoPunish :
 func (cm *CaseManager) CasePMSNoPunish() (err error) {
+	if !cm.RunSlow {
+		return ErrorSkip
+	}
 	env, err := models.NewTestEnv("./cases/CasePMSNoPunish.ENV", cm.UseMatrix, cm.EthEndPoint, "CasePMSNoPunish")
 	if err != nil {
 		return
