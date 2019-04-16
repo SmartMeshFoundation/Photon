@@ -1261,7 +1261,9 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 	var resp []*GetAssetsOnTokenResponseDetail
 	for _, token := range tokenList {
 		d := &GetAssetsOnTokenResponseDetail{
-			TokenAddress: token.String(),
+			TokenAddress:    token.String(),
+			BalanceOnChain:  big.NewInt(0),
+			BalanceInPhoton: big.NewInt(0),
 		}
 		// 1. 获取用户在链上的该token余额
 		t, err := r.GetTokenBalance(r.Photon.NodeAddress, token)
