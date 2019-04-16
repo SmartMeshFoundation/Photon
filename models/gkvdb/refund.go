@@ -12,7 +12,7 @@ func (dao *GkvDB) MarkLockSecretHashDisposed(lockSecretHash common.Hash, Channel
 	sad := &models.SentAnnounceDisposed{
 		Key:               key[:],
 		LockSecretHash:    lockSecretHash[:],
-		ChannelIdentifier: ChannelIdentifier,
+		ChannelIdentifier: ChannelIdentifier[:],
 	}
 	err := dao.saveKeyValueToBucket(models.BucketSentAnnounceDisposed, sad.Key, sad)
 	return models.GeneratDBError(err)

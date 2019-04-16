@@ -7,6 +7,9 @@ import (
 
 // CaseStartWithPMS :
 func (cm *CaseManager) CaseStartWithPMS() (err error) {
+	if !cm.RunSlow {
+		return ErrorSkip
+	}
 	env, err := models.NewTestEnv("./cases/2Nodes.ENV", cm.UseMatrix, cm.EthEndPoint, "CaseStartWithPMS")
 	if err != nil {
 		return

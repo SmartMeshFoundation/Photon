@@ -43,7 +43,7 @@ type DelegatePunish struct {
 
 // DelegateAnnounceDisposed 委托给第三方的自己发出去的AnnounceDisposed
 type DelegateAnnounceDisposed struct {
-	LockSecretHash common.Hash `json:secret_hash`
+	LockSecretHash common.Hash `json:"secret_hash"`
 }
 
 //DelegateForPms is for 3rd party to call update transfer
