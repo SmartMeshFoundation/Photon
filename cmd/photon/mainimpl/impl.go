@@ -268,6 +268,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		dao.CloseDB()
 		return
 	}
+	if params.IsMainNet {
+		cfg.SettleTimeout = params.MainNetChannelSettleTimeoutMin
+	} else {
+		cfg.SettleTimeout = params.TestNetChannelSettleTimeoutMin
+	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
 	if cfg.PfsHost == "" {
 		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress)

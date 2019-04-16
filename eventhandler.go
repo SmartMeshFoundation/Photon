@@ -563,7 +563,7 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.ContractNewChannelStateChange) error {
 	// 忽略SettleTimeout小于限定最小值的通道
 	minSettleTimeout := eh.photon.getMinSettleTimeout()
-	if st.SettleTimeout <= minSettleTimeout {
+	if st.SettleTimeout < minSettleTimeout {
 		log.Warn(fmt.Sprintf("ignore new channel %s because SettleTimeout < %d", st.ChannelIdentifier.String(), minSettleTimeout))
 		return nil
 	}

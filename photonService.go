@@ -1273,7 +1273,7 @@ Process user's new channel request
 func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTimeout int, amount *big.Int, isNewChannel bool) *utils.AsyncResult {
 	if isNewChannel {
 		minSettleTimeout := rs.getMinSettleTimeout()
-		if settleTimeout <= minSettleTimeout {
+		if settleTimeout < minSettleTimeout {
 			return utils.NewAsyncResultWithError(rerr.ErrArgumentError.Append(fmt.Sprintf("settle_timeout must bigger than %d", minSettleTimeout)))
 		}
 		g := rs.Token2ChannelGraph[token]
