@@ -711,7 +711,7 @@ func (env *TestEnv) ClearHistoryData() {
 		if nil == fi {
 			return err
 		}
-		if fi.IsDir() {
+		if !fi.IsDir() {
 			return nil
 		}
 		name := fi.Name()
@@ -720,7 +720,7 @@ func (env *TestEnv) ClearHistoryData() {
 			if err != nil {
 				fmt.Println("delete dir error:", err)
 			}
-			Logger.Println("Clear pfs history data SUCCESS ")
+			Logger.Println("Clear pfs & pms history data SUCCESS ")
 		}
 		return nil
 	})
