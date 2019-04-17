@@ -397,39 +397,47 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 }
 
 //PrepareForCooperativeSettle  mark a channel prepared for settle,  return when state has been updated to database
-func (r *API) PrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+func (r *API) PrepareForCooperativeSettle(channelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+	c, err = r.Photon.dao.GetChannelByAddress(channelIdentifier)
+	if err != nil {
+		err = rerr.ChannelNotFound(channelIdentifier.String())
+		return
+	}
 	if c.State != channeltype.StateOpened {
 		err = rerr.InvalidState("channel must be  open")
 		return
 	}
 	//send settle request
-	result := r.Photon.markChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.markChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
 	log.Trace(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(channelIdentifier)
 }
 
 //CancelPrepareForCooperativeSettle  cancel a mark. return when state has been updated to database
-func (r *API) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+func (r *API) CancelPrepareForCooperativeSettle(channelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+	c, err = r.Photon.dao.GetChannelByAddress(channelIdentifier)
+	if err != nil {
+		err = rerr.ChannelNotFound(channelIdentifier.String())
+		return
+	}
 	if c.State != channeltype.StatePrepareForCooperativeSettle {
-		err = rerr.InvalidState("channel must be  open")
+		err = rerr.InvalidState("channel must be  prepareForCooperativeSettle")
 		return
 	}
 	//send settle request
-	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
 	log.Trace(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(channelIdentifier)
 }
 
 //Withdraw on a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database

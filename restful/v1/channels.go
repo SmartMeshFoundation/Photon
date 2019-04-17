@@ -279,6 +279,77 @@ func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(d)
 }
 
+func prepareCooperateSettle(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> prepareCooperateSettle ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	chstr := r.PathParam("channel")
+	if len(chstr) != len(utils.EmptyHash.String()) {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	channelIdentifier := common.HexToHash(chstr)
+
+	c, err := API.PrepareForCooperativeSettle(channelIdentifier)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	resp = dto.NewSuccessAPIResponse(d)
+}
+func cancelCooperateSettle(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> cancelCooperateSettle ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	chstr := r.PathParam("channel")
+	if len(chstr) != len(utils.EmptyHash.String()) {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	channelIdentifier := common.HexToHash(chstr)
+
+	c, err := API.CancelPrepareForCooperativeSettle(channelIdentifier)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	resp = dto.NewSuccessAPIResponse(d)
+}
+
 func withdraw(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {

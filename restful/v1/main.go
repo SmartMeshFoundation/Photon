@@ -92,6 +92,8 @@ func Start() {
 		rest.Get("/api/1/channels/:channel", SpecifiedChannel),
 		rest.Get("/api/1/channels", GetChannelList),
 		rest.Patch("/api/1/channels/:channel", CloseSettleChannel),
+		rest.Put("/api/1/channels/preparecooperatesettle/:channel", prepareCooperateSettle),
+		rest.Put("/api/1/channels/cancelcooperatesettle/:channel", cancelCooperateSettle),
 		rest.Get("/api/1/thirdparty/:channel/:3rd", ChannelFor3rdParty),
 		rest.Get("/api/1/channel-settle-block/:channel", GetChannelSettleBlock),
 

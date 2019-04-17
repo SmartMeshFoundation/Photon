@@ -2,16 +2,17 @@ package mobile
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
+	v1 "github.com/SmartMeshFoundation/Photon/restful/v1"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/SmartMeshFoundation/Photon/notify"
-	"github.com/SmartMeshFoundation/Photon/restful/v1"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 
@@ -196,4 +197,25 @@ func testresult() (result string) {
 
 func TestResult(t *testing.T) {
 	t.Logf("result=%s", testresult())
+}
+
+func TestSimpleApi(t *testing.T) {
+	ast := assert.New(t)
+	if testing.Short() {
+		return
+	}
+	a, err := NewSimpleAPI("/Users/bai/sm/Photon/cmd/photon/.photon", "0x292650fee408320D888e06ed89D938294Ea42f99")
+	ast.Nil(err)
+
+	r := a.BalanceAvailabelOnPhoton("0x333")
+	v := big.NewInt(0)
+	err = dto.ParseResult(r, v)
+	ast.Nil(err)
+	ast.EqualValues(v, big.NewInt(0))
+	r = a.BalanceAvailabelOnPhoton("0x6601F810eaF2fa749EEa10533Fd4CC23B8C791dc")
+	fmt.Printf("r=%s", r)
+	err = dto.ParseResult(r, v)
+	ast.Nil(err)
+	ast.True(v.Cmp(big.NewInt(0)) > 0)
+	a.Stop()
 }
