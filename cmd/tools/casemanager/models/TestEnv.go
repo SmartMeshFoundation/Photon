@@ -711,9 +711,10 @@ func (env *TestEnv) ClearHistoryData() {
 		if nil == fi {
 			return err
 		}
-		if !fi.IsDir() {
-			return nil
-		}
+		/*
+			if !fi.IsDir() {
+				return nil
+			}*/
 		name := fi.Name()
 		if name == ".pfsdb" || name == ".pmsdb" {
 			err := os.RemoveAll(path)
