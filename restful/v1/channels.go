@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -34,6 +35,7 @@ type ChannelData struct {
 	DelegateStateString string                           `json:"delegate_state_string"`
 	SettleTimeout       int                              `json:"settle_timeout"`
 	RevealTimeout       int                              `json:"reveal_timeout"`
+	photon.GetChannelSettleBlockResponse
 }
 
 /*
@@ -66,6 +68,11 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 				RevealTimeout:       c.RevealTimeout,
 				LockedAmount:        c.OurAmountLocked(),
 				PartnerLockedAmount: c.PartnerAmountLocked(),
+			}
+			if c.State == channeltype.StateClosed {
+				res := API.GetChannelSettleBlock(c.ChannelIdentifier.ChannelIdentifier)
+				d.BlockNumberNow = res.BlockNumberNow
+				d.BlockNumberChannelCanSettle = res.BlockNumberChannelCanSettle
 			}
 			datas = append(datas, d)
 		}
