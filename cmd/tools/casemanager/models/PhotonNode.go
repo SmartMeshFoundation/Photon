@@ -134,6 +134,9 @@ func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
 func (node *PhotonNode) StartWithPMS(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
 	params := node.getParamStr(env, false, false)
+	if node.NoNetwork {
+		params = node.getParamStr(env, false, true)
+	}
 	// 添加casemanager自带的pfs
 	params = append(params, "--pms=http://127.0.0.1:18000")
 	params = append(params, "--pms-address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
