@@ -2052,7 +2052,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	}
 	partnerAddress := channel.PartnerState.Address
 	transferAmount := channel.PartnerState.BalanceProofState.TransferAmount
-	contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
+	//contractTransferAmout := channel.PartnerState.BalanceProofState.ContractTransferAmount
 	locksroot := channel.PartnerState.BalanceProofState.LocksRoot
 	nonce := channel.PartnerState.BalanceProofState.Nonce
 	signature := channel.PartnerState.BalanceProofState.Signature
@@ -2072,7 +2072,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 		}
 		retry := 0
 		for {
-			channel := rs.getChannelWithAddr(channelIdentifier)
+			channel = rs.getChannelWithAddr(channelIdentifier)
 			if channel.State != channeltype.StateClosed {
 				time.Sleep(time.Second)
 				retry++
@@ -2113,7 +2113,7 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 			partnerAddress.String(), transferAmount, lock.Expiration, lock.Amount, lock.LockSecretHash.String(), common.Bytes2Hex(mtree.Proof2Bytes(proof)),
 			lock.Hash().String()))
 
-		err = tokenNetwork.Unlock(partnerAddress, contractTransferAmout, lock, mtree.Proof2Bytes(proof))
+		err = tokenNetwork.Unlock(partnerAddress, channel.PartnerState.BalanceProofState.ContractTransferAmount, lock, mtree.Proof2Bytes(proof))
 		if err != nil {
 			result.Result <- rerr.ErrUnlock.Errorf("forceUnlock : unlock failed %s", err.Error())
 			return
