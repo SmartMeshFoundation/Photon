@@ -5,15 +5,16 @@ import (
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 	"time"
 )
 
-// CasePMSNoPunish :
-func (cm *CaseManager) CasePMSNoPunish() (err error) {
+// CasePMSPunish :
+func (cm *CaseManager) CasePMSPunish() (err error) {
 	if !cm.RunSlow {
 		return ErrorSkip
 	}
-	env, err := models.NewTestEnv("./cases/CasePMSNoPunish.ENV", cm.UseMatrix, cm.EthEndPoint, "CasePMSNoPunish")
+	env, err := models.NewTestEnv("./cases/CasePMSPunish.ENV", cm.UseMatrix, cm.EthEndPoint, "CasePMSPunish")
 	if err != nil {
 		return
 	}
@@ -32,8 +33,7 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 	// 启动pms
 	env.StartPMS()
 	// 启动节点2、3
-	cm.startNodesWithPMS(env, N2)
-	cm.startNodes(env, N3)
+	cm.startNodes(env, N2, N3)
 	// 启动委托节点N1
 	cm.startNodes(env, N1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
@@ -46,7 +46,6 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 	}
 	// 获取channel信息
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before send trans")
-	//c23 := N2.GetChannelWith(N3, tokenAddress).Println("before send trans")
 	n1value, err := N1.TokenBalance(tokenAddress)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "query balance n1 error")
@@ -62,6 +61,7 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 
 	// N1 send trans to N3
 	N1.SendTransWithSecret(tokenAddress, transAmount, N3.Address, secret)
+	time.Sleep(time.Second)
 	// 崩溃判断
 	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
@@ -74,55 +74,68 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 		models.Logger.Println(msg)
 		return fmt.Errorf(msg)
 	}
-
 	//check lock
 	c12lock := N2.GetChannelWith(N1, tokenAddress).Println("check CD-N2-N1 should has a lock")
 	if c12lock.PartnerLockedAmount != transAmount {
 		return fmt.Errorf("check n1 lock failed,lockAmount= %d,expect =%d", c12lock.PartnerLockedAmount, transAmount)
 	}
 
-	//n2 exit
+	// n2 shut down
 	N2.Shutdown(env)
 	models.Logger.Println("n2 shutdown")
-
-	// N1 restart with pms
-	N1.StartWithPMS(env)
-	time.Sleep(time.Second)
-	if cm.UseMatrix {
-		time.Sleep(time.Second * 5)
-	}
-	//N1注册密码
-	err = N1.RegisterSecret(secret)
-	if err != nil {
-		return fmt.Errorf("n1 register secret err %s", err)
-	}
-	models.Logger.Printf("n1 register secret on chain finished...")
-	// N1 close channel
-	err = N1.Close(c12.ChannelIdentifier)
+	// N1 restart pms
+	N1.RestartName().StartWithPMS(env)
+	models.Logger.Println("n1 restart with pms")
+	//time.Sleep(time.Second * 2) //wait for submit to pms
+	c1, err := N1.SpecifiedChannel(c12.ChannelIdentifier)
 	if err != nil {
 		return
 	}
-	models.Logger.Printf("n1 close channel finished...")
-	// N1 settle
+	models.Logger.Println(fmt.Sprintf("n1 specifiledchannel %s:", utils.StringInterface(c1, 5)))
+	if c1.DelegateStateString != "delegate success" {
+		return fmt.Errorf("n1 delegate failed")
+	}
+	//N1 shut down
+	N1.Shutdown(env)
+	models.Logger.Println("n1 shutdown after delegate CD-N1-N2")
+
+	// n2 restart
+	N2.RestartName().Start(env)
+	models.Logger.Println("n2 restart to force unlock")
+
+	// N2 force unlock channel
+	err = N2.ForceUnlock(c12.ChannelIdentifier, secret)
+	if err != nil {
+		return fmt.Errorf("n2 force unlock err %s", err)
+	}
+
+	//pms should punish n2
 	settleTime := c12.SettleTimeout + 257
-	err = cm.trySettleInSeconds(int(settleTime), N1, c12.ChannelIdentifier)
+	err = cm.trySettleInSeconds(int(settleTime), N2, c12.ChannelIdentifier)
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
 	}
-	models.Logger.Printf("n1 settle finished...")
-	//check n2's tokenBalance
-	N2.ReStartWithoutConditionquit(env)
-	time.Sleep(time.Second)
-	var n2NewValue, i int
-	for i = 0; i < 10; i++ {
+	models.Logger.Printf("n2 settle finished...")
+
+	N1.RestartName().ReStartWithoutConditionquit(env)
+	var n1NewValue, n2NewValue, i int
+	for i = 0; i < 5; i++ {
 		time.Sleep(time.Second * 1)
+		n1NewValue, err = N1.TokenBalance(tokenAddress)
 		n2NewValue, err = N2.TokenBalance(tokenAddress)
-		if n2NewValue != n2value {
+
+		if n1NewValue != n1value+100 {
 			continue
 		}
-		models.Logger.Println(fmt.Sprintf("n2NewValue=%d,n2Value=%d", n2NewValue, n2value))
+		if n2NewValue != n2value-100 {
+			continue
+		}
+		if N1.GetChannelWith(N2, tokenAddress) != nil {
+			continue
+		}
+		models.Logger.Println("punish n2 success")
 		models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 		return
 	}
-	return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check TokenBalance error n2=%d,n2expect=%d ", n2NewValue, n2value))
+	return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("punish n2 failed, error n1=%d,n1expect=%d,n2=%d,n2expect=%d ", n1NewValue, n1value+100, n2NewValue, n2value-100))
 }
