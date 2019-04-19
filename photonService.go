@@ -232,9 +232,16 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
 	}
+	if rs.Config.PmsHost == "" && rs.Config.PmsAddress == utils.EmptyAddress {
+		rs.Config.PmsAddress = params.DefaultContractToPMSAddress[chain.GetRegistryAddress()]
+		rs.Config.PmsHost = params.DefaultContractToPMS[chain.GetRegistryAddress()]
+	}
 	// pms
 	if rs.Config.PmsHost != "" && rs.Config.PmsAddress != utils.EmptyAddress {
+		log.Info(fmt.Sprintf("startup with pms=%s, pms signer=%s", rs.Config.PmsHost, rs.Config.PmsAddress.String()))
 		rs.PmsProxy = pmsproxy.NewPmsProxy(rs.Config.PmsHost, rs.NodeAddress, rs.Config.PmsAddress)
+	} else {
+		log.Error(fmt.Sprintf("it's unsafe to startup with no pms"))
 	}
 	return rs, nil
 }

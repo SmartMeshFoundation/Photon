@@ -244,7 +244,7 @@ var (
 		Channel Error
 	*/
 
-	//ErrChannelNotAllowWithdraw 通道现在不能合作取现,比如有交易在进行
+	//ErrChannelNotAllowWithdraw 通道现在不能合作取现,比如通道已经关闭或者正在withdraw等
 	ErrChannelNotAllowWithdraw = newError(5000, "CannotWithdarw")
 	//ErrChannelState 在不能执行相应操作的通道状态,试图执行某些交易,比如在关闭的通道上发起交易
 	ErrChannelState = newError(5001, "ErrChannelState")

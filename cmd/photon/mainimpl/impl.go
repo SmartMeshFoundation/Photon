@@ -632,7 +632,7 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	return
 }
 func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs string, err error) {
-	pfs, ok := params.GenesisBlockHashToPFS[tokenNetworkAddress]
+	pfs, ok := params.DefaultContractToPFS[tokenNetworkAddress]
 	if !ok {
 		err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
 		return
