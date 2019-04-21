@@ -201,34 +201,6 @@ func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNod
 	time.Sleep(c.MDNSLifeTime)
 }
 
-func (c *CaseManager) startNodesWithFee(env *models.TestEnv, nodes ...*models.PhotonNode) {
-	n := len(nodes)
-	wg := sync.WaitGroup{}
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func(index int) {
-			nodes[index].StartWithFeeAndPFS(env)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-	time.Sleep(time.Second)
-}
-
-func (c *CaseManager) startNodesWithPMS(env *models.TestEnv, nodes ...*models.PhotonNode) {
-	n := len(nodes)
-	wg := sync.WaitGroup{}
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func(index int) {
-			nodes[index].StartWithPMS(env)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-	time.Sleep(time.Second)
-}
-
 type repeatReturnNilSuccessFunc func() error
 
 /*

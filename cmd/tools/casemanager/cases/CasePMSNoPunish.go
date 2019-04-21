@@ -2,10 +2,11 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
-	"time"
 )
 
 // CasePMSNoPunish :
@@ -31,11 +32,8 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动pms
 	env.StartPMS()
-	// 启动节点2、3
-	cm.startNodesWithPMS(env, N2)
-	cm.startNodes(env, N3)
-	// 启动委托节点N1
-	cm.startNodes(env, N1.SetConditionQuit(&params.ConditionQuit{
+	// 启动节点1,2、3
+	cm.startNodes(env, N3, N2.PMS(), N1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
 	}))
 
@@ -86,7 +84,7 @@ func (cm *CaseManager) CasePMSNoPunish() (err error) {
 	models.Logger.Println("n2 shutdown")
 
 	// N1 restart with pms
-	N1.StartWithPMS(env)
+	cm.startNodes(env, N1.RestartName().PMS())
 	time.Sleep(time.Second)
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)

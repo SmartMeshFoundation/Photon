@@ -31,9 +31,7 @@ func (cm *CaseManager) CaseTransferWithRouteInfo() (err error) {
 	// 0. 启动pfs
 	env.StartPFS()
 	// 1. 启动节点
-	n0.StartWithFeeAndPFS(env)
-	n1.StartWithFeeAndPFS(env)
-	n2.StartWithFeeAndPFS(env)
+	cm.startNodes(env, n0.PFS(), n1.PFS(), n2.PFS())
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 5)
 	}

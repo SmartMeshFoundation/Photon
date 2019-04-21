@@ -2,11 +2,12 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"time"
 )
 
 // CasePMS02 :
@@ -84,7 +85,7 @@ func (cm *CaseManager) CasePMS02() (err error) {
 	N2.Shutdown(env)
 	models.Logger.Println("n2 shutdown")
 	// N1 restart pms
-	N1.RestartName().StartWithPMS(env)
+	cm.startNodes(env, N1.RestartName().PMS())
 	models.Logger.Println("n1 restart with pms")
 	//time.Sleep(time.Second * 2) //wait for submit to pms
 	c1, err := N1.SpecifiedChannel(c12.ChannelIdentifier)
