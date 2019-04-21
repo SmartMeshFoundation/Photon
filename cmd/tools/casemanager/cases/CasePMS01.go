@@ -2,11 +2,12 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"time"
 )
 
 // CasePMS01 :
@@ -33,11 +34,10 @@ func (cm *CaseManager) CasePMS01() (err error) {
 	// 启动pms
 	env.StartPMS()
 	// 启动节点2、3
-	cm.startNodes(env, N2, N3)
-	// 启动委托方节点N1
-	cm.startNodesWithPMS(env, N1.SetConditionQuit(&params.ConditionQuit{
-		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
-	}))
+	cm.startNodes(env, N2, N3,
+		N1.SetConditionQuit(&params.ConditionQuit{
+			QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
+		}).PMS())
 
 	transAmount1 := int32(11)
 	transAmount2 := int32(1)
@@ -84,8 +84,7 @@ func (cm *CaseManager) CasePMS01() (err error) {
 		return fmt.Errorf("step1: check n1 LockedAmount failed,LockedAmount= %d,expect =%d", c21First.PartnerLockedAmount, transAmount1)
 	}
 	// N1 restart pms
-	//N1.ReStartWithoutConditionquit(env)
-	cm.startNodesWithPMS(env, N1.RestartName().SetConditionQuit(nil))
+	cm.startNodes(env, N1.RestartName().SetConditionQuit(nil).PMS())
 	time.Sleep(time.Second)
 	models.Logger.Println("n1 restart")
 	// step2:N1 send trans to N3(10token,success)
@@ -109,9 +108,9 @@ func (cm *CaseManager) CasePMS01() (err error) {
 	models.Logger.Println("================step3")
 	N1.Shutdown(env)
 	time.Sleep(time.Second)
-	cm.startNodesWithPMS(env, N1.RestartName().SetConditionQuit(&params.ConditionQuit{
+	cm.startNodes(env, N1.RestartName().SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
-	}))
+	}).PMS())
 	time.Sleep(time.Second)
 	secret3, _, err := N1.GenerateSecret()
 	if err != nil {
@@ -139,20 +138,11 @@ func (cm *CaseManager) CasePMS01() (err error) {
 	}
 
 	models.Logger.Println("================n2 force unlock")
-	////N2.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N1)...)
-	//cm.startNodesWithPMS(env, N1.RestartName().SetConditionQuit(nil).SetNoNetwork())
-	///*//n1注册两个mtr的密码
-	//err=N1.RegisterSecret(secret)
-	//if err!=nil{
-	//	return
-	//}
-	//err=N1.RegisterSecret(secret3)
-	//if err!=nil{
-	//	return
-	//}*/
-	//// N2 force unlock
-	//time.Sleep(time.Second)
-	//N1.Shutdown(env)
+	//重启N1,保证N1成功提交给PMS证据,然后立即关闭,让PMS工作
+	cm.startNodes(env, N1.RestartName().SetConditionQuit(nil).NoNetwork().PMS())
+	time.Sleep(time.Second * 5)
+	N1.Shutdown(env)
+
 	c1, err := N2.SpecifiedChannel(c12.ChannelIdentifier)
 	if err != nil {
 		return

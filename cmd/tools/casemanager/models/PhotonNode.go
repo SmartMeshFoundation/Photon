@@ -36,15 +36,17 @@ type PhotonNode struct {
 	ConditionQuit *params.ConditionQuit
 	DebugCrash    bool
 	Running       bool
-	NoNetwork     bool
-	DoPprof       bool
+	noNetwork     bool
+	pprof         bool
 	Runtime       PhotonNodeRuntime
+	pfs           bool //是否需要pfs
+	pms           bool //是否需要pms
 }
 
 // Start start a photon node
 func (node *PhotonNode) startInternal(env *TestEnv) {
 	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	go ExecShell(env.Main, node.getParamStr(env, node.DoPprof, node.NoNetwork), logfile, true)
+	go ExecShell(env.Main, node.getParamStr(env), logfile, true)
 
 	count := 0
 	t := time.Now()
@@ -94,79 +96,6 @@ func removeParam(params []string, remove string) []string {
 	return params
 }
 
-// StartWithFeeAndPFS :
-func (node *PhotonNode) StartWithFeeAndPFS(env *TestEnv) {
-	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStr(env, false, false)
-	//从参数中找到diable-fee,然后删除
-	params = removeParam(params, "--disable-fee")
-	params = removeParam(params, "--debug-udp-only")
-	// 添加casemanager自带的pfs
-	params = append(params, "--pfs=http://127.0.0.1:17000")
-	go ExecShell(env.Main, params, logfile, true)
-
-	count := 0
-	t := time.Now()
-	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithFee, sleep 100ms...\n", node.Name)
-		time.Sleep(time.Millisecond * 100)
-		count++
-		if count > 400 {
-			if node.ConditionQuit != nil {
-				Logger.Printf("NODE %s %s StartWithFee with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
-			} else {
-				Logger.Printf("NODE %s %s StartWithFee TIMEOUT\n", node.Address, node.Host)
-			}
-			panic("Start photon node TIMEOUT")
-		}
-	}
-	used := time.Since(t)
-	if node.DebugCrash {
-		Logger.Printf("NODE %s %s StartWithFee with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
-	} else {
-		Logger.Printf("NODE %s %s StartWithFee in %fs", node.Address, node.Host, used.Seconds())
-	}
-	time.Sleep(5 * time.Second)
-	node.Running = true
-}
-
-// StartWithPMS :
-func (node *PhotonNode) StartWithPMS(env *TestEnv) {
-	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-"+node.Name)
-	params := node.getParamStr(env, false, false)
-	if node.NoNetwork {
-		params = node.getParamStr(env, false, true)
-	}
-	// 添加casemanager自带的pfs
-	params = append(params, "--pms=http://127.0.0.1:18000")
-	params = append(params, "--pms-address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
-	go ExecShell(env.Main, params, logfile, true)
-
-	count := 0
-	t := time.Now()
-	for !node.IsRunning() {
-		Logger.Printf("waiting for %s to StartWithPMS, sleep 100ms...\n", node.Name)
-		time.Sleep(time.Millisecond * 100)
-		count++
-		if count > 400 {
-			if node.ConditionQuit != nil {
-				Logger.Printf("NODE %s %s StartWithPMS with %s TIMEOUT\n", node.Address, node.Host, node.ConditionQuit.QuitEvent)
-			} else {
-				Logger.Printf("NODE %s %s StartWithPMS TIMEOUT\n", node.Address, node.Host)
-			}
-			panic("Start photon node TIMEOUT")
-		}
-	}
-	used := time.Since(t)
-	if node.DebugCrash {
-		Logger.Printf("NODE %s %s StartWithPMS with %s in %fs", node.Address, node.Host, node.ConditionQuit.QuitEvent, used.Seconds())
-	} else {
-		Logger.Printf("NODE %s %s StartWithPMS in %fs", node.Address, node.Host, used.Seconds())
-	}
-	time.Sleep(5 * time.Second)
-	node.Running = true
-}
-
 // ReStartWithoutConditionquit : Restart start a photon node
 func (node *PhotonNode) ReStartWithoutConditionquit(env *TestEnv) {
 	node.RestartName().SetConditionQuit(nil).Start(env)
@@ -179,18 +108,30 @@ func (node *PhotonNode) RestartName() *PhotonNode {
 	return node
 }
 
-//SetNoNetwork 不与其他节点通信
-func (node *PhotonNode) SetNoNetwork() *PhotonNode {
-	node.NoNetwork = true
+//NoNetwork 不与其他节点通信
+func (node *PhotonNode) NoNetwork() *PhotonNode {
+	node.noNetwork = true
 	return node
 }
 
 //SetDoPprof 调试用
 func (node *PhotonNode) SetDoPprof() *PhotonNode {
-	node.DoPprof = true
+	node.pprof = true
 	return node
 }
-func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []string {
+
+//PMS 需要pms支持
+func (node *PhotonNode) PMS() *PhotonNode {
+	node.pms = true
+	return node
+}
+
+//PFS 需要pfs支持
+func (node *PhotonNode) PFS() *PhotonNode {
+	node.pfs = true
+	return node
+}
+func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	var param []string
 	param = append(param, "--datadir="+env.DataDir)
 	param = append(param, "--api-address="+node.APIAddress)
@@ -203,12 +144,6 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []
 	param = append(param, "--debug-mdns-interval=50ms")
 	param = append(param, "--debug-mdns-keepalive=1s")
 	param = append(param, "--debug-mdns-servicetag="+env.MDNSServiceTag)
-	if pprof {
-		param = append(param, "--pprof")
-	}
-	if nonetwork {
-		param = append(param, "--debug-nonetwork")
-	}
 
 	if !env.UseMatrix {
 		param = append(param, "--debug-udp-only")
@@ -222,6 +157,24 @@ func (node *PhotonNode) getParamStr(env *TestEnv, pprof bool, nonetwork bool) []
 		} else {
 			param = append(param, "--matrix-server=transport13.smartmesh.cn")
 		}
+	}
+	if node.pprof {
+		param = append(param, "--pprof")
+	}
+	if node.noNetwork {
+		param = append(param, "--debug-nonetwork")
+	}
+	if node.pfs {
+		//从参数中找到diable-fee,然后删除
+		param = removeParam(param, "--disable-fee")
+		param = removeParam(param, "--debug-udp-only") //必须使用xmpp,否则pfs不知道节点上线下线情况
+		// 添加casemanager自带的pfs
+		param = append(param, "--pfs=http://127.0.0.1:17000") //在测试case中pfs都是固定的
+	}
+	if node.pms {
+		// 添加casemanager自带的pfs
+		param = append(param, "--pms=http://127.0.0.1:18000")
+		param = append(param, "--pms-address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
 	}
 	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
 	param = append(param, fmt.Sprintf("--verbosity=%d", env.Verbosity))
@@ -301,6 +254,7 @@ func (node *PhotonNode) ClearHistoryData(dataDir string) {
 
 // ExecShell : run shell commands
 func ExecShell(cmdstr string, param []string, logfile string, canquit bool) bool {
+	Logger.Printf("exec shell cmd=%s, arg=%s\n", cmdstr, param)
 	var err error
 	/* #nosec */
 	cmd := exec.Command(cmdstr, param...)

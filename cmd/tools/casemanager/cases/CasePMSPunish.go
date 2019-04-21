@@ -2,11 +2,12 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
-	"time"
 )
 
 // CasePMSPunish :
@@ -33,12 +34,9 @@ func (cm *CaseManager) CasePMSPunish() (err error) {
 	// 启动pms
 	env.StartPMS()
 	// 启动节点2、3
-	cm.startNodes(env, N2, N3)
-	// 启动委托节点N1
-	cm.startNodes(env, N1.SetConditionQuit(&params.ConditionQuit{
+	cm.startNodes(env, N2, N3, N1.SetConditionQuit(&params.ConditionQuit{
 		QuitEvent: "EventSendAnnouncedDisposedResponseBefore",
 	}))
-
 	transAmount := int32(30)
 	secret, _, err := N1.GenerateSecret()
 	if err != nil {
@@ -61,7 +59,6 @@ func (cm *CaseManager) CasePMSPunish() (err error) {
 
 	// N1 send trans to N3
 	N1.SendTransWithSecret(tokenAddress, transAmount, N3.Address, secret)
-	time.Sleep(time.Second)
 	// 崩溃判断
 	for i := 0; i < cm.MediumWaitSeconds; i++ {
 		time.Sleep(time.Second)
@@ -84,7 +81,7 @@ func (cm *CaseManager) CasePMSPunish() (err error) {
 	N2.Shutdown(env)
 	models.Logger.Println("n2 shutdown")
 	// N1 restart pms
-	N1.RestartName().StartWithPMS(env)
+	cm.startNodes(env, N1.RestartName().PMS())
 	models.Logger.Println("n1 restart with pms")
 	//time.Sleep(time.Second * 2) //wait for submit to pms
 	c1, err := N1.SpecifiedChannel(c12.ChannelIdentifier)

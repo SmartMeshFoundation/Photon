@@ -649,16 +649,19 @@ var approveMapLock = sync.Mutex{}
 
 func approveAccountIfNeeded(token *Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
 	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:], token.TokenAddress[:])
+	approveMapLock.Lock()
 	m, ok := approveMap[key]
 	if ok && m > amount.Int64() {
+		approveMapLock.Unlock()
 		return
 	}
-	approveMapLock.Lock()
-	defer approveMapLock.Unlock()
+	approveMapLock.Unlock()
 	approveAccount(token.Token, auth, tokenNetworkAddress, amount, conn)
 	approveAmt := new(big.Int)
 	approveAmt = approveAmt.Mul(amount, big.NewInt(100))
+	approveMapLock.Lock()
 	approveMap[key] = approveAmt.Int64()
+	approveMapLock.Unlock()
 }
 
 // KillAllPhotonNodes kill all photon node
@@ -674,9 +677,11 @@ func (env *TestEnv) KillAllPhotonNodes() {
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = nil
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon-pathfinding-service")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = nil
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photonmonitoring")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
@@ -684,7 +689,7 @@ func (env *TestEnv) KillAllPhotonNodes() {
 	Logger.Println("Kill all photon nodes SUCCESS")
 }
 
-// ClearHistoryData :
+// ClearHistoryData : 要清除phton,pfs,pms所有数据
 func (env *TestEnv) ClearHistoryData() {
 	if env.DataDir == "" {
 		return
@@ -721,7 +726,7 @@ func (env *TestEnv) ClearHistoryData() {
 			if err != nil {
 				fmt.Println("delete dir error:", err)
 			}
-			Logger.Println("Clear pfs & pms history data SUCCESS ")
+			Logger.Printf("Clear pfs & pms history data SUCCESS,path=%s ", name)
 		}
 		return nil
 	})

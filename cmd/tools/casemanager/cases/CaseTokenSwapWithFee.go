@@ -29,7 +29,7 @@ func (cm *CaseManager) CaseTokenSwapWithFee() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 
 	env.StartPFS()
-	cm.startNodesWithFee(env, n0, n1, n2, n3, n4, n5)
+	cm.startNodes(env, n0.PFS(), n1.PFS(), n2.PFS(), n3.PFS(), n4.PFS(), n5.PFS())
 	time.Sleep(time.Second)
 	if cm.UseMatrix {
 		time.Sleep(time.Second * 7)

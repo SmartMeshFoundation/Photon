@@ -2,9 +2,10 @@ package cases
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
-	"time"
 )
 
 // CasePMS :
@@ -30,9 +31,7 @@ func (cm *CaseManager) CasePMS() (err error) {
 	// 启动pms
 	env.StartPMS()
 	// 启动节点2
-	cm.startNodes(env, N2)
-	// 启动委托方节点N1
-	cm.startNodesWithPMS(env, N1)
+	cm.startNodes(env, N2, N1.PMS())
 	// 获取channel信息
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before send trans")
 	n1value, err := N1.TokenBalance(tokenAddress)
@@ -70,11 +69,7 @@ func (cm *CaseManager) CasePMS() (err error) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, c12.Name)
 	}
 	models.Logger.Printf("n2 settle finished...")
-
-	N1.RestartName().StartWithPMS(env)
-	if cm.UseMatrix {
-		time.Sleep(time.Second * 5)
-	}
+	cm.startNodes(env, N1.RestartName().PMS())
 	var n1NewValue, n2NewValue, i int
 	for i = 0; i < 5; i++ {
 		time.Sleep(time.Second * 1)

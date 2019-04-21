@@ -26,7 +26,7 @@ func (cm *CaseManager) CaseStartWithPMS() (err error) {
 	// 启动pms
 	env.StartPMS()
 	// 启动节点0,1
-	cm.startNodesWithPMS(env, N0, N1)
+	cm.startNodes(env, N0.PMS(), N1.PMS())
 	err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, 58)
 	if err == nil {
 		return cm.caseFail(env.CaseName)
