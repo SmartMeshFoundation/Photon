@@ -66,7 +66,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 		err = models.GeneratDBError(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
+	log.Info(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
 	return
 }
 
@@ -119,7 +119,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		err = models.GeneratDBError(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
+	log.Info(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
 	txInfo = tis.ToTXInfo()
 	return
 }

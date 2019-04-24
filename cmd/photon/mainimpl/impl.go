@@ -400,7 +400,7 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 		}
 		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
 	case params.MixUDPMatrix:
-		log.Trace(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
+		log.Info(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
@@ -644,7 +644,7 @@ func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs
 	校验链上的合约代码版本
 */
 func verifyContractCode(bcs *rpc.BlockChainService) (contractVersion string, secretRegisteryAddress common.Address, punishBlockNumber uint64, chainID *big.Int, err error) {
-	log.Trace(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
+	log.Info(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
 	contractVersion, err = bcs.RegistryProxy.GetContractVersion()
 	if err != nil {
 		return

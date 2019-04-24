@@ -698,7 +698,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -722,7 +722,7 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 // can we just combine them?
 //1. 必须能够正确处理重复的事件
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		//i'm not a participant
@@ -766,7 +766,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 
 //1. 必须能够处理重复的ContractChannelWithdrawStateChange
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
-	log.Trace(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -797,7 +797,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 1. 重复的unlock没什么影响,只要保证后续的事件按序抵达即可
 */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
-	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -833,7 +833,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 
 //必须能够处理重复的punish事件,因为重复的punish只是更新通道状态,所以重复也没什么影响
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
-	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		log.Warn(fmt.Sprintf("receive ContractPunishedStateChange,but cannot found channel %s",
@@ -857,7 +857,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 
 //1. 必须正确处理重复的ContractBalanceProofUpdatedStateChange,这里只是更新相关参与方的状态,所以重复的事件并不影响
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
-	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil

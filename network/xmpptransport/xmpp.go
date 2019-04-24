@@ -135,7 +135,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
 	if err != nil {
-		log.Trace(fmt.Sprintf("%s new xmpp client err %s", name, err))
+		log.Error(fmt.Sprintf("%s new xmpp client err %s", name, err))
 		return
 	}
 	x.changeStatus(netshare.Connected)
