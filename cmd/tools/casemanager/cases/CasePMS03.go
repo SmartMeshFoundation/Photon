@@ -83,13 +83,13 @@ func (cm *CaseManager) CasePMS03() (err error) {
 	cm.startNodes(env, N1.RestartName().HaveNetwork(), N2.RestartName().HaveNetwork())
 
 	err = cm.tryInSeconds(cm.LowWaitSeconds, func() error {
-		n1Token, _ := N1.TokenBalance(tokenAddress)
+		n1Token, err1 := N1.TokenBalance(tokenAddress)
 		if err != nil {
-			return err
+			return err1
 		}
-		n2Token, _ := N2.TokenBalance(tokenAddress)
+		n2Token, err2 := N2.TokenBalance(tokenAddress)
 		if err != nil {
-			return err
+			return err2
 		}
 		if n1Token != n1TokenOld-10 && n2Token != n2TokenOld+10 {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance onchain, n1=%d,n1expect=%d,n2=%d,n2expect=%d ", n1Token, n1TokenOld-10, n2Token, n2TokenOld+10))
