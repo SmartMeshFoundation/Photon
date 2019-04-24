@@ -37,9 +37,12 @@ func (cm *CaseManager) CasePMS03() (err error) {
 	// 获取channel信息
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before send trans")
 	n1TokenOld, err := N1.TokenBalance(tokenAddress)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "query n1 balance error")
+	}
 	n2TokenOld, err := N2.TokenBalance(tokenAddress)
 	if err != nil {
-		return
+		return cm.caseFailWithWrongChannelData(env.CaseName, "query n2 balance error")
 	}
 	n1TokenOld += int(c12.Balance)
 	n2TokenOld += int(c12.PartnerBalance)
@@ -80,13 +83,13 @@ func (cm *CaseManager) CasePMS03() (err error) {
 	cm.startNodes(env, N1.RestartName().HaveNetwork(), N2.RestartName().HaveNetwork())
 
 	err = cm.tryInSeconds(cm.LowWaitSeconds, func() error {
-		n1Token, err := N1.TokenBalance(tokenAddress)
+		n1Token, _ := N1.TokenBalance(tokenAddress)
 		if err != nil {
-			return cm.caseFail(env.CaseName)
+			return err
 		}
-		n2Token, err := N2.TokenBalance(tokenAddress)
+		n2Token, _ := N2.TokenBalance(tokenAddress)
 		if err != nil {
-			return cm.caseFail(env.CaseName)
+			return err
 		}
 		if n1Token != n1TokenOld-10 && n2Token != n2TokenOld+10 {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance onchain, n1=%d,n1expect=%d,n2=%d,n2expect=%d ", n1Token, n1TokenOld-10, n2Token, n2TokenOld+10))
