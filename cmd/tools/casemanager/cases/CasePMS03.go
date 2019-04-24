@@ -81,6 +81,9 @@ func (cm *CaseManager) CasePMS03() (err error) {
 
 	err = cm.tryInSeconds(cm.LowWaitSeconds, func() error {
 		n1Token, err := N1.TokenBalance(tokenAddress)
+		if err != nil {
+			return cm.caseFail(env.CaseName)
+		}
 		n2Token, err := N2.TokenBalance(tokenAddress)
 		if err != nil {
 			return cm.caseFail(env.CaseName)

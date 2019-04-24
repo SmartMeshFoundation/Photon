@@ -123,7 +123,7 @@ func (cm *CaseManager) CasePMS04() (err error) {
 
 	if n1NewValue != n1TokenOld && n2NewValue != n2TokenOld && n3NewValue != n3TokenOld {
 		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance on chain err,n1=%d,expect=%d,n2=%d,expect=%d,n3=%d,expect=%d",
-			n1NewValue, n1TokenOld, n2NewValue, n2TokenOld, n3NewValue != n3TokenOld))
+			n1NewValue, n1TokenOld, n2NewValue, n2TokenOld, n3NewValue, n3TokenOld))
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return nil
