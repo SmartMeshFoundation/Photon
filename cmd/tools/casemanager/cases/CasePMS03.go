@@ -86,7 +86,7 @@ func (cm *CaseManager) CasePMS03() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 		if n1Token != n1TokenOld-10 && n2Token != n2TokenOld+10 {
-			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance onchain, n1=%d,n1expect=%d,n2=%d,n2expect=%d ", n1Token, int(c12.Balance)-20, n2Token, n2Token != int(c12.Balance)+10))
+			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("check balance onchain, n1=%d,n1expect=%d,n2=%d,n2expect=%d ", n1Token, n1TokenOld-10, n2Token, n2TokenOld+10))
 		}
 		return nil
 	})
