@@ -114,6 +114,12 @@ func (node *PhotonNode) NoNetwork() *PhotonNode {
 	return node
 }
 
+//HaveNetwork 设置有网状态
+func (node *PhotonNode) HaveNetwork() *PhotonNode {
+	node.noNetwork = false
+	return node
+}
+
 //SetDoPprof 调试用
 func (node *PhotonNode) SetDoPprof() *PhotonNode {
 	node.pprof = true
