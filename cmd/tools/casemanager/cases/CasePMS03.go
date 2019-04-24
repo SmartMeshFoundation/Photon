@@ -38,11 +38,11 @@ func (cm *CaseManager) CasePMS03() (err error) {
 	c12 := N1.GetChannelWith(N2, tokenAddress).Println("before send trans")
 	n1TokenOld, err := N1.TokenBalance(tokenAddress)
 	if err != nil {
-		return cm.caseFailWithWrongChannelData(env.CaseName, "query n1 balance error")
+		return cm.caseFailWithWrongChannelData(env.CaseName, "query n1  balance error")
 	}
 	n2TokenOld, err := N2.TokenBalance(tokenAddress)
 	if err != nil {
-		return cm.caseFailWithWrongChannelData(env.CaseName, "query n2 balance error")
+		return cm.caseFailWithWrongChannelData(env.CaseName, "query n2  balance error")
 	}
 	n1TokenOld += int(c12.Balance)
 	n2TokenOld += int(c12.PartnerBalance)
