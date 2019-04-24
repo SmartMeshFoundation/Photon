@@ -600,7 +600,7 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 }
 
 func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
-	log.Printf("createchannel between %s-%s,token=%s\n", utils.APex(account1), utils.APex(account2), utils.APex(token.TokenAddress))
+	log.Printf("createchannel between %s-%s,token = %s\n", utils.APex(account1), utils.APex(account2), utils.APex(token.TokenAddress))
 	var tx *types.Transaction
 	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
