@@ -272,6 +272,7 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 			log.Error(err.Error())
 			break
 		}
+		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
 		// 发起deposit操作
 		proxy, err := bcs.TokenNetwork(depositParams.TokenAddress)
 		if err != nil {
@@ -282,10 +283,18 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 		tx, err := proxy.GetContract().Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
 		if err != nil {
 			log.Error(err.Error())
+			// 构造一个虚假的tx来保存这次错误的调用供前端查询和通知
+			fakeTx := types.NewTransaction(0, utils.NewRandomAddress(), big.NewInt(models.FakeTXAmount), 0, big.NewInt(0), nil)
+			fakeTxInfo, err2 := bcs.TXInfoDao.NewPendingTXInfo(fakeTx, models.TXInfoTypeDeposit, channelID, 0, &depositParams, true)
+			if err2 != nil {
+				log.Error(err2.Error())
+				break
+			}
+			// b. 通知上层
+			bcs.NotifyHandler.NotifyContractCallTXInfo(fakeTxInfo)
 			break
 		}
 		// 保存TXInfo并注册到bcs中监控其执行结果
-		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
 		txInfo, err := bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, &depositParams)
 		if err != nil {
 			log.Error(err.Error())

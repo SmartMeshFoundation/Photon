@@ -179,7 +179,7 @@ type XMPPSubDao interface {
 
 // TXInfoDao :
 type TXInfoDao interface {
-	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams) (txInfo *TXInfo, err error)
+	NewPendingTXInfo(tx *types.Transaction, txType TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams TXParams, isFake ...bool) (txInfo *TXInfo, err error)
 	SaveEventToTXInfo(event interface{}) (txInfo *TXInfo, err error)
 	UpdateTXInfoStatus(txHash common.Hash, status TXInfoStatus, pendingBlockNumber int64, gasUsed uint64) (txInfo *TXInfo, err error)
 	GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType TXInfoType, status TXInfoStatus) (list []*TXInfo, err error)

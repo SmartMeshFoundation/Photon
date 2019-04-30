@@ -20,7 +20,7 @@ import (
 )
 
 // NewPendingTXInfo 创建pending状态的TXInfo,即自己发起的tx
-func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams, isFake ...bool) (txInfo *models.TXInfo, err error) {
 	tokenAddress := utils.EmptyAddress
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := model.GetChannelByAddress(channelIdentifier)
@@ -59,6 +59,9 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 		Status:            models.TXInfoStatusPending,
 		CallTime:          time.Now().Unix(),
 		GasPrice:          tx.GasPrice().Uint64(),
+	}
+	if len(isFake) > 0 && isFake[0] {
+		txInfo.Status = models.TXInfoStatusFailed
 	}
 	err = model.db.Save(txInfo.ToTXInfoSerialization())
 	if err != nil {

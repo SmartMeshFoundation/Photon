@@ -37,6 +37,9 @@ const (
 	TXInfoTypeRegisterSecret     = "RegisterSecret"
 )
 
+// FakeTXAmount 虚构tx的amount
+const FakeTXAmount = -1
+
 // TXInfo 记录已经提交到公链节点的tx信息
 type TXInfo struct {
 	TXHash            common.Hash    `json:"tx_hash"`
