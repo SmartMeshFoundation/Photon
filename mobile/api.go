@@ -1026,3 +1026,18 @@ func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber i
 func (a *API) Version() string {
 	return dto.NewSuccessMobileResponse(a.api.GetBuildInfo())
 }
+
+// GetAssetsOnToken 参数逗号分隔
+func (a *API) GetAssetsOnToken(tokenListStr string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall GetAssetsOnToken result=%s", result))
+	}()
+	var tokenList []common.Address
+	if tokenListStr != "" {
+		ss := strings.Split(tokenListStr, ",")
+		for _, s := range ss {
+			tokenList = append(tokenList, common.HexToAddress(s))
+		}
+	}
+	return dto.NewSuccessMobileResponse(a.api.GetAssetsOnToken(tokenList))
+}
