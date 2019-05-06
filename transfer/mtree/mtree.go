@@ -324,7 +324,7 @@ func Proof2Bytes(proof []common.Hash) []byte {
 	for _, h := range proof {
 		_, err := buf.Write(h[:])
 		if err != nil {
-			log.Trace(fmt.Sprintf("Proof2Bytes write err %s", err))
+			panic(fmt.Sprintf("Proof2Bytes write err %s", err))
 		}
 	}
 	return buf.Bytes()

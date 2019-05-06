@@ -1,5 +1,9 @@
 #!/bin/sh
-source ../env.sh 
+#获取git commit
+source ../env.sh
+#获取版本信息
+source ../VERSION
+
 echo $GIT_COMMIT
 echo $GO_VERSION
 echo $BUILD_DATE

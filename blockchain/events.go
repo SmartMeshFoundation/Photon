@@ -160,7 +160,7 @@ func (be *Events) notifyPhotonStartupCompleteIfNeeded(currentBlock int64) {
 }
 
 func (be *Events) startAlarmTask() {
-	log.Trace(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
+	log.Info(fmt.Sprintf("start getting lasted block number from blocknubmer=%d", be.lastBlockNumber))
 	rpanic.PanicRecover("startAlarmTask")
 	startUpBlockNumber := be.lastBlockNumber
 	currentBlock := be.lastBlockNumber
@@ -261,7 +261,7 @@ func (be *Events) startAlarmTask() {
 			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks,currentBlock=%d", lastedBlock-currentBlock-1, currentBlock))
 		}
 		if lastedBlock%logPeriod == 0 {
-			log.Trace(fmt.Sprintf("new block :%d", lastedBlock))
+			log.Info(fmt.Sprintf("new block :%d", lastedBlock))
 		}
 
 		fromBlockNumber := currentBlock - 2*params.ForkConfirmNumber
@@ -279,7 +279,7 @@ func (be *Events) startAlarmTask() {
 			continue
 		}
 		if len(stateChanges) > 0 {
-			log.Trace(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), fromBlockNumber, lastedBlock))
+			log.Info(fmt.Sprintf("receive %d events between block %d - %d", len(stateChanges), fromBlockNumber, lastedBlock))
 		}
 
 		// refresh block number and notify PhotonService

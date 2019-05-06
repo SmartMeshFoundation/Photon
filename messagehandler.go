@@ -715,7 +715,7 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		// 失败的SettleResponse
 		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
 		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
+		log.Info(notifyString)
 		return nil
 	}
 	err := ch.RegisterCooperativeSettleResponse(msg)
@@ -806,7 +806,7 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		// 失败的WithdrawResponse
 		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
 		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
+		log.Info(notifyString)
 		return nil
 	}
 	/*

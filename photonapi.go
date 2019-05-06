@@ -367,7 +367,7 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	//send settle request
 	result := r.Photon.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -388,7 +388,7 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 	//send settle request
 	result := r.Photon.cooperativeSettleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -410,7 +410,7 @@ func (r *API) PrepareForCooperativeSettle(channelIdentifier common.Hash) (c *cha
 	//send settle request
 	result := r.Photon.markChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -432,7 +432,7 @@ func (r *API) CancelPrepareForCooperativeSettle(channelIdentifier common.Hash) (
 	//send settle request
 	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -457,7 +457,7 @@ func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.
 	//send settle request
 	result := r.Photon.withdrawClient(c.ChannelIdentifier.ChannelIdentifier, amount)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -475,7 +475,7 @@ func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c
 	//send settle request
 	result := r.Photon.markWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -493,7 +493,7 @@ func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Addre
 	//send settle request
 	result := r.Photon.cancelMarkWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}

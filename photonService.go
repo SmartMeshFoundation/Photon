@@ -1892,15 +1892,15 @@ func (rs *Service) submitDelegateToPms(ch *channel.Channel) {
 }
 
 func (rs *Service) submitDelegateToPmsLoop() {
-	log.Trace("submitDelegateToPmsLoop start...")
+	log.Info("submitDelegateToPmsLoop start...")
 	for {
 		if rs.PmsProxy == nil {
-			log.Trace("submitDelegateToPmsLoop stop because PmsProxy is nil")
+			log.Info("submitDelegateToPmsLoop stop because PmsProxy is nil")
 			return
 		}
 		ch, ok := <-rs.ChanSubmitDelegateToPMS
 		if !ok {
-			log.Trace("submitDelegateToPmsLoop stop because chan close")
+			log.Info("submitDelegateToPmsLoop stop because chan close")
 			return
 		}
 		// 1. 获取待提交数据
@@ -1951,15 +1951,15 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 }
 
 func (rs *Service) submitBalanceProofToPfsLoop() {
-	log.Trace("submitBalanceProofToPfsLoop start...")
+	log.Info("submitBalanceProofToPfsLoop start...")
 	for {
 		if rs.PfsProxy == nil {
-			log.Trace("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
+			log.Info("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
 			return
 		}
 		ch, ok := <-rs.ChanSubmitBalanceProofToPFS
 		if !ok {
-			log.Trace("submitBalanceProofToPfsLoop stop because chan close")
+			log.Info("submitBalanceProofToPfsLoop stop because chan close")
 			return
 		}
 		bpPartner := ch.PartnerState.BalanceProofState
