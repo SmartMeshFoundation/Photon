@@ -9,7 +9,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -178,7 +178,7 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 
 	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	var d *ChannelData

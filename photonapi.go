@@ -98,7 +98,11 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			settleTimeout = r.Photon.Config.SettleTimeout
 		}
 		if settleTimeout <= revealTimeout {
-			err = rerr.ErrChannelInvalidSttleTimeout
+			err = rerr.ErrChannelInvalidSettleTimeout
+			return
+		}
+		if bytes.Equal(partnerAddress[:], r.Photon.NodeAddress[:]) {
+			err = rerr.ErrOpenChannelWithSelf
 			return
 		}
 	} else {

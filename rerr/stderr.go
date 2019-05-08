@@ -299,10 +299,13 @@ var (
 	/*ErrChannelCooperativeSettleButHasLocks : we can't send a request for settle when there are locks.
 	 */
 	ErrChannelCooperativeSettleButHasLocks = newError(5025, "ErrChannelCooperativeSettleButHasLocks")
-	/*ErrChannelInvalidSttleTimeout Raised when the user provided timeout value is less than the minimum
+	/*ErrChannelInvalidSettleTimeout Raised when the user provided timeout value is less than the minimum
 	  settle timeout
 	*/
-	ErrChannelInvalidSttleTimeout = newError(5026, "ErrInvalidSettleTimeout")
+	ErrChannelInvalidSettleTimeout = newError(5026, "ErrInvalidSettleTimeout")
+	/*ErrOpenChannelWithSelf 不能自己与自己创建通道
+	 */
+	ErrOpenChannelWithSelf = newError(5027, "ErrOpenChannelWithSelf")
 	/*
 		Transport error
 	*/
