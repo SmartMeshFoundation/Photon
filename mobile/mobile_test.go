@@ -69,8 +69,14 @@ func TestMobile(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	partnerAddr := utils.NewRandomAddress()
-	api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
 	var c channeltype.ChannelDataDetail
+	resultstr := api.Deposit(nodeAddr.String(), tokens[0].String(), 300, "3", true)
+	err = dto.ParseResult(resultstr, &c)
+	ast.NotNil(err)
+	err = dto.ParseResult(resultstr, &c)
+	resultstr = api.Deposit(partnerAddr.String(), tokens[0].String(), 300, "3", true)
+	err = dto.ParseResult(resultstr, &c)
+	ast.Nil(err)
 
 	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
 	//等待交易被打包
@@ -88,7 +94,7 @@ func TestMobile(t *testing.T) {
 		return
 	}
 
-	resultstr := api.CloseChannel(channelIdentifier.String(), true)
+	resultstr = api.CloseChannel(channelIdentifier.String(), true)
 	dto.ParseResult(resultstr, &c)
 	ast.EqualValues(c.State, channeltype.StateClosing)
 
