@@ -155,7 +155,9 @@ func (s *SNM) PreSubFunds(value string) (result string) {
 
 //SubFunds 锁定到期,撤回投资
 func (s *SNM) SubFunds() (result string) {
-
+	if !s.isRunning {
+		return dto.NewErrorMobileResponse(errContractsAlreadyStopped)
+	}
 	li, err := s.m.Locked(nil, s.addr)
 	if err != nil {
 		return dto.NewErrorMobileResponse(rerr.ErrContractQueryError)
@@ -167,12 +169,8 @@ func (s *SNM) SubFunds() (result string) {
 	if err != nil {
 		return dto.NewErrorMobileResponse(rerr.ErrContractQueryError.WithData(err))
 	}
-	isRunning, err := s.m.IsRunning(nil)
-	if err != nil {
-		return dto.NewErrorMobileResponse(rerr.ErrContractQueryError)
-	}
-	//如果合约已经停止运行,随时都可以撤回资金
-	if header.Number.Cmp(li.EndBlock) <= 0 && isRunning {
+	//等到锁定期过了才能撤资
+	if header.Number.Cmp(li.EndBlock) <= 0 {
 		return dto.NewErrorMobileResponse(errNotAllowSubFundsWhenFunding)
 	}
 	opts := bind.NewKeyedTransactor(s.key)
