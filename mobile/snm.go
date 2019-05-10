@@ -47,10 +47,11 @@ type SNM struct {
 	lockTime       *big.Int
 	endTimeOfFunds *big.Int
 	isRunning      bool
+	snmService     string
 }
 
 //NewSNM 创建管理接口
-func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract string) (s *SNM, err error) {
+func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract string, snmService string) (s *SNM, err error) {
 	addr := common.HexToAddress(address)
 	_, keybin, err := accounts.PromptAccount(addr, keystorePath, password)
 	if err != nil {
@@ -88,6 +89,7 @@ func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract string) (s
 		endTimeOfFunds: endTimeOfFunds,
 		lockTime:       lockTime,
 		isRunning:      isRuning,
+		snmService:     snmService,
 	}, nil
 }
 
