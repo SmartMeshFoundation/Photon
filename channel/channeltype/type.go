@@ -64,6 +64,7 @@ type Serialization struct {
 	ClosedBlock            int64
 	SettledBlock           int64
 	SettleTimeout          int
+	UpdateAt               int64 // 保存最后一次更新的时间戳
 }
 
 //NewEmptySerialization contstructs empty serialization to avoid panic
