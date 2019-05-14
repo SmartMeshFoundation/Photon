@@ -474,7 +474,7 @@ func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amoun
 }
 
 //SettleChannelAsync settle a channel async 进入缓冲池就认为成功了
-func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1Amount, p2Amount *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
+func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1Amount, p2Amount, p1Balance, p2Balance *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
 	tx, err := t.GetContract().Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
 	if err != nil {
 		return rerr.ContractCallError(err)
@@ -489,6 +489,8 @@ func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1
 		P2Address:        p2Addr,
 		P2TransferAmount: p2Amount,
 		P2LocksRoot:      p2Locksroot,
+		P1Balance:        p1Balance,
+		P2Balance:        p2Balance,
 	})
 	if err != nil {
 		return rerr.ContractCallError(err)

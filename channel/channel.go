@@ -1383,6 +1383,8 @@ func (c *Channel) Settle(blockNumber int64) (err error) {
 		return rerr.ChannelStateError(c.State)
 	}
 	var MyTransferAmount, PartnerTransferAmount *big.Int
+	var myBalance = new(big.Int).Set(c.OurState.ContractBalance)
+	var partnerBalance = new(big.Int).Set(c.PartnerState.ContractBalance)
 	var MyLocksroot, PartnerLocksroot common.Hash
 	if c.OurState.BalanceProofState != nil {
 		MyTransferAmount = c.OurState.BalanceProofState.ContractTransferAmount
@@ -1399,7 +1401,17 @@ func (c *Channel) Settle(blockNumber int64) (err error) {
 	if c.ExternState.SettledBlock > blockNumber {
 		return rerr.ErrChannelSettleTimeout
 	}
-	err = c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+	/*
+		计算此次settle我可以拿到的token
+		不考虑punish问题,
+		不以本地存储的为准,应该以合约中的数据为准了.
+		持有的锁已经过期了,也没法解锁了,所以也不用考虑
+	*/
+	myBalance = myBalance.Sub(myBalance, MyTransferAmount)
+	myBalance = myBalance.Add(myBalance, PartnerTransferAmount)
+	partnerBalance = partnerBalance.Sub(partnerBalance, PartnerTransferAmount)
+	partnerBalance = partnerBalance.Add(partnerBalance, MyTransferAmount)
+	err = c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, myBalance, partnerBalance, MyLocksroot, PartnerLocksroot)
 	if err != nil {
 		return
 	}
