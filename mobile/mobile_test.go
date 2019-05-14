@@ -46,7 +46,11 @@ func TestMobile(t *testing.T) {
 	defer api.Stop()
 
 	var s string
-	dto.ParseResult(api.Address(), &s)
+	err = dto.ParseResult(api.Address(), &s)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	ast.EqualValues(s, common.HexToAddress("0x1a9eC3b0b807464e6D3398a59d6b0a369Bf422fA").String())
 
 	var tokens []common.Address
@@ -81,7 +85,7 @@ func TestMobile(t *testing.T) {
 	channelIdentifier := utils.CalcChannelID(tokens[0], api.api.Photon.Chain.GetRegistryAddress(), nodeAddr, partnerAddr)
 	//等待交易被打包
 	for i := 0; i < 60; i++ {
-		resultstr := api.GetOneChannel(channelIdentifier.String())
+		resultstr = api.GetOneChannel(channelIdentifier.String())
 		err = dto.ParseResult(resultstr, &c)
 		if err == nil {
 			break
