@@ -177,6 +177,8 @@ type ChannelSettleTXParams struct {
 	P2Address        common.Address `json:"p2_address"`
 	P2TransferAmount *big.Int       `json:"p2_transfer_amount"`
 	P2LocksRoot      common.Hash    `json:"p2_locks_root"`
+	P1Balance        *big.Int       `json:"p1_balance"`
+	P2Balance        *big.Int       `json:"p2_balance"`
 }
 
 // ChannelWithDrawTXParams 通道取现的参数
