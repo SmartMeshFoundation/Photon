@@ -170,13 +170,13 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 }
 
 //Settle call settle function of contract
-func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount, myBalance, PartnerBalance *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (err error) {
+func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (err error) {
 	log.Info(fmt.Sprintf("settle called %s,myTransferAmount=%s,partnerTransferAmount=%s,mylocksRoot=%s,partnerLocksroot=%s",
 		e.ChannelIdentifier.String(), MyTransferAmount, PartnerTransferAmount,
 		utils.HPex(MyLocksroot), utils.HPex(PartnerLocksroot),
 	))
 	return e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
-		MyTransferAmount, PartnerTransferAmount, myBalance, PartnerBalance,
+		MyTransferAmount, PartnerTransferAmount,
 		MyLocksroot, PartnerLocksroot,
 	)
 }

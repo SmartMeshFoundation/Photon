@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"fmt"
@@ -939,7 +937,6 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		FeePolicy           *models.FeePolicy                 `json:"fee_policy"`
 		ChannelNum          int                               `json:"channel_num"`
 		Transfers           *transfers                        `json:"transfers,omitempty"`
-		SyncProcess         *ethereum.SyncProgress            `json:"sync_process"`
 	}
 	var data systemStatus
 	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
@@ -999,15 +996,6 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		SendNum:    len(sts),
 		ReceiveNum: len(rts),
 		DealingNum: len(r.Photon.Transfer2StateManager),
-	}
-	//只有确定公链链接有效才会查询,否则不查询
-	if r.Photon.Chain.Client.Status == netshare.Connected {
-		var sync *ethereum.SyncProgress
-		sync, err = r.Photon.Chain.SyncProgress()
-		if err != nil {
-			return
-		}
-		data.SyncProcess = sync
 	}
 	resp = data
 	return
