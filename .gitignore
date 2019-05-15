@@ -31,4 +31,5 @@ cmd/tools/casemanager/.photon/*
 cmd/tools/casemanager/casemanager
 cmd/tools/casemanager/log/*
 cmd/tools/deploy/deploy
+*.ipk
 

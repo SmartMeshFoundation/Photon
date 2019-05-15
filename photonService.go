@@ -1083,6 +1083,11 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 				log.Error("can not found myself in msg.Path")
 				return
 			}
+			//传递参数有问题,导致没有下一跳
+			if myIndexInPath+1 >= len(msg.Path) {
+				log.Error(fmt.Sprintf("i'm not target,but cannot find more hop node,msg=%s", utils.StringInterface(msg, 5)))
+				return
+			}
 			nextChan := rs.getChannel(ch.TokenAddress, msg.Path[myIndexInPath+1])
 			if nextChan == nil {
 				log.Error(fmt.Sprintf("receive path,but channel between me and %s doesn't exist", msg.Path[myIndexInPath+1].String()))
@@ -1094,21 +1099,6 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			availableRoute.Fee = rs.FeePolicy.GetNodeChargeFee(nextChan.PartnerState.Address, nextChan.TokenAddress, targetAmount)
 			avaiableRoutes = append(avaiableRoutes, availableRoute)
 		}
-
-		//ourAddress := rs.NodeAddress
-		//exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		//var avaiableRoutes []*route.State
-		//if rs.PfsProxy != nil {
-		//	var err error
-		//	avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount, false)
-		//	if err != nil {
-		//		log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
-		//	}
-		//} else {
-		//	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-		//	//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
-		//	avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
-		//}
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
