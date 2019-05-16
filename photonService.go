@@ -1811,35 +1811,51 @@ func (rs *Service) UpdateChannelAndSaveAck(c *channel.Channel, tag interface{}) 
 	echohash := t.EchoHash
 	ack := rs.Protocol.CreateAck(echohash)
 	cs := channel.NewChannelSerialization(c)
-	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
 	err := rs.dao.UpdateChannelAndSaveAck(cs, echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
 }
 
 //UpdateChannel 数据库中更新通道状态,同时通知App
 func (rs *Service) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
+	err := rs.dao.UpdateChannel(c, tx)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannel(c, tx)
+	return nil
 }
 
 //UpdateChannelNoTx  数据库更新,同时通知App,与updateChannelState的区别就在于回调函数的
 func (rs *Service) UpdateChannelNoTx(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelNoTx(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelNoTx(c)
+	return nil
 }
 
 //UpdateChannelState 数据库更新,同时通知app
 func (rs *Service) UpdateChannelState(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelState(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelState(c)
+	return nil
 }
 
 //UpdateChannelContractBalance 数据库更新,同时通知app
 func (rs *Service) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelContractBalance(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelContractBalance(c)
+	return nil
 }
 
 func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {
