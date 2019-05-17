@@ -1278,11 +1278,10 @@ type GetAssetsOnTokenResponseDetail struct {
 }
 
 // GetAssetsOnToken :
-func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenResponseDetail {
+func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnTokenResponseDetail, err error) {
 	if len(tokenList) == 0 {
 		tokenList = r.GetTokenList()
 	}
-	var resp []*GetAssetsOnTokenResponseDetail
 	for _, token := range tokenList {
 		d := &GetAssetsOnTokenResponseDetail{
 			TokenAddress:    token.String(),
@@ -1290,16 +1289,19 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			BalanceInPhoton: big.NewInt(0),
 		}
 		// 1. 获取用户在链上的该token余额
-		t, err := r.GetTokenBalance(r.Photon.NodeAddress, token)
-		if err != nil {
-			log.Error(err.Error())
-		} else {
-			d.BalanceOnChain = t
+		t, err2 := r.GetTokenBalance(r.Photon.NodeAddress, token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
 		}
+		d.BalanceOnChain = t
 		// 2. 获取用户在photon中的该token余额
-		balance, err := r.GetBalanceByTokenAddress(token)
-		if err != nil {
-			log.Error(err.Error())
+		balance, err2 := r.GetBalanceByTokenAddress(token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
 		}
 		if len(balance) == 1 {
 			d.BalanceInPhoton = balance[0].Balance
@@ -1308,5 +1310,5 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			resp = append(resp, d)
 		}
 	}
-	return resp
+	return
 }

@@ -1039,5 +1039,9 @@ func (a *API) GetAssetsOnToken(tokenListStr string) (result string) {
 			tokenList = append(tokenList, common.HexToAddress(s))
 		}
 	}
-	return dto.NewSuccessMobileResponse(a.api.GetAssetsOnToken(tokenList))
+	resp, err := a.api.GetAssetsOnToken(tokenList)
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(resp)
 }
