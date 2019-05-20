@@ -39,19 +39,19 @@ var (
 
 //SNM app与合约打交道
 type SNM struct {
-	addr           common.Address
-	key            *ecdsa.PrivateKey
-	contract       common.Address
-	c              *helper.SafeEthClient
-	m              *snm.Mortgage
-	lockTime       *big.Int
-	endTimeOfFunds *big.Int
-	isRunning      bool
-	snmService     string
+	addr           common.Address        //投资人账户地址
+	key            *ecdsa.PrivateKey     //投资人私钥
+	contract       common.Address        //抵押合约地址
+	c              *helper.SafeEthClient //公链rpc
+	m              *snm.Mortgage         //抵押合约代理
+	lockTime       *big.Int              //资金退出锁定时间
+	endTimeOfFunds *big.Int              //募集资金结束时间
+	isRunning      bool                  //正在运行?
+	snmService     string                //超级节点地址,形如127.0.01:5003
 }
 
 //NewSNM 创建管理接口
-func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract string, snmService string) (s *SNM, err error) {
+func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract, snmService string) (s *SNM, err error) {
 	addr := common.HexToAddress(address)
 	_, keybin, err := accounts.PromptAccount(addr, keystorePath, password)
 	if err != nil {

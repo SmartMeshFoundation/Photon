@@ -87,7 +87,7 @@ func (cg *ChannelGraph) printGraph() {
 		for j := 0; j < len(cg.index2address); j++ {
 			v, err := cg.g.GetVertex(i)
 			if err != nil {
-				log.Crit(fmt.Sprintf("addr %s:%d not exist", utils.APex(cg.index2address[i]), i))
+				panic(fmt.Sprintf("addr %s:%d not exist", utils.APex(cg.index2address[i]), i))
 			}
 
 			if _, ok := v.GetArc(j); ok {

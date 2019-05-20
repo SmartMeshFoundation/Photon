@@ -95,7 +95,7 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.BalanceSignature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
 	}
 	return p.BalanceSignature
 }
@@ -175,7 +175,7 @@ func (p *findPathPayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
+		panic(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
 	}
 	return p.Signature
 }
@@ -259,7 +259,7 @@ func (p *setFeePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
 	}
 	return p.Signature
 }

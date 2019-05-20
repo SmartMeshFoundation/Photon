@@ -16,7 +16,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/asdine/storm"
 	gobcodec "github.com/asdine/storm/codec/gob"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -53,36 +53,32 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 	model.db, err = storm.Open(dbPath, storm.BoltOptions(os.ModePerm, &bolt.Options{Timeout: 1 * time.Second}), storm.Codec(gobcodec.Codec))
 	if err != nil {
 		err = fmt.Errorf("cannot create or open db:%s,makesure you have write permission err:%v", dbPath, err)
-		log.Crit(err.Error())
-		return
+		panic(err.Error())
 	}
 	model.Name = dbPath
 	if needCreateDb {
 		err = model.db.Set(models.BucketMeta, models.KeyVersion, models.DbVersion)
 		if err != nil {
-			log.Crit(fmt.Sprintf("unable to create db "))
-			return
+			panic(fmt.Sprintf("unable to create db "))
 		}
 		err = model.db.Set(models.BucketToken, models.KeyToken, make(models.AddressMap))
 		if err != nil {
-			log.Crit(fmt.Sprintf("unable to create db "))
-			return
+			panic(fmt.Sprintf("unable to create db "))
 		}
 		model.initDb()
 		model.MarkDbOpenedStatus()
 	} else {
 		err = model.db.Get(models.BucketMeta, models.KeyVersion, &ver)
 		if err != nil {
-			log.Crit(fmt.Sprintf("wrong db file format "))
-			return
+			panic(fmt.Sprintf("wrong db file format "))
 		}
 		if ver != models.DbVersion {
-			log.Crit("db version not match")
+			panic("db version not match")
 		}
 		var closeFlag bool
 		err = model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 		if err != nil {
-			log.Crit(fmt.Sprintf("db meta data error"))
+			panic(fmt.Sprintf("db meta data error"))
 		}
 		if closeFlag != true {
 			log.Error("database not closed  last..., try to restore?")
@@ -110,7 +106,7 @@ func (model *StormDB) IsDbCrashedLastTime() bool {
 	var closeFlag bool
 	err := model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 	if err != nil {
-		log.Crit(fmt.Sprintf("db meta data error"))
+		panic(fmt.Sprintf("db meta data error"))
 	}
 	return closeFlag != true
 }
