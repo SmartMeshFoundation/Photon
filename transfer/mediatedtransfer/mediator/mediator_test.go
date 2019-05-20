@@ -281,24 +281,27 @@ func TestNextRouteAmount(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, x.Div(amount, big.NewInt(2)), 0, revealTimeout, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, amount, 0, revealTimeout, 0, utils.NewRandomHash()),
 	}
+	fnNextPaymentAmount := func(r *route.State) *big.Int {
+		return amount
+	}
 	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, revealTimeout, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route1, routes[0])
 	assert(t, routesState.AvailableRoutes, routes[1:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route2, routes[1])
 	assert(t, routesState.AvailableRoutes, routes[2:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route3, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route3, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route3, routes[3])
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, []*route.State{routes[2]})
 
-	route4, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route4, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route4 == nil, true)
 
 }
@@ -315,13 +318,16 @@ func TestNextRouteRevealTimeout(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, balance, 0, timeoutBlocks/2, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, balance, 0, timeoutBlocks, 0, utils.NewRandomHash()),
 	}
+	fnNextPaymentAmount := func(r *route.State) *big.Int {
+		return amount
+	}
 	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, 10, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route1, routes[2])
 	assert(t, routesState.AvailableRoutes, routes[3:])
 	assert(t, routesState.IgnoredRoutes, routes[0:2])
-	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route2 == nil, true)
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, append(routes[0:2], routes[3]))

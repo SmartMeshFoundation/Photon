@@ -263,7 +263,7 @@ Finds the first route available that may be used.
 3.时间还足够安全
 */
 
-func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int, transferAmount, fee *big.Int) (routeCanUse *route.State, err error) {
+func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int, fee *big.Int, fnNextPaymentAmount fnNextPaymentAmount) (routeCanUse *route.State, err error) {
 	for len(rss.AvailableRoutes) > 0 {
 		route := rss.AvailableRoutes[0]
 		ch := route.Channel()
@@ -279,7 +279,7 @@ func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int
 			continue
 		}
 		// 通道余额校验
-		if route.AvailableBalance().Cmp(transferAmount) < 0 {
+		if route.AvailableBalance().Cmp(fnNextPaymentAmount(route)) < 0 {
 			err = rerr.ErrNoAvailabeRoute.Errorf("channel with %s-%s can not transfer because balance not enough",
 				utils.APex(ch.OurState.Address),
 				utils.APex(ch.PartnerState.Address))
@@ -329,6 +329,9 @@ func nextRoute(fromRoute *route.State, rss *route.RoutesState, timeoutBlocks int
 	return
 }
 
+//计算下一跳,我应该付出的金额
+type fnNextPaymentAmount func(r *route.State) *big.Int
+
 /*
 Given a payer transfer tries a new route to proceed with the mediation.
 
@@ -352,7 +355,17 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	if int64(timeoutBlocks) > payerTransfer.Expiration-blockNumber {
 		panic("timeoutBlocks >payerTransfer.Expiration-blockNumber")
 	}
-	payeeRoute, err := nextRoute(payerRoute, routesState, timeoutBlocks, payerTransfer.Amount, payerTransfer.Fee)
+	/*
+		如果下一跳就是target,我会把手续费全吃掉,
+		否则我只收取正常手续费即可
+	*/
+	fnNextPaymentAmount := func(nextRoute *route.State) *big.Int {
+		if nextRoute.HopNode() == payerTransfer.Target {
+			return payerTransfer.TargetAmount
+		}
+		return new(big.Int).Sub(payerTransfer.Amount, nextRoute.Fee)
+	}
+	payeeRoute, err := nextRoute(payerRoute, routesState, timeoutBlocks, payerTransfer.Fee, fnNextPaymentAmount)
 	if payeeRoute == nil {
 		return
 	}
@@ -370,7 +383,7 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 	lockExpiration := int64(lockTimeout) + blockNumber
 	payeeTransfer := &mediatedtransfer.LockedTransferState{
 		TargetAmount:   payerTransfer.TargetAmount,
-		Amount:         big.NewInt(0).Sub(payerTransfer.Amount, payeeRoute.Fee),
+		Amount:         fnNextPaymentAmount(payeeRoute),
 		Token:          payerTransfer.Token,
 		Initiator:      payerTransfer.Initiator,
 		Target:         payerTransfer.Target,
@@ -378,11 +391,6 @@ func nextTransferPair(payerRoute *route.State, payerTransfer *mediatedtransfer.L
 		LockSecretHash: payerTransfer.LockSecretHash,
 		Secret:         payerTransfer.Secret,
 		Fee:            big.NewInt(0).Sub(payerTransfer.Fee, payeeRoute.Fee),
-	}
-	if payeeRoute.HopNode() == payeeTransfer.Target {
-		//i'm the last hop,so take the rest of the fee
-		payeeTransfer.Fee = utils.BigInt0
-		payeeTransfer.Amount = payerTransfer.TargetAmount
 	}
 	//todo log how many tokens fee for this transfer .
 	transferPair = mediatedtransfer.NewMediationPairState(payerRoute, payeeRoute, payerTransfer, payeeTransfer)
