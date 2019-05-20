@@ -3,8 +3,12 @@ package mobile
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
+	"net/http"
 	"time"
+
+	"github.com/SmartMeshFoundation/super-node-managerment/models"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -90,6 +94,7 @@ func NewSNM(address, keystorePath, ethRPCEndPoint, password, contract, snmServic
 		lockTime:       lockTime,
 		isRunning:      isRuning,
 		snmService:     snmService,
+		c:              c,
 	}, nil
 }
 
@@ -240,12 +245,35 @@ func (s *SNM) helpTx(tx *types.Transaction, err error) string {
 	return dto.NewSuccessMobileResponse("")
 }
 
+/*
+GetMortgageInfoResponse :
+*/
+type getMortgageInfoResponse struct {
+	/*
+		超级节点部分信息
+	*/
+	SnmAccount            common.Address `json:"snm_account"`              // snm账户地址
+	SnmTotalFund          *big.Int       `json:"snm_total_fund"`           // snm收到的投资(抵押)总额
+	SnmAvailableTotalFund *big.Int       `json:"snm_available_total_fund"` // snm有效投资总额
+	SnmBalance            *big.Int       `json:"snm_balance"`              // snm账户SMT余额
+	SnmChannelNum         int            `json:"snm_channel_num"`          // snm在SMT的通道数量
+	SnmAmountInChannel    *big.Int       `json:"snm_amount_in_channel"`    // snm通道中SMT总额
+	SnmHistoryIncome      *big.Int       `json:"snm_history_income"`       // snm历史总收入
+
+	/*
+		用户部分信息
+	*/
+	UserFund                    *big.Int               `json:"user_fund,omitempty"`                      // 用户投资(抵押)总金额
+	UserAvailableFund           *big.Int               `json:"user_available_fund,omitempty"`            // 用户有效资金总额(T+1)
+	UserAvailableFundProportion string                 `json:"user_available_fund_proportion,omitempty"` // 用户资金有效占比
+	UserLockFund                *big.Int               `json:"user_lock_fund,omitempty"`                 // 用户锁定资金(正在撤出的资金)
+	UserHistoryIncome           *big.Int               `json:"user_history_income,omitempty"`            // 用户历史收入总额
+	UserIncomeDetailList        []*models.IncomeDetail `json:"user_income_detail_list,omitempty"`        // 用户历史收入明细
+}
+
 type status struct {
-	IsRunning     bool
-	TatalInterest *big.Int //可以从合约走,但是每天利息收益呢?
-	LockedValue   *big.Int
-	LockEndBlock  *big.Int
-	//正在进行中的投资,只能通过超节点查询
+	IsRunning bool                    `json:"is_running"`
+	SNM       getMortgageInfoResponse `json:"snm"`
 }
 
 //Status 查询投资状态
@@ -256,5 +284,27 @@ func (s *SNM) Status() (result string) {
 	}
 	st := status{}
 	st.IsRunning = isRunning
+	/*
+	   访问snm获取信息
+	*/
+	FullURL := fmt.Sprintf("http://%s/api/1/mortgage-info/%s", s.snmService, s.addr.String())
+	req := &utils.Req{
+		FullURL: FullURL,
+		Method:  http.MethodGet,
+		Timeout: time.Second * 10,
+	}
+	statusCode, body, err := req.Invoke()
+	if err != nil {
+		err = fmt.Errorf("get snm info err :%s", err)
+		return dto.NewErrorMobileResponse(rerr.ErrUnknown.WithData(err))
+	}
+	if statusCode != http.StatusOK {
+		err = fmt.Errorf("get snm info  statusCode=%d", statusCode)
+		return dto.NewErrorMobileResponse(rerr.ErrUnknown.WithData(err))
+	}
+	err = dto.ParseResult(string(body), &st.SNM)
+	if err != nil {
+		return dto.NewErrorMobileResponse(rerr.ErrUnknown.WithData(fmt.Sprintf("parse result err %s", err)))
+	}
 	return dto.NewSuccessMobileResponse(st)
 }
