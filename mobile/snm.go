@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SmartMeshFoundation/super-node-managerment/models"
-
 	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -246,6 +244,21 @@ func (s *SNM) helpTx(tx *types.Transaction, err error) string {
 }
 
 /*
+IncomeDetail 用户收益明细 ,it's reference of super-node-managermanaement
+*/
+type IncomeDetail struct {
+	Key         string `json:"key" gorm:"primary_key"`
+	Address     string `json:"address"`      // 获得该笔收入的用户
+	Income      string `json:"income"`       // 本笔的收入金额
+	BlockNumber uint64 `json:"block_number"` // 该笔收入结算块号
+	Date        string `json:"date"`         // 该笔收入结算日期,yyyy-mm-dd
+	Timestamp   int64  `json:"timestamp"`    // 该笔收入结算时间戳
+	TotalFund   string `json:"total_fund"`   // 该笔收入发生时的资金池总额
+	Fund        string `json:"fund"`         // 该笔收入发生时的用户资金
+	Proportion  string `json:"proportion"`   // 该笔收入发生时的用户资金占比
+}
+
+/*
 GetMortgageInfoResponse :
 */
 type getMortgageInfoResponse struct {
@@ -263,12 +276,12 @@ type getMortgageInfoResponse struct {
 	/*
 		用户部分信息
 	*/
-	UserFund                    *big.Int               `json:"user_fund,omitempty"`                      // 用户投资(抵押)总金额
-	UserAvailableFund           *big.Int               `json:"user_available_fund,omitempty"`            // 用户有效资金总额(T+1)
-	UserAvailableFundProportion string                 `json:"user_available_fund_proportion,omitempty"` // 用户资金有效占比
-	UserLockFund                *big.Int               `json:"user_lock_fund,omitempty"`                 // 用户锁定资金(正在撤出的资金)
-	UserHistoryIncome           *big.Int               `json:"user_history_income,omitempty"`            // 用户历史收入总额
-	UserIncomeDetailList        []*models.IncomeDetail `json:"user_income_detail_list,omitempty"`        // 用户历史收入明细
+	UserFund                    *big.Int        `json:"user_fund,omitempty"`                      // 用户投资(抵押)总金额
+	UserAvailableFund           *big.Int        `json:"user_available_fund,omitempty"`            // 用户有效资金总额(T+1)
+	UserAvailableFundProportion string          `json:"user_available_fund_proportion,omitempty"` // 用户资金有效占比
+	UserLockFund                *big.Int        `json:"user_lock_fund,omitempty"`                 // 用户锁定资金(正在撤出的资金)
+	UserHistoryIncome           *big.Int        `json:"user_history_income,omitempty"`            // 用户历史收入总额
+	UserIncomeDetailList        []*IncomeDetail `json:"user_income_detail_list,omitempty"`        // 用户历史收入明细
 }
 
 type status struct {
