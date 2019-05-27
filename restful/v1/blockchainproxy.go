@@ -44,16 +44,14 @@ func TransferSMT(w rest.ResponseWriter, r *rest.Request) {
 	conn := API.Photon.Chain.Client
 	ctx := context.Background()
 	auth := bind.NewKeyedTransactor(API.Photon.Chain.PrivKey)
-	needReturn := true
-	nonce, err := bind.GetValidNonce(conn, auth.From, ctx)
+	nonceUsed := false
+	nonce, err := bind.GetValidNonceAndLock(conn, auth.From, ctx)
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append(err.Error()))
 		return
 	}
 	defer func() {
-		if needReturn {
-			bind.ReturnNonce(auth.From, nonce)
-		}
+		bind.ConfirmNonceAndUnlock(auth.From, nonce, nonceUsed)
 	}()
 	msg := ethereum.CallMsg{From: auth.From, To: &targetAddr, Value: value, Data: nil}
 	gasLimit, err := conn.EstimateGas(ctx, msg)
@@ -83,7 +81,7 @@ func TransferSMT(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append(fmt.Sprintf("failed to send rawTX : %v", err)))
 		return
 	}
-	needReturn = false
+	nonceUsed = true
 	receipt, err := bind.WaitMined(ctx, conn, signedTx)
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append(fmt.Sprintf("tx fail : %v", err)))
