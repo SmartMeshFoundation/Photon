@@ -257,3 +257,6 @@ const ChannelSettleTimeoutMax = 2700000
 
 // ContractPunishBlockNumber 合约上设置的专门留给punish的块
 const ContractPunishBlockNumber uint64 = 257
+
+// BlockchainEffectiveTimeout 判断当前公链是否有效的依据
+const BlockchainEffectiveTimeout = 180
