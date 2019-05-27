@@ -416,6 +416,17 @@ func (node *PhotonNode) OpenChannel(partnerAddress, tokenAddress string, balance
 	if i == ws {
 		return errors.New("timeout")
 	}
+	// waiting for the result of deposit command
+	for i = 0; i < ws; i++ {
+		time.Sleep(time.Second)
+		cx, err := node.SpecifiedChannel(ch.ChannelIdentifier)
+		if err == nil && cx.Balance.Cmp(big.NewInt(balance)) == 0 {
+			break
+		}
+	}
+	if i == ws {
+		return errors.New("check result of Deposit timeout")
+	}
 	return nil
 }
 

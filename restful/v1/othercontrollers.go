@@ -257,5 +257,10 @@ func GetAssetsOnToken(w rest.ResponseWriter, r *rest.Request) {
 	for _, token := range req.TokenList {
 		tokenList = append(tokenList, common.HexToAddress(token))
 	}
-	resp = dto.NewSuccessAPIResponse(API.GetAssetsOnToken(tokenList))
+	data, err := API.GetAssetsOnToken(tokenList)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+	} else {
+		resp = dto.NewSuccessAPIResponse(data)
+	}
 }
