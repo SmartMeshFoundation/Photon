@@ -195,13 +195,13 @@ func ReInitNonceMap() {
 	lock.Unlock()
 }
 
-// GetValidNonce 获取可用Nonce,本地内存维护
-func GetValidNonce(conn ContractTransactor, address common.Address, ctx context.Context) (nonce uint64, err error){
+// GetValidNonceAndLock 获取可用Nonce,本地内存维护,必须与ReturnNonce配对使用,否则会出现死锁
+func GetValidNonceAndLock(conn ContractTransactor, address common.Address, ctx context.Context) (nonce uint64, err error){
 	lock.Lock()
-	defer lock.Unlock()
 	if _, exist := nonceMap[address]; !exist {
 		nonce, err =conn.PendingNonceAt(ensureContext(ctx), address)
 		if err != nil {
+			lock.Unlock()
 			err = fmt.Errorf("GetValidNonce failed : %v", err)
 			return
 		}
@@ -213,11 +213,13 @@ func GetValidNonce(conn ContractTransactor, address common.Address, ctx context.
 	log.Trace(fmt.Sprintf("GetValidNonce success : address=%s nonce=%d ", address.String(), nonce))
 	return
 }
-// ReturnNonce :
-func ReturnNonce(address common.Address, nonce uint64) {
-	lock.Lock()
-	defer lock.Unlock()
-	nonceMap[address] = nonce -1
+// ConfirmNonceAndUnlock :
+func ConfirmNonceAndUnlock(address common.Address, nonce uint64, used bool) {
+	if used {
+	} else {
+		nonceMap[address] = nonce -1
+	}
+	lock.Unlock()
 }
 
 // transact executes an actual transaction invocation, first deriving any missing
