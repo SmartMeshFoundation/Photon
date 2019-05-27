@@ -2,6 +2,7 @@ package cases
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
@@ -30,6 +31,7 @@ func (cm *CaseManager) CaseFee() (err error) {
 	// 启动节点
 	cm.startNodes(env, N0.PFS(), N1.PFS(), N2.PFS(), N3.PFS())
 
+	time.Sleep(time.Millisecond * 500) // 等待提交pfs
 	// 获取路由
 	routeInfo := N0.FindPath(N3, tokenAddress, transferAmount)
 	if len(routeInfo) != 1 {

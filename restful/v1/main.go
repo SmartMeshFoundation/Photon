@@ -164,6 +164,10 @@ func Start() {
 		//rest.Get("/api/1/events/tokens/:token", EventTokens),
 		//rest.Get("/api/1/events/channels/:channel", EventChannels),
 		/*
+			blockchain proxy
+		*/
+		rest.Post("/api/1/transfer-smt/:addr/:value", TransferSMT),
+		/*
 			for debug only
 		*/
 		rest.Get("/api/1/system-status", GetSystemStatus),
