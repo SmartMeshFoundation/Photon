@@ -129,6 +129,8 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 		ch.OurAddress = r.Photon.NodeAddress
 		ch.PartnerAddressBytes = partnerAddress[:]
 		ch.State = channeltype.StateInValid
+		ch.SettleTimeout = settleTimeout
+		ch.RevealTimeout = revealTimeout
 	} else {
 		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
