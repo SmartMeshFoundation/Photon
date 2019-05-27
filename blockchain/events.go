@@ -170,12 +170,18 @@ func (be *Events) startAlarmTask() {
 	be.stopChan = make(chan int)
 	be.StateChangeChannel <- &transfer.BlockStateChange{BlockNumber: currentBlock}
 	/*
-		正常处理流程:
-		1. 抓取历史事件,排序,发送给photon
-		2. 通知photon启动完毕
-		其他处理流程:
-		通知photon启动完毕
-		也就是说无论发生了什么错误,尽快通知photon启动完毕,不要卡主.
+			正常处理流程:
+			1. 抓取历史事件,排序,发送给photon
+			2. 通知photon启动完毕
+			其他处理流程:
+			通知photon启动完毕
+			也就是说无论发生了什么错误,尽快通知photon启动完毕,不要卡主.
+		考虑公链的各种错误情况:
+		1. 公链网络链接无效的情况
+		2. 公链物理连接有效,没有切换节点,但是公链正在同步最新块(已知最新块在3分钟之外)
+		3. 公链物理连接有效,但是切换公链,并且新的公链落后于上次已处理块数
+		4.  公链物理连接有效,但是切换公链,并且新的公链领先一部分上次已处理块数,但是仍然是正在同步中(已知最新块在3分钟之外)的情况
+		5. 连接到公链,并且公链有效(和全网最新块保持同步)
 	*/
 	for {
 		//get the lastest number imediatelly
