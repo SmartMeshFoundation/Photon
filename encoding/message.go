@@ -79,6 +79,12 @@ const (
 	*/
 	// Respond Refund
 	AnnounceDisposedTransferResponseCmdID
+	/*
+		当消息接收方收到消息以后,可能会发现有问题呢,但是没有途径通知接收方除了问题,
+		因此增加途径来做消息通知,因为消息会重复发送,如果没有处理妥当会造成错误消息也会反复发送.
+		因此针对错误消息,我的想法是保存一个lru进行管理,错误通知多了应该也没什么严重的问题, 只是用户体验不好而已.
+	*/
+	ErrorNotifyCmdID
 )
 
 const signatureLength = 65
@@ -214,6 +220,8 @@ func (t MessageType) String() string {
 		return "WithdrawRequest"
 	case WithdrawResponseCmdID:
 		return "WithdrawResponse"
+	case ErrorNotifyCmdID:
+		return "ErrorNotify"
 	default:
 		return "<unknown>"
 	}
@@ -250,7 +258,7 @@ func (ack *Ack) Pack() []byte {
 	_, err = buf.Write(ack.Sender[:])
 	_, err = buf.Write(ack.Echo[:])
 	if err != nil {
-		log.Crit(fmt.Sprintf("Ack Pack err %s", err))
+		panic(fmt.Sprintf("Ack Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -369,7 +377,7 @@ func (p *Ping) Pack() []byte {
 	err = binary.Write(buf, binary.BigEndian, p.Nonce)
 	_, err = buf.Write(p.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("Ping Pack err %s", err))
+		panic(fmt.Sprintf("Ping Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -402,6 +410,92 @@ func (p *Ping) String() string {
 	return fmt.Sprintf("Message{type=Ping nonce=%d,sender=%s, has signature=%v}", p.Nonce, utils.APex2(p.Sender), len(p.Signature) != 0)
 }
 
+//ErrorNotifyType 来自对方的错误通知,类型
+type ErrorNotifyType int16
+
+const (
+	//消息最长是1200,65-签名,2-cmdid,2-version,2-ErrorNotifyType,2-DataLength
+	errorNotifyMaxRelatedDataLength = 1200 - 65 - 4 - 4
+
+	//InvalidNonceErrorNotify 接收方收到了带有BalanceProof的消息,但是因为数据库不一致,导致Nonce错误
+	InvalidNonceErrorNotify = iota
+)
+
+//ErrorNotify 发消息通知对方发生了错误
+type ErrorNotify struct {
+	SignedMessage
+	ErrorNotifyType ErrorNotifyType
+	RelatedData     []byte
+}
+
+//NewErrorNotify 错误通知
+func NewErrorNotify(notifyType ErrorNotifyType, errorData []byte) *ErrorNotify {
+	p := &ErrorNotify{
+		ErrorNotifyType: notifyType,
+		RelatedData:     errorData,
+	}
+	p.CmdID = ErrorNotifyCmdID
+	return p
+}
+
+//Pack is MessagePacker
+func (en *ErrorNotify) Pack() []byte {
+	var err error
+	buf := new(bytes.Buffer)
+	err = en.WriteCmdStructToBuf(buf)
+	err = binary.Write(buf, binary.BigEndian, en.ErrorNotifyType)
+	var rl = uint16(len(en.RelatedData))
+	err = binary.Write(buf, binary.BigEndian, rl)
+	if len(en.RelatedData) > errorNotifyMaxRelatedDataLength {
+		panic("relateddata length error")
+	}
+	_, err = buf.Write(en.RelatedData)
+	_, err = buf.Write(en.Signature)
+	if err != nil {
+		panic(fmt.Sprintf("ErrorNotify pack err %s", err))
+	}
+	return buf.Bytes()
+}
+
+//UnPack is MessageUnpacker,注意可能包含有附加消息也可能没有包含附加消息
+func (en *ErrorNotify) UnPack(data []byte) error {
+	var err error
+	buf := bytes.NewBuffer(data)
+	err = en.ReadCmdStructFromBuf(buf)
+	//err = binary.Read(buf, binary.LittleEndian, &t)
+	if ErrorNotifyCmdID != en.CmdID {
+		return fmt.Errorf("ErrorNotify Unpack cmdid should be  %d,but get %d", ErrorNotifyCmdID, en.CmdID)
+	}
+	err = binary.Read(buf, binary.BigEndian, &en.ErrorNotifyType)
+	if err != nil {
+		return err
+	}
+	var relatedDataLen uint16
+	err = binary.Read(buf, binary.BigEndian, &relatedDataLen)
+	if err != nil {
+		return err
+	}
+	if relatedDataLen > errorNotifyMaxRelatedDataLength {
+		return fmt.Errorf("relatedDataLen is too large,max=%d,got=%d", errorNotifyMaxRelatedDataLength, relatedDataLen)
+	}
+	en.RelatedData = make([]byte, relatedDataLen)
+	_, err = buf.Read(en.RelatedData)
+	l := buf.Len()
+	if l != signatureLength {
+		return fmt.Errorf("ErrorNotify ,leftLen=%d, not signature", l)
+	}
+	en.Signature = make([]byte, signatureLength)
+	_, err = buf.Read(en.Signature)
+	err = en.verifySignature(data)
+	return err
+}
+
+//String is fmt.Stringer
+func (en *ErrorNotify) String() string {
+	return fmt.Sprintf("Message{type=ErrorNotify ErrorNotifyType=%d,errorDataLen=%d,sender=%s,has signature=%v}",
+		en.ErrorNotifyType, len(en.RelatedData), utils.APex2(en.Sender), len(en.Signature) != 0)
+}
+
 //SecretRequest Requests the secret which unlocks a hashlock.
 type SecretRequest struct {
 	SignedMessage
@@ -429,7 +523,7 @@ func (sr *SecretRequest) Pack() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(sr.PaymentAmount))
 	_, err = buf.Write(sr.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("SecretRequest Pack err %s", err))
+		panic(fmt.Sprintf("SecretRequest Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -516,7 +610,7 @@ func (rs *RevealSecret) Pack() []byte {
 	}
 	_, err = buf.Write(rs.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("RevealSecret Pack err %s", err))
+		panic(fmt.Sprintf("RevealSecret Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -742,7 +836,7 @@ func (s *UnLock) Pack() []byte {
 	_, err = buf.Write(s.LockSecret[:])
 	s.EnvelopMessage.pack(buf)
 	if err != nil {
-		log.Crit(fmt.Sprintf("UnLock Pack err %s", err))
+		panic(fmt.Sprintf("UnLock Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -803,7 +897,7 @@ func (m *RemoveExpiredHashlockTransfer) Pack() []byte {
 	_, err = buf.Write(m.LockSecretHash[:])
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
-		log.Crit(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
+		panic(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -879,7 +973,7 @@ func (m *DirectTransfer) Pack() []byte {
 	err := m.WriteCmdStructToBuf(buf)
 	//err := binary.Write(buf, binary.LittleEndian, m.CmdID) //only one byte.
 	if err != nil {
-		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
+		panic(fmt.Sprintf("DirectTransfer Pack err %s", err))
 	}
 	// write data
 	dataLen := uint64(len(m.Data))
@@ -888,7 +982,7 @@ func (m *DirectTransfer) Pack() []byte {
 		_, err = buf.Write(m.Data)
 	}
 	if err != nil {
-		log.Crit(fmt.Sprintf("DirectTransfer Pack err %s", err))
+		panic(fmt.Sprintf("DirectTransfer Pack err %s", err))
 	}
 	m.EnvelopMessage.pack(buf)
 	return buf.Bytes()
@@ -1012,7 +1106,7 @@ func (m *MediatedTransfer) Pack() []byte {
 	}
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
-		log.Crit(fmt.Sprintf("MediatedTransfer Pack err %s", err))
+		panic(fmt.Sprintf("MediatedTransfer Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1073,7 +1167,7 @@ func GetMtrFromLockedTransfer(tr Messager) (mtr *MediatedTransfer) {
 	}
 	mtr, ok := tr.(*MediatedTransfer)
 	if !ok {
-		log.Crit(fmt.Sprintf("GetMtrFromLockedTransfer from message=%s", utils.StringInterface(tr, 3)))
+		panic(fmt.Sprintf("GetMtrFromLockedTransfer from message=%s", utils.StringInterface(tr, 3)))
 	}
 	return
 }
@@ -1144,7 +1238,7 @@ func (m *AnnounceDisposed) Pack() []byte {
 	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+		panic(fmt.Sprintf("pack AnnounceDisposed err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1278,7 +1372,7 @@ func (m *AnnounceDisposedResponse) Pack() []byte {
 	_, err = buf.Write(m.LockSecretHash[:])
 	m.EnvelopMessage.pack(buf)
 	if err != nil {
-		log.Crit(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
+		panic(fmt.Sprintf("RemoveExpiredHashlockTransfer Pack err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1363,7 +1457,7 @@ func (m *WithdrawRequest) Pack() []byte {
 	_, err = buf.Write(m.Participant1Signature)
 	_, err = buf.Write(m.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+		panic(fmt.Sprintf("pack AnnounceDisposed err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1433,7 +1527,7 @@ func (m *WithdrawRequest) signDataForContract() []byte {
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1539,7 +1633,7 @@ func (m *WithdrawResponse) Pack() []byte {
 	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+		panic(fmt.Sprintf("pack AnnounceDisposed err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1616,7 +1710,7 @@ func (m *WithdrawResponse) signDataForContract() []byte {
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1679,7 +1773,7 @@ func (m *SettleRequest) Pack() []byte {
 	_, err = buf.Write(m.Participant1Signature)
 	_, err = buf.Write(m.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+		panic(fmt.Sprintf("pack AnnounceDisposed err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1752,7 +1846,7 @@ func (m *SettleRequest) SignDataForContract() []byte {
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1854,7 +1948,7 @@ func (m *SettleResponse) Pack() []byte {
 	}
 	_, err = buf.Write(m.Signature)
 	if err != nil {
-		log.Crit(fmt.Sprintf("pack AnnounceDisposed err %s", err))
+		panic(fmt.Sprintf("pack AnnounceDisposed err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1938,7 +2032,7 @@ func (m *SettleResponse) SignDataForContract() []byte {
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataForContract err %s", err))
+		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -1975,6 +2069,7 @@ var MessageMap = map[int]Messager{
 	WithdrawResponseCmdID:                 new(WithdrawResponse),
 	SettleRequestCmdID:                    new(SettleRequest),
 	SettleResponseCmdID:                   new(SettleResponse),
+	ErrorNotifyCmdID:                      new(ErrorNotify),
 }
 
 func init() {

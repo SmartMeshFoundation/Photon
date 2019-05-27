@@ -3,6 +3,8 @@ package notify
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/log"
+
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
@@ -159,5 +161,21 @@ func (h *Handler) NotifyContractCallTXInfo(txInfo *models.TXInfo) {
 	h.Notify(LevelInfo, &InfoStruct{
 		Type:    InfoTypeContractCallTXInfo,
 		Message: txInfo,
+	})
+}
+
+//NotifyInconsistentDatabase 通知在进行交易的时候发生了错误,因为交易双方的数据库不一致
+func (h *Handler) NotifyInconsistentDatabase(channelIdentifier common.Hash, target common.Address) {
+	log.Info(fmt.Sprintf("NotifyInconsistentDatabase on channel %s", channelIdentifier.String()))
+	type inconsistentDatabase struct {
+		ChannelIdentifier common.Hash    `json:"channel_identifier"`
+		Target            common.Address `json:"target"`
+	}
+	h.Notify(LevelInfo, &InfoStruct{
+		Type: InfoTypeInconsistentDatabase,
+		Message: inconsistentDatabase{
+			ChannelIdentifier: channelIdentifier,
+			Target:            target,
+		},
 	})
 }

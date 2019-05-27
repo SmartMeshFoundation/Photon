@@ -43,6 +43,8 @@ const (
 
 	// InfoTypeContractCallTXInfo 4 自己发起的tx执行完成,通知执行结果,Message类型为models.TXInfo
 	InfoTypeContractCallTXInfo
+	//InfoTypeInconsistentDatabase 交易发送方和接收方数据库不一致
+	InfoTypeInconsistentDatabase
 )
 
 //InfoStruct for notify to mobile

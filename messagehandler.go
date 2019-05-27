@@ -1,7 +1,13 @@
 package photon
 
 import (
+	"encoding/hex"
 	"fmt"
+
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/target"
+
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
 
 	"math/big"
 
@@ -127,6 +133,8 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 	case *encoding.WithdrawResponse:
 		err = mh.messageWithdrawResponse(m2)
+	case *encoding.ErrorNotify:
+		err = mh.messageErrorNotify(m2)
 	default:
 		log.Error(fmt.Sprintf("photonMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
@@ -480,6 +488,7 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
+		mh.processRegisterTransferError(err, msg)
 		return err
 	}
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{
@@ -565,6 +574,7 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	}
 	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
+		mh.processRegisterTransferError(err, msg)
 		return err
 	}
 	if false {
@@ -829,4 +839,81 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		}
 	}()
 	return nil
+}
+
+/*
+收到来自对方的错误通知:
+目前只有一种错误就是数据库不一致,InvalidNonce,
+发生场景:A发MediatedTransfer给B,这时候B检测到A,B数据库不一致,导致nonce错误,这时候B需要通知A此种错误
+这种错误处理的原则就是:只是通知App,其他处理逻辑不变,因为我无法判断对方所谓的不一致是真是假
+只是从改善用户体验的角度来做这个事.
+*/
+func (mh *photonMessageHandler) messageErrorNotify(msg *encoding.ErrorNotify) error {
+	log.Error(fmt.Sprintf("messageErrorNotify msg=%s", msg))
+	if msg.ErrorNotifyType != encoding.InvalidNonceErrorNotify {
+		log.Error(fmt.Sprintf("unkown ErrorNotifyType %d", msg.ErrorNotifyType))
+		return nil
+	}
+	switch msg.ErrorNotifyType {
+	case encoding.InvalidNonceErrorNotify:
+		if len(msg.RelatedData) <= 0 {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify's RelatedData cannot be nil"))
+			return nil
+		}
+		msg2 := encoding.MessageMap[int(msg.RelatedData[0])]
+		if msg2 == nil {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify's ErrorMessage must be MediatedTransfer or DirectTransfer"))
+			return nil
+		}
+		err := msg2.UnPack(msg.RelatedData)
+		if err != nil {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify decode msg2 err=%s,msg=%s", err, hex.Dump(msg.RelatedData)))
+		}
+		if msg3, ok := msg2.(*encoding.DirectTransfer); ok {
+			ch := mh.photon.getChannelWithAddr(msg3.ChannelIdentifier)
+			if ch == nil {
+				log.Error(fmt.Sprintf("InvalidNonceErrorNotify's type is DirectTransfer,but channel not found,msg3=%s", msg3))
+				return nil
+			}
+			mh.photon.NotifyHandler.NotifyInconsistentDatabase(msg3.ChannelIdentifier, ch.PartnerState.Address)
+			return nil
+		} else if msg3, ok := msg2.(*encoding.MediatedTransfer); ok {
+			for _, mgr := range mh.photon.Transfer2StateManager {
+				//todo 这个未必是高效的方式,因为同时进行的 transfer 可能很多,会比较慢.
+				if mgr.Identifier == msg3.LockSecretHash { //todo consider token swap
+					switch mgr.Name {
+					case initiator.NameInitiatorTransition:
+						mh.photon.NotifyHandler.NotifyInconsistentDatabase(msg3.ChannelIdentifier, msg3.Target)
+					case mediator.NameMediatorTransition:
+						log.Warn(fmt.Sprintf("receive InvalidNonceErrorNotify  as mediated node from %s,msg=%s", utils.APex2(msg.Sender), msg3))
+					case target.NameTargetTransition:
+						log.Error(fmt.Sprintf("receive InvalidNonceErrorNotify,but i'm target,msg=%s", msg3))
+					}
+					break
+				}
+			}
+		} else {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify ,but message type is not mediatedTransfer and direct transfer"))
+		}
+	}
+	return nil
+}
+
+func (mh *photonMessageHandler) processRegisterTransferError(err error, msg encoding.SignedMessager) {
+	log.Error(fmt.Sprintf("RegisterTransfer err %s", err))
+	if inErr, ok := err.(rerr.StandardError); ok {
+		if inErr.ErrorCode == rerr.ErrInvalidNonce.ErrorCode {
+			//专门处理InvalidNonce这个错误,只是发送消息,但是这个消息本身还是不应该给Ack
+			data := msg.Pack()
+			em := encoding.NewErrorNotify(encoding.InvalidNonceErrorNotify, data)
+			err2 := em.Sign(mh.photon.PrivateKey, em)
+			if err2 != nil {
+				panic(fmt.Sprintf("sign message error %s", err2))
+			}
+			err2 = mh.photon.sendAsync(msg.GetSender(), em)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message to %s, err %s", utils.APex2(msg.GetSender()), err2))
+			}
+		}
+	}
 }

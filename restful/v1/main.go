@@ -182,7 +182,7 @@ func Start() {
 		rest.Get("/api/1/debug/change-eth-rpc-endpoint-port/:port", ChangeEthRPCEndpointPort),
 	)
 	if err != nil {
-		log.Crit(fmt.Sprintf("maker router :%s", err))
+		panic(fmt.Sprintf("maker router :%s", err))
 	}
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
@@ -191,7 +191,7 @@ func Start() {
 	<-QuitChain
 	err = server.Shutdown(context.Background())
 	if err != nil {
-		log.Crit(fmt.Sprintf("server shutdown err %s", err))
+		panic(fmt.Sprintf("server shutdown err %s", err))
 	}
 }
 

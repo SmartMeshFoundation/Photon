@@ -311,6 +311,7 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
+	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*100)
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
@@ -319,7 +320,6 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			p.mapLock.Unlock()
 			return
 		}
-		nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 		err := p.sendRawWitNoAck(receiver, msgState.Data)
 		if err != nil {
 			p.log.Info(fmt.Sprintf("sendRawWitNoAck msg echoHash=%s error %s", utils.HPex(msgState.EchoHash), err.Error()))
@@ -491,6 +491,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 	}
 	//ignore incomming message when stop
 	if p.onStop {
+		p.log.Info("receive message,but protocol already stopped")
 		return
 	}
 	cmdid := int(data[0])

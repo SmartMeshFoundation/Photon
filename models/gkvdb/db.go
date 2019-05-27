@@ -103,8 +103,7 @@ func OpenDb(dbPath string) (dao *GkvDB, err error) {
 	dao.db, err = gkvdb.New(dbPath)
 	if err != nil {
 		err = fmt.Errorf("cannot create or open db:%s,makesure you have write permission err:%v", dbPath, err)
-		log.Crit(err.Error())
-		return
+		panic(err.Error())
 	}
 	dao.Name = dbPath
 	if needCreateDb {

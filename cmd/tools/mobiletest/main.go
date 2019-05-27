@@ -84,7 +84,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	sub, err := api.Subscribe(handler{})
 	if err != nil {
-		log.Crit(fmt.Sprintf("sub err %s", err))
+		panic(fmt.Sprintf("sub err %s", err))
 	}
 	time.Sleep(time.Hour)
 	sub.Unsubscribe()
