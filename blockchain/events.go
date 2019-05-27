@@ -230,9 +230,10 @@ func (be *Events) startAlarmTask() {
 			// 如果本地时间小于最新块的出块时间15秒,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
 			panic(fmt.Sprintf("local time error local=%d lastedBlockTimestamp=%d, please run photon again after you fix local time server", now, lastedBlockTimestamp))
 		}
-		//连接到了有效的公链链接,但是公链最新块在三分钟之前,可能公链已经停止同步了
-		//todo 为180定义一个数字
-		if now-lastedBlockTimestamp >= 180 && startUpBlockNumber == currentBlock {
+		//连接到了有效的公链链接,但是公链最新块在三分钟之前,可能公链已经停止同步了,直接切换到无效公链状态
+		// 由于启动的时候默认无效公链,所以第一次处循环不可能走到该分支
+		//if now-lastedBlockTimestamp >= 180 && startUpBlockNumber == currentBlock {
+		if now-lastedBlockTimestamp >= params.BlockchainEffectiveTimeout && be.isChainEffective {
 			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
 			be.isChainEffective = false
 			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
@@ -310,7 +311,7 @@ func (be *Events) startAlarmTask() {
 		}
 		// 先切换有效公链,保证消息处理开始时,
 		// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
-		if !be.isChainEffective {
+		if now-lastedBlockTimestamp < params.BlockchainEffectiveTimeout && !be.isChainEffective {
 			be.isChainEffective = true
 			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
 				IsEffective:              true,
