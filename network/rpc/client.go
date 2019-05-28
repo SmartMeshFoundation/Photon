@@ -217,7 +217,21 @@ func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 		case txInfo := <-bcs.pendingTXInfoChan:
 			// 针对每个进来的tx,启动一个线程来监控其执行状态
 			go bcs.checkPendingTXDone(txInfo)
+			// 账户余额检测
+			go bcs.checkBalanceEnough()
 		}
+	}
+}
+
+func (bcs *BlockChainService) checkBalanceEnough() {
+	balance, err := bcs.Client.BalanceAt(context.Background(), bcs.NodeAddress, nil)
+	if err != nil {
+		log.Error(fmt.Sprintf("get balance err : %s", err.Error()))
+		return
+	}
+	needed := big.NewInt(params.MinBalance)
+	if balance.Cmp(needed) <= 0 {
+		bcs.NotifyHandler.NotifyPhotonBalanceNotEnough(balance, needed)
 	}
 }
 

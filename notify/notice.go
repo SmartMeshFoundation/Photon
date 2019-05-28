@@ -45,6 +45,8 @@ const (
 	InfoTypeContractCallTXInfo
 	//InfoTypeInconsistentDatabase 交易发送方和接收方数据库不一致
 	InfoTypeInconsistentDatabase
+	// InfoTypeBalanceNotEnoughError photon余额可能不足以发起合约调用时,通知上层
+	InfoTypeBalanceNotEnoughError
 )
 
 //InfoStruct for notify to mobile

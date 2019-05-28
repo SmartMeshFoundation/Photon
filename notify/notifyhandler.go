@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 
@@ -177,5 +178,14 @@ func (h *Handler) NotifyInconsistentDatabase(channelIdentifier common.Hash, targ
 			ChannelIdentifier: channelIdentifier,
 			Target:            target,
 		},
+	})
+}
+
+// NotifyPhotonBalanceNotEnough 通知上层账户余额不足
+func (h *Handler) NotifyPhotonBalanceNotEnough(balance, needed *big.Int) {
+	log.Info(fmt.Sprintf("NotifyPhotonBalanceNotEnough balance=%d needed=%d", balance, needed))
+	h.Notify(LevelError, &InfoStruct{
+		Type:    InfoTypeBalanceNotEnoughError,
+		Message: fmt.Sprintf("photon should work with balance > %d, but now only have %d", needed, balance),
 	})
 }

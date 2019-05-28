@@ -50,6 +50,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 	}
 	txInfo = &models.TXInfo{
 		TXHash:            tx.Hash(),
+		Nonce:             tx.Nonce(),
 		ChannelIdentifier: channelIdentifier,
 		OpenBlockNumber:   openBlockNumber,
 		TokenAddress:      tokenAddress,

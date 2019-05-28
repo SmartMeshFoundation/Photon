@@ -43,6 +43,7 @@ const FakeTXAmount = 1
 // TXInfo 记录已经提交到公链节点的tx信息
 type TXInfo struct {
 	TXHash            common.Hash    `json:"tx_hash"`
+	Nonce             uint64         `json:"nonce"`
 	ChannelIdentifier common.Hash    `json:"channel_identifier"` // 结合OpenBlockNumber唯一确定一个通道
 	OpenBlockNumber   int64          `json:"open_block_number"`
 	TokenAddress      common.Address `json:"token_address"`
@@ -71,6 +72,7 @@ func (ti *TXInfo) String() string {
 func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 	return &TXInfoSerialization{
 		TXHash:            ti.TXHash[:],
+		Nonce:             ti.Nonce,
 		ChannelIdentifier: ti.ChannelIdentifier[:],
 		OpenBlockNumber:   ti.OpenBlockNumber,
 		TokenAddress:      ti.TokenAddress[:],
@@ -90,6 +92,7 @@ func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 // TXInfoSerialization :
 type TXInfoSerialization struct {
 	TXHash            []byte        `storm:"id"`
+	Nonce             uint64        `storm:"index"`
 	ChannelIdentifier []byte        `storm:"index"` // 结合OpenBlockNumber唯一确定一个通道
 	OpenBlockNumber   int64         `storm:"index"`
 	TokenAddress      []byte        `storm:"index"`
@@ -109,6 +112,7 @@ type TXInfoSerialization struct {
 func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 	return &TXInfo{
 		TXHash:            common.BytesToHash(tis.TXHash),
+		Nonce:             tis.Nonce,
 		ChannelIdentifier: common.BytesToHash(tis.ChannelIdentifier),
 		OpenBlockNumber:   tis.OpenBlockNumber,
 		TokenAddress:      common.BytesToAddress(tis.TokenAddress),
