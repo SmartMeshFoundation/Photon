@@ -1330,6 +1330,7 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnT
 	return
 }
 
+// UploadLogFile 上传photon日志到日志server
 func (r *API) UploadLogFile() error {
 	return uploadLogFile(r.Photon.NodeAddress, r.Photon.Config.LogFilePath)
 }
