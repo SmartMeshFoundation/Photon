@@ -263,5 +263,5 @@ const ContractPunishBlockNumber uint64 = 257
 // BlockchainEffectiveTimeout 判断当前公链是否有效的依据
 const BlockchainEffectiveTimeout = 180
 
-// MinBalance 最小余额,18 * GasPrice * GasLimit * 3, 当账户余额小于该值时,合约调用存在失败且
-const MinBalance = 18 * params2.GWei * 100000 * 3
+// MinBalance 最小余额,18 * GasPrice * GasLimit * 10, 当账户余额小于该值时,合约调用存在失败且
+const MinBalance = 18 * params2.GWei * 100000 * 10
