@@ -548,6 +548,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	mdns.ServiceTag = ctx.String("debug-mdns-servicetag")
 	config.PmsHost = ctx.String("pms")
 	config.PmsAddress = common.HexToAddress(ctx.String("pms-address"))
+	config.LogFilePath = ctx.String("logfile")
 	return
 }
 

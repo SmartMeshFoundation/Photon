@@ -1,7 +1,13 @@
 package photon
 
 import (
+	"compress/gzip"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -1319,5 +1325,64 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnT
 			resp = append(resp, d)
 		}
 	}
+	return
+}
+
+func (r *API) UploadLogFile() error {
+	return uploadLogFile(r.Photon.NodeAddress, r.Photon.Config.LogFilePath)
+}
+
+func uploadLogFile(address common.Address, logFilePath string) (err error) {
+	now := time.Now()
+	logFileName := fmt.Sprintf("photon-log-%s-%s.log", address.String(), now.Format("2006-01-02-15-04-05"))
+	fmt.Println(logFileName)
+	// 1. 读取文件并压缩 #nosec
+	logFile, err := os.Open(logFilePath)
+	if err != nil {
+		return
+	}
+	defer logFile.Close()
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	fileStat, err := logFile.Stat()
+	if err != nil {
+		return
+	}
+	zw.Name = logFileName
+	zw.ModTime = fileStat.ModTime()
+	_, err = io.Copy(zw, logFile)
+	if err != nil {
+		return
+	}
+	err = zw.Flush()
+	err = zw.Close()
+	if err != nil {
+		return
+	}
+	// 2. 发送
+	var buf2 bytes.Buffer
+	w := multipart.NewWriter(&buf2)
+	fw, err := w.CreateFormFile("uploadfile", logFileName)
+	if err != nil {
+		return
+	}
+	_, err = io.Copy(fw, &buf)
+	if err != nil {
+		return
+	}
+	err = w.Close()
+	if err != nil {
+		return
+	}
+	res, err := http.Post(params.TestLogServer+"/logsrv/1/upload", w.FormDataContentType(), &buf2)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+	message, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	log.Info(fmt.Sprintf("upload logfile and got response : %d %s", res.StatusCode, string(message)))
 	return
 }

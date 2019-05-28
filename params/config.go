@@ -89,6 +89,7 @@ type Config struct {
 	HTTPPassword              string
 	PmsHost                   string // pms server host
 	PmsAddress                common.Address
+	LogFilePath               string
 }
 
 //DefaultConfig default config

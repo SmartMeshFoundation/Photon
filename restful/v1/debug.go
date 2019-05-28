@@ -181,3 +181,18 @@ func ChangeEthRPCEndpointPort(w rest.ResponseWriter, r *rest.Request) {
 	API.Photon.BlockChainEvents.ChangeEthRPCEndpointPort(newPort)
 	resp = dto.NewSuccessAPIResponse(nil)
 }
+
+// UploadLogFile :
+func UploadLogFile(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> UploadLogFile ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	err := API.UploadLogFile()
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	resp = dto.NewSuccessAPIResponse(nil)
+}

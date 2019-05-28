@@ -1045,3 +1045,12 @@ func (a *API) GetAssetsOnToken(tokenListStr string) (result string) {
 	}
 	return dto.NewSuccessMobileResponse(resp)
 }
+
+// DebugUploadLogfile 上传photon日志到logserver
+func (a *API) DebugUploadLogfile() string {
+	err := a.api.UploadLogFile()
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(nil)
+}

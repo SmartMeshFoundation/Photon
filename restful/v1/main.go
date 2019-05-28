@@ -184,6 +184,7 @@ func Start() {
 			utils.SystemExit(0)
 		}),
 		rest.Get("/api/1/debug/change-eth-rpc-endpoint-port/:port", ChangeEthRPCEndpointPort),
+		rest.Get("/api/1/debug/upload-log-file", UploadLogFile),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("maker router :%s", err))
