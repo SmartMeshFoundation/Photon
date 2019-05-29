@@ -118,11 +118,11 @@ var (
 // NewMatrixTransport init matrix
 func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
 	mtr := &MatrixTransport{
-		running:       false,
-		stopreceiving: false,
-		NodeAddress:   crypto.PubkeyToAddress(key.PublicKey),
-		key:           key,
-		Peers:         make(map[common.Address]*MatrixPeer),
+		running:               false,
+		stopreceiving:         false,
+		NodeAddress:           crypto.PubkeyToAddress(key.PublicKey),
+		key:                   key,
+		Peers:                 make(map[common.Address]*MatrixPeer),
 		temporaryAddress2Room: make(map[common.Address]string),
 		temporaryPeers:        newMatrixTemporaryPeers(),
 		NodeDeviceType:        devicetype,
@@ -932,10 +932,6 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		if presence == OFFLINE { //历史数据可导致错误
 			m.temporaryPeers.removePeer(address)
 		}
-		/*err := m.inviteIfPossible1(userid)
-		if err != nil {
-			m.log.Error(fmt.Sprintf("inviteIfPossible1 %s to default room err %s", userid, err))
-		}*/
 		return
 	}
 	if peer.isValidUserID(userid) && peer.setStatus(userid, "online") {
@@ -961,7 +957,9 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 }
 
 func (m *MatrixTransport) addNewUnknownPeer(peerAddr common.Address) {
+	m.lock.RLock()
 	_, ok := m.Peers[peerAddr]
+	m.lock.RUnlock()
 	if !ok {
 		m.addPeerIfNotExist(peerAddr, true)
 	}
@@ -1419,29 +1417,6 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 			}
 		}
 	}
-	return nil
-}
-
-func (m *MatrixTransport) inviteIfPossible1(userID string) error {
-	peerAddress := m.userIDToAddress(userID)
-	m.lock.RLock()
-	peer := m.Peers[peerAddress]
-	m.lock.RUnlock()
-	if peer == nil {
-		return nil
-	}
-	if peer.defaultMessageRoomID != "" && !peer.isValidUserID(userID) {
-		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-			UserID: userID,
-		})
-		//if has already startup ,we should known all user status
-		if err != nil && m.hasDoneStartCheck {
-			return fmt.Errorf("InviteUser perr=%s,room=%s err=%s",
-				utils.APex2(peerAddress), peer.defaultMessageRoomID, err)
-		}
-	}
-	peer.setStatus(userID, "online")
-	peer.deviceType = ""
 	return nil
 }
 

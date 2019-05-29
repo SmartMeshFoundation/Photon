@@ -137,7 +137,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "xmpp",
-			Usage: "use xmpp as transport,default is xmpp, if two nodes use different transport,they cannot send message to each other",
+			Usage: "use xmpp as transport,default is matrix, if two nodes use different transport,they cannot send message to each other",
 		},
 		cli.StringFlag{
 			Name:  "xmpp-server",
@@ -159,7 +159,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "matrix",
-			Usage: "use matrix as transport,default is xmpp",
+			Usage: "use matrix as transport,this is the default transport",
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
@@ -496,10 +496,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		config.NetworkMode = params.NoNetwork
 	} else if ctx.Bool("debug-udp-only") {
 		config.NetworkMode = params.UDPOnly
-	} else if ctx.Bool("matrix") {
-		config.NetworkMode = params.MixUDPMatrix
+	} else if ctx.Bool("xmpp") {
+		config.NetworkMode = params.MixUDPXMPP
 	} else {
-		config.NetworkMode = params.MixUDPXMPP //默认用xmpp做通信,matrix不太稳定
+		config.NetworkMode = params.MixUDPMatrix //默认用matrix
 	}
 	config.EnableMediationFee = true
 	if ctx.Bool("disable-fee") {
