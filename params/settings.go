@@ -162,6 +162,20 @@ var DefaultContractToPFS = map[common.Address]string{
 	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): "http://transport01.smartmesh.cn:7002",
 }
 
+//DefaultMatrixContractToPFS : default matrix pfs for provider
+var DefaultMatrixContractToPFS = map[common.Address]string{
+	// spectrum
+	common.HexToAddress("0x242e0de2B118279D1479545A131a90A8f67A2512"): "http://transport01.smartmesh.cn:7010",
+	// spectrum test net
+	common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"): "http://transport01.smartmesh.cn:7011",
+	// ethereum
+	//common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): "",
+	// ethereum test net
+	//common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): "",
+	// ethereum private
+	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): "http://transport01.smartmesh.cn:7012",
+}
+
 //DefaultContractToPMS : default pms provider
 var DefaultContractToPMS = map[common.Address]string{
 	// spectrum

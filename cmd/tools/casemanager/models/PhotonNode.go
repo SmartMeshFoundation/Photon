@@ -156,6 +156,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 		if env.XMPPServer != "" {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
 		}
+		param = append(param, "--xmpp") //如果不指定matrix,默认链接xmpp,否则pfs无法正常工作
 	} else {
 		//param = append(param, "--matrix") 默认是matrix,不必添加了
 		if time.Now().Nanosecond()%2 == 0 {

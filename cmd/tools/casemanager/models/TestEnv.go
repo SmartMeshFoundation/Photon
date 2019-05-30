@@ -799,7 +799,9 @@ func (env *TestEnv) StartPFS() {
 	param = append(param, "--dbconnection=.pfsdb")
 	param = append(param, "--debug")
 	param = append(param, "--verbosity=5")
-	param = append(param, "--matrix")
+	if env.UseMatrix {
+		param = append(param, "--matrix")
+	}
 	go ExecShell(env.PFSMain, param, logfile, true)
 	// TODO 校验启动完成
 	return
