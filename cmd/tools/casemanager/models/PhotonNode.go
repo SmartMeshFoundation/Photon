@@ -157,7 +157,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 			param = append(param, "--xmpp-server="+env.XMPPServer)
 		}
 	} else {
-		param = append(param, "--matrix")
+		//param = append(param, "--matrix") 默认是matrix,不必添加了
 		if time.Now().Nanosecond()%2 == 0 {
 			param = append(param, "--matrix-server=transport01.smartmesh.cn")
 		} else {
