@@ -275,7 +275,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
 	if cfg.PfsHost == "" {
-		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress)
+		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress, cfg.NetworkMode == params.MixUDPMatrix)
 		if err != nil {
 			log.Error(fmt.Sprintf("getDefaultPFSByTokenNetworkAddress err %s", err))
 			//client.Close()
@@ -283,6 +283,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 			//return
 		}
 	}
+	log.Info(fmt.Sprintf("pfs server=%s", cfg.PfsHost))
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
@@ -632,7 +633,16 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	return
 }
-func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs string, err error) {
+func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address, isMatrix bool) (pfs string, err error) {
+	if isMatrix {
+		var ok bool
+		pfs, ok = params.DefaultMatrixContractToPFS[tokenNetworkAddress]
+		if !ok {
+			err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
+			return
+		}
+		return
+	}
 	pfs, ok := params.DefaultContractToPFS[tokenNetworkAddress]
 	if !ok {
 		err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
