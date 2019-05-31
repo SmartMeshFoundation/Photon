@@ -44,7 +44,6 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", listenAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5")) //需要移除
-	os.Args = append(os.Args, fmt.Sprintf("--debug"))       //需要移除
 	os.Args = append(os.Args, fmt.Sprintf("--registry-contract-address=%s", registryAddress))
 
 	if len(logFile) > 0 {
