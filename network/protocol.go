@@ -311,7 +311,7 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
-	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*100)
+	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
@@ -604,7 +604,7 @@ type NodeInfo struct {
 
 // UpdateMeshNetworkNodes update nodes in this intranet
 func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
-	//p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
+	p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)

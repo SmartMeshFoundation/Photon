@@ -167,6 +167,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		ctx, cf := context.WithCancel(context.Background())
 		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
 		if err != nil {
+			log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 			cf()
 			return
 		}
@@ -392,9 +393,10 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		}
 	}
 	for _, idToDelete := range idsToDelete {
+		previousIP := ut.intranetNodes[idToDelete]
 		delete(ut.intranetNodes, idToDelete)
 		delete(ut.intranetNodesTimestamp, idToDelete)
-		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
+		log.Info(fmt.Sprintf("peer UDP offline id=%s,previous Ip=%s", idToDelete.String(), previousIP.String()))
 	}
 	// 标记发现的除自己以外的节点
 	if id != ut.name {
