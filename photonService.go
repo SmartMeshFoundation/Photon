@@ -255,6 +255,8 @@ func (rs *Service) Start() (err error) {
 	*/
 	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
+	//如果启动的时候就是无网,那么这个时间就完全无效.预置有一个有参考价值的时间
+	rs.EffectiveChangeTimestamp = rs.dao.GetLastBlockNumberTime().Unix()
 	err = rs.registerRegistry()
 	if err != nil {
 		return
