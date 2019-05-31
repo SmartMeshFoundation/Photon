@@ -182,7 +182,7 @@ func (m *mdnsService) getBestMatchIP(remotes []net.IP) net.IP {
 	return remotes[0]
 }
 func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
-	//log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
+	log.Trace(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
 
 	if e.Info == m.myid {
 		//log.Debug("got our own mdns entry, skipping")
