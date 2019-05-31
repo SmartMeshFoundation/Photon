@@ -379,9 +379,6 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if params.MobileMode {
-		cfg.NetworkMode = params.MixUDPXMPP
-	}
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
 		params.EnableMDNS = false
