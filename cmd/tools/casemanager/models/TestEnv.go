@@ -610,12 +610,13 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
 		tx, err = env.TokenNetwork.Deposit(auth1, token.TokenAddress, account1, account2, amount1, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		receipt, err := bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
 		}
@@ -628,12 +629,13 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 		}
 	}
 	if amount2.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
 		tx, err = env.TokenNetwork.Deposit(auth2, token.TokenAddress, account2, account1, amount2, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		receipt, err := bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
 		}
