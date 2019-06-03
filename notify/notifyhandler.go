@@ -212,9 +212,16 @@ func (h *Handler) NotifyPhotonBalanceNotEnough(balance, needed *big.Int) {
 	if h.stopped {
 		return
 	}
+	type notEnough struct {
+		Need *big.Int `json:"need"`
+		Have *big.Int `json:"have"`
+	}
 	h.Notify(LevelError, &InfoStruct{
-		Type:    InfoTypeBalanceNotEnoughError,
-		Message: fmt.Sprintf("photon should work with balance > %d, but now only have %d", needed, balance),
+		Type: InfoTypeBalanceNotEnoughError,
+		Message: &notEnough{
+			Need: needed,
+			Have: balance,
+		},
 	})
 }
 
