@@ -2,6 +2,7 @@ package mobile
 
 import (
 	"os"
+	"time"
 
 	"fmt"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl"
 	"github.com/SmartMeshFoundation/Photon/params"
 )
+
+var apiMonitor = make(map[*API]struct{})
 
 func init() {
 	debug.SetTraceback("crash")
@@ -33,6 +36,14 @@ todo 启动参数需要重构
 3. DefaultRevealTimeout 需要修改,不能在默认用3了,这个纯粹是为了测试
 */
 func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) {
+	if len(apiMonitor) > 0 {
+		var s = ""
+		for a := range apiMonitor {
+			s += fmt.Sprintf("%s\n", a.startTime.String())
+		}
+		err = fmt.Errorf("please stop api before next startup: %s", s)
+		return
+	}
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "photonmobile")
 	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
@@ -59,6 +70,10 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	if err != nil {
 		return
 	}
-	api = &API{rapi}
+	api = &API{
+		startTime: time.Now(),
+		api:       rapi,
+	}
+	apiMonitor[api] = struct{}{}
 	return
 }

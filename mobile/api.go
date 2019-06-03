@@ -3,6 +3,7 @@ package mobile
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
@@ -33,7 +34,8 @@ import (
 //
 // should not export any member because of gomobile's protocol
 type API struct {
-	api *photon.API
+	startTime time.Time
+	api       *photon.API
 }
 
 /*
@@ -598,6 +600,7 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
+	delete(apiMonitor, a)
 	if v1.QuitChain != nil {
 		close(v1.QuitChain)
 	}

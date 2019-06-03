@@ -41,7 +41,7 @@ func TestMobile(t *testing.T) {
 	other := NewStrings(1)
 	other.Set(0, "--xmpp")
 	//other = nil
-	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", "http://192.168.124.13:28545", path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", "0xc479184abeb8c508ee96e4c093ee47af2256cbbf", other)
+	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", os.Getenv("TOKEN_NETWORK"), other)
 	if err != nil {
 		t.Error(err)
 		return
@@ -231,4 +231,28 @@ func TestSimpleApi(t *testing.T) {
 	ast.Nil(err)
 	ast.True(v.Cmp(big.NewInt(0)) > 0)
 	a.Stop()
+}
+
+func TestDuplicateStartup(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	mainimpl.GoVersion = "test"
+	mainimpl.GitCommit = utils.NewRandomAddress().String()[2:]
+	mainimpl.BuildDate = "test"
+	nodeAddr := common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa")
+	other := NewStrings(1)
+	other.Set(0, "--xmpp")
+	//other = nil
+	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", os.Getenv("TOKEN_NETWORK"), other)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", os.Getenv("TOKEN_NETWORK"), other)
+	if err == nil {
+		t.Error("can not startup twice")
+		return
+	}
+	api.Stop()
 }
