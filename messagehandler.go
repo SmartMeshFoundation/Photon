@@ -20,7 +20,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -724,8 +723,8 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
 		// 失败的SettleResponse
 		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Info(notifyString)
+		mh.photon.NotifyHandler.NotifyCooperateSettleRefused(ch.ChannelIdentifier.ChannelIdentifier, &rerr.StandardError{ErrorCode: msg.ErrorCode, ErrorMsg: msg.ErrorMsg})
+		log.Error(notifyString)
 		return nil
 	}
 	err := ch.RegisterCooperativeSettleResponse(msg)
@@ -739,7 +738,7 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.photon.NotifyHandler.NotifyString(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
+			mh.photon.NotifyHandler.NotifyCooperateSettleFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
 		}
 	}()
 	return nil
@@ -815,8 +814,11 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
 		// 失败的WithdrawResponse
 		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Info(notifyString)
+		mh.photon.NotifyHandler.NotifyWithdrawRefused(ch.ChannelIdentifier.ChannelIdentifier, &rerr.StandardError{
+			ErrorCode: msg.ErrorCode,
+			ErrorMsg:  msg.ErrorMsg,
+		})
+		log.Error(notifyString)
 		return nil
 	}
 	/*
@@ -836,6 +838,7 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 		err = <-result.Result
 		if err != nil {
 			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
+			mh.photon.NotifyHandler.NotifyWithdrawFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
 		}
 	}()
 	return nil

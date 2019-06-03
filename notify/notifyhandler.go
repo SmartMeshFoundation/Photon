@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -68,13 +70,13 @@ func (h *Handler) Notify(level Level, info *InfoStruct) {
 	}
 }
 
-// NotifyString : 通知上层,不让阻塞,以免影响正常业务
-func (h *Handler) NotifyString(level Level, info string) {
-	h.Notify(level, &InfoStruct{
-		Type:    InfoTypeString,
-		Message: info,
-	})
-}
+// NotifyString : 通知上层,不让阻塞,以免影响正常业务 暂时屏蔽,晚点打开
+//func (h *Handler) NotifyString(level Level, info string) {
+//	h.Notify(level, &InfoStruct{
+//		Type:    InfoTypeString,
+//		Message: info,
+//	})
+//}
 
 // NotifySentTransferDetail : 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) NotifySentTransferDetail(sentTransferDetail *models.SentTransferDetail) {
@@ -132,14 +134,31 @@ func (h *Handler) NotifyChannelStatus(ch *channeltype.ChannelDataDetail) {
 	})
 }
 
-// NotifyReceiveMediatedTransfer :通知收到了MediatedTransfer
+type receivedTranser struct {
+	Token      common.Address `json:"token"`
+	From       common.Address `json:"from"`
+	Amount     *big.Int       `json:"amount"`
+	ID         string         `json:"id"`
+	Expiration int64          `json:"expiration"`
+}
+
+// NotifyReceiveMediatedTransfer :通知收到了MediatedTransfer,和NotifyReceiveTransfer不一样,不能表示交易成功,
 func (h *Handler) NotifyReceiveMediatedTransfer(msg *encoding.MediatedTransfer, tokenAddress common.Address) {
 	if h.stopped || msg == nil {
 		return
 	}
-	info := fmt.Sprintf("收到token=%s,amount=%d,locksecrethash=%s的交易",
-		utils.APex2(tokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash))
-	h.NotifyString(LevelInfo, info)
+	log.Info(fmt.Sprintf("NotifyReceiveMediatedTransfer token=%s,amount=%d,locksecrethash=%s的交易",
+		utils.APex2(tokenAddress), msg.PaymentAmount, utils.HPex(msg.LockSecretHash)))
+	h.Notify(LevelInfo, &InfoStruct{
+		Type: InfoTypeReceivedMediatedTransfer,
+		Message: &receivedTranser{
+			Token:      tokenAddress,
+			From:       msg.Initiator,
+			Amount:     msg.PaymentAmount,
+			ID:         msg.LockSecretHash.String(),
+			Expiration: msg.Expiration,
+		},
+	})
 }
 
 // NotifyReceiveTransfer : 通知成功收到一笔token
@@ -159,6 +178,9 @@ func (h *Handler) NotifyReceiveTransfer(rt *models.ReceivedTransfer) {
 NotifyContractCallTXInfo 当自己发起的合约调用tx被成功打包时,通知上层
 */
 func (h *Handler) NotifyContractCallTXInfo(txInfo *models.TXInfo) {
+	if h.stopped {
+		return
+	}
 	h.Notify(LevelInfo, &InfoStruct{
 		Type:    InfoTypeContractCallTXInfo,
 		Message: txInfo,
@@ -168,6 +190,9 @@ func (h *Handler) NotifyContractCallTXInfo(txInfo *models.TXInfo) {
 //NotifyInconsistentDatabase 通知在进行交易的时候发生了错误,因为交易双方的数据库不一致
 func (h *Handler) NotifyInconsistentDatabase(channelIdentifier common.Hash, target common.Address) {
 	log.Info(fmt.Sprintf("NotifyInconsistentDatabase on channel %s", channelIdentifier.String()))
+	if h.stopped {
+		return
+	}
 	type inconsistentDatabase struct {
 		ChannelIdentifier common.Hash    `json:"channel_identifier"`
 		Target            common.Address `json:"target"`
@@ -183,9 +208,66 @@ func (h *Handler) NotifyInconsistentDatabase(channelIdentifier common.Hash, targ
 
 // NotifyPhotonBalanceNotEnough 通知上层账户余额不足
 func (h *Handler) NotifyPhotonBalanceNotEnough(balance, needed *big.Int) {
-	log.Info(fmt.Sprintf("NotifyPhotonBalanceNotEnough balance=%d needed=%d", balance, needed))
+	log.Warn(fmt.Sprintf("NotifyPhotonBalanceNotEnough balance=%d needed=%d", balance, needed))
+	if h.stopped {
+		return
+	}
 	h.Notify(LevelError, &InfoStruct{
 		Type:    InfoTypeBalanceNotEnoughError,
 		Message: fmt.Sprintf("photon should work with balance > %d, but now only have %d", needed, balance),
 	})
+}
+
+type failedCooperate struct {
+	Channel   common.Hash `json:"channel"`
+	ErrorCode int         `json:"error_code"`
+	ErrorMsg  string      `json:"error_message"`
+}
+
+func newFailedCooperate(channel common.Hash, err error) *failedCooperate {
+	errCode := rerr.ErrUnknown.ErrorCode
+	if e2, ok := err.(*rerr.StandardError); ok {
+		errCode = e2.ErrorCode
+	}
+
+	return &failedCooperate{
+		Channel:   channel,
+		ErrorCode: errCode,
+		ErrorMsg:  err.Error(),
+	}
+}
+func (h *Handler) notifyCooperateFailed(typ int, msg *failedCooperate) {
+	if h.stopped {
+		return
+	}
+	h.Notify(LevelError, &InfoStruct{
+		Type:    typ,
+		Message: msg,
+	})
+}
+
+//NotifyCooperateSettleRefused 通知对方拒绝合作关闭通道
+func (h *Handler) NotifyCooperateSettleRefused(channel common.Hash, err error) {
+	log.Warn(fmt.Sprintf("NotifyCooperateSettleRefused on channel=%s,reason=%s", utils.HPex(channel), err))
+	h.notifyCooperateFailed(InfoTypeCooperateSettleRefused, newFailedCooperate(channel, err))
+}
+
+//NotifyCooperateSettleFailed 通知Tx执行失败
+func (h *Handler) NotifyCooperateSettleFailed(channel common.Hash, err error) {
+	log.Warn(fmt.Sprintf("NotifyCooperateSettleFailed on channel=%s,err=%s", utils.HPex(channel), err))
+	h.notifyCooperateFailed(InfoTypeCooperateSettleFailed, newFailedCooperate(channel, err))
+
+}
+
+//NotifyWithdrawRefused 通知对方拒绝合作取现
+func (h *Handler) NotifyWithdrawRefused(channel common.Hash, err error) {
+	log.Warn(fmt.Sprintf("NotifyWithdrawRefused on channel=%s,reason=%s", utils.HPex(channel), err))
+	h.notifyCooperateFailed(InfoTypeWithdrawRefused, newFailedCooperate(channel, err))
+
+}
+
+//NotifyWithdrawFailed 通知Tx执行失败
+func (h *Handler) NotifyWithdrawFailed(channel common.Hash, err error) {
+	log.Warn(fmt.Sprintf("NotifyWithdrawFailed on channel=%s,err=%s", utils.HPex(channel), err))
+	h.notifyCooperateFailed(InfoTypeWithdrawFailed, newFailedCooperate(channel, err))
 }

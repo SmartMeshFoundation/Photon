@@ -427,7 +427,8 @@ func (rs *Service) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
-				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
+				//通过EthConnectionStatus通知eth连接断开,
+				//rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -550,6 +551,7 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 		rs.dao.NewSentEnvelopMessager(envelopMessager, recipient)
 	}
 	result := rs.Protocol.SendAsync(recipient, msg)
+	//todo 发送消息量大的时候,会制造大量的goroutine,比较昂贵
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
 		err := <-result.Result //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败

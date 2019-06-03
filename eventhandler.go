@@ -16,7 +16,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/graph"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
-	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -1005,7 +1004,7 @@ func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
 		case <-time.After(periodSecond):
 			t := time.Since(time.Unix(eh.photon.EffectiveChangeTimestamp, 0)).Round(time.Second)
 			warning := fmt.Sprintf("photon has been worked without effective block chain for about %s", t)
-			eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning)
+			//eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning) 就不通知了,没有格式化的通知,app也没法处理
 			log.Warn(warning)
 			// 如果进入无效公链的时间超过了最小SettleTimeout一半的时间,修改通道pms状态,该操作直到切入有效网络之前只进行一次
 			if !hasUpdateDelegateState && time.Since(start) > time.Duration(eh.photon.getMinSettleTimeout())/2*periodBlockSecond {
