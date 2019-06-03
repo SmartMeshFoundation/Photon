@@ -242,7 +242,11 @@ func transferToAccount(conn *ethclient.Client, key *ecdsa.PrivateKey, accountTo 
 	if err = conn.SendTransaction(ctx, signedTx); err != nil {
 		return fmt.Errorf("conn.SendTransaction : %v,nonce=%v,accountTo=%s,amount=%s,gasLimit=%v,gasPrice=%s", err, nonce, accountTo.Hex(), amount.String(), gasLimit, getAmount(gasPrice).String())
 	}
-	_, err = bind.WaitMined(ctx, conn, signedTx)
+	receipt, err := bind.WaitMined(ctx, conn, signedTx)
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("transferToAccount ,failed tx=%s", receipt.TxHash.String())
+		panic("transferToAccount failed")
+	}
 	return
 }
 
@@ -611,9 +615,16 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err := bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account1 failed")
 		}
 	}
 	if amount2.Int64() > 0 {
@@ -622,9 +633,16 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err := bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account2 failed")
 		}
 	}
 }
@@ -637,9 +655,16 @@ func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetwor
 		log.Fatalf("Failed to Approve: %v", err)
 	}
 	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
+	receipt, err := bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to Approve when mining :%v", err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("approveAccount for %s ,failed tx=%s",
+			utils.APex2(auth.From),
+			receipt.TxHash.String(),
+		)
+		panic("approve error")
 	}
 	log.Printf("approve account %s %d tokens to %s success\n", utils.APex(auth.From), approveAmt, utils.APex(tokenNetworkAddress))
 }
