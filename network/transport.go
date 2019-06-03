@@ -132,7 +132,7 @@ restart listen when switch foreground
 */
 type UDPTransport struct {
 	protocol               ProtocolReceiver
-	conn                   *SafeUDPConnection
+	conn                   *net.UDPConn
 	UAddr                  *net.UDPAddr
 	policy                 Policier
 	stopped                bool

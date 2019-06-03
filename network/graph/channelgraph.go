@@ -49,10 +49,15 @@ type NodesStatusGetter interface {
 //整个 ChannelGraph 只能单线程访问
 // The whole ChannelGraph can only be accessed by a single process.
 type ChannelGraph struct {
-	g                         *dijkstra.Graph
-	OurAddress                common.Address
-	TokenAddress              common.Address
-	PartenerAddress2Channel   map[common.Address]*channel.Channel
+	g                       *dijkstra.Graph
+	OurAddress              common.Address
+	TokenAddress            common.Address
+	PartenerAddress2Channel map[common.Address]*channel.Channel
+	/*
+			ChannelIdentifier2Channel 会在Protocol中的MessageCanbeSent被调用,导致存在潜在的读写冲突
+			一个解决办法就是每次都是clone写,考虑到写的情况很少,所以应该问题不大
+		todo 为ChannelIdentifier2Channel加上每次写的时候都clone一下.
+	*/
 	ChannelIdentifier2Channel map[common.Hash]*channel.Channel
 	address2index             map[common.Address]int
 	index2address             map[int]common.Address

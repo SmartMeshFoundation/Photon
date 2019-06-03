@@ -901,6 +901,12 @@ func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockSta
 
 /*
 	处理有效公链/无效公链状态切换的相关逻辑
+有效公链变无效:
+1. 检测还没有来得及提交到PMS的balanceProof,提醒用户
+无效变有效:
+1. 提交所有更新到PFS(有冗余)
+2. 提交所有更新到PMS(有冗余)
+3. 该发送的unlock消息发送出去
 */
 func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer.EffectiveChainStateChange) (err error) {
 	isChainEffective := st.IsEffective
@@ -974,6 +980,10 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 	return nil
 }
 
+/*
+一旦检测到公链无效:
+检测哪些还没有来得及委托的PMS的balanceProof,并给App以相应提醒.
+*/
 func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
 	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
 		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
