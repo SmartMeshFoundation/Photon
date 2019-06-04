@@ -816,12 +816,14 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.EthStatus = s
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
+				log.Info(fmt.Sprintf("notify OnStatusChange=%s", d))
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
 				log.Info(fmt.Sprintf("status change to %d", cs.XMPPStatus))
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
+				log.Info(fmt.Sprintf("notify OnStatusChange=%s", d))
 				handler.OnStatusChange(string(d))
 			case t, ok := <-a.api.Photon.NotifyHandler.GetReceivedTransferChan():
 				if ok {
