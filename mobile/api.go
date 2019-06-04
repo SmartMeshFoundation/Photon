@@ -600,12 +600,13 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
-	delete(apiMonitor, a)
 	if v1.QuitChain != nil {
 		close(v1.QuitChain)
 	}
 	//test only
 	a.api.Stop()
+	//保证stop完成以后,再删除,也就是说上一个没有完全stop之前,是不能启动新的photon实例的
+	delete(apiMonitor, a)
 }
 
 /*
