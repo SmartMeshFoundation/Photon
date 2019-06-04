@@ -1387,5 +1387,8 @@ func uploadLogFile(address common.Address, logFilePath string) (err error) {
 		log.Error(err.Error())
 	}
 	log.Info(fmt.Sprintf("upload logfile and got response : %d %s", res.StatusCode, string(message)))
+	if res.StatusCode != http.StatusOK {
+		err = fmt.Errorf("upload logfile and got response : %d %s", res.StatusCode, string(message))
+	}
 	return
 }
