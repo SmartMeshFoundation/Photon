@@ -170,7 +170,7 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 			}
 			transferFailed := &transfer.EventTransferSentFailed{
 				LockSecretHash: state.Transfer.LockSecretHash,
-				Reason:         "no route available",
+				Reason:         "lock expired",
 				Target:         state.Transfer.Target,
 				Token:          state.Transfer.Token,
 			}

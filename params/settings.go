@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	params2 "github.com/SmartMeshFoundation/Photon/cmd/tools/deploygeth/gethworkdir/src/github.com/ethereum/go-ethereum/params"
-
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -258,7 +256,7 @@ var BlockPeriodSeconds = 15
 var IsMainNet = false
 
 //MainNetChannelSettleTimeoutMin min settle timeout of main net,主网按一周计算,14秒一块
-const MainNetChannelSettleTimeoutMin = 43200
+const MainNetChannelSettleTimeoutMin = 40000
 
 //TestNetChannelSettleTimeoutMin min settle timeout of main net,测试网60块
 const TestNetChannelSettleTimeoutMin = 60
@@ -267,7 +265,6 @@ const TestNetChannelSettleTimeoutMin = 60
 ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
  1 year with the assumption of very fast block times of 12 seconds.
  There is a maximum to avoidpotential overflows as described here:
- https://github.com/Photon/photon/issues/1038
 */
 const ChannelSettleTimeoutMax = 2700000
 
@@ -277,5 +274,9 @@ const ContractPunishBlockNumber uint64 = 257
 // BlockchainEffectiveTimeout 判断当前公链是否有效的依据
 const BlockchainEffectiveTimeout = 180
 
-// MinBalance 最小余额,18 * GasPrice * GasLimit * 10, 当账户余额小于该值时,合约调用存在失败且
-const MinBalance = 18 * params2.GWei * 100000 * 10
+// MinBalance 最小余额,18 * GasPrice * GasLimit * 3, 当账户余额小于该值时,合约调用存在失败且
+const MinBalance = 18 * 1e9 * 100000 * 3
+
+//MainNetNetworkID is the main networkID,in spectrum main net ChainID is 20180430,but
+//networkID is 1
+const MainNetNetworkID = 1

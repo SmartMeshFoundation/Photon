@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
+
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
 	"encoding/hex"
@@ -38,7 +40,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
-	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -238,6 +239,9 @@ func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
 	log.Info(fmt.Sprintf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version))
 	var isFirstStartUp, hasConnectedChain bool
+	//photon是否已经创建成功,成功以后,dao和client的所有权也将会移动到Service中,不能自己close了
+	//否则会二次close,造成错误
+	var photonServiceCreated bool
 	// load config
 	cfg, err := config(ctx)
 	if err != nil {
@@ -249,6 +253,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 		err = fmt.Errorf("cannot connect to geth :%s err=%s", cfg.EthRPCEndPoint, err)
 		err = nil
 	}
+	defer func() {
+		if client != nil && err != nil && !photonServiceCreated {
+			client.Close()
+		}
+	}()
 	// open db
 	var dao models.Dao
 	err = checkDbMeta(cfg.DataBasePath, "boltdb")
@@ -256,31 +265,26 @@ func mainCtx(ctx *cli.Context) (err error) {
 		return
 	}
 	dao, err = stormdb.OpenDb(cfg.DataBasePath)
-	//}
+
 	if err != nil {
 		err = fmt.Errorf("open db error %s", err)
-		client.Close()
 		return
 	}
+	defer func() {
+		if err != nil && !photonServiceCreated {
+			dao.CloseDB()
+		}
+	}()
 	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, dao, client)
 	if err != nil {
-		client.Close()
-		dao.CloseDB()
+
 		return
-	}
-	if params.IsMainNet {
-		cfg.SettleTimeout = params.MainNetChannelSettleTimeoutMin
-	} else {
-		cfg.SettleTimeout = params.TestNetChannelSettleTimeoutMin
 	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
 	if cfg.PfsHost == "" {
 		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress, cfg.NetworkMode == params.MixUDPMatrix)
 		if err != nil {
 			log.Error(fmt.Sprintf("getDefaultPFSByTokenNetworkAddress err %s", err))
-			//client.Close()
-			//dao.CloseDB()
-			//return
 		}
 	}
 	log.Info(fmt.Sprintf("pfs server=%s", cfg.PfsHost))
@@ -288,14 +292,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if isFirstStartUp {
 		if !hasConnectedChain {
 			err = fmt.Errorf("first startup without ethereum rpc connection")
-			dao.CloseDB()
-			client.Close()
 			return
 		}
 		params.ChainID, err = client.NetworkID(context.Background())
 		if err != nil {
-			dao.CloseDB()
-			client.Close()
 			return
 		}
 		dao.SaveChainID(params.ChainID.Int64())
@@ -307,8 +307,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// init blockchain module
 	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client, notifyHandler, dao)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
 		return
 	}
 	if isFirstStartUp {
@@ -318,9 +316,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 		var chainID *big.Int
 		contractVersion, secretRegisteryAddress, punishBlockNumber, chainID, err = verifyContractCode(bcs)
 		if err != nil {
-			//dao.SaveContractStatus(models.ContractStatus{}) // return to first start up
-			dao.CloseDB()
-			client.Close()
 			return
 		}
 		dao.SaveContractStatus(models.ContractStatus{
@@ -330,6 +325,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 			ChainID:               chainID,
 			ContractVersion:       contractVersion,
 		})
+	}
+	//主网networkID是主网,无论在以太坊还是spectrum,都是如此
+	params.IsMainNet = params.ChainID.Cmp(big.NewInt(params.MainNetNetworkID)) == 0
+	if params.IsMainNet {
+		cfg.SettleTimeout = params.MainNetChannelSettleTimeoutMin
+	} else {
+		cfg.SettleTimeout = params.TestNetChannelSettleTimeoutMin
 	}
 	/*
 		由于数据库设计历史原因,chainID是单独保存的,为了保持兼容,暂时不做修改
@@ -342,17 +344,19 @@ func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("punish block number=%d", params.PunishBlockNumber))
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
 		return
 	}
+	defer func() {
+		if err != nil && !photonServiceCreated {
+			transport.Stop()
+		}
+	}()
 	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler, dao)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
-		transport.Stop()
 		return
 	}
+	//transport,dao,client 所有权已经转移到PhotonService中了,如果以后失败,就有photonService自己管理
+	photonServiceCreated = true
 	// 保存构建信息
 	service.SetBuildInfo(GoVersion, GitCommit, BuildDate, Version)
 	err = service.Start()
@@ -379,9 +383,6 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if params.MobileMode {
-		cfg.NetworkMode = params.MixUDPXMPP
-	}
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
 		params.EnableMDNS = false
@@ -553,6 +554,9 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	return
 }
 
+/*
+getPrivateKey: 如果是meshbox,则通过专用插件获取私钥,否则根据指定的keystore-path找相应的私钥
+*/
 func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	if os.Getenv("IS_MESH_BOX") == "true" || os.Getenv("IS_MESH_BOX") == "TRUE" {
 		// load photon_plugin.so
@@ -586,7 +590,14 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	return crypto.ToECDSA(keyBin)
 }
 
+/*
+getRegistryAddress:
+系统第一次初始化的时候必须保证有网,无网也没有历史数据,则没有任何意义.
+是否是第一次启动的判断标准就是是否有历史数据库.
+todo:存在问题,有可能第一次启动的时候连接到了一条无效的公链.
+*/
 func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
+	log.Info(fmt.Sprintf("contract status=%s", utils.StringInterface(dao.GetContractStatus(), 5)))
 	dbRegistryAddress := dao.GetContractStatus().RegistryAddress
 	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
 	hasConnectedChain = client.Status == netshare.Connected
@@ -625,10 +636,6 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	if err != nil {
 		log.Error(err.Error())
 		return
-	}
-	// 根据创世区块hash设置主网标记
-	if genesisBlockHash == params.MainNetGenesisBlockHash {
-		params.IsMainNet = true
 	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	return

@@ -5,6 +5,7 @@
 # zip -r photon_linux_amd64_$VERSION.zip photon-$VERSION-linux-amd64
 # rm -f photon-$VERSION-linux-amd64
 source ../../env.sh
+source ../../VERSION
 
 #linux/arm
 export CGO_ENABLED=0

@@ -135,8 +135,7 @@ type Service struct {
 	SentMediatedTransferListenerMap       map[*SentMediatedTransferListener]bool     //for tokenswap
 	HealthCheckMap                        map[common.Address]bool
 	quitChan                              chan struct{} //for quit notification
-	isStarting                            bool
-	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
+	StopCreateNewTransfers                bool          // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
@@ -181,7 +180,6 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		SentMediatedTransferListenerMap:       make(map[*SentMediatedTransferListener]bool),
 		HealthCheckMap:                        make(map[common.Address]bool),
 		quitChan:                              make(chan struct{}),
-		isStarting:                            true,
 		StopCreateNewTransfers:                false,
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
@@ -322,8 +320,6 @@ func (rs *Service) Start() (err error) {
 	*/
 	go rs.submitBalanceProofToPfsLoop()
 	go rs.submitDelegateToPmsLoop()
-	//
-	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
 	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
@@ -431,7 +427,8 @@ func (rs *Service) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
-				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
+				//通过EthConnectionStatus通知eth连接断开,
+				//rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -554,6 +551,7 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 		rs.dao.NewSentEnvelopMessager(envelopMessager, recipient)
 	}
 	result := rs.Protocol.SendAsync(recipient, msg)
+	//todo 发送消息量大的时候,会制造大量的goroutine,比较昂贵
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
 		err := <-result.Result //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败

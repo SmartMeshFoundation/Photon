@@ -47,6 +47,16 @@ const (
 	InfoTypeInconsistentDatabase
 	// InfoTypeBalanceNotEnoughError photon余额可能不足以发起合约调用时,通知上层
 	InfoTypeBalanceNotEnoughError
+	//InfoTypeCooperateSettleRefused 后台执行合作关闭通道失败,对方拒绝
+	InfoTypeCooperateSettleRefused
+	//InfoTypeCooperateSettleFailed 后台执行合作关闭通道 Tx失败
+	InfoTypeCooperateSettleFailed
+	//InfoTypeWithdrawRefused 后台执行withdraw,对方拒绝
+	InfoTypeWithdrawRefused
+	//InfoTypeWithdrawFailed 后台执行withdraw,Tx失败
+	InfoTypeWithdrawFailed
+	//InfoTypeReceivedMediatedTransfer 接收方收到MediatedTransfer
+	InfoTypeReceivedMediatedTransfer
 )
 
 //InfoStruct for notify to mobile
