@@ -216,7 +216,8 @@ var TestPrivateChainID int64 = 8888
 // TestPrivateChainID2 : for travis fast test
 var TestPrivateChainID2 int64 = 7888
 
-// EthRPCTimeout :
+// EthRPCTimeout  尝试与公链节点建立连接时的超时时间,过短可能会造成因为网络延迟而把本应该成功的链接拒绝
+// 过长可能会造成错误迟迟无法被检测到.
 var EthRPCTimeout = 3 * time.Second
 
 // ContractVersionPrefix :

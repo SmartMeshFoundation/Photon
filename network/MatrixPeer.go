@@ -85,9 +85,9 @@ func (peer *MatrixPeer) addRoom(roomID string) {
 }
 
 /*
-if one of the `candidateUsers` is online, status is online
-if one of the `candidateUsers` is offline,status is offline
-if all of the `candidateUsers` is UNAVAILABLE,status is unkown
+1. if one of the `candidateUsers` is online, status is online ,otherwise
+2. if one of the `candidateUsers` is offline,status is offline
+3. then if all of the `candidateUsers` is UNAVAILABLE,status is unkown
 */
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	peer.candidateUsers[userID] = &gomatrix.UserInfo{
@@ -104,8 +104,6 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
-	status = peerStatusOnline
-	peer.candidateUsersStatus[userID] = status
 	user := peer.candidateUsers[userID]
 	if user == nil {
 		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",

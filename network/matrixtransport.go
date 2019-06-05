@@ -825,7 +825,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 				return
 			}
 			peerAddress := m.userIDToAddress(userid)
-			//m.addPeerIfNotExist(peerAddress, true)
 			m.lock.RLock()
 			peer := m.Peers[peerAddress]
 			m.lock.RUnlock()
@@ -840,7 +839,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 			}
 		}()
 	} else if membership == "join" {
-		//m.addPeerIfNotExist(m.userIDToAddress(userid), true)
 		err := m.inviteIfPossible(userid, event.RoomID)
 		if err != nil {
 			m.log.Error(fmt.Sprintf("inviteIfPossible %s to default room err %s", userid, err))
@@ -923,13 +921,10 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		}
 		return
 	}
-	if peer.isValidUserID(userid) && peer.setStatus(userid, "online") {
-		//if peer.setStatus(userid, presence) {
+	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
 		// 节点上线通知所有已经挂起的通道
 		m.wakeUpChanListMapLock.Lock()
-		//tmpChan := make(chan int)
-		//m.wakeUpChanListMap[address] = append(m.wakeUpChanListMap[address], tmpChan)
-		fmt.Println(fmt.Sprintf("m.wakeUpChanListMap[address]=%s", utils.StringInterface(m.wakeUpChanListMap[address], 5)))
+		log.Trace(fmt.Sprintf("m.wakeUpChanListMap[address]=%s", utils.StringInterface(m.wakeUpChanListMap[address], 5)))
 		if chans, ok := m.wakeUpChanListMap[address]; ok && len(chans) > 0 && presence == ONLINE {
 			for _, c := range chans {
 				c <- 1
@@ -939,8 +934,7 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType
-		peer.status = peerStatus(statusToInt(presence))
-		//m.log.Debug(fmt.Sprintf("m.Peers:%s",utils.StringInterface(m.Peers,5)))
+		m.log.Trace(fmt.Sprintf("%s matrix status changed status=%s,devicetype=%s", userid, peer.status, peer.deviceType))
 	}
 	m.log.Trace(fmt.Sprintf("peer %s status=%s,deviceType=%s", utils.APex2(address), peer.status, peer.deviceType))
 }
@@ -1025,14 +1019,6 @@ func (m *MatrixTransport) loginOrRegister() (err error) {
 		err = fmt.Errorf("could not register or login")
 		return
 	}
-	//set displayname as publicly visible
-	//dispname := m.getUserDisplayName(m.matrixcli.UserID)
-	//if err = m.matrixcli.SetDisplayName(dispname); err != nil {
-	//	err = fmt.Errorf("could set the node's displayname and quit as well")
-	//	m.matrixcli.ClearCredentials()
-	//	return
-	//}
-	//m.log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
 	return err
 }
 
@@ -1120,13 +1106,13 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		Visibility: "public",
 		Preset:     "public_chat",
 	}
-	//if true {
-	//	req.Visibility = "public"
-	//	req.Preset = "public_chat"
-	//} else {
-	//	req.Visibility = "private"
-	//	req.Preset = "trusted_private_chat"
-	//}
+	if true {
+		req.Visibility = "public"
+		req.Preset = "public_chat"
+	} else {
+		req.Visibility = "private"
+		req.Preset = "trusted_private_chat"
+	}
 	if isSameAddress(roomname) {
 		return
 	}
@@ -1136,9 +1122,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		respJoinRoom, err = m.matrixcli.JoinRoom(roomNameFull, m.servername, nil)
 		if err != nil {
 			m.log.Error(fmt.Sprintf("JoinRoom %s error: %s,respJoinRoom: %s", roomname, err, utils.StringInterface(respJoinRoom, 5)))
-			//_, err := m.matrixcli.JoinedMembers(respJoinRoom.RoomID)
-			//fmt.Println("JoinedMembers:",err)
-			//fmt.Println(respJoinedMembers)
 			req.RoomAliasName = roomname
 			_, err = m.matrixcli.CreateRoom(req)
 			if err != nil {
@@ -1273,9 +1256,7 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 			if err != nil {
 				fmt.Fprintf(errBuf, "GetPresenceState for %s,err=%s\n", u.UserID, err)
 			} else {
-				if p.setStatus(u.UserID, presenceResponse.Presence) {
-					p.status = peerStatus(statusToInt(presenceResponse.Presence))
-				}
+				p.setStatus(u.UserID, presenceResponse.Presence)
 				//stop check if one online userid found
 				if p.status == peerStatusOnline {
 					break
@@ -1309,17 +1290,6 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 		return errors.New(errStr)
 	}
 	return nil
-}
-func statusToInt(s string) int {
-	switch s {
-	case UNAVAILABLE:
-		return peerStatusUnkown
-	case OFFLINE:
-		return peerStatusOffline
-	case ONLINE:
-		return peerStatusOnline
-	}
-	return -1
 }
 
 func getSignatureFromDisplayName(displayName string) (signature []byte, err error) {
@@ -1535,7 +1505,8 @@ func (m *MatrixTransport) leaveUselessRoom() {
 			if err != nil {
 				m.log.Error(fmt.Sprintf("leave room %s err %s,room=%s", roomID, err, utils.StringInterface(room, 5)))
 			} else {
-				/*_, err = m.matrixcli.ForgetRoom(roomID)
+				/* forget调用无用,经陈云测试
+				_, err = m.matrixcli.ForgetRoom(roomID)
 				if err != nil {
 					m.log.Error(fmt.Sprintf("forget room %s err %s,room=%s", roomID, err, utils.StringInterface(room, 5)))
 				}*/

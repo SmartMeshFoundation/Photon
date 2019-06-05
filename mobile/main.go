@@ -4,6 +4,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"fmt"
 
 	"runtime/debug"
@@ -41,7 +43,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 		for a := range apiMonitor {
 			s += fmt.Sprintf("%s\n", a.startTime.String())
 		}
-		err = fmt.Errorf("please stop api before next startup: %s", s)
+		err = rerr.ErrPhotonAlreadyRunning.WithData(s)
 		return
 	}
 	os.Args = make([]string, 0, 20)
