@@ -117,7 +117,7 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 		settleTimeout = 0
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
-		err = rerr.ErrInvalidAmount
+		err = rerr.ErrArgumentError.Append("invalid amount")
 		return
 	}
 	if err = r.checkSmcStatus(); err != nil {
@@ -1022,6 +1022,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		var sync *ethereum.SyncProgress
 		sync, err = r.Photon.Chain.SyncProgress()
 		if err != nil {
+			err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
 			return
 		}
 		data.SyncProcess = sync

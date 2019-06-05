@@ -17,14 +17,13 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 )
 
 // ErrNotInit :
-var ErrNotInit = errors.New("pfgClient not init")
+var ErrNotInit = rerr.ErrNotChargeFee.Append("pfgClient not init")
 
 // ErrConnect :
-var ErrConnect = errors.New("pfsClient connect to pfs error")
+var ErrConnect = rerr.ErrNotChargeFee.Append("pfsClient connect to pfs error")
 
 /*
 pfsClient :

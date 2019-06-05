@@ -8,6 +8,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/asdine/storm"
 	"github.com/asdine/storm/q"
@@ -80,6 +81,9 @@ func (model *StormDB) GetReceivedTransferList(tokenAddress common.Address, fromB
 	}
 	if err == storm.ErrNotFound {
 		err = nil
+	}
+	if err != nil {
+		err = rerr.ErrGeneralDBError
 	}
 	return
 }

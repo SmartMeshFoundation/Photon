@@ -790,10 +790,6 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		return
 	}
 
-	if directChannel.Distributable().Cmp(amount) < 0 {
-		result.Result <- rerr.ErrChannelNoEnoughBalance
-		return
-	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
 	if err != nil {
 		result.Result <- err
@@ -1282,7 +1278,7 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
-		return utils.NewAsyncResultWithError(err)
+		panic(err) // never happen
 	}
 	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
 }
@@ -1392,7 +1388,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
-		result.Result <- rerr.ErrChannelNotAllowWithdraw.Printf("state=%s", c.State)
+		result.Result <- rerr.ErrChannelState.Printf("can not withdraw because state = %s", c.State)
 		return
 	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
