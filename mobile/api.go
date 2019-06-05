@@ -915,6 +915,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel 
 	amount, _ := new(big.Int).SetString(amountStr, 0)
 	c, err := a.api.GetChannel(channelIdentifier)
 	if err != nil {
+		err = rerr.ErrChannelNotFound.WithData(channelIdentifier) //不要暴露底层错误
 		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifier), err))
 		return
 	}

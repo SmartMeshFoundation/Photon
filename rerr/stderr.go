@@ -316,7 +316,7 @@ var (
 	//ErrSubScribeNeighbor 订阅节点在线信息错误
 	ErrSubScribeNeighbor = NewError(6001, "ErrSubScribeNeighbor")
 	//ErrContractQueryError 合约查询发生错误
-	ErrContractQueryError = NewError(6002, "ErrContractQueryError")
+	ErrContractQueryError = NewError(6002, "ErrContractQueryError") //投资人相关错误
 
 	// ErrUnknown 未知错误
 	ErrUnknown = NewError(9999, "unknown error")

@@ -255,4 +255,9 @@ func TestDuplicateStartup(t *testing.T) {
 		return
 	}
 	api.Stop()
+	api, err = StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", os.Getenv("TOKEN_NETWORK"), other)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }
