@@ -182,7 +182,7 @@ func ChangeEthRPCEndpointPort(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(nil)
 }
 
-// UploadLogFile :
+// UploadLogFile 上传photon日志到服务器,方便开发人员查阅
 func UploadLogFile(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
