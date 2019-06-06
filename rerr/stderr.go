@@ -218,6 +218,8 @@ var (
 	ErrSpectrumSyncError = NewError(2012, "ErrSpectrumSyncError")
 	//ErrSpectrumBlockError 本地已处理的块数和公链汇报块数不一致,比如我本地已经处理到了50000块,但是公链节点报告现在只有3000块
 	ErrSpectrumBlockError = NewError(2013, "ErrSpectrumBlockError")
+	//ErrSpectrumContractAlwaysFailed 合约调用必然失败,因此不提交到链上
+	ErrSpectrumContractAlwaysFailed = NewError(2014, "ErrSpectrumContractAlwaysFailed")
 	//ErrUnkownSpectrumRPCError 其他以太坊rpc错误
 	ErrUnkownSpectrumRPCError = NewError(2999, "unkown spectrum rpc error")
 	/*ErrTokenNotFound Raised when token not found
