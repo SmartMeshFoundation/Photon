@@ -227,7 +227,7 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	// 获取tokenName,如果是SMTToken,即主链币代理合约,
+	// 获取tokenName,如果是SMTToken,即主链币代理合约, todo 移除这个查询,否则会造成不必要的网络访问,并且造成api阻塞
 	name, err := token.Token.Name(nil)
 	if err != nil {
 		return rerr.ContractCallError(err)
