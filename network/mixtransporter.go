@@ -138,10 +138,10 @@ func (t *MixTransport) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
 	return t.xmpp.conn.CollectNeighbors(db)
 }
 
-// Reconnect :
+// Reconnect 重连
 func (t *MixTransport) Reconnect() {
 	if t.xmpp.conn == nil {
-		log.Error("try to subscribe neighbor,but xmpp connection is disconnected")
+		log.Error("try to reconnect,but xmpp connection is disconnected")
 		return
 	}
 	t.xmpp.conn.Reconnect()

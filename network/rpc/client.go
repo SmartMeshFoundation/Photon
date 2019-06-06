@@ -179,7 +179,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 	return bcs.RegistryProxy, nil
 }
 
-// GetRegistryAddress :
+// GetRegistryAddress impl photon/blockchain/RPCModuleDependency
 func (bcs *BlockChainService) GetRegistryAddress() common.Address {
 	if bcs.RegistryProxy != nil {
 		return bcs.RegistryProxy.Address
@@ -187,7 +187,7 @@ func (bcs *BlockChainService) GetRegistryAddress() common.Address {
 	return utils.EmptyAddress
 }
 
-// GetSecretRegistryAddress :
+// GetSecretRegistryAddress impl photon/blockchain/RPCModuleDependency
 func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 	if bcs.SecretRegistryProxy != nil {
 		return bcs.SecretRegistryProxy.Address
@@ -195,7 +195,7 @@ func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 	return utils.EmptyAddress
 }
 
-// SyncProgress :
+// SyncProgress 获取公链节点sync状态
 func (bcs *BlockChainService) SyncProgress() (sp *ethereum.SyncProgress, err error) {
 	return bcs.Client.SyncProgress(context.Background())
 }

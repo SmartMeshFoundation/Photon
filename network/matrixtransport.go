@@ -553,23 +553,6 @@ func (m *MatrixTransport) loop() {
 	}
 }
 
-// RegisterWakeUpChan :
-func (m *MatrixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
-	m.wakeUpChanListMapLock.Lock()
-	m.wakeUpChanListMap[addr] = append(m.wakeUpChanListMap[addr], c)
-	m.wakeUpChanListMapLock.Unlock()
-
-}
-
-// UnRegisterWakeUpChan :
-func (m *MatrixTransport) UnRegisterWakeUpChan(addr common.Address) {
-	m.wakeUpChanListMapLock.Lock()
-	if _, ok := m.wakeUpChanListMap[addr]; ok {
-		delete(m.wakeUpChanListMap, addr)
-	}
-	m.wakeUpChanListMapLock.Unlock()
-}
-
 /*
 ------------------------------------------------------------------------------------------------------------------------
 */
