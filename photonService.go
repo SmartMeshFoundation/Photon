@@ -785,10 +785,25 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 	/*
 		发之前检测一下,接收方是否在线,如果不在线也不用发了.避免我方发出去,对方收不到这种情况.
 	*/
-	_, isOnline := rs.Protocol.Transport.NodeStatus(target)
-	if !isOnline {
-		result.Result <- rerr.ErrNodeNotOnline
-		return
+	if rs.Chain.Client.Status != netshare.Connected {
+		//无网情况下的交易,主要考虑移动端,他所连接点公链节点一定是互联网上的而不是局域网的
+		mixTransport, ok := rs.Protocol.Transport.(network.MixTranspoter)
+		if ok {
+			_, isOnline := mixTransport.UDPNodeStatus(target)
+			if !isOnline {
+				result.Result <- rerr.ErrNodeNotOnline
+				return
+			}
+		} else {
+			log.Error(fmt.Sprintf("it'a error when not in test"))
+		}
+
+	} else {
+		_, isOnline := rs.Protocol.Transport.NodeStatus(target)
+		if !isOnline {
+			result.Result <- rerr.ErrNodeNotOnline
+			return
+		}
 	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
 	if err != nil {

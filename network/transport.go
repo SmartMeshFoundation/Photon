@@ -60,6 +60,12 @@ type Transporter interface {
 	NodeStatus(addr common.Address) (deviceType string, isOnline bool)
 }
 
+//MixTranspoter support udp and others(xmpp or matrix)
+type MixTranspoter interface {
+	Transporter
+	//UDPNodeStatus status of UDPTransport
+	UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool)
+}
 type dummyPolicy struct {
 }
 
