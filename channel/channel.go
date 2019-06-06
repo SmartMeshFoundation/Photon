@@ -1085,7 +1085,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *enco
 	}
 	if len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
-		panic("should no locks for partner state when  CreateWithdrawResponse")
+		panic("should no locks for partner state when  CreateWithdrawResponse") //todo 检查所有的panic,如果是对方恶意的消息触发的这种,应该忽略
 	}
 	wd := new(encoding.WithdrawReponseData)
 	wd.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier

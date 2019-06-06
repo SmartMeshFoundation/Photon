@@ -169,10 +169,11 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		if err != nil {
 			log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 			cf()
-			return
+			err = nil //无论mdns是否启动完成,都不能影响photon启动
+		} else {
+			t.cf = cf
+			t.msrv.RegisterNotifee(t)
 		}
-		t.cf = cf
-		t.msrv.RegisterNotifee(t)
 		t.monitorIP = make(chan struct{})
 		go t.monitorIPChange()
 	}
@@ -186,6 +187,7 @@ func (ut *UDPTransport) monitorIPChange() {
 	for {
 		select {
 		case <-time.After(time.Second * 10):
+			ut.removeExpiredNodes() //先移除过期的无效的地址信息
 			newip := mdns2.GetLocalIP()
 			changeip := func() {
 				log.Info(fmt.Sprintf("dectecipchange,last=%s,now=%s", lastip, newip))
@@ -203,6 +205,7 @@ func (ut *UDPTransport) monitorIPChange() {
 				ctx, cf := context.WithCancel(context.Background())
 				ut.msrv, err = mdns.NewMdnsService(ctx, ut.UAddr.Port, ut.name, params.DefaultMDNSQueryInterval)
 				if err != nil {
+					log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 					cf()
 					return
 				}
@@ -370,12 +373,9 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	return DeviceTypeOther, false
 }
 
-//HandlePeerFound notification  from mdns
-func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+func (ut *UDPTransport) removeExpiredNodes() {
 	ut.lock.Lock()
 	defer ut.lock.Unlock()
-	idFound := common.HexToAddress(id)
-	alreadyFound := false
 	// 清除过期数据,即标志下线
 	now := time.Now()
 	var idsToDelete []common.Address
@@ -388,9 +388,6 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		if now.Sub(saveTime) > params.DefaultMDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
 		}
-		if idTemp == idFound {
-			alreadyFound = true
-		}
 	}
 	for _, idToDelete := range idsToDelete {
 		previousIP := ut.intranetNodes[idToDelete]
@@ -398,12 +395,22 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 		delete(ut.intranetNodesTimestamp, idToDelete)
 		log.Info(fmt.Sprintf("peer UDP offline id=%s,previous Ip=%s", idToDelete.String(), previousIP.String()))
 	}
+}
+
+//HandlePeerFound notification  from mdns
+func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+	ut.removeExpiredNodes()
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
+	idFound := common.HexToAddress(id)
+	_, alreadyFound := ut.intranetNodes[idFound]
+
 	// 标记发现的除自己以外的节点
 	if id != ut.name {
 		if !alreadyFound {
 			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
 		}
 		ut.intranetNodes[idFound] = addr
-		ut.intranetNodesTimestamp[idFound] = now
+		ut.intranetNodesTimestamp[idFound] = time.Now()
 	}
 }

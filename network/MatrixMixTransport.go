@@ -52,7 +52,8 @@ func (t *MatrixMixTransport) Send(receiver common.Address, data []byte) error {
 		if err != nil {
 			return err
 		}
-	} else if t.matirx != nil {
+	}
+	if t.matirx != nil {
 		err := t.matirx.Send(receiver, data)
 		if err != nil {
 			return err

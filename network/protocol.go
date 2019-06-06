@@ -340,7 +340,7 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			}
 			return
 		case <-timeout: //retry
-			// 如果是matrix且对方不在线,挂起并等待唤醒
+			// 如果是matrix且对方不在线,挂起并等待唤醒,todo 考虑UDP方式上线的问题,
 			_, isOnline := p.Transport.NodeStatus(receiver)
 			transport, ok1 := p.Transport.(*MatrixMixTransport)
 			if ok1 && !isOnline && transport != nil {
