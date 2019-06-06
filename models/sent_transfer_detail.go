@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// SentTransferDetail :
+// SentTransferDetail 定义一笔自己发出的交易的详细信息
 type SentTransferDetail struct {
 	Key               string         `storm:"id"`
 	BlockNumber       int64          `json:"block_number" storm:"index"`

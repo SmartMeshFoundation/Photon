@@ -7,29 +7,29 @@ import (
 	"github.com/asdine/storm"
 )
 
-// StormTx :
+// StormTx proxy of storm.Node
 type StormTx struct {
 	tx storm.Node
 }
 
-// Set :
+// Set proxy of storm.Node
 func (stx *StormTx) Set(table string, key interface{}, value interface{}) error {
 	err := stx.tx.Set(table, key, value)
 	return err
 }
 
-// Save :
+// Save proxy of storm.Node
 func (stx *StormTx) Save(v models.KeyGetter) error {
 	err := stx.tx.Save(v)
 	return err
 }
 
-// Commit :
+// Commit proxy of storm.Node
 func (stx *StormTx) Commit() error {
 	return stx.tx.Commit()
 }
 
-// Rollback :
+// Rollback proxy of storm.Node
 func (stx *StormTx) Rollback() error {
 	return stx.tx.Rollback()
 }
