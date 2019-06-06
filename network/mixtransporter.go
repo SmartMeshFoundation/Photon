@@ -116,6 +116,12 @@ func (t *MixTransport) NodeStatus(addr common.Address) (deviceType string, isOnl
 	return t.xmpp.NodeStatus(addr)
 }
 
+//UDPNodeStatus get node's status of UDPTransport
+func (t *MixTransport) UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	deviceType, isOnline = t.udp.NodeStatus(addr)
+	return
+}
+
 //GetNotify notification of connection status change
 func (t *MixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	//if t.xmpp.conn != nil {

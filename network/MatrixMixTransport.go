@@ -116,6 +116,12 @@ func (t *MatrixMixTransport) NodeStatus(addr common.Address) (deviceType string,
 	return t.matirx.NodeStatus(addr)
 }
 
+//UDPNodeStatus get node's status of UDPTransport
+func (t *MatrixMixTransport) UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	deviceType, isOnline = t.udp.NodeStatus(addr)
+	return
+}
+
 //GetNotify notification of connection status change
 func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	//if t.matirx != nil {
