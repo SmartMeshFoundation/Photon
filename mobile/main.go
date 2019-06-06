@@ -4,6 +4,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/dto"
+
+	"github.com/SmartMeshFoundation/Photon/utils"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"fmt"
@@ -37,13 +41,14 @@ todo 启动参数需要重构
 2.默认启用的参数--verbosity和--debug应该去掉,尤其是--debug会自动上传日志
 3. DefaultRevealTimeout 需要修改,不能在默认用3了,这个纯粹是为了测试
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) {
+func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, result string) {
 	if len(apiMonitor) > 0 {
 		var s = ""
 		for a := range apiMonitor {
 			s += fmt.Sprintf("%s\n", a.startTime.String())
 		}
-		err = rerr.ErrPhotonAlreadyRunning.WithData(s)
+		err := rerr.ErrPhotonAlreadyRunning.WithData(s)
+		result = utils.Marshal(err)
 		return
 	}
 	os.Args = make([]string, 0, 20)
@@ -70,6 +75,7 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	params.DefaultRevealTimeout = 3 //todo 需要移除
 	rapi, err := mainimpl.StartMain()
 	if err != nil {
+		result = utils.Marshal(err)
 		return
 	}
 	api = &API{
@@ -77,5 +83,6 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 		api:       rapi,
 	}
 	apiMonitor[api] = struct{}{}
+	result = utils.Marshal(dto.NewSuccessAPIResponse(nil))
 	return
 }

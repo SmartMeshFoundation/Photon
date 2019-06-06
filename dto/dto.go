@@ -12,14 +12,13 @@ import (
 )
 
 const (
-	// SUCCESS :
+	// SUCCESS 成功通用Code
 	SUCCESS = 0
-	// UNKNOWNERROR :
+	// UNKNOWNERROR 未知错误
 	UNKNOWNERROR = -1
 )
 
-// APIResponse :
-// 接口统一返回格式
+// APIResponse 接口统一返回格式
 type APIResponse struct {
 	ErrorCode int    `json:"error_code"`
 	ErrorMsg  string `json:"error_message"`
