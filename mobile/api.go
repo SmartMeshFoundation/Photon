@@ -72,18 +72,25 @@ func (a *API) GetChannelList() (result string) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelIdentifier:   common.BytesToHash(c.Key).String(),
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
-			LockedAmount:        c.OurAmountLocked(),
-			PartnerLockedAmount: c.PartnerAmountLocked(),
 			State:               c.State,
 			StateString:         c.State.String(),
-			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+			DelegateState:       c.DelegateState,
+			DelegateStateString: c.DelegateState.String(),
 			TokenAddress:        c.TokenAddress().String(),
 			SettleTimeout:       c.SettleTimeout,
 			RevealTimeout:       c.RevealTimeout,
+			LockedAmount:        c.OurAmountLocked(),
+			PartnerLockedAmount: c.PartnerAmountLocked(),
+		}
+		if c.State == channeltype.StateClosed {
+			res := a.api.GetChannelSettleBlock(c.ChannelIdentifier.ChannelIdentifier)
+			d.BlockNumberNow = res.BlockNumberNow
+			d.BlockNumberChannelCanSettle = res.BlockNumberChannelCanSettle
 		}
 		datas = append(datas, d)
 	}
