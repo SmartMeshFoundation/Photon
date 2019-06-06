@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
@@ -76,7 +78,7 @@ func StartMain() (*photon.API, error) {
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
 		if os.Getenv("ISTEST") == "" {
-			return nil, fmt.Errorf("photon must build use makefile")
+			return nil, rerr.ErrUnrecognized.Append("photon must build use makefile")
 		}
 	}
 	app := cli.NewApp()
@@ -262,12 +264,12 @@ func mainCtx(ctx *cli.Context) (err error) {
 	var dao models.Dao
 	err = checkDbMeta(cfg.DataBasePath, "boltdb")
 	if err != nil {
+		err = rerr.ErrArgumentError.Printf("checkDbMeta err %s", err.Error())
 		return
 	}
 	dao, err = stormdb.OpenDb(cfg.DataBasePath)
-
 	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
+		err = rerr.ErrGeneralDBError.Printf("open db error %s", err.Error())
 		return
 	}
 	defer func() {
@@ -277,7 +279,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}()
 	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, dao, client)
 	if err != nil {
-
 		return
 	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
@@ -285,17 +286,19 @@ func mainCtx(ctx *cli.Context) (err error) {
 		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress, cfg.NetworkMode == params.MixUDPMatrix)
 		if err != nil {
 			log.Error(fmt.Sprintf("getDefaultPFSByTokenNetworkAddress err %s", err))
+			err = nil
 		}
 	}
 	log.Info(fmt.Sprintf("pfs server=%s", cfg.PfsHost))
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
-			err = fmt.Errorf("first startup without ethereum rpc connection")
+			err = rerr.ErrFirstStartWithoutNetwork
 			return
 		}
 		params.ChainID, err = client.NetworkID(context.Background())
 		if err != nil {
+			err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
 			return
 		}
 		dao.SaveChainID(params.ChainID.Int64())
@@ -344,6 +347,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("punish block number=%d", params.PunishBlockNumber))
 	transport, err := buildTransport(cfg, bcs)
 	if err != nil {
+		err = rerr.ErrUnknown
 		return
 	}
 	defer func() {
@@ -429,26 +433,30 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 
 	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--listen-address err")
 		return
 	}
 	apihost, apiport, err := net.SplitHostPort(ctx.String("api-address"))
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--api-address err")
 		return
 	}
 	config.Host = listenhost
 	config.Port, err = strconv.Atoi(listenport)
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--listen-address err")
 		return
 	}
 	config.UseConsole = ctx.Bool("console")
 	config.APIHost = apihost
 	config.APIPort, err = strconv.Atoi(apiport)
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--api-address err")
 		return
 	}
 	config.PrivateKey, err = getPrivateKey(ctx)
 	if err != nil {
-		err = fmt.Errorf("privkey error: %s", err)
+		err = rerr.ErrArgumentError.Printf("private key err %s", err.Error())
 		return
 	}
 	//log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
@@ -466,7 +474,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(config.DataDir) {
 		err = os.MkdirAll(config.DataDir, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
+			err = rerr.ErrArgumentError.Printf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -476,7 +484,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(userDbPath) {
 		err = os.MkdirAll(userDbPath, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", userDbPath, err)
+			err = rerr.ErrArgumentError.Printf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -488,7 +496,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		conditionquit := ctx.String("conditionquit")
 		err = json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
 		if err != nil {
-			err = fmt.Errorf("conditioquit parse error %s", err)
+			err = rerr.ErrArgumentError.Printf("conditioquit parse error %s", err)
 			return
 		}
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
@@ -535,7 +543,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	mi := ctx.String("debug-mdns-interval")
 	dur, err := time.ParseDuration(mi)
 	if err != nil {
-		err = fmt.Errorf("arg debug-mdns-interval err %s", err)
+		err = rerr.ErrArgumentError.Printf("arg debug-mdns-interval err %s", err)
 		return
 	}
 	params.DefaultMDNSQueryInterval = dur
@@ -543,7 +551,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	mo := ctx.String("debug-mdns-keepalive")
 	dur, err = time.ParseDuration(mo)
 	if err != nil {
-		err = fmt.Errorf("arg debug-mdns-keepalive err %s", err)
+		err = rerr.ErrArgumentError.Printf("arg debug-mdns-keepalive err %s", err)
 		return
 	}
 	params.DefaultMDNSKeepalive = dur
@@ -602,11 +610,11 @@ func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.Sa
 	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
 	hasConnectedChain = client.Status == netshare.Connected
 	if isFirstStartUp && !hasConnectedChain {
-		err = fmt.Errorf("first startup without ethereum rpc connection")
+		err = rerr.ErrFirstStartWithoutNetwork
 		return
 	}
 	if !isFirstStartUp && config.RegistryAddress != utils.EmptyAddress && dbRegistryAddress != config.RegistryAddress {
-		err = fmt.Errorf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+		err = rerr.ErrArgumentError.Printf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
 			dbRegistryAddress.String(), config.RegistryAddress.String()))
 		return
 	}
@@ -634,7 +642,7 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	var genesisBlockHash common.Hash
 	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
 	if err != nil {
-		log.Error(err.Error())
+		err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
 		return
 	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
@@ -645,14 +653,14 @@ func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address, isMa
 		var ok bool
 		pfs, ok = params.DefaultMatrixContractToPFS[tokenNetworkAddress]
 		if !ok {
-			err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
+			err = rerr.ErrArgumentError.Printf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
 			return
 		}
 		return
 	}
 	pfs, ok := params.DefaultContractToPFS[tokenNetworkAddress]
 	if !ok {
-		err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
+		err = rerr.ErrArgumentError.Printf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
 		return
 	}
 	return
@@ -668,18 +676,21 @@ func verifyContractCode(bcs *rpc.BlockChainService) (contractVersion string, sec
 		return
 	}
 	if !strings.HasPrefix(contractVersion, params.ContractVersionPrefix) {
-		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
+		err = rerr.ErrArgumentError.Printf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
 	secretRegisteryAddress, err = bcs.RegistryProxy.GetContract().SecretRegistry(nil)
 	if err != nil {
-		err = fmt.Errorf("get SecretRegistry address err %s", err)
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get SecretRegistry address err %s", err)
 		return
 	}
 	punishBlockNumber, err = bcs.RegistryProxy.GetContract().PunishBlockNumber(nil)
 	if err != nil {
-		err = fmt.Errorf("get punish block number err %s", err)
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get punish block number err %s", err)
 	}
 	chainID, err = bcs.RegistryProxy.GetContract().ChainId(nil)
+	if err != nil {
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get chain ID from register contract err %s", err)
+	}
 	return
 }
 func checkDbMeta(dbPath, dbType string) (err error) {

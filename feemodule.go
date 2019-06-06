@@ -34,7 +34,7 @@ type FeeModule struct {
 }
 
 // NewFeeModule :
-func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, err error) {
+func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule) {
 	if dao == nil {
 		panic("need init dao first")
 	}

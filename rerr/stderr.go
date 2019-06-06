@@ -96,6 +96,8 @@ var (
 	ErrArgumentError = NewError(1, "ArgumentError")
 	//ErrPhotonAlreadyRunning 启动了多个photon实例
 	ErrPhotonAlreadyRunning = NewError(2, "PhotonAlreadyRunning")
+	//ErrFirstStartWithoutNetwork 第一次无网启动
+	ErrFirstStartWithoutNetwork = NewError(3, "first start without network")
 	//ErrHashLengthNot32  参数错误
 	ErrHashLengthNot32 = NewError(1000, "HashLengthNot32")
 	/*ErrNotFound Raised when something not found
