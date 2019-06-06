@@ -30,7 +30,7 @@ type Handler struct {
 	stopped bool
 }
 
-// NewNotifyHandler :
+// NewNotifyHandler 创建一个photon给上层应用通知的handler
 func NewNotifyHandler() *Handler {
 	return &Handler{
 		receivedTransferChan: make(chan *models.ReceivedTransfer, 10),
@@ -39,26 +39,24 @@ func NewNotifyHandler() *Handler {
 	}
 }
 
-// Stop :
+// Stop 关闭,仅在photon停止时调用
 func (h *Handler) Stop() {
 	h.stopped = true
 	close(h.receivedTransferChan)
 	close(h.noticeChan)
 }
 
-// GetNoticeChan :
-// return read-only, keep chan private
+// GetNoticeChan return read-only, keep chan private
 func (h *Handler) GetNoticeChan() <-chan *Notice {
 	return h.noticeChan
 }
 
-// GetReceivedTransferChan :
-// keep chan private
+// GetReceivedTransferChan keep chan private
 func (h *Handler) GetReceivedTransferChan() <-chan *models.ReceivedTransfer {
 	return h.receivedTransferChan
 }
 
-// Notify : 通知上层,不让阻塞,以免影响正常业务
+// Notify 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) Notify(level Level, info *InfoStruct) {
 	if h.stopped || info == nil {
 		return
@@ -69,14 +67,6 @@ func (h *Handler) Notify(level Level, info *InfoStruct) {
 		// never block
 	}
 }
-
-// NotifyString : 通知上层,不让阻塞,以免影响正常业务 暂时屏蔽,晚点打开
-//func (h *Handler) NotifyString(level Level, info string) {
-//	h.Notify(level, &InfoStruct{
-//		Type:    InfoTypeString,
-//		Message: info,
-//	})
-//}
 
 // NotifySentTransferDetail : 通知上层,不让阻塞,以免影响正常业务
 func (h *Handler) NotifySentTransferDetail(sentTransferDetail *models.SentTransferDetail) {
