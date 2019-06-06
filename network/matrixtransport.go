@@ -1113,9 +1113,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		req.Visibility = "private"
 		req.Preset = "trusted_private_chat"
 	}
-	if isSameAddress(roomname) {
-		return
-	}
 	unlistedRoomid := ""
 	for i := 0; i < 5; i++ {
 		var respJoinRoom *gomatrix.RespJoinRoom
@@ -1147,16 +1144,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 	}
 	return unlistedRoomid, nil
 }
-
-func isSameAddress(roomName string) bool {
-	if strings.Count(roomName, "_") == 3 {
-		if strings.Split(roomName, "_")[2] == strings.Split(roomName, "_")[3] {
-			return true
-		}
-	}
-	return false
-}
-
 func (m *MatrixTransport) getAllPossibleUserID(address common.Address) (users []*gomatrix.UserInfo) {
 	for s := range m.trustServers {
 		users = append(users, &gomatrix.UserInfo{
