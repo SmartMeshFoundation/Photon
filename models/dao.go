@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/asdine/storm"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -241,6 +243,9 @@ func GeneratDBError(err error) error {
 		e2, ok := err.(rerr.StandardError)
 		if ok {
 			return e2
+		}
+		if err == storm.ErrNotFound {
+			return rerr.ErrNotFound
 		}
 		return rerr.ErrGeneralDBError.Append(err.Error())
 	}

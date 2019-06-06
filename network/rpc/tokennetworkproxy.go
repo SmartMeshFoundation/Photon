@@ -220,12 +220,9 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 		utils.APex2(participantAddress), utils.APex2(partnerAddress), settleTimeout, amount,
 	))
 	tokenAddr := t.token
-	if err != nil {
-		return
-	}
 	token, err := t.bcs.Token(tokenAddr)
 	if err != nil {
-		return rerr.ContractCallError(err)
+		return
 	}
 	// 获取tokenName,如果是SMTToken,即主链币代理合约, todo 移除这个查询,否则会造成不必要的网络访问,并且造成api阻塞
 	name, err := token.Token.Name(nil)

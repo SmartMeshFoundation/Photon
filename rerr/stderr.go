@@ -234,8 +234,6 @@ var (
 	ErrRejectTransferBecauseChannelHoldingTooMuchLock = NewError(3006, "channel too busy, reject mediated transfer for a while")
 	//ErrRejectTransferBecausePayerChannelClosed 上家通道状态已经关闭,拒绝交易
 	ErrRejectTransferBecausePayerChannelClosed = NewError(3007, "payer's channel already closed ,reject mediated transfer")
-	// ErrChannelNoEnoughBalance 通道余额不足
-	ErrChannelNoEnoughBalance = NewError(3008, "no enough balance")
 	/*ErrPFS PFS Error
 	向PFS发起请求错误
 	*/

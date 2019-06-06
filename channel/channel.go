@@ -1270,7 +1270,7 @@ PrepareForWithdraw :
  */
 func (c *Channel) PrepareForWithdraw() error {
 	if c.State != channeltype.StateOpened {
-		return rerr.ErrChannelNotAllowWithdraw.Printf("state must be opened when withdraw, but state is %s", c.State)
+		return rerr.ErrChannelState.Printf("state must be opened when withdraw, but state is %s", c.State)
 	}
 	c.State = channeltype.StatePrepareForWithdraw
 	return nil

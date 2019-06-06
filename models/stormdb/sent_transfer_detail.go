@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -136,6 +138,9 @@ func (model *StormDB) GetSentTransferDetailList(tokenAddress common.Address, fro
 	}
 	if err == storm.ErrNotFound {
 		err = nil
+	}
+	if err != nil {
+		err = rerr.ErrGeneralDBError
 	}
 	return
 }
