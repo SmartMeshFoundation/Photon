@@ -144,12 +144,14 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 		secAddr, err = r.ch.SecretRegistry(nil)
 		if err != nil {
 			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
+			err = rerr.ErrUnkownSpectrumRPCError.Printf("get Secret_registry_address err %s", err.Error())
 			return
 		}
 		var s *contracts.SecretRegistry
 		s, err = contracts.NewSecretRegistry(secAddr, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
+			err = rerr.ErrUnkownSpectrumRPCError.Printf("NewSecretRegistry err %s", err.Error())
 			return
 		}
 		bcs.SecretRegistryProxy = &SecretRegistryProxy{

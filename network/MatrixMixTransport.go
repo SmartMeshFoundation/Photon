@@ -131,18 +131,18 @@ func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err err
 }
 
 //SetMatrixDB get the status change notification of partner node
-//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
-func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
+//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb)  {
+func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
 	t.matirx.setDB(db)
-	return nil
+	return
 }
 
-// RegisterWakeUpChan :
+// RegisterWakeUpChan 注册唤醒通道,在用户上线时使用
 func (t *MatrixMixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
 	t.matirx.RegisterWakeUpChan(addr, c)
 }
 
-// UnRegisterWakeUpChan :
+// UnRegisterWakeUpChan 移除唤醒通道
 func (t *MatrixMixTransport) UnRegisterWakeUpChan(addr common.Address) {
 	t.matirx.UnRegisterWakeUpChan(addr)
 }

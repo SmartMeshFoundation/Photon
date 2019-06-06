@@ -195,10 +195,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	//todo fixme MatrixTransport should have a better contructor function
 	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
 	if ok {
-		err = mtransport.SetMatrixDB(rs.dao)
-		if err != nil {
-			return
-		}
+		mtransport.SetMatrixDB(rs.dao)
 	}
 	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.dao))
 	/*
@@ -223,10 +220,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		if config.PfsHost != "" {
 			rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
 		}
-		rs.FeePolicy, err = NewFeeModule(dao, rs.PfsProxy)
-		if err != nil {
-			return
-		}
+		rs.FeePolicy = NewFeeModule(dao, rs.PfsProxy)
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
 	}
@@ -443,13 +437,12 @@ func (rs *Service) loop() {
 func (rs *Service) registerRegistry() (err error) {
 	token2TokenNetworks, err := rs.dao.GetAllTokens()
 	if err != nil {
-		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
 	for token := range token2TokenNetworks {
 		err = rs.registerTokenNetwork(token)
 		if err != nil {
-			err = fmt.Errorf("registerTokenNetwork err:%s", err)
+			//err = fmt.Errorf("registerTokenNetwork err:%s", err)
 			return
 		}
 	}
@@ -1227,15 +1220,14 @@ func (rs *Service) startSubscribeNeighborStatus() error {
 	case *network.MixTransport:
 		err = t.SubscribeNeighbor(rs.dao)
 	case *network.MatrixMixTransport:
-		err = t.SetMatrixDB(rs.dao)
+		t.SetMatrixDB(rs.dao)
 	default:
 		return rerr.ErrTransportTypeUnknown
 	}
 	if err != nil {
 		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
-		return nil
 	}
-	return err
+	return nil
 }
 func (rs *Service) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
