@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-errors/errors"
-
 	"os"
 
 	"time"
@@ -77,12 +75,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	api, errStr := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress,
+	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress,
 		"", os.Getenv("TOKEN_NETWORK"),
 		otherArgs)
-	if errStr != "" {
-		log.Crit(fmt.Sprintf("start up err %s", errStr))
-		err = errors.New(errStr)
+	if err != nil {
+		log.Crit(fmt.Sprintf("start up err %s", err))
 		return
 	}
 	sub, err := api.Subscribe(handler{})

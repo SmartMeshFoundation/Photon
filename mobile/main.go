@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-errors/errors"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 

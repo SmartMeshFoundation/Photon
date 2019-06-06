@@ -678,16 +678,20 @@ func verifyContractCode(bcs *rpc.BlockChainService) (contractVersion string, sec
 	if !strings.HasPrefix(contractVersion, params.ContractVersionPrefix) {
 		err = rerr.ErrArgumentError.Printf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
-	secretRegisteryAddress, err = bcs.RegistryProxy.GetContract().SecretRegistry(nil)
+	ch, err := bcs.RegistryProxy.GetContract()
+	if err != nil {
+		return
+	}
+	secretRegisteryAddress, err = ch.SecretRegistry(nil)
 	if err != nil {
 		err = rerr.ErrUnkownSpectrumRPCError.Printf("get SecretRegistry address err %s", err)
 		return
 	}
-	punishBlockNumber, err = bcs.RegistryProxy.GetContract().PunishBlockNumber(nil)
+	punishBlockNumber, err = ch.PunishBlockNumber(nil)
 	if err != nil {
 		err = rerr.ErrUnkownSpectrumRPCError.Printf("get punish block number err %s", err)
 	}
-	chainID, err = bcs.RegistryProxy.GetContract().ChainId(nil)
+	chainID, err = ch.ChainId(nil)
 	if err != nil {
 		err = rerr.ErrUnkownSpectrumRPCError.Printf("get chain ID from register contract err %s", err)
 	}

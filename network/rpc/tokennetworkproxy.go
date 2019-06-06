@@ -27,17 +27,28 @@ type RegistryProxy struct {
 
 //TokenNetworkByToken get token
 func (r *RegistryProxy) TokenNetworkByToken(token common.Address) (bool, error) {
-	return r.ch.RegisteredToken(nil, token)
+	ch, err := r.GetContract()
+	if err != nil {
+		return false, err
+	}
+	return ch.RegisteredToken(nil, token)
 }
 
 //GetContractVersion query contract version
 func (r *RegistryProxy) GetContractVersion() (string, error) {
-	return r.ch.ContractVersion(nil)
+	ch, err := r.GetContract()
+	if err != nil {
+		return "", err
+	}
+	return ch.ContractVersion(nil)
 }
 
 //GetContract return Contract interface
-func (r *RegistryProxy) GetContract() *contracts.TokensNetwork {
-	return r.ch
+func (r *RegistryProxy) GetContract() (tn *contracts.TokensNetwork, err error) {
+	if r.ch == nil {
+		return nil, rerr.ErrSpectrumNotConnected
+	}
+	return r.ch, nil
 }
 
 //TokenNetworkProxy proxy of TokenNetwork Contract
@@ -252,25 +263,32 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 if state is 1, settleBlockNumber is settle timeout, if state is 2,settleBlockNumber is the min block number ,settle can be called.
 */
 func (t *TokenNetworkProxy) GetChannelInfo(participant1, participant2 common.Address) (channelID common.Hash, settleBlockNumber, openBlockNumber uint64, state uint8, settleTimeout uint64, err error) {
-	return t.ch.GetChannelInfo(t.bcs.getQueryOpts(), t.token, participant1, participant2)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	return ch.GetChannelInfo(t.bcs.getQueryOpts(), t.token, participant1, participant2)
 }
 
 //GetChannelParticipantInfo Returns Info of this channel.
 //@return The address of the token.
 func (t *TokenNetworkProxy) GetChannelParticipantInfo(participant, partner common.Address) (deposit *big.Int, balanceHash common.Hash, nonce uint64, err error) {
-	deposit, h, nonce, err := t.ch.GetChannelParticipantInfo(t.bcs.getQueryOpts(), t.token, participant, partner)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	deposit, h, nonce, err := ch.GetChannelParticipantInfo(t.bcs.getQueryOpts(), t.token, participant, partner)
 	balanceHash = common.BytesToHash(h[:])
 	return
 }
 
-//GetContract return contract
-func (t *TokenNetworkProxy) GetContract() *contracts.TokensNetwork {
-	return t.ch
-}
-
 //CloseChannel close channel
 func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
-	tx, err := t.GetContract().PrepareSettle(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.PrepareSettle(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -305,7 +323,11 @@ func (t *TokenNetworkProxy) CloseChannel(partnerAddr common.Address, transferAmo
 
 //CloseChannelAsync close channel async 认为只要交易进入了缓冲池中,肯定会成功.
 func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
-	tx, err := t.GetContract().PrepareSettle(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.PrepareSettle(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, uint64(nonce), extraHash, signature)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -344,7 +366,11 @@ func (t *TokenNetworkProxy) CloseChannelAsync(partnerAddr common.Address, transf
 
 //UpdateBalanceProof update balance proof of partner
 func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (err error) {
-	tx, err := t.GetContract().UpdateBalanceProof(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.UpdateBalanceProof(t.bcs.Auth, t.token, partnerAddr, transferAmount, locksRoot, nonce, extraHash, signature)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -393,7 +419,11 @@ func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, 
 
 //Unlock a partner's lock
 func (t *TokenNetworkProxy) Unlock(partnerAddr common.Address, transferAmount *big.Int, lock *mtree.Lock, proof []byte) (err error) {
-	tx, err := t.GetContract().Unlock(t.bcs.Auth, t.token, partnerAddr, transferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, proof)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.Unlock(t.bcs.Auth, t.token, partnerAddr, transferAmount, big.NewInt(lock.Expiration), lock.Amount, lock.LockSecretHash, proof)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -438,7 +468,11 @@ func (t *TokenNetworkProxy) UnlockAsync(partnerAddr common.Address, transferAmou
 
 //SettleChannel settle a channel
 func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amount, p2Amount *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
-	tx, err := t.GetContract().Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -472,7 +506,11 @@ func (t *TokenNetworkProxy) SettleChannel(p1Addr, p2Addr common.Address, p1Amoun
 
 //SettleChannelAsync settle a channel async 进入缓冲池就认为成功了
 func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1Amount, p2Amount, p1Balance, p2Balance *big.Int, p1Locksroot, p2Locksroot common.Hash) (err error) {
-	tx, err := t.GetContract().Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.Settle(t.bcs.Auth, t.token, p1Addr, p1Amount, p1Locksroot, p2Addr, p2Amount, p2Locksroot)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -512,7 +550,11 @@ func (t *TokenNetworkProxy) SettleChannelAsync(p1Addr, p2Addr common.Address, p1
 //Withdraw  to  a channel
 func (t *TokenNetworkProxy) Withdraw(p1Addr, p2Addr common.Address, p1Balance,
 	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (err error) {
-	tx, err := t.GetContract().WithDraw(t.bcs.Auth, t.token, p1Addr, p2Addr, p1Balance, p1Withdraw,
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.WithDraw(t.bcs.Auth, t.token, p1Addr, p2Addr, p1Balance, p1Withdraw,
 		p1Signature, p2Signature,
 	)
 	if err != nil {
@@ -559,7 +601,11 @@ func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balan
 
 //PunishObsoleteUnlock  to  a channel
 func (t *TokenNetworkProxy) PunishObsoleteUnlock(beneficiary, cheater common.Address, lockhash, extraHash common.Hash, cheaterSignature []byte) (err error) {
-	tx, err := t.GetContract().PunishObsoleteUnlock(t.bcs.Auth, t.token, beneficiary, cheater, lockhash, extraHash, cheaterSignature)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.PunishObsoleteUnlock(t.bcs.Auth, t.token, beneficiary, cheater, lockhash, extraHash, cheaterSignature)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
@@ -602,7 +648,11 @@ func (t *TokenNetworkProxy) PunishObsoleteUnlockAsync(beneficiary, cheater commo
 
 //CooperativeSettle  settle  a channel
 func (t *TokenNetworkProxy) CooperativeSettle(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int, p1Signature, p2Signatue []byte) (err error) {
-	tx, err := t.GetContract().CooperativeSettle(t.bcs.Auth, t.token, p1Addr, p1Balance, p2Addr, p2Balance, p1Signature, p2Signatue)
+	ch, err := t.GetContract()
+	if err != nil {
+		return
+	}
+	tx, err := ch.CooperativeSettle(t.bcs.Auth, t.token, p1Addr, p1Balance, p2Addr, p2Balance, p1Signature, p2Signatue)
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}

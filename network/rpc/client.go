@@ -129,8 +129,10 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 	if bcs.RegistryProxy != nil && bcs.RegistryProxy.ch != nil {
 		return bcs.RegistryProxy, nil
 	}
-	r := &RegistryProxy{
-		Address: address,
+	if bcs.RegistryProxy == nil {
+		bcs.RegistryProxy = &RegistryProxy{
+			Address: address,
+		}
 	}
 	if hasConnectChain {
 		var reg *contracts.TokensNetwork
@@ -139,9 +141,9 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
 			return
 		}
-		r.ch = reg
+		bcs.RegistryProxy.ch = reg
 		var secAddr common.Address
-		secAddr, err = r.ch.SecretRegistry(nil)
+		secAddr, err = bcs.RegistryProxy.ch.SecretRegistry(nil)
 		if err != nil {
 			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
 			err = rerr.ErrUnkownSpectrumRPCError.Printf("get Secret_registry_address err %s", err.Error())
@@ -173,8 +175,7 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 			bcs.RegisterPendingTXInfo(tx)
 		}
 	}
-	bcs.RegistryProxy = r
-	//log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
+	log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
 	return bcs.RegistryProxy, nil
 }
 
@@ -295,8 +296,12 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 			log.Error(err.Error())
 			break
 		}
+		ch, err := proxy.GetContract()
+		if err != nil {
+			panic(fmt.Sprintf("GetContract err, it's not possable here %s", err))
+		}
 		//log.Info(fmt.Sprintf("RegistryProxy proxy=%s", utils.StringInterface(proxy, 5)))
-		tx, err := proxy.GetContract().Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
+		tx, err := ch.Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
 		if err != nil {
 			log.Error(err.Error())
 			// 构造一个虚假的tx来保存这次错误的调用供前端查询和通知
