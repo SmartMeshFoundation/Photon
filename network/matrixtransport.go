@@ -139,7 +139,7 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		quitChan:       make(chan struct{}),
 		jobChan:        make(chan *matrixJob, 100),
 		trustServers:   make(map[string]bool),
-		wakeupHandler:  newWakeupHandler(),
+		wakeupHandler:  newWakeupHandler("matrix"),
 	}
 	var serverNames []string
 	for s := range servers {

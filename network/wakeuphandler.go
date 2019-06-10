@@ -18,12 +18,14 @@ type iWakeUpHandler interface {
 为3种不同实现的transport提供统一的挂起/唤醒服务
 */
 type wakeupHandler struct {
+	name                  string // for log
 	wakeUpChanListMap     map[common.Address][]chan int
 	wakeUpChanListMapLock sync.Mutex
 }
 
-func newWakeupHandler() *wakeupHandler {
+func newWakeupHandler(name string) *wakeupHandler {
 	return &wakeupHandler{
+		name:              name,
 		wakeUpChanListMap: make(map[common.Address][]chan int),
 	}
 }
@@ -51,7 +53,7 @@ func (h *wakeupHandler) unRegisterWakeUpChan(addr common.Address) {
 func (h *wakeupHandler) wakeUp(addr common.Address) {
 	// 节点上线通知所有已经挂起的通道
 	h.wakeUpChanListMapLock.Lock()
-	log.Trace(fmt.Sprintf("%s back to online and wakeup %d chan", addr.String(), len(h.wakeUpChanListMap[addr])))
+	log.Trace(fmt.Sprintf("%s back to online on %s and wakeup %d chan", addr.String(), h.name, len(h.wakeUpChanListMap[addr])))
 	if cs, ok := h.wakeUpChanListMap[addr]; ok && len(cs) > 0 {
 		for _, c := range cs {
 			c <- 1

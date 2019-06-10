@@ -173,7 +173,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		log:                    log.New("name", name),
 		intranetNodes:          make(map[common.Address]*net.UDPAddr),
 		intranetNodesTimestamp: make(map[common.Address]time.Time),
-		wakeupHandler:          newWakeupHandler(),
+		wakeupHandler:          newWakeupHandler("udp"),
 	}
 	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
 	if params.EnableMDNS {

@@ -341,7 +341,9 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 		case <-timeout: //retry
 			// 如果对方不在线,挂起并等待唤醒
 			_, isOnline := p.Transport.NodeStatus(receiver)
-			if !isOnline {
+			// 在混合xmpp的模式下暂时不启用挂起/唤醒,因为xmpptransport没有真正实现该功能,如果开启,会在udp断开->xmpp断开->xmpp重连之后由于没有wakeup而导致一直卡住
+			_, isMixXMPP := p.Transport.(*MixTransport)
+			if !isMixXMPP && !isOnline {
 				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
 				wakeUpChan := make(chan int, 2)
 				// 向transport注册wakeUpChan
