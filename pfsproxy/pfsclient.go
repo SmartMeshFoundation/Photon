@@ -26,7 +26,7 @@ var ErrNotInit = rerr.ErrNotChargeFee.Append("pfgClient not init")
 var ErrConnect = rerr.ErrNotChargeFee.Append("pfsClient connect to pfs error")
 
 /*
-pfsClient :
+pfsClient client for call api of photon-pathfinding-server
 */
 type pfsClient struct {
 	host       string
@@ -34,7 +34,7 @@ type pfsClient struct {
 }
 
 /*
-NewPfsProxy :
+NewPfsProxy init
 */
 func NewPfsProxy(pfgHost string, privateKey *ecdsa.PrivateKey) (pfsProxy PfsProxy) {
 	pfsProxy = &pfsClient{
@@ -100,7 +100,7 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 }
 
 /*
-SubmitBalance :
+SubmitBalance 向pfs提交一个通道的BalanceProof,供pfs计算路由使用
 */
 func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, proofSigner common.Address, signature []byte) (err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
@@ -197,7 +197,7 @@ func (fpr *FindPathResponse) GetPath() []common.Address {
 }
 
 /*
-FindPath : find path
+FindPath : 调用pfs查询一笔交易的可用路由
 */
 func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (resp []FindPathResponse, err error) {
 	if pfg.host == "" || pfg.privateKey == nil {

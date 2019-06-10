@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
@@ -45,23 +44,25 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 	}
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	x.log = log.New("name", name)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	// 2019.06.10 启动时主线程不等待,优化无网情况下的启动速度
+	// 就算如果matrix连接不上,而主线程正常启动完成开始发送消息,也会被Send方法拒绝,重要消息会进入重发阶段,没有影响
+	//wg := sync.WaitGroup{}
+	//wg.Add(1)
 	go func() {
 		wait := time.Millisecond
 		var err error
 		//only wait one time
-		var first bool
+		//var first bool
 		for {
 			select {
 			case <-time.After(wait):
 				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan)
-				if !first {
-					first = true
-					wg.Done()
-				}
+				//if !first {
+				//	first = true
+				//	wg.Done()
+				//}
 				if err != nil {
-					x.log.Error(fmt.Sprintf("cannot connect to xmpp server %s", ServerURL))
+					x.log.Error(fmt.Sprintf("cannot connect to xmpp server %s, retry in 5 seconds", ServerURL))
 					time.Sleep(time.Second * 5)
 				} else {
 					return
@@ -74,7 +75,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 
 	}()
 	//only wait for one try
-	wg.Wait()
+	//wg.Wait()
 	return
 }
 

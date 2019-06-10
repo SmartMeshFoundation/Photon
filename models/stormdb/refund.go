@@ -47,7 +47,7 @@ func (model *StormDB) IsLockSecretHashChannelIdentifierDisposed(lockSecretHash c
 	return true
 }
 
-// GetSendAnnounceDisposeByChannel :
+// GetSendAnnounceDisposeByChannel query by channelIdentifier and isSubmitToPms
 func (model *StormDB) GetSendAnnounceDisposeByChannel(channelIdentifier common.Hash, isSubmitToPms bool) (list []*models.SentAnnounceDisposed) {
 	var l2 []*models.SentAnnounceDisposed
 	err := model.db.Find("ChannelIdentifier", channelIdentifier[:], &l2)
@@ -68,7 +68,7 @@ func (model *StormDB) GetSendAnnounceDisposeByChannel(channelIdentifier common.H
 	return
 }
 
-// MarkSendAnnounceDisposeSubmittedByChannel :
+// MarkSendAnnounceDisposeSubmittedByChannel update IsSubmitToPms=true by channelIdentifier
 func (model *StormDB) MarkSendAnnounceDisposeSubmittedByChannel(channelIdentifier common.Hash) {
 	list := model.GetSendAnnounceDisposeByChannel(channelIdentifier, false)
 	if list != nil && len(list) > 0 {

@@ -298,6 +298,8 @@ func (rs *Service) Start() (err error) {
 		//wait for start up complete.
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
+	} else {
+		log.Info(fmt.Sprintf("Photon Startup complete without effective chain"))
 	}
 
 	/*

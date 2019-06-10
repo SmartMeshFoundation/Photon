@@ -5,16 +5,14 @@ import (
 )
 
 /*
-Level :
+Level 定义通知的级别
 */
 type Level int
 
+// #nosec
 const (
-	// LevelInfo :
 	LevelInfo = iota
-	// LevelWarn :
 	LevelWarn
-	// LevelError :
 	LevelError
 )
 

@@ -99,8 +99,8 @@ func (c *SafeEthClient) RecoverDisconnect() {
 	if c.Client != nil {
 		c.Client.Close()
 	}
+	log.Warn("tyring to reconnect geth ...")
 	for {
-		log.Info("tyring to reconnect geth ...")
 		select {
 		case <-c.quitChan:
 			return
@@ -130,7 +130,7 @@ func (c *SafeEthClient) RecoverDisconnect() {
 			c.lock.Unlock()
 			return
 		}
-		log.Info(fmt.Sprintf("reconnect to geth error: %s", err))
+		log.Warn(fmt.Sprintf("reconnect to geth error: %s", err))
 		time.Sleep(time.Second * 3)
 	}
 }

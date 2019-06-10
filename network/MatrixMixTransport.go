@@ -137,12 +137,19 @@ func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
 	return
 }
 
-// RegisterWakeUpChan 注册唤醒通道,在用户上线时使用
-func (t *MatrixMixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
-	t.matirx.RegisterWakeUpChan(addr, c)
+// registerWakeUpChan 注册唤醒通道,在用户上线时使用
+func (t *MatrixMixTransport) registerWakeUpChan(addr common.Address, c chan int) {
+	t.matirx.wakeUpChanListMapLock.Lock()
+	t.matirx.wakeUpChanListMap[addr] = append(t.matirx.wakeUpChanListMap[addr], c)
+	t.matirx.wakeUpChanListMapLock.Unlock()
 }
 
-// UnRegisterWakeUpChan 移除唤醒通道
-func (t *MatrixMixTransport) UnRegisterWakeUpChan(addr common.Address) {
-	t.matirx.UnRegisterWakeUpChan(addr)
+// unRegisterWakeUpChan 移除唤醒通道
+func (t *MatrixMixTransport) unRegisterWakeUpChan(addr common.Address) {
+	m := t.matirx
+	m.wakeUpChanListMapLock.Lock()
+	if _, ok := m.wakeUpChanListMap[addr]; ok {
+		delete(m.wakeUpChanListMap, addr)
+	}
+	m.wakeUpChanListMapLock.Unlock()
 }

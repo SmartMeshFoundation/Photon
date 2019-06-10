@@ -59,7 +59,7 @@ type TXInfo struct {
 	GasUsed           uint64         `json:"gas_used"` // 消耗的gas
 }
 
-// String :
+// String for print
 func (ti *TXInfo) String() string {
 	buf, err := json.MarshalIndent(ti, "", "\t")
 	if err != nil {
@@ -68,7 +68,7 @@ func (ti *TXInfo) String() string {
 	return string(buf)
 }
 
-// ToTXInfoSerialization :
+// ToTXInfoSerialization convert
 func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 	return &TXInfoSerialization{
 		TXHash:            ti.TXHash[:],
@@ -89,7 +89,7 @@ func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 	}
 }
 
-// TXInfoSerialization :
+// TXInfoSerialization for save to db
 type TXInfoSerialization struct {
 	TXHash            []byte        `storm:"id"`
 	Nonce             uint64        `storm:"index"`
@@ -108,7 +108,7 @@ type TXInfoSerialization struct {
 	GasUsed           uint64
 }
 
-// ToTXInfo :
+// ToTXInfo convert
 func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 	return &TXInfo{
 		TXHash:            common.BytesToHash(tis.TXHash),

@@ -106,7 +106,7 @@ InTest are we test now?
 */
 var InTest = true
 
-// DefaultChainID :
+// DefaultChainID todo 什么情况下会使用ChainID=0???
 var DefaultChainID = big.NewInt(0)
 
 //ChainID of this tokenNetwork
@@ -204,23 +204,23 @@ var DefaultContractToPMSAddress = map[common.Address]common.Address{
 	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): common.HexToAddress("0xa668da12fe5f5729cbce9ae697d56bac929766f4"),
 }
 
-// DefaultEthRPCPollPeriodForTest :
+// DefaultEthRPCPollPeriodForTest 事件模块轮询间隔,为出块间隔为1秒的私链使用
 var DefaultEthRPCPollPeriodForTest = 500 * time.Millisecond
 
-// DefaultEthRPCPollPeriod :
+// DefaultEthRPCPollPeriod 事件模块轮询间隔,为出块间隔为15秒的testnet及主网使用
 var DefaultEthRPCPollPeriod = 7500 * time.Millisecond
 
-// TestPrivateChainID :
+// TestPrivateChainID 测试用私链ChainID,出块间隔1秒
 var TestPrivateChainID int64 = 8888
 
-// TestPrivateChainID2 : for travis fast test
+// TestPrivateChainID2 travis及自动化测试用私链ChainID,出块间隔50豪秒
 var TestPrivateChainID2 int64 = 7888
 
 // EthRPCTimeout  尝试与公链节点建立连接时的超时时间,过短可能会造成因为网络延迟而把本应该成功的链接拒绝
 // 过长可能会造成错误迟迟无法被检测到.
 var EthRPCTimeout = 3 * time.Second
 
-// ContractVersionPrefix :
+// ContractVersionPrefix photon合约版本号前缀,做兼容性相关开发的时候使用
 var ContractVersionPrefix = "0.6"
 
 // EnableForkConfirm : 事件延迟确认开关

@@ -94,7 +94,7 @@ func (model *StormDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInf
 	return nil, errors.New("TODO")
 }
 
-// UpdateTXInfoStatus :
+// UpdateTXInfoStatus 更新TX执行结果到TXInfo,如果是打开通道的tx,还会更新TXInfo中的OpenBlockNumber
 func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64, gasUsed uint64) (txInfo *models.TXInfo, err error) {
 	var tis models.TXInfoSerialization
 	err = model.db.One("TXHash", txHash[:], &tis)
@@ -128,8 +128,7 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 	return
 }
 
-// GetTXInfoList :
-// 如果参数不为空,则根据参数查询
+// GetTXInfoList 查询TXInfo列表,如果参数不为空,则根据参数进行条件查询
 func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
 	var selectList []q.Matcher
 	if channelIdentifier != utils.EmptyHash {

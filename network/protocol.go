@@ -347,11 +347,11 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
 				wakeUpChan := make(chan int)
 				// 向transport注册wakeUpChan
-				transport.RegisterWakeUpChan(receiver, wakeUpChan)
+				transport.registerWakeUpChan(receiver, wakeUpChan)
 				// 挂起并等待对方上线
 				<-wakeUpChan
 				// 继续发送并注销wakeUpChan
-				transport.UnRegisterWakeUpChan(receiver)
+				transport.unRegisterWakeUpChan(receiver)
 			}
 		case <-p.quitChan:
 			return

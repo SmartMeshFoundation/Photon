@@ -40,7 +40,7 @@ func (fs *FeeSetting) sign(key *ecdsa.PrivateKey) []byte {
 	return fs.Signature
 }
 
-// FeePolicy :
+// FeePolicy 定义个账号的收费策略
 type FeePolicy struct {
 	Key           string                         `storm:"id"`
 	AccountFee    *FeeSetting                    `json:"account_fee"`

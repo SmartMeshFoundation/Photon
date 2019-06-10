@@ -851,7 +851,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 	return
 }
 
-// NotifyNetworkDown :
+// NotifyNetworkDown 上层应用通知photon网络断开,强制photon对所有远程连接进行重连尝试
 func (r *API) NotifyNetworkDown() error {
 	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
@@ -903,7 +903,7 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 	return
 }
 
-// GetAllFeeChargeRecord :
+// GetAllFeeChargeRecord 查询节点收取手续费的记录
 func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	type responce struct {
 		TotalFee map[common.Address]*big.Int `json:"total_fee"`
@@ -927,7 +927,7 @@ func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	return
 }
 
-// SystemStatus :
+// SystemStatus 查询节点汇总信息
 func (r *API) SystemStatus() (resp interface{}, err error) {
 	type transfers struct {
 		SendNum    int `json:"send_num"`

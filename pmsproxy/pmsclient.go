@@ -20,7 +20,7 @@ type pmsClient struct {
 	pmsAddress  common.Address
 }
 
-// NewPmsProxy :
+// NewPmsProxy init
 func NewPmsProxy(pmsHost string, selfAddress common.Address, pmsAddress common.Address) PmsProxy {
 	return &pmsClient{
 		host:        pmsHost,
@@ -29,6 +29,7 @@ func NewPmsProxy(pmsHost string, selfAddress common.Address, pmsAddress common.A
 	}
 }
 
+// SubmitDelegate 向pfs提交一个通道的所有委托,包含UpdateBalanceProof,Unlock及Punish三种
 func (c *pmsClient) SubmitDelegate(data *DelegateForPms) (err error) {
 	if data == nil {
 		return

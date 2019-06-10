@@ -9,8 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// FeeChargerRecordSerialization :
-// 记录中间节点收取手续费的流水
+// FeeChargerRecordSerialization 方便存储
 type FeeChargerRecordSerialization struct {
 	Key            []byte `storm:"id"`
 	LockSecretHash []byte `storm:"index"`
@@ -26,7 +25,7 @@ type FeeChargerRecordSerialization struct {
 	BlockNumber    int64 `storm:"index"`
 }
 
-// ToFeeChargeRecord :
+// ToFeeChargeRecord convert
 func (rs *FeeChargerRecordSerialization) ToFeeChargeRecord() *FeeChargeRecord {
 	return &FeeChargeRecord{
 		Key:            common.BytesToHash(rs.Key),
@@ -44,8 +43,7 @@ func (rs *FeeChargerRecordSerialization) ToFeeChargeRecord() *FeeChargeRecord {
 	}
 }
 
-// FeeChargeRecord :
-// 记录中间节点收取手续费的流水
+// FeeChargeRecord 记录中间节点收取手续费的流水
 type FeeChargeRecord struct {
 	Key            common.Hash    `json:"key" storm:"id"`
 	LockSecretHash common.Hash    `json:"lock_secret_hash"`
@@ -61,7 +59,7 @@ type FeeChargeRecord struct {
 	BlockNumber    int64          `json:"block_number"`
 }
 
-// ToString :
+// ToString for print
 func (r *FeeChargeRecord) ToString() string {
 	buf, err := json.MarshalIndent(r, "", "\t")
 	if err != nil {
@@ -70,7 +68,7 @@ func (r *FeeChargeRecord) ToString() string {
 	return string(buf)
 }
 
-// ToSerialized :
+// ToSerialized convert
 func (r *FeeChargeRecord) ToSerialized() *FeeChargerRecordSerialization {
 	return &FeeChargerRecordSerialization{
 		Key:            r.Key[:],
