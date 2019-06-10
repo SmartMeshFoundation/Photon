@@ -406,9 +406,11 @@ func (m *MatrixTransport) Start() {
 		return
 	}
 	m.running = true
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	firstStart := true
+	// 2019.06.10 启动时主线程不等待,优化无网情况下的启动速度
+	// 就算如果matrix连接不上,而主线程正常启动完成开始发送消息,也会被Send方法拒绝,重要消息会进入重发阶段,没有影响
+	//wg := sync.WaitGroup{}
+	//wg.Add(1)
+	//firstStart := true
 	go func() {
 		for {
 			var err error
@@ -427,7 +429,7 @@ func (m *MatrixTransport) Start() {
 				}
 				_, err = mcli.Versions()
 				if err != nil {
-					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", url, err))
+					m.log.Warn(fmt.Sprintf("connect to martrix server err %s", err))
 					continue
 				}
 				homeServerValid = name
@@ -513,21 +515,21 @@ func (m *MatrixTransport) Start() {
 			}
 			//在启动的时候检测是否加入了一些不必要的聊天室,然后主动leave
 			m.leaveUselessRoom()
-			if firstStart {
-				firstStart = false
-				wg.Done()
-			}
+			//if firstStart {
+			//	firstStart = false
+			//	wg.Done()
+			//}
 			return
 		tryNext:
-			if firstStart {
-				firstStart = false
-				wg.Done()
-			}
+			//if firstStart {
+			//	firstStart = false
+			//	wg.Done()
+			//}
 			time.Sleep(time.Second * 1)
 		}
 	}()
 	m.log.Trace(fmt.Sprintf("[Matrix] transport started peers=%s", utils.StringInterface(m.Peers, 7)))
-	wg.Wait()
+	//wg.Wait()
 	go m.loop()
 }
 
