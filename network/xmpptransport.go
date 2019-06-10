@@ -148,3 +148,15 @@ func (x *XMPPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	}
 	return
 }
+
+// registerWakeUpChan 由于xmpp的在线状态维护在xmpp包中,实现起来改动较大,暂不实现
+func (x *XMPPTransport) registerWakeUpChan(addr common.Address, c chan int) {
+}
+
+// unRegisterWakeUpChan 由于xmpp的在线状态维护在xmpp包中,实现起来改动较大,暂不实现
+func (x *XMPPTransport) unRegisterWakeUpChan(addr common.Address) {
+}
+
+// wakeUp 由于xmpp的在线状态维护在xmpp包中,实现起来改动较大,暂不实现
+func (x *XMPPTransport) wakeUp(addr common.Address) {
+}

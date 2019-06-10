@@ -102,9 +102,11 @@ type MatrixTransport struct {
 	jobChan                  chan *matrixJob
 	lock                     sync.RWMutex
 	discoveryroom            string
-	wakeUpChanListMap        map[common.Address][]chan int
 	wakeUpChanListMapLock    sync.Mutex
 	isAlreadyCollectedDbInfo bool
+
+	// 挂起/唤醒服务
+	*wakeupHandler
 }
 
 var (
@@ -123,21 +125,21 @@ var (
 // NewMatrixTransport init matrix
 func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
 	mtr := &MatrixTransport{
-		running:           false,
-		stopreceiving:     false,
-		NodeAddress:       crypto.PubkeyToAddress(key.PublicKey),
-		key:               key,
-		Peers:             make(map[common.Address]*MatrixPeer),
-		temporaryPeers:    newMatrixTemporaryPeers(),
-		NodeDeviceType:    devicetype,
-		log:               log.New("matrix", logname),
-		statusChan:        make(chan netshare.Status, 10),
-		status:            netshare.Disconnected,
-		servers:           servers,
-		quitChan:          make(chan struct{}),
-		jobChan:           make(chan *matrixJob, 100),
-		trustServers:      make(map[string]bool),
-		wakeUpChanListMap: make(map[common.Address][]chan int),
+		running:        false,
+		stopreceiving:  false,
+		NodeAddress:    crypto.PubkeyToAddress(key.PublicKey),
+		key:            key,
+		Peers:          make(map[common.Address]*MatrixPeer),
+		temporaryPeers: newMatrixTemporaryPeers(),
+		NodeDeviceType: devicetype,
+		log:            log.New("matrix", logname),
+		statusChan:     make(chan netshare.Status, 10),
+		status:         netshare.Disconnected,
+		servers:        servers,
+		quitChan:       make(chan struct{}),
+		jobChan:        make(chan *matrixJob, 100),
+		trustServers:   make(map[string]bool),
+		wakeupHandler:  newWakeupHandler(),
 	}
 	var serverNames []string
 	for s := range servers {
@@ -908,14 +910,9 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 	}
 	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
 		// 节点上线通知所有已经挂起的通道
-		m.wakeUpChanListMapLock.Lock()
-		log.Trace(fmt.Sprintf("m.wakeUpChanListMap[address]=%s", utils.StringInterface(m.wakeUpChanListMap[address], 5)))
-		if chans, ok := m.wakeUpChanListMap[address]; ok && len(chans) > 0 && presence == ONLINE {
-			for _, c := range chans {
-				c <- 1
-			}
+		if presence == ONLINE {
+			m.wakeUp(address)
 		}
-		m.wakeUpChanListMapLock.Unlock()
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType

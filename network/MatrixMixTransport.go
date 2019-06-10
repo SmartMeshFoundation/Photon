@@ -20,6 +20,7 @@ type MatrixMixTransport struct {
 	matirx   *MatrixTransport
 	name     string
 	protocol ProtocolReceiver
+	*mixWakeUpHandler
 }
 
 //NewMatrixMixTransporter create a MixTransport and discover
@@ -34,6 +35,7 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	}
 	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig)
 	t.RegisterProtocol(protocol)
+	t.mixWakeUpHandler = newMixWakeUpHandler(t.udp.wakeupHandler, t.matirx.wakeupHandler)
 	return
 }
 
@@ -112,7 +114,6 @@ func (t *MatrixMixTransport) NodeStatus(addr common.Address) (deviceType string,
 	if isOnline {
 		return
 	}
-	/*return t.xmpp.NodeStatus(addr)*/
 	return t.matirx.NodeStatus(addr)
 }
 
@@ -135,21 +136,4 @@ func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err err
 func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
 	t.matirx.setDB(db)
 	return
-}
-
-// registerWakeUpChan 注册唤醒通道,在用户上线时使用
-func (t *MatrixMixTransport) registerWakeUpChan(addr common.Address, c chan int) {
-	t.matirx.wakeUpChanListMapLock.Lock()
-	t.matirx.wakeUpChanListMap[addr] = append(t.matirx.wakeUpChanListMap[addr], c)
-	t.matirx.wakeUpChanListMapLock.Unlock()
-}
-
-// unRegisterWakeUpChan 移除唤醒通道
-func (t *MatrixMixTransport) unRegisterWakeUpChan(addr common.Address) {
-	m := t.matirx
-	m.wakeUpChanListMapLock.Lock()
-	if _, ok := m.wakeUpChanListMap[addr]; ok {
-		delete(m.wakeUpChanListMap, addr)
-	}
-	m.wakeUpChanListMapLock.Unlock()
 }
