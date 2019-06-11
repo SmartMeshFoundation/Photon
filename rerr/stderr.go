@@ -3,6 +3,7 @@ package rerr
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //StandardError 标准错误，包含错误码和错误信息
@@ -71,6 +72,8 @@ func ContractCallError(err error) StandardError {
 	if err.Error() == "insufficient balance to pay for gas" || err.Error() == "insufficient funds for gas * price + value" {
 		return ErrInsufficientBalanceForGas
 
+	} else if strings.Index(err.Error(), "failed to estimate gas needed:") == 0 {
+		return ErrSpectrumContractAlwaysFailed.Append(err.Error())
 	}
 	return ErrUnkownSpectrumRPCError.AppendError(err)
 }
