@@ -284,7 +284,6 @@ func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channe
 			p.mapLock.Lock()
 			if len(ql.messages) == 0 {
 				p.mapLock.Unlock()
-				// goroutine保留一段时间,防止频繁创建
 				select {
 				case <-p.quitChan: //其他地方要求退出了
 					return
@@ -340,18 +339,17 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			}
 			return
 		case <-timeout: //retry
-			// 如果是matrix且对方不在线,挂起并等待唤醒,todo 考虑UDP方式上线的问题,
+			// 如果对方不在线,挂起并等待唤醒
 			_, isOnline := p.Transport.NodeStatus(receiver)
-			transport, ok1 := p.Transport.(*MatrixMixTransport)
-			if ok1 && !isOnline && transport != nil {
+			if !isOnline {
 				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
-				wakeUpChan := make(chan int)
+				wakeUpChan := make(chan int, 2)
 				// 向transport注册wakeUpChan
-				transport.registerWakeUpChan(receiver, wakeUpChan)
+				p.Transport.RegisterWakeUpChan(receiver, wakeUpChan)
 				// 挂起并等待对方上线
 				<-wakeUpChan
 				// 继续发送并注销wakeUpChan
-				transport.unRegisterWakeUpChan(receiver)
+				p.Transport.UnRegisterWakeUpChan(receiver)
 			}
 		case <-p.quitChan:
 			return

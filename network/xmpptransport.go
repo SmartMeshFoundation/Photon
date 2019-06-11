@@ -148,3 +148,18 @@ func (x *XMPPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	}
 	return
 }
+
+// RegisterWakeUpChan impl wakeuphandler.IWakeUpHandler 由于xmpp的节点在线状态维护在连接层,所以在这里转发下
+func (x *XMPPTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
+	x.conn.RegisterWakeUpChan(addr, c)
+}
+
+// UnRegisterWakeUpChan impl wakeuphandler.IWakeUpHandler 由于xmpp的节点在线状态维护在连接层,所以在这里转发下
+func (x *XMPPTransport) UnRegisterWakeUpChan(addr common.Address) {
+	x.conn.UnRegisterWakeUpChan(addr)
+}
+
+// WakeUp impl wakeuphandler.IWakeUpHandler, shouldn't call
+func (x *XMPPTransport) WakeUp(addr common.Address) {
+	panic("wrong call")
+}

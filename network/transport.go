@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	mdns2 "github.com/whyrusleeping/mdns"
 
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
@@ -58,6 +60,11 @@ type Transporter interface {
 	RegisterProtocol(protcol ProtocolReceiver)
 	//NodeStatus get node's status and is online right now
 	NodeStatus(addr common.Address) (deviceType string, isOnline bool)
+
+	/*
+		为了避免消息接收方不在线时不停尝试重发,添加挂起/唤醒机制
+	*/
+	wakeuphandler.IWakeUpHandler
 }
 
 //MixTranspoter support udp and others(xmpp or matrix)
@@ -152,6 +159,7 @@ type UDPTransport struct {
 	cf                     context.CancelFunc
 	monitorIP              chan struct{}
 	mdnsLock               sync.Mutex
+	*wakeuphandler.WakeUpHandler
 }
 
 //NewUDPTransport create UDPTransport,name必须是完整的地址
@@ -167,6 +175,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		log:                    log.New("name", name),
 		intranetNodes:          make(map[common.Address]*net.UDPAddr),
 		intranetNodesTimestamp: make(map[common.Address]time.Time),
+		WakeUpHandler:          wakeuphandler.NewWakeupHandler("udp"),
 	}
 	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
 	if params.EnableMDNS {
@@ -415,6 +424,8 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 	if id != ut.name {
 		if !alreadyFound {
 			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+			// 唤醒
+			ut.WakeUp(idFound)
 		}
 		ut.intranetNodes[idFound] = addr
 		ut.intranetNodesTimestamp[idFound] = time.Now()

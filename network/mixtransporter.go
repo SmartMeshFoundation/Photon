@@ -3,6 +3,8 @@ package network
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
@@ -23,6 +25,7 @@ type MixTransport struct {
 	xmpp     *XMPPTransport
 	name     string
 	protocol ProtocolReceiver
+	*wakeuphandler.MixWakeUpHandler
 }
 
 //NewMixTranspoter create a MixTransport and discover
@@ -37,6 +40,7 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	}
 	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
 	t.RegisterProtocol(protocol)
+	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.xmpp)
 	return
 }
 
