@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 
 	"time"
@@ -106,7 +108,7 @@ type MatrixTransport struct {
 	isAlreadyCollectedDbInfo bool
 
 	// 挂起/唤醒服务
-	*wakeupHandler
+	*wakeuphandler.WakeUpHandler
 }
 
 var (
@@ -139,7 +141,7 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		quitChan:       make(chan struct{}),
 		jobChan:        make(chan *matrixJob, 100),
 		trustServers:   make(map[string]bool),
-		wakeupHandler:  newWakeupHandler("matrix"),
+		WakeUpHandler:  wakeuphandler.NewWakeupHandler("matrix"),
 	}
 	var serverNames []string
 	for s := range servers {
@@ -911,7 +913,7 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
 		// 节点上线通知所有已经挂起的通道
 		if presence == ONLINE {
-			m.wakeUp(address)
+			m.WakeUp(address)
 		}
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status

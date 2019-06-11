@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"sync"
 
 	"encoding/base64"
@@ -98,6 +100,7 @@ type XMPPConnection struct {
 	db             XMPPDb
 	hasSubscribed  bool                   //是否初始化过订阅信息
 	addrMap        map[common.Address]int //addr neighbor count
+	*wakeuphandler.WakeUpHandler
 }
 
 /*
@@ -131,6 +134,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
 		name:           name,
+		WakeUpHandler:  wakeuphandler.NewWakeupHandler("xmpp"),
 	}
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
@@ -205,12 +209,20 @@ func (x *XMPPConnection) loop() {
 					device = ss[1]
 				}
 				id = ss[0]
+				oldBs := x.nodesStatus[id]
 				bs := &NodeStatus{
 					DeviceType: device,
 					IsOnline:   len(v.Type) == 0,
 				}
 				if bs.IsOnline && len(bs.DeviceType) == 0 {
 					log.Error(fmt.Sprintf("receive unexpected presence %s", utils.StringInterface(v, 3)))
+				}
+				if bs.IsOnline && (oldBs == nil || !oldBs.IsOnline) {
+					/*
+						上线唤醒
+					*/
+					ss := strings.Split(id, "@")
+					x.WakeUp(common.HexToAddress(ss[0]))
 				}
 				x.nodesStatus[id] = bs
 				log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))

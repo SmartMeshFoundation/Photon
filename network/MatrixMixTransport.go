@@ -3,6 +3,8 @@ package network
 import (
 	"crypto/ecdsa"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
@@ -20,7 +22,7 @@ type MatrixMixTransport struct {
 	matirx   *MatrixTransport
 	name     string
 	protocol ProtocolReceiver
-	*mixWakeUpHandler
+	*wakeuphandler.MixWakeUpHandler
 }
 
 //NewMatrixMixTransporter create a MixTransport and discover
@@ -35,7 +37,7 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	}
 	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig)
 	t.RegisterProtocol(protocol)
-	t.mixWakeUpHandler = newMixWakeUpHandler(t.udp.wakeupHandler, t.matirx.wakeupHandler)
+	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.matirx.WakeUpHandler)
 	return
 }
 
