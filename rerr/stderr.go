@@ -3,6 +3,7 @@ package rerr
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //StandardError 标准错误，包含错误码和错误信息
@@ -71,6 +72,8 @@ func ContractCallError(err error) StandardError {
 	if err.Error() == "insufficient balance to pay for gas" || err.Error() == "insufficient funds for gas * price + value" {
 		return ErrInsufficientBalanceForGas
 
+	} else if strings.Index(err.Error(), "failed to estimate gas needed:") == 0 {
+		return ErrSpectrumContractAlwaysFailed.Append(err.Error())
 	}
 	return ErrUnkownSpectrumRPCError.AppendError(err)
 }
@@ -218,6 +221,8 @@ var (
 	ErrSpectrumSyncError = NewError(2012, "ErrSpectrumSyncError")
 	//ErrSpectrumBlockError 本地已处理的块数和公链汇报块数不一致,比如我本地已经处理到了50000块,但是公链节点报告现在只有3000块
 	ErrSpectrumBlockError = NewError(2013, "ErrSpectrumBlockError")
+	//ErrSpectrumContractAlwaysFailed 合约调用必然失败,因此不提交到链上
+	ErrSpectrumContractAlwaysFailed = NewError(2014, "ErrSpectrumContractAlwaysFailed")
 	//ErrUnkownSpectrumRPCError 其他以太坊rpc错误
 	ErrUnkownSpectrumRPCError = NewError(2999, "unkown spectrum rpc error")
 	/*ErrTokenNotFound Raised when token not found
