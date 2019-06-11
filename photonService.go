@@ -2292,7 +2292,7 @@ func (rs *Service) getMinSettleTimeout() int {
 	return minSettleTimeout
 }
 
-// GetDelegateForPms :
+// GetDelegateForPms 获取一个通道需要提交给pms的数据
 func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
 	if thirdAddr == utils.EmptyAddress {
 		thirdAddr = rs.Config.PmsAddress
