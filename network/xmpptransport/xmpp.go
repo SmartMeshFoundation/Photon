@@ -98,7 +98,6 @@ type XMPPConnection struct {
 	name           string
 	nodesStatus    map[string]*NodeStatus
 	db             XMPPDb
-	hasSubscribed  bool                   //是否初始化过订阅信息
 	addrMap        map[common.Address]int //addr neighbor count
 	*wakeuphandler.WakeUpHandler
 }
@@ -106,7 +105,7 @@ type XMPPConnection struct {
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status, dao XMPPDb) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
 		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
@@ -135,6 +134,7 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		dataHandler:    dataHandler,
 		name:           name,
 		WakeUpHandler:  wakeuphandler.NewWakeupHandler("xmpp"),
+		db:             dao,
 	}
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
@@ -143,12 +143,15 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		return
 	}
 	x.changeStatus(netshare.Connected)
+	x.registerChannelStateCallback() // 注册回调
 	go x.loop()
 	x2 = x
 	return
 }
 func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
+	// 第一次启动时订阅通道partner的在线状态
+	x.CollectNeighbors()
 	for {
 		chat, err := x.client.Recv()
 		if x.status == netshare.Closed {
@@ -174,35 +177,17 @@ func (x *XMPPConnection) loop() {
 			log.Trace(fmt.Sprintf("receive from %s message %s", utils.APex2(raddr), v.Text))
 			data, err := base64.StdEncoding.DecodeString(v.Text)
 			if err != nil {
-				log.Error(fmt.Sprintf("receive unkown message %s", utils.StringInterface(v, 3)))
+				log.Error(fmt.Sprintf("receive unkown message :\n%s", utils.StringInterface(v, 3)))
 			} else {
 				x.dataHandler.DataHandler(raddr, data)
 			}
 		case xmpp.IQ:
-			uid := v.ID
-			x.waitersMutex.Lock()
-			ch, ok := x.waiters[uid]
-			x.waitersMutex.Unlock()
-			if ok {
-				log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
-				ch <- &v
-			} else {
-				//log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
-			}
+			log.Info(fmt.Sprintf("receive unkonwn iq message :\n%s", utils.StringInterface(v, 3)))
 		case xmpp.Presence:
 			if len(v.ID) > 0 {
-				//subscribe or unsubscribe
-				uid := v.ID
-				x.waitersMutex.Lock()
-				ch, ok := x.waiters[uid]
-				x.waitersMutex.Unlock()
-				if ok {
-					log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
-					ch <- &v
-				} else {
-					log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
-				}
+				// 订阅/取消订阅请求的应答消息,不用做处理
 			} else {
+				// 节点在线状态变更
 				var id, device string
 				ss := strings.Split(v.From, "/")
 				if len(ss) >= 2 {
@@ -215,7 +200,7 @@ func (x *XMPPConnection) loop() {
 					IsOnline:   len(v.Type) == 0,
 				}
 				if bs.IsOnline && len(bs.DeviceType) == 0 {
-					log.Error(fmt.Sprintf("receive unexpected presence %s", utils.StringInterface(v, 3)))
+					log.Error(fmt.Sprintf("receive unexpected presence message :\n%s", utils.StringInterface(v, 3)))
 				}
 				if bs.IsOnline && (oldBs == nil || !oldBs.IsOnline) {
 					/*
@@ -225,15 +210,15 @@ func (x *XMPPConnection) loop() {
 					x.WakeUp(common.HexToAddress(ss[0]))
 				}
 				x.nodesStatus[id] = bs
-				log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
+				//log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
 			}
 		default:
-			//log.Trace(fmt.Sprintf("recv %s", utils.StringInterface(v, 3)))
+			log.Trace(fmt.Sprintf("recv unknown type message :\n %s", utils.StringInterface(v, 3)))
 		}
 	}
 }
 func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
-	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
+	log.Info(fmt.Sprintf("xmpp changeStatus from %d to %d", x.status, newStatus))
 	x.status = newStatus
 	select {
 	case x.statusChan <- newStatus:
@@ -270,12 +255,8 @@ func (x *XMPPConnection) reConnect() {
 		x.mutex.Unlock()
 		break
 	}
-	if x.db != nil && !x.hasSubscribed {
-		err := x.CollectNeighbors(x.db)
-		if err != nil {
-			log.Error(fmt.Sprintf("collectChannelInfos err %s", err))
-		}
-	}
+	// 重连成功过后,订阅所有partner的在线状态
+	x.CollectNeighbors()
 	x.changeStatus(netshare.Connected)
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
@@ -306,7 +287,7 @@ func (x *XMPPConnection) send(msg *xmpp.Chat) error {
 		x.mutex.Lock()
 		cli := x.client
 		x.mutex.Unlock()
-		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.Remote, msg.Subject, msg.Text))
+		//log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.Remote, msg.Subject, msg.Text))
 		_, err := cli.Send(*msg)
 		if err != nil {
 			return err
@@ -400,12 +381,12 @@ type iqResult struct {
 //IsNodeOnline test node is online
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
 	id := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
-	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
+	defer log.Trace(fmt.Sprintf("query nodeonline on xmpp %s %v", strings.ToLower(addr.String()), isOnline))
 	ns, ok := x.nodesStatus[id]
 	if ok {
 		return ns.DeviceType, ns.IsOnline, nil
 	}
-	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
+	//log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
 	return "", false, nil
 
 }
@@ -417,7 +398,7 @@ func (x *XMPPConnection) sendPresence(msg *xmpp.Presence) error {
 		x.mutex.Lock()
 		cli := x.client
 		x.mutex.Unlock()
-		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
+		//log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
 		_, err := cli.SendPresence(*msg)
 		if err != nil {
 			return err
@@ -450,16 +431,16 @@ func (x *XMPPConnection) sendSyncPresence(msg *xmpp.Presence) (response *xmpp.Pr
 }
 
 //SubscribeNeighbour the status change of `addr`
+// 这里修改为发送订阅消息即返回,不关心订阅成功与否,因为连接正常但订阅失败的概率较小,如果需要解决,考虑做有限次数的重试
 func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
 	addrName := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	p := xmpp.Presence{
 		From: x.options.User,
 		To:   addrName,
 		Type: "subscribe",
-		ID:   utils.RandomString(10),
+		ID:   utils.RandomString(10), // 这里带上ID只是为了在loop()中区分该消息的应答消息与节点在线状态通知消息
 	}
-	_, err := x.sendSyncPresence(&p)
-	return err
+	return x.sendPresence(&p)
 }
 
 //Unsubscribe the status change of `addr`
@@ -474,10 +455,9 @@ func (x *XMPPConnection) Unsubscribe(addr common.Address) error {
 		From: x.options.User,
 		To:   addrName,
 		Type: "unsubscribe",
-		ID:   utils.RandomString(10),
+		ID:   utils.RandomString(10), // 这里带上ID只是为了在loop()中区分该消息的应答消息与节点在线状态通知消息
 	}
-	_, err := x.sendSyncPresence(&p)
-	return err
+	return x.sendPresence(&p)
 }
 
 //SubscribeNeighbors I want to know these `addrs` status change
@@ -505,28 +485,42 @@ type XMPPDb interface {
 }
 
 //CollectNeighbors subscribe status change from database
-func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
-	x.db = db
+func (x *XMPPConnection) CollectNeighbors() {
+	db := x.db
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
-		return err
+		log.Error(fmt.Sprintf("db GetChannelList err %s", err.Error()))
 	}
 	for _, c := range cs {
 		if c.State == channeltype.StateOpened {
 			x.addrMap[c.PartnerAddress()]++
 		}
 	}
-	for addr := range x.addrMap {
-		err = x.SubscribeNeighbour(addr)
-		if err == nil && !db.XMPPIsAddrSubed(addr) {
-			db.XMPPMarkAddrSubed(addr)
+	/*
+	   异步,一次性订阅所有参数通道列表里的所有地址,这里没有并发问题,只是可能重复,由于不记录订阅状态,重复订阅的成本很低
+	*/
+	go func(cs []*channeltype.Serialization) {
+		for _, c := range cs {
+			err = x.SubscribeNeighbour(c.PartnerAddress())
+			if err != nil {
+				log.Error(fmt.Sprintf("Subscribe partner %s err : %s", c.PartnerAddress().String(), err.Error()))
+			}
 		}
-	}
+		log.Info(fmt.Sprintf("SubscribeNeighbour of %d channels", len(cs)))
+	}(cs)
+	return
+}
+
+/*
+	向数据库注册回调,用于在通道创建/关闭时订阅/取消订阅用户在线状态
+*/
+func (x *XMPPConnection) registerChannelStateCallback() {
+	db := x.db
 	db.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
 		if x.status == netshare.Closed {
 			return true
 		}
-		err = x.SubscribeNeighbour(c.PartnerAddress())
+		err := x.SubscribeNeighbour(c.PartnerAddress())
 		if err != nil {
 			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddress().String(), err))
 		} else {
@@ -546,7 +540,7 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		}
 		x.addrMap[c.PartnerAddress()]--
 		if x.addrMap[c.PartnerAddress()] <= 0 {
-			err = x.Unsubscribe(c.PartnerAddress())
+			err := x.Unsubscribe(c.PartnerAddress())
 			if err != nil {
 				log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddress().String(), err))
 				return false
@@ -555,6 +549,4 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		}
 		return false
 	})
-	x.hasSubscribed = true
-	return nil
 }

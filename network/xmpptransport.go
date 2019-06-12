@@ -35,7 +35,7 @@ type XMPPTransport struct {
 NewXMPPTransport create xmpp transporter,
 if not success ,for example cannot connect to xmpp server, will try background
 */
-func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string) (x *XMPPTransport) {
+func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string, dao xmpptransport.XMPPDb) (x *XMPPTransport) {
 	x = &XMPPTransport{
 		quitChan:    make(chan struct{}),
 		NodeAddress: crypto.PubkeyToAddress(key.PublicKey),
@@ -56,7 +56,7 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 		for {
 			select {
 			case <-time.After(wait):
-				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan)
+				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan, dao)
 				//if !first {
 				//	first = true
 				//	wg.Done()

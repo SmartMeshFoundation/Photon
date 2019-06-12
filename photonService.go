@@ -192,11 +192,11 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.MessageHandler = newPhotonMessageHandler(rs)
 	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
 	rs.Protocol = network.NewPhotonProtocol(transport, privateKey, rs)
-	//todo fixme MatrixTransport should have a better contructor function
-	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
-	if ok {
-		mtransport.SetMatrixDB(rs.dao)
-	}
+	////todo fixme MatrixTransport should have a better contructor function
+	//mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
+	//if ok {
+	//	mtransport.SetMatrixDB(rs.dao)
+	//}
 	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.dao))
 	/*
 		only one instance for one data directory
@@ -317,12 +317,6 @@ func (rs *Service) Start() (err error) {
 	go rs.submitBalanceProofToPfsLoop()
 	go rs.submitDelegateToPmsLoop()
 	rs.startNeighboursHealthCheck()
-	// 只有在混合模式下启动时,才订阅其他节点的在线状态
-	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
-	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
-		err = rs.startSubscribeNeighborStatus()
-		return
-	}
 	return nil
 }
 
@@ -1216,21 +1210,23 @@ func (rs *Service) startNeighboursHealthCheck() {
 		}
 	}
 }
-func (rs *Service) startSubscribeNeighborStatus() error {
-	var err error
-	switch t := rs.Transport.(type) {
-	case *network.MixTransport:
-		err = t.SubscribeNeighbor(rs.dao)
-	case *network.MatrixMixTransport:
-		t.SetMatrixDB(rs.dao)
-	default:
-		return rerr.ErrTransportTypeUnknown
-	}
-	if err != nil {
-		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
-	}
-	return nil
-}
+
+//func (rs *Service) startSubscribeNeighborStatus() error {
+//	//var err error
+//	switch t := rs.Transport.(type) {
+//	case *network.MixTransport:
+//		//err = t.SubscribeNeighbor(rs.dao)
+//		//if err != nil {
+//		//	log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+//		//}
+//	case *network.MatrixMixTransport:
+//		t.SetMatrixDB(rs.dao)
+//	default:
+//		return rerr.ErrTransportTypeUnknown
+//	}
+//	return nil
+//}
+
 func (rs *Service) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
 	if cg == nil {

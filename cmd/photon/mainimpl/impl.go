@@ -345,7 +345,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	params.PunishBlockNumber = cs.PunishBlockNumber
 	log.Info(fmt.Sprintf("punish block number=%d", params.PunishBlockNumber))
-	transport, err := buildTransport(cfg, bcs)
+	transport, err := buildTransport(cfg, bcs, dao)
 	if err != nil {
 		err = rerr.ErrUnknown
 		return
@@ -383,7 +383,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
+func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService, dao models.Dao) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
@@ -397,14 +397,14 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), cfg.Host, cfg.Port, nil, policy)
 	case params.XMPPOnly:
-		transport = network.NewXMPPTransport(bcs.NodeAddress.String(), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
+		transport = network.NewXMPPTransport(bcs.NodeAddress.String(), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther, dao)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, dao)
 	case params.MixUDPMatrix:
 		log.Info(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
 		policy := network.NewTokenBucket(10, 1, time.Now)
@@ -412,7 +412,7 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMatrixMixTransporter(bcs.NodeAddress.String(), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+		transport, err = network.NewMatrixMixTransporter(bcs.NodeAddress.String(), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, dao)
 	}
 	return
 }

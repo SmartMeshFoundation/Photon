@@ -125,7 +125,7 @@ var (
 )
 
 // NewMatrixTransport init matrix
-func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
+func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string, dao xmpptransport.XMPPDb) *MatrixTransport {
 	mtr := &MatrixTransport{
 		running:        false,
 		stopreceiving:  false,
@@ -142,6 +142,7 @@ func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string
 		jobChan:        make(chan *matrixJob, 100),
 		trustServers:   make(map[string]bool),
 		WakeUpHandler:  wakeuphandler.NewWakeupHandler("matrix"),
+		db:             dao,
 	}
 	var serverNames []string
 	for s := range servers {
@@ -168,11 +169,6 @@ func (m *MatrixTransport) setTrustServers(servers []string) {
 	for _, s := range servers {
 		m.trustServers[s] = true
 	}
-}
-
-//todo should refactor to make db set in constructor
-func (m *MatrixTransport) setDB(db xmpptransport.XMPPDb) {
-	m.db = db
 }
 
 func (m *MatrixTransport) addPeerIfNotExist(peer common.Address) bool {

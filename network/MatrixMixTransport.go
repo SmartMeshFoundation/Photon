@@ -3,12 +3,13 @@ package network
 import (
 	"crypto/ecdsa"
 
+	"github.com/SmartMeshFoundation/Photon/models"
+
 	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
-	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -26,7 +27,7 @@ type MatrixMixTransport struct {
 }
 
 //NewMatrixMixTransporter create a MixTransport and discover
-func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MatrixMixTransport, err error) {
+func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string, dao models.Dao) (t *MatrixMixTransport, err error) {
 	t = &MatrixMixTransport{
 		name:     name,
 		protocol: protocol,
@@ -35,7 +36,7 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	if err != nil {
 		return
 	}
-	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig)
+	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig, dao)
 	t.RegisterProtocol(protocol)
 	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.matirx.WakeUpHandler)
 	return
@@ -133,9 +134,9 @@ func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err err
 	//return nil, errors.New("connection not established")
 }
 
-//SetMatrixDB get the status change notification of partner node
-//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb)  {
-func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
-	t.matirx.setDB(db)
-	return
-}
+////SetMatrixDB get the status change notification of partner node
+////func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb)  {
+//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
+//	t.matirx.setDB(db)
+//	return
+//}
