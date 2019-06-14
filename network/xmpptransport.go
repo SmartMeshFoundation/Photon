@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
@@ -46,36 +48,35 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 	x.log = log.New("name", name)
 	// 2019.06.10 启动时主线程不等待,优化无网情况下的启动速度
 	// 就算如果matrix连接不上,而主线程正常启动完成开始发送消息,也会被Send方法拒绝,重要消息会进入重发阶段,没有影响
-	//wg := sync.WaitGroup{}
-	//wg.Add(1)
 	go func() {
+		defer rpanic.PanicRecover("xmpptransport.NewConnection")
 		wait := time.Millisecond
 		var err error
-		//only wait one time
-		//var first bool
+	LFOR:
 		for {
 			select {
 			case <-time.After(wait):
 				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan, dao)
-				//if !first {
-				//	first = true
-				//	wg.Done()
-				//}
 				if err != nil {
 					x.log.Error(fmt.Sprintf("cannot connect to xmpp server %s, retry in 5 seconds", ServerURL))
 					time.Sleep(time.Second * 5)
 				} else {
-					return
+					break LFOR
 				}
 			case <-x.quitChan:
 				return
 			}
 
 		}
+		//确保api.Stop发生之后,xmpp再连上这种情况
+		select {
+		case <-x.quitChan:
+			x.conn.Close()
+		default:
+			//do nothing
+		}
 
 	}()
-	//only wait for one try
-	//wg.Wait()
 	return
 }
 

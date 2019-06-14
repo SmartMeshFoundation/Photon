@@ -310,6 +310,7 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
+	defer rpanic.PanicRecover("sendMessage")
 	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
@@ -347,7 +348,11 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 				// 向transport注册wakeUpChan
 				p.Transport.RegisterWakeUpChan(receiver, wakeUpChan)
 				// 挂起并等待对方上线
-				<-wakeUpChan
+				select {
+				case <-wakeUpChan:
+				case <-p.quitChan:
+					return
+				}
 				// 继续发送并注销wakeUpChan
 				p.Transport.UnRegisterWakeUpChan(receiver)
 			}
@@ -471,6 +476,7 @@ func (p *PhotonProtocol) receive(data []byte) {
 }
 
 func (p *PhotonProtocol) loop() {
+	defer rpanic.PanicRecover("PhotonProtocol loop")
 	p.isReceiving = true
 	for {
 		select {

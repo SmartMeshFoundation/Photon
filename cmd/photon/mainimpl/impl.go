@@ -418,6 +418,9 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService, dao models.D
 }
 func regQuitHandler(api *photon.API) {
 	go func() {
+		if params.MobileMode {
+			return
+		}
 		defer rpanic.PanicRecover("regQuitHandler")
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
