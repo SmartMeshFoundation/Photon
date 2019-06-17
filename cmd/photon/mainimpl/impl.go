@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	debug2 "runtime/debug"
 
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -598,6 +599,7 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	if err != nil {
 		return
 	}
+	debug2.FreeOSMemory() //强制立即释放scrypt分配的256M内存
 	return crypto.ToECDSA(keyBin)
 }
 
