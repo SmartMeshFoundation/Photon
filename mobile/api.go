@@ -607,8 +607,8 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
-	if v1.QuitChain != nil {
-		close(v1.QuitChain)
+	if v1.QuitChan != nil {
+		close(v1.QuitChan)
 	}
 	//test only
 	a.api.Stop()

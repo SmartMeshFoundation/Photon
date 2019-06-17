@@ -32,14 +32,14 @@ var HTTPUsername = ""
 // HTTPPassword is password needed when call http api
 var HTTPPassword = ""
 
-//QuitChain stop http server
-var QuitChain chan struct{}
+//QuitChan stop http server
+var QuitChan chan struct{}
 
 /*
 Start the restful server
 */
 func Start() {
-	QuitChain = make(chan struct{})
+	QuitChan = make(chan struct{})
 	api := rest.NewApi()
 	if Config.Debug {
 		api.Use(rest.DefaultDevStack...)
@@ -192,8 +192,13 @@ func Start() {
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
 	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
-	go server.ListenAndServe()
-	<-QuitChain
+	go func() {
+		err2 := server.ListenAndServe()
+		if err2 != nil {
+			log.Error(fmt.Sprintf("ListenAndServe err %s", err2))
+		}
+	}()
+	<-QuitChan
 	err = server.Shutdown(context.Background())
 	if err != nil {
 		panic(fmt.Sprintf("server shutdown err %s", err))
@@ -204,7 +209,7 @@ func Start() {
 Stop for app user, call this api before quit.
 */
 func Stop(w rest.ResponseWriter, r *rest.Request) {
-	defer close(QuitChain)
+	defer close(QuitChan)
 	defer os.Exit(0)
 	//test only
 	API.Stop()
