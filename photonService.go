@@ -326,7 +326,7 @@ func (rs *Service) Stop() {
 	close(rs.quitChan)
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
-	rs.Chain.Client.Close()
+	rs.Chain.Stop()
 	rs.NotifyHandler.Stop()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.dao.CloseDB()
@@ -543,16 +543,19 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 	//todo 发送消息量大的时候,会制造大量的goroutine,比较昂贵
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
-		err := <-result.Result //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败
-		if err == nil {
-			rs.ProtocolMessageSendComplete <- &protocolMessage{
-				receiver: recipient,
-				Message:  msg,
+		select {
+		case <-rs.quitChan:
+			return
+		case err := <-result.Result: //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败
+			if err == nil {
+				rs.ProtocolMessageSendComplete <- &protocolMessage{
+					receiver: recipient,
+					Message:  msg,
+				}
+			} else {
+				log.Error(fmt.Sprintf("message %s send finished ,but err=%s", utils.StringInterface(msg, 3), err))
 			}
-		} else {
-			log.Error(fmt.Sprintf("message %s send finished ,but err=%s", utils.StringInterface(msg, 3), err))
 		}
-
 	}()
 	return nil
 }
@@ -1907,51 +1910,56 @@ func (rs *Service) submitDelegateToPms(ch *channel.Channel) {
 
 func (rs *Service) submitDelegateToPmsLoop() {
 	log.Info("submitDelegateToPmsLoop start...")
+	defer rpanic.PanicRecover("submitDelegateToPmsLoop")
 	for {
 		if rs.PmsProxy == nil {
 			log.Info("submitDelegateToPmsLoop stop because PmsProxy is nil")
 			return
 		}
-		ch, ok := <-rs.ChanSubmitDelegateToPMS
-		if !ok {
-			log.Info("submitDelegateToPmsLoop stop because chan close")
+		select {
+		case <-rs.quitChan: //需要有退出机制,否则很快内存耗尽
 			return
-		}
-		// 1. 获取待提交数据
-		data, err := rs.GetDelegateForPms(channel.NewChannelSerialization(ch), utils.EmptyAddress)
-		if err != nil {
-			log.Error(fmt.Sprintf("submitDelegateToPmsLoop GetDelegateForPms of channel %s err : %s,ignore", ch.ChannelIdentifier.ChannelIdentifier.String(), err.Error()))
-			continue
-		}
-		// 2. 提交至pms,失败最多重试3次
-		err = rs.PmsProxy.SubmitDelegate(data)
-		if err == pmsproxy.ErrConnect {
-			// 网络错误重试3次
-			for i := 0; i < 3; i++ {
-				err = rs.PmsProxy.SubmitDelegate(data)
-				if err == pmsproxy.ErrConnect {
-					continue
-				} else {
-					break
+		case ch, ok := <-rs.ChanSubmitDelegateToPMS:
+			if !ok {
+				log.Info("submitDelegateToPmsLoop stop because chan close")
+				return
+			}
+			// 1. 获取待提交数据
+			data, err := rs.GetDelegateForPms(channel.NewChannelSerialization(ch), utils.EmptyAddress)
+			if err != nil {
+				log.Error(fmt.Sprintf("submitDelegateToPmsLoop GetDelegateForPms of channel %s err : %s,ignore", ch.ChannelIdentifier.ChannelIdentifier.String(), err.Error()))
+				continue
+			}
+			// 2. 提交至pms,失败最多重试3次
+			err = rs.PmsProxy.SubmitDelegate(data)
+			if err == pmsproxy.ErrConnect {
+				// 网络错误重试3次
+				for i := 0; i < 3; i++ {
+					err = rs.PmsProxy.SubmitDelegate(data)
+					if err == pmsproxy.ErrConnect {
+						continue
+					} else {
+						break
+					}
 				}
 			}
-		}
-		// 3. 根据提交结果修改db中的channel状态
-		if err == nil {
-			ch.DelegateState = channeltype.ChannelDelegateStateSuccess
-		} else {
-			ch.DelegateState = channeltype.ChannelDelegateStateFail
-			log.Error(err.Error())
-		}
-		err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-		if err != nil {
-			log.Error("")
-			continue
-		}
-		// 4. 如果提交成功,修改已提交的punish及SendAnnounceDispose状态
-		if ch.DelegateState == channeltype.ChannelDelegateStateSuccess {
-			rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
-			rs.dao.MarkSendAnnounceDisposeSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+			// 3. 根据提交结果修改db中的channel状态
+			if err == nil {
+				ch.DelegateState = channeltype.ChannelDelegateStateSuccess
+			} else {
+				ch.DelegateState = channeltype.ChannelDelegateStateFail
+				log.Error(err.Error())
+			}
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			if err != nil {
+				log.Error("")
+				continue
+			}
+			// 4. 如果提交成功,修改已提交的punish及SendAnnounceDispose状态
+			if ch.DelegateState == channeltype.ChannelDelegateStateSuccess {
+				rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+				rs.dao.MarkSendAnnounceDisposeSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+			}
 		}
 	}
 }
@@ -1965,53 +1973,58 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 }
 
 func (rs *Service) submitBalanceProofToPfsLoop() {
+	defer rpanic.PanicRecover("submitBalanceProofToPfsLoop")
 	log.Info("submitBalanceProofToPfsLoop start...")
 	for {
 		if rs.PfsProxy == nil {
 			log.Info("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
 			return
 		}
-		ch, ok := <-rs.ChanSubmitBalanceProofToPFS
-		if !ok {
-			log.Info("submitBalanceProofToPfsLoop stop because chan close")
+		select {
+		case <-rs.quitChan: //需要有退出机制,否则很快内存耗尽
 			return
-		}
-		bpPartner := ch.PartnerState.BalanceProofState
-		err := rs.PfsProxy.SubmitBalance(
-			bpPartner.Nonce,
-			bpPartner.TransferAmount,
-			ch.Outstanding(),
-			ch.ChannelIdentifier.OpenBlockNumber,
-			bpPartner.LocksRoot,
-			ch.ChannelIdentifier.ChannelIdentifier,
-			bpPartner.MessageHash,
-			ch.PartnerState.Address,
-			bpPartner.Signature,
-		)
-		if err == pfsproxy.ErrConnect {
-			log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
-			// 网络错误,重发3次
-			for i := 0; i < 3; i++ {
-				err = rs.PfsProxy.SubmitBalance(
-					bpPartner.Nonce,
-					bpPartner.TransferAmount,
-					ch.Outstanding(),
-					ch.ChannelIdentifier.OpenBlockNumber,
-					bpPartner.LocksRoot,
-					ch.ChannelIdentifier.ChannelIdentifier,
-					bpPartner.MessageHash,
-					ch.PartnerState.Address,
-					bpPartner.Signature,
-				)
-				if err == pfsproxy.ErrConnect {
-					continue
-				} else {
-					break
+		case ch, ok := <-rs.ChanSubmitBalanceProofToPFS:
+			if !ok {
+				log.Info("submitBalanceProofToPfsLoop stop because chan close")
+				return
+			}
+			bpPartner := ch.PartnerState.BalanceProofState
+			err := rs.PfsProxy.SubmitBalance(
+				bpPartner.Nonce,
+				bpPartner.TransferAmount,
+				ch.Outstanding(),
+				ch.ChannelIdentifier.OpenBlockNumber,
+				bpPartner.LocksRoot,
+				ch.ChannelIdentifier.ChannelIdentifier,
+				bpPartner.MessageHash,
+				ch.PartnerState.Address,
+				bpPartner.Signature,
+			)
+			if err == pfsproxy.ErrConnect {
+				log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
+				// 网络错误,重发3次
+				for i := 0; i < 3; i++ {
+					err = rs.PfsProxy.SubmitBalance(
+						bpPartner.Nonce,
+						bpPartner.TransferAmount,
+						ch.Outstanding(),
+						ch.ChannelIdentifier.OpenBlockNumber,
+						bpPartner.LocksRoot,
+						ch.ChannelIdentifier.ChannelIdentifier,
+						bpPartner.MessageHash,
+						ch.PartnerState.Address,
+						bpPartner.Signature,
+					)
+					if err == pfsproxy.ErrConnect {
+						continue
+					} else {
+						break
+					}
 				}
 			}
-		}
-		if err != nil {
-			log.Error(err.Error())
+			if err != nil {
+				log.Error(err.Error())
+			}
 		}
 	}
 }
@@ -2074,6 +2087,8 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	proof := channel.PartnerState.Tree.MakeProof(lock.Hash())
 	//不能阻塞主线程
 	go func() {
+		//测试接口,不用担心资源释放问题
+		defer rpanic.PanicRecover("forceUnlock")
 		if channel.State == channeltype.StateOpened {
 			// 自己close
 			log.Trace(fmt.Sprintf("forceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",

@@ -197,6 +197,7 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 
 //考虑到手机或者盒子在使用photon的过程中可能会发生连接热点切换的问题,从而导致ip地址变化
 func (ut *UDPTransport) monitorIPChange() {
+	defer rpanic.PanicRecover("monitorIPChange")
 	var err error
 	lastip := mdns2.GetLocalIP()
 	for {

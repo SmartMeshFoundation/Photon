@@ -735,10 +735,14 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	result := ch.CooperativeSettleChannel(msg)
 	go func() {
-		err = <-result.Result
-		if err != nil {
-			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.photon.NotifyHandler.NotifyCooperateSettleFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+		select {
+		case <-mh.photon.quitChan:
+			return
+		case err = <-result.Result: //合约长期执行,可能会内存得不到释放
+			if err != nil {
+				log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
+				mh.photon.NotifyHandler.NotifyCooperateSettleFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+			}
 		}
 	}()
 	return nil
@@ -835,10 +839,14 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)
 	go func() {
-		err = <-result.Result
-		if err != nil {
-			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
-			mh.photon.NotifyHandler.NotifyWithdrawFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+		select {
+		case <-mh.photon.quitChan:
+			return
+		case err = <-result.Result:
+			if err != nil {
+				log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
+				mh.photon.NotifyHandler.NotifyWithdrawFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+			}
 		}
 	}()
 	return nil

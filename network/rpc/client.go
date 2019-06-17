@@ -102,6 +102,12 @@ func (bcs *BlockChainService) getQueryOpts() *bind.CallOpts {
 	}
 }
 
+//Stop 退出相关协成
+func (bcs *BlockChainService) Stop() {
+	close(bcs.quitChan)
+	bcs.Client.Close()
+}
+
 // Token return a proxy to interact with a token.
 func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy, err error) {
 	bcs.mlock.Lock()
@@ -210,6 +216,7 @@ pending状态的tx执行结果监控线程,常驻线程,启动时启动
 */
 func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 	log.Info("goroutine of pendingTXInfoListenLoop start")
+	defer rpanic.PanicRecover("bcs pendingTx")
 	for {
 		select {
 		case err := <-bcs.quitChan:
@@ -227,6 +234,7 @@ func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 }
 
 func (bcs *BlockChainService) checkBalanceEnough() {
+	defer rpanic.PanicRecover("checkBalanceEnough")
 	balance, err := bcs.Client.BalanceAt(context.Background(), bcs.NodeAddress, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("get balance err : %s", err.Error()))

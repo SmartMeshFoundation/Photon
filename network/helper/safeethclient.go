@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"fmt"
@@ -95,6 +97,7 @@ func (c *SafeEthClient) changeStatus(newStatus netshare.Status) {
 func (c *SafeEthClient) RecoverDisconnect() {
 	var err error
 	var client *ethclient.Client
+	defer rpanic.PanicRecover("RecoverDisconnect")
 	c.changeStatus(netshare.Reconnecting)
 	if c.Client != nil {
 		c.Client.Close()

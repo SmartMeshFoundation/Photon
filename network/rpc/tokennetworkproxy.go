@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"bytes"
@@ -407,6 +409,7 @@ func (t *TokenNetworkProxy) UpdateBalanceProof(partnerAddr common.Address, trans
 func (t *TokenNetworkProxy) UpdateBalanceProofAsync(partnerAddr common.Address, transferAmount *big.Int, locksRoot common.Hash, nonce uint64, extraHash common.Hash, signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("UpdateBalanceProof")
 		/*
 			异步的链上操作应该是分成两步的,第一步是合约直接调用获取TxHash,如果没问题,那么我们认为第二步的WaitMined一定不会出问题
 		*/
@@ -460,6 +463,7 @@ func (t *TokenNetworkProxy) Unlock(partnerAddr common.Address, transferAmount *b
 func (t *TokenNetworkProxy) UnlockAsync(partnerAddr common.Address, transferAmount *big.Int, lock *mtree.Lock, proof []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("UnlockAsync")
 		err := t.Unlock(partnerAddr, transferAmount, lock, proof)
 		result.Result <- err
 	}()
@@ -593,6 +597,7 @@ func (t *TokenNetworkProxy) WithdrawAsync(p1Addr, p2Addr common.Address, p1Balan
 	p1Withdraw *big.Int, p1Signature, p2Signature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("WithdrawAsync")
 		err := t.Withdraw(p1Addr, p2Addr, p1Balance, p1Withdraw, p1Signature, p2Signature)
 		result.Result <- err
 	}()
@@ -640,6 +645,7 @@ func (t *TokenNetworkProxy) PunishObsoleteUnlock(beneficiary, cheater common.Add
 func (t *TokenNetworkProxy) PunishObsoleteUnlockAsync(beneficiary, cheater common.Address, lockhash, extraHash common.Hash, cheaterSignature []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("PunishObsoleteUnlockAsync")
 		err := t.PunishObsoleteUnlock(beneficiary, cheater, lockhash, extraHash, cheaterSignature)
 		result.Result <- err
 	}()
@@ -688,6 +694,7 @@ func (t *TokenNetworkProxy) CooperativeSettle(p1Addr, p2Addr common.Address, p1B
 func (t *TokenNetworkProxy) CooperativeSettleAsync(p1Addr, p2Addr common.Address, p1Balance, p2Balance *big.Int, p1Signature, p2Signatue []byte) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("CooperativeSettleAsync")
 		err := t.CooperativeSettle(p1Addr, p2Addr, p1Balance, p2Balance, p1Signature, p2Signatue)
 		result.Result <- err
 	}()

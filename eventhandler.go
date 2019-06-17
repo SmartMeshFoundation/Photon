@@ -3,6 +3,8 @@ package photon
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"errors"
@@ -984,6 +986,7 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 检测哪些还没有来得及委托的PMS的balanceProof,并给App以相应提醒.
 */
 func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
+	defer rpanic.PanicRecover("startNoEffectiveChainNotifyLoop")
 	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
 		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
 	}

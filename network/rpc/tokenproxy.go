@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -103,6 +105,7 @@ func (t *TokenProxy) Transfer(spender common.Address, value *big.Int) (err error
 func (t *TokenProxy) TransferAsync(spender common.Address, value *big.Int) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("TransferAsync")
 		err := t.Transfer(spender, value)
 		result.Result <- err
 	}()

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"crypto/ecdsa"
@@ -133,6 +135,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 	transferAmount := new(big.Int).Set(argTransferdAmount)
 	go func() {
 		log.Info(fmt.Sprintf("Unlock called %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier)))
+		defer rpanic.PanicRecover("Unlock")
 		failed := false
 		for _, proof := range unlockproofs {
 			if e.db.IsThisLockHasUnlocked(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash) {
