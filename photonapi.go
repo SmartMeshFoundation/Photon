@@ -936,7 +936,8 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	type systemStatus struct {
 		EthRPCEndpoint      string                            `json:"eth_rpc_endpoint"`
-		EthRPCStatus        string                            `json:"eth_rpc_status"` // disconnected, connected, closed, reconnecting
+		EthRPCStatus        string                            `json:"eth_rpc_status"`  // disconnected, connected, closed, reconnecting
+		ChainEffective      bool                              `json:"chain_effective"` //当前连接公链是否有效
 		NodeAddress         string                            `json:"node_address"`
 		RegistryAddress     string                            `json:"registry_address"`
 		TokenToTokenNetwork map[common.Address]common.Address `json:"token_to_token_network"`
@@ -951,13 +952,23 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	var data systemStatus
 	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
+	if r.Photon.Chain.Client != nil {
+		switch r.Photon.Chain.Client.Status {
+		case netshare.Disconnected:
+			data.EthRPCStatus = "disconnected"
+		case netshare.Connected:
+			data.EthRPCStatus = "connected"
+		case netshare.Closed:
+			data.EthRPCStatus = "closed"
+		case netshare.Reconnecting:
+			data.EthRPCStatus = "reconnecting"
+		}
+	} else {
+		data.EthRPCStatus = "disconnected"
+	}
 	// EthRPCStatus
 	// 这里只向外暴露两个状态:有效公链/无效公链
-	if r.Photon.IsChainEffective {
-		data.EthRPCStatus = "valid"
-	} else {
-		data.EthRPCStatus = "invalid"
-	}
+	data.ChainEffective = r.Photon.IsChainEffective
 	data.NodeAddress = r.Photon.NodeAddress.String()
 	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
 	// TokenToTokenNetwork
