@@ -937,11 +937,13 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 		default:
 			//never block
 		}
-		// 1. 上传手续费设置给PFS
-		if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
-			err2 := fm.SubmitFeePolicyToPFS()
-			if err2 != nil {
-				log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+		// 1. 上传手续费设置给PFS,如果是手机节点,不用提交
+		if !params.MobileMode {
+			if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
+				err2 := fm.SubmitFeePolicyToPFS()
+				if err2 != nil {
+					log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+				}
 			}
 		}
 		// 2. 刷新所有通道状态信息到pfs及pms
