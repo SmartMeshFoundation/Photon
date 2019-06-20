@@ -61,7 +61,7 @@ func newTestMatrixTransport(name string, cfg map[string]string) (m1 *MatrixTrans
 }
 
 func newFourTestMatrixTransport() (m0, m1, m2 *MatrixTransport) {
-	cfg0 := params.MatrixServerConfig
+	cfg0 := params.TrustMatrixServers
 	cfg1, cfg2 := getMatrixEnvConfig()
 	m0 = newTestMatrixTransport("m0", cfg0)
 	m1 = newTestMatrixTransport("m1", cfg1)
@@ -79,7 +79,7 @@ func TestCreateMatrixTransport(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	m1 := newTestMatrixTransport("mrand", params.MatrixServerConfig)
+	m1 := newTestMatrixTransport("mrand", params.TrustMatrixServers)
 	m1.Stop()
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
@@ -99,7 +99,7 @@ func TestGetJoinedRoomAlias(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig, &codefortest.MockDb{})
+	m1 := NewMatrixTransport("test", testPrivKey, "other", params.TrustMatrixServers, &codefortest.MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	defer m1.Stop()
 	m1.Start()

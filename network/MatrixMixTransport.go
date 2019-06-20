@@ -36,7 +36,7 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	if err != nil {
 		return
 	}
-	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig, dao)
+	t.matirx = NewMatrixTransport(name, key, deviceType, params.TrustMatrixServers, dao)
 	t.RegisterProtocol(protocol)
 	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.matirx.WakeUpHandler)
 	return

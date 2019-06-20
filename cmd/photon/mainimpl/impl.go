@@ -407,7 +407,7 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService, dao models.D
 		}
 		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, dao)
 	case params.MixUDPMatrix:
-		log.Info(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
+		log.Info(fmt.Sprintf("use mix matrix, server=%s ", params.TrustMatrixServers))
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
@@ -526,11 +526,12 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if len(ctx.String("matrix-server")) > 0 {
 		s := ctx.String("matrix-server")
 		s = strings.TrimSpace(s)
-		log.Info(fmt.Sprintf("use matrix server %s", s))
-		for k := range params.MatrixServerConfig {
-			delete(params.MatrixServerConfig, k)
+		params.UserSpecifiedMatrixServer = fmt.Sprintf("http://%s:8008", s)
+		_, ok := params.TrustMatrixServers[s]
+		if !ok {
+			log.Warn(fmt.Sprintf("add unkown matrix server %s", s))
+			params.TrustMatrixServers[s] = params.UserSpecifiedMatrixServer
 		}
-		params.MatrixServerConfig[s] = fmt.Sprintf("http://%s:8008", s)
 	}
 
 	if ctx.IsSet("reveal-timeout") {

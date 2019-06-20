@@ -115,12 +115,15 @@ var ChainID = DefaultChainID
 //PunishBlockNumber is punish_block_number of contract,default is 257
 var PunishBlockNumber int64
 
-//MatrixServerConfig matrix server config
-var MatrixServerConfig = map[string]string{
+//TrustMatrixServers matrix server config
+var TrustMatrixServers = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
 	//"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
 	"transport13.smartmesh.cn": "http://transport13.smartmesh.cn:8008",
 }
+
+//UserSpecifiedMatrixServer 用户指定的MatrixServer
+var UserSpecifiedMatrixServer string
 
 //AliasFragment  is discovery AliasFragment
 const AliasFragment = "discovery"

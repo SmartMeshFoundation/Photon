@@ -423,6 +423,10 @@ func (m *MatrixTransport) Start() {
 			firstSync := make(chan struct{}, 5)
 			isFirstSynced := false
 			for name, url := range m.servers {
+				//如果用户制定了server,那么就用用户指定的,仅用于调试
+				if len(params.UserSpecifiedMatrixServer) > 0 && url != params.UserSpecifiedMatrixServer {
+					continue
+				}
 				var mcli *gomatrix.MatrixClient
 				mcli, err = gomatrix.NewClient(url, "", "", PATHPREFIX0, m.log)
 				if err != nil {
