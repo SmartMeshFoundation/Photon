@@ -158,7 +158,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "matrix-server",
-			Usage: "use another matrix server",
+			Usage: "use another matrix server,only domainname ,for example: transport01.smartmesh.cn",
 			Value: "",
 		},
 		cli.BoolFlag{
@@ -525,7 +525,12 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.XMPPServer = ctx.String("xmpp-server")
 	if len(ctx.String("matrix-server")) > 0 {
 		s := ctx.String("matrix-server")
+		s = strings.TrimSpace(s)
 		log.Info(fmt.Sprintf("use matrix server %s", s))
+		for k := range params.MatrixServerConfig {
+			delete(params.MatrixServerConfig, k)
+		}
+		params.MatrixServerConfig[s] = fmt.Sprintf("http://%s:8008", s)
 	}
 
 	if ctx.IsSet("reveal-timeout") {
