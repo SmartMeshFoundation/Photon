@@ -386,6 +386,7 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 		}
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
+	m.log.Trace(fmt.Sprintf("send to %s[%s] message=%s", utils.APex2(receiverAddr), roomID, encoding.MessageType(data[0])))
 	_, err = m.matrixcli.SendText(roomID, _data)
 	if err != nil {
 		m.log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s err=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0]), err))
@@ -609,7 +610,7 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 }
 func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
 	event := job.Data1.(*gomatrix.Event)
-	//m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	msgTime := time.Unix(event.Timestamp/1000, 0)
 	/*
 		ignore any history message
