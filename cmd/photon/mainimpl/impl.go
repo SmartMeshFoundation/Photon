@@ -7,6 +7,11 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	debug2 "runtime/debug"
+
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
 
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
@@ -38,7 +43,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models/stormdb"
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
-	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/network/rpc"
 	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -75,7 +79,7 @@ func StartMain() (*photon.API, error) {
 	fmt.Printf("os.args=%q\n", os.Args)
 	if len(GitCommit) != len(utils.EmptyAddress)*2 {
 		if os.Getenv("ISTEST") == "" {
-			return nil, fmt.Errorf("photon must build use makefile")
+			return nil, rerr.ErrUnrecognized.Append("photon must build use makefile")
 		}
 	}
 	app := cli.NewApp()
@@ -137,7 +141,7 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.BoolFlag{
 			Name:  "xmpp",
-			Usage: "use xmpp as transport,default is xmpp, if two nodes use different transport,they cannot send message to each other",
+			Usage: "use xmpp as transport,default is matrix, if two nodes use different transport,they cannot send message to each other",
 		},
 		cli.StringFlag{
 			Name:  "xmpp-server",
@@ -154,12 +158,12 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "matrix-server",
-			Usage: "use another matrix server",
+			Usage: "use another matrix server,only domainname ,for example: transport01.smartmesh.cn",
 			Value: "",
 		},
 		cli.BoolFlag{
 			Name:  "matrix",
-			Usage: "use matrix as transport,default is xmpp",
+			Usage: "use matrix as transport,this is the default transport",
 		},
 		cli.IntFlag{
 			Name:  "reveal-timeout",
@@ -238,6 +242,9 @@ func mainCtx(ctx *cli.Context) (err error) {
 	log.Info(fmt.Sprintf("os.args=%q", os.Args))
 	log.Info(fmt.Sprintf("GoVersion=%s\nGitCommit=%s\nbuilddate=%sVersion=%s\n", GoVersion, GitCommit, BuildDate, Version))
 	var isFirstStartUp, hasConnectedChain bool
+	//photon是否已经创建成功,成功以后,dao和client的所有权也将会移动到Service中,不能自己close了
+	//否则会二次close,造成错误
+	var photonServiceCreated bool
 	// load config
 	cfg, err := config(ctx)
 	if err != nil {
@@ -249,52 +256,50 @@ func mainCtx(ctx *cli.Context) (err error) {
 		err = fmt.Errorf("cannot connect to geth :%s err=%s", cfg.EthRPCEndPoint, err)
 		err = nil
 	}
+	defer func() {
+		if client != nil && err != nil && !photonServiceCreated {
+			client.Close()
+		}
+	}()
 	// open db
 	var dao models.Dao
 	err = checkDbMeta(cfg.DataBasePath, "boltdb")
 	if err != nil {
+		err = rerr.ErrArgumentError.Printf("checkDbMeta err %s", err.Error())
 		return
 	}
 	dao, err = stormdb.OpenDb(cfg.DataBasePath)
-	//}
 	if err != nil {
-		err = fmt.Errorf("open db error %s", err)
-		client.Close()
+		err = rerr.ErrGeneralDBError.Printf("open db error %s", err.Error())
 		return
 	}
+	defer func() {
+		if err != nil && !photonServiceCreated {
+			dao.CloseDB()
+		}
+	}()
 	cfg.RegistryAddress, isFirstStartUp, hasConnectedChain, err = getRegistryAddress(cfg, dao, client)
 	if err != nil {
-		client.Close()
-		dao.CloseDB()
 		return
-	}
-	if params.IsMainNet {
-		cfg.SettleTimeout = params.MainNetChannelSettleTimeoutMin
-	} else {
-		cfg.SettleTimeout = params.TestNetChannelSettleTimeoutMin
 	}
 	//没有pfs一样可以启动,只不过在收费模式下,交易会失败而已.
 	if cfg.PfsHost == "" {
-		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress)
+		cfg.PfsHost, err = getDefaultPFSByTokenNetworkAddress(cfg.RegistryAddress, cfg.NetworkMode == params.MixUDPMatrix)
 		if err != nil {
 			log.Error(fmt.Sprintf("getDefaultPFSByTokenNetworkAddress err %s", err))
-			//client.Close()
-			//dao.CloseDB()
-			//return
+			err = nil
 		}
 	}
+	log.Info(fmt.Sprintf("pfs server=%s", cfg.PfsHost))
 	// get ChainID
 	if isFirstStartUp {
 		if !hasConnectedChain {
-			err = fmt.Errorf("first startup without ethereum rpc connection")
-			dao.CloseDB()
-			client.Close()
+			err = rerr.ErrFirstStartWithoutNetwork
 			return
 		}
 		params.ChainID, err = client.NetworkID(context.Background())
 		if err != nil {
-			dao.CloseDB()
-			client.Close()
+			err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
 			return
 		}
 		dao.SaveChainID(params.ChainID.Int64())
@@ -306,8 +311,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// init blockchain module
 	bcs, err := rpc.NewBlockChainService(cfg.PrivateKey, cfg.RegistryAddress, client, notifyHandler, dao)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
 		return
 	}
 	if isFirstStartUp {
@@ -317,9 +320,6 @@ func mainCtx(ctx *cli.Context) (err error) {
 		var chainID *big.Int
 		contractVersion, secretRegisteryAddress, punishBlockNumber, chainID, err = verifyContractCode(bcs)
 		if err != nil {
-			//dao.SaveContractStatus(models.ContractStatus{}) // return to first start up
-			dao.CloseDB()
-			client.Close()
 			return
 		}
 		dao.SaveContractStatus(models.ContractStatus{
@@ -330,6 +330,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 			ContractVersion:       contractVersion,
 		})
 	}
+	//主网networkID是主网,无论在以太坊还是spectrum,都是如此
+	params.IsMainNet = params.ChainID.Cmp(big.NewInt(params.MainNetNetworkID)) == 0
+	if params.IsMainNet {
+		cfg.SettleTimeout = params.MainNetChannelSettleTimeoutMin
+	} else {
+		cfg.SettleTimeout = params.TestNetChannelSettleTimeoutMin
+	}
 	/*
 		由于数据库设计历史原因,chainID是单独保存的,为了保持兼容,暂时不做修改
 	*/
@@ -339,19 +346,22 @@ func mainCtx(ctx *cli.Context) (err error) {
 	}
 	params.PunishBlockNumber = cs.PunishBlockNumber
 	log.Info(fmt.Sprintf("punish block number=%d", params.PunishBlockNumber))
-	transport, err := buildTransport(cfg, bcs)
+	transport, err := buildTransport(cfg, bcs, dao)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
+		err = rerr.ErrUnknown
 		return
 	}
+	defer func() {
+		if err != nil && !photonServiceCreated {
+			transport.Stop()
+		}
+	}()
 	service, err := photon.NewPhotonService(bcs, cfg.PrivateKey, transport, cfg, notifyHandler, dao)
 	if err != nil {
-		dao.CloseDB()
-		client.Close()
-		transport.Stop()
 		return
 	}
+	//transport,dao,client 所有权已经转移到PhotonService中了,如果以后失败,就有photonService自己管理
+	photonServiceCreated = true
 	// 保存构建信息
 	service.SetBuildInfo(GoVersion, GitCommit, BuildDate, Version)
 	err = service.Start()
@@ -374,13 +384,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 
 	return nil
 }
-func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport network.Transporter, err error) {
+func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService, dao models.Dao) (transport network.Transporter, err error) {
 	/*
 		use ice and doesn't work as route node,means this node runs  on a mobile phone.
 	*/
-	if params.MobileMode {
-		cfg.NetworkMode = params.MixUDPXMPP
-	}
 	switch cfg.NetworkMode {
 	case params.NoNetwork:
 		params.EnableMDNS = false
@@ -391,27 +398,30 @@ func buildTransport(cfg *params.Config, bcs *rpc.BlockChainService) (transport n
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), cfg.Host, cfg.Port, nil, policy)
 	case params.XMPPOnly:
-		transport = network.NewXMPPTransport(bcs.NodeAddress.String(), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther)
+		transport = network.NewXMPPTransport(bcs.NodeAddress.String(), cfg.XMPPServer, bcs.PrivKey, network.DeviceTypeOther, dao)
 	case params.MixUDPXMPP:
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+		transport, err = network.NewMixTranspoter(bcs.NodeAddress.String(), cfg.XMPPServer, cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, dao)
 	case params.MixUDPMatrix:
-		log.Trace(fmt.Sprintf("use mix matrix, server=%s ", params.MatrixServerConfig))
+		log.Info(fmt.Sprintf("use mix matrix, server=%s ", params.TrustMatrixServers))
 		policy := network.NewTokenBucket(10, 1, time.Now)
 		deviceType := network.DeviceTypeOther
 		if params.MobileMode {
 			deviceType = network.DeviceTypeMobile
 		}
-		transport, err = network.NewMatrixMixTransporter(bcs.NodeAddress.String(), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType)
+		transport, err = network.NewMatrixMixTransporter(bcs.NodeAddress.String(), cfg.Host, cfg.Port, bcs.PrivKey, nil, policy, deviceType, dao)
 	}
 	return
 }
 func regQuitHandler(api *photon.API) {
 	go func() {
+		if params.MobileMode {
+			return
+		}
 		defer rpanic.PanicRecover("regQuitHandler")
 		quitSignal := make(chan os.Signal, 1)
 		signal.Notify(quitSignal, os.Interrupt, os.Kill)
@@ -427,26 +437,30 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 
 	listenhost, listenport, err := net.SplitHostPort(ctx.String("listen-address"))
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--listen-address err")
 		return
 	}
 	apihost, apiport, err := net.SplitHostPort(ctx.String("api-address"))
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--api-address err")
 		return
 	}
 	config.Host = listenhost
 	config.Port, err = strconv.Atoi(listenport)
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--listen-address err")
 		return
 	}
 	config.UseConsole = ctx.Bool("console")
 	config.APIHost = apihost
 	config.APIPort, err = strconv.Atoi(apiport)
 	if err != nil {
+		err = rerr.ErrArgumentError.Append("--api-address err")
 		return
 	}
 	config.PrivateKey, err = getPrivateKey(ctx)
 	if err != nil {
-		err = fmt.Errorf("privkey error: %s", err)
+		err = rerr.ErrArgumentError.Printf("private key err %s", err.Error())
 		return
 	}
 	//log.Trace(fmt.Sprintf("privatekey=%s", hex.EncodeToString(crypto.FromECDSA(config.PrivateKey))))
@@ -464,7 +478,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(config.DataDir) {
 		err = os.MkdirAll(config.DataDir, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
+			err = rerr.ErrArgumentError.Printf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -474,7 +488,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	if !utils.Exists(userDbPath) {
 		err = os.MkdirAll(userDbPath, os.ModePerm)
 		if err != nil {
-			err = fmt.Errorf("datadir:%s doesn't exist and cannot create %v", userDbPath, err)
+			err = rerr.ErrArgumentError.Printf("datadir:%s doesn't exist and cannot create %v", config.DataDir, err)
 			return
 		}
 	}
@@ -486,7 +500,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		conditionquit := ctx.String("conditionquit")
 		err = json.Unmarshal([]byte(conditionquit), &config.ConditionQuit)
 		if err != nil {
-			err = fmt.Errorf("conditioquit parse error %s", err)
+			err = rerr.ErrArgumentError.Printf("conditioquit parse error %s", err)
 			return
 		}
 		log.Info(fmt.Sprintf("condition quit=%#v", config.ConditionQuit))
@@ -496,10 +510,10 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 		config.NetworkMode = params.NoNetwork
 	} else if ctx.Bool("debug-udp-only") {
 		config.NetworkMode = params.UDPOnly
-	} else if ctx.Bool("matrix") {
-		config.NetworkMode = params.MixUDPMatrix
+	} else if ctx.Bool("xmpp") {
+		config.NetworkMode = params.MixUDPXMPP
 	} else {
-		config.NetworkMode = params.MixUDPXMPP //默认用xmpp做通信,matrix不太稳定
+		config.NetworkMode = params.MixUDPMatrix //默认用matrix
 	}
 	config.EnableMediationFee = true
 	if ctx.Bool("disable-fee") {
@@ -511,7 +525,13 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	config.XMPPServer = ctx.String("xmpp-server")
 	if len(ctx.String("matrix-server")) > 0 {
 		s := ctx.String("matrix-server")
-		log.Info(fmt.Sprintf("use matrix server %s", s))
+		s = strings.TrimSpace(s)
+		params.UserSpecifiedMatrixServer = fmt.Sprintf("http://%s:8008", s)
+		_, ok := params.TrustMatrixServers[s]
+		if !ok {
+			log.Warn(fmt.Sprintf("add unkown matrix server %s", s))
+			params.TrustMatrixServers[s] = params.UserSpecifiedMatrixServer
+		}
 	}
 
 	if ctx.IsSet("reveal-timeout") {
@@ -533,7 +553,7 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	mi := ctx.String("debug-mdns-interval")
 	dur, err := time.ParseDuration(mi)
 	if err != nil {
-		err = fmt.Errorf("arg debug-mdns-interval err %s", err)
+		err = rerr.ErrArgumentError.Printf("arg debug-mdns-interval err %s", err)
 		return
 	}
 	params.DefaultMDNSQueryInterval = dur
@@ -541,16 +561,20 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	mo := ctx.String("debug-mdns-keepalive")
 	dur, err = time.ParseDuration(mo)
 	if err != nil {
-		err = fmt.Errorf("arg debug-mdns-keepalive err %s", err)
+		err = rerr.ErrArgumentError.Printf("arg debug-mdns-keepalive err %s", err)
 		return
 	}
 	params.DefaultMDNSKeepalive = dur
 	mdns.ServiceTag = ctx.String("debug-mdns-servicetag")
 	config.PmsHost = ctx.String("pms")
 	config.PmsAddress = common.HexToAddress(ctx.String("pms-address"))
+	config.LogFilePath = ctx.String("logfile")
 	return
 }
 
+/*
+getPrivateKey: 如果是meshbox,则通过专用插件获取私钥,否则根据指定的keystore-path找相应的私钥
+*/
 func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	if os.Getenv("IS_MESH_BOX") == "true" || os.Getenv("IS_MESH_BOX") == "TRUE" {
 		// load photon_plugin.so
@@ -581,19 +605,27 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 	if err != nil {
 		return
 	}
+	debug2.FreeOSMemory() //强制立即释放scrypt分配的256M内存
 	return crypto.ToECDSA(keyBin)
 }
 
+/*
+getRegistryAddress:
+系统第一次初始化的时候必须保证有网,无网也没有历史数据,则没有任何意义.
+是否是第一次启动的判断标准就是是否有历史数据库.
+todo:存在问题,有可能第一次启动的时候连接到了一条无效的公链.
+*/
 func getRegistryAddress(config *params.Config, dao models.Dao, client *helper.SafeEthClient) (registryAddress common.Address, isFirstStartUp, hasConnectedChain bool, err error) {
+	log.Info(fmt.Sprintf("contract status=%s", utils.StringInterface(dao.GetContractStatus(), 5)))
 	dbRegistryAddress := dao.GetContractStatus().RegistryAddress
 	isFirstStartUp = dbRegistryAddress == utils.EmptyAddress
 	hasConnectedChain = client.Status == netshare.Connected
 	if isFirstStartUp && !hasConnectedChain {
-		err = fmt.Errorf("first startup without ethereum rpc connection")
+		err = rerr.ErrFirstStartWithoutNetwork
 		return
 	}
 	if !isFirstStartUp && config.RegistryAddress != utils.EmptyAddress && dbRegistryAddress != config.RegistryAddress {
-		err = fmt.Errorf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
+		err = rerr.ErrArgumentError.Printf(fmt.Sprintf("db mismatch, db's registry=%s,now registry=%s",
 			dbRegistryAddress.String(), config.RegistryAddress.String()))
 		return
 	}
@@ -621,20 +653,25 @@ func getDefaultRegistryByEthClient(client *helper.SafeEthClient) (registryAddres
 	var genesisBlockHash common.Hash
 	genesisBlockHash, err = client.GenesisBlockHash(context.Background())
 	if err != nil {
-		log.Error(err.Error())
+		err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
 		return
-	}
-	// 根据创世区块hash设置主网标记
-	if genesisBlockHash == params.MainNetGenesisBlockHash {
-		params.IsMainNet = true
 	}
 	registryAddress = params.GenesisBlockHashToDefaultRegistryAddress[genesisBlockHash]
 	return
 }
-func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs string, err error) {
+func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address, isMatrix bool) (pfs string, err error) {
+	if isMatrix {
+		var ok bool
+		pfs, ok = params.DefaultMatrixContractToPFS[tokenNetworkAddress]
+		if !ok {
+			err = rerr.ErrArgumentError.Printf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
+			return
+		}
+		return
+	}
 	pfs, ok := params.DefaultContractToPFS[tokenNetworkAddress]
 	if !ok {
-		err = fmt.Errorf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
+		err = rerr.ErrArgumentError.Printf("can not find default pfs host by TokenNetworkAddress[%s]", tokenNetworkAddress.String())
 		return
 	}
 	return
@@ -644,24 +681,31 @@ func getDefaultPFSByTokenNetworkAddress(tokenNetworkAddress common.Address) (pfs
 	校验链上的合约代码版本
 */
 func verifyContractCode(bcs *rpc.BlockChainService) (contractVersion string, secretRegisteryAddress common.Address, punishBlockNumber uint64, chainID *big.Int, err error) {
-	log.Trace(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
+	log.Info(fmt.Sprintf("registry address=%s", bcs.GetRegistryAddress().String()))
 	contractVersion, err = bcs.RegistryProxy.GetContractVersion()
 	if err != nil {
 		return
 	}
 	if !strings.HasPrefix(contractVersion, params.ContractVersionPrefix) {
-		err = fmt.Errorf("contract version on chain %s is incompatible with this photon version", contractVersion)
+		err = rerr.ErrArgumentError.Printf("contract version on chain %s is incompatible with this photon version", contractVersion)
 	}
-	secretRegisteryAddress, err = bcs.RegistryProxy.GetContract().SecretRegistry(nil)
+	ch, err := bcs.RegistryProxy.GetContract()
 	if err != nil {
-		err = fmt.Errorf("get SecretRegistry address err %s", err)
 		return
 	}
-	punishBlockNumber, err = bcs.RegistryProxy.GetContract().PunishBlockNumber(nil)
+	secretRegisteryAddress, err = ch.SecretRegistry(nil)
 	if err != nil {
-		err = fmt.Errorf("get punish block number err %s", err)
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get SecretRegistry address err %s", err)
+		return
 	}
-	chainID, err = bcs.RegistryProxy.GetContract().ChainId(nil)
+	punishBlockNumber, err = ch.PunishBlockNumber(nil)
+	if err != nil {
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get punish block number err %s", err)
+	}
+	chainID, err = ch.ChainId(nil)
+	if err != nil {
+		err = rerr.ErrUnkownSpectrumRPCError.Printf("get chain ID from register contract err %s", err)
+	}
 	return
 }
 func checkDbMeta(dbPath, dbType string) (err error) {

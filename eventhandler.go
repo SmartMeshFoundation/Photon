@@ -3,6 +3,8 @@ package photon
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"errors"
@@ -16,7 +18,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/graph"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
-	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -698,7 +699,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -722,7 +723,7 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 // can we just combine them?
 //1. 必须能够正确处理重复的事件
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		//i'm not a participant
@@ -766,7 +767,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 
 //1. 必须能够处理重复的ContractChannelWithdrawStateChange
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
-	log.Trace(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -797,7 +798,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 1. 重复的unlock没什么影响,只要保证后续的事件按序抵达即可
 */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
-	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -833,7 +834,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 
 //必须能够处理重复的punish事件,因为重复的punish只是更新通道状态,所以重复也没什么影响
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
-	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		log.Warn(fmt.Sprintf("receive ContractPunishedStateChange,but cannot found channel %s",
@@ -857,7 +858,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 
 //1. 必须正确处理重复的ContractBalanceProofUpdatedStateChange,这里只是更新相关参与方的状态,所以重复的事件并不影响
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
-	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -901,6 +902,12 @@ func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockSta
 
 /*
 	处理有效公链/无效公链状态切换的相关逻辑
+有效公链变无效:
+1. 检测还没有来得及提交到PMS的balanceProof,提醒用户
+无效变有效:
+1. 提交所有更新到PFS(有冗余)
+2. 提交所有更新到PMS(有冗余)
+3. 该发送的unlock消息发送出去
 */
 func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer.EffectiveChainStateChange) (err error) {
 	isChainEffective := st.IsEffective
@@ -930,11 +937,13 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 		default:
 			//never block
 		}
-		// 1. 上传手续费设置给PFS
-		if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
-			err2 := fm.SubmitFeePolicyToPFS()
-			if err2 != nil {
-				log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+		// 1. 上传手续费设置给PFS,如果是手机节点,不用提交
+		if !params.MobileMode {
+			if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
+				err2 := fm.SubmitFeePolicyToPFS()
+				if err2 != nil {
+					log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+				}
 			}
 		}
 		// 2. 刷新所有通道状态信息到pfs及pms
@@ -974,7 +983,12 @@ func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer
 	return nil
 }
 
+/*
+一旦检测到公链无效:
+检测哪些还没有来得及委托的PMS的balanceProof,并给App以相应提醒.
+*/
 func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
+	defer rpanic.PanicRecover("startNoEffectiveChainNotifyLoop")
 	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
 		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
 	}
@@ -995,7 +1009,7 @@ func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
 		case <-time.After(periodSecond):
 			t := time.Since(time.Unix(eh.photon.EffectiveChangeTimestamp, 0)).Round(time.Second)
 			warning := fmt.Sprintf("photon has been worked without effective block chain for about %s", t)
-			eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning)
+			//eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning) 就不通知了,没有格式化的通知,app也没法处理
 			log.Warn(warning)
 			// 如果进入无效公链的时间超过了最小SettleTimeout一半的时间,修改通道pms状态,该操作直到切入有效网络之前只进行一次
 			if !hasUpdateDelegateState && time.Since(start) > time.Duration(eh.photon.getMinSettleTimeout())/2*periodBlockSecond {

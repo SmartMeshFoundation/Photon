@@ -5,8 +5,6 @@ import (
 
 	"os"
 
-	"time"
-
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/mobile"
 	"github.com/SmartMeshFoundation/Photon/params"
@@ -52,7 +50,14 @@ func main() {
 			Usage: "Text file containing password for provided account",
 		},
 	}
-	app.Action = mainCtx
+	app.Action = func(ctx *cli.Context) {
+		for {
+			err := mainCtx(ctx)
+			if err != nil {
+				log.Error(fmt.Sprintf("mainctx return %s", err))
+			}
+		}
+	}
 	app.Name = "mobiletest"
 	app.Version = "0.3"
 	err := app.Run(os.Args)
@@ -70,8 +75,10 @@ func mainCtx(ctx *cli.Context) (err error) {
 	dataDir := ctx.String("datadir")
 	password := ctx.String("password-file")
 	apiAddr := ctx.String("api-address")
-	otherArgs := mobile.NewStrings(1)
+	otherArgs := mobile.NewStrings(3)
 	err = otherArgs.Set(0, fmt.Sprintf("--registry-contract-address=%s", registryContractAddress))
+	err = otherArgs.Set(1, "--matrix")
+	err = otherArgs.Set(2, "--pprof")
 	if err != nil {
 		return err
 	}
@@ -82,16 +89,24 @@ func mainCtx(ctx *cli.Context) (err error) {
 		log.Crit(fmt.Sprintf("start up err %s", err))
 		return
 	}
-	sub, err := api.Subscribe(handler{})
+	ret := make(chan struct{})
+	sub, err := api.Subscribe(handler{
+		api: api,
+		ret: ret,
+	})
+
 	if err != nil {
-		log.Crit(fmt.Sprintf("sub err %s", err))
+		panic(fmt.Sprintf("sub err %s", err))
 	}
-	time.Sleep(time.Hour)
-	sub.Unsubscribe()
+	defer sub.Unsubscribe()
+	<-ret
+	api.Stop()
 	return nil
 }
 
 type handler struct {
+	api *mobile.API
+	ret chan struct{}
 }
 
 //some unexpected error
@@ -107,6 +122,7 @@ func (h handler) OnStatusChange(s string) {
 //OnReceivedTransfer  receive a transfer
 func (h handler) OnReceivedTransfer(tr string) {
 	log.Error(fmt.Sprintf("receive transfer %s", tr))
+	h.ret <- struct{}{} //收到交易就退出
 }
 
 //OnSentTransfer a transfer sent success

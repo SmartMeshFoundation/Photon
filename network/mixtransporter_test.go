@@ -3,6 +3,8 @@ package network
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
+
 	"net"
 
 	"time"
@@ -19,17 +21,17 @@ func TestNewMixTransport(t *testing.T) {
 	key1, _ := utils.MakePrivateKeyAddress()
 	key2, _ := utils.MakePrivateKeyAddress()
 	key3, _ := utils.MakePrivateKeyAddress()
-	m1, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50001, key1, newDummyProtocol("m1"), &dummyPolicy{}, DeviceTypeMobile)
+	m1, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50001, key1, newDummyProtocol("m1"), &dummyPolicy{}, DeviceTypeMobile, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	m2, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50002, key2, newDummyProtocol("m2"), &dummyPolicy{}, DeviceTypeOther)
+	m2, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50002, key2, newDummyProtocol("m2"), &dummyPolicy{}, DeviceTypeOther, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	m3, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50003, key3, newDummyProtocol("m3"), &dummyPolicy{}, DeviceTypeMobile)
+	m3, err := NewMixTranspoter("m1", params.DefaultTestXMPPServer, "127.0.0.1", 50003, key3, newDummyProtocol("m3"), &dummyPolicy{}, DeviceTypeMobile, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 		return

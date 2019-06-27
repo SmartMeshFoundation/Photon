@@ -24,18 +24,18 @@ type protocolConfig struct {
 type NetworkMode int
 
 const (
-	//NoNetwork 节点不对外暴露网络接口,仅供测试使用
-	// NoNetwork : Node does not expose interface, just for case.
+	//NoNetwork 不与其他节点之间进行通信,仅供测试使用
+	// NoNetwork : Node does not  communicates with other nodes, just for test.
 	NoNetwork NetworkMode = iota + 1
-	//UDPOnly 通过udp ip 端口对外暴露服务,可以使用 stun,upnp 等方式,依赖节点发现合约或者直接告知其他节点 ip 端口
-	// UDPOnly : expose service via udp ip, we can use stun, upnp and node to find contracts or tell other nodes with ip port.
+	//UDPOnly 通过udp ip 端口对外暴露服务,通过使用MDNS进行节点服务发现
+	// UDPOnly : expose service via udp ip,
 	UDPOnly
-	//XMPPOnly 通过XMPP服务器进行通信
+	//XMPPOnly 通过XMPP服务器进行通信,目前暂时不使用
 	// XMPPOnly : communicate via XMPP server.
 	XMPPOnly
-	//MixUDPXMPP 适应无网通信需要,将上面两种方式混合使用,有网时使用 ice 建立连接,无网时则使用 udp 直接暴露 ip 端口
+	//MixUDPXMPP 适应无网通信需要,将上面两种方式混合使用,有网时使用XMPP建立连接,无网时则使用 udp 直接暴露 ip 端口
 	// MixUDPXMPP : used for Internet-free network, combining UDPOnly and XMPPOnly.
-	// While Internet, it use ice to create connection; while Internet-free, it use udp to expose ip port.
+	// While Internet, it use XMPP to create connection; while Internet-free, it use udp to expose ip port.
 	MixUDPXMPP
 	//MixUDPMatrix Matrix and UDP at the same time
 	MixUDPMatrix
@@ -43,10 +43,27 @@ const (
 
 //Config is configuration for Photon,
 type Config struct {
-	EthRPCEndPoint            string
-	Host                      string
-	Port                      int
-	PrivateKey                *ecdsa.PrivateKey
+	/*
+		photon所连公链节点,使用者务必保证自己所链的节点是有效节点,
+		如果是一个恶意节点,photon是无法检测以保证系统安全的,比如恶意通知photon没有在链上发生的事件.
+		但是如果只是公链节点同步出了问题,那么photon能够检测出来,并阻止相关交易.
+	*/
+	EthRPCEndPoint string
+	/*
+		Host 节点间UDP通信监听的Host
+	*/
+	Host string
+	/*
+		Port 节点间UDP通信监听的Port
+	*/
+	Port int
+	/*
+		该Photon节点的私钥,因为节点之间来往消息需要签名,因此必须保存该私钥在内存中
+	*/
+	PrivateKey *ecdsa.PrivateKey
+	/*
+		专门留给节点进行链上unlock的时间,
+	*/
 	RevealTimeout             int
 	SettleTimeout             int
 	DataBasePath              string
@@ -72,6 +89,7 @@ type Config struct {
 	HTTPPassword              string
 	PmsHost                   string // pms server host
 	PmsAddress                common.Address
+	LogFilePath               string
 }
 
 //DefaultConfig default config

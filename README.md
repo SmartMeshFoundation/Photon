@@ -1,7 +1,10 @@
 # Photon
-![](http://img.shields.io/travis/SmartMeshFoundation/Photon.svg)
-![](https://github.com/dognie/Photon/blob/master/docs/photon.png?raw=true)
+[![Build Status](https://travis-ci.org/SmartMeshFoundation/Photon.svg?branch=master)](https://github.com/SmartMeshFoundation/Photon)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SmartMeshFoundation/Photon)](https://github.com/SmartMeshFoundation/Photon)
 
+
+
+![](https://github.com/dognie/Photon/blob/master/docs/photon.png?raw=true)
 
  [Photon documentation](https://PhotonNetwork.readthedocs.io/en/latest/)
 

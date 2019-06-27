@@ -17,17 +17,16 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 )
 
 // ErrNotInit :
-var ErrNotInit = errors.New("pfgClient not init")
+var ErrNotInit = rerr.ErrNotChargeFee.Append("pfgClient not init")
 
 // ErrConnect :
-var ErrConnect = errors.New("pfsClient connect to pfs error")
+var ErrConnect = rerr.ErrNotChargeFee.Append("pfsClient connect to pfs error")
 
 /*
-pfsClient :
+pfsClient client for call api of photon-pathfinding-server
 */
 type pfsClient struct {
 	host       string
@@ -35,7 +34,7 @@ type pfsClient struct {
 }
 
 /*
-NewPfsProxy :
+NewPfsProxy init
 */
 func NewPfsProxy(pfgHost string, privateKey *ecdsa.PrivateKey) (pfsProxy PfsProxy) {
 	pfsProxy = &pfsClient{
@@ -95,13 +94,13 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.BalanceSignature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
 	}
 	return p.BalanceSignature
 }
 
 /*
-SubmitBalance :
+SubmitBalance 向pfs提交一个通道的BalanceProof,供pfs计算路由使用
 */
 func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, proofSigner common.Address, signature []byte) (err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
@@ -175,7 +174,7 @@ func (p *findPathPayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
+		panic(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
 	}
 	return p.Signature
 }
@@ -198,7 +197,7 @@ func (fpr *FindPathResponse) GetPath() []common.Address {
 }
 
 /*
-FindPath : find path
+FindPath : 调用pfs查询一笔交易的可用路由
 */
 func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (resp []FindPathResponse, err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
@@ -259,7 +258,7 @@ func (p *setFeePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
 	}
 	return p.Signature
 }

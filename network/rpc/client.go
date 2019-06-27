@@ -102,6 +102,12 @@ func (bcs *BlockChainService) getQueryOpts() *bind.CallOpts {
 	}
 }
 
+//Stop 退出相关协成
+func (bcs *BlockChainService) Stop() {
+	close(bcs.quitChan)
+	bcs.Client.Close()
+}
+
 // Token return a proxy to interact with a token.
 func (bcs *BlockChainService) Token(tokenAddress common.Address) (t *TokenProxy, err error) {
 	bcs.mlock.Lock()
@@ -129,8 +135,10 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 	if bcs.RegistryProxy != nil && bcs.RegistryProxy.ch != nil {
 		return bcs.RegistryProxy, nil
 	}
-	r := &RegistryProxy{
-		Address: address,
+	if bcs.RegistryProxy == nil {
+		bcs.RegistryProxy = &RegistryProxy{
+			Address: address,
+		}
 	}
 	if hasConnectChain {
 		var reg *contracts.TokensNetwork
@@ -139,17 +147,19 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 			log.Error(fmt.Sprintf("NewRegistry %s err %s ", address.String(), err))
 			return
 		}
-		r.ch = reg
+		bcs.RegistryProxy.ch = reg
 		var secAddr common.Address
-		secAddr, err = r.ch.SecretRegistry(nil)
+		secAddr, err = bcs.RegistryProxy.ch.SecretRegistry(nil)
 		if err != nil {
 			log.Error(fmt.Sprintf("get Secret_registry_address %s", err))
+			err = rerr.ErrUnkownSpectrumRPCError.Printf("get Secret_registry_address err %s", err.Error())
 			return
 		}
 		var s *contracts.SecretRegistry
 		s, err = contracts.NewSecretRegistry(secAddr, bcs.Client)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewSecretRegistry err %s", err))
+			err = rerr.ErrUnkownSpectrumRPCError.Printf("NewSecretRegistry err %s", err.Error())
 			return
 		}
 		bcs.SecretRegistryProxy = &SecretRegistryProxy{
@@ -171,12 +181,11 @@ func (bcs *BlockChainService) Registry(address common.Address, hasConnectChain b
 			bcs.RegisterPendingTXInfo(tx)
 		}
 	}
-	bcs.RegistryProxy = r
-	//log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
+	log.Info(fmt.Sprintf("RegistryProxy was updated,and RegistryProxy=%s", utils.StringInterface(bcs.RegistryProxy, 2)))
 	return bcs.RegistryProxy, nil
 }
 
-// GetRegistryAddress :
+// GetRegistryAddress impl photon/blockchain/RPCModuleDependency
 func (bcs *BlockChainService) GetRegistryAddress() common.Address {
 	if bcs.RegistryProxy != nil {
 		return bcs.RegistryProxy.Address
@@ -184,7 +193,7 @@ func (bcs *BlockChainService) GetRegistryAddress() common.Address {
 	return utils.EmptyAddress
 }
 
-// GetSecretRegistryAddress :
+// GetSecretRegistryAddress impl photon/blockchain/RPCModuleDependency
 func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 	if bcs.SecretRegistryProxy != nil {
 		return bcs.SecretRegistryProxy.Address
@@ -192,7 +201,7 @@ func (bcs *BlockChainService) GetSecretRegistryAddress() common.Address {
 	return utils.EmptyAddress
 }
 
-// SyncProgress :
+// SyncProgress 获取公链节点sync状态
 func (bcs *BlockChainService) SyncProgress() (sp *ethereum.SyncProgress, err error) {
 	return bcs.Client.SyncProgress(context.Background())
 }
@@ -207,6 +216,7 @@ pending状态的tx执行结果监控线程,常驻线程,启动时启动
 */
 func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 	log.Info("goroutine of pendingTXInfoListenLoop start")
+	defer rpanic.PanicRecover("bcs pendingTx")
 	for {
 		select {
 		case err := <-bcs.quitChan:
@@ -217,7 +227,22 @@ func (bcs *BlockChainService) pendingTXInfoListenLoop() {
 		case txInfo := <-bcs.pendingTXInfoChan:
 			// 针对每个进来的tx,启动一个线程来监控其执行状态
 			go bcs.checkPendingTXDone(txInfo)
+			// 账户余额检测
+			go bcs.checkBalanceEnough()
 		}
+	}
+}
+
+func (bcs *BlockChainService) checkBalanceEnough() {
+	defer rpanic.PanicRecover("checkBalanceEnough")
+	balance, err := bcs.Client.BalanceAt(context.Background(), bcs.NodeAddress, nil)
+	if err != nil {
+		log.Error(fmt.Sprintf("get balance err : %s", err.Error()))
+		return
+	}
+	needed := big.NewInt(params.MinBalance)
+	if balance.Cmp(needed) <= 0 {
+		bcs.NotifyHandler.NotifyPhotonBalanceNotEnough(balance, needed)
 	}
 }
 
@@ -272,20 +297,33 @@ func (bcs *BlockChainService) checkPendingTXDone(pendingTXInfo *models.TXInfo) {
 			log.Error(err.Error())
 			break
 		}
+		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
 		// 发起deposit操作
 		proxy, err := bcs.TokenNetwork(depositParams.TokenAddress)
 		if err != nil {
 			log.Error(err.Error())
 			break
 		}
+		ch, err := proxy.GetContract()
+		if err != nil {
+			panic(fmt.Sprintf("GetContract err, it's not possable here %s", err))
+		}
 		//log.Info(fmt.Sprintf("RegistryProxy proxy=%s", utils.StringInterface(proxy, 5)))
-		tx, err := proxy.GetContract().Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
+		tx, err := ch.Deposit(bcs.Auth, depositParams.TokenAddress, depositParams.ParticipantAddress, depositParams.PartnerAddress, depositParams.Amount, depositParams.SettleTimeout)
 		if err != nil {
 			log.Error(err.Error())
+			// 构造一个虚假的tx来保存这次错误的调用供前端查询和通知
+			fakeTx := types.NewTransaction(0, utils.NewRandomAddress(), big.NewInt(models.FakeTXAmount), 0, big.NewInt(0), nil)
+			fakeTxInfo, err2 := bcs.TXInfoDao.NewPendingTXInfo(fakeTx, models.TXInfoTypeDeposit, channelID, 0, &depositParams, true)
+			if err2 != nil {
+				log.Error(err2.Error())
+				break
+			}
+			// b. 通知上层
+			bcs.NotifyHandler.NotifyContractCallTXInfo(fakeTxInfo)
 			break
 		}
 		// 保存TXInfo并注册到bcs中监控其执行结果
-		channelID := utils.CalcChannelID(depositParams.TokenAddress, bcs.RegistryProxy.Address, depositParams.ParticipantAddress, depositParams.PartnerAddress)
 		txInfo, err := bcs.TXInfoDao.NewPendingTXInfo(tx, models.TXInfoTypeDeposit, channelID, 0, &depositParams)
 		if err != nil {
 			log.Error(err.Error())

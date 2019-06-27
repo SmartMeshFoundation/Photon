@@ -20,7 +20,7 @@ import (
 )
 
 // NewPendingTXInfo 创建pending状态的TXInfo,即自己发起的tx
-func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams, isFake ...bool) (txInfo *models.TXInfo, err error) {
 	tokenAddress := utils.EmptyAddress
 	if openBlockNumber == 0 && channelIdentifier != utils.EmptyHash {
 		c, err2 := model.GetChannelByAddress(channelIdentifier)
@@ -50,6 +50,7 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 	}
 	txInfo = &models.TXInfo{
 		TXHash:            tx.Hash(),
+		Nonce:             tx.Nonce(),
 		ChannelIdentifier: channelIdentifier,
 		OpenBlockNumber:   openBlockNumber,
 		TokenAddress:      tokenAddress,
@@ -60,13 +61,16 @@ func (model *StormDB) NewPendingTXInfo(tx *types.Transaction, txType models.TXIn
 		CallTime:          time.Now().Unix(),
 		GasPrice:          tx.GasPrice().Uint64(),
 	}
+	if len(isFake) > 0 && isFake[0] {
+		txInfo.Status = models.TXInfoStatusFailed
+	}
 	err = model.db.Save(txInfo.ToTXInfoSerialization())
 	if err != nil {
 		log.Error(fmt.Sprintf("NewPendingTXInfo txhash=%s, err %s", txInfo.TXHash.String(), err))
 		err = models.GeneratDBError(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
+	log.Info(fmt.Sprintf("NewPendingTXInfo : \n%s", txInfo))
 	return
 }
 
@@ -90,7 +94,7 @@ func (model *StormDB) SaveEventToTXInfo(event interface{}) (txInfo *models.TXInf
 	return nil, errors.New("TODO")
 }
 
-// UpdateTXInfoStatus :
+// UpdateTXInfoStatus 更新TX执行结果到TXInfo,如果是打开通道的tx,还会更新TXInfo中的OpenBlockNumber
 func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInfoStatus, packBlockNumber int64, gasUsed uint64) (txInfo *models.TXInfo, err error) {
 	var tis models.TXInfoSerialization
 	err = model.db.One("TXHash", txHash[:], &tis)
@@ -119,13 +123,12 @@ func (model *StormDB) UpdateTXInfoStatus(txHash common.Hash, status models.TXInf
 		err = models.GeneratDBError(err)
 		return
 	}
-	log.Trace(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
+	log.Info(fmt.Sprintf("UpdateTXInfoStatus txhash=%s status=%s packBlockNumber=%d", txHash.String(), status, packBlockNumber))
 	txInfo = tis.ToTXInfo()
 	return
 }
 
-// GetTXInfoList :
-// 如果参数不为空,则根据参数查询
+// GetTXInfoList 查询TXInfo列表,如果参数不为空,则根据参数进行条件查询
 func (model *StormDB) GetTXInfoList(channelIdentifier common.Hash, openBlockNumber int64, tokenAddress common.Address, txType models.TXInfoType, status models.TXInfoStatus) (list []*models.TXInfo, err error) {
 	var selectList []q.Matcher
 	if channelIdentifier != utils.EmptyHash {

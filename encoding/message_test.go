@@ -258,7 +258,25 @@ func TestNewRevealSecret(t *testing.T) {
 		t.Error("not equal")
 	}
 }
+func TestErrorNotify(t *testing.T) {
+	p1key, _ := utils.MakePrivateKeyAddress()
 
+	m := NewErrorNotify(InvalidNonceErrorNotify, []byte{1, 2, 3})
+	err := m.Sign(p1key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	data := m.Pack()
+	//t.Logf("data=\n%s", hex.Dump(data))
+	m2 := new(ErrorNotify)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
+}
 func TestNewSecretRequest(t *testing.T) {
 	s1 := NewSecretRequest(utils.ShaSecret([]byte("xxx")), big.NewInt(506))
 	s1.Sign(GetTestPrivKey(), s1)

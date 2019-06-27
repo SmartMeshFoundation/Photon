@@ -32,14 +32,14 @@ var HTTPUsername = ""
 // HTTPPassword is password needed when call http api
 var HTTPPassword = ""
 
-//QuitChain stop http server
-var QuitChain chan struct{}
+//QuitChan stop http server
+var QuitChan chan struct{}
 
 /*
 Start the restful server
 */
 func Start() {
-	QuitChain = make(chan struct{})
+	QuitChan = make(chan struct{})
 	api := rest.NewApi()
 	if Config.Debug {
 		api.Use(rest.DefaultDevStack...)
@@ -164,9 +164,13 @@ func Start() {
 		//rest.Get("/api/1/events/tokens/:token", EventTokens),
 		//rest.Get("/api/1/events/channels/:channel", EventChannels),
 		/*
+			blockchain proxy
+		*/
+		rest.Post("/api/1/transfer-smt/:addr/:value", TransferSMT),
+		/*
 			for debug only
 		*/
-		rest.Get("/api/1/debug/system-status", GetSystemStatus),
+		rest.Get("/api/1/system-status", GetSystemStatus),
 		rest.Get("/api/1/debug/balance/:token/:addr", Balance),
 		rest.Get("/api/1/debug/transfer/:token/:addr/:value", TransferToken),
 		rest.Get("/api/1/debug/ethbalance/:addr", EthBalance),
@@ -180,18 +184,24 @@ func Start() {
 			utils.SystemExit(0)
 		}),
 		rest.Get("/api/1/debug/change-eth-rpc-endpoint-port/:port", ChangeEthRPCEndpointPort),
+		rest.Get("/api/1/debug/upload-log-file", UploadLogFile),
 	)
 	if err != nil {
-		log.Crit(fmt.Sprintf("maker router :%s", err))
+		panic(fmt.Sprintf("maker router :%s", err))
 	}
 	api.SetApp(router)
 	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
 	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
-	go server.ListenAndServe()
-	<-QuitChain
+	go func() {
+		err2 := server.ListenAndServe()
+		if err2 != nil {
+			log.Error(fmt.Sprintf("ListenAndServe err %s", err2))
+		}
+	}()
+	<-QuitChan
 	err = server.Shutdown(context.Background())
 	if err != nil {
-		log.Crit(fmt.Sprintf("server shutdown err %s", err))
+		panic(fmt.Sprintf("server shutdown err %s", err))
 	}
 }
 
@@ -199,7 +209,7 @@ func Start() {
 Stop for app user, call this api before quit.
 */
 func Stop(w rest.ResponseWriter, r *rest.Request) {
-	defer close(QuitChain)
+	defer close(QuitChan)
 	defer os.Exit(0)
 	//test only
 	API.Stop()

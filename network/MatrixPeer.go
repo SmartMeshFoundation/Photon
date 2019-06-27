@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -43,47 +42,20 @@ type MatrixPeer struct {
 	rooms                map[string]bool //roomID exists?
 	status               peerStatus
 	deviceType           string
-	hasChannelWith       bool
-	removeChan           chan<- common.Address
-	quitChan             chan struct{}
 	receiveMessage       chan struct{}
 	channelCount         int // 我与此节点总共有多少条通道
 }
 
 //NewMatrixPeer create matrix user
-func NewMatrixPeer(address common.Address, hasChannel bool, removeChan chan<- common.Address) *MatrixPeer {
+func NewMatrixPeer(address common.Address) *MatrixPeer {
 	u := &MatrixPeer{
 		address:              address,
-		hasChannelWith:       hasChannel,
 		rooms:                make(map[string]bool),
 		candidateUsers:       make(map[string]*gomatrix.UserInfo),
 		candidateUsersStatus: make(map[string]peerStatus),
-		removeChan:           removeChan,
-		quitChan:             make(chan struct{}),
 		channelCount:         1,
 	}
-	if !u.hasChannelWith {
-		go u.loop()
-	}
 	return u
-}
-func (peer *MatrixPeer) stop() {
-	close(peer.quitChan)
-}
-func (peer *MatrixPeer) loop() {
-	for {
-		select {
-		case <-peer.quitChan:
-			return
-		case <-peer.receiveMessage:
-			continue
-		/*
-			dont receive any message in ten minutes,this peer should be removed.
-		*/
-		case <-time.After(time.Minute * 10):
-			peer.removeChan <- peer.address
-		}
-	}
 }
 
 func (peer *MatrixPeer) isValidUserID(userID string) bool {
@@ -113,9 +85,9 @@ func (peer *MatrixPeer) addRoom(roomID string) {
 }
 
 /*
-if one of the `candidateUsers` is online, status is online
-if one of the `candidateUsers` is offline,status is offline
-if all of the `candidateUsers` is UNAVAILABLE,status is unkown
+1. if one of the `candidateUsers` is online, status is online ,otherwise
+2. if one of the `candidateUsers` is offline,status is offline
+3. then if all of the `candidateUsers` is UNAVAILABLE,status is unkown
 */
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	peer.candidateUsers[userID] = &gomatrix.UserInfo{
@@ -132,8 +104,6 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
-	status = peerStatusOnline
-	peer.candidateUsersStatus[userID] = status
 	user := peer.candidateUsers[userID]
 	if user == nil {
 		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",

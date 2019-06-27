@@ -80,7 +80,7 @@ func SignBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.Private
 	return utils.SignData(privkey, dataToSign)
 }
 
-// SignUnlockFor3rd :
+// SignUnlockFor3rd 为委托数据提供签名,否则pms不会接受该次委托
 func SignUnlockFor3rd(c *channeltype.Serialization, u *DelegateUnlock, thirdAddress common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
 	buf := new(bytes.Buffer)
 	_, err = buf.Write(params.ContractSignaturePrefix)

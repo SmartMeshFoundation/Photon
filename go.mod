@@ -40,6 +40,7 @@ require (
 	github.com/theckman/go-flock v0.7.0
 	github.com/urfave/cli v1.20.0
 	github.com/vmihailenco/msgpack v4.0.0+incompatible // indirect
+	github.com/whyrusleeping/mdns v0.0.0-20180901202407-ef14215e6b30
 	golang.org/x/sys v0.0.0-20181023152157-44b849a8bc13
 	gopkg.in/karalabe/cookiejar.v2 v2.0.0-20150724131613-8dcd6a7f4951 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect

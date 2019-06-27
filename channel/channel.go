@@ -42,7 +42,7 @@ settleTimeout must be valid, it cannot too small.
 func NewChannel(ourState, partnerState *EndState, externState *ExternalState, tokenAddr common.Address, channelIdentifier *contracts.ChannelUniqueID,
 	revealTimeout, settleTimeout int) (c *Channel, err error) {
 	if settleTimeout <= revealTimeout {
-		err = rerr.ErrChannelInvalidSttleTimeout.Errorf("reveal_timeout can not be larger-or-equal to settle_timeout, reveal_timeout=%d,settle_timeout=%d", revealTimeout, settleTimeout)
+		err = rerr.ErrChannelInvalidSettleTimeout.Errorf("reveal_timeout can not be larger-or-equal to settle_timeout, reveal_timeout=%d,settle_timeout=%d", revealTimeout, settleTimeout)
 		return
 	}
 	if revealTimeout < 3 {
@@ -197,7 +197,7 @@ HandleChannelPunished 发生了 Punish 事件,意味着受益方合约上的信�
  * 		which means that information on contract of beneficiary has been changed.
  */
 func (c *Channel) HandleChannelPunished(beneficiaries common.Address) {
-	log.Trace(fmt.Sprintf("receive punish for %s,channel id=%s", beneficiaries.String(), c.ChannelIdentifier.ChannelIdentifier.String()))
+	log.Info(fmt.Sprintf("receive punish for %s,channel id=%s", beneficiaries.String(), c.ChannelIdentifier.ChannelIdentifier.String()))
 	var beneficiaryState, cheaterState *EndState
 	if beneficiaries == c.OurState.Address {
 		beneficiaryState = c.OurState
@@ -1085,7 +1085,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *enco
 	}
 	if len(c.PartnerState.Lock2PendingLocks) > 0 ||
 		len(c.PartnerState.Lock2UnclaimedLocks) > 0 {
-		panic("should no locks for partner state when  CreateWithdrawResponse")
+		panic("should no locks for partner state when  CreateWithdrawResponse") //todo 检查所有的panic,如果是对方恶意的消息触发的这种,应该忽略
 	}
 	wd := new(encoding.WithdrawReponseData)
 	wd.ChannelIdentifier = c.ChannelIdentifier.ChannelIdentifier
@@ -1270,7 +1270,7 @@ PrepareForWithdraw :
  */
 func (c *Channel) PrepareForWithdraw() error {
 	if c.State != channeltype.StateOpened {
-		return rerr.ErrChannelNotAllowWithdraw.Printf("state must be opened when withdraw, but state is %s", c.State)
+		return rerr.ErrChannelState.Printf("state must be opened when withdraw, but state is %s", c.State)
 	}
 	c.State = channeltype.StatePrepareForWithdraw
 	return nil
@@ -1383,6 +1383,8 @@ func (c *Channel) Settle(blockNumber int64) (err error) {
 		return rerr.ChannelStateError(c.State)
 	}
 	var MyTransferAmount, PartnerTransferAmount *big.Int
+	var myBalance = new(big.Int).Set(c.OurState.ContractBalance)
+	var partnerBalance = new(big.Int).Set(c.PartnerState.ContractBalance)
 	var MyLocksroot, PartnerLocksroot common.Hash
 	if c.OurState.BalanceProofState != nil {
 		MyTransferAmount = c.OurState.BalanceProofState.ContractTransferAmount
@@ -1399,7 +1401,17 @@ func (c *Channel) Settle(blockNumber int64) (err error) {
 	if c.ExternState.SettledBlock > blockNumber {
 		return rerr.ErrChannelSettleTimeout
 	}
-	err = c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, MyLocksroot, PartnerLocksroot)
+	/*
+		计算此次settle我可以拿到的token
+		不考虑punish问题,
+		不以本地存储的为准,应该以合约中的数据为准了.
+		持有的锁已经过期了,也没法解锁了,所以也不用考虑
+	*/
+	myBalance = myBalance.Sub(myBalance, MyTransferAmount)
+	myBalance = myBalance.Add(myBalance, PartnerTransferAmount)
+	partnerBalance = partnerBalance.Sub(partnerBalance, PartnerTransferAmount)
+	partnerBalance = partnerBalance.Add(partnerBalance, MyTransferAmount)
+	err = c.ExternState.Settle(MyTransferAmount, PartnerTransferAmount, myBalance, partnerBalance, MyLocksroot, PartnerLocksroot)
 	if err != nil {
 		return
 	}

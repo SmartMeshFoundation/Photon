@@ -16,7 +16,7 @@ const (
 	ChannelDelegateStateFailAndNoEffectiveChain
 )
 
-// String :
+// String  for read
 func (s ChannelDelegateState) String() string {
 	switch s {
 	case ChannelDelegateStateNoNeed:

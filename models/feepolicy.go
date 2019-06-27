@@ -35,12 +35,12 @@ func (fs *FeeSetting) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	fs.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor FeeSetting err %s", err))
+		panic(fmt.Sprintf("signDataFor FeeSetting err %s", err))
 	}
 	return fs.Signature
 }
 
-// FeePolicy :
+// FeePolicy 定义个账号的收费策略
 type FeePolicy struct {
 	Key           string                         `storm:"id"`
 	AccountFee    *FeeSetting                    `json:"account_fee"`

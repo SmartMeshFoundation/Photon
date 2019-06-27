@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
+
 	"fmt"
 
 	"encoding/hex"
@@ -49,13 +51,13 @@ func randomPort() int {
 
 //MakeTestXMPPTransport create a test xmpp transport
 func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
-	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
+	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther, &codefortest.MockDb{})
 }
 
 //MakeTestMixTransport creat a test mix transport
 func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransport {
 	port := randomPort()
-	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
+	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther, &codefortest.MockDb{})
 	if err != nil {
 		panic(err)
 	}
@@ -106,10 +108,4 @@ func MakeTestDiscardExpiredTransferPhotonProtocol(name string) *PhotonProtocol {
 	privkey, _ := crypto.GenerateKey()
 	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
 	return rp
-}
-
-//SubscribeNeighbor subscribe neighbor's online and offline status
-func SubscribeNeighbor(p *PhotonProtocol, addr common.Address) error {
-	xt := p.Transport.(*XMPPTransport)
-	return xt.conn.SubscribeNeighbour(addr)
 }

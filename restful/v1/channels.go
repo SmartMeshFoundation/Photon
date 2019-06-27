@@ -9,7 +9,7 @@ import (
 
 	"fmt"
 
-	"github.com/SmartMeshFoundation/Photon"
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -178,7 +178,7 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 
 	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	var d *ChannelData
@@ -236,7 +236,7 @@ func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 	}
 	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	d := &ChannelData{
@@ -384,7 +384,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 	}
 	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	if req.Amount != nil && req.Amount.Cmp(utils.BigInt0) > 0 { //deposit
@@ -395,7 +395,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		}
 		c, err = API.Withdraw(c.TokenAddress(), c.PartnerAddress(), req.Amount)
 		if err != nil {
-			resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+			resp = dto.NewExceptionAPIResponse(err)
 			return
 		}
 	} else {
@@ -408,7 +408,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		if err != nil {
-			resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+			resp = dto.NewExceptionAPIResponse(err)
 			return
 		}
 	}

@@ -1159,6 +1159,12 @@
 			"revisionTime": "2018-09-01T20:24:07Z"
 		},
 		{
+			"checksumSHA1": "rEgwRH5aExv834E2w/7oC7NI3rc=",
+			"path": "go.uber.org/atomic",
+			"revision": "908889c45e73bedd558e99819aea3be3503fc581",
+			"revisionTime": "2017-05-09T22:51:15Z"
+		},
+		{
 			"checksumSHA1": "1MGpGDQqnUoRpv7VEcQrXOBydXE=",
 			"path": "golang.org/x/crypto/pbkdf2",
 			"revision": "8c653846df49742c4c85ec37e5d9f8d3ba657895",

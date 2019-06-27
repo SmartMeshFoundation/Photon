@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/rerr"
+
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -15,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// NewSentTransferDetail :
+// NewSentTransferDetail build a new struct and save to db
 func (model *StormDB) NewSentTransferDetail(tokenAddress, target common.Address, amount *big.Int, data string, isDirect bool, lockSecretHash common.Hash) {
 	std := &models.SentTransferDetail{
 		Key:               utils.Sha3(tokenAddress[:], lockSecretHash[:]).String(),
@@ -41,7 +43,7 @@ func (model *StormDB) NewSentTransferDetail(tokenAddress, target common.Address,
 	log.Trace(fmt.Sprintf("NewSendTransferDetail key=%s lockSecertHash=%s", std.Key, lockSecretHash.String()))
 }
 
-// UpdateSentTransferDetailStatus :
+// UpdateSentTransferDetailStatus update status and status message
 func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address, lockSecretHash common.Hash, status models.TransferStatusCode, statusMessage string, otherParams interface{}) (transfer *models.SentTransferDetail) {
 	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
@@ -77,7 +79,7 @@ func (model *StormDB) UpdateSentTransferDetailStatus(tokenAddress common.Address
 	return
 }
 
-// UpdateSentTransferDetailStatusMessage :
+// UpdateSentTransferDetailStatusMessage only update status message
 func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.Address, lockSecretHash common.Hash, statusMessage string) (transfer *models.SentTransferDetail) {
 	transfer = &models.SentTransferDetail{}
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
@@ -99,7 +101,7 @@ func (model *StormDB) UpdateSentTransferDetailStatusMessage(tokenAddress common.
 	return
 }
 
-// GetSentTransferDetail :
+// GetSentTransferDetail query by primary key
 func (model *StormDB) GetSentTransferDetail(tokenAddress common.Address, lockSecretHash common.Hash) (*models.SentTransferDetail, error) {
 	var ts models.SentTransferDetail
 	key := utils.Sha3(tokenAddress[:], lockSecretHash[:]).String()
@@ -109,8 +111,7 @@ func (model *StormDB) GetSentTransferDetail(tokenAddress common.Address, lockSec
 	return &ts, err
 }
 
-// GetSentTransferDetailList :
-// 参数均为查询条件,传空值或负值代表不限制
+// GetSentTransferDetailList 列表查询,参数均为查询条件,传空值或负值代表不限制
 func (model *StormDB) GetSentTransferDetailList(tokenAddress common.Address, fromTime, toTime int64, fromBlock, toBlock int64) (transfers []*models.SentTransferDetail, err error) {
 	var selectList []q.Matcher
 	if tokenAddress != utils.EmptyAddress {
@@ -136,6 +137,9 @@ func (model *StormDB) GetSentTransferDetailList(tokenAddress common.Address, fro
 	}
 	if err == storm.ErrNotFound {
 		err = nil
+	}
+	if err != nil {
+		err = rerr.ErrGeneralDBError
 	}
 	return
 }

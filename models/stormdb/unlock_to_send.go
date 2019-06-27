@@ -30,7 +30,7 @@ func (model *StormDB) NewUnlockToSend(lockSecretHash common.Hash, tokenAddress, 
 	return us
 }
 
-// GetAllUnlockToSend :
+// GetAllUnlockToSend query all
 func (model *StormDB) GetAllUnlockToSend() (list []*models.UnlockToSend) {
 	err := model.db.All(&list)
 	if err == storm.ErrNotFound {
@@ -42,7 +42,7 @@ func (model *StormDB) GetAllUnlockToSend() (list []*models.UnlockToSend) {
 	return
 }
 
-// RemoveUnlockToSend :
+// RemoveUnlockToSend remove by primary key
 func (model *StormDB) RemoveUnlockToSend(key []byte) {
 	err := model.db.DeleteStruct(&models.UnlockToSend{
 		Key: key,

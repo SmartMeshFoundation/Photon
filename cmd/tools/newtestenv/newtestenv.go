@@ -59,10 +59,6 @@ func main() {
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "address",
-			Usage: "The ethereum address you would like photon to use and for which a keystore file exists in your local system.",
-		},
-		cli.StringFlag{
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
 			//Value: ethutils.DirectoryString{params.DefaultKeyStoreDir()},

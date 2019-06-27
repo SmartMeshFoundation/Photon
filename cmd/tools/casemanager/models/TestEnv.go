@@ -242,7 +242,11 @@ func transferToAccount(conn *ethclient.Client, key *ecdsa.PrivateKey, accountTo 
 	if err = conn.SendTransaction(ctx, signedTx); err != nil {
 		return fmt.Errorf("conn.SendTransaction : %v,nonce=%v,accountTo=%s,amount=%s,gasLimit=%v,gasPrice=%s", err, nonce, accountTo.Hex(), amount.String(), gasLimit, getAmount(gasPrice).String())
 	}
-	_, err = bind.WaitMined(ctx, conn, signedTx)
+	receipt, err := bind.WaitMined(ctx, conn, signedTx)
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("transferToAccount ,failed tx=%s", receipt.TxHash.String())
+		panic("transferToAccount failed")
+	}
 	return
 }
 
@@ -606,25 +610,41 @@ func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, ke
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
 		tx, err = env.TokenNetwork.Deposit(auth1, token.TokenAddress, account1, account2, amount1, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
 		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account1 failed")
+		}
 	}
 	if amount2.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
 		tx, err = env.TokenNetwork.Deposit(auth2, token.TokenAddress, account2, account1, amount2, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account2 failed")
 		}
 	}
 }
@@ -637,30 +657,50 @@ func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetwor
 		log.Fatalf("Failed to Approve: %v", err)
 	}
 	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
+	receipt, err := bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to Approve when mining :%v", err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("approveAccount for %s ,failed tx=%s",
+			utils.APex2(auth.From),
+			receipt.TxHash.String(),
+		)
+		panic("approve error")
 	}
 	log.Printf("approve account %s %d tokens to %s success\n", utils.APex(auth.From), approveAmt, utils.APex(tokenNetworkAddress))
 }
 
-var approveMap = make(map[common.Hash]int64)
+var approveMap = make(map[common.Hash]*big.Int)
 var approveMapLock = sync.Mutex{}
+var maxApprove *big.Int
 
+func init() {
+	//1<<256-1,最大的256整数
+	a := big.NewInt(1)
+	a = a.Lsh(a, 256)
+	a = a.Sub(a, big.NewInt(1))
+	maxApprove = a
+	log.Printf("maxApprove=%s\n", maxApprove)
+}
 func approveAccountIfNeeded(token *Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
 	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:], token.TokenAddress[:])
 	approveMapLock.Lock()
 	m, ok := approveMap[key]
-	if ok && m > amount.Int64() {
+	if ok && m.Cmp(amount) > 0 {
 		approveMapLock.Unlock()
 		return
 	}
 	approveMapLock.Unlock()
-	approveAccount(token.Token, auth, tokenNetworkAddress, amount, conn)
-	approveAmt := new(big.Int)
-	approveAmt = approveAmt.Mul(amount, big.NewInt(100))
+	/*
+			同一个节点可能需要创建好几条通道,出于方便,我们只approve一次,保证approve的金额超过所有
+		通道需要的金额之和.
+			Approve的时候并不会实际检查该账户是否有这么多token,因此总会成功.
+			保险起见,我们总是approve一个很大很大的数值,这样保证一个testcase只approve一次.
+	*/
+	approveAccount(token.Token, auth, tokenNetworkAddress, maxApprove, conn)
 	approveMapLock.Lock()
-	approveMap[key] = approveAmt.Int64()
+	approveMap[key] = maxApprove
 	approveMapLock.Unlock()
 }
 
@@ -742,7 +782,7 @@ func (env *TestEnv) GetTokenByName(tokenName string) (index int, token *Token) {
 			return index, token
 		}
 	}
-	return
+	panic(fmt.Sprintf("GetTokenByName %s,not found", tokenName))
 }
 
 // GetNodeAddressByName :
@@ -752,7 +792,7 @@ func (env *TestEnv) GetNodeAddressByName(nodeName string) (index int, address co
 			return index, common.HexToAddress(node.Address)
 		}
 	}
-	return
+	panic(fmt.Sprintf("GetNodeAddressByName %s,not found", nodeName))
 }
 
 // GetNodeByAddress :
@@ -762,7 +802,7 @@ func (env *TestEnv) GetNodeByAddress(nodeAddress string) *PhotonNode {
 			return node
 		}
 	}
-	return nil
+	panic(fmt.Sprintf("GetNodeByAddress %s,not found", nodeAddress))
 }
 
 //Println print all

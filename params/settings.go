@@ -106,7 +106,7 @@ InTest are we test now?
 */
 var InTest = true
 
-// DefaultChainID :
+// DefaultChainID todo 什么情况下会使用ChainID=0???
 var DefaultChainID = big.NewInt(0)
 
 //ChainID of this tokenNetwork
@@ -115,12 +115,15 @@ var ChainID = DefaultChainID
 //PunishBlockNumber is punish_block_number of contract,default is 257
 var PunishBlockNumber int64
 
-//MatrixServerConfig matrix server config
-var MatrixServerConfig = map[string]string{
+//TrustMatrixServers matrix server config
+var TrustMatrixServers = map[string]string{
 	"transport01.smartmesh.cn": "http://transport01.smartmesh.cn:8008",
 	//"transport02.smartmesh.cn": "http://transport02.smartmesh.cn:8008",
 	"transport13.smartmesh.cn": "http://transport13.smartmesh.cn:8008",
 }
+
+//UserSpecifiedMatrixServer 用户指定的MatrixServer
+var UserSpecifiedMatrixServer string
 
 //AliasFragment  is discovery AliasFragment
 const AliasFragment = "discovery"
@@ -162,6 +165,20 @@ var DefaultContractToPFS = map[common.Address]string{
 	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): "http://transport01.smartmesh.cn:7002",
 }
 
+//DefaultMatrixContractToPFS : default matrix pfs for provider
+var DefaultMatrixContractToPFS = map[common.Address]string{
+	// spectrum
+	common.HexToAddress("0x242e0de2B118279D1479545A131a90A8f67A2512"): "http://transport01.smartmesh.cn:7010",
+	// spectrum test net
+	common.HexToAddress("0xc479184abeb8c508ee96e4c093ee47af2256cbbf"): "http://transport01.smartmesh.cn:7011",
+	// ethereum
+	//common.HexToHash("0x88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6"): "",
+	// ethereum test net
+	//common.HexToHash("0x41800b5c3f1717687d85fc9018faac0a6e90b39deaa0b99e7fe4fe796ddeb26a"): "",
+	// ethereum private
+	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): "http://transport01.smartmesh.cn:7012",
+}
+
 //DefaultContractToPMS : default pms provider
 var DefaultContractToPMS = map[common.Address]string{
 	// spectrum
@@ -190,22 +207,23 @@ var DefaultContractToPMSAddress = map[common.Address]common.Address{
 	common.HexToAddress("0x2907b8bf0fF92dA818E2905fB5218b1A8323Ffb4"): common.HexToAddress("0xa668da12fe5f5729cbce9ae697d56bac929766f4"),
 }
 
-// DefaultEthRPCPollPeriodForTest :
+// DefaultEthRPCPollPeriodForTest 事件模块轮询间隔,为出块间隔为1秒的私链使用
 var DefaultEthRPCPollPeriodForTest = 500 * time.Millisecond
 
-// DefaultEthRPCPollPeriod :
+// DefaultEthRPCPollPeriod 事件模块轮询间隔,为出块间隔为15秒的testnet及主网使用
 var DefaultEthRPCPollPeriod = 7500 * time.Millisecond
 
-// TestPrivateChainID :
+// TestPrivateChainID 测试用私链ChainID,出块间隔1秒
 var TestPrivateChainID int64 = 8888
 
-// TestPrivateChainID2 : for travis fast test
+// TestPrivateChainID2 travis及自动化测试用私链ChainID,出块间隔50豪秒
 var TestPrivateChainID2 int64 = 7888
 
-// EthRPCTimeout :
+// EthRPCTimeout  尝试与公链节点建立连接时的超时时间,过短可能会造成因为网络延迟而把本应该成功的链接拒绝
+// 过长可能会造成错误迟迟无法被检测到.
 var EthRPCTimeout = 3 * time.Second
 
-// ContractVersionPrefix :
+// ContractVersionPrefix photon合约版本号前缀,做兼容性相关开发的时候使用
 var ContractVersionPrefix = "0.6"
 
 // EnableForkConfirm : 事件延迟确认开关
@@ -242,7 +260,7 @@ var BlockPeriodSeconds = 15
 var IsMainNet = false
 
 //MainNetChannelSettleTimeoutMin min settle timeout of main net,主网按一周计算,14秒一块
-const MainNetChannelSettleTimeoutMin = 43200
+const MainNetChannelSettleTimeoutMin = 40000
 
 //TestNetChannelSettleTimeoutMin min settle timeout of main net,测试网60块
 const TestNetChannelSettleTimeoutMin = 60
@@ -251,9 +269,18 @@ const TestNetChannelSettleTimeoutMin = 60
 ChannelSettleTimeoutMax The maximum settle timeout is chosen as something above
  1 year with the assumption of very fast block times of 12 seconds.
  There is a maximum to avoidpotential overflows as described here:
- https://github.com/Photon/photon/issues/1038
 */
 const ChannelSettleTimeoutMax = 2700000
 
 // ContractPunishBlockNumber 合约上设置的专门留给punish的块
 const ContractPunishBlockNumber uint64 = 257
+
+// BlockchainEffectiveTimeout 判断当前公链是否有效的依据
+const BlockchainEffectiveTimeout = 180
+
+// MinBalance 最小余额,18 * GasPrice * GasLimit * 3, 当账户余额小于该值时,合约调用存在失败且
+const MinBalance = 18 * 1e9 * 100000 * 3
+
+//MainNetNetworkID is the main networkID,in spectrum main net ChainID is 20180430,but
+//networkID is 1
+const MainNetNetworkID = 1

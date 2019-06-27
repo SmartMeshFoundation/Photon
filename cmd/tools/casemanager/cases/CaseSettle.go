@@ -1,9 +1,12 @@
 package cases
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
+	pmodels "github.com/SmartMeshFoundation/Photon/models"
 )
 
 // CaseSettle :
@@ -74,6 +77,22 @@ func (cm *CaseManager) CaseSettle() (err error) {
 	}
 	if err == nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, "Transfer must failed after cooperate settle")
+	}
+	txs, err := N0.ContractCallTXQuery(c01.ChannelIdentifier, pmodels.TXInfoTypeSettle)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "query tx failed")
+	}
+	if len(txs) != 1 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("txs length =%d", len(txs)))
+	}
+	tx := txs[0]
+	settleParams := &pmodels.ChannelSettleTXParams{}
+	err = json.Unmarshal([]byte(tx.TXParams), settleParams)
+	if err != nil {
+		return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("tx params error %s", err))
+	}
+	if settleParams.P1Balance.Int64() != 49 || settleParams.P2Balance.Int64() != 51 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, tx.TXParams)
 	}
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return nil

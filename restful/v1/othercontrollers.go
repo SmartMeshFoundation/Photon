@@ -84,7 +84,7 @@ func PrepareUpdate(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(nil)
 }
 
-// NotifyNetworkDown :
+// NotifyNetworkDown 上层应用通知photon网络断开,强制photon对所有远程连接进行重连尝试
 func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -95,7 +95,7 @@ func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, "ok")
 }
 
-// GetFeePolicy :
+// GetFeePolicy 查询节点手续费收费策略
 func GetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -106,7 +106,7 @@ func GetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, fp)
 }
 
-// SetFeePolicy :
+// SetFeePolicy 全量更新节点手续费收费策略
 func SetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -123,7 +123,7 @@ func SetFeePolicy(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, "ok")
 }
 
-// FindPath :
+// FindPath 通过photon调用pfs的路由查询服务
 func FindPath(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -153,7 +153,7 @@ func FindPath(w rest.ResponseWriter, r *rest.Request) {
 
 }
 
-// GetAllFeeChargeRecord :
+// GetAllFeeChargeRecord 查询节点收取手续费的记录
 func GetAllFeeChargeRecord(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -164,7 +164,7 @@ func GetAllFeeChargeRecord(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, result)
 }
 
-// GetSystemStatus :
+// GetSystemStatus 查询节点汇总信息
 func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -175,7 +175,7 @@ func GetSystemStatus(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, result)
 }
 
-// GetIncomeDetailsRequest :
+// GetIncomeDetailsRequest GetIncomeDetails接口的返回结构
 type GetIncomeDetailsRequest struct {
 	TokenAddress string `json:"token_address"`
 	FromTime     int64  `json:"from_time"`
@@ -183,7 +183,7 @@ type GetIncomeDetailsRequest struct {
 	Limit        int    `json:"limit"`
 }
 
-// GetIncomeDetails :
+// GetIncomeDetails 查询photon节点收益信息明细
 func GetIncomeDetails(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -201,13 +201,13 @@ func GetIncomeDetails(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, result)
 }
 
-// GetOneWeekIncomeRequest :
+// GetOneWeekIncomeRequest 过去N天收益信息报表查询参数
 type GetOneWeekIncomeRequest struct {
 	TokenAddress string `json:"token_address"`
 	Days         int    `json:"days"`
 }
 
-// GetDaysIncome :
+// GetDaysIncome 过去N天收益信息报表查询
 func GetDaysIncome(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -225,7 +225,7 @@ func GetDaysIncome(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewAPIResponse(err, result)
 }
 
-//GetBuildInfo :
+//GetBuildInfo 查询版本构建信息
 func GetBuildInfo(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -235,12 +235,12 @@ func GetBuildInfo(w rest.ResponseWriter, r *rest.Request) {
 	resp = dto.NewSuccessAPIResponse(API.GetBuildInfo())
 }
 
-// GetAssetsOnTokenRequest :
+// GetAssetsOnTokenRequest GetAssetsOnToken接口查询参数
 type GetAssetsOnTokenRequest struct {
 	TokenList []string `json:"token_list"`
 }
 
-//GetAssetsOnToken :
+//GetAssetsOnToken 查询链上及photon资产信息
 func GetAssetsOnToken(w rest.ResponseWriter, r *rest.Request) {
 	var resp *dto.APIResponse
 	defer func() {
@@ -257,5 +257,10 @@ func GetAssetsOnToken(w rest.ResponseWriter, r *rest.Request) {
 	for _, token := range req.TokenList {
 		tokenList = append(tokenList, common.HexToAddress(token))
 	}
-	resp = dto.NewSuccessAPIResponse(API.GetAssetsOnToken(tokenList))
+	data, err := API.GetAssetsOnToken(tokenList)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+	} else {
+		resp = dto.NewSuccessAPIResponse(data)
+	}
 }

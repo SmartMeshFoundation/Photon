@@ -1,8 +1,16 @@
 package photon
 
 import (
+	"compress/gzip"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
 	"time"
+
+	"github.com/ethereum/go-ethereum"
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
@@ -98,14 +106,18 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			settleTimeout = r.Photon.Config.SettleTimeout
 		}
 		if settleTimeout <= revealTimeout {
-			err = rerr.ErrChannelInvalidSttleTimeout
+			err = rerr.ErrChannelInvalidSettleTimeout
+			return
+		}
+		if bytes.Equal(partnerAddress[:], r.Photon.NodeAddress[:]) {
+			err = rerr.ErrOpenChannelWithSelf
 			return
 		}
 	} else {
 		settleTimeout = 0
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
-		err = rerr.ErrInvalidAmount
+		err = rerr.ErrArgumentError.Append("invalid amount")
 		return
 	}
 	if err = r.checkSmcStatus(); err != nil {
@@ -123,6 +135,8 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 		ch.OurAddress = r.Photon.NodeAddress
 		ch.PartnerAddressBytes = partnerAddress[:]
 		ch.State = channeltype.StateInValid
+		ch.SettleTimeout = settleTimeout
+		ch.RevealTimeout = revealTimeout
 	} else {
 		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
@@ -252,7 +266,7 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 	return
 }
 
-//Transfer transfer and wait
+//Transfer 核心交易接口,同步,将在交易成功/失败后返回
 func (r *API) Transfer(token common.Address, amount *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	result, err = r.TransferInternal(token, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
@@ -271,7 +285,7 @@ func (r *API) Transfer(token common.Address, amount *big.Int, target common.Addr
 	return result, err
 }
 
-// TransferAsync :
+// TransferAsync 核心交易接口异步版,将在本地数据验证通过,将消息发送至目标节点或下个路由节点后返回,且不等待对方对该条消息的ack
 func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	result, err = r.TransferInternal(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
@@ -286,7 +300,7 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target
 	return result, err
 }
 
-//TransferInternal :
+//TransferInternal 供同步/异步交易接口使用
 func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
 		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
@@ -304,14 +318,14 @@ func (r *API) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.
 	return
 }
 
-// RegisterSecret :
+// RegisterSecret 手动注册密码,只会在指定密码的交易中使用
 func (r *API) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
 	result := r.Photon.registerSecretClient(secret, tokenAddress)
 	err = <-result.Result
 	return
 }
 
-// TransferDataResponse :
+// TransferDataResponse GetUnfinishedReceivedTransfer接口返回的数据结构
 type TransferDataResponse struct {
 	Initiator      string   `json:"initiator_address"`
 	Target         string   `json:"target_address"`
@@ -324,7 +338,7 @@ type TransferDataResponse struct {
 	IsDirect       bool     `json:"is_direct"`
 }
 
-// GetUnfinishedReceivedTransfer :
+// GetUnfinishedReceivedTransfer 根据LockSecretHash及token查询收到但未完成的MediatedTransfer
 func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAddress common.Address) (resp *TransferDataResponse) {
 	result := r.Photon.getUnfinishedReceivedTransferClient(lockSecretHash, tokenAddress)
 	err := <-result.Result
@@ -367,7 +381,7 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	//send settle request
 	result := r.Photon.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -388,7 +402,7 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 	//send settle request
 	result := r.Photon.cooperativeSettleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -410,7 +424,7 @@ func (r *API) PrepareForCooperativeSettle(channelIdentifier common.Hash) (c *cha
 	//send settle request
 	result := r.Photon.markChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -432,7 +446,7 @@ func (r *API) CancelPrepareForCooperativeSettle(channelIdentifier common.Hash) (
 	//send settle request
 	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -457,7 +471,7 @@ func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.
 	//send settle request
 	result := r.Photon.withdrawClient(c.ChannelIdentifier.ChannelIdentifier, amount)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -475,7 +489,7 @@ func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c
 	//send settle request
 	result := r.Photon.markWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -493,7 +507,7 @@ func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Addre
 	//send settle request
 	result := r.Photon.cancelMarkWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -710,7 +724,7 @@ type AccountTokenBalanceVo struct {
 	LockedAmount *big.Int `json:"locked_amount"`
 }
 
-// GetBalanceByTokenAddress : get account's balance and locked account on token
+// GetBalanceByTokenAddress get account's balance and locked account on token
 func (r *API) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []*AccountTokenBalanceVo, err error) {
 	if tokenAddress == utils.EmptyAddress {
 		return r.getBalance()
@@ -741,7 +755,7 @@ func (r *API) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []
 	return []*AccountTokenBalanceVo{balance}, err
 }
 
-// getBalance : get account's balance and locked account on each token
+// getBalance get account's balance and locked account on each token
 func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 	channels, err := r.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
@@ -766,21 +780,21 @@ func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 	return
 }
 
-// ForceUnlock : only for debug
+// ForceUnlock only for debug
 func (r *API) ForceUnlock(channelIdentifier, secret common.Hash) (err error) {
 	result := r.Photon.forceUnlockClient(secret, channelIdentifier)
 	err = <-result.Result
 	return
 }
 
-// RegisterSecretOnChain : only for debug
+// RegisterSecretOnChain only for debug
 func (r *API) RegisterSecretOnChain(secret common.Hash) (err error) {
 	result := r.Photon.registerSecretOnChainClient(secret)
 	err = <-result.Result
 	return
 }
 
-// CancelTransfer : cancel a transfer when haven't send secret
+// CancelTransfer cancel a transfer when haven't send secret
 func (r *API) CancelTransfer(lockSecretHash common.Hash, tokenAddress common.Address) error {
 	result := r.Photon.cancelTransferClient(lockSecretHash, tokenAddress)
 	return <-result.Result
@@ -837,7 +851,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 	return
 }
 
-// NotifyNetworkDown :
+// NotifyNetworkDown 上层应用通知photon网络断开,强制photon对所有远程连接进行重连尝试
 func (r *API) NotifyNetworkDown() error {
 	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
@@ -889,7 +903,7 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 	return
 }
 
-// GetAllFeeChargeRecord :
+// GetAllFeeChargeRecord 查询节点收取手续费的记录
 func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	type responce struct {
 		TotalFee map[common.Address]*big.Int `json:"total_fee"`
@@ -913,7 +927,7 @@ func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	return
 }
 
-// SystemStatus :
+// SystemStatus 查询节点汇总信息
 func (r *API) SystemStatus() (resp interface{}, err error) {
 	type transfers struct {
 		SendNum    int `json:"send_num"`
@@ -922,7 +936,8 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	type systemStatus struct {
 		EthRPCEndpoint      string                            `json:"eth_rpc_endpoint"`
-		EthRPCStatus        string                            `json:"eth_rpc_status"` // disconnected, connected, closed, reconnecting
+		EthRPCStatus        string                            `json:"eth_rpc_status"`  // disconnected, connected, closed, reconnecting
+		ChainEffective      bool                              `json:"chain_effective"` //当前连接公链是否有效
 		NodeAddress         string                            `json:"node_address"`
 		RegistryAddress     string                            `json:"registry_address"`
 		TokenToTokenNetwork map[common.Address]common.Address `json:"token_to_token_network"`
@@ -933,20 +948,27 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		FeePolicy           *models.FeePolicy                 `json:"fee_policy"`
 		ChannelNum          int                               `json:"channel_num"`
 		Transfers           *transfers                        `json:"transfers,omitempty"`
+		SyncProcess         *ethereum.SyncProgress            `json:"sync_process"`
 	}
 	var data systemStatus
 	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
-	// EthRPCStatus
-	switch r.Photon.Chain.Client.Status {
-	case netshare.Disconnected:
+	if r.Photon.Chain.Client != nil {
+		switch r.Photon.Chain.Client.Status {
+		case netshare.Disconnected:
+			data.EthRPCStatus = "disconnected"
+		case netshare.Connected:
+			data.EthRPCStatus = "connected"
+		case netshare.Closed:
+			data.EthRPCStatus = "closed"
+		case netshare.Reconnecting:
+			data.EthRPCStatus = "reconnecting"
+		}
+	} else {
 		data.EthRPCStatus = "disconnected"
-	case netshare.Connected:
-		data.EthRPCStatus = "connected"
-	case netshare.Closed:
-		data.EthRPCStatus = "closed"
-	case netshare.Reconnecting:
-		data.EthRPCStatus = "reconnecting"
 	}
+	// EthRPCStatus
+	// 这里只向外暴露两个状态:有效公链/无效公链
+	data.ChainEffective = r.Photon.IsChainEffective
 	data.NodeAddress = r.Photon.NodeAddress.String()
 	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
 	// TokenToTokenNetwork
@@ -992,6 +1014,16 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		SendNum:    len(sts),
 		ReceiveNum: len(rts),
 		DealingNum: len(r.Photon.Transfer2StateManager),
+	}
+	//只有确定公链链接有效才会查询,否则不查询
+	if r.Photon.Chain.Client.Status == netshare.Connected {
+		var sync *ethereum.SyncProgress
+		sync, err = r.Photon.Chain.SyncProgress()
+		if err != nil {
+			err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
+			return
+		}
+		data.SyncProcess = sync
 	}
 	resp = data
 	return
@@ -1210,7 +1242,7 @@ func (r *API) GetBuildInfo() *BuildInfo {
 	return r.Photon.BuildInfo
 }
 
-// GetChannelSettleBlockResponse :
+// GetChannelSettleBlockResponse GetChannelSettleBlock接口返回数据结构
 type GetChannelSettleBlockResponse struct {
 	BlockNumberNow              int64 `json:"block_number_now"`
 	BlockNumberChannelCanSettle int64 `json:"block_number_channel_can_settle,omitempty"`
@@ -1254,19 +1286,18 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 	return v, nil
 }
 
-// GetAssetsOnTokenResponseDetail :
+// GetAssetsOnTokenResponseDetail GetAssetsOnToken接口返回数据结构
 type GetAssetsOnTokenResponseDetail struct {
 	TokenAddress    string   `json:"token_address"`
 	BalanceOnChain  *big.Int `json:"balance_on_chain"`
 	BalanceInPhoton *big.Int `json:"balance_in_photon"`
 }
 
-// GetAssetsOnToken :
-func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenResponseDetail {
+// GetAssetsOnToken 获取用户在链上以及通道中的资产总和
+func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnTokenResponseDetail, err error) {
 	if len(tokenList) == 0 {
 		tokenList = r.GetTokenList()
 	}
-	var resp []*GetAssetsOnTokenResponseDetail
 	for _, token := range tokenList {
 		d := &GetAssetsOnTokenResponseDetail{
 			TokenAddress:    token.String(),
@@ -1274,16 +1305,19 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			BalanceInPhoton: big.NewInt(0),
 		}
 		// 1. 获取用户在链上的该token余额
-		t, err := r.GetTokenBalance(r.Photon.NodeAddress, token)
-		if err != nil {
-			log.Error(err.Error())
-		} else {
-			d.BalanceOnChain = t
+		t, err2 := r.GetTokenBalance(r.Photon.NodeAddress, token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
 		}
+		d.BalanceOnChain = t
 		// 2. 获取用户在photon中的该token余额
-		balance, err := r.GetBalanceByTokenAddress(token)
-		if err != nil {
-			log.Error(err.Error())
+		balance, err2 := r.GetBalanceByTokenAddress(token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
 		}
 		if len(balance) == 1 {
 			d.BalanceInPhoton = balance[0].Balance
@@ -1292,5 +1326,68 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) []*GetAssetsOnTokenRe
 			resp = append(resp, d)
 		}
 	}
-	return resp
+	return
+}
+
+// UploadLogFile 上传photon日志到日志server
+func (r *API) UploadLogFile() error {
+	return uploadLogFile(r.Photon.NodeAddress, r.Photon.Config.LogFilePath)
+}
+
+func uploadLogFile(address common.Address, logFilePath string) (err error) {
+	now := time.Now()
+	logFileName := fmt.Sprintf("photon-log-%s-%s.log", address.String(), now.Format("2006-01-02-15-04-05"))
+	fmt.Println(logFileName)
+	// 1. 读取文件并压缩 #nosec
+	logFile, err := os.Open(logFilePath)
+	if err != nil {
+		return
+	}
+	defer logFile.Close()
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	fileStat, err := logFile.Stat()
+	if err != nil {
+		return
+	}
+	zw.Name = logFileName
+	zw.ModTime = fileStat.ModTime()
+	_, err = io.Copy(zw, logFile)
+	if err != nil {
+		return
+	}
+	err = zw.Flush()
+	err = zw.Close()
+	if err != nil {
+		return
+	}
+	// 2. 发送
+	var buf2 bytes.Buffer
+	w := multipart.NewWriter(&buf2)
+	fw, err := w.CreateFormFile("uploadfile", logFileName)
+	if err != nil {
+		return
+	}
+	_, err = io.Copy(fw, &buf)
+	if err != nil {
+		return
+	}
+	err = w.Close()
+	if err != nil {
+		return
+	}
+	res, err := http.Post(params.TestLogServer+"/logsrv/1/upload", w.FormDataContentType(), &buf2)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+	message, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	log.Info(fmt.Sprintf("upload logfile and got response : %d %s", res.StatusCode, string(message)))
+	if res.StatusCode != http.StatusOK {
+		err = fmt.Errorf("upload logfile and got response : %d %s", res.StatusCode, string(message))
+	}
+	return
 }

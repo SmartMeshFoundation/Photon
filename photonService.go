@@ -135,8 +135,7 @@ type Service struct {
 	SentMediatedTransferListenerMap       map[*SentMediatedTransferListener]bool     //for tokenswap
 	HealthCheckMap                        map[common.Address]bool
 	quitChan                              chan struct{} //for quit notification
-	isStarting                            bool
-	StopCreateNewTransfers                bool // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
+	StopCreateNewTransfers                bool          // 是否停止接收新交易,默认false,目前仅在用户调用prepare-update接口的时候,会被置为true,直到重启		// boolean to check whether stop receiving new transfers, default to false. Currently it sets to true when clients invoke prepare-update, till it reconnects.
 	EthConnectionStatus                   chan netshare.Status
 	ChanHistoryContractEventsDealComplete chan struct{}
 	BuildInfo                             *BuildInfo
@@ -181,7 +180,6 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		SentMediatedTransferListenerMap:       make(map[*SentMediatedTransferListener]bool),
 		HealthCheckMap:                        make(map[common.Address]bool),
 		quitChan:                              make(chan struct{}),
-		isStarting:                            true,
 		StopCreateNewTransfers:                false,
 		EthConnectionStatus:                   make(chan netshare.Status, 10),
 		ChanHistoryContractEventsDealComplete: make(chan struct{}),
@@ -194,14 +192,11 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.MessageHandler = newPhotonMessageHandler(rs)
 	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
 	rs.Protocol = network.NewPhotonProtocol(transport, privateKey, rs)
-	//todo fixme MatrixTransport should have a better contructor function
-	mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
-	if ok {
-		err = mtransport.SetMatrixDB(rs.dao)
-		if err != nil {
-			return
-		}
-	}
+	////todo fixme MatrixTransport should have a better contructor function
+	//mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
+	//if ok {
+	//	mtransport.SetMatrixDB(rs.dao)
+	//}
 	rs.Protocol.SetReceivedMessageSaver(NewAckHelper(rs.dao))
 	/*
 		only one instance for one data directory
@@ -225,10 +220,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 		if config.PfsHost != "" {
 			rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
 		}
-		rs.FeePolicy, err = NewFeeModule(dao, rs.PfsProxy)
-		if err != nil {
-			return
-		}
+		rs.FeePolicy = NewFeeModule(dao, rs.PfsProxy)
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
 	}
@@ -255,6 +247,8 @@ func (rs *Service) Start() (err error) {
 	*/
 	n := rs.dao.GetLatestBlockNumber()
 	rs.BlockNumber.Store(n)
+	//如果启动的时候就是无网,那么这个时间就完全无效.预置有一个有参考价值的时间
+	rs.EffectiveChangeTimestamp = rs.dao.GetLastBlockNumberTime().Unix()
 	err = rs.registerRegistry()
 	if err != nil {
 		return
@@ -304,6 +298,8 @@ func (rs *Service) Start() (err error) {
 		//wait for start up complete.
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
+	} else {
+		log.Info(fmt.Sprintf("Photon Startup complete without effective chain"))
 	}
 
 	/*
@@ -320,15 +316,7 @@ func (rs *Service) Start() (err error) {
 	*/
 	go rs.submitBalanceProofToPfsLoop()
 	go rs.submitDelegateToPmsLoop()
-	//
-	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-	// 只有在混合模式下启动时,才订阅其他节点的在线状态
-	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
-	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
-		err = rs.startSubscribeNeighborStatus()
-		return
-	}
 	return nil
 }
 
@@ -338,7 +326,7 @@ func (rs *Service) Stop() {
 	close(rs.quitChan)
 	rs.Protocol.StopAndWait()
 	rs.BlockChainEvents.Stop()
-	rs.Chain.Client.Close()
+	rs.Chain.Stop()
 	rs.NotifyHandler.Stop()
 	time.Sleep(100 * time.Millisecond) // let other goroutines quit
 	rs.dao.CloseDB()
@@ -429,7 +417,8 @@ func (rs *Service) loop() {
 			if s == netshare.Connected {
 				rs.handleEthRPCConnectionOK()
 			} else {
-				rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
+				//通过EthConnectionStatus通知eth连接断开,
+				//rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
 			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
@@ -444,13 +433,12 @@ func (rs *Service) loop() {
 func (rs *Service) registerRegistry() (err error) {
 	token2TokenNetworks, err := rs.dao.GetAllTokens()
 	if err != nil {
-		err = fmt.Errorf("registerRegistry err:%s", err)
 		return
 	}
 	for token := range token2TokenNetworks {
 		err = rs.registerTokenNetwork(token)
 		if err != nil {
-			err = fmt.Errorf("registerTokenNetwork err:%s", err)
+			//err = fmt.Errorf("registerTokenNetwork err:%s", err)
 			return
 		}
 	}
@@ -552,18 +540,22 @@ func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessag
 		rs.dao.NewSentEnvelopMessager(envelopMessager, recipient)
 	}
 	result := rs.Protocol.SendAsync(recipient, msg)
+	//todo 发送消息量大的时候,会制造大量的goroutine,比较昂贵
 	go func() {
 		defer rpanic.PanicRecover(fmt.Sprintf("send %s, msg:%s", utils.APex(recipient), msg))
-		err := <-result.Result //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败
-		if err == nil {
-			rs.ProtocolMessageSendComplete <- &protocolMessage{
-				receiver: recipient,
-				Message:  msg,
+		select {
+		case <-rs.quitChan:
+			return
+		case err := <-result.Result: //如果通道已经settle,那么这个消息是没必要再发送了.这时候会失败
+			if err == nil {
+				rs.ProtocolMessageSendComplete <- &protocolMessage{
+					receiver: recipient,
+					Message:  msg,
+				}
+			} else {
+				log.Error(fmt.Sprintf("message %s send finished ,but err=%s", utils.StringInterface(msg, 3), err))
 			}
-		} else {
-			log.Error(fmt.Sprintf("message %s send finished ,but err=%s", utils.StringInterface(msg, 3), err))
 		}
-
 	}()
 	return nil
 }
@@ -789,10 +781,28 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		result.Result <- rerr.ErrNotAllowDirectTransfer
 		return
 	}
+	/*
+		发之前检测一下,接收方是否在线,如果不在线也不用发了.避免我方发出去,对方收不到这种情况.
+	*/
+	if rs.Chain.Client != nil && rs.Chain.Client.Status != netshare.Connected {
+		//无网情况下的交易,主要考虑移动端,他所连接点公链节点一定是互联网上的而不是局域网的
+		mixTransport, ok := rs.Protocol.Transport.(network.MixTranspoter)
+		if ok {
+			_, isOnline := mixTransport.UDPNodeStatus(target)
+			if !isOnline {
+				result.Result <- rerr.ErrNodeNotOnline
+				return
+			}
+		} else {
+			log.Error(fmt.Sprintf("it'a error when not in test"))
+		}
 
-	if directChannel.Distributable().Cmp(amount) < 0 {
-		result.Result <- rerr.ErrChannelNoEnoughBalance
-		return
+	} else {
+		_, isOnline := rs.Protocol.Transport.NodeStatus(target)
+		if !isOnline {
+			result.Result <- rerr.ErrNodeNotOnline
+			return
+		}
 	}
 	tr, err := directChannel.CreateDirectTransfer(amount)
 	if err != nil {
@@ -1083,6 +1093,11 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 				log.Error("can not found myself in msg.Path")
 				return
 			}
+			//传递参数有问题,导致没有下一跳
+			if myIndexInPath+1 >= len(msg.Path) {
+				log.Error(fmt.Sprintf("i'm not target,but cannot find more hop node,msg=%s", utils.StringInterface(msg, 5)))
+				return
+			}
 			nextChan := rs.getChannel(ch.TokenAddress, msg.Path[myIndexInPath+1])
 			if nextChan == nil {
 				log.Error(fmt.Sprintf("receive path,but channel between me and %s doesn't exist", msg.Path[myIndexInPath+1].String()))
@@ -1094,21 +1109,6 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			availableRoute.Fee = rs.FeePolicy.GetNodeChargeFee(nextChan.PartnerState.Address, nextChan.TokenAddress, targetAmount)
 			avaiableRoutes = append(avaiableRoutes, availableRoute)
 		}
-
-		//ourAddress := rs.NodeAddress
-		//exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
-		//var avaiableRoutes []*route.State
-		//if rs.PfsProxy != nil {
-		//	var err error
-		//	avaiableRoutes, err = rs.getBestRoutesFromPfs(rs.NodeAddress, targetAddr, tokenAddress, targetAmount, false)
-		//	if err != nil {
-		//		log.Error(fmt.Sprintf("get route from pathfinder failed, err = %s", err.Error()))
-		//	}
-		//} else {
-		//	g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-		//	//log.Trace(fmt.Sprintf("g=%s", utils.StringInterface(g, 7)))
-		//	avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, targetAddr, amount, targetAmount, exclude, rs)
-		//}
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
@@ -1213,22 +1213,23 @@ func (rs *Service) startNeighboursHealthCheck() {
 		}
 	}
 }
-func (rs *Service) startSubscribeNeighborStatus() error {
-	var err error
-	switch t := rs.Transport.(type) {
-	case *network.MixTransport:
-		err = t.SubscribeNeighbor(rs.dao)
-	case *network.MatrixMixTransport:
-		err = t.SetMatrixDB(rs.dao)
-	default:
-		return rerr.ErrTransportTypeUnknown
-	}
-	if err != nil {
-		log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
-		return nil
-	}
-	return err
-}
+
+//func (rs *Service) startSubscribeNeighborStatus() error {
+//	//var err error
+//	switch t := rs.Transport.(type) {
+//	case *network.MixTransport:
+//		//err = t.SubscribeNeighbor(rs.dao)
+//		//if err != nil {
+//		//	log.Warn(fmt.Sprintf("startSubscribeNeighborStatus when mobile mode  err %s ", err))
+//		//}
+//	case *network.MatrixMixTransport:
+//		t.SetMatrixDB(rs.dao)
+//	default:
+//		return rerr.ErrTransportTypeUnknown
+//	}
+//	return nil
+//}
+
 func (rs *Service) getToken2ChannelGraph(tokenAddress common.Address) (cg *graph.ChannelGraph) {
 	cg = rs.Token2ChannelGraph[tokenAddress]
 	if cg == nil {
@@ -1292,7 +1293,7 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 	}
 	tokenNetwork, err := rs.Chain.TokenNetwork(token)
 	if err != nil {
-		return utils.NewAsyncResultWithError(err)
+		panic(err) // never happen
 	}
 	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
 }
@@ -1402,7 +1403,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		return
 	}
 	if c.State != channeltype.StateOpened && c.State != channeltype.StatePrepareForWithdraw {
-		result.Result <- rerr.ErrChannelNotAllowWithdraw.Printf("state=%s", c.State)
+		result.Result <- rerr.ErrChannelState.Printf("can not withdraw because state = %s", c.State)
 		return
 	}
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
@@ -1811,35 +1812,51 @@ func (rs *Service) UpdateChannelAndSaveAck(c *channel.Channel, tag interface{}) 
 	echohash := t.EchoHash
 	ack := rs.Protocol.CreateAck(echohash)
 	cs := channel.NewChannelSerialization(c)
-	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
 	err := rs.dao.UpdateChannelAndSaveAck(cs, echohash, ack.Pack())
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelAndSaveAck %s", err))
 	}
+	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(cs))
 }
 
 //UpdateChannel 数据库中更新通道状态,同时通知App
 func (rs *Service) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
+	err := rs.dao.UpdateChannel(c, tx)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannel(c, tx)
+	return nil
 }
 
 //UpdateChannelNoTx  数据库更新,同时通知App,与updateChannelState的区别就在于回调函数的
 func (rs *Service) UpdateChannelNoTx(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelNoTx(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelNoTx(c)
+	return nil
 }
 
 //UpdateChannelState 数据库更新,同时通知app
 func (rs *Service) UpdateChannelState(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelState(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelState(c)
+	return nil
 }
 
 //UpdateChannelContractBalance 数据库更新,同时通知app
 func (rs *Service) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+	err := rs.dao.UpdateChannelContractBalance(c)
+	if err != nil {
+		return err
+	}
 	rs.NotifyHandler.NotifyChannelStatus(channeltype.ChannelSerialization2ChannelDataDetail(c))
-	return rs.dao.UpdateChannelContractBalance(c)
+	return nil
 }
 
 func (rs *Service) conditionQuitWhenReceiveAck(msg encoding.Messager) {
@@ -1892,52 +1909,57 @@ func (rs *Service) submitDelegateToPms(ch *channel.Channel) {
 }
 
 func (rs *Service) submitDelegateToPmsLoop() {
-	log.Trace("submitDelegateToPmsLoop start...")
+	log.Info("submitDelegateToPmsLoop start...")
+	defer rpanic.PanicRecover("submitDelegateToPmsLoop")
 	for {
 		if rs.PmsProxy == nil {
-			log.Trace("submitDelegateToPmsLoop stop because PmsProxy is nil")
+			log.Info("submitDelegateToPmsLoop stop because PmsProxy is nil")
 			return
 		}
-		ch, ok := <-rs.ChanSubmitDelegateToPMS
-		if !ok {
-			log.Trace("submitDelegateToPmsLoop stop because chan close")
+		select {
+		case <-rs.quitChan: //需要有退出机制,否则很快内存耗尽
 			return
-		}
-		// 1. 获取待提交数据
-		data, err := rs.GetDelegateForPms(channel.NewChannelSerialization(ch), utils.EmptyAddress)
-		if err != nil {
-			log.Error(fmt.Sprintf("submitDelegateToPmsLoop GetDelegateForPms of channel %s err : %s,ignore", ch.ChannelIdentifier.ChannelIdentifier.String(), err.Error()))
-			continue
-		}
-		// 2. 提交至pms,失败最多重试3次
-		err = rs.PmsProxy.SubmitDelegate(data)
-		if err == pmsproxy.ErrConnect {
-			// 网络错误重试3次
-			for i := 0; i < 3; i++ {
-				err = rs.PmsProxy.SubmitDelegate(data)
-				if err == pmsproxy.ErrConnect {
-					continue
-				} else {
-					break
+		case ch, ok := <-rs.ChanSubmitDelegateToPMS:
+			if !ok {
+				log.Info("submitDelegateToPmsLoop stop because chan close")
+				return
+			}
+			// 1. 获取待提交数据
+			data, err := rs.GetDelegateForPms(channel.NewChannelSerialization(ch), utils.EmptyAddress)
+			if err != nil {
+				log.Error(fmt.Sprintf("submitDelegateToPmsLoop GetDelegateForPms of channel %s err : %s,ignore", ch.ChannelIdentifier.ChannelIdentifier.String(), err.Error()))
+				continue
+			}
+			// 2. 提交至pms,失败最多重试3次
+			err = rs.PmsProxy.SubmitDelegate(data)
+			if err == pmsproxy.ErrConnect {
+				// 网络错误重试3次
+				for i := 0; i < 3; i++ {
+					err = rs.PmsProxy.SubmitDelegate(data)
+					if err == pmsproxy.ErrConnect {
+						continue
+					} else {
+						break
+					}
 				}
 			}
-		}
-		// 3. 根据提交结果修改db中的channel状态
-		if err == nil {
-			ch.DelegateState = channeltype.ChannelDelegateStateSuccess
-		} else {
-			ch.DelegateState = channeltype.ChannelDelegateStateFail
-			log.Error(err.Error())
-		}
-		err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
-		if err != nil {
-			log.Error("")
-			continue
-		}
-		// 4. 如果提交成功,修改已提交的punish及SendAnnounceDispose状态
-		if ch.DelegateState == channeltype.ChannelDelegateStateSuccess {
-			rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
-			rs.dao.MarkSendAnnounceDisposeSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+			// 3. 根据提交结果修改db中的channel状态
+			if err == nil {
+				ch.DelegateState = channeltype.ChannelDelegateStateSuccess
+			} else {
+				ch.DelegateState = channeltype.ChannelDelegateStateFail
+				log.Error(err.Error())
+			}
+			err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(ch))
+			if err != nil {
+				log.Error("")
+				continue
+			}
+			// 4. 如果提交成功,修改已提交的punish及SendAnnounceDispose状态
+			if ch.DelegateState == channeltype.ChannelDelegateStateSuccess {
+				rs.dao.MarkLockHashCanPunishSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+				rs.dao.MarkSendAnnounceDisposeSubmittedByChannel(ch.ChannelIdentifier.ChannelIdentifier)
+			}
 		}
 	}
 }
@@ -1951,53 +1973,58 @@ func (rs *Service) submitBalanceProofToPfs(ch *channel.Channel) {
 }
 
 func (rs *Service) submitBalanceProofToPfsLoop() {
-	log.Trace("submitBalanceProofToPfsLoop start...")
+	defer rpanic.PanicRecover("submitBalanceProofToPfsLoop")
+	log.Info("submitBalanceProofToPfsLoop start...")
 	for {
 		if rs.PfsProxy == nil {
-			log.Trace("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
+			log.Info("submitBalanceProofToPfsLoop stop because PfsProxy is nil")
 			return
 		}
-		ch, ok := <-rs.ChanSubmitBalanceProofToPFS
-		if !ok {
-			log.Trace("submitBalanceProofToPfsLoop stop because chan close")
+		select {
+		case <-rs.quitChan: //需要有退出机制,否则很快内存耗尽
 			return
-		}
-		bpPartner := ch.PartnerState.BalanceProofState
-		err := rs.PfsProxy.SubmitBalance(
-			bpPartner.Nonce,
-			bpPartner.TransferAmount,
-			ch.Outstanding(),
-			ch.ChannelIdentifier.OpenBlockNumber,
-			bpPartner.LocksRoot,
-			ch.ChannelIdentifier.ChannelIdentifier,
-			bpPartner.MessageHash,
-			ch.PartnerState.Address,
-			bpPartner.Signature,
-		)
-		if err == pfsproxy.ErrConnect {
-			log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
-			// 网络错误,重发3次
-			for i := 0; i < 3; i++ {
-				err = rs.PfsProxy.SubmitBalance(
-					bpPartner.Nonce,
-					bpPartner.TransferAmount,
-					ch.Outstanding(),
-					ch.ChannelIdentifier.OpenBlockNumber,
-					bpPartner.LocksRoot,
-					ch.ChannelIdentifier.ChannelIdentifier,
-					bpPartner.MessageHash,
-					ch.PartnerState.Address,
-					bpPartner.Signature,
-				)
-				if err == pfsproxy.ErrConnect {
-					continue
-				} else {
-					break
+		case ch, ok := <-rs.ChanSubmitBalanceProofToPFS:
+			if !ok {
+				log.Info("submitBalanceProofToPfsLoop stop because chan close")
+				return
+			}
+			bpPartner := ch.PartnerState.BalanceProofState
+			err := rs.PfsProxy.SubmitBalance(
+				bpPartner.Nonce,
+				bpPartner.TransferAmount,
+				ch.Outstanding(),
+				ch.ChannelIdentifier.OpenBlockNumber,
+				bpPartner.LocksRoot,
+				ch.ChannelIdentifier.ChannelIdentifier,
+				bpPartner.MessageHash,
+				ch.PartnerState.Address,
+				bpPartner.Signature,
+			)
+			if err == pfsproxy.ErrConnect {
+				log.Warn(fmt.Sprintf("connect to pfs err when submit BalanceProof of channel %s, retry 3 times...", ch.ChannelIdentifier.ChannelIdentifier.String()))
+				// 网络错误,重发3次
+				for i := 0; i < 3; i++ {
+					err = rs.PfsProxy.SubmitBalance(
+						bpPartner.Nonce,
+						bpPartner.TransferAmount,
+						ch.Outstanding(),
+						ch.ChannelIdentifier.OpenBlockNumber,
+						bpPartner.LocksRoot,
+						ch.ChannelIdentifier.ChannelIdentifier,
+						bpPartner.MessageHash,
+						ch.PartnerState.Address,
+						bpPartner.Signature,
+					)
+					if err == pfsproxy.ErrConnect {
+						continue
+					} else {
+						break
+					}
 				}
 			}
-		}
-		if err != nil {
-			log.Error(err.Error())
+			if err != nil {
+				log.Error(err.Error())
+			}
 		}
 	}
 }
@@ -2060,6 +2087,8 @@ func (rs *Service) forceUnlock(req *forceUnlockReq) (result *utils.AsyncResult) 
 	proof := channel.PartnerState.Tree.MakeProof(lock.Hash())
 	//不能阻塞主线程
 	go func() {
+		//测试接口,不用担心资源释放问题
+		defer rpanic.PanicRecover("forceUnlock")
 		if channel.State == channeltype.StateOpened {
 			// 自己close
 			log.Trace(fmt.Sprintf("forceUnlock close : partnerAddress=%s, transferAmount=%d, locksroot=%s nonce=%d, addtionalHash=%s,signature=%s\n",
@@ -2274,7 +2303,7 @@ func (rs *Service) getMinSettleTimeout() int {
 	return minSettleTimeout
 }
 
-// GetDelegateForPms :
+// GetDelegateForPms 获取一个通道需要提交给pms的数据
 func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
 	if thirdAddr == utils.EmptyAddress {
 		thirdAddr = rs.Config.PmsAddress

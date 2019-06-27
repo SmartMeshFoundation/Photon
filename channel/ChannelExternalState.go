@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"crypto/ecdsa"
@@ -133,6 +135,7 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 	transferAmount := new(big.Int).Set(argTransferdAmount)
 	go func() {
 		log.Info(fmt.Sprintf("Unlock called %s", utils.HPex(e.ChannelIdentifier.ChannelIdentifier)))
+		defer rpanic.PanicRecover("Unlock")
 		failed := false
 		for _, proof := range unlockproofs {
 			if e.db.IsThisLockHasUnlocked(e.ChannelIdentifier.ChannelIdentifier, proof.Lock.LockSecretHash) {
@@ -170,13 +173,13 @@ func (e *ExternalState) Unlock(unlockproofs []*channeltype.UnlockProof, argTrans
 }
 
 //Settle call settle function of contract
-func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (err error) {
+func (e *ExternalState) Settle(MyTransferAmount, PartnerTransferAmount, myBalance, PartnerBalance *big.Int, MyLocksroot, PartnerLocksroot common.Hash) (err error) {
 	log.Info(fmt.Sprintf("settle called %s,myTransferAmount=%s,partnerTransferAmount=%s,mylocksRoot=%s,partnerLocksroot=%s",
 		e.ChannelIdentifier.String(), MyTransferAmount, PartnerTransferAmount,
 		utils.HPex(MyLocksroot), utils.HPex(PartnerLocksroot),
 	))
 	return e.TokenNetwork.SettleChannelAsync(e.MyAddress, e.PartnerAddress,
-		MyTransferAmount, PartnerTransferAmount,
+		MyTransferAmount, PartnerTransferAmount, myBalance, PartnerBalance,
 		MyLocksroot, PartnerLocksroot,
 	)
 }

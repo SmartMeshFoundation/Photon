@@ -1,5 +1,6 @@
 #!/bin/sh
 source ../env.sh 
+source ../VERSION
 echo $GIT_COMMIT
 echo $GO_VERSION
 echo $BUILD_DATE

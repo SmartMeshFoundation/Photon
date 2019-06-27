@@ -18,9 +18,10 @@ import (
 
 	"fmt"
 
+	"strings"
+
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
-	"strings"
 )
 
 // GetChannelWith :
@@ -923,6 +924,32 @@ func (node *PhotonNode) FindPath(target *PhotonNode, tokenAddress common.Address
 	}
 	path = resp
 	Logger.Printf("FindPath get RouteInfo from %s to %s on token %s :\n%s", node.Name, target.Name, tokenAddress.String(), MarshalIndent(path))
+	return
+}
+
+// ContractCallTXQuery : 查询Tx
+func (node *PhotonNode) ContractCallTXQuery(ChannelIdentifier string, txType models.TXInfoType) (ret []models.TXInfo, err error) {
+
+	p, err := json.Marshal(photon.ContractCallTXQueryParams{
+		ChannelIdentifier: ChannelIdentifier,
+		TXType:            txType,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/tx/query",
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 20,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		Logger.Println(fmt.Sprintf("DepositApi %s err :%s", req.FullURL, err))
+		return
+	}
+	Logger.Println(fmt.Sprintf("ContractCallTXQuery returned=%s", string(body)))
+	err = json.Unmarshal(body, &ret)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 

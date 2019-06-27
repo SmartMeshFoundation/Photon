@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 
 	"time"
@@ -72,34 +74,41 @@ type matrixJob struct {
 
 // MatrixTransport represents a matrix transport Instantiation
 type MatrixTransport struct {
-	matrixcli             *gomatrix.MatrixClient //the instantiated matrix
-	servername            string                 //the homeserver's name
-	serverURL             string                 //http://transport01.smartmesh.cn
-	running               bool                   //running status
-	stopreceiving         bool                   //Whether to stop accepting(data)
-	key                   *ecdsa.PrivateKey      //key
-	NodeAddress           common.Address
-	protocol              ProtocolReceiver
-	Peers                 map[common.Address]*MatrixPeer
-	temporaryAddress2Room map[common.Address]string //temporary room to
-	temporaryPeers        *matrixTemporaryPeers
-	UserID                string //the current user's ID(@kitty:thisserver)
-	NodeDeviceType        string
-	avatarurl             string
-	log                   log.Logger
-	statusChan            chan netshare.Status
-	removePeerChan        chan common.Address
-	status                netshare.Status
-	servers               map[string]string
-	trustServers          map[string]bool // these server's userID can be trusted
-	db                    xmpptransport.XMPPDb
-	hasDoneStartCheck     bool
-	quitChan              chan struct{}
-	jobChan               chan *matrixJob
-	lock                  sync.RWMutex
-	discoveryroom         string
-	wakeUpChanListMap     map[common.Address][]chan int
-	wakeUpChanListMapLock sync.Mutex
+	matrixcli      *gomatrix.MatrixClient //the instantiated matrix
+	servername     string                 //the homeserver's name
+	serverURL      string                 //http://transport01.smartmesh.cn
+	running        bool                   //running status
+	stopreceiving  bool                   //Whether to stop accepting(data)
+	key            *ecdsa.PrivateKey      //key
+	NodeAddress    common.Address
+	protocol       ProtocolReceiver
+	Peers          map[common.Address]*MatrixPeer //这里面保存的是与我有通道的节点
+	temporaryPeers *matrixTemporaryPeers          //与我没有通道,但是需要临时通信的节点
+	UserID         string                         //the current user's ID(@kitty:thisserver)
+	NodeDeviceType string
+	log            log.Logger
+	statusChan     chan netshare.Status
+	removePeerChan chan common.Address
+	status         netshare.Status
+	servers        map[string]string
+	trustServers   map[string]bool // these server's userID can be trusted
+	db             xmpptransport.XMPPDb
+	/*
+		标记是否已经完成了基本的启动,在该标志为true之前
+		1. 是不能发送消息
+		2. 收到消息会忽略
+		3. 收到的memshipchange,presence等消息会立即处理因为还没有进入主循环
+	*/
+	hasDoneStartCheck        bool
+	quitChan                 chan struct{}
+	jobChan                  chan *matrixJob
+	lock                     sync.RWMutex
+	discoveryroom            string
+	wakeUpChanListMapLock    sync.Mutex
+	isAlreadyCollectedDbInfo bool
+
+	// 挂起/唤醒服务
+	*wakeuphandler.WakeUpHandler
 }
 
 var (
@@ -116,26 +125,24 @@ var (
 )
 
 // NewMatrixTransport init matrix
-func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string) *MatrixTransport {
+func NewMatrixTransport(logname string, key *ecdsa.PrivateKey, devicetype string, servers map[string]string, dao xmpptransport.XMPPDb) *MatrixTransport {
 	mtr := &MatrixTransport{
-		running:       false,
-		stopreceiving: false,
-		NodeAddress:   crypto.PubkeyToAddress(key.PublicKey),
-		key:           key,
-		Peers:         make(map[common.Address]*MatrixPeer),
-		temporaryAddress2Room: make(map[common.Address]string),
-		temporaryPeers:        newMatrixTemporaryPeers(),
-		NodeDeviceType:        devicetype,
-		log:                   log.New("matrix", logname),
-		avatarurl:             "", // charge rule
-		statusChan:            make(chan netshare.Status, 10),
-		removePeerChan:        make(chan common.Address, 10),
-		status:                netshare.Disconnected,
-		servers:               servers,
-		quitChan:              make(chan struct{}),
-		jobChan:               make(chan *matrixJob, 20000),
-		trustServers:          make(map[string]bool),
-		wakeUpChanListMap:     make(map[common.Address][]chan int),
+		running:        false,
+		stopreceiving:  false,
+		NodeAddress:    crypto.PubkeyToAddress(key.PublicKey),
+		key:            key,
+		Peers:          make(map[common.Address]*MatrixPeer),
+		temporaryPeers: newMatrixTemporaryPeers(),
+		NodeDeviceType: devicetype,
+		log:            log.New("matrix", logname),
+		statusChan:     make(chan netshare.Status, 10),
+		status:         netshare.Disconnected,
+		servers:        servers,
+		quitChan:       make(chan struct{}),
+		jobChan:        make(chan *matrixJob, 100),
+		trustServers:   make(map[string]bool),
+		WakeUpHandler:  wakeuphandler.NewWakeupHandler("matrix"),
+		db:             dao,
 	}
 	var serverNames []string
 	for s := range servers {
@@ -164,15 +171,8 @@ func (m *MatrixTransport) setTrustServers(servers []string) {
 	}
 }
 
-//todo should refactor to make db set in constructor
-func (m *MatrixTransport) setDB(db xmpptransport.XMPPDb) {
-	m.db = db
-}
+func (m *MatrixTransport) addPeerIfNotExist(peer common.Address) bool {
 
-func (m *MatrixTransport) addPeerIfNotExist(peer common.Address, hasChannel bool) bool {
-	//m.Peers[peer] = NewMatrixPeer(peer, hasChannel, m.removePeerChan)
-	//m.Peers[peer].status=peerStatus(statusToInt("online"))//netstatus default replace online with unavailable because presence event will be delayed in most case.
-	//m.log.Debug(fmt.Sprintf("m.peers.addPeerIfNotExist %s",utils.StringInterface(m.Peers,5)))
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	p, ok := m.Peers[peer]
@@ -180,8 +180,7 @@ func (m *MatrixTransport) addPeerIfNotExist(peer common.Address, hasChannel bool
 		p.increaseChannelCount()
 		return false
 	}
-	m.Peers[peer] = NewMatrixPeer(peer, hasChannel, m.removePeerChan)
-	m.Peers[peer].status = peerStatus(statusToInt("online"))
+	m.Peers[peer] = NewMatrixPeer(peer)
 	return true
 }
 func (m *MatrixTransport) isTrustedServerUser(userID string) bool {
@@ -195,15 +194,19 @@ func (m *MatrixTransport) isTrustedServerUser(userID string) bool {
 // collectChannelInfo subscribe status change
 func (m *MatrixTransport) collectChannelInfo(db xmpptransport.XMPPDb) error {
 	//cs =[nil] when getchannellist on first\second or third time
+	if m.isAlreadyCollectedDbInfo {
+		return nil
+	}
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
 		return err
 	}
+	m.isAlreadyCollectedDbInfo = true
 	for _, c := range cs {
-		m.addPeerIfNotExist(c.PartnerAddress(), true)
+		m.addPeerIfNotExist(c.PartnerAddress())
 	}
 	db.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) { //create new channel->add participant for matrix peer
-		if m.addPeerIfNotExist(c.PartnerAddress(), true) {
+		if m.addPeerIfNotExist(c.PartnerAddress()) {
 			m.lock.RLock()
 			p := m.Peers[c.PartnerAddress()]
 			m.lock.RUnlock()
@@ -383,6 +386,7 @@ func (m *MatrixTransport) doSend(job *matrixJob) {
 		}
 	}
 	_data := base64.StdEncoding.EncodeToString(data)
+	m.log.Trace(fmt.Sprintf("send to %s[%s] message=%s", utils.APex2(receiverAddr), roomID, encoding.MessageType(data[0])))
 	_, err = m.matrixcli.SendText(roomID, _data)
 	if err != nil {
 		m.log.Error(fmt.Sprintf("[matrix]send failed to %s, message=%s err=%s", utils.APex2(receiverAddr), encoding.MessageType(data[0]), err))
@@ -403,9 +407,11 @@ func (m *MatrixTransport) Start() {
 		return
 	}
 	m.running = true
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	firstStart := true
+	// 2019.06.10 启动时主线程不等待,优化无网情况下的启动速度
+	// 就算如果matrix连接不上,而主线程正常启动完成开始发送消息,也会被Send方法拒绝,重要消息会进入重发阶段,没有影响
+	//wg := sync.WaitGroup{}
+	//wg.Add(1)
+	//firstStart := true
 	go func() {
 		for {
 			var err error
@@ -417,6 +423,10 @@ func (m *MatrixTransport) Start() {
 			firstSync := make(chan struct{}, 5)
 			isFirstSynced := false
 			for name, url := range m.servers {
+				//如果用户制定了server,那么就用用户指定的,仅用于调试
+				if len(params.UserSpecifiedMatrixServer) > 0 && url != params.UserSpecifiedMatrixServer {
+					continue
+				}
 				var mcli *gomatrix.MatrixClient
 				mcli, err = gomatrix.NewClient(url, "", "", PATHPREFIX0, m.log)
 				if err != nil {
@@ -424,7 +434,7 @@ func (m *MatrixTransport) Start() {
 				}
 				_, err = mcli.Versions()
 				if err != nil {
-					m.log.Error(fmt.Sprintf("Could not connect to requested server %s,and retrying,err %s", url, err))
+					m.log.Warn(fmt.Sprintf("connect to martrix server err %s", err))
 					continue
 				}
 				homeServerValid = name
@@ -475,14 +485,13 @@ func (m *MatrixTransport) Start() {
 			syncer.OnEventType("m.presence", m.onHandlePresenceChange)
 
 			syncer.OnEventType("m.room.member", m.onHandleMemberShipChange)
-			m.hasDoneStartCheck = true
+			m.hasDoneStartCheck = false
+			err = m.collectChannelInfo(m.db)
+			if err != nil {
+				m.log.Error("collectChannelInfo err %s", err)
+			}
 			go func() {
 				for {
-					err3 := m.collectChannelInfo(m.db) //todo chen 暂定方此处
-					if err3 != nil {
-						m.log.Warn("collectChannelInfo err %s when sync message", err3)
-					}
-
 					err2 := m.matrixcli.Sync()
 
 					if !isFirstSynced {
@@ -504,36 +513,28 @@ func (m *MatrixTransport) Start() {
 			//wait for first sync complete
 			<-firstSync
 			isFirstSynced = true
-			err = m.collectChannelInfo(m.db)
-			if err != nil {
-				m.log.Warn("collectChannelInfo err %s", err)
-			}
-			//if m.status == netshare.Connected {
-			//	if !m.hasDoneStartCheck {
 			m.hasDoneStartCheck = true
 			err = m.startupCheckAllParticipants()
 			if err != nil {
 				m.log.Error(fmt.Sprintf("startupCheckAllParticipants error %s", err))
 			}
-			//	}
-			//}
 			//在启动的时候检测是否加入了一些不必要的聊天室,然后主动leave
 			m.leaveUselessRoom()
-			if firstStart {
-				firstStart = false
-				wg.Done()
-			}
+			//if firstStart {
+			//	firstStart = false
+			//	wg.Done()
+			//}
 			return
 		tryNext:
-			if firstStart {
-				firstStart = false
-				wg.Done()
-			}
+			//if firstStart {
+			//	firstStart = false
+			//	wg.Done()
+			//}
 			time.Sleep(time.Second * 1)
 		}
 	}()
 	m.log.Trace(fmt.Sprintf("[Matrix] transport started peers=%s", utils.StringInterface(m.Peers, 7)))
-	wg.Wait()
+	//wg.Wait()
 	go m.loop()
 }
 
@@ -557,23 +558,6 @@ func (m *MatrixTransport) loop() {
 			}
 		}
 	}
-}
-
-// RegisterWakeUpChan :
-func (m *MatrixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
-	m.wakeUpChanListMapLock.Lock()
-	m.wakeUpChanListMap[addr] = append(m.wakeUpChanListMap[addr], c)
-	m.wakeUpChanListMapLock.Unlock()
-
-}
-
-// UnRegisterWakeUpChan :
-func (m *MatrixTransport) UnRegisterWakeUpChan(addr common.Address) {
-	m.wakeUpChanListMapLock.Lock()
-	if _, ok := m.wakeUpChanListMap[addr]; ok {
-		delete(m.wakeUpChanListMap, addr)
-	}
-	m.wakeUpChanListMapLock.Unlock()
 }
 
 /*
@@ -630,7 +614,7 @@ func (m *MatrixTransport) onHandleReceiveMessage(event *gomatrix.Event) {
 }
 func (m *MatrixTransport) doHandleReceiveMessage(job *matrixJob) {
 	event := job.Data1.(*gomatrix.Event)
-	//m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
+	m.log.Trace(fmt.Sprintf("onHandleReceiveMessage %s", utils.StringInterface(event, 7)))
 	msgTime := time.Unix(event.Timestamp/1000, 0)
 	/*
 		ignore any history message
@@ -831,7 +815,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 				return
 			}
 			peerAddress := m.userIDToAddress(userid)
-			//m.addPeerIfNotExist(peerAddress, true)
 			m.lock.RLock()
 			peer := m.Peers[peerAddress]
 			m.lock.RUnlock()
@@ -846,7 +829,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 			}
 		}()
 	} else if membership == "join" {
-		//m.addPeerIfNotExist(m.userIDToAddress(userid), true)
 		err := m.inviteIfPossible(userid, event.RoomID)
 		if err != nil {
 			m.log.Error(fmt.Sprintf("inviteIfPossible %s to default room err %s", userid, err))
@@ -912,10 +894,6 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 	userid := event.Sender
 	//my self status change
 	if userid == m.UserID {
-		if presence == OFFLINE {
-			//if i'm offline ,remove all temporary room records
-			m.temporaryAddress2Room = make(map[common.Address]string)
-		}
 		return
 	}
 	address := m.userIDToAddress(userid)
@@ -923,7 +901,6 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		m.log.Info(fmt.Sprintf("receive presence %s", utils.StringInterface(event, 5)))
 		return
 	}
-	m.addNewUnknownPeer(address) //presence事件在discoveryroom中可能延迟很久
 	m.lock.RLock()
 	peer, ok := m.Peers[address]
 	m.lock.RUnlock()
@@ -932,39 +909,19 @@ func (m *MatrixTransport) doHandlePresenceChange(job *matrixJob) {
 		if presence == OFFLINE { //历史数据可导致错误
 			m.temporaryPeers.removePeer(address)
 		}
-		/*err := m.inviteIfPossible1(userid)
-		if err != nil {
-			m.log.Error(fmt.Sprintf("inviteIfPossible1 %s to default room err %s", userid, err))
-		}*/
 		return
 	}
-	if peer.isValidUserID(userid) && peer.setStatus(userid, "online") {
-		//if peer.setStatus(userid, presence) {
+	if peer.isValidUserID(userid) && peer.setStatus(userid, presence) {
 		// 节点上线通知所有已经挂起的通道
-		m.wakeUpChanListMapLock.Lock()
-		//tmpChan := make(chan int)
-		//m.wakeUpChanListMap[address] = append(m.wakeUpChanListMap[address], tmpChan)
-		fmt.Println(fmt.Sprintf("m.wakeUpChanListMap[address]=%s", utils.StringInterface(m.wakeUpChanListMap[address], 5)))
-		if chans, ok := m.wakeUpChanListMap[address]; ok && len(chans) > 0 && presence == ONLINE {
-			for _, c := range chans {
-				c <- 1
-			}
+		if presence == ONLINE {
+			m.WakeUp(address)
 		}
-		m.wakeUpChanListMapLock.Unlock()
 		//device type
 		deviceType, _ := event.ViewContent("status_msg") //newest network status
 		peer.deviceType = deviceType
-		peer.status = peerStatus(statusToInt(presence))
-		//m.log.Debug(fmt.Sprintf("m.Peers:%s",utils.StringInterface(m.Peers,5)))
+		m.log.Trace(fmt.Sprintf("%s matrix status changed status=%s,devicetype=%s", userid, peer.status, peer.deviceType))
 	}
 	m.log.Trace(fmt.Sprintf("peer %s status=%s,deviceType=%s", utils.APex2(address), peer.status, peer.deviceType))
-}
-
-func (m *MatrixTransport) addNewUnknownPeer(peerAddr common.Address) {
-	_, ok := m.Peers[peerAddr]
-	if !ok {
-		m.addPeerIfNotExist(peerAddr, true)
-	}
 }
 
 //register new user on homeserver using application service
@@ -1047,14 +1004,6 @@ func (m *MatrixTransport) loginOrRegister() (err error) {
 		err = fmt.Errorf("could not register or login")
 		return
 	}
-	//set displayname as publicly visible
-	//dispname := m.getUserDisplayName(m.matrixcli.UserID)
-	//if err = m.matrixcli.SetDisplayName(dispname); err != nil {
-	//	err = fmt.Errorf("could set the node's displayname and quit as well")
-	//	m.matrixcli.ClearCredentials()
-	//	return
-	//}
-	//m.log.Trace(fmt.Sprintf("userdisplayname=%s", dispname))
 	return err
 }
 
@@ -1142,15 +1091,12 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		Visibility: "public",
 		Preset:     "public_chat",
 	}
-	//if true {
-	//	req.Visibility = "public"
-	//	req.Preset = "public_chat"
-	//} else {
-	//	req.Visibility = "private"
-	//	req.Preset = "trusted_private_chat"
-	//}
-	if isSameAddress(roomname) {
-		return
+	if true {
+		req.Visibility = "public"
+		req.Preset = "public_chat"
+	} else {
+		req.Visibility = "private"
+		req.Preset = "trusted_private_chat"
 	}
 	unlistedRoomid := ""
 	for i := 0; i < 5; i++ {
@@ -1158,9 +1104,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 		respJoinRoom, err = m.matrixcli.JoinRoom(roomNameFull, m.servername, nil)
 		if err != nil {
 			m.log.Error(fmt.Sprintf("JoinRoom %s error: %s,respJoinRoom: %s", roomname, err, utils.StringInterface(respJoinRoom, 5)))
-			//_, err := m.matrixcli.JoinedMembers(respJoinRoom.RoomID)
-			//fmt.Println("JoinedMembers:",err)
-			//fmt.Println(respJoinedMembers)
 			req.RoomAliasName = roomname
 			_, err = m.matrixcli.CreateRoom(req)
 			if err != nil {
@@ -1186,16 +1129,6 @@ func (m *MatrixTransport) getUnlistedRoom(roomname string, users []*gomatrix.Use
 	}
 	return unlistedRoomid, nil
 }
-
-func isSameAddress(roomName string) bool {
-	if strings.Count(roomName, "_") == 3 {
-		if strings.Split(roomName, "_")[2] == strings.Split(roomName, "_")[3] {
-			return true
-		}
-	}
-	return false
-}
-
 func (m *MatrixTransport) getAllPossibleUserID(address common.Address) (users []*gomatrix.UserInfo) {
 	for s := range m.trustServers {
 		users = append(users, &gomatrix.UserInfo{
@@ -1232,11 +1165,9 @@ func (m *MatrixTransport) handleNewPartner(p *MatrixPeer) (err error) {
 func (m *MatrixTransport) startupCheckAllParticipants() error {
 	errBuf := new(bytes.Buffer)
 	for _, p := range m.Peers {
-		if p.hasChannelWith {
-			err := m.startupCheckOneParticipant(p)
-			if err != nil {
-				fmt.Fprintf(errBuf, "startupCheckOneParticipant %s err %s\n", utils.APex2(p.address), err)
-			}
+		err := m.startupCheckOneParticipant(p)
+		if err != nil {
+			fmt.Fprintf(errBuf, "startupCheckOneParticipant %s err %s\n", utils.APex2(p.address), err)
 		}
 	}
 	errStr := string(errBuf.Bytes())
@@ -1297,9 +1228,7 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 			if err != nil {
 				fmt.Fprintf(errBuf, "GetPresenceState for %s,err=%s\n", u.UserID, err)
 			} else {
-				if p.setStatus(u.UserID, presenceResponse.Presence) {
-					p.status = peerStatus(statusToInt(presenceResponse.Presence))
-				}
+				p.setStatus(u.UserID, presenceResponse.Presence)
 				//stop check if one online userid found
 				if p.status == peerStatusOnline {
 					break
@@ -1333,17 +1262,6 @@ func (m *MatrixTransport) startupCheckOneParticipant(p *MatrixPeer) error {
 		return errors.New(errStr)
 	}
 	return nil
-}
-func statusToInt(s string) int {
-	switch s {
-	case UNAVAILABLE:
-		return peerStatusUnkown
-	case OFFLINE:
-		return peerStatusOffline
-	case ONLINE:
-		return peerStatusOnline
-	}
-	return -1
 }
 
 func getSignatureFromDisplayName(displayName string) (signature []byte, err error) {
@@ -1419,29 +1337,6 @@ func (m *MatrixTransport) inviteIfPossible(userID string, eventRoom string) erro
 			}
 		}
 	}
-	return nil
-}
-
-func (m *MatrixTransport) inviteIfPossible1(userID string) error {
-	peerAddress := m.userIDToAddress(userID)
-	m.lock.RLock()
-	peer := m.Peers[peerAddress]
-	m.lock.RUnlock()
-	if peer == nil {
-		return nil
-	}
-	if peer.defaultMessageRoomID != "" && !peer.isValidUserID(userID) {
-		_, err := m.matrixcli.InviteUser(peer.defaultMessageRoomID, &gomatrix.ReqInviteUser{
-			UserID: userID,
-		})
-		//if has already startup ,we should known all user status
-		if err != nil && m.hasDoneStartCheck {
-			return fmt.Errorf("InviteUser perr=%s,room=%s err=%s",
-				utils.APex2(peerAddress), peer.defaultMessageRoomID, err)
-		}
-	}
-	peer.setStatus(userID, "online")
-	peer.deviceType = ""
 	return nil
 }
 
@@ -1582,7 +1477,8 @@ func (m *MatrixTransport) leaveUselessRoom() {
 			if err != nil {
 				m.log.Error(fmt.Sprintf("leave room %s err %s,room=%s", roomID, err, utils.StringInterface(room, 5)))
 			} else {
-				/*_, err = m.matrixcli.ForgetRoom(roomID)
+				/* forget调用无用,经陈云测试
+				_, err = m.matrixcli.ForgetRoom(roomID)
 				if err != nil {
 					m.log.Error(fmt.Sprintf("forget room %s err %s,room=%s", roomID, err, utils.StringInterface(room, 5)))
 				}*/

@@ -284,7 +284,6 @@ func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channe
 			p.mapLock.Lock()
 			if len(ql.messages) == 0 {
 				p.mapLock.Unlock()
-				// goroutine保留一段时间,防止频繁创建
 				select {
 				case <-p.quitChan: //其他地方要求退出了
 					return
@@ -311,6 +310,8 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
+	defer rpanic.PanicRecover("sendMessage")
+	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
@@ -319,7 +320,6 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			p.mapLock.Unlock()
 			return
 		}
-		nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 		err := p.sendRawWitNoAck(receiver, msgState.Data)
 		if err != nil {
 			p.log.Info(fmt.Sprintf("sendRawWitNoAck msg echoHash=%s error %s", utils.HPex(msgState.EchoHash), err.Error()))
@@ -340,18 +340,21 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			}
 			return
 		case <-timeout: //retry
-			// 如果是matrix且对方不在线,挂起并等待唤醒
+			// 如果对方不在线,挂起并等待唤醒
 			_, isOnline := p.Transport.NodeStatus(receiver)
-			transport, ok1 := p.Transport.(*MatrixMixTransport)
-			if ok1 && !isOnline && transport != nil {
+			if !isOnline {
 				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
-				wakeUpChan := make(chan int)
+				wakeUpChan := make(chan int, 2)
 				// 向transport注册wakeUpChan
-				transport.RegisterWakeUpChan(receiver, wakeUpChan)
+				p.Transport.RegisterWakeUpChan(receiver, wakeUpChan)
 				// 挂起并等待对方上线
-				<-wakeUpChan
+				select {
+				case <-wakeUpChan:
+				case <-p.quitChan:
+					return
+				}
 				// 继续发送并注销wakeUpChan
-				transport.UnRegisterWakeUpChan(receiver)
+				p.Transport.UnRegisterWakeUpChan(receiver)
 			}
 		case <-p.quitChan:
 			return
@@ -473,6 +476,7 @@ func (p *PhotonProtocol) receive(data []byte) {
 }
 
 func (p *PhotonProtocol) loop() {
+	defer rpanic.PanicRecover("PhotonProtocol loop")
 	p.isReceiving = true
 	for {
 		select {
@@ -491,6 +495,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 	}
 	//ignore incomming message when stop
 	if p.onStop {
+		p.log.Info("receive message,but protocol already stopped")
 		return
 	}
 	cmdid := int(data[0])
@@ -603,7 +608,7 @@ type NodeInfo struct {
 
 // UpdateMeshNetworkNodes update nodes in this intranet
 func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
-	//p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
+	p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)

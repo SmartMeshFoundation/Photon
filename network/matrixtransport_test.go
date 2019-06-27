@@ -8,10 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
+	"github.com/SmartMeshFoundation/Photon/codefortest"
 
-	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
-	"github.com/SmartMeshFoundation/Photon/models/cb"
+	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -31,36 +30,6 @@ var testTrustedServers = []string{
 	//"transport03.smartmesh.cn",
 }
 
-type MockDb struct {
-	channels []*channeltype.Serialization
-}
-
-func (db *MockDb) addPartner(address common.Address) {
-	db.channels = append(db.channels, &channeltype.Serialization{
-		PartnerAddressBytes: address[:],
-	})
-}
-func (db *MockDb) XMPPIsAddrSubed(addr common.Address) bool {
-	return true
-}
-func (db *MockDb) XMPPMarkAddrSubed(addr common.Address) {
-	return
-}
-func (db *MockDb) GetChannelList(token, partner common.Address) (cs []*channeltype.Serialization, err error) {
-	return db.channels, nil
-}
-func (db *MockDb) RegisterNewChannelCallback(f cb.ChannelCb) {
-
-}
-func (db *MockDb) RegisterChannelStateCallback(f cb.ChannelCb) {
-
-}
-func (db *MockDb) XMPPUnMarkAddr(addr common.Address) {
-
-}
-func (db *MockDb) RegisterChannelSettleCallback(f cb.ChannelCb) {
-
-}
 func init() {
 	var err error
 	//ALIASFRAGMENT = fmt.Sprintf("testdiscovery-%s", utils.RandomString(10))
@@ -86,14 +55,13 @@ func getMatrixEnvConfig() (cfg1, cfg2 map[string]string) {
 }
 func newTestMatrixTransport(name string, cfg map[string]string) (m1 *MatrixTransport) {
 	key, _ := utils.MakePrivateKeyAddress()
-	m1 = NewMatrixTransport(name, key, "other", cfg)
-	m1.setDB(&MockDb{})
+	m1 = NewMatrixTransport(name, key, "other", cfg, &codefortest.MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	return m1
 }
 
 func newFourTestMatrixTransport() (m0, m1, m2 *MatrixTransport) {
-	cfg0 := params.MatrixServerConfig
+	cfg0 := params.TrustMatrixServers
 	cfg1, cfg2 := getMatrixEnvConfig()
 	m0 = newTestMatrixTransport("m0", cfg0)
 	m1 = newTestMatrixTransport("m1", cfg1)
@@ -111,7 +79,7 @@ func TestCreateMatrixTransport(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	m1 := newTestMatrixTransport("mrand", params.MatrixServerConfig)
+	m1 := newTestMatrixTransport("mrand", params.TrustMatrixServers)
 	m1.Stop()
 }
 func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
@@ -119,8 +87,7 @@ func TestLoginAndJoinDiscoveryRoom(t *testing.T) {
 		return
 	}
 	cfg1, _ := getMatrixEnvConfig()
-	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
-	m1.setDB(&MockDb{})
+	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1, &codefortest.MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
 	defer m1.Stop()
@@ -132,8 +99,7 @@ func TestGetJoinedRoomAlias(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	m1 := NewMatrixTransport("test", testPrivKey, "other", params.MatrixServerConfig)
-	m1.setDB(&MockDb{})
+	m1 := NewMatrixTransport("test", testPrivKey, "other", params.TrustMatrixServers, &codefortest.MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	defer m1.Stop()
 	m1.Start()
@@ -187,8 +153,8 @@ func TestSendMessage(t *testing.T) {
 		return
 	}
 	_, m1, m2 := newFourTestMatrixTransport()
-	m1.db.(*MockDb).addPartner(m2.NodeAddress)
-	m2.db.(*MockDb).addPartner(m1.NodeAddress)
+	m1.db.(*codefortest.MockDb).AddPartner(m2.NodeAddress)
+	m2.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m1.Start()
 	m2.Start()
 	time.Sleep(time.Second * 6)
@@ -271,8 +237,8 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 		return
 	}
 	_, m1, m2 := newFourTestMatrixTransport()
-	m1.db.(*MockDb).addPartner(m2.NodeAddress)
-	m2.db.(*MockDb).addPartner(m1.NodeAddress)
+	m1.db.(*codefortest.MockDb).AddPartner(m2.NodeAddress)
+	m2.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m1.Start()
 	//let server sync
 	//time.Sleep(time.Second * 6)
@@ -317,13 +283,12 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	time.Sleep(time.Second)
 	_, cfg3 := getMatrixEnvConfig()
 	//m2 relogin on transport03
-	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg3)
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg3, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 	}
-	m2Again.setDB(new(MockDb))
 	m2Again.setTrustServers(testTrustedServers)
-	m2Again.db.(*MockDb).addPartner(m1.NodeAddress)
+	m2Again.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m2Again.Start()
 	err = m1.Send(m2Again.NodeAddress, []byte("ccc"))
 	if err != nil {
@@ -558,10 +523,9 @@ func TestSendMessageWithoutChannelAndOfflineOnline(t *testing.T) {
 	time.Sleep(time.Second)
 	_, cfg2 := getMatrixEnvConfig()
 	//m2 relogin on transport03
-	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2)
-	m2Again.setDB(new(MockDb))
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2, &codefortest.MockDb{})
 	m2Again.setTrustServers(testTrustedServers)
-	m2Again.db.(*MockDb).addPartner(m1.NodeAddress)
+	m2Again.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m2Again.Start()
 
 	err = m1.Send(m2Again.NodeAddress, []byte("ddd"))
@@ -642,8 +606,8 @@ func TestRoomTimeLineEvents(t *testing.T) {
 		return
 	}
 	_, m1, m2 := newFourTestMatrixTransport()
-	m1.db.(*MockDb).addPartner(m2.NodeAddress)
-	m2.db.(*MockDb).addPartner(m1.NodeAddress)
+	m1.db.(*codefortest.MockDb).AddPartner(m2.NodeAddress)
+	m2.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m1.Start()
 	m2.Start()
 	m1Chan := make(chan string)
@@ -673,18 +637,16 @@ func TestRoomTimeLineEvents(t *testing.T) {
 
 	//重新登录,看看事件有没有问题
 	cfg1, cfg2 := getMatrixEnvConfig()
-	m1Again := NewMatrixTransport("m1", m1.key, "other", cfg1)
+	m1Again := NewMatrixTransport("m1", m1.key, "other", cfg1, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 	}
-	m1Again.setDB(m1.db)
 	m1Again.setTrustServers(testTrustedServers)
 
-	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2)
+	m2Again := NewMatrixTransport("m2", m2.key, "other", cfg2, &codefortest.MockDb{})
 	if err != nil {
 		t.Error(err)
 	}
-	m2Again.setDB(m2.db)
 	m2Again.setTrustServers(testTrustedServers)
 	time.Sleep(time.Second * 20)
 	//看看下次获取的事件信息
@@ -732,8 +694,7 @@ func TestLeaveUselessRoom(t *testing.T) {
 		return
 	}
 	cfg1, _ := getMatrixEnvConfig()
-	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1)
-	m1.setDB(&MockDb{})
+	m1 := NewMatrixTransport("test", testPrivKey, "other", cfg1, &codefortest.MockDb{})
 	m1.setTrustServers(testTrustedServers)
 	log.Trace(fmt.Sprintf("privkey=%s", hex.EncodeToString(crypto.FromECDSA(m1.key))))
 	defer m1.Stop()

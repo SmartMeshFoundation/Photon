@@ -3,6 +3,7 @@ package mobile
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
@@ -33,7 +34,8 @@ import (
 //
 // should not export any member because of gomobile's protocol
 type API struct {
-	api *photon.API
+	startTime time.Time
+	api       *photon.API
 }
 
 /*
@@ -70,18 +72,25 @@ func (a *API) GetChannelList() (result string) {
 	var datas []*v1.ChannelData
 	for _, c := range chs {
 		d := &v1.ChannelData{
-			ChannelIdentifier:   common.BytesToHash(c.Key).String(),
+			ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
 			PartnerAddrses:      c.PartnerAddress().String(),
 			Balance:             c.OurBalance(),
 			PartnerBalance:      c.PartnerBalance(),
-			LockedAmount:        c.OurAmountLocked(),
-			PartnerLockedAmount: c.PartnerAmountLocked(),
 			State:               c.State,
 			StateString:         c.State.String(),
-			OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+			DelegateState:       c.DelegateState,
+			DelegateStateString: c.DelegateState.String(),
 			TokenAddress:        c.TokenAddress().String(),
 			SettleTimeout:       c.SettleTimeout,
 			RevealTimeout:       c.RevealTimeout,
+			LockedAmount:        c.OurAmountLocked(),
+			PartnerLockedAmount: c.PartnerAmountLocked(),
+		}
+		if c.State == channeltype.StateClosed {
+			res := a.api.GetChannelSettleBlock(c.ChannelIdentifier.ChannelIdentifier)
+			d.BlockNumberNow = res.BlockNumberNow
+			d.BlockNumberChannelCanSettle = res.BlockNumberChannelCanSettle
 		}
 		datas = append(datas, d)
 	}
@@ -598,11 +607,13 @@ the role should only be  "maker" or "taker".
 //Stop stop Photon
 func (a *API) Stop() {
 	log.Info("Api Stop")
-	if v1.QuitChain != nil {
-		close(v1.QuitChain)
+	if v1.QuitChan != nil {
+		close(v1.QuitChan)
 	}
 	//test only
 	a.api.Stop()
+	//保证stop完成以后,再删除,也就是说上一个没有完全stop之前,是不能启动新的photon实例的
+	delete(apiMonitor, a)
 }
 
 /*
@@ -813,12 +824,14 @@ func (a *API) Subscribe(handler NotifyHandler) (sub *Subscription, err error) {
 				cs.EthStatus = s
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
+				log.Info(fmt.Sprintf("notify OnStatusChange=%s", d))
 				handler.OnStatusChange(string(d))
 			case s := <-xn:
 				cs.XMPPStatus = s
 				log.Info(fmt.Sprintf("status change to %d", cs.XMPPStatus))
 				cs.LastBlockTime = a.api.Photon.GetDao().GetLastBlockNumberTime().Format(v1.BlockTimeFormat)
 				d, err = json.Marshal(cs)
+				log.Info(fmt.Sprintf("notify OnStatusChange=%s", d))
 				handler.OnStatusChange(string(d))
 			case t, ok := <-a.api.Photon.NotifyHandler.GetReceivedTransferChan():
 				if ok {
@@ -909,6 +922,7 @@ func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel 
 	amount, _ := new(big.Int).SetString(amountStr, 0)
 	c, err := a.api.GetChannel(channelIdentifier)
 	if err != nil {
+		err = rerr.ErrChannelNotFound.WithData(channelIdentifier) //不要暴露底层错误
 		log.Error(fmt.Sprintf("GetChannel %s err %s", utils.HPex(channelIdentifier), err))
 		return
 	}
@@ -1025,4 +1039,32 @@ func (a *API) ContractCallTXQuery(channelIdentifierStr string, openBlockNumber i
 // Version 获取版本信息
 func (a *API) Version() string {
 	return dto.NewSuccessMobileResponse(a.api.GetBuildInfo())
+}
+
+// GetAssetsOnToken 参数逗号分隔
+func (a *API) GetAssetsOnToken(tokenListStr string) (result string) {
+	defer func() {
+		log.Trace(fmt.Sprintf("ApiCall GetAssetsOnToken result=%s", result))
+	}()
+	var tokenList []common.Address
+	if tokenListStr != "" {
+		ss := strings.Split(tokenListStr, ",")
+		for _, s := range ss {
+			tokenList = append(tokenList, common.HexToAddress(s))
+		}
+	}
+	resp, err := a.api.GetAssetsOnToken(tokenList)
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(resp)
+}
+
+// DebugUploadLogfile 上传photon日志到logserver
+func (a *API) DebugUploadLogfile() string {
+	err := a.api.UploadLogFile()
+	if err != nil {
+		return dto.NewErrorMobileResponse(err)
+	}
+	return dto.NewSuccessMobileResponse(nil)
 }
