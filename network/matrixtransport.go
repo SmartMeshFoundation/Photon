@@ -794,9 +794,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 			//one must join to be able to get room alias
 			var err error
 			for i := 0; i < 3; i++ {
-				serverName := getServerFromRoomID(event.RoomID, 0)
-				m.log.Debug(fmt.Sprintf("serverName %s", serverName))
-
 				_, err = m.matrixcli.JoinRoom(event.RoomID, "", nil) //todo chen servername=""?为空不能跨服务器
 				if err != nil {
 					if strings.Index(err.Error(), "already in the room") > -1 {
@@ -836,14 +833,6 @@ func (m *MatrixTransport) doHandleMemberShipChange(job *matrixJob) {
 	} else {
 		//todo fix me handle leave event
 	}
-}
-
-func getServerFromRoomID(roomid string, index int) string {
-	//#photon_ropsten_discovery:transport01.smartmesh.cn
-	if strings.ContainsAny(roomid, ":") {
-		return strings.Split(roomid, ":")[index]
-	}
-	return ""
 }
 
 /*
