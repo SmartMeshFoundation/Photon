@@ -31,7 +31,6 @@ RUN address=$(smc account new --keystore=/photon/keystore --password=/photon/key
 
 # run photon on spectrum testnet
 WORKDIR /photon
-RUN photon --datadir=/photon/dbdata --api-address=0.0.0.0:5001 --listen-address=0.0.0.0:40001 --address=$address --keystore-path=/photon/keystore  --password-file=/photon/keystore/pass  --eth-rpc-endpoint=http://transport01.smartmesh.cn:17888 --verbosity=5 --logfile=/photon/photon.log
+CMD photon --datadir=/photon/dbdata --api-address=0.0.0.0:5001 --listen-address=0.0.0.0:40001 --address=$address --keystore-path=/photon/keystore  --password-file=/photon/keystore/pass  --eth-rpc-endpoint=http://transport01.smartmesh.cn:17888 --verbosity=5 --logfile=/photon/photon.log
 
-CMD ["sh"]
 # CMD ["photon"," --datadir=/photon/dbdata","--api-address=0.0.0.0:5001","--listen-address=0.0.0.0:40001","--address=$address","--keystore-path=/photon/keystore","  --password-file=/photon/keystore/pass","--eth-rpc-endpoint=http://transport01.smartmesh.cn:17888","--verbosity=5","--logfile=/photon/photon.log"]
