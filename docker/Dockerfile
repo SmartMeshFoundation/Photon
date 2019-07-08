@@ -30,5 +30,6 @@ RUN echo -n `date +%s%N | md5sum |cut -c 1-9` > /photon/keystore/pass
 RUN echo -n `smc account new --keystore=/photon/keystore --password=/photon/keystore/pass | cut -c 11-50` > account
 
 # run photon on spectrum testnet
+EXPOSE 5001 40001
 WORKDIR /photon
 CMD photon --datadir=/photon/dbdata --api-address=0.0.0.0:5001 --listen-address=0.0.0.0:40001 --address=`cat account` --keystore-path=/photon/keystore  --password-file=/photon/keystore/pass  --eth-rpc-endpoint=http://transport01.smartmesh.cn:17888 --verbosity=5 --logfile=/photon/photon.log
