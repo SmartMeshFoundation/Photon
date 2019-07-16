@@ -196,7 +196,57 @@ Where `info` is
 		Message interface{}
 }
 ```
- 
+ ##### Type Description in InfoStruct
+Level|name|value|description
+---|---|----|----
+Info|InfoTypeString|0 |Simple string notification,the format is not fixed, **the type which has been deprecated**
+Info|InfoTypeSentTransferDetail|1|The status of the transaction initiated by the initiator has changed, and the format is fixed.
+Info|InfoTypeChannelCallID|2|The operation on the channel has a result, the format is not fixed, and the caller decides what operation is based on the CallID.
+Info|InfoTypeChannelStatus|3|Channel status has changed, which including the balance,the patner_balance,the locked_amount,the partner_locked_amount,the state,and so on
+Info|InfoTypeContractCallTXInfo|4|User initiated Tx execution result notification, the format is relatively fixed
+Info|InfoTypeInconsistentDatabase|5|During the transaction, it was found that the database of the receiving party was inconsistent. **Note that this message can only be used as a reference, and the other party may be maliciously falsified**
+Error|InfoTypeBalanceNotEnoughError|6|The SMT in the account  is insufficient, and the bottom line of the on-chain transaction cannot be guaranteed. It must be recharged as soon as possible.
+Error|InfoTypeCooperateSettleRefused|7|The  Cooperative settlement background execution was failed to close the channel, the other party refuses the request.
+Error|InfoTypeCooperateSettleFailed|8|The  Cooperative settlement background execution was failed to close the channel, the TX is failure.
+Error|InfoTypeWithdrawRefused|9|The  withdraw background execution was failed , the other party refuses the request.
+Error|InfoTypeWithdrawFailed|10|The  withdraw background execution was failed ,  the TX is failure.
+Info|InfoTypeReceivedMediatedTransfer|11|If the receiver receives MediatedTransfer, it does not mean that the transaction is successful, but only on behalf of receiving the message. If the transaction is successfully received, please use `OnReceivedTransfer`
+
+**Info corresponding to 0,Warn corresponding to  1,Error corresponding to  2**
+###### InfoTypeInconsistentDatabase
+Message:
+```go
+	type inconsistentDatabase struct {
+		ChannelIdentifier common.Hash    `json:"channel_identifier"`
+		Target            common.Address `json:"target"`
+    }
+```
+######   InfoTypeBalanceNotEnoughError
+```go
+	type notEnough struct {
+		Need *big.Int `json:"need"`
+		Have *big.Int `json:"have"`
+    }
+```
+ ###### InfoTypeCooperateSettleRefused
+ 以及InfoTypeCooperateSettleFailed,   InfoTypeWithdrawRefused,InfoTypeWithdrawFailed
+```go
+type failedCooperate struct {
+	Channel   common.Hash `json:"channel"`
+	ErrorCode int         `json:"error_code"`
+	ErrorMsg  string      `json:"error_message"`
+}
+```
+##### InfoTypeReceivedMediatedTransfer
+```go
+type receivedTranser struct {
+	Token      common.Address `json:"token"`
+	From       common.Address `json:"from"`
+	Amount     *big.Int       `json:"amount"`
+	ID         string         `json:"id"`
+	Expiration int64          `json:"expiration"`
+}
+```
 ### Manually registering node information
 func (a *API) UpdateMeshNetworkNodes(nodesstr string) (err error)
 
@@ -267,22 +317,57 @@ func (a *API) GetSystemStatus() (r string, err error)
 
 ## Channel Structure   
 ```json
-    {
-        "channel_identifier": "0x47235d9d81eb6c19dea2b695b3d6ba1cf76c169d329dc60d188390ba5549d025",
-        "open_block_number": 3158573,
-        "partner_address": "0x31DdaC67e610c22d19E887fB1937BEE3079B56Cd",
-        "balance": 100000000000000000000,
-        "partner_balance": 100000000000000000000,
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": {
+        "channel_identifier": "0xfe738aa39610416e4100036130af7ae00930021d5a51be60b55b96c12b1f4af5",
+        "open_block_number": 1872482,
+        "partner_address": "0x3bC7726c489E617571792aC0Cd8b70dF8A5D0e22",
+        "balance": 1e+22,
+        "partner_balance": 1e+22,
         "locked_amount": 0,
         "partner_locked_amount": 0,
-        "token_address": "0xF2747ea1AEE15D23F3a49E37A146d3967e2Ea4E5",
+        "token_address": "0xB31567308AD3c42D864FB41684bB40d3A2c57E1b",
         "state": 1,
-        "StateString": "opened",
-        "settle_timeout": 150,
-        "reveal_timeout": 30
+        "state_string": "opened",
+        "settle_timeout": 100,
+        "reveal_timeout": 30,
+        "closed_block": 0,
+        "settled_block": 0,
+        "our_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "partner_balance_proof": {
+            "nonce": 0,
+            "transfer_amount": 0,
+            "locks_root": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "channel_identifier": {
+                "channel_identifier": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "open_block_number": 0
+            },
+            "message_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "contract_transfer_amount": 0,
+            "contract_locksroot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
     }
+}
+
 ```
 Channel structure description ： 
+
+- `error_code`:  error code
+
+- `error_message`: Error code description
 
 - `channel_identifier`:  Address for a channel
 
@@ -308,6 +393,14 @@ Channel structure description ：
 
 -  `reveal_timeout`: The block height at which nodes registering `secret`,the default value is 30, and if modified, it can be setting at node startup with `-- reveal-timeout` 
 
+-  `closed_block`: Block height when the channel is closed
+
+-  `settled_block`: Block height at the time of channel settlement
+
+-  `our_balance_proof`: Our balanceproof data
+
+-  `partner_balance_proof`: Counterparty balanceproof  of the Channel 
+
 State|StateString|Description
 ---|---|---
 0 |inValid|Channels do not exist
@@ -323,6 +416,16 @@ State|StateString|Description
 10|unkown|StateError
 
 Among them, App can see only 1-9 states, other states can not be directly observed, which is internal use.  **prepareForWithdraw and prepareForCooperativeSettle will not appear on the mobile phone** , only appear when the meshbox  be used as intermediate node of the transaction.
+
+DelegateState indicates whether the channel-related balanceProof is delegated to the PMS
+
+delegateState|name|Description
+---|---|---
+0|ChannelDelegateStateNoNeed| Appears only when it is explicitly specified that no PMS is required.
+1|ChannelDelegateStateWaiting|Waiting for delegate to PMS
+2|ChannelDelegateStateSuccess|Successful delegation
+3|ChannelDelegateStateFail|Delegate failure
+4|ChannelDelegateStateFailAndNoEffectiveChain| The delegation is failed and there is no effective public chain
 
 Currently, the interface results are changed from polling to synchronization. All  returns of the interfaces contain error codes and error messages. ErrCode 0 indicates success, and others indicate errors. It is meaningful to parse data fields when ErrCode is 0. Below are some error codes and message descriptions.
 
@@ -403,7 +506,7 @@ errorcode|errormessage|Description
 5026|ErrInvalidSettleTimeout|The timeout value submitted by the user is less than the minimum settle timeout value.
 6000|transport type error|Unknown transport layer errors.
 6001|ErrSubScribeNeighbor|Subscriber online information error
-
+9999|ErrUnknown|Unknown error, the code should be incomplete, the error classification is not detailed enough
 ## Query interface
 ### Query the account address of the running photon node
 func (a *API) Address() (addr string)
@@ -829,6 +932,207 @@ Example Response:
 - `200 OK`   
 - `409 Conflict` ,such as, "failed to estimate gas needed: gas required exceeds allowance or always failing transaction",or "channel is still open".
 
+### Query contract call
+
+func (a *API)  ContractCallTXQuery(channelIdentifierStr string, openBlockNumber int, tokenAddressStr, txTypeStr, txStatusStr string) (result string)
+
+Query the result of the channel function interface contract call. Mainly include:deposit, close, settle, withdraw, cooperating settle, etc.
+
+Example Request: 
+
+```json
+{
+	"token_address":"",
+	"tx_type":"ChannelSettle"
+}
+```
+
+Example Response:
+
+```json
+{
+    "error_code": 0,
+    "error_message": "SUCCESS",
+    "data": [
+        {
+            "tx_hash": "0x980c44a5a75224ed140549cf94cd37fa481c1d2e5bee12e507acea695af0f30a",
+            "channel_identifier": "0xb943bb364667a2c9c06526be5a9c03e99544ded5b2380be035608e016bdfa8ac",
+            "open_block_number": 1251429,
+            "token_address": "0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+            "type": "ChannelSettle",
+            "is_self_call": true,
+            "tx_params": "{\"token_address\":\"0x2158c8c27ab31602f462084bdc47ab5c9d339b26\",\"p1_address\":\"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5\",\"p1_transfer_amount\":0,\"p1_locks_root\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"p2_address\":\"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0\",\"p2_transfer_amount\":0,\"p2_locks_root\":\"0x0278c2c9445b7930a2d95cce4d3de0fc6845782a721d7bf92ddaf8189b00a936\"}",
+            "tx_status": "success",
+            "events": null,
+            "pack_block_number": 1252608,
+            "call_time": 1551753432,
+            "pack_time": 1551753433,
+            "gas_price": 20000000000,
+            "gas_used": 44568
+        },
+    ]
+        }
+
+```
+The transaction parameters are structured as follows:
+
+DepositTXParams :
+
+Deposit parameter
+
+```json
+{
+  "token_address":"0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+	"participant_address":"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0",
+	"partner_address":"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5",
+	"amount":0,
+	"locks_root":"0x0000000000000000000000000000000000000000000000000000000000000000",
+	"settle_timeout":500,
+}
+```
+Parameter Description:
+
+	TokenAddress      token address
+
+	ParticipantAddress  Own address
+
+	PartnerAddress     Address of the other party
+
+	Amount            Deposit amount
+
+	SettleTimeout      When equal to 0, it means Deposit, and when it is greater than 0, it means OpenAndDeposit.
+
+ChannelCloseOrChannelUpdateBalanceProofTXParams：
+
+Close the channel or UpdateBalanceProof parameters, the two operations are multiplexed, according to the Type in the upper layer TXInfo
+
+```json
+{
+  "token_address":"0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+	"participant_address":"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0",
+	"partner_address":"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5",
+	"transfer_amount":0,
+	"locks_root":"0x0000000000000000000000000000000000000000000000000000000000000000",
+	"nonce":0,
+	"extra_hash":"0x0000000000000000000000000000000000000000000000000000000000000000",
+	"signature":null
+}
+```
+ Parameter Description:
+
+	TokenAddress          token address
+
+	ParticipantAddress    Own address
+
+	PartnerAddress      Address of the other party
+
+	TransferAmount      The transferAmount of the other party
+
+	LocksRoot           The locksroot  of the other party
+
+	Nonce               The nonce of the other party
+
+	ExtraHash             Metadata
+
+	Signature          The other party's BalanceProof signature
+
+
+ChannelSettleTXParams：
+
+ Channel settlement parameters, p1 for yourself, p2 for the other
+
+```json
+{
+ "token_address":"0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+	"p1_address":"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0",
+	"p1_transfer_amount":1,
+	"p1_locks_root":"0x0000000000000000000000000000000000000000000000000000000000000000",
+	"p2_address":"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5",
+	"p2_transfer_amount":1,
+	"p2_locks_root":"0x0000000000000000000000000000000000000000000000000000000000000000",
+}
+```
+
+Parameter Description:
+
+	TokenAddress     token  address 
+
+	P1Address         Own address
+
+	P1TransferAmount  Own Transferamount
+
+	P1LocksRoot       Own locksroot
+
+	P2Address         Address of the other party 
+
+	P2TransferAmount  Transferamount  of the other party
+
+	P2LocksRoot       Locksroot  of the other party
+
+
+
+ ChannelWithDrawTXParams:
+ 
+Channel withdraw parameters, p1 for yourself, p2 for the other
+
+  ```json
+{
+    "token_address":"0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+	"p1_address":"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0",
+	"p2_address":"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5",
+	"p1_balance":10,
+	"p1_withdraw":5,
+	"p1_signature":"9tu3sP8vYLl8OTvs3TPmsftvLjRb+HiUKFmp7mYvbANlBzbslHa/y90D35yC/bDUygXtpgPyqvJZvdyespdklhs=",
+	"p2_signature":"9tu3sP8vYLl8OTvs3TPmsftvLjRb+HiUKFmp7mYvbANlBzbslHa/y90D35yC/bDUygXtpgPyqvJZvdyespdklhs=",
+}
+```
+
+ Parameter Description:
+
+	TokenAddress   token address
+
+	P1Address      Own address
+
+	P2Address      Address of the other party 
+
+	P1Balance     Own balance
+
+	P1Withdraw    Own withdraw amount
+
+	P1Signature   Own signature
+
+	P2Signature   The signature of the other party
+
+ ChannelCooperativeSettleTXParams：
+ 
+   The parameters of the channel cooperation close, p1 is itself, p2 is the other party
+
+ ```json
+{
+   "token_address":"0x2158c8c27ab31602f462084bdc47ab5c9d339b26",
+	"p1_address":"0x3de45febbd988b6e417e4ebd2c69e42630fefbf0",
+	"p1_balance":10,
+	"p2_address":"0x97251ddfe70ea44be0e5156c4e3aadd30328c6a5",
+	"p2_balance":5,
+	"p1_signature":"9tu3sP8vYLl8OTvs3TPmsftvLjRb+HiUKFmp7mYvbANlBzbslHa/y90D35yC/bDUygXtpgPyqvJZvdyespdklhs=",
+	"p2_signature":"9tu3sP8vYLl8OTvs3TPmsftvLjRb+HiUKFmp7mYvbANlBzbslHa/y90D35yC/bDUygXtpgPyqvJZvdyespdklhs=",
+}
+``` 
+Parameter Description:
+
+	TokenAddress   token address
+
+	P1Address      Own address
+
+	P1Balance      Own balance
+
+	P2Address       The address of the other party
+
+	P2Balance      The balance of the other party
+
+	P1Signature    Own signature
+
+	P2Signature    The signature of the other party
 ## Transaction related interface (asynchronous)
 ### Initiate a transaction
 func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, secretStr string, isDirect bool, data string, routeInfoStr string) (result string)
@@ -1140,3 +1444,35 @@ func (a *Api) Version() string
             }
         }
 ```
+##  Interface for temporary access to photon information 
+
+func NewSimpleAPI(datadir, address string) (api *SimpleAPI, err error)
+
+This temporary interface is added because the photon query channel information is not started in the app.
+
+Parameter 1: The datadir parameter of the Startup function, which is the fourth parameter.
+Parameter 2: Startup function address parameter, which is the first parameter
+
+### Example
+```go
+a, err := NewSimpleApi("/Users/bai/sm/Photon/cmd/photon/.photon", "0x292650fee408320D888e06ed89D938294Ea42f99")
+r = a.BalanceAvailabelOnPhoton("0x6601F810eaF2fa749EEa10533Fd4CC23B8C791dc")
+a.Stop()
+```
+### BalanceAvailabelOnPhoton 
+
+The parameter is the token you want to query.
+
+Return example
+
+
+```json
+{
+    "error_code":0,
+    "error_message":"SUCCESS",
+    "data":20
+}
+```
+**Note**
+
+ NewSimpleApi returns, **Make sure to call Stop** after it is used, otherwise it will cause subsequent photon to fail to start.
