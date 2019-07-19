@@ -1,8 +1,14 @@
 package mobile
 
 import (
+	"encoding/hex"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"errors"
 
@@ -82,5 +88,51 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 		api:       rapi,
 	}
 	apiMonitor[api] = struct{}{}
+	return
+}
+
+//ecrecover is a wrapper for crypto.Ecrecover ,处理v=27,28的情况
+func ecrecover(hash common.Hash, signature []byte) (addr common.Address, err error) {
+	if len(signature) != 65 {
+		err = fmt.Errorf("signature errr, len=%d,signature=%s", len(signature), hex.EncodeToString(signature))
+		return
+	}
+	pubkey, err := crypto.Ecrecover(hash[:], signature)
+	if err != nil {
+		signature[len(signature)-1] -= 27 //why?
+		pubkey, err = crypto.Ecrecover(hash[:], signature)
+		if err != nil {
+			signature[len(signature)-1] += 27
+			return
+		}
+	}
+	addr = utils.PubkeyToAddress(pubkey)
+	signature[len(signature)-1] += 27
+	return
+}
+
+/*
+GetMinerFromSignature : 根据全节点提供的签名,以及我的钱包校验全节点地址是否正确
+walletAddr: 抵押的钱包地址
+sig: 矿工对WalletAddr的签名
+如果不出错,应该返回矿工地址
+*/
+func GetMinerFromSignature(walletAddr, sig string) (minerAddr string, err error) {
+	wa := common.HexToAddress(walletAddr)
+	if strings.Index(sig, "0x") == 0 {
+		sig = sig[2:]
+	}
+	signature, err := hex.DecodeString(sig)
+	if err != nil {
+		err = fmt.Errorf("signature format errr %s,sig=%s", err, sig)
+		return
+	}
+	hash := crypto.Keccak256(wa.Bytes())
+	ma, err := ecrecover(common.BytesToHash(hash), signature)
+	if err != nil {
+		err = fmt.Errorf("Ecrecover err %s", err)
+		return
+	}
+	minerAddr = ma.String()
 	return
 }

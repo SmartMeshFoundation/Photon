@@ -265,3 +265,28 @@ func TestDuplicateStartup(t *testing.T) {
 	}
 	api.Stop()
 }
+
+func TestGetMinerFromSignature(t *testing.T) {
+	walletAddr := "0xbf1736a65f8beadd71b321be585fd883503fdeaa"
+	sig := "460e885bdbe231fa0c57c8b2780e0fd97d5a6bda718eefdcc88a443b137872902f3ba75987411174282f2cb89b17964cc43519da28b49df977c2ca1da1957cff00"
+	miner, err := GetMinerFromSignature(walletAddr, sig)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if miner != "0x9944D0CC757CD9391EE320FC17d5B6f61693f2c5" {
+		t.Error("miner not match")
+	}
+	t.Logf("miner=%s", miner)
+}
+
+func TestGetMinerFromSignature2(t *testing.T) {
+	walletAddr := "0xc1b9c960c7ac2525004966d3624b1a92456d56bb"
+	sig := "0x08db62b07afd5e33bb47192560b99c0811eda448594ba0e3d3d840c4a43974b04305c3e994bc6fe7e5b0c32cb6b7f44a59c68980bc23c94d2465b6cf8c518a8e1b"
+	miner, err := GetMinerFromSignature(walletAddr, sig)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("miner=%s", miner)
+}
