@@ -30,6 +30,7 @@ import (
 )
 
 const testMobileAddr = "0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa"
+const testMobilePrivateKey = "0x2ddd679cb0f0754d0e20ef8206ea2210af3b51f159f55cfffbd8550f58daf779" // 0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa
 const testRegistryAddr = "0xb70300b2EaE09eDCC9cf8c1898A442a1B84Aa3D3"
 
 func TestMobile(t *testing.T) {
@@ -44,7 +45,7 @@ func TestMobile(t *testing.T) {
 	other := NewStrings(1)
 	other.Set(0, "--xmpp")
 	//other = nil
-	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
+	api, err := StartUp(testMobilePrivateKey, rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "0.0.0.0:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
 	if err != nil {
 		t.Error(err)
 		return
@@ -174,8 +175,7 @@ func TestMobileNotify(t *testing.T) {
 	mainimpl.GoVersion = "test"
 	mainimpl.GitCommit = utils.NewRandomAddress().String()[2:]
 	mainimpl.BuildDate = "test"
-	nodeAddr := common.HexToAddress("0x1a9ec3b0b807464e6d3398a59d6b0a369bf422fa")
-	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "0.0.0.0:5001", "127.0.0.1:40001", "", "0xb70300b2EaE09eDCC9cf8c1898A442a1B84Aa3D3", nil)
+	api, err := StartUp(testMobilePrivateKey, rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "0.0.0.0:5001", "127.0.0.1:40001", "", "0xb70300b2EaE09eDCC9cf8c1898A442a1B84Aa3D3", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -243,22 +243,21 @@ func TestDuplicateStartup(t *testing.T) {
 	mainimpl.GoVersion = "test"
 	mainimpl.GitCommit = utils.NewRandomAddress().String()[2:]
 	mainimpl.BuildDate = "test"
-	nodeAddr := common.HexToAddress(testMobileAddr)
 	other := NewStrings(1)
 	other.Set(0, "--xmpp")
 	//other = nil
-	api, err := StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
+	api, err := StartUp(testMobilePrivateKey, rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	_, err = StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
+	_, err = StartUp(testMobilePrivateKey, rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
 	if err == nil {
 		t.Error("can not startup twice")
 		return
 	}
 	api.Stop()
-	api, err = StartUp(nodeAddr.String(), "../testdata/keystore", rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "../testdata/keystore/pass", "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
+	api, err = StartUp(testMobilePrivateKey, rpc.TestRPCEndpoint, path.Join(os.TempDir(), utils.RandomString(10)), "127.0.0.1:5001", "127.0.0.1:40001", "", testRegistryAddr, other)
 	if err != nil {
 		t.Error(err)
 		return

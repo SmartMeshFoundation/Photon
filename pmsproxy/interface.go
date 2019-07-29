@@ -72,7 +72,7 @@ func SignBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.Private
 	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
 	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		log.Error(fmt.Sprintf("buf write error %s", err))
 	}
@@ -91,7 +91,7 @@ func SignUnlockFor3rd(c *channeltype.Serialization, u *DelegateUnlock, thirdAddr
 	_, err = buf.Write(u.Lock.LockSecretHash[:])
 	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		log.Error(fmt.Sprintf("buf write error %s", err))
 		return

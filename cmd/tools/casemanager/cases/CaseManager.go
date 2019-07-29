@@ -55,8 +55,8 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 		caseManager.MediumWaitSeconds = 50 + 160 //config for settle time
 		caseManager.HighMediumWaitSeconds = 300 + 100
 	}
-	//会通过启动参数来指定修改mdns的间隔时间 params.DefaultMDNSKeepalive修改为1秒,params.DefaultMDNSQueryInterval修改为50ms
-	caseManager.MDNSLifeTime = time.Second + time.Millisecond*50*2 //实际上是params.DefaultMDNSKeepalive + 2*params.DefaultMDNSQueryInterval
+	//会通过启动参数来指定修改mdns的间隔时间 params.DefaultMDNSKeepalive修改为1秒,params.Cfg.MDNSQueryInterval修改为50ms
+	caseManager.MDNSLifeTime = time.Second + time.Millisecond*50*2 //实际上是params.DefaultMDNSKeepalive + 2*params.Cfg.MDNSQueryInterval
 	// use reflect to load all cases
 	_, err = fmt.Println("load cases...")
 	vf := reflect.ValueOf(caseManager)

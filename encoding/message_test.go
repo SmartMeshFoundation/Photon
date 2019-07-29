@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"bytes"
 
 	"errors"
@@ -28,7 +30,7 @@ import (
 const TestPrivkey = "4359f525e2b373089be5fe8f9a4e8ffb6d30e2960918be426217921e1b2547f7"
 
 func init() {
-
+	params.InitForUnitTest()
 }
 func GetTestPrivKey() *ecdsa.PrivateKey {
 	key, _ := hex.DecodeString(TestPrivkey)

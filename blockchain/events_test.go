@@ -24,6 +24,7 @@ import (
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 
 type fakeRPCModule struct {
@@ -76,7 +77,7 @@ func TestEvents_Start(t *testing.T) {
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}
-	params.ChainID = big.NewInt(8888)
+	params.Cfg.ChainID = big.NewInt(8888)
 	be.Start(-1)
 	begin := time.Now()
 	for {
@@ -133,7 +134,7 @@ func TestEvents_Start2(t *testing.T) {
 	if be == nil {
 		t.Error("NewBlockChainEvents failed")
 	}
-	params.ChainID = big.NewInt(8888)
+	params.Cfg.ChainID = big.NewInt(8888)
 	chs, err := be.queryAllStateChange(13362234, 13362238)
 	if err != nil {
 		t.Error(err)

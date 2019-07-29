@@ -113,13 +113,7 @@ type MatrixTransport struct {
 
 var (
 	// ValidUserIDRegex user ID 's format
-	ValidUserIDRegex = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
-	//NETWORKNAME which network is used
-	NETWORKNAME = params.NETWORKNAME
-	//ALIASFRAGMENT the terminal part of alias
-	ALIASFRAGMENT = params.AliasFragment
-	//DISCOVERYROOMSERVER discovery room server name
-	DISCOVERYROOMSERVER   = params.DiscoveryServer
+	ValidUserIDRegex      = regexp.MustCompile(`^@(0x[0-9a-f]{40})(?:\.[0-9a-f]{8})?(?::.+)?$`) //(`^[0-9a-z_\-./]+$`)
 	networkPartHasChannel = "y"
 	networkPartNoChannel  = "n"
 )
@@ -423,10 +417,10 @@ func (m *MatrixTransport) Start() {
 			firstSync := make(chan struct{}, 5)
 			isFirstSynced := false
 			for name, url := range m.servers {
-				//如果用户制定了server,那么就用用户指定的,仅用于调试
-				if len(params.UserSpecifiedMatrixServer) > 0 && url != params.UserSpecifiedMatrixServer {
-					continue
-				}
+				////如果用户制定了server,那么就用用户指定的,仅用于调试
+				//if len(params.UserSpecifiedMatrixServer) > 0 && url != params.UserSpecifiedMatrixServer {
+				//	continue
+				//}
 				var mcli *gomatrix.MatrixClient
 				mcli, err = gomatrix.NewClient(url, "", "", PATHPREFIX0, m.log)
 				if err != nil {
@@ -1399,8 +1393,8 @@ todo 需要找到一个可靠的方式来移除DiscoveryRoom,
 func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
 	//read discovery room'name and fragment from "params-settings"
 	// combine discovery room's alias
-	discoveryRoomAlias := m.makeRoomAlias(ALIASFRAGMENT, NETWORKNAME)
-	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + DISCOVERYROOMSERVER
+	discoveryRoomAlias := m.makeRoomAlias(params.Cfg.AliasFragment, params.Cfg.NetworkName)
+	discoveryRoomAliasFull := "#" + discoveryRoomAlias + ":" + params.Cfg.DiscoveryServer
 	m.discoveryroom = ""
 	// this node join the discovery room, if not exist, then create.
 	for i := 0; i < 10; i++ {
@@ -1409,7 +1403,7 @@ func (m *MatrixTransport) joinDiscoveryRoom() (err error) {
 		respJoinRoom, err = m.matrixcli.JoinRoom(discoveryRoomAliasFull, m.servername, nil)
 		if err != nil {
 			//if Room doesn't exist and then create the room(this is the node's resposibility)
-			if m.servername != DISCOVERYROOMSERVER {
+			if m.servername != params.Cfg.DiscoveryServer {
 				break
 			}
 			//try to create the discovery room

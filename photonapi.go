@@ -50,7 +50,7 @@ func NewPhotonAPI(photon *Service) *API {
 
 //Address return this node's address
 func (r *API) Address() common.Address {
-	return r.Photon.NodeAddress
+	return params.Cfg.MyAddress
 }
 
 //Tokens Return a list of the tokens registered with the default registry.
@@ -99,17 +99,17 @@ settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如�
 */
 func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
-		revealTimeout = r.Photon.Config.RevealTimeout
+		revealTimeout = params.Cfg.RevealTimeout
 	}
 	if newChannel {
 		if settleTimeout <= 0 {
-			settleTimeout = r.Photon.Config.SettleTimeout
+			settleTimeout = params.Cfg.SettleTimeout
 		}
 		if settleTimeout <= revealTimeout {
 			err = rerr.ErrChannelInvalidSettleTimeout
 			return
 		}
-		if bytes.Equal(partnerAddress[:], r.Photon.NodeAddress[:]) {
+		if bytes.Equal(partnerAddress[:], params.Cfg.MyAddress[:]) {
 			err = rerr.ErrOpenChannelWithSelf
 			return
 		}
@@ -130,9 +130,9 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			return
 		}
 		ch = channeltype.NewEmptySerialization()
-		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, r.Photon.NodeAddress)
+		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, params.Cfg.MyAddress)
 		ch.TokenAddressBytes = tokenAddress[:]
-		ch.OurAddress = r.Photon.NodeAddress
+		ch.OurAddress = params.Cfg.MyAddress
 		ch.PartnerAddressBytes = partnerAddress[:]
 		ch.State = channeltype.StateInValid
 		ch.SettleTimeout = settleTimeout
@@ -303,7 +303,7 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target
 //TransferInternal 供同步/异步交易接口使用
 func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
-		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
+		params.Cfg.MyAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
 	result = r.Photon.transferAsyncClient(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	return
 }
@@ -847,7 +847,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 	_, err = buf.Write(bpf.Signature)
 	_, err = buf.Write(utils.BigIntTo32Bytes(proof.LockAmount))
 	dataToSign := buf.Bytes()
-	proof.Signature, err = utils.SignData(r.Photon.PrivateKey, dataToSign)
+	proof.Signature, err = utils.SignData(params.Cfg.PrivateKey, dataToSign)
 	return
 }
 
@@ -896,7 +896,7 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 		err = rerr.ErrNotChargeFee.Append("photon start without param '--pfs', can not calculate total fee")
 		return
 	}
-	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount, true)
+	routes, err = r.Photon.PfsProxy.FindPath(params.Cfg.MyAddress, targetAddress, tokenAddress, amount, true)
 	if err != nil {
 		return
 	}
@@ -951,7 +951,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		SyncProcess         *ethereum.SyncProgress            `json:"sync_process"`
 	}
 	var data systemStatus
-	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
+	data.EthRPCEndpoint = params.Cfg.EthRPCEndPoint
 	if r.Photon.Chain.Client != nil {
 		switch r.Photon.Chain.Client.Status {
 		case netshare.Disconnected:
@@ -969,13 +969,13 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	// EthRPCStatus
 	// 这里只向外暴露两个状态:有效公链/无效公链
 	data.ChainEffective = r.Photon.IsChainEffective
-	data.NodeAddress = r.Photon.NodeAddress.String()
+	data.NodeAddress = params.Cfg.MyAddress.String()
 	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
 	// TokenToTokenNetwork
 	data.TokenToTokenNetwork = r.Photon.Token2TokenNetwork
 	data.LastBlockNumber = r.Photon.dao.GetLatestBlockNumber()
 	data.LastBlockNumberTime = r.Photon.dao.GetLastBlockNumberTime()
-	data.IsMobileMode = params.MobileMode
+	data.IsMobileMode = params.Cfg.IsMobile
 	// network type
 	switch r.Photon.Transport.(type) {
 	case *network.XMPPTransport:
@@ -990,7 +990,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		data.NetworkType = "udp"
 	}
 	// FeePolicy
-	if r.Photon.Config.EnableMediationFee {
+	if params.Cfg.EnableMediationFee {
 		data.FeePolicy = r.Photon.dao.GetFeePolicy()
 	} else {
 		data.FeePolicy = nil
@@ -1046,7 +1046,7 @@ func (r *API) checkSmcStatus() error {
 		return err
 	}
 	var defaultSyncBlock uint64 = 3
-	if params.ChainID.Uint64() == 8888 { //测试私链一秒一块,时间太短是不行的
+	if params.Cfg.ChainID.Uint64() == 8888 { //测试私链一秒一块,时间太短是不行的
 		defaultSyncBlock = 30
 	}
 	if sp != nil && sp.HighestBlock-sp.CurrentBlock > defaultSyncBlock {
@@ -1258,7 +1258,7 @@ func (r *API) GetChannelSettleBlock(channelIdentifier common.Hash) *GetChannelSe
 	if c == nil || c.State != channeltype.StateClosed {
 		return resp
 	}
-	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout) + int64(params.ContractPunishBlockNumber)
+	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout) + int64(params.Cfg.PunishBlockNumber)
 	return resp
 }
 
@@ -1272,7 +1272,7 @@ func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
 	if err != nil {
 		log.Error(err.Error())
 	}
-	if name == params.SMTTokenName {
+	if name == params.Cfg.SMTTokenName {
 		v, err2 := r.Photon.Chain.Client.BalanceAt(context.Background(), account, big.NewInt(r.Photon.GetBlockNumber()))
 		if err2 != nil {
 			return nil, rerr.ErrArgumentError.AppendError(err2)
@@ -1305,7 +1305,7 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnT
 			BalanceInPhoton: big.NewInt(0),
 		}
 		// 1. 获取用户在链上的该token余额
-		t, err2 := r.GetTokenBalance(r.Photon.NodeAddress, token)
+		t, err2 := r.GetTokenBalance(params.Cfg.MyAddress, token)
 		if err2 != nil {
 			log.Error(err2.Error())
 			err = err2
@@ -1331,7 +1331,7 @@ func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnT
 
 // UploadLogFile 上传photon日志到日志server
 func (r *API) UploadLogFile() error {
-	return uploadLogFile(r.Photon.NodeAddress, r.Photon.Config.LogFilePath)
+	return uploadLogFile(params.Cfg.MyAddress, params.Cfg.LogFilePath)
 }
 
 func uploadLogFile(address common.Address, logFilePath string) (err error) {

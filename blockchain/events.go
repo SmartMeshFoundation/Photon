@@ -77,7 +77,6 @@ type Events struct {
 	isChainEffective         bool
 	rpcModuleDependency      RPCModuleDependency
 	client                   *helper.SafeEthClient
-	pollPeriod               time.Duration              // 轮询周期,必须与公链出块间隔一致
 	stopChan                 chan int                   // has stopped?
 	txDone                   map[eventID]uint64         // 该map记录最近30块内处理的events流水,用于事件去重
 	firstStart               bool                       //保证ContractHistoryEventCompleteStateChange 只会发送一次
@@ -99,7 +98,6 @@ func NewBlockChainEvents(client *helper.SafeEthClient, rpcModuleDependency RPCMo
 
 //Stop event listenging
 func (be *Events) Stop() {
-	be.pollPeriod = 0
 	if be.stopChan != nil {
 		close(be.stopChan)
 	}
@@ -185,19 +183,7 @@ func (be *Events) startAlarmTask() {
 	*/
 	for {
 		//get the lastest number imediatelly
-		if be.pollPeriod == 0 {
-			// first time
-			if params.ChainID.Int64() == params.TestPrivateChainID {
-				be.pollPeriod = params.DefaultEthRPCPollPeriodForTest
-				logPeriod = 10
-			} else if params.ChainID.Int64() == params.TestPrivateChainID2 {
-				be.pollPeriod = params.DefaultEthRPCPollPeriodForTest / 10
-				logPeriod = 1000
-			} else {
-				be.pollPeriod = params.DefaultEthRPCPollPeriod
-			}
-		}
-		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+		ctx, cancelFunc := context.WithTimeout(context.Background(), params.Cfg.ChainRequestTimeout)
 		h, err := be.client.HeaderByNumber(ctx, nil)
 		if err != nil {
 			//无论公链发生什么错误,都应该让photon启动起来,而不是卡主
@@ -205,7 +191,6 @@ func (be *Events) startAlarmTask() {
 			log.Warn(fmt.Sprintf("HeaderByNumber err=%s", err))
 			cancelFunc()
 			if be.stopChan != nil {
-				be.pollPeriod = 0
 				go be.client.RecoverDisconnect()
 			}
 			// 连接失败直接通知上层切换到无效公链
@@ -226,14 +211,14 @@ func (be *Events) startAlarmTask() {
 			lastedBlockTimestamp = lastedBlockTimestamp / 1000
 		}
 		now := time.Now().Unix()
-		if lastedBlockTimestamp-now > int64(params.BlockPeriodSeconds) {
-			// 如果本地时间小于最新块的出块时间15秒,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
+		if lastedBlockTimestamp-now > int64(params.Cfg.BlockPeriod) {
+			// 如果本地时间小于最新块的出块时间一个出块间隔以上,说明本地时间服务有问题,这种情况下运行photon是不安全的,直接结束photon
 			panic(fmt.Sprintf("local time error local=%d lastedBlockTimestamp=%d, please run photon again after you fix local time server", now, lastedBlockTimestamp))
 		}
 		//连接到了有效的公链链接,但是公链最新块在三分钟之前,可能公链已经停止同步了,直接切换到无效公链状态
 		// 由于启动的时候默认无效公链,所以第一次处循环不可能走到该分支
 		//if now-lastedBlockTimestamp >= 180 && startUpBlockNumber == currentBlock {
-		if now-lastedBlockTimestamp >= params.BlockchainEffectiveTimeout && be.isChainEffective {
+		if now-lastedBlockTimestamp >= params.Cfg.EffectiveTimeoutSeconds && be.isChainEffective {
 			// 最新块的出块时间在3分钟以前,说明连接到了一个无效的公链节点,通知上层切换到无效公链
 			be.isChainEffective = false
 			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
@@ -256,7 +241,7 @@ func (be *Events) startAlarmTask() {
 			//在启动的时候连接到了一条无效的公链(不出块)的情况下,photon也应该可以继续启动.
 			// 连接到另外一个节点,该节点落后很多,也应该让photon尽快启动
 			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
-			time.Sleep(be.pollPeriod / 2)
+			time.Sleep(params.Cfg.PollPeriod / 2)
 			retryTime++
 			if retryTime > 10 {
 				log.Warn(fmt.Sprintf("get same block number %d from chain %d times,maybe something wrong with smc ...", lastedBlock, retryTime))
@@ -265,13 +250,13 @@ func (be *Events) startAlarmTask() {
 		}
 		retryTime = 0
 		if currentBlock != -1 && lastedBlock != currentBlock+1 {
-			log.Warn(fmt.Sprintf("AlarmTask missed %d blocks,currentBlock=%d", lastedBlock-currentBlock-1, currentBlock))
+			//log.Warn(fmt.Sprintf("AlarmTask missed %d blocks,currentBlock=%d", lastedBlock-currentBlock-1, currentBlock))
 		}
 		if lastedBlock%logPeriod == 0 {
 			log.Info(fmt.Sprintf("new block :%d", lastedBlock))
 		}
 
-		fromBlockNumber := currentBlock - 2*params.ForkConfirmNumber
+		fromBlockNumber := currentBlock - 2*params.Cfg.ForkConfirmNumber
 		if fromBlockNumber < 0 {
 			fromBlockNumber = 0
 		}
@@ -282,7 +267,7 @@ func (be *Events) startAlarmTask() {
 			//无论公链发生什么错误,都应该让photon启动起来,而不是卡主
 			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
 			// 如果这里出现err,不能继续处理该blocknumber,否则会丢事件,直接从该块重新处理即可
-			time.Sleep(be.pollPeriod / 2)
+			time.Sleep(params.Cfg.PollPeriod / 2)
 			continue
 		}
 		if len(stateChanges) > 0 {
@@ -311,7 +296,7 @@ func (be *Events) startAlarmTask() {
 		}
 		// 先切换有效公链,保证消息处理开始时,
 		// 出块时间在3分钟内且大于当前块,被认为是有效最新块,如果当前为无效公链状态,通知上层切换到有效公链状态
-		if now-lastedBlockTimestamp < params.BlockchainEffectiveTimeout && !be.isChainEffective {
+		if now-lastedBlockTimestamp < params.Cfg.EffectiveTimeoutSeconds && !be.isChainEffective {
 			be.isChainEffective = true
 			be.StateChangeChannel <- &transfer.EffectiveChainStateChange{
 				IsEffective:              true,
@@ -333,7 +318,7 @@ func (be *Events) startAlarmTask() {
 		// wait to next time
 		//time.Sleep(be.pollPeriod)
 		select {
-		case <-time.After(be.pollPeriod):
+		case <-time.After(params.Cfg.PollPeriod):
 		case <-be.stopChan:
 			be.stopChan = nil
 			log.Info(fmt.Sprintf("AlarmTask quit complete"))
@@ -397,15 +382,15 @@ func (be *Events) parseLogsToEvents(logs []types.Log) (stateChanges []mediatedtr
 		//}
 
 		// open,deposit,withdraw事件延迟确认,开关默认关闭,方便测试
-		if params.EnableForkConfirm && needConfirm(eventName) {
-			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
+		if params.Cfg.EnableForkConfirm && needConfirm(eventName) {
+			if be.lastBlockNumber-int64(l.BlockNumber) < params.Cfg.ForkConfirmNumber {
 				continue
 			}
 			log.Info(fmt.Sprintf("event %s tx=%s happened at %d, confirmed at %d", eventName, l.TxHash.String(), l.BlockNumber, be.lastBlockNumber))
 		}
 		// registry secret事件延迟确认,否则在出现恶意分叉的情况下,中间节点有损失资金的风险
-		if eventName == params.NameSecretRevealed && params.EnableForkConfirm {
-			if be.lastBlockNumber-int64(l.BlockNumber) < params.ForkConfirmNumber {
+		if eventName == params.NameSecretRevealed && params.Cfg.EnableForkConfirm {
+			if be.lastBlockNumber-int64(l.BlockNumber) < params.Cfg.ForkConfirmNumber {
 				continue
 			}
 			log.Info(fmt.Sprintf("event %s tx=%s happened at %d, confirmed at %d", eventName, l.TxHash.String(), l.BlockNumber, be.lastBlockNumber))

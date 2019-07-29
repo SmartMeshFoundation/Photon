@@ -5,10 +5,12 @@ import (
 
 	"os"
 
+	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/mobile"
 	"github.com/SmartMeshFoundation/Photon/params"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli"
 )
 
@@ -35,7 +37,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "listen-address",
 			Usage: `"host:port" for the photon service to listen on.`,
-			Value: fmt.Sprintf("0.0.0.0:%d", params.InitialPort),
+			Value: fmt.Sprintf("0.0.0.0:%d", params.DefaultDevCfg.Port),
 		},
 		cli.StringFlag{
 			Name:  "api-address",
@@ -67,7 +69,6 @@ func main() {
 }
 func mainCtx(ctx *cli.Context) (err error) {
 	fmt.Printf("Welcom to mobiletest,version %s\n", ctx.App.Version)
-	address := ctx.String("address")
 	keystorePath := ctx.String("keystore-path")
 	ethRPCEndpoint := ctx.String("eth-rpc-endpoint")
 	registryContractAddress := ctx.String("registry-contract-address")
@@ -82,7 +83,13 @@ func mainCtx(ctx *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	api, err := mobile.StartUp(address, keystorePath, ethRPCEndpoint, dataDir, password, apiAddr, listenAddress,
+	var keyBin []byte
+	address := common.HexToAddress(ctx.String("address"))
+	address, keyBin, err = accounts.PromptAccount(address, keystorePath, password)
+	if err != nil {
+		return
+	}
+	api, err := mobile.StartUp(common.Bytes2Hex(keyBin), ethRPCEndpoint, dataDir, apiAddr, listenAddress,
 		"", os.Getenv("TOKEN_NETWORK"),
 		otherArgs)
 	if err != nil {

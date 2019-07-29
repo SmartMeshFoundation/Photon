@@ -54,7 +54,7 @@ func TestMdnsDiscovery(t *testing.T) {
 
 	sa.RegisterNotifee(n)
 
-	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5)
+	time.Sleep(params.Cfg.MDNSQueryInterval * 2 * 5)
 	req := require.New(t)
 	//req.Len(n.m, 1, "found b ")
 	req.NotNil(n.m["imb"], "found b ")

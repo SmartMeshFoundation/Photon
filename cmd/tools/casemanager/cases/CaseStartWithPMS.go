@@ -1,8 +1,9 @@
 package cases
 
 import (
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 // CaseStartWithPMS :
@@ -25,16 +26,21 @@ func (cm *CaseManager) CaseStartWithPMS() (err error) {
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	// 启动pms
 	env.StartPMS()
+	env.StartPFS()
 	// 启动节点0,1
-	cm.startNodes(env, N0.PMS(), N1.PMS())
-	err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, 58)
-	if err == nil {
-		return cm.caseFail(env.CaseName)
-	}
-	err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, -1)
-	if err != nil {
-		return cm.caseFail(env.CaseName)
-	}
+	cm.startNodes(env, N0.PMS().PFS(), N1.PMS().PFS().SetConditionQuit(&params.ConditionQuit{
+		QuitEvent: "EventSendSecretRequestBefore",
+	}))
+	go N0.SendTransWithRouteInfo(N1, tokenAddress, 1, nil)
+	N1.ReStartWithoutConditionquit(env)
+	//err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, 58)
+	//if err == nil {
+	//	return cm.caseFail(env.CaseName)
+	//}
+	//err = N0.OpenChannel(utils.NewRandomAddress().String(), tokenAddress, 1, -1)
+	//if err != nil {
+	//	return cm.caseFail(env.CaseName)
+	//}
 	//cm.waitForPostman()
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return nil

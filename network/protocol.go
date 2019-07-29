@@ -1,8 +1,6 @@
 package network
 
 import (
-	"crypto/ecdsa"
-
 	"encoding/hex"
 
 	"reflect"
@@ -24,7 +22,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var errTimeout = errors.New("wait timeout")
@@ -118,8 +115,6 @@ every message needs a ack to make sure sent success.
 */
 type PhotonProtocol struct {
 	Transport           Transporter
-	privKey             *ecdsa.PrivateKey
-	nodeAddr            common.Address
 	SentHashesToChannel map[common.Hash]*SentMessageState
 	retryTimes          int
 	retryInterval       time.Duration
@@ -147,10 +142,9 @@ type PhotonProtocol struct {
 }
 
 // NewPhotonProtocol create PhotonProtocol
-func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *PhotonProtocol {
+func NewPhotonProtocol(transport Transporter, channelStatusGetter ChannelStatusGetter) *PhotonProtocol {
 	rp := &PhotonProtocol{
 		Transport:                 transport,
-		privKey:                   privKey,
 		retryTimes:                10,
 		retryInterval:             time.Millisecond * 6000,
 		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
@@ -163,9 +157,8 @@ func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		receiveChan:               make(chan []byte, 200),
 		mapLock:                   sync.Mutex{},
 	}
-	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
-	rp.log = log.New("name", utils.APex2(rp.nodeAddr))
+	rp.log = log.New("name", utils.APex2(params.Cfg.MyAddress))
 	return rp
 }
 
@@ -206,7 +199,7 @@ func (p *PhotonProtocol) sendRawWitNoAck(receiver common.Address, data []byte) e
 // SendPing PingSender
 func (p *PhotonProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
-	err := ping.Sign(p.privKey, ping)
+	err := ping.Sign(params.Cfg.PrivateKey, ping)
 	if err != nil {
 		return err
 	}
@@ -457,7 +450,7 @@ func (p *PhotonProtocol) SendAsync(receiver common.Address, msg encoding.Message
 
 // CreateAck creat a ack message,
 func (p *PhotonProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
-	return encoding.NewAck(p.nodeAddr, echohash)
+	return encoding.NewAck(params.Cfg.MyAddress, echohash)
 }
 
 // GetNetworkStatus return `addr` node's network status
@@ -489,7 +482,7 @@ func (p *PhotonProtocol) loop() {
 }
 
 func (p *PhotonProtocol) receiveInternal(data []byte) {
-	if len(data) > params.UDPMaxMessageSize {
+	if len(data) > int(params.Cfg.UDPMaxMessageSize) {
 		p.log.Error("receive packet larger than maximum size :", len(data))
 		return
 	}
@@ -510,7 +503,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 		p.log.Warn(fmt.Sprintf("message unpack error : %s", err))
 		return
 	}
-	echohash := utils.Sha3(data, p.nodeAddr[:])
+	echohash := utils.Sha3(data, params.Cfg.MyAddress[:])
 	if p.receivedMessageSaver != nil && messager.Cmd() != encoding.AckCmdID {
 		ackdata := p.receivedMessageSaver.GetAck(echohash)
 		if len(ackdata) > 0 {

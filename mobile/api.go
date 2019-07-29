@@ -223,7 +223,7 @@ func (a *API) deposit(partnerAddress, tokenAddress string, settleTimeout int, ba
 		return
 	}
 	balance, _ := new(big.Int).SetString(balanceStr, 0)
-	c, err := a.api.DepositAndOpenChannel(tokenAddr, partnerAddr, settleTimeout, a.api.Photon.Config.RevealTimeout, balance, newcChannel)
+	c, err := a.api.DepositAndOpenChannel(tokenAddr, partnerAddr, settleTimeout, params.Cfg.RevealTimeout, balance, newcChannel)
 	if err != nil {
 		log.Error(err.Error())
 		return
@@ -503,7 +503,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, se
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
 	}
-	if len(data) > params.MaxTransferDataLen {
+	if len(data) > params.Cfg.MaxTransferDataLen {
 		err = errors.New("invalid data, data len must < 256")
 		err = rerr.ErrArgumentError.AppendError(err)
 		return dto.NewErrorMobileResponse(err)
@@ -534,7 +534,7 @@ func (a *API) Transfers(tokenAddress, targetAddress string, amountstr string, se
 	}
 	req := &v1.TransferData{}
 	req.LockSecretHash = tr.LockSecretHash.String()
-	req.Initiator = a.api.Photon.NodeAddress.String()
+	req.Initiator = params.Cfg.MyAddress.String()
 	req.Target = targetAddress
 	req.Token = tokenAddress
 	req.Amount = amount

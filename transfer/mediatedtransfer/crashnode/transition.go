@@ -58,7 +58,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 	var events []transfer.Event
 	var removedSentIndex []int
 	for i, l := range state.SentLocks {
-		if stateChange.BlockNumber-params.ForkConfirmNumber > l.Lock.Expiration {
+		if stateChange.BlockNumber-params.Cfg.ForkConfirmNumber > l.Lock.Expiration {
 			removedSentIndex = append(removedSentIndex, i)
 			events = append(events, &mt.EventUnlockFailed{
 				LockSecretHash:    l.Lock.LockSecretHash,
@@ -75,7 +75,7 @@ func handleBlock(state *mt.CrashState, stateChange *transfer.BlockStateChange) *
 			removedReceviedIndex = append(removedReceviedIndex, i)
 			continue
 		}
-		if stateChange.BlockNumber-params.ForkConfirmNumber > l.Lock.Expiration {
+		if stateChange.BlockNumber-params.Cfg.ForkConfirmNumber > l.Lock.Expiration {
 			removedReceviedIndex = append(removedReceviedIndex, i)
 		} else {
 			/*

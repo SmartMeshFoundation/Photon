@@ -18,6 +18,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	params.InitForUnitTest()
+}
 func TestPromptAccount(t *testing.T) {
 	accounts.PromptAccount(utils.EmptyAddress, `../../../testdata/keystore`, "123")
 }
@@ -66,7 +69,7 @@ func TestStart(t *testing.T) {
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--registry-contract-address=%s", os.Getenv("TOKEN_NETWORK")))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
-	params.MobileMode = true
+	os.Args = append(os.Args, fmt.Sprintf("--mobile"))
 	GitCommit = utils.NewRandomAddress().String()[2:]
 
 	var api *photon.API
@@ -95,7 +98,6 @@ func TestStart(t *testing.T) {
 	// 4. matrix启动, must success
 	os.Args[3] = fmt.Sprintf("--eth-rpc-endpoint=%s", os.Getenv("ETHRPCENDPOINT"))
 	os.Args = append(os.Args, fmt.Sprintf("--matrix"))
-	os.Args = append(os.Args, fmt.Sprintf("--matrix-server=%s", "transport01.smartmesh.cn"))
 	api, err = StartMain()
 	assert.Empty(t, err)
 	time.Sleep(5 * time.Second)
@@ -122,7 +124,7 @@ func TestMeshBoxStart(t *testing.T) {
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", "127.0.0.1:20000"))
 	os.Args = append(os.Args, fmt.Sprintf("--verbosity=5"))
 	os.Args = append(os.Args, fmt.Sprintf("--debug"))
-	params.MobileMode = true
+	params.Cfg.IsMobile = true
 
 	var api *photon.API
 	var err error
@@ -177,7 +179,7 @@ func TestVerifyContractCode(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	_, _, _, _, err = verifyContractCode(bcs)
+	_, _, _, _, err = verifyContractCode(bcs, params.Cfg.ContractVersionPrefix)
 	if err != nil {
 		t.Error(err.Error())
 	}

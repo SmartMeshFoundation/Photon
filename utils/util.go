@@ -283,7 +283,7 @@ func Marshal(v interface{}) string {
 
 // MarshalIndent :
 func MarshalIndent(v interface{}) string {
-	p, err := json.MarshalIndent(v, "\t", "")
+	p, err := json.MarshalIndent(v, "", "\t")
 	if err != nil {
 		panic(err)
 	}

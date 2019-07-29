@@ -27,6 +27,7 @@ var big10 = big.NewInt(10)
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
@@ -401,7 +402,7 @@ func TestSetExpiredPairs(t *testing.T) {
 	//dge case for the payee lock expiration
 	assert(t, pair.PayeeState, mediatedtransfer.StatePayeePending)
 	assert(t, pair.PayerState, mediatedtransfer.StatePayerPending)
-	setExpiredPairs(pairs, payeeExpirationBlock+1+params.ForkConfirmNumber)
+	setExpiredPairs(pairs, payeeExpirationBlock+1+params.Cfg.ForkConfirmNumber)
 	assert(t, pair.PayeeState, mediatedtransfer.StatePayeeExpired)
 	//assert(t, pair.PayerState, mediatedtransfer.StatePayerPending) payer状态不确定,取决于ForkConfirmNumber和reveal timeout的关系
 	// edge case for the payer lock expiration

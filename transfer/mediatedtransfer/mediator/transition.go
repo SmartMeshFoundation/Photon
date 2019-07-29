@@ -472,7 +472,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 			2. 本该过期之后,收到payee的AnnouceDisposed, 这时候谨慎起见,忽略这种消息
 			3. 本该过期之后,收到链上的密码注册事件,因为链上事件给出的块数已经过期了,所以会被忽略
 		*/
-		if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
+		if blockNumber-params.Cfg.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
 			/*
 			   For safety, the correct behavior is:
 
@@ -506,7 +506,7 @@ func setExpiredPairs(transfersPairs []*mediatedtransfer.MediationPairState, bloc
 	//// 考虑到分叉攻击,延迟一定块数之后才发送remove
 	//expiredPairs := getExpiredTransferPairs(transfersPairs)
 	//for _, pair := range expiredPairs {
-	//	if blockNumber-params.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
+	//	if blockNumber-params.Cfg.ForkConfirmNumber > pair.PayeeTransfer.Expiration {
 	//		unlockFailed := &mediatedtransfer.EventUnlockFailed{
 	//			LockSecretHash:    pair.PayeeTransfer.LockSecretHash,
 	//			ChannelIdentifier: pair.PayeeRoute.ChannelIdentifier,

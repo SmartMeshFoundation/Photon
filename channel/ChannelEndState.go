@@ -381,7 +381,7 @@ func (node *EndState) TryRemoveHashLock(lockSecretHash common.Hash, blockNumber 
 		err = rerr.ErrChannelEndStateNoSuchLock.Errorf("%s donesn't know hashlock %s, cannot remove", utils.APex(node.Address), utils.HPex(lockSecretHash))
 		return
 	}
-	if mustExpired && (lock.Expiration > blockNumber-params.ForkConfirmNumber) {
+	if mustExpired && (lock.Expiration > blockNumber-params.Cfg.ForkConfirmNumber) {
 		err = rerr.ErrRemoveNotExpiredLock.Errorf("try to remove a lock which is not expired, expired=%d,currentBlockNumber=%d", lock.Expiration, blockNumber)
 		return
 	}

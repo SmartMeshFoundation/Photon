@@ -41,7 +41,7 @@ func TestUDPTransport(t *testing.T) {
 	udp2.Start()
 	defer udp1.Stop()
 	defer udp2.Stop()
-	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5) //至少需要两个dns查询超时,才能确保nodestatus包含相应的地址
+	time.Sleep(params.Cfg.MDNSQueryInterval * 2 * 5) //至少需要两个dns查询超时,才能确保nodestatus包含相应的地址
 	deviceType, isOnline := udp1.NodeStatus(addr2)
 	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")
@@ -60,7 +60,7 @@ func TestUDPTransport(t *testing.T) {
 		return
 	}
 	select {
-	case <-time.After(params.DefaultMDNSQueryInterval):
+	case <-time.After(params.Cfg.MDNSQueryInterval):
 		t.Error("timeout")
 	case data2 := <-d2.data:
 		if !bytes.Equal(data2, data) {
@@ -83,7 +83,7 @@ func TestUDPTransportWithMDNS(t *testing.T) {
 	udp2.Start()
 	defer udp1.Stop()
 	defer udp2.Stop()
-	time.Sleep(params.DefaultMDNSQueryInterval * 2 * 5) //休息一段时间,等待对方上线通知
+	time.Sleep(params.Cfg.MDNSQueryInterval * 2 * 5) //休息一段时间,等待对方上线通知
 	deviceType, isOnline := udp1.NodeStatus(addr2)
 	if deviceType != DeviceTypeOther || !isOnline {
 		t.Error("node status error")

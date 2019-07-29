@@ -107,6 +107,9 @@ func TestGetJoinedRoomAlias(t *testing.T) {
 	//if err != nil {
 	//	panic(err)
 	//}
+	for m1.matrixcli == nil {
+		time.Sleep(time.Second)
+	}
 	rooms, err := m1.matrixcli.JoinedRooms()
 	log.Trace(fmt.Sprintf("rooms=%s", rooms))
 	if err != nil {
@@ -127,6 +130,9 @@ func TestInvite(t *testing.T) {
 	m2.Start()
 	//m3.Start()
 	log.Info(fmt.Sprintf(" m1=%s,m2=%s", m1.UserID, m2.UserID))
+	for m1.matrixcli == nil {
+		time.Sleep(time.Second)
+	}
 	r, err := m1.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
 		Invite:        []string{m2.UserID},
 		Visibility:    "public",
@@ -157,7 +163,9 @@ func TestSendMessage(t *testing.T) {
 	m2.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m1.Start()
 	m2.Start()
-	time.Sleep(time.Second * 6)
+	for m1.matrixcli == nil || m1.matrixcli.Syncer == nil || m2.matrixcli == nil || m2.matrixcli.Syncer == nil {
+		time.Sleep(time.Second)
+	}
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -243,7 +251,9 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	//let server sync
 	//time.Sleep(time.Second * 6)
 	m2.Start()
-	time.Sleep(time.Second * 6)
+	for m1.matrixcli == nil || m1.matrixcli.Syncer == nil || m2.matrixcli == nil || m2.matrixcli.Syncer == nil || !m1.hasDoneStartCheck {
+		time.Sleep(time.Second)
+	}
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -290,6 +300,9 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	m2Again.setTrustServers(testTrustedServers)
 	m2Again.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m2Again.Start()
+	for m2Again.matrixcli == nil || m2Again.matrixcli.Syncer == nil {
+		time.Sleep(time.Second)
+	}
 	err = m1.Send(m2Again.NodeAddress, []byte("ccc"))
 	if err != nil {
 		t.Error(err)

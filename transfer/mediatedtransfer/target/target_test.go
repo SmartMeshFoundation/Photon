@@ -3,6 +3,8 @@ package target
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"math/big"
 
 	"os"
@@ -19,6 +21,7 @@ import (
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)

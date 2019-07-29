@@ -20,18 +20,6 @@ should be set before start restful server
 */
 var API *photon.API
 
-/*
-Config is the configuration of Photon network
-should be set before start restful server
-*/
-var Config *params.Config
-
-// HTTPUsername is username needed when call http api
-var HTTPUsername = ""
-
-// HTTPPassword is password needed when call http api
-var HTTPPassword = ""
-
 //QuitChan stop http server
 var QuitChan chan struct{}
 
@@ -41,17 +29,17 @@ Start the restful server
 func Start() {
 	QuitChan = make(chan struct{})
 	api := rest.NewApi()
-	if Config.Debug {
+	if params.Cfg.Debug {
 		api.Use(rest.DefaultDevStack...)
 	} else {
 		api.Use(rest.DefaultProdStack...)
 	}
 	api.Use(rest.DefaultDevStack...)
-	if HTTPUsername != "" && HTTPPassword != "" {
+	if params.Cfg.HTTPUsername != "" && params.Cfg.HTTPPassword != "" {
 		api.Use(&rest.AuthBasicMiddleware{
 			Realm: "please input username and password",
 			Authenticator: func(userId string, password string) bool {
-				return userId == HTTPUsername && password == HTTPPassword
+				return userId == params.Cfg.HTTPUsername && password == params.Cfg.HTTPPassword
 			},
 		})
 	}
@@ -190,7 +178,7 @@ func Start() {
 		panic(fmt.Sprintf("maker router :%s", err))
 	}
 	api.SetApp(router)
-	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
+	listen := fmt.Sprintf("%s:%d", params.Cfg.RestAPIHost, params.Cfg.RestAPIPort)
 	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
 	go func() {
 		err2 := server.ListenAndServe()

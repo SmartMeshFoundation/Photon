@@ -102,13 +102,13 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("invalid secret"))
 		return
 	}
-	if len(req.Data) > params.MaxTransferDataLen {
+	if len(req.Data) > params.Cfg.MaxTransferDataLen {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append("Invalid data, length must < 256"))
 		return
 	}
 	var result *utils.AsyncResult
 	if req.Sync {
-		result, err = API.Transfer(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), params.MaxRequestTimeout, req.IsDirect, req.Data, req.RouteInfo)
+		result, err = API.Transfer(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), params.Cfg.RestAPITimeout, req.IsDirect, req.Data, req.RouteInfo)
 	} else {
 		result, err = API.TransferAsync(tokenAddr, req.Amount, targetAddr, common.HexToHash(req.Secret), req.IsDirect, req.Data, req.RouteInfo)
 	}
@@ -116,7 +116,7 @@ func Transfers(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
-	req.Initiator = API.Photon.NodeAddress.String()
+	req.Initiator = params.Cfg.MyAddress.String()
 	req.Target = target
 	req.Token = token
 	req.LockSecretHash = result.LockSecretHash.String()
