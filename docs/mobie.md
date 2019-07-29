@@ -21,19 +21,15 @@ Photon relies on gomobile to automate interface encapsulation. Because it is a c
 In order to avoid such problems, Photon provides interfaces to almost all basic types (int, string, error).
 
 ### Starting a photon node
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile string, registryAddress string, otherArgs *Strings) (api *API, err error)
+func StartUp(privateKeyBinHex, ethRPCEndPoint, dataDir, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) 
 
 parameter:
 
-* `address string`– the account address used by the photon node
-
-* `keystorePath string` – the path of account private key 
+* `privateKeyBinHex string`– Private key binary string
 
 * `ethRPCEndPoint string` – public chain node host, http protocol
 
 * `dataDir string` – photon db path
-
-* `passwordfile string` –  password file path
 
 * `apiAddr string` – http api listening port
 
