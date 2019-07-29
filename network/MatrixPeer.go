@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 	"github.com/ethereum/go-ethereum/common"
+	"sync"
 )
 
 type peerStatus int
@@ -44,6 +45,7 @@ type MatrixPeer struct {
 	deviceType           string
 	receiveMessage       chan struct{}
 	channelCount         int // 我与此节点总共有多少条通道
+	candidateLock        sync.RWMutex
 }
 
 //NewMatrixPeer create matrix user
@@ -59,6 +61,8 @@ func NewMatrixPeer(address common.Address) *MatrixPeer {
 }
 
 func (peer *MatrixPeer) isValidUserID(userID string) bool {
+	peer.candidateLock.RLock()
+	defer peer.candidateLock.RUnlock()
 	for _, u := range peer.candidateUsers {
 		if u.UserID == userID {
 			return true
@@ -71,6 +75,8 @@ func (peer *MatrixPeer) isValidUserID(userID string) bool {
 make sure that `users` are already joined in the default message room
 */
 func (peer *MatrixPeer) updateUsers(users []*gomatrix.UserInfo) {
+	peer.candidateLock.Lock()
+	defer peer.candidateLock.Unlock()
 	for _, lu := range users {
 		peer.candidateUsers[lu.UserID] = lu
 	}
@@ -90,11 +96,13 @@ func (peer *MatrixPeer) addRoom(roomID string) {
 3. then if all of the `candidateUsers` is UNAVAILABLE,status is unkown
 */
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
+	peer.candidateLock.Lock()
 	peer.candidateUsers[userID] = &gomatrix.UserInfo{
 		DisplayName: "",
 		AvatarURL:   "",
 		UserID:      userID,
 	}
+	peer.candidateLock.Unlock()
 	var status peerStatus
 	switch presence {
 	case ONLINE:
@@ -104,12 +112,16 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
+	peer.candidateLock.RLock()
 	user := peer.candidateUsers[userID]
+	peer.candidateLock.RUnlock()
 	if user == nil {
 		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",
 			utils.APex2(peer.address), userID, status, utils.StringInterface(peer, 7)))
 		return false
 	}
+	peer.candidateLock.RLock()
+	defer peer.candidateLock.RUnlock()
 	peer.candidateUsersStatus[userID] = status
 	for _, s := range peer.candidateUsersStatus {
 		if s > status {
