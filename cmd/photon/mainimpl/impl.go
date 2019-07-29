@@ -201,6 +201,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "mobile",
 			Usage: "run photon in mobile mode,only used by mobile",
 		},
+		cli.BoolFlag{
+			Name:  "mobile-private-key-hex",
+			Usage: "private key hex for run photon,only used by mobile",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -578,9 +582,9 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 getPrivateKey: 如果是meshbox,则通过专用插件获取私钥,否则根据指定的keystore-path找相应的私钥
 */
 func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
-	if ctx.IsSet("mobile") && ctx.Bool("mobile") {
+	if ctx.IsSet("mobile") && ctx.IsSet("mobile-private-key-hex") && ctx.Bool("mobile") {
 		// 手机直接传递私钥的二进制字符串
-		privateKeyBinHex := ctx.String("address")
+		privateKeyBinHex := ctx.String("mobile-private-key-hex")
 		privateKeyBytes := common.FromHex(privateKeyBinHex)
 		return crypto.ToECDSA(privateKeyBytes)
 	}

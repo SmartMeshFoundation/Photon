@@ -51,7 +51,8 @@ func StartUp(privateKeyBinHex, ethRPCEndPoint, dataDir, apiAddr, listenAddr, log
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "photonmobile")
 	os.Args = append(os.Args, "--mobile")
-	os.Args = append(os.Args, fmt.Sprintf("--address=%s", privateKeyBinHex)) // 这里复用address参数,直接传递私玥,避免耗费资源加载keystore
+	os.Args = append(os.Args, fmt.Sprintf("--mobile-private-key-hex=%s", privateKeyBinHex)) //直接传递私玥,避免耗费资源加载keystore
+	//os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
 	//os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", keystorePath))
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))

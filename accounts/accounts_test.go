@@ -4,11 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/SmartMeshFoundation/Photon/cmd/tools/deploygeth/gethworkdir/src/github.com/ethereum/go-ethereum/crypto"
-
 	"runtime"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestDefaultKeyStoreDir(t *testing.T) {

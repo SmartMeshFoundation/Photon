@@ -20,6 +20,7 @@ import (
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 
 type DiscoveryNotifee struct {
