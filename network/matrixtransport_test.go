@@ -758,7 +758,7 @@ func TestPresenceListFunction(t *testing.T) { //注册次测试过程需要手�
 			setPresence = "online"
 		}
 
-		err := trans02.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+		err = trans02.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 			Presence:  setPresence,
 			StatusMsg: "other",
 		})
