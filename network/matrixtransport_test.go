@@ -716,6 +716,9 @@ func TestLeaveUselessRoom(t *testing.T) {
 }
 
 func TestPresenceListFunction(t *testing.T) { //注册次测试过程需要手动修改sync函数里面的presence参数为空
+	if testing.Short() {
+		return
+	}
 	//same server
 	delete(params.TrustMatrixServers, "transport13.smartmesh.cn")
 	cfg := params.TrustMatrixServers

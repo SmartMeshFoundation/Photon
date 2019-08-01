@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/log"
 )
 
 // CasePMS :
@@ -45,7 +44,7 @@ func (cm *CaseManager) CasePMS() (err error) {
 
 	n1value += int(c12.Balance)
 	n2value += int(c12.PartnerBalance)
-	log.Trace(fmt.Sprintf("before transfer ,n1value=%d,n2value=%d", n1value, n2value))
+	models.Logger.Println(fmt.Sprintf("before transfer ,n1value=%d,n2value=%d", n1value, n2value))
 
 	// N2 send trans
 	N2.SendTrans(tokenAddress, 10, N1.Address, true)
