@@ -758,18 +758,20 @@ func TestPresenceListFunction(t *testing.T) { //注册次测试过程需要手�
 			setPresence = "online"
 		}
 
-		err := trans02.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+		err2 := trans02.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
 			Presence:  setPresence,
 			StatusMsg: "other",
 		})
-		if err != nil {
-			t.Error("test", i, ": SetPresenceState(offline) failed", err)
+		if err2 != nil {
+			t.Error("test", i, ": SetPresenceState(offline) failed", err2)
+			err = err2
 			return
 		}
 
-		reps02, err := trans01.matrixcli.GetPresenceList(trans01.UserID)
-		if err != nil {
-			t.Error("test", i, ": GetPresenceList(t2/t3) failed", err)
+		reps02, err2 := trans01.matrixcli.GetPresenceList(trans01.UserID)
+		if err2 != nil {
+			t.Error("test", i, ": GetPresenceList(t2/t3) failed", err2)
+			err = err2
 			return
 		}
 		for _, content2 := range reps02 {
