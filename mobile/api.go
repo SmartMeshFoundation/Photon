@@ -675,10 +675,7 @@ func (a *API) SwitchNetwork(isMesh bool) {
 	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
 	if isMesh {
 		log.Trace("use NotifyNetworkDown")
-		err := a.api.NotifyNetworkDown()
-		if err != nil {
-			panic("never happen")
-		}
+		a.api.NotifyNetworkDown()
 	}
 }
 
@@ -907,8 +904,8 @@ func (a *API) NotifyNetworkDown() (result string) {
 	defer func() {
 		log.Trace(fmt.Sprintf("ApiCall NotifyNetworkDown result=%s", result))
 	}()
-	err := a.api.NotifyNetworkDown()
-	return dto.NewErrorMobileResponse(err)
+	a.api.NotifyNetworkDown()
+	return dto.NewSuccessMobileResponse(nil)
 }
 
 func (a *API) withdraw(channelIdentifierHashStr, amountStr, op string) (channel *channeltype.ChannelDataDetail, err error) {

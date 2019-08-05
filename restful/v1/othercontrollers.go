@@ -55,10 +55,7 @@ func SwitchNetwork(w rest.ResponseWriter, r *rest.Request) {
 	log.Trace(fmt.Sprintf("Api SwitchNetwork isMesh=%v", isMesh))
 	if isMesh {
 		log.Trace("use NotifyNetworkDown")
-		err := API.NotifyNetworkDown()
-		if err != nil {
-			panic("never happen")
-		}
+		API.NotifyNetworkDown()
 	}
 	resp = dto.NewSuccessAPIResponse(nil)
 }
@@ -91,8 +88,8 @@ func NotifyNetworkDown(w rest.ResponseWriter, r *rest.Request) {
 		log.Trace(fmt.Sprintf("Restful Api Call ----> NotifyNetworkDown ,err=%s", resp.ToFormatString()))
 		writejson(w, resp)
 	}()
-	err := API.NotifyNetworkDown()
-	resp = dto.NewAPIResponse(err, "ok")
+	API.NotifyNetworkDown()
+	resp = dto.NewSuccessAPIResponse(nil)
 }
 
 // GetFeePolicy 查询节点手续费收费策略

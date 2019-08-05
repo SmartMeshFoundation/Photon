@@ -852,7 +852,7 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 }
 
 // NotifyNetworkDown 上层应用通知photon网络断开,强制photon对所有远程连接进行重连尝试
-func (r *API) NotifyNetworkDown() error {
+func (r *API) NotifyNetworkDown() {
 	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
 	client := r.Photon.Chain.Client
@@ -868,7 +868,7 @@ func (r *API) NotifyNetworkDown() error {
 	// 置为无效公链状态
 	//r.Photon.IsChainEffective = false
 	//log.Info("photon works without effective chain now because user call NotifyNetworkDown...")
-	return nil
+	return
 }
 
 // GetFeePolicy 如果没有启动收费会返回错误,否则返回当前账户设置的收费信息
