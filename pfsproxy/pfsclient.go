@@ -235,7 +235,9 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	}
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI FindPath %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	log.Trace(fmt.Sprintf("resp=%s", string(body)))
 	return
