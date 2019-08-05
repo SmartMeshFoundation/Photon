@@ -106,7 +106,7 @@ type nodeConfig struct {
 	/*
 		该Photon节点的私钥,因为节点之间来往消息需要签名,因此必须保存该私钥在内存中
 	*/
-	PrivateKey *ecdsa.PrivateKey
+	PrivateKey *ecdsa.PrivateKey `json:"-"`
 	MyAddress  common.Address
 	/*
 		最小余额,18 * GasPrice * GasLimit * 3, 当账户余额小于该值时,合约调用存在失败且tx消失的情况
