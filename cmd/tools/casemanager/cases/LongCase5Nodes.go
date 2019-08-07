@@ -357,7 +357,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 28 : N4 closes his channel with N2
 	models.Logger.Println("step 28 ---->")
-	err = cm.tryInSeconds(20, func() error {
+	err = cm.tryInSeconds(150, func() error {
 		return N4.Close(C24.ChannelIdentifier)
 	})
 	if err != nil {
