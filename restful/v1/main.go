@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -35,12 +36,9 @@ func Start() {
 		api.Use(rest.DefaultProdStack...)
 	}
 	api.Use(rest.DefaultDevStack...)
-	if params.Cfg.HTTPUsername != "" && params.Cfg.HTTPPassword != "" {
-		api.Use(&rest.AuthBasicMiddleware{
+	if params.Cfg.HTTPUsername != "" || params.Cfg.HTTPPassword != "" {
+		api.Use(&AuthBasicMiddleware{
 			Realm: "please input username and password",
-			Authenticator: func(userId string, password string) bool {
-				return userId == params.Cfg.HTTPUsername && password == params.Cfg.HTTPPassword
-			},
 		})
 	}
 	router, err := rest.MakeRouter(
@@ -49,6 +47,9 @@ func Start() {
 			prepare update
 		*/
 		rest.Post("/api/1/prepare-update", PrepareUpdate),
+		rest.Get("/api/1/auth-check", func(writer rest.ResponseWriter, request *rest.Request) {
+			writejson(writer, dto.NewSuccessAPIResponse(nil))
+		}),
 		/*
 			transfers
 		*/

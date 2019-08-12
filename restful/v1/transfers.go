@@ -40,7 +40,6 @@ func GetSentTransferDetails(w rest.ResponseWriter, r *rest.Request) {
 		writejson(w, resp)
 	}()
 	from, to := getFromTo(r)
-	log.Trace(fmt.Sprintf("from=%d,to=%d\n", from, to))
 	trs, err := API.GetSentTransferDetails(utils.EmptyAddress, from, to)
 	resp = dto.NewAPIResponse(err, trs)
 }

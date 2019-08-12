@@ -179,6 +179,10 @@ func StartMain() (*photon.API, error) {
 			Usage: "the password needed when call http api,only work with http-username",
 		},
 		cli.StringFlag{
+			Name:  "http-auth-file",
+			Usage: "path of http auth file",
+		},
+		cli.StringFlag{
 			Name:  "debug-mdns-interval",
 			Usage: "for test only",
 			Value: "1s",
@@ -376,7 +380,7 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 	/*
 		1. 加载私钥
 	*/
-	privateKey, err := getPrivateKey(ctx)
+	privateKey, meshBoxPlugin, err := getPrivateKey(ctx)
 	if err != nil {
 		err = rerr.ErrArgumentError.Printf("private key err %s", err.Error())
 		return
@@ -571,34 +575,52 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 		err = rerr.ErrArgumentError.Append("--api-address err")
 		return
 	}
-	if ctx.IsSet("http-username") && ctx.IsSet("http-password") {
-		params.Cfg.HTTPUsername = ctx.String("http-username")
-		params.Cfg.HTTPPassword = ctx.String("http-password")
+	params.Cfg.HTTPUsername, params.Cfg.HTTPPassword, err = getHTTPAuth(ctx, meshBoxPlugin)
+	if err != nil {
+		err = rerr.ErrArgumentError.Append("getHTTPAuth err")
+		return
 	}
 	return
 }
 
 /*
+Meshbox环境下从插件加载,其余情况从参数获取
+*/
+func getHTTPAuth(ctx *cli.Context, meshBoxPlugin *plugin.Plugin) (username, password string, err error) {
+	if meshBoxPlugin != nil {
+		// 这里不重复加载plugin,复用直接加载私钥时创建的对象
+		httpAuthGetter, err2 := meshBoxPlugin.Lookup("GetHTTPAuthFromFile")
+		if err2 != nil {
+			err = fmt.Errorf("plugin lockup symbol err %s", err2)
+			return
+		}
+
+		return httpAuthGetter.(func(string) (string, string, error))(ctx.String("http-auth-file"))
+	}
+	return ctx.String("http-username"), ctx.String("http-password"), nil
+}
+
+/*
 getPrivateKey: 如果是meshbox,则通过专用插件获取私钥,否则根据指定的keystore-path找相应的私钥
 */
-func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
+func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, meshBoxPlugin *plugin.Plugin, err error) {
 	if ctx.IsSet("mobile") && ctx.IsSet("mobile-private-key-hex") && ctx.Bool("mobile") {
 		// 手机直接传递私钥的二进制字符串
 		privateKeyBinHex := ctx.String("mobile-private-key-hex")
 		privateKeyBytes := common.FromHex(privateKeyBinHex)
-		return crypto.ToECDSA(privateKeyBytes)
+		privateKey, err = crypto.ToECDSA(privateKeyBytes)
+		return
 	}
 	if os.Getenv("IS_MESH_BOX") == "true" || os.Getenv("IS_MESH_BOX") == "TRUE" {
 		// load photon_plugin.so
-		var plug *plugin.Plugin
 		var privateKeyGetter plugin.Symbol
 		var privateKeyBytes []byte
-		plug, err = plugin.Open("photon_plugin.so")
+		meshBoxPlugin, err = plugin.Open("photon_plugin.so")
 		if err != nil {
 			err = fmt.Errorf("plugin open photo_plugin.so err %s", err)
 			return
 		}
-		privateKeyGetter, err = plug.Lookup("GetPrivateKeyForMeshBox")
+		privateKeyGetter, err = meshBoxPlugin.Lookup("GetPrivateKeyForMeshBox")
 		if err != nil {
 			err = fmt.Errorf("plugin lockup symbol err %s", err)
 			return
@@ -609,7 +631,8 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 			err = fmt.Errorf("privateKeyGetter fail err %s", err)
 			return
 		}
-		return crypto.ToECDSA(privateKeyBytes)
+		privateKey, err = crypto.ToECDSA(privateKeyBytes)
+		return
 	}
 	var keyBin []byte
 	address := common.HexToAddress(ctx.String("address"))
@@ -618,7 +641,8 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, err error) {
 		return
 	}
 	debug2.FreeOSMemory() //强制立即释放scrypt分配的256M内存
-	return crypto.ToECDSA(keyBin)
+	privateKey, err = crypto.ToECDSA(keyBin)
+	return
 }
 
 /*
