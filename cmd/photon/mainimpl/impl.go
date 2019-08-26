@@ -82,6 +82,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "address",
 			Usage: "The ethereum address you would like photon to use and for which a keystore file exists in your local system.",
 		},
+		cli.StringFlag{
+			Name:  "private-key-file",
+			Usage: "private key hex for run photon,only used by mesh box",
+		},
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
@@ -626,7 +630,7 @@ func getPrivateKey(ctx *cli.Context) (privateKey *ecdsa.PrivateKey, meshBoxPlugi
 			return
 		}
 
-		privateKeyBytes, err = privateKeyGetter.(func() ([]byte, error))()
+		privateKeyBytes, err = privateKeyGetter.(func(string) ([]byte, error))(ctx.String("private-key-file"))
 		if err != nil {
 			err = fmt.Errorf("privateKeyGetter fail err %s", err)
 			return
