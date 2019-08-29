@@ -336,7 +336,7 @@ var DefaultTestNetCfg = config{
 		EffectiveTimeoutSeconds: 180,
 		PollPeriod:              7 * time.Second,
 		ChainID:                 big.NewInt(3), // Spectrum test net chain ID
-		RegistryAddress:         common.HexToAddress("0x4651817F6595e9908DE3dCF9d8b585796e209c32"),
+		RegistryAddress:         common.HexToAddress("0x50839B01D28390048616C8f28dD1A21CF3CacbfF"),
 		ContractVersionPrefix:   "0.6",
 		EnableForkConfirm:       false,
 		ForkConfirmNumber:       17,
