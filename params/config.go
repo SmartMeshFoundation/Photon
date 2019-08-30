@@ -311,7 +311,7 @@ var DefaultDevCfg = config{
 DefaultTestNetCfg TestNet环境默认值
 */
 var DefaultTestNetCfg = config{
-	Env:      Dev,
+	Env:      TestNet,
 	IsMobile: false,
 	controlConfig: controlConfig{
 		DataBasePath:      "", // 这个跟账户有关,不给默认值
@@ -390,7 +390,7 @@ var DefaultTestNetCfg = config{
 DefaultMainNetCfg MainNet环境默认值
 */
 var DefaultMainNetCfg = config{
-	Env:      Dev,
+	Env:      MainNet,
 	IsMobile: false,
 	controlConfig: controlConfig{
 		DataBasePath:      "", // 这个跟账户有关,不给默认值
