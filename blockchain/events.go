@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"time"
 
@@ -227,6 +228,14 @@ func (be *Events) startAlarmTask() {
 				LastBlockNumberTimestamp: lastedBlockTimestamp,
 			}
 		}
+		// 校验公链同步状态,如果尚未同步完成,等待即可,如果是刚启动,也允许启动并等待
+		err = be.checkSmcSyncDone()
+		if err != nil {
+			log.Error(fmt.Sprintf("%s,photon will wait ...", err.Error()))
+			be.notifyPhotonStartupCompleteIfNeeded(currentBlock)
+			time.Sleep(params.Cfg.PollPeriod)
+			continue
+		}
 		// 这里如果出现切换公链导致获取到的新块比当前块更小的话,只需要等待即可
 		if currentBlock >= lastedBlock {
 			if startUpBlockNumber >= lastedBlock {
@@ -325,6 +334,21 @@ func (be *Events) startAlarmTask() {
 			return
 		}
 	}
+}
+
+func (be *Events) checkSmcSyncDone() error {
+	var err error
+	// 2. 校验smc节点同步情况
+	sp, err := be.client.SyncProgress(context.Background())
+	if err != nil {
+		err = rerr.ErrSpectrumSyncError.Errorf("call smc SyncProgress err %s", err)
+		return err
+	}
+	if sp != nil {
+		err = rerr.ErrSpectrumBlockError.Errorf("smc is syncing now")
+		return err
+	}
+	return nil
 }
 
 func (be *Events) queryAllStateChange(fromBlock int64, toBlock int64) (stateChanges []mediatedtransfer.ContractStateChange, err error) {
