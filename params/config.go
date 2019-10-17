@@ -442,10 +442,10 @@ var DefaultMainNetCfg = config{
 	channelConfig: channelConfig{
 		RevealTimeout:             30,
 		SettleTimeout:             600,
-		EnableMediationFee:        false,
+		EnableMediationFee:        true,
 		IgnoreMediatedNodeRequest: false,
 		MaxTransferDataLen:        256,
-		ChannelSettleTimeoutMin:   60, // 开发环境默认60
+		ChannelSettleTimeoutMin:   40000,
 	},
 	pfsConfig: pfsConfig{
 		PfsHost: "http://transport01.smartmesh.cn:7000",
