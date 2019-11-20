@@ -79,6 +79,8 @@ In order to use Photon correctly and safely there are some things that need to b
 - **Persistency of local DB:** Your local state database is located at ~/.photon. This data should not be deleted by the user or tampered with in any way. Frequent backups are also recommended. Deleting this directory could mean losing funds.    
 - **Photon node can be offline or online according to usage :** In photon,some nodes ,such as mobile nodes(just for payment requirment), can be offline after delegating evidence to the PhotonMonitor; Another nodes, such as meshbox nodes,which provide the mediate transfer service, need to confirm that the inside photon node is always running, If it crashes for whatever reason you are responsible to restart it.
 
+Note: In order to ensure security, the same account can only start one node at the same time. Photon does not provide node data import and export function temporarily.
+
 ## Firing it up
 ### Spectrum
 Run Photon nodes on the Spectrum testnet
