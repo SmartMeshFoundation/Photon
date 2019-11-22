@@ -69,7 +69,8 @@ func (e StandardError) WithData(data interface{}) StandardDataError {
 //ContractCallError 将合约调用错误转换为standarderror
 func ContractCallError(err error) StandardError {
 	//金额不够需要特殊处理
-	if err.Error() == "insufficient balance to pay for gas" || err.Error() == "insufficient funds for gas * price + value" {
+	if strings.Contains(err.Error(), "insufficient balance") || strings.Contains(err.Error(), "insufficient funds") {
+		//if err.Error() == "insufficient balance to pay for gas" || err.Error() == "insufficient funds for gas * price + value" {
 		return ErrInsufficientBalanceForGas
 
 	} else if strings.Index(err.Error(), "failed to estimate gas needed:") == 0 {
