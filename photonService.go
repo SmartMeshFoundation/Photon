@@ -1,6 +1,7 @@
 package photon
 
 import (
+	"context"
 	"fmt"
 
 	"time"
@@ -1318,6 +1319,16 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 	_, isOnline := rs.Protocol.GetNetworkStatus(c.PartnerState.Address)
 	if !isOnline {
 		result.Result <- rerr.ErrNodeNotOnline.Printf("node %s is not online", c.PartnerState.Address.String())
+		return
+	}
+	// 这里需要先校验下用户余额,防止对方同意了但是自己因为gas不足调用合约失败导致只能强制关闭
+	balance, err := rs.Chain.Client.BalanceAt(context.Background(), c.OurState.Address, nil)
+	if err != nil {
+		result.Result <- rerr.ErrSpectrumNotConnected
+		return
+	}
+	if balance.Cmp(params.Cfg.MinBalance) <= 0 {
+		result.Result <- rerr.ErrInsufficientBalanceForGas
 		return
 	}
 	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelIdentifier)))
