@@ -1420,6 +1420,16 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		result.Result <- rerr.ErrChannelState.Append("can not withdraw on channel when deposit")
 		return
 	}
+	// 这里需要先校验下用户余额,防止对方同意了但是自己因为gas不足调用合约失败导致只能强制关闭
+	balance, err := rs.Chain.Client.BalanceAt(context.Background(), c.OurState.Address, nil)
+	if err != nil {
+		result.Result <- rerr.ErrSpectrumNotConnected
+		return
+	}
+	if balance.Cmp(params.Cfg.MinBalance) <= 0 {
+		result.Result <- rerr.ErrInsufficientBalanceForGas
+		return
+	}
 	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
 	s, err := c.CreateWithdrawRequest(amount)
 	if err != nil {
