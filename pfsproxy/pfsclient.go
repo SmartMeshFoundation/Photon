@@ -128,14 +128,11 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		//log.Error(Req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
 		return ErrConnect
 	}
 	if statusCode != 200 {
-		//log.Error(Req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
-		//log.Error(err.Error())
 		return
 	}
 	log.Info(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
@@ -235,7 +232,9 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	}
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI FindPath %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	log.Trace(fmt.Sprintf("resp=%s", string(body)))
 	return
@@ -285,7 +284,6 @@ func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	//log.Debug(Req.ToString())
 	if err != nil {
 		log.Error(fmt.Sprintf("PfsAPI SetFeePolicy %s err :%s", req.FullURL, err))
 		return
@@ -358,7 +356,9 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetAccountFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
 }
@@ -422,7 +422,9 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetTokenFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
 }
@@ -486,7 +488,9 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetChannelFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
 }

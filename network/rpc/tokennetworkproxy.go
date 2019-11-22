@@ -242,7 +242,7 @@ func (t *TokenNetworkProxy) NewChannelAndDepositAsync(participantAddress, partne
 	if err != nil {
 		return rerr.ContractCallError(err)
 	}
-	if name == params.SMTTokenName {
+	if name == params.Cfg.SMTTokenName {
 		return t.newChannelAndDepositOnSMTToken(tokenAddr, participantAddress, partnerAddress, settleTimeout, amount)
 	}
 	err = t.newChannelAndDepositByFallback(token, participantAddress, partnerAddress, settleTimeout, amount)

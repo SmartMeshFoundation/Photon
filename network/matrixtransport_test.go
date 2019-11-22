@@ -107,6 +107,9 @@ func TestGetJoinedRoomAlias(t *testing.T) {
 	//if err != nil {
 	//	panic(err)
 	//}
+	for m1.matrixcli == nil {
+		time.Sleep(time.Second)
+	}
 	rooms, err := m1.matrixcli.JoinedRooms()
 	log.Trace(fmt.Sprintf("rooms=%s", rooms))
 	if err != nil {
@@ -127,6 +130,9 @@ func TestInvite(t *testing.T) {
 	m2.Start()
 	//m3.Start()
 	log.Info(fmt.Sprintf(" m1=%s,m2=%s", m1.UserID, m2.UserID))
+	for m1.matrixcli == nil {
+		time.Sleep(time.Second)
+	}
 	r, err := m1.matrixcli.CreateRoom(&gomatrix.ReqCreateRoom{
 		Invite:        []string{m2.UserID},
 		Visibility:    "public",
@@ -157,7 +163,9 @@ func TestSendMessage(t *testing.T) {
 	m2.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m1.Start()
 	m2.Start()
-	time.Sleep(time.Second * 6)
+	for m1.matrixcli == nil || m1.matrixcli.Syncer == nil || m2.matrixcli == nil || m2.matrixcli.Syncer == nil {
+		time.Sleep(time.Second)
+	}
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -243,7 +251,9 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	//let server sync
 	//time.Sleep(time.Second * 6)
 	m2.Start()
-	time.Sleep(time.Second * 6)
+	for m1.matrixcli == nil || m1.matrixcli.Syncer == nil || m2.matrixcli == nil || m2.matrixcli.Syncer == nil || !m1.hasDoneStartCheck {
+		time.Sleep(time.Second)
+	}
 	m1Chan := make(chan string)
 	m2Chan := make(chan string)
 	m1.matrixcli.Syncer.(*gomatrix.DefaultSyncer).OnEventType("m.room.message", func(msg *gomatrix.Event) {
@@ -290,6 +300,9 @@ func TestSendMessageReLoginOnAnotherServer(t *testing.T) {
 	m2Again.setTrustServers(testTrustedServers)
 	m2Again.db.(*codefortest.MockDb).AddPartner(m1.NodeAddress)
 	m2Again.Start()
+	for m2Again.matrixcli == nil || m2Again.matrixcli.Syncer == nil {
+		time.Sleep(time.Second)
+	}
 	err = m1.Send(m2Again.NodeAddress, []byte("ccc"))
 	if err != nil {
 		t.Error(err)
@@ -700,4 +713,138 @@ func TestLeaveUselessRoom(t *testing.T) {
 	defer m1.Stop()
 	m1.Start()
 	m1.leaveUselessRoom()
+}
+
+func TestPresenceListFunction(t *testing.T) { //注册次测试过程需要手动修改sync函数里面的presence参数为空
+	if testing.Short() {
+		return
+	}
+	//same server
+	delete(params.TrustMatrixServers, "transport13.smartmesh.cn")
+	cfg := params.TrustMatrixServers
+	trans01 := newTestMatrixTransport("t1", cfg)
+	trans02 := newTestMatrixTransport("t2", cfg)
+	trans03 := newTestMatrixTransport("t3", cfg)
+	trans01.Start()
+	trans02.Start()
+	trans03.Start()
+
+	time.Sleep(5 * time.Second)
+
+	//设置presence list
+	trans01.matrixcli.PostPresenceList(&gomatrix.ReqPresenceList{
+		Invite: []string{trans02.UserID, trans03.UserID},
+	})
+	//trans01读取列表
+	reps01, err := trans01.matrixcli.GetPresenceList(trans01.UserID)
+	if err != nil {
+		t.Error("t1 GetPresenceList(t2/t3) failed", err)
+		return
+	}
+	for _, content1 := range reps01 {
+		log.Trace(fmt.Sprintf("UserID:%s ,presence=%s", content1.UserID, content1.Presence))
+		if content1.Presence != "online" {
+			t.Error("get t2/t3 presence err,Expected=online,but =offline")
+			return
+		}
+	}
+	log.Trace(fmt.Sprintf(" t1 GetPresenceList=%s", utils.StringInterface(reps01, 8)))
+	log.Trace("====================================================\n")
+	//trans02下线/上线交互
+	var setPresence = ""
+	var errTimes = 0
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second * 1)
+		if i%2 == 0 {
+			setPresence = "offline"
+		} else {
+			setPresence = "online"
+		}
+
+		err2 := trans02.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+			Presence:  setPresence,
+			StatusMsg: "other",
+		})
+		if err2 != nil {
+			t.Error("test", i, ": SetPresenceState(offline) failed", err2)
+			err = err2
+			return
+		}
+
+		reps02, err2 := trans01.matrixcli.GetPresenceList(trans01.UserID)
+		if err2 != nil {
+			t.Error("test", i, ": GetPresenceList(t2/t3) failed", err2)
+			err = err2
+			return
+		}
+		for _, content2 := range reps02 {
+			log.Trace(fmt.Sprintf("test %d : UserID:%s ,presence=%s", i, content2.UserID, content2.Presence))
+			if content2.UserID == trans02.UserID && content2.Presence != setPresence {
+				errTimes++
+			}
+		}
+	}
+	if errTimes > 3 {
+		t.Error("test for changing presence on one server failed")
+	}
+
+	log.Trace("====================================================\n")
+
+	time.Sleep(time.Second)
+	//节点处于不同的服务器
+	trans02.Stop()
+	trans03.Stop()
+	//移除trans01对trans02 trans03的监控列表
+	trans01.matrixcli.PostPresenceList(&gomatrix.ReqPresenceList{
+		Drop: []string{trans02.UserID, trans03.UserID},
+	})
+
+	params.TrustMatrixServers["transport13.smartmesh.cn"] = "http://transport13.smartmesh.cn:8008"
+	delete(params.TrustMatrixServers, "transport01.smartmesh.cn")
+	//params.TrustMatrixServers["transport01.smartmesh.cn"]="http://transport01.smartmesh.cn:8008"
+	cfg1 := params.TrustMatrixServers
+	trans04 := newTestMatrixTransport("t4", cfg1)
+	trans05 := newTestMatrixTransport("t5", cfg1)
+	trans04.Start()
+	trans05.Start()
+	time.Sleep(time.Second * 5)
+	//设置presence list
+	trans01.matrixcli.PostPresenceList(&gomatrix.ReqPresenceList{
+		Invite: []string{trans04.UserID, trans05.UserID},
+	})
+	var setPresence1 = ""
+	var errTimes1 = 0
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second * 1)
+		if i%2 == 0 {
+			setPresence1 = "offline"
+		} else {
+			setPresence1 = "online"
+		}
+
+		err = trans04.matrixcli.SetPresenceState(&gomatrix.ReqPresenceUser{
+			Presence:  setPresence1,
+			StatusMsg: "other",
+		})
+		if err != nil {
+			t.Error("test", i, ": SetPresenceState(offline) failed", err)
+			return
+		}
+
+		reps02, err := trans01.matrixcli.GetPresenceList(trans01.UserID)
+		if err != nil {
+			t.Error("test", i, ": GetPresenceList(t2/t3) failed", err)
+			return
+		}
+		for _, content2 := range reps02 {
+			log.Trace(fmt.Sprintf("test %d : UserID:%s ,presence=%s", i, content2.UserID, content2.Presence))
+			if content2.UserID == trans04.UserID && content2.Presence != setPresence1 {
+				errTimes1++
+			}
+		}
+	}
+	if errTimes1 > 3 {
+		t.Error("test for changing presence on different server failed")
+	}
+
 }

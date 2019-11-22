@@ -250,7 +250,7 @@ type IncomeDetail struct {
 	Key         string `json:"key" gorm:"primary_key"`
 	Address     string `json:"address"`      // 获得该笔收入的用户
 	Income      string `json:"income"`       // 本笔的收入金额
-	BlockNumber uint64 `json:"block_number"` // 该笔收入结算块号
+	BlockNumber int64  `json:"block_number"` // 该笔收入结算块号
 	Date        string `json:"date"`         // 该笔收入结算日期,yyyy-mm-dd
 	Timestamp   int64  `json:"timestamp"`    // 该笔收入结算时间戳
 	TotalFund   string `json:"total_fund"`   // 该笔收入发生时的资金池总额

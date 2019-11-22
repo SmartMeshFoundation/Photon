@@ -3,6 +3,8 @@ package photon
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/transfer"
@@ -115,7 +117,7 @@ func (rs *Service) restoreLocks() {
 		aicr := token2ActionInitCrashRestartStateChange[key]
 		if aicr == nil {
 			aicr = &mediatedtransfer.ActionInitCrashRestartStateChange{
-				OurAddress:     rs.NodeAddress,
+				OurAddress:     params.Cfg.MyAddress,
 				Token:          l.token,
 				LockSecretHash: l.l.LockSecretHash,
 			}

@@ -115,3 +115,13 @@ func ReadBigInt(reader io.Reader) *big.Int {
 	bi.SetBytes(tmpbuf)
 	return bi
 }
+
+// HexToPrivateKey parse private key from bin hex
+func HexToPrivateKey(keyBinHex string) (privateKey *ecdsa.PrivateKey, err error) {
+	keybin, err := hex.DecodeString(keyBinHex)
+	if err != nil {
+		return
+	}
+	privateKey, err = crypto.ToECDSA(keybin)
+	return
+}

@@ -152,18 +152,7 @@ func (node *PhotonNode) getParamStr(env *TestEnv) []string {
 	param = append(param, "--debug-mdns-servicetag="+env.MDNSServiceTag)
 
 	if !env.UseMatrix {
-		param = append(param, "--debug-udp-only")
-		if env.XMPPServer != "" {
-			param = append(param, "--xmpp-server="+env.XMPPServer)
-		}
 		param = append(param, "--xmpp") //如果不指定matrix,默认链接xmpp,否则pfs无法正常工作
-	} else {
-		//param = append(param, "--matrix") 默认是matrix,不必添加了
-		if time.Now().Nanosecond()%2 == 0 {
-			param = append(param, "--matrix-server=transport01.smartmesh.cn")
-		} else {
-			param = append(param, "--matrix-server=transport13.smartmesh.cn")
-		}
 	}
 	if node.pprof {
 		param = append(param, "--pprof")

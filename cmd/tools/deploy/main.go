@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/SmartMeshFoundation/Photon/utils"
+
 	"context"
 
 	"fmt"
@@ -14,7 +16,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/accounts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts"
 	"github.com/SmartMeshFoundation/Photon/network/rpc/contracts/test/tokens/smttoken"
-	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethutils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,7 +36,7 @@ func main() {
 		ethutils.DirectoryFlag{
 			Name:  "keystore-path",
 			Usage: "If you have a non-standard path for the ethereum keystore directory provide it using this argument. ",
-			Value: ethutils.DirectoryString{Value: params.DefaultKeyStoreDir()},
+			Value: ethutils.DirectoryString{Value: utils.DefaultKeyStoreDir()},
 		},
 		cli.StringFlag{
 			Name: "eth-rpc-endpoint",

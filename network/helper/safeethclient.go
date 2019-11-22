@@ -45,7 +45,7 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 		quitChan:   make(chan struct{}),
 	}
 	var err error
-	ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), params.DefaultMainNetCfg.ChainRequestTimeout)
 	c.Client, err = ethclient.DialContext(ctx, rawurl)
 	cancelFunc()
 	if err == nil && checkConnectStatus(c.Client) == nil {
@@ -110,7 +110,7 @@ func (c *SafeEthClient) RecoverDisconnect() {
 		default:
 			//never block
 		}
-		ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+		ctx, cancelFunc := context.WithTimeout(context.Background(), params.Cfg.ChainRequestTimeout)
 		client, err = ethclient.DialContext(ctx, c.URL)
 		cancelFunc()
 		if err == nil {
@@ -379,7 +379,7 @@ func checkConnectStatus(c *ethclient.Client) (err error) {
 	if c == nil {
 		return errNotConnectd
 	}
-	ctx, cancelFunc := context.WithTimeout(context.Background(), params.EthRPCTimeout)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), params.DefaultMainNetCfg.ChainRequestTimeout)
 	defer cancelFunc()
 	_, err = c.HeaderByNumber(ctx, big.NewInt(1))
 	if err != nil {

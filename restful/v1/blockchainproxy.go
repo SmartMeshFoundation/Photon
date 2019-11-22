@@ -11,7 +11,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/ant0ine/go-json-rest/rest"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -68,6 +68,17 @@ func TransferSMT(w rest.ResponseWriter, r *rest.Request) {
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append(fmt.Sprintf("failed to get networkID : %v", err)))
 		return
+	}
+	// special dealing for specrum main net
+	var head *types.Header
+	head, err = conn.HeaderByNumber(ctx, big.NewInt(1))
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.Append(fmt.Sprintf("failed to get networkID : %v", err)))
+		return
+	}
+	if head != nil && head.Hash() == common.HexToHash("0x57e682b80257aad73c4f3ad98d20435b4e1644d8762ef1ea1ff2806c27a5fa3d") {
+		fmt.Printf("change chainid to 20180430\n")
+		networkID = big.NewInt(20180430)
 	}
 	log.Info(fmt.Sprintf("gasLimit=%d,gasPrice=%s", gasLimit, gasPrice.String()))
 	rawTx := types.NewTransaction(nonce, targetAddr, value, gasLimit, gasPrice, nil)

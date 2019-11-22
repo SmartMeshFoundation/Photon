@@ -629,7 +629,7 @@ func (rs *RevealSecret) UnPack(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if dataLen > params.UDPMaxMessageSize {
+	if dataLen > uint64(params.Cfg.UDPMaxMessageSize) {
 		return fmt.Errorf("RevealSecret unpack data error, too large data, maby attack")
 	}
 	if dataLen > 0 {
@@ -698,7 +698,7 @@ func (m *EnvelopMessage) signData(datahash common.Hash) []byte {
 	_, err = buf.Write(datahash[:])
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		log.Error(fmt.Sprintf("signData err %s", err))
 	}
@@ -1004,7 +1004,7 @@ func (m *DirectTransfer) UnPack(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if dataLen > params.UDPMaxMessageSize {
+	if dataLen > uint64(params.Cfg.UDPMaxMessageSize) {
 		return fmt.Errorf("RevealSecret unpack data error, too large data, maby attack")
 	}
 	if dataLen > 0 {
@@ -1290,7 +1290,7 @@ func (m *AnnounceDisposed) signData(datahash common.Hash) []byte {
 	//if len(errorMsgBytes) > 0 {
 	//	_, err = buf.Write(errorMsgBytes)
 	//}
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	_, err = buf.Write(datahash[:])
 	if err != nil {
 		log.Error(fmt.Sprintf("signData err %s", err))
@@ -1525,7 +1525,7 @@ func (m *WithdrawRequest) signDataForContract() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
@@ -1708,7 +1708,7 @@ func (m *WithdrawResponse) signDataForContract() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
@@ -1844,7 +1844,7 @@ func (m *SettleRequest) SignDataForContract() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
@@ -2030,7 +2030,7 @@ func (m *SettleResponse) SignDataForContract() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant2Balance))
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}

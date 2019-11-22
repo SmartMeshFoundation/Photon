@@ -178,9 +178,9 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		WakeUpHandler:          wakeuphandler.NewWakeupHandler("udp"),
 	}
 	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
-	if params.EnableMDNS {
+	if params.Cfg.EnableMDNS {
 		ctx, cf := context.WithCancel(context.Background())
-		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
+		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.Cfg.MDNSQueryInterval)
 		if err != nil {
 			log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 			cf()
@@ -219,7 +219,7 @@ func (ut *UDPTransport) monitorIPChange() {
 					ut.msrv = nil
 				}
 				ctx, cf := context.WithCancel(context.Background())
-				ut.msrv, err = mdns.NewMdnsService(ctx, ut.UAddr.Port, ut.name, params.DefaultMDNSQueryInterval)
+				ut.msrv, err = mdns.NewMdnsService(ctx, ut.UAddr.Port, ut.name, params.Cfg.MDNSQueryInterval)
 				if err != nil {
 					log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 					cf()
@@ -401,7 +401,7 @@ func (ut *UDPTransport) removeExpiredNodes() {
 			// 不处理非自己发现的节点
 			continue
 		}
-		if now.Sub(saveTime) > params.DefaultMDNSKeepalive {
+		if now.Sub(saveTime) > params.Cfg.MDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
 		}
 	}

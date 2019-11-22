@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
@@ -357,14 +358,15 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 28 : N4 closes his channel with N2
 	models.Logger.Println("step 28 ---->")
-	err = cm.tryInSeconds(20, func() error {
+	err = cm.tryInSeconds(25, func() error {
 		return N4.Close(C24.ChannelIdentifier)
 	})
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
+	time.Sleep(2 * time.Second) // 等待节点接收close事件
 	C24 = N2.GetChannelWith(N4, tokenAddress)
-	if C24.State != int(netshare.Closed) {
+	if C24.State != int(channeltype.StateClosed) {
 		return cm.caseFail(env.CaseName)
 	}
 

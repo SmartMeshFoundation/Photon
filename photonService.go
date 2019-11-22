@@ -1,8 +1,7 @@
 package photon
 
 import (
-	"crypto/ecdsa"
-
+	"context"
 	"fmt"
 
 	"time"
@@ -44,7 +43,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/transfer/route"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/theckman/go-flock"
 )
 
@@ -84,7 +82,6 @@ type Service struct {
 	/*
 		module
 	*/
-	Config                   *params.Config
 	Chain                    *rpc.BlockChainService
 	Transport                network.Transporter
 	Protocol                 *network.PhotonProtocol
@@ -99,8 +96,6 @@ type Service struct {
 
 	/*
 	 */
-	PrivateKey            *ecdsa.PrivateKey
-	NodeAddress           common.Address
 	Token2ChannelGraph    map[common.Address]*graph.ChannelGraph
 	Token2TokenNetwork    map[common.Address]common.Address
 	Transfer2StateManager map[common.Hash]*transfer.StateManager
@@ -155,15 +150,12 @@ type Service struct {
 }
 
 //NewPhotonService create photon service
-func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey, transport network.Transporter, config *params.Config, notifyHandler *notify.Handler, dao models.Dao) (rs *Service, err error) {
+func NewPhotonService(chain *rpc.BlockChainService, transport network.Transporter, notifyHandler *notify.Handler, dao models.Dao) (rs *Service, err error) {
 	rs = &Service{
 		NotifyHandler:      notifyHandler,
 		Chain:              chain,
-		PrivateKey:         privateKey,
-		Config:             config,
 		Transport:          transport,
 		dao:                dao,
-		NodeAddress:        crypto.PubkeyToAddress(privateKey.PublicKey),
 		Token2ChannelGraph: make(map[common.Address]*graph.ChannelGraph),
 		//Token2TokenNetwork 应该是一个token的数组,表示已经注册的token.目前k,v中的v必须是空地址
 		Token2TokenNetwork:                    make(map[common.Address]common.Address),
@@ -191,7 +183,7 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	rs.BlockNumber.Store(int64(0))
 	rs.MessageHandler = newPhotonMessageHandler(rs)
 	rs.StateMachineEventHandler = newStateMachineEventHandler(rs)
-	rs.Protocol = network.NewPhotonProtocol(transport, privateKey, rs)
+	rs.Protocol = network.NewPhotonProtocol(transport, rs)
 	////todo fixme MatrixTransport should have a better contructor function
 	//mtransport, ok := rs.Transport.(*network.MatrixMixTransport)
 	//if ok {
@@ -201,13 +193,13 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	/*
 		only one instance for one data directory
 	*/
-	rs.FileLocker = flock.NewFlock(config.DataBasePath + ".flock.Lock")
+	rs.FileLocker = flock.NewFlock(params.Cfg.DataBasePath + ".flock.Lock")
 	locked, err := rs.FileLocker.TryLock()
 	if err != nil || !locked {
-		err = rerr.ErrPhotonAlreadyRunning.Errorf("another instance already running at %s", config.DataBasePath)
+		err = rerr.ErrPhotonAlreadyRunning.Errorf("another instance already running at %s", params.Cfg.DataBasePath)
 		return
 	}
-	log.Info(fmt.Sprintf("create photon service registry=%s,node=%s", rs.Chain.GetRegistryAddress().String(), rs.NodeAddress.String()))
+	log.Info(fmt.Sprintf("create photon service registry=%s,node=%s", rs.Chain.GetRegistryAddress().String(), params.Cfg.MyAddress.String()))
 
 	rs.Token2TokenNetwork, err = rs.dao.GetAllTokens()
 	if err != nil {
@@ -215,23 +207,19 @@ func NewPhotonService(chain *rpc.BlockChainService, privateKey *ecdsa.PrivateKey
 	}
 	rs.BlockChainEvents = blockchain.NewBlockChainEvents(chain.Client, chain, rs.dao)
 	// fee module
-	if config.EnableMediationFee {
+	if params.Cfg.EnableMediationFee {
 		// pathfinder
-		if config.PfsHost != "" {
-			rs.PfsProxy = pfsproxy.NewPfsProxy(config.PfsHost, rs.PrivateKey)
+		if params.Cfg.PfsHost != "" {
+			rs.PfsProxy = pfsproxy.NewPfsProxy(params.Cfg.PfsHost, params.Cfg.PrivateKey)
 		}
 		rs.FeePolicy = NewFeeModule(dao, rs.PfsProxy)
 	} else {
 		rs.FeePolicy = &NoFeePolicy{}
 	}
-	if rs.Config.PmsHost == "" && rs.Config.PmsAddress == utils.EmptyAddress {
-		rs.Config.PmsAddress = params.DefaultContractToPMSAddress[chain.GetRegistryAddress()]
-		rs.Config.PmsHost = params.DefaultContractToPMS[chain.GetRegistryAddress()]
-	}
 	// pms
-	if rs.Config.PmsHost != "" && rs.Config.PmsAddress != utils.EmptyAddress {
-		log.Info(fmt.Sprintf("startup with pms=%s, pms signer=%s", rs.Config.PmsHost, rs.Config.PmsAddress.String()))
-		rs.PmsProxy = pmsproxy.NewPmsProxy(rs.Config.PmsHost, rs.NodeAddress, rs.Config.PmsAddress)
+	if params.Cfg.PmsHost != "" && params.Cfg.PmsAddress != utils.EmptyAddress {
+		log.Info(fmt.Sprintf("startup with pms=%s, pms signer=%s", params.Cfg.PmsHost, params.Cfg.PmsAddress.String()))
+		rs.PmsProxy = pmsproxy.NewPmsProxy(params.Cfg.PmsHost, params.Cfg.MyAddress, params.Cfg.PmsAddress)
 	} else {
 		log.Error(fmt.Sprintf("it's unsafe to startup with no pms"))
 	}
@@ -258,7 +246,7 @@ func (rs *Service) Start() (err error) {
 	//restore 一定要在历史事件处理之前进行,比如链上注册密码事件,需要相应的statemanager发送unlock消息
 	rs.restore()
 	go func() {
-		if rs.Config.ConditionQuit.RandomQuit {
+		if params.Cfg.ConditionQuit.RandomQuit {
 			go func() {
 				isPrime := func(value int) bool {
 					if value <= 3 {
@@ -421,7 +409,7 @@ func (rs *Service) loop() {
 				//rs.NotifyHandler.NotifyString(notify.LevelWarn, "公链连接失败,正在尝试重连")
 			}
 		case <-rs.quitChan:
-			log.Info(fmt.Sprintf("%s quit now", utils.APex2(rs.NodeAddress)))
+			log.Info(fmt.Sprintf("%s quit now", utils.APex2(params.Cfg.MyAddress)))
 			return
 		}
 	}
@@ -464,11 +452,11 @@ func (rs *Service) newChannelFromEvent(tokenNetwork *rpc.TokenNetworkProxy, toke
 	*/
 	// Because it is possible that I receive a bunch of events when disconnected, so channel states may not be the same as those when first created.
 	// But we ensure that following events will be got by me 100%, so we should handle them as creating a new channel.
-	ourState := channel.NewChannelEndState(rs.NodeAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
+	ourState := channel.NewChannelEndState(params.Cfg.MyAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 	partenerState := channel.NewChannelEndState(partnerAddress, big.NewInt(0), nil, mtree.NewMerkleTree(nil))
 
-	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, rs.PrivateKey, rs.Chain.Client, rs.dao, 0, rs.NodeAddress, partnerAddress)
-	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelIdentifier, rs.Config.RevealTimeout, settleTimeout)
+	externState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork, channelIdentifier, params.Cfg.PrivateKey, rs.Chain.Client, rs.dao, 0, params.Cfg.MyAddress, partnerAddress)
+	ch, err = channel.NewChannel(ourState, partenerState, externState, tokenAddress, channelIdentifier, params.Cfg.RevealTimeout, settleTimeout)
 	return
 }
 
@@ -523,7 +511,7 @@ Send `message` to `recipient` using the photon protocol.
        tries.
 */
 func (rs *Service) sendAsync(recipient common.Address, msg encoding.SignedMessager) error {
-	if recipient == rs.NodeAddress {
+	if recipient == params.Cfg.MyAddress {
 		log.Error(fmt.Sprintf("rs must be a bug ,sending message to it self"))
 	}
 	mtr, ok := msg.(*encoding.MediatedTransfer)
@@ -647,7 +635,7 @@ func (rs *Service) channelSerilization2Channel(c *channeltype.Serialization, tok
 		c.PartnerContractBalance,
 		c.PartnerBalanceProof, mtree.NewMerkleTree(c.PartnerLeaves))
 	ExternState := channel.NewChannelExternalState(rs.registerChannelForHashlock, tokenNetwork,
-		c.ChannelIdentifier, rs.PrivateKey,
+		c.ChannelIdentifier, params.Cfg.PrivateKey,
 		rs.Chain.Client, rs.dao, c.ClosedBlock,
 		c.OurAddress, c.PartnerAddress())
 	ch, err = channel.NewChannel(OurState, PartnerState, ExternState, c.TokenAddress(), c.ChannelIdentifier, c.RevealTimeout, c.SettleTimeout)
@@ -679,7 +667,7 @@ func (rs *Service) registerTokenNetwork(tokenAddress common.Address) (err error)
 	if err != nil {
 		return
 	}
-	g := graph.NewChannelGraph(rs.NodeAddress, tokenAddress, edges)
+	g := graph.NewChannelGraph(params.Cfg.MyAddress, tokenAddress, edges)
 	rs.Token2TokenNetwork[tokenAddress] = utils.EmptyAddress
 	rs.Token2ChannelGraph[tokenAddress] = g
 	//add channel I participant
@@ -810,7 +798,7 @@ func (rs *Service) directTransferAsync(tokenAddress, target common.Address, amou
 		return
 	}
 	tr.Data = []byte(data)
-	err = tr.Sign(rs.PrivateKey, tr)
+	err = tr.Sign(params.Cfg.PrivateKey, tr)
 	err = directChannel.RegisterTransfer(rs.GetBlockNumber(), tr)
 	if err != nil {
 		result.Result <- err
@@ -898,7 +886,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		// 当前为不支持收费的网络下时,使用本地路由
 		if rs.PfsProxy == nil {
 			log.Trace("get available routes without fee from local channel graph")
-			availableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, target, amount, amount, graph.EmptyExlude, rs)
+			availableRoutes = g.GetBestRoutes(rs.Protocol, params.Cfg.MyAddress, target, amount, amount, graph.EmptyExlude, rs)
 		} else {
 			log.Trace("get available routes to partner from local channel graph")
 			ch := rs.getChannel(tokenAddress, target)
@@ -950,7 +938,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 		TargetAmount:   new(big.Int).Set(amount),
 		Amount:         new(big.Int).Set(amount),
 		Token:          tokenAddress,
-		Initiator:      rs.NodeAddress,
+		Initiator:      params.Cfg.MyAddress,
 		Target:         target,
 		Expiration:     expiration,
 		LockSecretHash: lockSecretHash,
@@ -963,7 +951,7 @@ func (rs *Service) startMediatedTransferInternal(tokenAddress, target common.Add
 	*/
 	// Initiator has no need to switch secret, every time he switches the route, and security can be ensured.
 	initInitiator := &mediatedtransfer.ActionInitInitiatorStateChange{
-		OurAddress:     rs.NodeAddress,
+		OurAddress:     params.Cfg.MyAddress,
 		Tranfer:        transferState,
 		Routes:         routesState,
 		BlockNumber:    rs.GetBlockNumber(),
@@ -1079,12 +1067,12 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 			}
 			exclude := graph.MakeExclude(msg.Sender, msg.Initiator)
 			g := rs.getToken2ChannelGraph(ch.TokenAddress) //must exist
-			avaiableRoutes = g.GetBestRoutes(rs.Protocol, rs.NodeAddress, msg.Target, amount, msg.PaymentAmount, exclude, rs)
+			avaiableRoutes = g.GetBestRoutes(rs.Protocol, params.Cfg.MyAddress, msg.Target, amount, msg.PaymentAmount, exclude, rs)
 		} else {
 			// 获取下一跳的通道
 			myIndexInPath := -1
 			for i, addr := range msg.Path {
-				if addr == rs.NodeAddress {
+				if addr == params.Cfg.MyAddress {
 					myIndexInPath = i
 					break
 				}
@@ -1112,7 +1100,7 @@ func (rs *Service) mediateMediatedTransfer(msg *encoding.MediatedTransfer, ch *c
 		routesState := route.NewRoutesState(avaiableRoutes)
 		blockNumber := rs.GetBlockNumber()
 		initMediator := &mediatedtransfer.ActionInitMediatorStateChange{
-			OurAddress:               rs.NodeAddress,
+			OurAddress:               params.Cfg.MyAddress,
 			FromTranfer:              fromTransfer,
 			Routes:                   routesState,
 			FromRoute:                fromRoute,
@@ -1167,7 +1155,7 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 	fromRoute := graph.Channel2RouteState(fromChannel, msg.Sender, msg.PaymentAmount, rs, msg.Path)
 	fromTransfer := mediatedtransfer.LockedTransferFromMessage(msg, ch.TokenAddress)
 	initTarget := &mediatedtransfer.ActionInitTargetStateChange{
-		OurAddress:               rs.NodeAddress,
+		OurAddress:               params.Cfg.MyAddress,
 		FromRoute:                fromRoute,
 		FromTranfer:              fromTransfer,
 		BlockNumber:              rs.GetBlockNumber(),
@@ -1185,7 +1173,7 @@ func (rs *Service) targetMediatedTransfer(msg *encoding.MediatedTransfer, ch *ch
 }
 
 func (rs *Service) startHealthCheckFor(address common.Address) {
-	if !rs.Config.EnableHealthCheck {
+	if !params.Cfg.EnableHealthCheck {
 		return
 	}
 	if rs.HealthCheckMap[address] {
@@ -1295,7 +1283,7 @@ func (rs *Service) newChannelAndDeposit(token, partner common.Address, settleTim
 	if err != nil {
 		panic(err) // never happen
 	}
-	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(rs.NodeAddress, partner, settleTimeout, amount))
+	return utils.NewAsyncResultWithError(tokenNetwork.NewChannelAndDepositAsync(params.Cfg.MyAddress, partner, settleTimeout, amount))
 }
 
 /*
@@ -1333,6 +1321,16 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 		result.Result <- rerr.ErrNodeNotOnline.Printf("node %s is not online", c.PartnerState.Address.String())
 		return
 	}
+	// 这里需要先校验下用户余额,防止对方同意了但是自己因为gas不足调用合约失败导致只能强制关闭
+	balance, err := rs.Chain.Client.BalanceAt(context.Background(), c.OurState.Address, nil)
+	if err != nil {
+		result.Result <- rerr.ErrSpectrumNotConnected
+		return
+	}
+	if balance.Cmp(params.Cfg.MinBalance) <= 0 {
+		result.Result <- rerr.ErrInsufficientBalanceForGas
+		return
+	}
 	log.Trace(fmt.Sprintf("cooperative settle channel %s\n", utils.HPex(channelIdentifier)))
 	s, err := c.CreateCooperativeSettleRequest()
 	if err != nil {
@@ -1344,7 +1342,7 @@ func (rs *Service) cooperativeSettleChannel(channelIdentifier common.Hash) (resu
 	if err != nil {
 		result.Result <- err
 	}
-	err = s.Sign(rs.PrivateKey, s)
+	err = s.Sign(params.Cfg.PrivateKey, s)
 	err = rs.sendAsync(c.PartnerState.Address, s)
 	result.Result <- err
 	return
@@ -1422,6 +1420,16 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		result.Result <- rerr.ErrChannelState.Append("can not withdraw on channel when deposit")
 		return
 	}
+	// 这里需要先校验下用户余额,防止对方同意了但是自己因为gas不足调用合约失败导致只能强制关闭
+	balance, err := rs.Chain.Client.BalanceAt(context.Background(), c.OurState.Address, nil)
+	if err != nil {
+		result.Result <- rerr.ErrSpectrumNotConnected
+		return
+	}
+	if balance.Cmp(params.Cfg.MinBalance) <= 0 {
+		result.Result <- rerr.ErrInsufficientBalanceForGas
+		return
+	}
 	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
 	s, err := c.CreateWithdrawRequest(amount)
 	if err != nil {
@@ -1433,7 +1441,7 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 	if err != nil {
 		result.Result <- err
 	}
-	err = s.Sign(rs.PrivateKey, s)
+	err = s.Sign(params.Cfg.PrivateKey, s)
 	err = rs.sendAsync(c.PartnerState.Address, s)
 	result.Result <- err
 	return
@@ -1555,7 +1563,7 @@ func (rs *Service) messageTokenSwapTaker(msg *encoding.MediatedTransfer, tokensw
 		taker's Expiration must be smaller than maker's ,
 		taker and maker may have direct channels on these two tokens.
 	*/
-	takerExpiration := msg.Expiration - int64(rs.Config.RevealTimeout)
+	takerExpiration := msg.Expiration - int64(params.Cfg.RevealTimeout)
 	result, stateManager := rs.startMediatedTransferInternal(tokenswap.ToToken, tokenswap.FromNodeAddress, tokenswap.ToAmount, tokenswap.LockSecretHash, takerExpiration, utils.EmptyHash, "", tokenswap.RouteInfo)
 	if stateManager == nil {
 		log.Error(fmt.Sprintf("taker tokenwap error %s", <-result.Result))
@@ -1686,7 +1694,7 @@ func (rs *Service) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, am
 for debug only,quit if eventName exactly match
 */
 func (rs *Service) conditionQuit(eventName string) {
-	if strings.ToLower(eventName) == strings.ToLower(rs.Config.ConditionQuit.QuitEvent) && rs.Config.DebugCrash {
+	if strings.ToLower(eventName) == strings.ToLower(params.Cfg.ConditionQuit.QuitEvent) && params.Cfg.DebugCrash {
 		log.Error(fmt.Sprintf("quitevent=%s\n", eventName))
 		//log.Trace(fmt.Sprintf("tokengraph=%s", utils.StringInterface(rs.Token2ChannelGraph, 7)))
 		log.Trace(fmt.Sprintf("Transfer2StateManager=%s", utils.StringInterface(rs.Transfer2StateManager, 7)))
@@ -1717,7 +1725,7 @@ func (rs *Service) handleEthRPCConnectionOK() {
 	//启动的时候如果公链 rpc连接有问题,一旦链上,就应该重新初始化 registry, 否则无法进行注册 token 等操作
 	// If rpc connection fails in public chain, once reconnecting, we should reinitialize registry,
 	// otherwise we can do things like token registry.
-	_, err := rs.Chain.Registry(rs.Config.RegistryAddress, true)
+	_, err := rs.Chain.Registry(params.Cfg.RegistryAddress, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("BlockChainService.Registry err =%s", err.Error()))
 	}
@@ -2293,20 +2301,13 @@ func (rs *Service) removeToken2LockSecretHash2channel(secretHash common.Hash, ch
 获取最小SettleTimeout值
 */
 func (rs *Service) getMinSettleTimeout() int {
-	var minSettleTimeout int
-	// 限制最小SettleTimeout最小值
-	if params.IsMainNet {
-		minSettleTimeout = params.MainNetChannelSettleTimeoutMin
-	} else {
-		minSettleTimeout = params.TestNetChannelSettleTimeoutMin
-	}
-	return minSettleTimeout
+	return params.Cfg.ChannelSettleTimeoutMin
 }
 
 // GetDelegateForPms 获取一个通道需要提交给pms的数据
 func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
 	if thirdAddr == utils.EmptyAddress {
-		thirdAddr = rs.Config.PmsAddress
+		thirdAddr = params.Cfg.PmsAddress
 	}
 	var sig []byte
 	// 1. 基础通道数据
@@ -2326,7 +2327,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
 		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
 		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
-		sig, err = pmsproxy.SignBalanceProofFor3rd(c, rs.PrivateKey)
+		sig, err = pmsproxy.SignBalanceProofFor3rd(c, params.Cfg.PrivateKey)
 		if err != nil {
 			return
 		}
@@ -2341,7 +2342,7 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 			Lock:        l,
 			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
 		}
-		w.Signature, err = pmsproxy.SignUnlockFor3rd(c, w, thirdAddr, rs.PrivateKey)
+		w.Signature, err = pmsproxy.SignUnlockFor3rd(c, w, thirdAddr, params.Cfg.PrivateKey)
 		ws = append(ws, w)
 	}
 	c3.Unlocks = ws

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
@@ -176,7 +177,7 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
+	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, params.Cfg.RevealTimeout, req.Balance, req.NewChannel)
 	if err != nil {
 		resp = dto.NewExceptionAPIResponse(err)
 		return

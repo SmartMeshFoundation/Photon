@@ -126,7 +126,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		         The two nodes will most likely disagree on latest block, as far as
 		         the expiration goes this is no problem.
 	*/
-	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout()) - int64(params.DefaultRevealTimeout) // - revealTimeout for test
+	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout()) - int64(params.Cfg.RevealTimeout) // - revealTimeout for test
 	if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
 		lockExpiration = state.Transfer.Expiration
 	}
@@ -161,7 +161,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	}
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
-	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
+	if state.BlockNumber-params.Cfg.ForkConfirmNumber > state.Transfer.Expiration {
 		if state.Route != nil && !state.Db.IsThisLockRemoved(state.Route.ChannelIdentifier, state.OurAddress, state.Transfer.LockSecretHash) {
 			unlockFailed := &mt.EventUnlockFailed{
 				LockSecretHash:    state.Transfer.LockSecretHash,
@@ -189,7 +189,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 		state.BlockNumber = stateChange.BlockNumber
 	}
 	// 考虑到分叉攻击,延迟一定块数之后才发送remove
-	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
+	if state.BlockNumber-params.Cfg.ForkConfirmNumber > state.Transfer.Expiration {
 		// 超时
 		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
 		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,可不可以发送RemoveExpiredHashlock,由通道自己决定.然后移除state manager

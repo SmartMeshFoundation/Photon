@@ -3,6 +3,8 @@ package rpc
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"context"
 
 	"time"
@@ -21,6 +23,7 @@ func init() {
 	spew.Config.Indent = "    "
 	spew.Config.DisableMethods = true
 	spew.Config.MaxDepth = 7
+	params.InitForUnitTest()
 }
 
 func TestCodeAt(t *testing.T) {

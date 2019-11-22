@@ -35,7 +35,7 @@ import (
 
 //GetCallContext context for tx
 func GetCallContext() context.Context {
-	ctx, cf := context.WithDeadline(context.Background(), time.Now().Add(params.DefaultTxTimeout))
+	ctx, cf := context.WithDeadline(context.Background(), time.Now().Add(params.Cfg.TxTimeout))
 	if cf != nil {
 	}
 	return ctx
@@ -43,7 +43,7 @@ func GetCallContext() context.Context {
 
 //GetQueryConext context for query on chain
 func GetQueryConext() context.Context {
-	ctx, cf := context.WithDeadline(context.Background(), time.Now().Add(params.DefaultPollTimeout))
+	ctx, cf := context.WithDeadline(context.Background(), time.Now().Add(params.Cfg.ChainRequestTimeout))
 	if cf != nil {
 	}
 	return ctx
@@ -89,7 +89,7 @@ func NewBlockChainService(privateKey *ecdsa.PrivateKey, registryAddress common.A
 	}
 	// remove gas limit config and let it calculate automatically
 	//bcs.Auth.GasLimit = uint64(params.GasLimit)
-	bcs.Auth.GasPrice = big.NewInt(params.DefaultGasPrice)
+	bcs.Auth.GasPrice = params.Cfg.GasPrice
 
 	_, err = bcs.Registry(registryAddress, client.Status == netshare.Connected)
 	return
@@ -240,7 +240,7 @@ func (bcs *BlockChainService) checkBalanceEnough() {
 		log.Error(fmt.Sprintf("get balance err : %s", err.Error()))
 		return
 	}
-	needed := big.NewInt(params.MinBalance)
+	needed := params.Cfg.MinBalance
 	if balance.Cmp(needed) <= 0 {
 		bcs.NotifyHandler.NotifyPhotonBalanceNotEnough(balance, needed)
 	}

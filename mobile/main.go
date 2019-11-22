@@ -12,16 +12,14 @@ import (
 
 	"errors"
 
-	"github.com/SmartMeshFoundation/Photon/utils"
-
 	"github.com/SmartMeshFoundation/Photon/rerr"
+	"github.com/SmartMeshFoundation/Photon/utils"
 
 	"fmt"
 
 	"runtime/debug"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl"
-	"github.com/SmartMeshFoundation/Photon/params"
 )
 
 var apiMonitor = make(map[*API]struct{})
@@ -47,7 +45,7 @@ todo 启动参数需要重构
 2.默认启用的参数--verbosity和--debug应该去掉,尤其是--debug会自动上传日志
 3. DefaultRevealTimeout 需要修改,不能在默认用3了,这个纯粹是为了测试
 */
-func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) {
+func StartUp(privateKeyBinHex, ethRPCEndPoint, dataDir, apiAddr, listenAddr, logFile, registryAddress string, otherArgs *Strings) (api *API, err error) {
 	if len(apiMonitor) > 0 {
 		var s = ""
 		for a := range apiMonitor {
@@ -58,11 +56,13 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 	}
 	os.Args = make([]string, 0, 20)
 	os.Args = append(os.Args, "photonmobile")
-	os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
-	os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", keystorePath))
+	os.Args = append(os.Args, "--mobile")
+	os.Args = append(os.Args, fmt.Sprintf("--mobile-private-key-hex=%s", privateKeyBinHex)) //直接传递私玥,避免耗费资源加载keystore
+	//os.Args = append(os.Args, fmt.Sprintf("--address=%s", address))
+	//os.Args = append(os.Args, fmt.Sprintf("--keystore-path=%s", keystorePath))
 	os.Args = append(os.Args, fmt.Sprintf("--eth-rpc-endpoint=%s", ethRPCEndPoint))
 	os.Args = append(os.Args, fmt.Sprintf("--datadir=%s", dataDir))
-	os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
+	//os.Args = append(os.Args, fmt.Sprintf("--password-file=%s", passwordfile))
 	os.Args = append(os.Args, fmt.Sprintf("--api-address=%s", apiAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--listen-address=%s", listenAddr))
 	os.Args = append(os.Args, fmt.Sprintf("--ignore-mediatednode-request"))
@@ -76,8 +76,6 @@ func StartUp(address, keystorePath, ethRPCEndPoint, dataDir, passwordfile, apiAd
 		os.Args = append(os.Args, otherArgs.strs...)
 	}
 	//panicOnNullValue()
-	params.MobileMode = true
-	params.DefaultRevealTimeout = 3 //todo 需要移除
 	rapi, err := mainimpl.StartMain()
 	if err != nil {
 		err = errors.New(utils.Marshal(err))

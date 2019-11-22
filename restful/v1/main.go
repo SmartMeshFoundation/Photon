@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	photon "github.com/SmartMeshFoundation/Photon"
+	"github.com/SmartMeshFoundation/Photon/dto"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -20,18 +21,6 @@ should be set before start restful server
 */
 var API *photon.API
 
-/*
-Config is the configuration of Photon network
-should be set before start restful server
-*/
-var Config *params.Config
-
-// HTTPUsername is username needed when call http api
-var HTTPUsername = ""
-
-// HTTPPassword is password needed when call http api
-var HTTPPassword = ""
-
 //QuitChan stop http server
 var QuitChan chan struct{}
 
@@ -41,18 +30,15 @@ Start the restful server
 func Start() {
 	QuitChan = make(chan struct{})
 	api := rest.NewApi()
-	if Config.Debug {
+	if params.Cfg.Debug {
 		api.Use(rest.DefaultDevStack...)
 	} else {
 		api.Use(rest.DefaultProdStack...)
 	}
 	api.Use(rest.DefaultDevStack...)
-	if HTTPUsername != "" && HTTPPassword != "" {
-		api.Use(&rest.AuthBasicMiddleware{
+	if params.Cfg.HTTPUsername != "" || params.Cfg.HTTPPassword != "" {
+		api.Use(&AuthBasicMiddleware{
 			Realm: "please input username and password",
-			Authenticator: func(userId string, password string) bool {
-				return userId == HTTPUsername && password == HTTPPassword
-			},
 		})
 	}
 	router, err := rest.MakeRouter(
@@ -61,6 +47,9 @@ func Start() {
 			prepare update
 		*/
 		rest.Post("/api/1/prepare-update", PrepareUpdate),
+		rest.Get("/api/1/auth-check", func(writer rest.ResponseWriter, request *rest.Request) {
+			writejson(writer, dto.NewSuccessAPIResponse(nil))
+		}),
 		/*
 			transfers
 		*/
@@ -190,7 +179,7 @@ func Start() {
 		panic(fmt.Sprintf("maker router :%s", err))
 	}
 	api.SetApp(router)
-	listen := fmt.Sprintf("%s:%d", Config.APIHost, Config.APIPort)
+	listen := fmt.Sprintf("%s:%d", params.Cfg.RestAPIHost, params.Cfg.RestAPIPort)
 	server := &http.Server{Addr: listen, Handler: api.MakeHandler()}
 	go func() {
 		err2 := server.ListenAndServe()

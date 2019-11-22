@@ -19,17 +19,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var testPfgHost = "http://transport01.smartmesh.cn:7002"
+var testPfgHost = "http://transport01.smartmesh.cn:7012"
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 
 func TestPfsClient_SubmitBalance(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	params.ChainID = big.NewInt(8888)
+	params.Cfg.ChainID = big.NewInt(8888)
 	key, addr := utils.MakePrivateKeyAddress()
 	alice := codefortest.TestAccount{
 		Address:    addr,
@@ -94,7 +95,7 @@ func createPartnerBalanceProof(
 		OpenBlockNumber:   openBlockNumber.Uint64(),
 		AdditionalHash:    additionalHash,
 		ChannelIdentifier: channelID,
-		ChainID:           params.ChainID,
+		ChainID:           params.Cfg.ChainID,
 		Nonce:             nonce,
 		TransferAmount:    transferAmount,
 		LocksRoot:         locksroot,
