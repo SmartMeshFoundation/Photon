@@ -209,7 +209,7 @@ func StartMain() (*photon.API, error) {
 			Name:  "mobile",
 			Usage: "run photon in mobile mode,only used by mobile",
 		},
-		cli.BoolFlag{
+		cli.StringFlag{
 			Name:  "mobile-private-key-hex",
 			Usage: "private key hex for run photon,only used by mobile",
 		},
