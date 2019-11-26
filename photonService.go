@@ -2374,6 +2374,21 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 		})
 	}
 	c3.AnnouceDisposed = sas
+	// 6. 密码注册相关数据,这里只提交当前需要委托注册的,PMS那边采用全量覆盖
+	var secrets []*pmsproxy.DelegateSecret
+	for _, ourKnownSecret := range c.OurKnownSecrets {
+		if !ourKnownSecret.IsRegisteredOnChain {
+			// 如果没在链上注册过,需要委托
+			secret := ourKnownSecret.Secret
+			secretHash := utils.ShaSecret(secret[:])
+			lock := c.OurLock2UnclaimedLocks()[secretHash]
+			secrets = append(secrets, &pmsproxy.DelegateSecret{
+				Secret:        ourKnownSecret.Secret,
+				RegisterBlock: lock.Lock.Expiration - int64(c.RevealTimeout),
+			})
+		}
+	}
+	c3.Secrets = secrets
 	result = c3
 	return
 }

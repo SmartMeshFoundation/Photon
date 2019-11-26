@@ -46,6 +46,12 @@ type DelegateAnnounceDisposed struct {
 	LockSecretHash common.Hash `json:"secret_hash"`
 }
 
+// DelegateSecret 委托给第三方的密码注册
+type DelegateSecret struct {
+	Secret        common.Hash `json:"secret"`
+	RegisterBlock int64       `json:"register_block"` // 委托注册的时间
+}
+
 //DelegateForPms is for 3rd party to call update transfer
 type DelegateForPms struct {
 	ChannelIdentifier common.Hash                 `json:"channel_identifier"`
@@ -56,6 +62,7 @@ type DelegateForPms struct {
 	Unlocks           []*DelegateUnlock           `json:"unlocks"`
 	Punishes          []*DelegatePunish           `json:"punishes"`
 	AnnouceDisposed   []*DelegateAnnounceDisposed `json:"annouce_disposed"`
+	Secrets           []*DelegateSecret           `json:"secrets"`
 }
 
 //SignBalanceProofFor3rd make sure PartnerBalanceProof is not nil
