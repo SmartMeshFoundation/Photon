@@ -173,6 +173,10 @@ func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("receive RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
+	// 提交注册密码委托
+	for _, c := range channels {
+		mh.photon.submitDelegateToPms(c)
+	}
 	return nil
 }
 

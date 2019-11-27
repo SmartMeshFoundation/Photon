@@ -2376,15 +2376,15 @@ func (rs *Service) GetDelegateForPms(c *channeltype.Serialization, thirdAddr com
 	c3.AnnouceDisposed = sas
 	// 6. 密码注册相关数据,这里只提交当前需要委托注册的,PMS那边采用全量覆盖
 	var secrets []*pmsproxy.DelegateSecret
-	for _, ourKnownSecret := range c.OurKnownSecrets {
+	for _, ourKnownSecret := range c.PartnerKnownSecrets {
 		if !ourKnownSecret.IsRegisteredOnChain {
 			// 如果没在链上注册过,需要委托
 			secret := ourKnownSecret.Secret
 			secretHash := utils.ShaSecret(secret[:])
-			lock := c.OurLock2UnclaimedLocks()[secretHash]
+			lock := c.PartnerLock2UnclaimedLocks()[secretHash]
 			secrets = append(secrets, &pmsproxy.DelegateSecret{
 				Secret:        ourKnownSecret.Secret,
-				RegisterBlock: lock.Lock.Expiration - int64(c.RevealTimeout),
+				RegisterBlock: lock.Lock.Expiration - int64(c.RevealTimeout) + 5, // TODO 这里委托注册时间延迟5块,目的是当需要注册密码的时候自己也在线,就自己注册,避免PMS扣费
 			})
 		}
 	}
