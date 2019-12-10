@@ -243,6 +243,12 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// 1. load config
 	dao, client, isFirstStartUp, _, err := config(ctx)
 	if err != nil {
+		if client != nil && !photonServiceCreated {
+			client.Close()
+		}
+		if dao != nil && !photonServiceCreated {
+			dao.CloseDB()
+		}
 		return
 	}
 	defer func() {
