@@ -438,6 +438,7 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 	dbRegistryAddress := contractStatus.RegistryAddress
 	env, registryAddress, isFirstStartUp, hasConnectedChain, err := checkEnvAndGetRegistryAddress(paramRegistryAddress, dbRegistryAddress, client)
 	if err != nil {
+		log.Error(fmt.Sprintf("checkEnvAndGetRegistryAddress err : %s", err.Error()))
 		return
 	}
 

@@ -51,10 +51,7 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	if err == nil && checkConnectStatus(c.Client) == nil {
 		c.changeStatus(netshare.Connected)
 	} else {
-		go func() {
-			time.Sleep(3 * time.Second) // 无网启动时,等待全局变量params.cfg加载完毕之后,再尝试重连
-			c.RecoverDisconnect()
-		}()
+		go c.RecoverDisconnect()
 	}
 	return c, nil
 }
@@ -113,7 +110,7 @@ func (c *SafeEthClient) RecoverDisconnect() {
 		default:
 			//never block
 		}
-		ctx, cancelFunc := context.WithTimeout(context.Background(), params.Cfg.ChainRequestTimeout)
+		ctx, cancelFunc := context.WithTimeout(context.Background(), params.DefaultMainNetCfg.ChainRequestTimeout)
 		client, err = ethclient.DialContext(ctx, c.URL)
 		cancelFunc()
 		if err == nil {
