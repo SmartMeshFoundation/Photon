@@ -51,8 +51,10 @@ func NewSafeClient(rawurl string) (*SafeEthClient, error) {
 	if err == nil && checkConnectStatus(c.Client) == nil {
 		c.changeStatus(netshare.Connected)
 	} else {
-		time.Sleep(3 * time.Second) // 无网启动时,等待全局变量params.cfg加载完毕之后,再尝试重连
-		go c.RecoverDisconnect()
+		go func() {
+			time.Sleep(3 * time.Second) // 无网启动时,等待全局变量params.cfg加载完毕之后,再尝试重连
+			c.RecoverDisconnect()
+		}()
 	}
 	return c, nil
 }
