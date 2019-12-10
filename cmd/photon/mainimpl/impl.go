@@ -240,17 +240,9 @@ func mainCtx(ctx *cli.Context) (err error) {
 	//photon是否已经创建成功,成功以后,dao和client的所有权也将会移动到Service中,不能自己close了
 	//否则会二次close,造成错误
 	var photonServiceCreated bool
-	// 1. load config
-	dao, client, isFirstStartUp, _, err := config(ctx)
-	if err != nil {
-		if client != nil && !photonServiceCreated {
-			client.Close()
-		}
-		if dao != nil && !photonServiceCreated {
-			dao.CloseDB()
-		}
-		return
-	}
+	var isFirstStartUp bool
+	var dao models.Dao
+	var client *helper.SafeEthClient
 	defer func() {
 		if client != nil && err != nil && !photonServiceCreated {
 			client.Close()
@@ -259,6 +251,11 @@ func mainCtx(ctx *cli.Context) (err error) {
 			dao.CloseDB()
 		}
 	}()
+	// 1. load config
+	dao, client, isFirstStartUp, _, err = config(ctx)
+	if err != nil {
+		return
+	}
 
 	/*
 		2.初始化notifyHandler
