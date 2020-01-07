@@ -254,6 +254,7 @@ func mainCtx(ctx *cli.Context) (err error) {
 	// 1. load config
 	dao, client, isFirstStartUp, _, err = config(ctx)
 	if err != nil {
+		log.Error(fmt.Sprintf("config err : %s", err.Error()))
 		return
 	}
 
