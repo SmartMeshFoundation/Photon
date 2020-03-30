@@ -157,6 +157,13 @@ type channelConfig struct {
 }
 
 /*
+消息上报相关参数
+*/
+type reportConfig struct {
+	ReceivedTransferReportURL string // 收到交易上报的url
+}
+
+/*
 记录photon运行过程中用到的各种配置性全局变量的结构
 */
 type config struct {
@@ -192,6 +199,7 @@ type config struct {
 	pfsConfig
 	pmsConfig
 	apiConfig
+	reportConfig
 }
 
 /*

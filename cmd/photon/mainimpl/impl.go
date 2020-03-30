@@ -213,6 +213,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "mobile-private-key-hex",
 			Usage: "private key hex for run photon,only used by mobile",
 		},
+		cli.StringFlag{
+			Name:  "receive-transfer-report-url",
+			Usage: "photon will report receive transfers to this url",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -329,6 +333,8 @@ func mainCtx(ctx *cli.Context) (err error) {
 			time.Sleep(time.Millisecond * 100)
 		}
 	} else {
+		// 目前手机端是采取订阅模式来接收photon的通知,pc端的通知在ReportService中实现
+		photon.NewReportService(service).Start()
 		restful.Start(api)
 	}
 
@@ -589,6 +595,11 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 		err = rerr.ErrArgumentError.Append("getHTTPAuth err")
 		return
 	}
+
+	/*
+		reportConfig
+	*/
+	params.Cfg.ReceivedTransferReportURL = ctx.String("receive-transfer-report-url")
 	return
 }
 
