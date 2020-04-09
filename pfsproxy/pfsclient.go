@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -65,6 +67,9 @@ type submitBalancePayload struct {
 	BalanceSignature []byte         `json:"balance_signature"`
 	ProofSigner      common.Address `json:"proof_signer"`
 	LockAmount       *big.Int       `json:"lock_amount"`
+	// 如果启动参数中开启了ignore-mediatednode-request参数,那么该节点将不接收MediatedTransfer交易,此时需要报告给pfs,以免pfs把自己当中间节点来计算路由
+	// 该参数没必要纳入签名
+	IgnoreMediatedTransfer bool `json:"ignore_mediated_transfer"`
 }
 
 type balanceProof struct {
@@ -116,8 +121,9 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 			AdditionHash:      additionHash,
 			Signature:         signature,
 		},
-		LockAmount:  lockAmount,
-		ProofSigner: proofSigner,
+		LockAmount:             lockAmount,
+		ProofSigner:            proofSigner,
+		IgnoreMediatedTransfer: params.Cfg.IgnoreMediatedNodeRequest,
 	}
 	payload.sign(pfg.privateKey)
 	req := &utils.Req{
