@@ -16,7 +16,7 @@ Download the latest photon-<version>-[macOS.zip](https://github.com/SmartMeshFou
 ```
 unzip photon-<version>-macOS.zip
 ```
-The resulting binary will work on any version of macOS from 10.12 onwards without any other dependencies. An Ethereum client is required.
+The resulting binary will work on any version of macOS from 10.12 onwards without any other dependencies. An Spectrum client is required.
 
 ### mobile
 If you want to develop photon on mobile, you can execute the following commands
