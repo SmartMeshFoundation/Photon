@@ -143,7 +143,7 @@ SignedMessage|compound type|a data structure containing a signature of message s
 AnnounceDisposedProof|compound type|a data structure containing a lock to dispose and a channel id message
 
 ### AnnounceDisposedResponse
-AnnounceDisposedResponse is the message we used when a participant replies to his partner after he/she has received AnnounceDisposedResponse.
+AnnounceDisposedResponse is the message we used when a participant replies to his partner after he/she has received AnnounceDisposed.
 
 **Data Field** :
 
