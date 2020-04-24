@@ -112,6 +112,10 @@ type nodeConfig struct {
 		最小余额,18 * GasPrice * GasLimit * 3, 当账户余额小于该值时,合约调用存在失败且tx消失的情况
 	*/
 	MinBalance *big.Int
+	/*
+		取现过期时间,默认半个小时,即120块
+	*/
+	WithdrawExpireBlock int64
 }
 
 /*
@@ -252,9 +256,10 @@ var DefaultDevCfg = config{
 		EnableHealthCheck: false,
 	},
 	nodeConfig: nodeConfig{
-		PrivateKey: nil,
-		MyAddress:  utils.EmptyAddress,
-		MinBalance: big.NewInt(18 * 1e9 * 100000 * 3),
+		PrivateKey:          nil,
+		MyAddress:           utils.EmptyAddress,
+		MinBalance:          big.NewInt(18 * 1e9 * 100000 * 3),
+		WithdrawExpireBlock: 120,
 	},
 	chainConfig: chainConfig{
 		Name:                    "DevChain",
@@ -331,9 +336,10 @@ var DefaultTestNetCfg = config{
 		EnableHealthCheck: false,
 	},
 	nodeConfig: nodeConfig{
-		PrivateKey: nil,
-		MyAddress:  utils.EmptyAddress,
-		MinBalance: big.NewInt(18 * 1e9 * 100000 * 3),
+		PrivateKey:          nil,
+		MyAddress:           utils.EmptyAddress,
+		MinBalance:          big.NewInt(18 * 1e9 * 100000 * 3),
+		WithdrawExpireBlock: 120,
 	},
 	chainConfig: chainConfig{
 		Name:                    "SpectrumTestNet",
@@ -410,9 +416,10 @@ var DefaultMainNetCfg = config{
 		EnableHealthCheck: false,
 	},
 	nodeConfig: nodeConfig{
-		PrivateKey: nil,
-		MyAddress:  utils.EmptyAddress,
-		MinBalance: big.NewInt(18 * 1e9 * 100000 * 3),
+		PrivateKey:          nil,
+		MyAddress:           utils.EmptyAddress,
+		MinBalance:          big.NewInt(18 * 1e9 * 100000 * 3),
+		WithdrawExpireBlock: 120,
 	},
 	chainConfig: chainConfig{
 		Name:                    "DevChain",

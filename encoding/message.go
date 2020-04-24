@@ -1415,6 +1415,7 @@ type WithdrawRequestData struct {
 	Participant2          common.Address
 	Participant1Balance   *big.Int
 	Participant1Withdraw  *big.Int
+	ExpireBlock           *big.Int
 	Participant1Signature []byte
 }
 
@@ -1436,9 +1437,9 @@ func NewWithdrawRequest(wd *WithdrawRequestData) *WithdrawRequest {
 }
 func (m *WithdrawRequest) String() string {
 	return fmt.Sprintf("Message{type=WithdrawRequest Channel=%s-%d,Participant1=%s,Participant2=%s,"+
-		"Participant1Balance=%s,Participant1Withdraw=%s}",
+		"Participant1Balance=%s,Participant1Withdraw=%s, expireBlock=%s}",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
-		utils.APex2(m.Participant1), utils.APex2(m.Participant2), m.Participant1Balance, m.Participant1Withdraw,
+		utils.APex2(m.Participant1), utils.APex2(m.Participant2), m.Participant1Balance, m.Participant1Withdraw, m.ExpireBlock,
 	)
 }
 
@@ -1454,6 +1455,7 @@ func (m *WithdrawRequest) Pack() []byte {
 	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.ExpireBlock))
 	_, err = buf.Write(m.Participant1Signature)
 	_, err = buf.Write(m.Signature)
 	if err != nil {
@@ -1477,6 +1479,7 @@ func (m *WithdrawRequest) UnPack(data []byte) error {
 	_, err = buf.Read(m.Participant2[:])
 	m.Participant1Balance = utils.ReadBigInt(buf)
 	m.Participant1Withdraw = utils.ReadBigInt(buf)
+	m.ExpireBlock = utils.ReadBigInt(buf)
 	m.Participant1Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant1Signature)
 	if err != nil || n != signatureLength {
@@ -1526,6 +1529,7 @@ func (m *WithdrawRequest) signDataForContract() []byte {
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.ExpireBlock))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}
@@ -1534,6 +1538,18 @@ func (m *WithdrawRequest) signDataForContract() []byte {
 
 //Sign is SignedMessager
 func (m *WithdrawRequest) Sign(key *ecdsa.PrivateKey, msg MessagePacker) (err error) {
+	//sig, err := utils.SignData(key, m.signDataForContract())
+	//if err != nil {
+	//	return
+	//}
+	//// 拼接Participant1Signature
+	//buf := new(bytes.Buffer)
+	//_, err = buf.Write(sig)
+	//_, err = buf.Write(utils.BigIntTo32Bytes(m.ExpireBlock))
+	//if err != nil {
+	//	panic(fmt.Sprintf("concat participant signature and expire block err %s", err))
+	//}
+	//m.Participant1Signature = buf.Bytes()
 	m.Participant1Signature, err = utils.SignData(key, m.signDataForContract())
 	if err != nil {
 		return
@@ -1554,6 +1570,7 @@ type WithdrawReponseData struct {
 	Participant2          common.Address
 	Participant1Balance   *big.Int
 	Participant1Withdraw  *big.Int
+	ExpireBlock           *big.Int
 	Participant1Signature []byte
 	Participant2Signature []byte
 }
@@ -1592,6 +1609,7 @@ func NewErrorWithdrawResponseAndSign(req *WithdrawRequest, privateKey *ecdsa.Pri
 	res.Participant2 = crypto.PubkeyToAddress(privateKey.PublicKey)
 	res.Participant1Balance = big.NewInt(0)
 	res.Participant1Withdraw = big.NewInt(0)
+	res.ExpireBlock = big.NewInt(0)
 	err2 := res.Sign(privateKey, res)
 	if err2 != nil {
 		panic(fmt.Sprintf("sign message for withdraw response err %s", err2))
@@ -1601,10 +1619,10 @@ func NewErrorWithdrawResponseAndSign(req *WithdrawRequest, privateKey *ecdsa.Pri
 
 func (m *WithdrawResponse) String() string {
 	return fmt.Sprintf("Message{type=WithdrawResponse Channel=%s-%d,Participant1=%s,Participant2=%s,"+
-		"Participant1Balance=%s,Participant1Withdraw=%s,ErrorCode=%d,ErrorMsg=%s",
+		"Participant1Balance=%s,Participant1Withdraw=%s,ExpireBlock=%s, ErrorCode=%d,ErrorMsg=%s",
 		utils.HPex(m.ChannelIdentifier), m.OpenBlockNumber,
 		utils.APex2(m.Participant1), utils.APex2(m.Participant2),
-		m.Participant1Balance, m.Participant1Withdraw,
+		m.Participant1Balance, m.Participant1Withdraw, m.ExpireBlock,
 		m.ErrorCode, m.ErrorMsg,
 	)
 }
@@ -1621,6 +1639,7 @@ func (m *WithdrawResponse) Pack() []byte {
 	_, err = buf.Write(m.Participant2[:])
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Balance))
 	_, err = buf.Write(utils.BigIntTo32Bytes(m.Participant1Withdraw))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.ExpireBlock))
 	_, err = buf.Write(m.Participant2Signature)
 	// 2019-03 添加错误码及错误信息
 	errCode := int32(m.ErrorCode)
@@ -1653,6 +1672,7 @@ func (m *WithdrawResponse) UnPack(data []byte) error {
 	_, err = buf.Read(m.Participant2[:])
 	m.Participant1Balance = utils.ReadBigInt(buf)
 	m.Participant1Withdraw = utils.ReadBigInt(buf)
+	m.ExpireBlock = utils.ReadBigInt(buf)
 	m.Participant2Signature = make([]byte, signatureLength)
 	n, err := buf.Read(m.Participant2Signature)
 	if err != nil || n != signatureLength {
@@ -1709,6 +1729,7 @@ func (m *WithdrawResponse) signDataForContract() []byte {
 	_, err = buf.Write(m.ChannelIdentifier[:])
 	err = binary.Write(buf, binary.BigEndian, m.OpenBlockNumber)
 	_, err = buf.Write(utils.BigIntTo32Bytes(params.Cfg.ChainID))
+	_, err = buf.Write(utils.BigIntTo32Bytes(m.ExpireBlock))
 	if err != nil {
 		panic(fmt.Sprintf("signDataForContract err %s", err))
 	}

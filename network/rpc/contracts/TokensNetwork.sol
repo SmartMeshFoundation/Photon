@@ -325,19 +325,32 @@ contract TokensNetwork is Utils {
         channel_identifier = getChannelIdentifier(token,participant, partner);
         Channel storage channel = channels[channel_identifier];
         require(channel.state == 1);
+        // 拆分取款人的签名与过期时间,拼接后的长度为65 + 32 = 97
+        require(participant_signature.length == 97);
+        assembly {
+            total_deposit := mload(add(participant_signature, 97)) // 无法再申请局部变量了,暂时复用total_deposit来存储拼接的过期时间参数
+        }
+        // 校验过期
+        require(total_deposit > block.number);
         // 验证双方签名有效
-        require(participant == recoverAddressFromWithdrawProof(channel_identifier,
-            participant,
-            participant_balance,
-            participant_withdraw,
-            channel.open_block_number,
-            participant_signature
-        ));
         require(partner == recoverAddressFromWithdrawProof(channel_identifier,
             participant,
             participant_balance,
             participant_withdraw,
             channel.open_block_number,
+            total_deposit,
+            partner_signature
+        ));
+        // 复用partner_balance这个变量,拷贝participant的签名至partner_signature中
+        for (  partner_balance = 0; partner_balance < 65; partner_balance += 1) {
+            partner_signature[partner_balance] = participant_signature[partner_balance];
+        }
+        require(participant == recoverAddressFromWithdrawProof(channel_identifier,
+            participant,
+            participant_balance,
+            participant_withdraw,
+            channel.open_block_number,
+            total_deposit,
             partner_signature
         ));
 
@@ -1206,14 +1219,15 @@ contract TokensNetwork is Utils {
         uint256 participant_balance,
         uint256 participant_withdraw,
         uint64 open_block_number,
+        uint256 expire_block,
         bytes signature
     )
     view
     internal
     returns (address signature_address)
     {
-        //20+32+32+32+8+32
-        string memory message_length = "156";
+        //20+32+32+32+8+32+32
+        string memory message_length = "188";
         bytes32 message_hash = keccak256(abi.encodePacked(
                 signature_prefix,
                 message_length,
@@ -1222,7 +1236,8 @@ contract TokensNetwork is Utils {
                 participant_withdraw,
                 channel_identifier,
                 open_block_number,
-                chain_id
+                chain_id,
+                expire_block
             ));
         signature_address = ECVerify.ecverify(message_hash, signature);
     }

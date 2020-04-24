@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -22,16 +23,17 @@ Channel is the living representation of  channel on blockchain.
 it contains all the transfers between two participants.
 */
 type Channel struct {
-	OurState          *EndState
-	PartnerState      *EndState
-	ExternState       *ExternalState
-	ChannelIdentifier contracts.ChannelUniqueID //this channel
-	TokenAddress      common.Address
-	RevealTimeout     int
-	SettleTimeout     int
-	feeCharger        fee.Charger //calc fee for each transfer?
-	State             channeltype.State
-	DelegateState     channeltype.ChannelDelegateState
+	OurState            *EndState
+	PartnerState        *EndState
+	ExternState         *ExternalState
+	ChannelIdentifier   contracts.ChannelUniqueID //this channel
+	TokenAddress        common.Address
+	RevealTimeout       int
+	SettleTimeout       int
+	feeCharger          fee.Charger //calc fee for each transfer?
+	State               channeltype.State
+	DelegateState       channeltype.ChannelDelegateState
+	WithdrawExpireBlock int64 // 取现过期时间
 }
 
 /*
@@ -50,15 +52,16 @@ func NewChannel(ourState, partnerState *EndState, externState *ExternalState, to
 		return
 	}
 	c = &Channel{
-		OurState:          ourState,
-		PartnerState:      partnerState,
-		ExternState:       externState,
-		ChannelIdentifier: *channelIdentifier,
-		TokenAddress:      tokenAddr,
-		RevealTimeout:     revealTimeout,
-		SettleTimeout:     settleTimeout,
-		State:             channeltype.StateOpened, //如果是从数据中恢复,state会直接被修改,如果是新建的则初始状态就是open
-		DelegateState:     channeltype.ChannelDelegateStateNoNeed,
+		OurState:            ourState,
+		PartnerState:        partnerState,
+		ExternState:         externState,
+		ChannelIdentifier:   *channelIdentifier,
+		TokenAddress:        tokenAddr,
+		RevealTimeout:       revealTimeout,
+		SettleTimeout:       settleTimeout,
+		State:               channeltype.StateOpened, //如果是从数据中恢复,state会直接被修改,如果是新建的则初始状态就是open
+		DelegateState:       channeltype.ChannelDelegateStateNoNeed,
+		WithdrawExpireBlock: 0,
 	}
 	return
 }
@@ -317,6 +320,7 @@ func (c *Channel) HandleWithdrawed(newOpenBlockNumber int64, participant1, parti
 	// all history record in channel should be abandoned, and do not store them in channel settle history.
 	c.ChannelIdentifier.OpenBlockNumber = newOpenBlockNumber
 	c.State = channeltype.StateOpened
+	c.WithdrawExpireBlock = 0
 	c.ExternState.ChannelIdentifier.OpenBlockNumber = newOpenBlockNumber
 	c.ExternState.ClosedBlock = 0
 	c.ExternState.SettledBlock = 0
@@ -942,7 +946,7 @@ CreateWithdrawRequest 一定要不持有任何锁,否则双方可能对金额分
  *	CreateWithdrawRequest : function to create message of request withdraw.
  *	Note that there must not be any lock, or conflict will reside in token allocation.
  */
-func (c *Channel) CreateWithdrawRequest(withdrawAmount *big.Int) (w *encoding.WithdrawRequest, err error) {
+func (c *Channel) CreateWithdrawRequest(withdrawAmount *big.Int, expireBlock *big.Int) (w *encoding.WithdrawRequest, err error) {
 	/*
 		withdraw 一旦发出去就只能关闭通道
 		无论是通过 withdraw 成功,造成通道关闭重开
@@ -962,6 +966,7 @@ func (c *Channel) CreateWithdrawRequest(withdrawAmount *big.Int) (w *encoding.Wi
 	d.Participant2 = c.PartnerState.Address
 	d.Participant1Balance = c.OurState.Balance(c.PartnerState)
 	d.Participant1Withdraw = withdrawAmount
+	d.ExpireBlock = expireBlock
 	if withdrawAmount.Cmp(d.Participant1Balance) > 0 {
 		err = rerr.ErrChannelWithdrawAmount.Errorf("withdraw amount too large,current=%s,withdraw=%s", w.Participant1Balance, withdrawAmount)
 		return
@@ -1050,6 +1055,7 @@ func (c *Channel) RegisterWithdrawRequest(tr *encoding.WithdrawRequest) (err err
 		return rerr.ErrChannelWithdrawButHasLocks
 	}
 	c.State = channeltype.StatePartnerWithdrawing
+	c.WithdrawExpireBlock = tr.ExpireBlock.Int64() // 接收方无需对该值做校验,保存即可
 	return nil
 }
 
@@ -1094,6 +1100,7 @@ func (c *Channel) CreateWithdrawResponse(req *encoding.WithdrawRequest) (w *enco
 	wd.Participant2 = c.OurState.Address
 	wd.Participant1Balance = c.PartnerState.Balance(c.OurState)
 	wd.Participant1Withdraw = req.Participant1Withdraw
+	wd.ExpireBlock = req.ExpireBlock
 	w = encoding.NewWithdrawResponse(wd, rerr.ErrSuccess.ErrorCode, rerr.ErrSuccess.ErrorMsg)
 	/*
 		再次验证信息正确性,
@@ -1481,7 +1488,7 @@ Withdraw 收到对方的 withdraw response,
 func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncResult) {
 	//没有保存,需要重新签名.
 	// No record, need to re-write signature.
-	w, err := c.CreateWithdrawRequest(res.Participant1Withdraw)
+	w, err := c.CreateWithdrawRequest(res.Participant1Withdraw, res.ExpireBlock)
 	if err != nil {
 		panic(err)
 	}
@@ -1489,10 +1496,24 @@ func (c *Channel) Withdraw(res *encoding.WithdrawResponse) (result *utils.AsyncR
 	if err != nil {
 		panic(err)
 	}
+	// 拼接Participant1Signature
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(w.Participant1Signature)
+	_, err = buf.Write(utils.BigIntTo32Bytes(w.ExpireBlock))
+	if err != nil {
+		panic(fmt.Sprintf("concat participant signature and expire block err %s", err))
+	}
+	log.Trace(fmt.Sprintf("============Participant1=[%s]", res.Participant1.String()))
+	log.Trace(fmt.Sprintf("============Participant2=[%s]", res.Participant2.String()))
+	log.Trace(fmt.Sprintf("============Participant1Balance=[%s]", res.Participant1Balance.String()))
+	log.Trace(fmt.Sprintf("============Participant1Withdraw=[%s]", res.Participant1Withdraw.String()))
+	log.Trace(fmt.Sprintf("============ExpireBlock=[%s]", res.ExpireBlock.String()))
+	log.Trace(fmt.Sprintf("============Participant1Signature=[length=%d] [%x]", len(buf.Bytes()), buf.Bytes()))
+	log.Trace(fmt.Sprintf("============Participant2Signature=[length=%d] [%x]", len(res.Participant2Signature), res.Participant2Signature))
 	return c.ExternState.TokenNetwork.WithdrawAsync(
 		res.Participant1, res.Participant2,
 		res.Participant1Balance, res.Participant1Withdraw,
-		w.Participant1Signature, res.Participant2Signature,
+		buf.Bytes(), res.Participant2Signature,
 	)
 }
 
@@ -1537,6 +1558,7 @@ func NewChannelSerialization(c *Channel) *channeltype.Serialization {
 		PartnerContractBalance: c.PartnerState.ContractBalance,
 		ClosedBlock:            c.ExternState.ClosedBlock,
 		SettledBlock:           c.ExternState.SettledBlock,
+		WithdrawExpireBlock:    c.WithdrawExpireBlock,
 	}
 	return s
 }

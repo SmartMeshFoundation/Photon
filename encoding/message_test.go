@@ -364,6 +364,7 @@ func TestWithdrawRequest(t *testing.T) {
 	bp.Participant1 = p1addr
 	bp.Participant1Balance = big.NewInt(10)
 	bp.Participant1Withdraw = big.NewInt(3)
+	bp.ExpireBlock = big.NewInt(100000)
 	bp.Participant2 = p2addr
 	m := NewWithdrawRequest(bp)
 	err := m.Sign(p1key, m)
@@ -372,6 +373,7 @@ func TestWithdrawRequest(t *testing.T) {
 		return
 	}
 	fmt.Printf("m=%s\n", utils.StringInterface(m, 3))
+	fmt.Printf("sig length = %d\n", len(m.Signature))
 	data := m.Pack()
 	m2 := new(WithdrawRequest)
 	err = m2.UnPack(data)
@@ -392,6 +394,7 @@ func TestWithdrawResponse(t *testing.T) {
 	bp.Participant1 = p1addr
 	bp.Participant1Balance = big.NewInt(10)
 	bp.Participant1Withdraw = big.NewInt(3)
+	bp.ExpireBlock = big.NewInt(10000)
 	bp.Participant2 = p2addr
 
 	fmt.Printf("addr1=%s,addr2=%s\n", utils.APex2(p1addr), utils.APex2(p2addr))

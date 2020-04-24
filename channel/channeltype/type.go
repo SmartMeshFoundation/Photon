@@ -65,6 +65,7 @@ type Serialization struct {
 	SettledBlock           int64
 	SettleTimeout          int
 	UpdateAt               int64 // 保存最后一次更新的时间戳
+	WithdrawExpireBlock    int64 // 取现过期时间
 }
 
 //NewEmptySerialization contstructs empty serialization to avoid panic

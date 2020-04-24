@@ -1430,13 +1430,15 @@ func (rs *Service) withdraw(channelIdentifier common.Hash, amount *big.Int) (res
 		result.Result <- rerr.ErrInsufficientBalanceForGas
 		return
 	}
-	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s\n", utils.HPex(channelIdentifier), amount))
-	s, err := c.CreateWithdrawRequest(amount)
+	expireBlock := rs.GetBlockNumber() + params.Cfg.WithdrawExpireBlock
+	log.Trace(fmt.Sprintf("withdraw channel %s,amount=%s,expireBlock=%d\n", utils.HPex(channelIdentifier), amount, expireBlock))
+	s, err := c.CreateWithdrawRequest(amount, big.NewInt(expireBlock))
 	if err != nil {
 		result.Result <- err
 		return
 	}
 	c.State = channeltype.StateWithdraw
+	c.WithdrawExpireBlock = expireBlock
 	err = rs.UpdateChannelNoTx(channel.NewChannelSerialization(c))
 	if err != nil {
 		result.Result <- err

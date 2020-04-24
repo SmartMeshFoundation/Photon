@@ -23,7 +23,7 @@ const (
 	//ContractDisposedProofMessageLength annouce disposed proof length
 	ContractDisposedProofMessageLength = "136"
 	//ContractWithdrawProofMessageLength withdraw proof length
-	ContractWithdrawProofMessageLength = "156"
+	ContractWithdrawProofMessageLength = "188"
 	//ContractUnlockDelegateProofMessageLength unlock delegate proof length
 	ContractUnlockDelegateProofMessageLength = "188"
 )

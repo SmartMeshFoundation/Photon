@@ -301,7 +301,7 @@ func deployTokenNetworkContract(conn *ethclient.Client, key *ecdsa.PrivateKey) (
 	if err != nil {
 		log.Fatalf("failed to deploy contact when mining :%v", err)
 	}
-	fmt.Printf("deploy TokenNetwork complete... TokenNetworkAddress=%s\n", tokenNetworkAddress.String())
+	fmt.Printf("deploy TokenNetwork complete... TokenNetworkAddress=%s gas=%d \n", tokenNetworkAddress.String(), tx.Gas())
 	return
 }
 func promptAccount(keystorePath string) (addr common.Address, key *ecdsa.PrivateKey) {

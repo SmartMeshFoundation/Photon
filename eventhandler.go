@@ -1051,6 +1051,13 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 				//wait for user call settle
 			}
 		}
+		// 对于出来withdraw过程中的通道,如果取现过期,则恢复open状态
+		if (c.State == channeltype.StateWithdraw || c.State == channeltype.StatePartnerWithdrawing) && c.WithdrawExpireBlock != 0 && c.WithdrawExpireBlock < st2.BlockNumber {
+			c.State = channeltype.StateOpened
+			c.WithdrawExpireBlock = 0
+			err = eh.photon.UpdateChannelState(channel.NewChannelSerialization(c))
+			log.Trace(fmt.Sprintf("channel=%s recover from withdrawing", c.ChannelIdentifier.String()))
+		}
 	case *mediatedtransfer.ContractClosedStateChange:
 		if c.State != channeltype.StateClosed {
 			c.State = channeltype.StateClosed
