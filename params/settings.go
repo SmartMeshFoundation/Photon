@@ -208,3 +208,6 @@ var DefaultMDNSQueryInterval = time.Second
 
 //EnableMDNS 是否启用mdns
 var EnableMDNS = true
+
+//MinBalanceofPubChannel 单位10^18gwei
+const MinBalanceofPubChannel = 2

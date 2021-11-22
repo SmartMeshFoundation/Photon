@@ -205,8 +205,22 @@ func StartMain() (*photon.API, error) {
 			Name:  "debug-udp-only",
 			Usage: "for test only",
 		},
+		cli.StringFlag{
+			Name:  "pub-address",
+			Usage: "this super node has a channel with who running the SSB-PUB",
+		},
+		cli.StringFlag{
+			Name:  "reward-mode",
+			Value: "real-time",
+			Usage: "reward happened to real time(default value:real-time) or 10' am every day(value:10am) ",
+		},
+		cli.StringFlag{
+			Name:  "pub-apihost",
+			Value: "106.52.171.12",
+			Usage: "ssb-pub server api-host eg :  106.52.171.12:8008",
+		},
 	}
-	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, debug.Flags...) //
 	app.Action = mainCtx
 	app.Name = "photon"
 	app.Version = Version
@@ -533,6 +547,37 @@ func config(ctx *cli.Context) (config *params.Config, err error) {
 	}
 	params.DefaultMDNSKeepalive = dur
 	mdns.ServiceTag = ctx.String("debug-mdns-servicetag")
+
+	//arg pub-address and reward-mode only for supernode-ssb service
+	if !ctx.IsSet("pub-address") {
+		err = fmt.Errorf("arg pub-address err , must be set")
+		return
+	}
+	pubAddrStr := ctx.String("pub-address")
+	if len(pubAddrStr) > 0 {
+		config.PubAddress = common.HexToAddress(pubAddrStr)
+	}
+	log.Info(fmt.Sprintf("ssb pub account %s", config.PubAddress.String()))
+	if ctx.IsSet("reward-mode") {
+		if ctx.String("reward-mode") != "real-time" || ctx.String("reward-mode") != "10am" {
+			err = fmt.Errorf("arg reward-mode err , only support 'real-time' and '10am'")
+			return
+		}
+		config.RewardMode = ctx.String("reward-mode")
+	} else {
+		config.RewardMode = "real-time"
+	}
+	if !ctx.IsSet("pub-apihost") {
+		err = fmt.Errorf("arg pub-apihost err , must be set")
+		return
+	}
+	pudapiip, pubapiport, err := net.SplitHostPort(ctx.String("pub-apihost"))
+	if err != nil {
+		err = fmt.Errorf("arg pub-apihost err , eg : 123.5.6.72:9512")
+		return
+	}
+	config.PubApiHost = ctx.String("pub-apihost")
+	log.Info(fmt.Sprintf("ssb pub api-host %s:%s", pudapiip, pubapiport))
 	return
 }
 

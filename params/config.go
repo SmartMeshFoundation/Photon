@@ -71,6 +71,9 @@ type Config struct {
 	PfsHost                   string // pathfinder server host
 	HTTPUsername              string
 	HTTPPassword              string
+	PubAddress                common.Address
+	RewardMode                string
+	PubApiHost                string
 }
 
 //DefaultConfig default config

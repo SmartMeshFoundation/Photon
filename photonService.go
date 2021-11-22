@@ -34,6 +34,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
+	"github.com/SmartMeshFoundation/Photon/supernode"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -44,6 +45,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/theckman/go-flock"
 )
 
@@ -295,13 +297,95 @@ func (rs *Service) Start() (err error) {
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
+
+	//建立与pub的通道，并监控通道余额
+	go rs.pubChannelCheck()
+
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
 	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.
 	if rs.Config.NetworkMode == params.MixUDPXMPP || rs.Config.NetworkMode == params.MixUDPMatrix {
 		err = rs.startSubscribeNeighborStatus()
 		return
 	}
+
 	return nil
+}
+
+//pubChannelCheck 监控与pub的通道状态，当余额不足时候，主动补充,但是必须保证链上资金充足
+func (rs *Service) pubChannelCheck() {
+	time.Sleep(20 * time.Second)
+	log.Info("SSB-PUB channel check service start...")
+	//defer rpanic.PanicRecover("pub channel check")
+	//构建超级节点客户端
+	var err error
+	//apiListen:=fmt.Sprintf("%s:%d", rs.Config.APIHost, rs.Config.APIPort)
+	apiListen := fmt.Sprintf("127.0.0.1:%d", rs.Config.APIPort)
+	superNode := &supernode.SuperNode{
+		Host:          "http://" + apiListen,
+		Address:       rs.Config.MyAddress.String(),
+		APIAddress:    apiListen,
+		ListenAddress: apiListen + "0",
+		DebugCrash:    false,
+		PubApiHost:    rs.Config.PubApiHost,
+	}
+	partnerNode := &supernode.SuperNode{
+		//:utils.APex2(rs.Config.PubAddress),
+		Address:    rs.Config.PubAddress.String(),
+		DebugCrash: false,
+	}
+	tokenAddress := common.HexToAddress("0x6601F810eaF2fa749EEa10533Fd4CC23B8C791dc")
+	minChannelAmount := new(big.Int).Mul(big.NewInt(ethparams.Ether), big.NewInt(params.MinBalanceofPubChannel))
+	channel00 := superNode.GetChannelWithBigInt(partnerNode, tokenAddress.String()) //第一次为nil
+	settleTime := 100
+	//第一次启动
+	if channel00 == nil {
+		//第一次创建通道
+		err = superNode.OpenChannelBigInt(partnerNode.Address, tokenAddress.String(), new(big.Int).Mul(big.NewInt(ethparams.Ether), big.NewInt(1)), settleTime) //minChannelAmount
+		if err != nil {
+			log.Error(fmt.Sprintf("[SuperNode]create channel err=%s", err))
+		}
+	}
+	channel1 := superNode.GetChannelWithBigInt(partnerNode, tokenAddress.String()) //
+	log.Info(fmt.Sprintf("[SuperNode]channel=%s,balance=%s,minBalance=%s", channel1.ChannelIdentifier, channel1.Balance.String(), minChannelAmount.String()))
+
+	for {
+
+		if channel1.Balance.Cmp(minChannelAmount) == -1 {
+			//向通道存款
+			xamount := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(1)) //test deposit 0.001 smt every time
+			//rs.depositAndOpenChannelClient(tokenAddress, pubAddress, 3600, xamount, false)
+			err = superNode.Deposit(partnerNode.Address, tokenAddress.String(), xamount)
+			if err != nil {
+				log.Error(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel err=%s", err))
+			}
+			log.Info(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel between (supernode)%s and (ssbpub)%s ,balance= %s ", superNode.Address, partnerNode.Address, channel1.Balance.String()))
+			time.Sleep(5 * time.Second)
+		}
+		time.Sleep(10 * time.Second)
+
+		//接通pub，扫描且处理接入pub的需要发放奖励的事件
+		lnum, err := superNode.LatestNumberOfLikes()
+		if err != nil {
+			continue
+		}
+		for _, lcli := range lnum {
+			rewardTarget := lcli.ClientAddress
+			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*100)) //lcli.LasterAddVoteNum
+			//media transfer 比例1:0.1 1like reward 0.1smt
+			devicetype, onlinestatus := rs.Transport.NodeStatus(common.HexToAddress(rewardTarget))
+			log.Info(fmt.Sprintf("[SuperNode]before send reward,check target=%s devicetype=%s , onlinestatus =%v", devicetype, onlinestatus))
+			if onlinestatus {
+				err = superNode.SendTrans(tokenAddress.String(), lasterAddVoteNum, rewardTarget, false)
+				if err != nil {
+					log.Error(fmt.Sprintf("[SuperNode]send reward to vote err=%s", err))
+				}
+				log.Info(fmt.Sprintf("[SuperNode]send reward to vote cli address=%s,number=%s", rewardTarget, lasterAddVoteNum.String()))
+			}
+			time.Sleep(5 * time.Second)
+		}
+
+	}
+
 }
 
 //Stop the node.
@@ -381,7 +465,7 @@ func (rs *Service) loop() {
 				log.Info("Events.StateChangeChannel closed")
 				return
 			}
-		//user's request
+			//user's request
 		case req, ok = <-rs.UserReqChan:
 			if ok {
 				rs.handleReq(req)
