@@ -176,7 +176,7 @@ func (node *SuperNode) SpecifiedChannel(channelIdentifier string) (c channeltype
 //通过本节点查询其他节点的ssb账号、待付款
 func (node *SuperNode) LatestNumberOfLikes() (lnum []*LasterNumLikes, err error) {
 	req := &Req{
-		FullURL: fmt.Sprintf("http://" + node.PubApiHost + "/api/1/likes"),
+		FullURL: fmt.Sprintf("http://" + node.PubApiHost + "/ssb/api/likes"),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 20,
 	}

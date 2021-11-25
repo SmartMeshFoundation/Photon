@@ -216,8 +216,8 @@ func StartMain() (*photon.API, error) {
 		},
 		cli.StringFlag{
 			Name:  "pub-apihost",
-			Value: "106.52.171.12",
-			Usage: "ssb-pub server api-host eg :  106.52.171.12:8008",
+			Value: "106.52.171.12:18008",
+			Usage: "ssb-pub server api-host eg : 106.52.171.12:18008",
 		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...) //

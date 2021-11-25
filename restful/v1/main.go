@@ -172,6 +172,10 @@ func Start() {
 			API.Photon.Stop()
 			utils.SystemExit(0)
 		}),
+		/*
+			node status
+		*/
+		rest.Get("/api/1/node-status/:nodeaddress", GetNodeStatus),
 	)
 	if err != nil {
 		log.Crit(fmt.Sprintf("maker router :%s", err))

@@ -279,6 +279,9 @@ func (rs *Service) Start() (err error) {
 		//wait for start up complete.
 		<-rs.ChanHistoryContractEventsDealComplete
 		log.Info(fmt.Sprintf("Photon Startup complete and history events process complete."))
+
+		//建立与pub的通道，并监控通道余额
+		go rs.pubChannelCheck()
 	}
 
 	/*
@@ -297,9 +300,6 @@ func (rs *Service) Start() (err error) {
 	//
 	rs.isStarting = false
 	rs.startNeighboursHealthCheck()
-
-	//建立与pub的通道，并监控通道余额
-	go rs.pubChannelCheck()
 
 	// 只有在混合模式下启动时,才订阅其他节点的在线状态
 	// Only when starting under MixUDPXMPP, we can subscribe online status of other nodes.

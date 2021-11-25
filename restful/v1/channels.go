@@ -34,6 +34,36 @@ type ChannelData struct {
 	RevealTimeout       int               `json:"reveal_timeout"`
 }
 
+type repsNodeStatus struct {
+	DeviceType string `json:"device_type"`
+	IsOnline   bool   `json:"is_online"`
+}
+
+/*
+GetNodeStatus just for xmpp right now
+*/
+func GetNodeStatus(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetNodeStatus ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	nodeaddr := r.PathParam("nodeaddress")
+
+	nodeAddress, err := utils.HexToAddress(nodeaddr)
+	if err != nil {
+		log.Error(err.Error())
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	devicetype, isonline := API.GetNodeNetworkState(nodeAddress)
+	responseNodeStatus := &repsNodeStatus{
+		devicetype,
+		isonline,
+	}
+	resp = dto.NewAPIResponse(err, responseNodeStatus)
+}
+
 /*
 GetChannelList list all my channels
 */
