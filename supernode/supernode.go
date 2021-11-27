@@ -64,10 +64,10 @@ type PhotonNodeRuntime struct {
 // LasterAddVoteNum 收集到了总的点赞数量（如果发放奖励在先先，有取消点赞的，不收回奖励
 type LasterNumLikes struct {
 	ClientID         string `json:"client_id"`
-	ClientAddress    string `json:"client_address"`
+	ClientAddress    string `json:"client_eth_address"`
 	LasterAddVoteNum int64  `json:"laster_add_vote_num"`
 	LasterVoteNum    int64  `json:"laster_vote_num"`
-	VoteLink         string `json:"laster_add_vote_num"`
+	//VoteLink         []string `json:"laster_add_vote_num"`
 }
 
 // GetChannelWithBigInt :
