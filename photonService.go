@@ -351,7 +351,7 @@ func (rs *Service) pubChannelCheck() {
 	for {
 
 		if channel1.Balance.Cmp(minChannelAmount) == -1 {
-			//向通道存款
+			//向通道存款0.001
 			xamount := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(1)) //test deposit 0.001 smt every time
 			//rs.depositAndOpenChannelClient(tokenAddress, pubAddress, 3600, xamount, false)
 			err = superNode.Deposit(partnerNode.Address, tokenAddress.String(), xamount)
@@ -359,9 +359,9 @@ func (rs *Service) pubChannelCheck() {
 				log.Error(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel err=%s", err))
 			}
 			log.Info(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel between (supernode)%s and (ssbpub)%s ,balance= %s ", superNode.Address, partnerNode.Address, channel1.Balance.String()))
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(300 * time.Second)
 
 		//接通pub，扫描且处理接入pub的需要发放奖励的事件
 		lnum, err := superNode.LatestNumberOfLikes()
@@ -370,7 +370,7 @@ func (rs *Service) pubChannelCheck() {
 		}
 		for _, lcli := range lnum {
 			rewardTarget := lcli.ClientAddress
-			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*100)) //lcli.LasterAddVoteNum
+			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*1)) //lcli.LasterAddVoteNum
 			//media transfer 比例1:0.1 1like reward 0.1smt
 			devicetype, onlinestatus := rs.Transport.NodeStatus(common.HexToAddress(rewardTarget))
 			log.Info(fmt.Sprintf("[SuperNode]before send reward,check target=%s devicetype=%s , onlinestatus =%v", devicetype, onlinestatus))
