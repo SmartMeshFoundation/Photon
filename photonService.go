@@ -340,7 +340,7 @@ func (rs *Service) pubChannelCheck() {
 	//第一次启动
 	if channel00 == nil {
 		//第一次创建通道
-		err = superNode.OpenChannelBigInt(partnerNode.Address, tokenAddress.String(), new(big.Int).Mul(big.NewInt(ethparams.Ether), big.NewInt(1)), settleTime) //minChannelAmount
+		err = superNode.OpenChannelBigInt(partnerNode.Address, tokenAddress.String(), new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(100)), settleTime) //minChannelAmount
 		if err != nil {
 			log.Error(fmt.Sprintf("[SuperNode]create channel err=%s", err))
 		}
@@ -358,30 +358,37 @@ func (rs *Service) pubChannelCheck() {
 			if err != nil {
 				log.Error(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel err=%s", err))
 			}
-			log.Info(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel between (supernode)%s and (ssbpub)%s ,balance= %s ", superNode.Address, partnerNode.Address, channel1.Balance.String()))
-			time.Sleep(10 * time.Second)
+			log.Info(fmt.Sprintf("[SuperNode]deposit 0.001 smt to channel between (supernode)%s and (ssbpub)%s ,SuperNode Balance= %s ",
+				superNode.Address, partnerNode.Address, channel1.Balance.String()))
+			time.Sleep(5 * time.Second)
 		}
 		time.Sleep(300 * time.Second)
-
 		//接通pub，扫描且处理接入pub的需要发放奖励的事件
 		lnum, err := superNode.LatestNumberOfLikes()
 		if err != nil {
+			log.Error(fmt.Sprintf("[SuperNode]Get likes info LatestNumberOfLikes err=%s", err))
 			continue
 		}
 		for _, lcli := range lnum {
 			rewardTarget := lcli.ClientAddress
+			if lcli.LasterAddVoteNum == 0 || rewardTarget == "" {
+				continue
+			}
+			rewardAddress, _ := utils.HexToAddress(rewardTarget)
+
 			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*1)) //lcli.LasterAddVoteNum
-			//media transfer 比例1:0.1 1like reward 0.1smt
-			devicetype, onlinestatus := rs.Transport.NodeStatus(common.HexToAddress(rewardTarget))
-			log.Info(fmt.Sprintf("[SuperNode]before send reward,check target=%s devicetype=%s , onlinestatus =%v", devicetype, onlinestatus))
+			//media transfer 比例1:0.001 1like reward 0.1smt
+			devicetype, onlinestatus := rs.Transport.NodeStatus(rewardAddress) //(common.HexToAddress(rewardTarget))
+			log.Info(fmt.Sprintf("[SuperNode]before send reward,check TargetRewardAddress=%v,devicetype=%v,onlinestatus=%v", rewardAddress.String(), devicetype, onlinestatus))
 			if onlinestatus {
-				err = superNode.SendTrans(tokenAddress.String(), lasterAddVoteNum, rewardTarget, false)
+				err = superNode.SendTrans(tokenAddress.String(), lasterAddVoteNum, rewardAddress.String(), false)
 				if err != nil {
 					log.Error(fmt.Sprintf("[SuperNode]send reward to vote err=%s", err))
+					continue
 				}
-				log.Info(fmt.Sprintf("[SuperNode]send reward to vote cli address=%s,number=%s", rewardTarget, lasterAddVoteNum.String()))
+				log.Info(fmt.Sprintf("[SuperNode]send reward for vote, client-address=%v,number = %s", rewardAddress.String(), lasterAddVoteNum.String()))
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 
 	}
