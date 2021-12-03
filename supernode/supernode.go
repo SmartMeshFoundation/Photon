@@ -6,6 +6,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/kataras/go-errors"
 	"math/big"
 	"net/http"
@@ -29,12 +30,12 @@ type SuperNode struct {
 }
 
 type TransferPayload struct {
-	Amount   *big.Int `json:"amount"`
-	IsDirect bool     `json:"is_direct"`
-	Secret   string   `json:"secret"`
-	Sync     bool     `json:"sync"`
-	//RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
-	Data string `json:"data"`
+	Amount    *big.Int                    `json:"amount"`
+	IsDirect  bool                        `json:"is_direct"`
+	Secret    string                      `json:"secret"`
+	Sync      bool                        `json:"sync"`
+	RouteInfo []pfsproxy.FindPathResponse `json:"route_info,omitempty"`
+	Data      string                      `json:"data"`
 }
 
 // ChannelBigInt
@@ -192,23 +193,61 @@ func (node *SuperNode) LatestNumberOfLikes() (lnum []*LasterNumLikes, err error)
 	return
 }
 
-func (node *SuperNode) SendTrans(tokenAddress string, amount *big.Int, targetAddress string, isDirect bool) error {
+func (node *SuperNode) SendTransWithRouteInfo(tokenAddress string, amount *big.Int, targetAddress string, isDirect bool, routeInfo []pfsproxy.FindPathResponse) (err error) {
+	if routeInfo == nil || len(routeInfo) == 0 {
+		routeInfo, err = node.FindPath(targetAddress, tokenAddress, amount)
+		if err != nil {
+			return
+		}
+	}
 	p, err := json.Marshal(TransferPayload{
-		Amount:   amount,
-		IsDirect: isDirect,
-		Sync:     true,
+		Amount:    amount,
+		IsDirect:  false,
+		Sync:      true,
+		RouteInfo: routeInfo,
+		Data:      "test",
 	})
 	req := &Req{
-		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + tokenAddress,
 		Method:  http.MethodPost,
 		Payload: string(p),
-		Timeout: time.Second * 60,
+		Timeout: time.Second * 20,
 	}
 	body, err := req.Invoke()
 	if err != nil {
-		log.Error(fmt.Sprintf("SendTransApi err :%s,body=%s", err, string(body)))
+		log.Info(fmt.Sprintf("SendTransWithRouteInfo err :%s,body=%s", err, string(body)))
 	}
-	return err
+	return
+}
+
+func (node *SuperNode) FindPath(target string, tokenAddress string, amount *big.Int) (path []pfsproxy.FindPathResponse, err error) {
+	req := &Req{
+		FullURL: fmt.Sprintf(node.Host+"/api/1/path/%s/%s/%v", target, tokenAddress, amount.String()),
+		Method:  http.MethodGet,
+		Timeout: time.Second * 20,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		log.Error(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	var resp []pfsproxy.FindPathResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		log.Error(fmt.Sprintf("FindPath err :%s", err))
+		return
+	}
+	path = resp
+	log.Info(fmt.Sprintf("FindPath get RouteInfo from %s to %s on token %s :\n%s", node.Name, target, tokenAddress, MarshalIndent(path)))
+	return
+}
+
+func MarshalIndent(v interface{}) string {
+	buf, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		panic(err)
+	}
+	return string(buf)
 }
 
 func (node *SuperNode) Deposit(partnerAddress, tokenAddress string, balance *big.Int, waitSeconds ...int) error {

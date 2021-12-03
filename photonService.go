@@ -381,18 +381,23 @@ func (rs *Service) pubChannelCheck() {
 			devicetype, onlinestatus := rs.Transport.NodeStatus(rewardAddress) //(common.HexToAddress(rewardTarget))
 			log.Info(fmt.Sprintf("[SuperNode]before send reward,check TargetRewardAddress=%v,devicetype=%v,onlinestatus=%v", rewardAddress.String(), devicetype, onlinestatus))
 			if onlinestatus {
-				err = superNode.SendTrans(tokenAddress.String(), lasterAddVoteNum, rewardAddress.String(), false)
+				routeResp, err := superNode.FindPath(rewardAddress.String(), tokenAddress.String(), lasterAddVoteNum)
 				if err != nil {
-					log.Error(fmt.Sprintf("[SuperNode]send reward to vote err=%s", err))
+					log.Error(fmt.Sprintf("[SuperNode]send reward from (supernode)%s to (client)%s,FindPath err=%s", err))
 					continue
 				}
-				log.Info(fmt.Sprintf("[SuperNode]send reward for vote, client-address=%v,number = %s", rewardAddress.String(), lasterAddVoteNum.String()))
+
+				err = superNode.SendTransWithRouteInfo(tokenAddress.String(), lasterAddVoteNum, rewardAddress.String(), false, routeResp)
+				if err != nil {
+					log.Error(fmt.Sprintf("[SuperNode]send reward from (supernode)%s to (client)%s,amount=%s,err=%s", superNode.Address, rewardAddress.String(), lasterAddVoteNum.String(), err))
+					continue
+				}
+				log.Info(fmt.Sprintf("[SuperNode]send reward for vote, client-address=%v,amount=%s", rewardAddress.String(), lasterAddVoteNum.String()))
 			}
 			time.Sleep(3 * time.Second)
 		}
 
 	}
-
 }
 
 //Stop the node.
