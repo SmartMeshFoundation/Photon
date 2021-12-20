@@ -378,16 +378,23 @@ func (rs *Service) pubChannelCheck() {
 
 			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*1)) //lcli.LasterAddVoteNum
 			//media transfer 比例1:0.001 1like reward 0.1smt
-			devicetype, onlinestatus := rs.Transport.NodeStatus(rewardAddress) //(common.HexToAddress(rewardTarget))
-			log.Info(fmt.Sprintf("[SuperNode]before send reward,check TargetRewardAddress=%v,devicetype=%v,onlinestatus=%v", rewardAddress.String(), devicetype, onlinestatus))
+			//devicetype, onlinestatus := rs.Transport.NodeStatus(rewardAddress) //(common.HexToAddress(rewardTarget))
+			onlinestatus := true
+			//log.Info(fmt.Sprintf("[SuperNode]before send reward,check TargetRewardAddress=%v,devicetype=%v,onlinestatus=%v", rewardAddress.String(), devicetype, onlinestatus))
 			if onlinestatus {
-				routeResp, err := superNode.FindPath(rewardAddress.String(), tokenAddress.String(), lasterAddVoteNum)
+				/*routeResp, err := superNode.FindPath(rewardAddress.String(), tokenAddress.String(), lasterAddVoteNum)
 				if err != nil {
 					log.Error(fmt.Sprintf("[SuperNode]send reward from (supernode)%s to (client)%s,FindPath err=%s", err))
 					continue
 				}
+				if len(routeResp) != 1 {
+					log.Error(fmt.Sprintf("[SuperNode] len(routeResp) != 1"))
+					continue
+				}
+				routeResp[0].Fee = CalculateFee(10000, lasterAddVoteNum)*/
 
-				err = superNode.SendTransWithRouteInfo(tokenAddress.String(), lasterAddVoteNum, rewardAddress.String(), false, routeResp)
+				//err = superNode.SendTransWithRouteInfo(tokenAddress.String(), lasterAddVoteNum, rewardAddress.String(), false, routeResp)
+				err = superNode.SendTrans(tokenAddress.String(), lasterAddVoteNum, rewardTarget, false)
 				if err != nil {
 					log.Error(fmt.Sprintf("[SuperNode]send reward from (supernode)%s to (client)%s,amount=%s,err=%s", superNode.Address, rewardAddress.String(), lasterAddVoteNum.String(), err))
 					continue
@@ -399,6 +406,15 @@ func (rs *Service) pubChannelCheck() {
 
 	}
 }
+
+/*// 1/10000
+func CalculateFee(feeSetting int64, amount *big.Int) *big.Int {
+	fee := big.NewInt(0)
+	if feeSetting > 0 {
+		fee = fee.Div(amount, big.NewInt(feeSetting))
+	}
+	return fee
+}*/
 
 //Stop the node.
 func (rs *Service) Stop() {

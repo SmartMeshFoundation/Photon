@@ -250,6 +250,25 @@ func MarshalIndent(v interface{}) string {
 	return string(buf)
 }
 
+func (node *SuperNode) SendTrans(tokenAddress string, amount *big.Int, targetAddress string, isDirect bool) error {
+	p, err := json.Marshal(TransferPayload{
+		Amount:   amount,
+		IsDirect: isDirect,
+		Sync:     true,
+	})
+	req := &Req{
+		FullURL: node.Host + "/api/1/transfers/" + tokenAddress + "/" + targetAddress,
+		Method:  http.MethodPost,
+		Payload: string(p),
+		Timeout: time.Second * 60,
+	}
+	body, err := req.Invoke()
+	if err != nil {
+		log.Error(fmt.Sprintf("SendTransApi err :%s,body=%s", err, string(body)))
+	}
+	return err
+}
+
 func (node *SuperNode) Deposit(partnerAddress, tokenAddress string, balance *big.Int, waitSeconds ...int) error {
 	type OpenChannelPayload struct {
 		PartnerAddress string   `json:"partner_address"`
