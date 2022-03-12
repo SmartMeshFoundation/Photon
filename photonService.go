@@ -374,12 +374,28 @@ func (rs *Service) pubChannelCheck() {
 			if lcli.LasterAddVoteNum == 0 || rewardTarget == "" {
 				continue
 			}
+			//奖励申报-0 核-1 核-2 发放了-3   申报一次，是一条单独的记录，这样就不和后面增加的点赞奖励搅合在一起
+			if ReviewTime(rewardTarget) == 0 {
+				//提交奖励申报
+				err = ApplyReward(rewardTarget) //同时记录申报时间，12个小时后计算，否则err
+				if err != nil {
+					log.Error(fmt.Sprintf("[SuperNode]ApplyReward,to rewardTarget, err=%s", rewardTarget, err))
+					continue
+				}
+				continue
+			}
+			if ReviewTime(rewardTarget) == 1 {
+				go FixRewardSatus(2) //12个小时后再次计算
+				continue
+			}
+			//以下为复核-2次后，直接发放，删除其中unlike的数量，本轮奖励发放完成；
+			// 如果此条消息再次被like或者unlike，则进入新一轮的计算周期
 			rewardAddress, _ := utils.HexToAddress(rewardTarget)
 
 			lasterAddVoteNum := new(big.Int).Mul(big.NewInt(ethparams.Finney), big.NewInt(lcli.LasterAddVoteNum*1)) //lcli.LasterAddVoteNum
 			//media transfer 比例1:0.001 1like reward 0.1smt
 			//devicetype, onlinestatus := rs.Transport.NodeStatus(rewardAddress) //(common.HexToAddress(rewardTarget))
-			onlinestatus := true
+			onlinestatus := true //pfs会自动计算mtr以及在线状态
 			//log.Info(fmt.Sprintf("[SuperNode]before send reward,check TargetRewardAddress=%v,devicetype=%v,onlinestatus=%v", rewardAddress.String(), devicetype, onlinestatus))
 			if onlinestatus {
 				/*routeResp, err := superNode.FindPath(rewardAddress.String(), tokenAddress.String(), lasterAddVoteNum)
@@ -405,6 +421,24 @@ func (rs *Service) pubChannelCheck() {
 		}
 
 	}
+}
+
+func ReviewTime(rewardTarget string) int {
+	//查询数据库 奖励申报-0 复核了-1 发放了-2
+	//todo 跟随pub的官方更新要改
+	return 0
+}
+
+func ApplyReward(rewardTarget string) error {
+	//查询数据库 奖励申报-0 复核了-1 发放了-2
+	//todo 跟随pub的官方更新要改
+	return nil
+}
+
+func FixRewardSatus(status int) error {
+	//查询数据库 奖励申报-0 复核了-1 发放了-2
+	//todo 跟随pub的官方更新要改
+	return nil
 }
 
 /*// 1/10000
