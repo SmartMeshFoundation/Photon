@@ -36,6 +36,35 @@ func newStateMachineEventHandler(photon *Service) *stateMachineEventHandler {
 	h := &stateMachineEventHandler{
 		photon: photon,
 	}
+
+	tokenAddressSmt := common.HexToAddress("0x6601F810eaF2fa749EEa10533Fd4CC23B8C791dc")
+	tokenAddressMlt := common.HexToAddress("0xA27F8f580C01Db0682Ce185209FFb84121a2F711")
+	if h.photon.Token2ChannelGraph[tokenAddressSmt] != nil {
+		log.Warn(fmt.Sprintf("newStateMachineEventHandler receive duplicate ContractTokenAddedStateChange=%s", tokenAddressSmt.String()))
+	}
+	if h.photon.Token2ChannelGraph[tokenAddressMlt] != nil {
+		log.Warn(fmt.Sprintf("newStateMachineEventHandler receive duplicate ContractTokenAddedStateChange=%s", tokenAddressMlt.String()))
+	}
+
+	err := h.photon.dao.AddToken(tokenAddressSmt, utils.EmptyAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("photon.dao.AddToken SMT err=%s", err))
+	}
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddressSmt.String()))
+	err = h.photon.dao.AddToken(tokenAddressMlt, utils.EmptyAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("photon.dao.AddToken MLT err=%s", err))
+	}
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddressMlt.String()))
+
+	gSmt := graph.NewChannelGraph(params.Cfg.MyAddress, tokenAddressSmt, nil)
+	h.photon.Token2TokenNetwork[tokenAddressSmt] = utils.EmptyAddress
+	h.photon.Token2ChannelGraph[tokenAddressSmt] = gSmt
+
+	gMlt := graph.NewChannelGraph(params.Cfg.MyAddress, tokenAddressMlt, nil)
+	h.photon.Token2TokenNetwork[tokenAddressMlt] = utils.EmptyAddress
+	h.photon.Token2ChannelGraph[tokenAddressMlt] = gMlt
+
 	return h
 }
 

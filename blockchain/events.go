@@ -269,6 +269,11 @@ func (be *Events) startAlarmTask() {
 		if fromBlockNumber < 0 {
 			fromBlockNumber = 0
 		}
+
+		if fromBlockNumber == 0 {
+			fromBlockNumber = lastedBlock - 5000
+		}
+
 		// get all state change between currentBlock and lastedBlock
 		stateChanges, err := be.queryAllStateChange(fromBlockNumber, lastedBlock)
 		if err != nil {
