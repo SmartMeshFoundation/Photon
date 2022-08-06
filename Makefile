@@ -9,7 +9,7 @@ export GOBIN = $(shell pwd)/build/bin
 export GIT_COMMIT=$(shell git rev-list -1 HEAD)
 export GO_VERSION=$(shell go version|sed 's/ //g')
 export BUILD_DATE=$(shell date|sed 's/ //g')
-export VERSION=0.91
+include ./VERSION
 all: Photon batchtransfer deploy newtestenv  withdrawhash
 Photon:
 	go  install -ldflags ' -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.GitCommit=$(GIT_COMMIT) -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.GoVersion="$(GO_VERSION)" -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.BuildDate="$(BUILD_DATE)" -X github.com/SmartMeshFoundation/Photon/cmd/photon/mainimpl.Version="$(VERSION)" '  ./cmd/photon

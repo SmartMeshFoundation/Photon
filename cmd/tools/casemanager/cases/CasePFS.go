@@ -33,9 +33,7 @@ func (cm *CaseManager) CasePFS() (err error) {
 	// 0. 启动pfs
 	env.StartPFS()
 	// 1. 启动节点
-	n0.StartWithFeeAndPFS(env)
-	n1.StartWithFeeAndPFS(env)
-	n2.StartWithFeeAndPFS(env)
+	cm.startNodes(env, n0.PFS(), n1.PFS(), n2.PFS())
 	// 2. 查询n0-n2,金额=10000的path,expect 0-1-2
 	transferAmount := big.NewInt(10000)
 	pfsProxy := env.GetPfsProxy(env.GetPrivateKeyByNode(n0))

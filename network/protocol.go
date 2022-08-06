@@ -1,8 +1,6 @@
 package network
 
 import (
-	"crypto/ecdsa"
-
 	"encoding/hex"
 
 	"reflect"
@@ -24,7 +22,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var errTimeout = errors.New("wait timeout")
@@ -118,8 +115,6 @@ every message needs a ack to make sure sent success.
 */
 type PhotonProtocol struct {
 	Transport           Transporter
-	privKey             *ecdsa.PrivateKey
-	nodeAddr            common.Address
 	SentHashesToChannel map[common.Hash]*SentMessageState
 	retryTimes          int
 	retryInterval       time.Duration
@@ -147,10 +142,9 @@ type PhotonProtocol struct {
 }
 
 // NewPhotonProtocol create PhotonProtocol
-func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channelStatusGetter ChannelStatusGetter) *PhotonProtocol {
+func NewPhotonProtocol(transport Transporter, channelStatusGetter ChannelStatusGetter) *PhotonProtocol {
 	rp := &PhotonProtocol{
 		Transport:                 transport,
-		privKey:                   privKey,
 		retryTimes:                10,
 		retryInterval:             time.Millisecond * 6000,
 		SentHashesToChannel:       make(map[common.Hash]*SentMessageState),
@@ -163,9 +157,8 @@ func NewPhotonProtocol(transport Transporter, privKey *ecdsa.PrivateKey, channel
 		receiveChan:               make(chan []byte, 200),
 		mapLock:                   sync.Mutex{},
 	}
-	rp.nodeAddr = crypto.PubkeyToAddress(privKey.PublicKey)
 	transport.RegisterProtocol(rp)
-	rp.log = log.New("name", utils.APex2(rp.nodeAddr))
+	rp.log = log.New("name", utils.APex2(params.Cfg.MyAddress))
 	return rp
 }
 
@@ -206,7 +199,7 @@ func (p *PhotonProtocol) sendRawWitNoAck(receiver common.Address, data []byte) e
 // SendPing PingSender
 func (p *PhotonProtocol) SendPing(receiver common.Address) error {
 	ping := encoding.NewPing(utils.NewRandomInt64())
-	err := ping.Sign(p.privKey, ping)
+	err := ping.Sign(params.Cfg.PrivateKey, ping)
 	if err != nil {
 		return err
 	}
@@ -284,7 +277,6 @@ func (p *PhotonProtocol) processSentMessageState(receiver common.Address, channe
 			p.mapLock.Lock()
 			if len(ql.messages) == 0 {
 				p.mapLock.Unlock()
-				// goroutine保留一段时间,防止频繁创建
 				select {
 				case <-p.quitChan: //其他地方要求退出了
 					return
@@ -311,6 +303,8 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 	p.log.Trace(fmt.Sprintf("send to %s,msg=%s, echohash=%s",
 		utils.APex2(msgState.ReceiverAddress), msgState.Message,
 		utils.HPex(msgState.EchoHash)))
+	defer rpanic.PanicRecover("sendMessage")
+	nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 	for {
 		if !p.messageCanBeSent(msgState.Message) {
 			msgState.AsyncResult.Result <- errExpired
@@ -319,7 +313,6 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			p.mapLock.Unlock()
 			return
 		}
-		nextTimeout := timeoutExponentialBackoff(p.retryTimes, p.retryInterval, p.retryInterval*10)
 		err := p.sendRawWitNoAck(receiver, msgState.Data)
 		if err != nil {
 			p.log.Info(fmt.Sprintf("sendRawWitNoAck msg echoHash=%s error %s", utils.HPex(msgState.EchoHash), err.Error()))
@@ -340,18 +333,21 @@ func (p *PhotonProtocol) sendMessage(receiver common.Address, msgState *SentMess
 			}
 			return
 		case <-timeout: //retry
-			// 如果是matrix且对方不在线,挂起并等待唤醒
+			// 如果对方不在线,挂起并等待唤醒
 			_, isOnline := p.Transport.NodeStatus(receiver)
-			transport, ok1 := p.Transport.(*MatrixMixTransport)
-			if ok1 && !isOnline && transport != nil {
+			if !isOnline {
 				log.Warn(fmt.Sprintf("receiver %s is not online,sleep until when he back online", receiver.String()))
-				wakeUpChan := make(chan int)
+				wakeUpChan := make(chan int, 2)
 				// 向transport注册wakeUpChan
-				transport.RegisterWakeUpChan(receiver, wakeUpChan)
+				p.Transport.RegisterWakeUpChan(receiver, wakeUpChan)
 				// 挂起并等待对方上线
-				<-wakeUpChan
+				select {
+				case <-wakeUpChan:
+				case <-p.quitChan:
+					return
+				}
 				// 继续发送并注销wakeUpChan
-				transport.UnRegisterWakeUpChan(receiver)
+				p.Transport.UnRegisterWakeUpChan(receiver)
 			}
 		case <-p.quitChan:
 			return
@@ -454,7 +450,7 @@ func (p *PhotonProtocol) SendAsync(receiver common.Address, msg encoding.Message
 
 // CreateAck creat a ack message,
 func (p *PhotonProtocol) CreateAck(echohash common.Hash) *encoding.Ack {
-	return encoding.NewAck(p.nodeAddr, echohash)
+	return encoding.NewAck(params.Cfg.MyAddress, echohash)
 }
 
 // GetNetworkStatus return `addr` node's network status
@@ -473,6 +469,7 @@ func (p *PhotonProtocol) receive(data []byte) {
 }
 
 func (p *PhotonProtocol) loop() {
+	defer rpanic.PanicRecover("PhotonProtocol loop")
 	p.isReceiving = true
 	for {
 		select {
@@ -485,12 +482,13 @@ func (p *PhotonProtocol) loop() {
 }
 
 func (p *PhotonProtocol) receiveInternal(data []byte) {
-	if len(data) > params.UDPMaxMessageSize {
+	if len(data) > int(params.Cfg.UDPMaxMessageSize) {
 		p.log.Error("receive packet larger than maximum size :", len(data))
 		return
 	}
 	//ignore incomming message when stop
 	if p.onStop {
+		p.log.Info("receive message,but protocol already stopped")
 		return
 	}
 	cmdid := int(data[0])
@@ -505,7 +503,7 @@ func (p *PhotonProtocol) receiveInternal(data []byte) {
 		p.log.Warn(fmt.Sprintf("message unpack error : %s", err))
 		return
 	}
-	echohash := utils.Sha3(data, p.nodeAddr[:])
+	echohash := utils.Sha3(data, params.Cfg.MyAddress[:])
 	if p.receivedMessageSaver != nil && messager.Cmd() != encoding.AckCmdID {
 		ackdata := p.receivedMessageSaver.GetAck(echohash)
 		if len(ackdata) > 0 {
@@ -603,7 +601,7 @@ type NodeInfo struct {
 
 // UpdateMeshNetworkNodes update nodes in this intranet
 func (p *PhotonProtocol) UpdateMeshNetworkNodes(nodes []*NodeInfo) error {
-	//p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
+	p.log.Trace(fmt.Sprintf("nodes=%s", utils.StringInterface(nodes, 3)))
 	nodesmap := make(map[common.Address]*net.UDPAddr)
 	for _, n := range nodes {
 		addr := common.HexToAddress(n.Address)

@@ -25,7 +25,7 @@ func (n *NoFeePolicy) GetNodeChargeFee(nodeAddress, tokenAddress common.Address,
 	return utils.BigInt0
 }
 
-// FeeModule :
+// FeeModule 手续费管理模块,负责对手续费收取策略的管理及到pfs的提交
 type FeeModule struct {
 	dao       models.Dao
 	pfsProxy  pfsproxy.PfsProxy
@@ -33,8 +33,8 @@ type FeeModule struct {
 	lock      sync.Mutex
 }
 
-// NewFeeModule :
-func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, err error) {
+// NewFeeModule init
+func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule) {
 	if dao == nil {
 		panic("need init dao first")
 	}
@@ -51,7 +51,7 @@ func NewFeeModule(dao models.Dao, pfsProxy pfsproxy.PfsProxy) (fm *FeeModule, er
 	return
 }
 
-// SetFeePolicy :
+// SetFeePolicy 设置手续费,如果photon连接了pfs节点,则先确保收费策略提交到pfs成功后再对本地进行修改
 func (fm *FeeModule) SetFeePolicy(fp *models.FeePolicy) (err error) {
 	if fp == nil {
 		return errors.New("can not set nil fee policy")
@@ -87,7 +87,7 @@ func (fm *FeeModule) SetFeePolicy(fp *models.FeePolicy) (err error) {
 	return
 }
 
-//SubmitFeePolicyToPFS :
+//SubmitFeePolicyToPFS 上传本地手续费设置到pfs
 func (fm *FeeModule) SubmitFeePolicyToPFS() (err error) {
 	if fm.pfsProxy != nil {
 		err = fm.pfsProxy.SetFeePolicy(fm.feePolicy)
@@ -95,7 +95,9 @@ func (fm *FeeModule) SubmitFeePolicyToPFS() (err error) {
 	return
 }
 
-//GetNodeChargeFee : impl of FeeCharge
+//GetNodeChargeFee 计算一笔MediatedTransfer的手续费,对中间节点来说,一笔交易的手续费是在出口通道上计算并收取的
+// 即A-B-C的路由下,B是以通道B-C中的费率来计算并收取交易手续费
+// 计算手续费时,收费策略中的费率优先级为通道-Token-账户
 func (fm *FeeModule) GetNodeChargeFee(nodeAddress, tokenAddress common.Address, amount *big.Int) *big.Int {
 	var feeSetting *models.FeeSetting
 	var ok bool

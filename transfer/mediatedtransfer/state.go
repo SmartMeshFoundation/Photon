@@ -89,6 +89,8 @@ type InitiatorState struct {
 	CanceledTransfers              []*EventSendMediatedTransfer
 	Db                             channeltype.Db
 	CancelByExceptionSecretRequest bool // set true when receive exception SecretRequest
+	IsEffectiveChain               bool
+	EffectiveChangeTimestamp       int64
 }
 
 /*
@@ -104,10 +106,12 @@ type MediatorState struct {
 			keeping all transfers in a single list byzantine behavior for secret
 		        reveal and simplifies secret setting
 	*/
-	TransfersPair  []*MediationPairState
-	LockSecretHash common.Hash
-	Token          common.Address
-	Db             channeltype.Db
+	TransfersPair            []*MediationPairState
+	LockSecretHash           common.Hash
+	Token                    common.Address
+	Db                       channeltype.Db
+	IsEffectiveChain         bool
+	EffectiveChangeTimestamp int64
 }
 
 /*
@@ -150,13 +154,15 @@ const StateSecretRegistered = "secret_registered"
 
 //TargetState State of mediated transfer target.
 type TargetState struct {
-	OurAddress   common.Address
-	FromRoute    *route.State
-	FromTransfer *LockedTransferState
-	BlockNumber  int64
-	Secret       common.Hash
-	State        string // default secret_request
-	Db           channeltype.Db
+	OurAddress               common.Address
+	FromRoute                *route.State
+	FromTransfer             *LockedTransferState
+	BlockNumber              int64
+	Secret                   common.Hash
+	State                    string // default secret_request
+	Db                       channeltype.Db
+	IsEffectiveChain         bool
+	EffectiveChangeTimestamp int64
 }
 
 /*

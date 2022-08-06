@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"bytes"
 
 	"errors"
@@ -28,7 +30,7 @@ import (
 const TestPrivkey = "4359f525e2b373089be5fe8f9a4e8ffb6d30e2960918be426217921e1b2547f7"
 
 func init() {
-
+	params.InitForUnitTest()
 }
 func GetTestPrivKey() *ecdsa.PrivateKey {
 	key, _ := hex.DecodeString(TestPrivkey)
@@ -258,7 +260,25 @@ func TestNewRevealSecret(t *testing.T) {
 		t.Error("not equal")
 	}
 }
+func TestErrorNotify(t *testing.T) {
+	p1key, _ := utils.MakePrivateKeyAddress()
 
+	m := NewErrorNotify(InvalidNonceErrorNotify, []byte{1, 2, 3})
+	err := m.Sign(p1key, m)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	data := m.Pack()
+	//t.Logf("data=\n%s", hex.Dump(data))
+	m2 := new(ErrorNotify)
+	err = m2.UnPack(data)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, m, m2)
+}
 func TestNewSecretRequest(t *testing.T) {
 	s1 := NewSecretRequest(utils.ShaSecret([]byte("xxx")), big.NewInt(506))
 	s1.Sign(GetTestPrivKey(), s1)

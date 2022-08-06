@@ -16,13 +16,13 @@ import (
 type ServiceEntry struct {
 	Name       string
 	Host       string
-	AddrV4     net.IP
-	AddrV6     net.IP
+	AddrV4     []net.IP
+	AddrV6     []net.IP
 	Port       int
 	Info       string
 	InfoFields []string
 
-	Addr net.IP // @Deprecated
+	Addr []net.IP // @Deprecated
 
 	hasTXT bool
 	sent   bool
@@ -242,6 +242,7 @@ func (c *client) query(params *QueryParam) error {
 		select {
 		case resp := <-msgCh:
 			var inp *ServiceEntry
+			//log.Trace(fmt.Sprintf("new service entry:%s", utils.StringInterface(resp, 5)))
 			for _, answer := range append(resp.Answer, resp.Extra...) {
 				// TODO(reddaly): Check that response corresponds to serviceAddr?
 				switch rr := answer.(type) {
@@ -270,14 +271,14 @@ func (c *client) query(params *QueryParam) error {
 				case *dns.A:
 					// Pull out the IP
 					inp = ensureName(inprogress, rr.Hdr.Name)
-					inp.Addr = rr.A // @Deprecated
-					inp.AddrV4 = rr.A
-
+					inp.Addr = append(inp.Addr, rr.A) // @Deprecated
+					inp.AddrV4 = append(inp.AddrV4, rr.A)
+					//log.Trace(fmt.Sprintf("pull ip:%s", rr.A.String()))
 				case *dns.AAAA:
 					// Pull out the IP
 					inp = ensureName(inprogress, rr.Hdr.Name)
-					inp.Addr = rr.AAAA // @Deprecated
-					inp.AddrV6 = rr.AAAA
+					inp.Addr = append(inp.Addr, rr.AAAA) // @Deprecated
+					inp.AddrV6 = append(inp.AddrV6, rr.AAAA)
 				}
 			}
 
@@ -343,6 +344,7 @@ func (c *client) recv(l *net.UDPConn, msgCh chan *dns.Msg) {
 		}
 		select {
 		case msgCh <- msg:
+			//log.Trace(fmt.Sprintf("new msg from %s", l.RemoteAddr()))
 		case <-c.closedCh:
 			return
 		}

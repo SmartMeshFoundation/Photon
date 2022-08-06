@@ -56,7 +56,7 @@ func PanicRecover(ctx string) {
 		err2 := fmt.Errorf("%s occured err %s", ctx, err)
 		log.Error(err2.Error())
 		log.Error(string(utils.Stack()))
-		if params.MobileMode {
+		if params.Cfg.IsMobile {
 			errChan <- err2
 		} else {
 			log.Error(fmt.Sprintf("panic info.... %s", err2))
@@ -75,7 +75,7 @@ func RegisterErrorNotifier(name string) {
 
 //startNotify  start notify system,只针对反复重启的 PhotonService 实例只启动一次.
 func startNotify() {
-	if params.MobileMode {
+	if params.Cfg != nil && params.Cfg.IsMobile {
 		go func() {
 			err := <-errChan
 			for i := 0; i < len(notifier); i++ {

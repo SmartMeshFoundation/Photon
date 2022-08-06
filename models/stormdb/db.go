@@ -16,7 +16,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models/cb"
 	"github.com/asdine/storm"
 	gobcodec "github.com/asdine/storm/codec/gob"
-	"github.com/coreos/bbolt"
+	bolt "github.com/coreos/bbolt"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -53,19 +53,18 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 	model.db, err = storm.Open(dbPath, storm.BoltOptions(os.ModePerm, &bolt.Options{Timeout: 1 * time.Second}), storm.Codec(gobcodec.Codec))
 	if err != nil {
 		err = fmt.Errorf("cannot create or open db:%s,makesure you have write permission err:%v", dbPath, err)
-		log.Crit(err.Error())
 		return
 	}
 	model.Name = dbPath
 	if needCreateDb {
 		err = model.db.Set(models.BucketMeta, models.KeyVersion, models.DbVersion)
 		if err != nil {
-			log.Crit(fmt.Sprintf("unable to create db "))
+			err = fmt.Errorf("unable to create db : %s", err.Error())
 			return
 		}
 		err = model.db.Set(models.BucketToken, models.KeyToken, make(models.AddressMap))
 		if err != nil {
-			log.Crit(fmt.Sprintf("unable to create db "))
+			err = fmt.Errorf("unable to create db : %s", err.Error())
 			return
 		}
 		model.initDb()
@@ -73,16 +72,18 @@ func OpenDb(dbPath string) (model *StormDB, err error) {
 	} else {
 		err = model.db.Get(models.BucketMeta, models.KeyVersion, &ver)
 		if err != nil {
-			log.Crit(fmt.Sprintf("wrong db file format "))
+			err = fmt.Errorf("wrong db file format : %s", err.Error())
 			return
 		}
 		if ver != models.DbVersion {
-			log.Crit("db version not match")
+			err = fmt.Errorf("db version not match : %s", err.Error())
+			return
 		}
 		var closeFlag bool
 		err = model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 		if err != nil {
-			log.Crit(fmt.Sprintf("db meta data error"))
+			err = fmt.Errorf("db meta data error : %s", err.Error())
+			return
 		}
 		if closeFlag != true {
 			log.Error("database not closed  last..., try to restore?")
@@ -110,7 +111,7 @@ func (model *StormDB) IsDbCrashedLastTime() bool {
 	var closeFlag bool
 	err := model.db.Get(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 	if err != nil {
-		log.Crit(fmt.Sprintf("db meta data error"))
+		panic(fmt.Sprintf("db meta data error"))
 	}
 	return closeFlag != true
 }

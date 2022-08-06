@@ -25,7 +25,7 @@ func (dao *GkvDB) IsDbCrashedLastTime() bool {
 	var closeFlag bool
 	err := dao.getKeyValueToBucket(models.BucketMeta, models.KeyCloseFlag, &closeFlag)
 	if err != nil {
-		log.Crit(fmt.Sprintf("db meta data error"))
+		panic(fmt.Sprintf("db meta data error"))
 	}
 	return closeFlag != true
 }

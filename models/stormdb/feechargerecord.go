@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// SaveFeeChargeRecord :
+// SaveFeeChargeRecord 创建/更新一个FeeChargeRecord到数据库
 func (model *StormDB) SaveFeeChargeRecord(r *models.FeeChargeRecord) (err error) {
 	rs := r.ToSerialized()
 	if rs.Key == nil || common.BytesToHash(rs.Key) == utils.EmptyHash {
@@ -33,7 +33,7 @@ func (model *StormDB) SaveFeeChargeRecord(r *models.FeeChargeRecord) (err error)
 	return
 }
 
-// GetAllFeeChargeRecord :
+// GetAllFeeChargeRecord 列表查询,参数为条件查询参数
 func (model *StormDB) GetAllFeeChargeRecord(tokenAddress common.Address, fromTime, toTime int64) (records []*models.FeeChargeRecord, err error) {
 	var selectList []q.Matcher
 	if tokenAddress != utils.EmptyAddress {
@@ -61,7 +61,7 @@ func (model *StormDB) GetAllFeeChargeRecord(tokenAddress common.Address, fromTim
 	return
 }
 
-// GetFeeChargeRecordByLockSecretHash :
+// GetFeeChargeRecordByLockSecretHash 根据lockSecretHash查询列表
 func (model *StormDB) GetFeeChargeRecordByLockSecretHash(lockSecretHash common.Hash) (records []*models.FeeChargeRecord, err error) {
 	var rs []*models.FeeChargerRecordSerialization
 	err = model.db.Find("LockSecretHash", lockSecretHash[:], &rs)

@@ -3,6 +3,7 @@ wd=`pwd`
 echo $wd 
 mkdir -p  gethworkdir/src/github.com/ethereum/
 export GOPATH=$wd/gethworkdir
+export GOBIN=$GOPATH/bin
 export PATH=$GOPATH/bin:$PATH
 #  下载自定义版本geth
 cd $GOPATH/src/github.com/ethereum/

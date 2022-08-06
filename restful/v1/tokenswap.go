@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -88,10 +89,10 @@ func TokenSwap(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		err = API.TokenSwapAndWait(lockSecretHash, makerToken, takerToken,
-			API.Photon.NodeAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret, req.RouteInfo)
+			params.Cfg.MyAddress, target, req.SendingAmount, req.ReceivingAmount, req.Secret, req.RouteInfo)
 	} else if req.Role == "taker" {
 		err = API.ExpectTokenSwap(lockSecretHash, takerToken, makerToken,
-			target, API.Photon.NodeAddress, req.ReceivingAmount, req.SendingAmount, req.RouteInfo)
+			target, params.Cfg.MyAddress, req.ReceivingAmount, req.SendingAmount, req.RouteInfo)
 	} else {
 		err = rerr.ErrArgumentError.Errorf("Provided invalid token swap role %s", req.Role)
 	}

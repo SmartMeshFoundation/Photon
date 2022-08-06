@@ -1,12 +1,16 @@
 package photon
 
 import (
+	"compress/gzip"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
 	"time"
 
-	"github.com/SmartMeshFoundation/Photon/channel"
-
-	"github.com/SmartMeshFoundation/Photon/transfer/mtree"
+	"github.com/ethereum/go-ethereum"
 
 	"github.com/SmartMeshFoundation/Photon/params"
 
@@ -15,9 +19,10 @@ import (
 	"math/big"
 
 	"bytes"
-	"crypto/ecdsa"
 
 	"sort"
+
+	"context"
 
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -25,6 +30,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/network"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/pfsproxy"
+	"github.com/SmartMeshFoundation/Photon/pmsproxy"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -44,7 +50,7 @@ func NewPhotonAPI(photon *Service) *API {
 
 //Address return this node's address
 func (r *API) Address() common.Address {
-	return r.Photon.NodeAddress
+	return params.Cfg.MyAddress
 }
 
 //Tokens Return a list of the tokens registered with the default registry.
@@ -93,21 +99,25 @@ settleTimeout: 如果为0 表示已经知道通道存在,只是为了存款,如�
 */
 func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address, settleTimeout, revealTimeout int, deposit *big.Int, newChannel bool) (ch *channeltype.Serialization, err error) {
 	if revealTimeout <= 0 {
-		revealTimeout = r.Photon.Config.RevealTimeout
+		revealTimeout = params.Cfg.RevealTimeout
 	}
 	if newChannel {
 		if settleTimeout <= 0 {
-			settleTimeout = r.Photon.Config.SettleTimeout
+			settleTimeout = params.Cfg.SettleTimeout
 		}
 		if settleTimeout <= revealTimeout {
-			err = rerr.ErrChannelInvalidSttleTimeout
+			err = rerr.ErrChannelInvalidSettleTimeout
+			return
+		}
+		if bytes.Equal(partnerAddress[:], params.Cfg.MyAddress[:]) {
+			err = rerr.ErrOpenChannelWithSelf
 			return
 		}
 	} else {
 		settleTimeout = 0
 	}
 	if deposit.Cmp(utils.BigInt0) <= 0 {
-		err = rerr.ErrInvalidAmount
+		err = rerr.ErrArgumentError.Append("invalid amount")
 		return
 	}
 	if err = r.checkSmcStatus(); err != nil {
@@ -120,11 +130,13 @@ func (r *API) DepositAndOpenChannel(tokenAddress, partnerAddress common.Address,
 			return
 		}
 		ch = channeltype.NewEmptySerialization()
-		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, r.Photon.NodeAddress)
+		ch.ChannelIdentifier.ChannelIdentifier = utils.CalcChannelID(tokenAddress, r.Photon.Chain.GetRegistryAddress(), partnerAddress, params.Cfg.MyAddress)
 		ch.TokenAddressBytes = tokenAddress[:]
-		ch.OurAddress = r.Photon.NodeAddress
+		ch.OurAddress = params.Cfg.MyAddress
 		ch.PartnerAddressBytes = partnerAddress[:]
 		ch.State = channeltype.StateInValid
+		ch.SettleTimeout = settleTimeout
+		ch.RevealTimeout = revealTimeout
 	} else {
 		ch, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
 		if err != nil {
@@ -254,7 +266,7 @@ func (r *API) GetTokenTokenNetorks() (tokens []string) {
 	return
 }
 
-//Transfer transfer and wait
+//Transfer 核心交易接口,同步,将在交易成功/失败后返回
 func (r *API) Transfer(token common.Address, amount *big.Int, target common.Address, secret common.Hash, timeout time.Duration, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	result, err = r.TransferInternal(token, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
@@ -273,7 +285,7 @@ func (r *API) Transfer(token common.Address, amount *big.Int, target common.Addr
 	return result, err
 }
 
-// TransferAsync :
+// TransferAsync 核心交易接口异步版,将在本地数据验证通过,将消息发送至目标节点或下个路由节点后返回,且不等待对方对该条消息的ack
 func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	result, err = r.TransferInternal(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	if err != nil {
@@ -288,10 +300,10 @@ func (r *API) TransferAsync(tokenAddress common.Address, amount *big.Int, target
 	return result, err
 }
 
-//TransferInternal :
+//TransferInternal 供同步/异步交易接口使用
 func (r *API) TransferInternal(tokenAddress common.Address, amount *big.Int, target common.Address, secret common.Hash, isDirectTransfer bool, data string, routeInfo []pfsproxy.FindPathResponse) (result *utils.AsyncResult, err error) {
 	log.Debug(fmt.Sprintf("initiating transfer initiator=%s target=%s token=%s amount=%d secret=%s,currentblock=%d",
-		r.Photon.NodeAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
+		params.Cfg.MyAddress.String(), target.String(), tokenAddress.String(), amount, secret.String(), r.Photon.GetBlockNumber()))
 	result = r.Photon.transferAsyncClient(tokenAddress, amount, target, secret, isDirectTransfer, data, routeInfo)
 	return
 }
@@ -306,14 +318,14 @@ func (r *API) AllowRevealSecret(lockSecretHash common.Hash, tokenAddress common.
 	return
 }
 
-// RegisterSecret :
+// RegisterSecret 手动注册密码,只会在指定密码的交易中使用
 func (r *API) RegisterSecret(secret common.Hash, tokenAddress common.Address) (err error) {
 	result := r.Photon.registerSecretClient(secret, tokenAddress)
 	err = <-result.Result
 	return
 }
 
-// TransferDataResponse :
+// TransferDataResponse GetUnfinishedReceivedTransfer接口返回的数据结构
 type TransferDataResponse struct {
 	Initiator      string   `json:"initiator_address"`
 	Target         string   `json:"target_address"`
@@ -326,7 +338,7 @@ type TransferDataResponse struct {
 	IsDirect       bool     `json:"is_direct"`
 }
 
-// GetUnfinishedReceivedTransfer :
+// GetUnfinishedReceivedTransfer 根据LockSecretHash及token查询收到但未完成的MediatedTransfer
 func (r *API) GetUnfinishedReceivedTransfer(lockSecretHash common.Hash, tokenAddress common.Address) (resp *TransferDataResponse) {
 	result := r.Photon.getUnfinishedReceivedTransferClient(lockSecretHash, tokenAddress)
 	err := <-result.Result
@@ -369,7 +381,7 @@ func (r *API) Settle(tokenAddress, partnerAddress common.Address) (c *channeltyp
 	//send settle request
 	result := r.Photon.settleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s settled finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -390,7 +402,7 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 	//send settle request
 	result := r.Photon.cooperativeSettleChannelClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -399,39 +411,47 @@ func (r *API) CooperativeSettle(tokenAddress, partnerAddress common.Address) (c 
 }
 
 //PrepareForCooperativeSettle  mark a channel prepared for settle,  return when state has been updated to database
-func (r *API) PrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+func (r *API) PrepareForCooperativeSettle(channelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+	c, err = r.Photon.dao.GetChannelByAddress(channelIdentifier)
+	if err != nil {
+		err = rerr.ChannelNotFound(channelIdentifier.String())
+		return
+	}
 	if c.State != channeltype.StateOpened {
 		err = rerr.InvalidState("channel must be  open")
 		return
 	}
 	//send settle request
-	result := r.Photon.markChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.markChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(channelIdentifier)
 }
 
 //CancelPrepareForCooperativeSettle  cancel a mark. return when state has been updated to database
-func (r *API) CancelPrepareForCooperativeSettle(tokenAddress, partnerAddress common.Address) (c *channeltype.Serialization, err error) {
-	c, err = r.Photon.dao.GetChannel(tokenAddress, partnerAddress)
+func (r *API) CancelPrepareForCooperativeSettle(channelIdentifier common.Hash) (c *channeltype.Serialization, err error) {
+	c, err = r.Photon.dao.GetChannelByAddress(channelIdentifier)
+	if err != nil {
+		err = rerr.ChannelNotFound(channelIdentifier.String())
+		return
+	}
 	if c.State != channeltype.StatePrepareForCooperativeSettle {
-		err = rerr.InvalidState("channel must be  open")
+		err = rerr.InvalidState("channel must be  prepareForCooperativeSettle")
 		return
 	}
 	//send settle request
-	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(c.ChannelIdentifier.ChannelIdentifier)
+	result := r.Photon.cancelMarkChannelForCooperativeSettleClient(channelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForCooperativeSettle finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
 	//reload data from database, this channel has been removed.
-	return r.Photon.dao.GetChannelByAddress(c.ChannelIdentifier.ChannelIdentifier)
+	return r.Photon.dao.GetChannelByAddress(channelIdentifier)
 }
 
 //Withdraw on a channel opened with `partner_address` for the given `token_address`. return when state has been updated to database
@@ -451,7 +471,7 @@ func (r *API) Withdraw(tokenAddress, partnerAddress common.Address, amount *big.
 	//send settle request
 	result := r.Photon.withdrawClient(c.ChannelIdentifier.ChannelIdentifier, amount)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s withdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -469,7 +489,7 @@ func (r *API) PrepareForWithdraw(tokenAddress, partnerAddress common.Address) (c
 	//send settle request
 	result := r.Photon.markWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s PrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -487,7 +507,7 @@ func (r *API) CancelPrepareForWithdraw(tokenAddress, partnerAddress common.Addre
 	//send settle request
 	result := r.Photon.cancelMarkWithdrawClient(c.ChannelIdentifier.ChannelIdentifier)
 	err = <-result.Result
-	log.Trace(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
+	log.Info(fmt.Sprintf("%s CancelPrepareForWithdraw finish , err %v", c.ChannelIdentifier, err))
 	if err != nil {
 		return
 	}
@@ -665,146 +685,15 @@ func (r *API) Stop() {
 	log.Info("stop successful..")
 }
 
-type updateTransfer struct {
-	Nonce               uint64      `json:"nonce"`
-	TransferAmount      *big.Int    `json:"transfer_amount"`
-	Locksroot           common.Hash `json:"locksroot"`
-	ExtraHash           common.Hash `json:"extra_hash"`
-	ClosingSignature    []byte      `json:"closing_signature"`
-	NonClosingSignature []byte      `json:"non_closing_signature"`
-}
-
-//第三方服务也负责链上unlock
-type unlock struct {
-	Lock        *mtree.Lock `json:"lock"`
-	MerkleProof []byte      `json:"merkle_proof"`
-	Secret      common.Hash `json:"secret"`
-	Signature   []byte      `json:"signature"`
-}
-
-//需要委托给第三方的 punish证据
-// punish proof that is delegated to third-party.
-type punish struct {
-	LockHash       common.Hash `json:"lock_hash"` //the whole lock's hash,not lock secret hash
-	AdditionalHash common.Hash `json:"additional_hash"`
-	Signature      []byte      `json:"signature"`
-}
-
-//ChannelFor3rd is for 3rd party to call update transfer
-type ChannelFor3rd struct {
-	ChannelIdentifier common.Hash    `json:"channel_identifier"`
-	OpenBlockNumber   int64          `json:"open_block_number"`
-	TokenAddrss       common.Address `json:"token_address"`
-	PartnerAddress    common.Address `json:"partner_address"`
-	UpdateTransfer    updateTransfer `json:"update_transfer"`
-	Unlocks           []*unlock      `json:"unlocks"`
-	Punishes          []*punish      `json:"punishes"`
-}
-
 /*
 ChannelInformationFor3rdParty generate all information need by 3rd party
 */
-func (r *API) ChannelInformationFor3rdParty(ChannelIdentifier common.Hash, thirdAddr common.Address) (result *ChannelFor3rd, err error) {
-	var sig []byte
-	c, err := r.GetChannel(ChannelIdentifier)
+func (r *API) ChannelInformationFor3rdParty(channelIdentifier common.Hash, thirdAddr common.Address) (result *pmsproxy.DelegateForPms, err error) {
+	c, err := r.Photon.dao.GetChannelByAddress(channelIdentifier)
 	if err != nil {
 		return
 	}
-	c3 := new(ChannelFor3rd)
-	c3.ChannelIdentifier = ChannelIdentifier
-	c3.OpenBlockNumber = c.ChannelIdentifier.OpenBlockNumber
-	c3.TokenAddrss = c.TokenAddress()
-	c3.PartnerAddress = c.PartnerAddress()
-	if c.PartnerBalanceProof == nil {
-		result = c3
-		return
-	}
-	if c.PartnerBalanceProof.Nonce > 0 {
-		c3.UpdateTransfer.Nonce = c.PartnerBalanceProof.Nonce
-		c3.UpdateTransfer.TransferAmount = c.PartnerBalanceProof.TransferAmount
-		c3.UpdateTransfer.Locksroot = c.PartnerBalanceProof.LocksRoot
-		c3.UpdateTransfer.ExtraHash = c.PartnerBalanceProof.MessageHash
-		c3.UpdateTransfer.ClosingSignature = c.PartnerBalanceProof.Signature
-		sig, err = signBalanceProofFor3rd(c, r.Photon.PrivateKey)
-		if err != nil {
-			return
-		}
-		c3.UpdateTransfer.NonClosingSignature = sig
-	}
-
-	tree := mtree.NewMerkleTree(c.PartnerLeaves)
-	var ws []*unlock
-	for _, l := range c.PartnerLock2UnclaimedLocks() {
-		proof := channel.ComputeProofForLock(l.Lock, tree)
-		w := &unlock{
-			Lock:        l.Lock,
-			Secret:      l.Secret,
-			MerkleProof: mtree.Proof2Bytes(proof.MerkleProof),
-		}
-		w.Signature, err = signUnlockFor3rd(c, w, thirdAddr, r.Photon.PrivateKey)
-		//log.Trace(fmt.Sprintf("prootf=%s", utils.StringInterface(proof, 3)))
-		ws = append(ws, w)
-	}
-	c3.Unlocks = ws
-	var ps []*punish
-	for _, annouceDisposed := range r.Photon.dao.GetChannelAnnounceDisposed(c.ChannelIdentifier.ChannelIdentifier) {
-		//跳过历史 channel
-		// omit history channel
-		if annouceDisposed.OpenBlockNumber != c.ChannelIdentifier.OpenBlockNumber {
-			continue
-		}
-		p := &punish{
-			LockHash:       common.BytesToHash(annouceDisposed.LockHash),
-			AdditionalHash: annouceDisposed.AdditionalHash,
-			Signature:      annouceDisposed.Signature,
-		}
-		ps = append(ps, p)
-	}
-	c3.Punishes = ps
-	result = c3
-	return
-}
-
-//make sure PartnerBalanceProof is not nil
-func signBalanceProofFor3rd(c *channeltype.Serialization, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
-	if c.PartnerBalanceProof == nil {
-		log.Error(fmt.Sprintf("PartnerBalanceProof is nil,must ber a error"))
-		return nil, rerr.ErrChannelBalanceProofNil.Append("empty PartnerBalanceProof")
-	}
-	buf := new(bytes.Buffer)
-	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte(params.ContractBalanceProofDelegateMessageLength))
-	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	_, err = buf.Write(c.PartnerBalanceProof.LocksRoot[:])
-	err = binary.Write(buf, binary.BigEndian, c.PartnerBalanceProof.Nonce)
-	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
-	if err != nil {
-		log.Error(fmt.Sprintf("buf write error %s", err))
-	}
-	dataToSign := buf.Bytes()
-	return utils.SignData(privkey, dataToSign)
-}
-
-func signUnlockFor3rd(c *channeltype.Serialization, u *unlock, thirdAddress common.Address, privkey *ecdsa.PrivateKey) (sig []byte, err error) {
-	buf := new(bytes.Buffer)
-	_, err = buf.Write(params.ContractSignaturePrefix)
-	_, err = buf.Write([]byte(params.ContractUnlockDelegateProofMessageLength))
-	_, err = buf.Write(utils.BigIntTo32Bytes(c.PartnerBalanceProof.TransferAmount))
-	_, err = buf.Write(thirdAddress[:])
-	_, err = buf.Write(utils.BigIntTo32Bytes(big.NewInt(u.Lock.Expiration)))
-	_, err = buf.Write(utils.BigIntTo32Bytes(u.Lock.Amount))
-	_, err = buf.Write(u.Lock.LockSecretHash[:])
-	_, err = buf.Write(c.ChannelIdentifier.ChannelIdentifier[:])
-	err = binary.Write(buf, binary.BigEndian, c.ChannelIdentifier.OpenBlockNumber)
-	_, err = buf.Write(utils.BigIntTo32Bytes(params.ChainID))
-	if err != nil {
-		log.Error(fmt.Sprintf("buf write error %s", err))
-		return
-	}
-	dataToSign := buf.Bytes()
-	return utils.SignData(privkey, dataToSign)
+	return r.Photon.GetDelegateForPms(c, thirdAddr)
 }
 
 //EventTransferSentSuccessWrapper wrapper
@@ -835,7 +724,7 @@ type AccountTokenBalanceVo struct {
 	LockedAmount *big.Int `json:"locked_amount"`
 }
 
-// GetBalanceByTokenAddress : get account's balance and locked account on token
+// GetBalanceByTokenAddress get account's balance and locked account on token
 func (r *API) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []*AccountTokenBalanceVo, err error) {
 	if tokenAddress == utils.EmptyAddress {
 		return r.getBalance()
@@ -866,7 +755,7 @@ func (r *API) GetBalanceByTokenAddress(tokenAddress common.Address) (balances []
 	return []*AccountTokenBalanceVo{balance}, err
 }
 
-// getBalance : get account's balance and locked account on each token
+// getBalance get account's balance and locked account on each token
 func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 	channels, err := r.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
@@ -891,21 +780,21 @@ func (r *API) getBalance() (balances []*AccountTokenBalanceVo, err error) {
 	return
 }
 
-// ForceUnlock : only for debug
+// ForceUnlock only for debug
 func (r *API) ForceUnlock(channelIdentifier, secret common.Hash) (err error) {
 	result := r.Photon.forceUnlockClient(secret, channelIdentifier)
 	err = <-result.Result
 	return
 }
 
-// RegisterSecretOnChain : only for debug
+// RegisterSecretOnChain only for debug
 func (r *API) RegisterSecretOnChain(secret common.Hash) (err error) {
 	result := r.Photon.registerSecretOnChainClient(secret)
 	err = <-result.Result
 	return
 }
 
-// CancelTransfer : cancel a transfer when haven't send secret
+// CancelTransfer cancel a transfer when haven't send secret
 func (r *API) CancelTransfer(lockSecretHash common.Hash, tokenAddress common.Address) error {
 	result := r.Photon.cancelTransferClient(lockSecretHash, tokenAddress)
 	return <-result.Result
@@ -958,12 +847,12 @@ func (r *API) BalanceProofForPFS(channelIdentifier common.Hash) (proof *ProofFor
 	_, err = buf.Write(bpf.Signature)
 	_, err = buf.Write(utils.BigIntTo32Bytes(proof.LockAmount))
 	dataToSign := buf.Bytes()
-	proof.Signature, err = utils.SignData(r.Photon.PrivateKey, dataToSign)
+	proof.Signature, err = utils.SignData(params.Cfg.PrivateKey, dataToSign)
 	return
 }
 
-// NotifyNetworkDown :
-func (r *API) NotifyNetworkDown() error {
+// NotifyNetworkDown 上层应用通知photon网络断开,强制photon对所有远程连接进行重连尝试
+func (r *API) NotifyNetworkDown() {
 	log.Info(fmt.Sprintf("NotifyNetworkDown from user"))
 	// smc client
 	client := r.Photon.Chain.Client
@@ -976,7 +865,10 @@ func (r *API) NotifyNetworkDown() error {
 	if t, ok := r.Photon.Protocol.Transport.(*network.MixTransport); ok {
 		t.Reconnect()
 	}
-	return nil
+	// 置为无效公链状态
+	//r.Photon.IsChainEffective = false
+	//log.Info("photon works without effective chain now because user call NotifyNetworkDown...")
+	return
 }
 
 // GetFeePolicy 如果没有启动收费会返回错误,否则返回当前账户设置的收费信息
@@ -1004,14 +896,14 @@ func (r *API) FindPath(targetAddress, tokenAddress common.Address, amount *big.I
 		err = rerr.ErrNotChargeFee.Append("photon start without param '--pfs', can not calculate total fee")
 		return
 	}
-	routes, err = r.Photon.PfsProxy.FindPath(r.Photon.NodeAddress, targetAddress, tokenAddress, amount, true)
+	routes, err = r.Photon.PfsProxy.FindPath(params.Cfg.MyAddress, targetAddress, tokenAddress, amount, true)
 	if err != nil {
 		return
 	}
 	return
 }
 
-// GetAllFeeChargeRecord :
+// GetAllFeeChargeRecord 查询节点收取手续费的记录
 func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	type responce struct {
 		TotalFee map[common.Address]*big.Int `json:"total_fee"`
@@ -1035,7 +927,7 @@ func (r *API) GetAllFeeChargeRecord() (resp interface{}, err error) {
 	return
 }
 
-// SystemStatus :
+// SystemStatus 查询节点汇总信息
 func (r *API) SystemStatus() (resp interface{}, err error) {
 	type transfers struct {
 		SendNum    int `json:"send_num"`
@@ -1044,7 +936,8 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 	}
 	type systemStatus struct {
 		EthRPCEndpoint      string                            `json:"eth_rpc_endpoint"`
-		EthRPCStatus        string                            `json:"eth_rpc_status"` // disconnected, connected, closed, reconnecting
+		EthRPCStatus        string                            `json:"eth_rpc_status"`  // disconnected, connected, closed, reconnecting
+		ChainEffective      bool                              `json:"chain_effective"` //当前连接公链是否有效
 		NodeAddress         string                            `json:"node_address"`
 		RegistryAddress     string                            `json:"registry_address"`
 		TokenToTokenNetwork map[common.Address]common.Address `json:"token_to_token_network"`
@@ -1055,27 +948,34 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		FeePolicy           *models.FeePolicy                 `json:"fee_policy"`
 		ChannelNum          int                               `json:"channel_num"`
 		Transfers           *transfers                        `json:"transfers,omitempty"`
+		SyncProcess         *ethereum.SyncProgress            `json:"sync_process"`
 	}
 	var data systemStatus
-	data.EthRPCEndpoint = r.Photon.Config.EthRPCEndPoint
-	// EthRPCStatus
-	switch r.Photon.Chain.Client.Status {
-	case netshare.Disconnected:
+	data.EthRPCEndpoint = params.Cfg.EthRPCEndPoint
+	if r.Photon.Chain.Client != nil {
+		switch r.Photon.Chain.Client.Status {
+		case netshare.Disconnected:
+			data.EthRPCStatus = "disconnected"
+		case netshare.Connected:
+			data.EthRPCStatus = "connected"
+		case netshare.Closed:
+			data.EthRPCStatus = "closed"
+		case netshare.Reconnecting:
+			data.EthRPCStatus = "reconnecting"
+		}
+	} else {
 		data.EthRPCStatus = "disconnected"
-	case netshare.Connected:
-		data.EthRPCStatus = "connected"
-	case netshare.Closed:
-		data.EthRPCStatus = "closed"
-	case netshare.Reconnecting:
-		data.EthRPCStatus = "reconnecting"
 	}
-	data.NodeAddress = r.Photon.NodeAddress.String()
+	// EthRPCStatus
+	// 这里只向外暴露两个状态:有效公链/无效公链
+	data.ChainEffective = r.Photon.IsChainEffective
+	data.NodeAddress = params.Cfg.MyAddress.String()
 	data.RegistryAddress = r.Photon.Chain.GetRegistryAddress().String()
 	// TokenToTokenNetwork
 	data.TokenToTokenNetwork = r.Photon.Token2TokenNetwork
 	data.LastBlockNumber = r.Photon.dao.GetLatestBlockNumber()
 	data.LastBlockNumberTime = r.Photon.dao.GetLastBlockNumberTime()
-	data.IsMobileMode = params.MobileMode
+	data.IsMobileMode = params.Cfg.IsMobile
 	// network type
 	switch r.Photon.Transport.(type) {
 	case *network.XMPPTransport:
@@ -1090,7 +990,7 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		data.NetworkType = "udp"
 	}
 	// FeePolicy
-	if r.Photon.Config.EnableMediationFee {
+	if params.Cfg.EnableMediationFee {
 		data.FeePolicy = r.Photon.dao.GetFeePolicy()
 	} else {
 		data.FeePolicy = nil
@@ -1115,6 +1015,16 @@ func (r *API) SystemStatus() (resp interface{}, err error) {
 		ReceiveNum: len(rts),
 		DealingNum: len(r.Photon.Transfer2StateManager),
 	}
+	//只有确定公链链接有效才会查询,否则不查询
+	if r.Photon.Chain.Client.Status == netshare.Connected {
+		var sync *ethereum.SyncProgress
+		sync, err = r.Photon.Chain.SyncProgress()
+		if err != nil {
+			err = rerr.ErrUnkownSpectrumRPCError.Append(err.Error())
+			return
+		}
+		data.SyncProcess = sync
+	}
 	resp = data
 	return
 }
@@ -1136,7 +1046,7 @@ func (r *API) checkSmcStatus() error {
 		return err
 	}
 	var defaultSyncBlock uint64 = 3
-	if params.ChainID.Uint64() == 8888 { //测试私链一秒一块,时间太短是不行的
+	if params.Cfg.ChainID.Uint64() == 8888 { //测试私链一秒一块,时间太短是不行的
 		defaultSyncBlock = 30
 	}
 	if sp != nil && sp.HighestBlock-sp.CurrentBlock > defaultSyncBlock {
@@ -1330,4 +1240,154 @@ func (r *API) GetDaysIncome(tokenAddress common.Address, n int) (resp []*DaysInc
 // GetBuildInfo 获取当前版本信息
 func (r *API) GetBuildInfo() *BuildInfo {
 	return r.Photon.BuildInfo
+}
+
+// GetChannelSettleBlockResponse GetChannelSettleBlock接口返回数据结构
+type GetChannelSettleBlockResponse struct {
+	BlockNumberNow              int64 `json:"block_number_now"`
+	BlockNumberChannelCanSettle int64 `json:"block_number_channel_can_settle,omitempty"`
+}
+
+// GetChannelSettleBlock :
+func (r *API) GetChannelSettleBlock(channelIdentifier common.Hash) *GetChannelSettleBlockResponse {
+	resp := &GetChannelSettleBlockResponse{}
+	// 1. 获取当前块
+	resp.BlockNumberNow = r.Photon.GetBlockNumber()
+	// 2. 获取通道SettleBlock
+	c := r.Photon.getChannelWithAddr(channelIdentifier)
+	if c == nil || c.State != channeltype.StateClosed {
+		return resp
+	}
+	resp.BlockNumberChannelCanSettle = c.ExternState.ClosedBlock + int64(c.SettleTimeout) + int64(params.Cfg.PunishBlockNumber)
+	return resp
+}
+
+// GetTokenBalance 获取账户在token上的余额
+func (r *API) GetTokenBalance(account, token common.Address) (*big.Int, error) {
+	t, err := r.Photon.Chain.Token(token)
+	if err != nil {
+		return nil, rerr.ErrArgumentError.AppendError(err)
+	}
+	name, err := t.Token.Name(nil)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	if name == params.Cfg.SMTTokenName {
+		v, err2 := r.Photon.Chain.Client.BalanceAt(context.Background(), account, big.NewInt(r.Photon.GetBlockNumber()))
+		if err2 != nil {
+			return nil, rerr.ErrArgumentError.AppendError(err2)
+		}
+		return v, nil
+	}
+	v, err := t.BalanceOf(account)
+	if err != nil {
+		return nil, rerr.ErrArgumentError.AppendError(err)
+	}
+	return v, nil
+}
+
+// GetAssetsOnTokenResponseDetail GetAssetsOnToken接口返回数据结构
+type GetAssetsOnTokenResponseDetail struct {
+	TokenAddress    string   `json:"token_address"`
+	BalanceOnChain  *big.Int `json:"balance_on_chain"`
+	BalanceInPhoton *big.Int `json:"balance_in_photon"`
+}
+
+// GetAssetsOnToken 获取用户在链上以及通道中的资产总和
+func (r *API) GetAssetsOnToken(tokenList []common.Address) (resp []*GetAssetsOnTokenResponseDetail, err error) {
+	if len(tokenList) == 0 {
+		tokenList = r.GetTokenList()
+	}
+	for _, token := range tokenList {
+		d := &GetAssetsOnTokenResponseDetail{
+			TokenAddress:    token.String(),
+			BalanceOnChain:  big.NewInt(0),
+			BalanceInPhoton: big.NewInt(0),
+		}
+		// 1. 获取用户在链上的该token余额
+		t, err2 := r.GetTokenBalance(params.Cfg.MyAddress, token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
+		}
+		d.BalanceOnChain = t
+		// 2. 获取用户在photon中的该token余额
+		balance, err2 := r.GetBalanceByTokenAddress(token)
+		if err2 != nil {
+			log.Error(err2.Error())
+			err = err2
+			return
+		}
+		if len(balance) == 1 {
+			d.BalanceInPhoton = balance[0].Balance
+		}
+		if d.BalanceOnChain.Cmp(utils.BigInt0) > 0 || d.BalanceInPhoton.Cmp(utils.BigInt0) > 0 {
+			resp = append(resp, d)
+		}
+	}
+	return
+}
+
+// UploadLogFile 上传photon日志到日志server
+func (r *API) UploadLogFile() error {
+	return uploadLogFile(params.Cfg.MyAddress, params.Cfg.LogFilePath)
+}
+
+func uploadLogFile(address common.Address, logFilePath string) (err error) {
+	now := time.Now()
+	logFileName := fmt.Sprintf("photon-log-%s-%s.log", address.String(), now.Format("2006-01-02-15-04-05"))
+	fmt.Println(logFileName)
+	// 1. 读取文件并压缩 #nosec
+	logFile, err := os.Open(logFilePath)
+	if err != nil {
+		return
+	}
+	defer logFile.Close()
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	fileStat, err := logFile.Stat()
+	if err != nil {
+		return
+	}
+	zw.Name = logFileName
+	zw.ModTime = fileStat.ModTime()
+	_, err = io.Copy(zw, logFile)
+	if err != nil {
+		return
+	}
+	err = zw.Flush()
+	err = zw.Close()
+	if err != nil {
+		return
+	}
+	// 2. 发送
+	var buf2 bytes.Buffer
+	w := multipart.NewWriter(&buf2)
+	fw, err := w.CreateFormFile("uploadfile", logFileName)
+	if err != nil {
+		return
+	}
+	_, err = io.Copy(fw, &buf)
+	if err != nil {
+		return
+	}
+	err = w.Close()
+	if err != nil {
+		return
+	}
+	res, err := http.Post(params.TestLogServer+"/logsrv/1/upload", w.FormDataContentType(), &buf2)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+	message, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	log.Info(fmt.Sprintf("upload logfile and got response : %d %s", res.StatusCode, string(message)))
+	if res.StatusCode != http.StatusOK {
+		err = fmt.Errorf("upload logfile and got response : %d %s", res.StatusCode, string(message))
+	}
+	return
 }

@@ -5,7 +5,7 @@ import "encoding/gob"
 // ChainEventID 一个链上事件的唯一ID, txHash+logIndex
 type ChainEventID string
 
-// ChainEventStatus :
+// ChainEventStatus 描述一个事件的处理状态
 type ChainEventStatus string
 
 // #nosec

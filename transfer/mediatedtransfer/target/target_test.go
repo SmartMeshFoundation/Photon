@@ -3,6 +3,8 @@ package target
 import (
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"math/big"
 
 	"os"
@@ -19,6 +21,7 @@ import (
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
@@ -29,10 +32,11 @@ func makeInitStateChange(ourAddress common.Address, amount int64, blocknumber in
 	}
 	fromRoute, fromTransfer := utest.MakeFrom(big.NewInt(amount), ourAddress, expire, initiator, utils.EmptyHash)
 	init := &mediatedtransfer.ActionInitTargetStateChange{
-		OurAddress:  ourAddress,
-		FromRoute:   fromRoute,
-		FromTranfer: fromTransfer,
-		BlockNumber: blocknumber,
+		OurAddress:       ourAddress,
+		FromRoute:        fromRoute,
+		FromTranfer:      fromTransfer,
+		BlockNumber:      blocknumber,
+		IsEffectiveChain: true,
 	}
 	return init
 }
@@ -116,7 +120,7 @@ func TestHandleInitTarget(t *testing.T) {
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
 	st := makeInitStateChange(utest.ADDR, amount, blockNumber, initiator, expire)
 	fromTransfer := st.FromTranfer
-	it := handleInitTraget(st)
+	it := handleInitTarget(st)
 	assert(t, len(it.Events) > 0, true)
 	ev := it.Events[0].(*mediatedtransfer.EventSendSecretRequest)
 
@@ -134,7 +138,7 @@ func TestHandleInitTargetBadExpiration(t *testing.T) {
 
 	//fromroute,fromtransfer:=utest.MakeFrom(amount,utest.ADDR,expire,initiator,utils.EmptyHash)
 	st := makeInitStateChange(utest.ADDR, amount, blockNumber, initiator, expire)
-	it := handleInitTraget(st)
+	it := handleInitTarget(st)
 	assert(t, len(it.Events), 0)
 }
 

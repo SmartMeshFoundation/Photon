@@ -6,20 +6,11 @@ import (
 
 	"runtime"
 
-	"github.com/SmartMeshFoundation/Photon/params"
+	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
 func TestDefaultKeyStoreDir(t *testing.T) {
-	t.Log(params.DefaultKeyStoreDir())
-}
-
-func TestAccountManager(t *testing.T) {
-	am := NewAccountManager("../testdata/keystore")
-	privkey, err := am.GetPrivateKey(am.Accounts[0].Address, "123")
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("privkey=0x%s", hex.EncodeToString(privkey))
+	t.Log(utils.DefaultKeyStoreDir())
 }
 
 func TestFininalize(t *testing.T) {
@@ -34,5 +25,5 @@ func testNewAccount(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("privkey=0x%s", hex.EncodeToString(privkey))
+	t.Logf("%s privkey=0x%s", am.Accounts[0].Address.String(), hex.EncodeToString(privkey))
 }

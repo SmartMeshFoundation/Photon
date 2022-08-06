@@ -2,6 +2,7 @@ package stormdb
 
 import (
 	"fmt"
+	"time"
 
 	"encoding/hex"
 
@@ -17,6 +18,7 @@ import (
 // NewChannel save a just created channel to db
 func (model *StormDB) NewChannel(c *channeltype.Serialization) error {
 	//log.Trace(fmt.Sprintf("new channel %s", utils.StringInterface(c, 2)))
+	c.UpdateAt = time.Now().Unix()
 	err := model.db.Save(c)
 	//notify new channel added
 	model.handleChannelCallback(model.newChannelCallbacks, c)
@@ -30,6 +32,7 @@ func (model *StormDB) NewChannel(c *channeltype.Serialization) error {
 //UpdateChannelNoTx update channel status without a Tx
 func (model *StormDB) UpdateChannelNoTx(c *channeltype.Serialization) error {
 	//log.Trace(fmt.Sprintf("save channel %s", utils.StringInterface(c, 2)))
+	c.UpdateAt = time.Now().Unix()
 	err := model.db.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannelNoTx err:%s", err))
@@ -45,6 +48,7 @@ func (model *StormDB) UpdateChannelAndSaveAck(c *channeltype.Serialization, echo
 			err = tx.Rollback()
 		}
 	}()
+	c.UpdateAt = time.Now().Unix()
 	err = model.UpdateChannel(c, tx)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err %s", err))
@@ -73,6 +77,7 @@ func (model *StormDB) handleChannelCallback(m map[*cb.ChannelCb]bool, c *channel
 
 //UpdateChannelContractBalance update channel balance
 func (model *StormDB) UpdateChannelContractBalance(c *channeltype.Serialization) error {
+	c.UpdateAt = time.Now().Unix()
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		err = models.GeneratDBError(err)
@@ -86,6 +91,7 @@ func (model *StormDB) UpdateChannelContractBalance(c *channeltype.Serialization)
 //UpdateChannel update channel status in a Tx
 func (model *StormDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) error {
 	//log.Trace(fmt.Sprintf("statemanager save channel status =%s\n", utils.StringInterface(c, 2)))
+	c.UpdateAt = time.Now().Unix()
 	err := tx.Save(c)
 	if err != nil {
 		log.Error(fmt.Sprintf("UpdateChannel err=%s", err))
@@ -95,6 +101,7 @@ func (model *StormDB) UpdateChannel(c *channeltype.Serialization, tx models.TX) 
 
 //UpdateChannelState update channel state ,close settle
 func (model *StormDB) UpdateChannelState(c *channeltype.Serialization) error {
+	c.UpdateAt = time.Now().Unix()
 	err := model.UpdateChannelNoTx(c)
 	if err != nil {
 		return models.GeneratDBError(err)

@@ -1,11 +1,11 @@
 #!/bin/sh
-export VERSION=1.0.0
 
 #build for linux/amd64 because of meshbox must need cgo
 # ./xgobuild.sh 
 # zip -r photon_linux_amd64_$VERSION.zip photon-$VERSION-linux-amd64
 # rm -f photon-$VERSION-linux-amd64
-
+source ../../env.sh
+source ../../VERSION
 
 #linux/arm
 export CGO_ENABLED=0

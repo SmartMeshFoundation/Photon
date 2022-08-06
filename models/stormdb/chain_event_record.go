@@ -66,7 +66,7 @@ func (model *StormDB) ClearOldChainEventRecord(blockNumber uint64) {
 	log.Trace(fmt.Sprintf("ClearOldChainEventRecord remove %d events witch blockNumber < %d", len(list), blockNumber))
 }
 
-// MakeChainEventID :
+// MakeChainEventID 根据log构造一个ChainEventID
 func (model *StormDB) MakeChainEventID(l *types.Log) models.ChainEventID {
 	var t [25]byte
 	copy(t[:], l.TxHash[:])

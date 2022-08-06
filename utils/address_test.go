@@ -7,6 +7,7 @@ import (
 )
 
 func TestHex2Address(t *testing.T) {
+	addressDefaultValidation = true
 	cases := map[string]bool{
 		//All caps
 		"0x52908400098527886E0F7030069857D2E4169EE7": true,

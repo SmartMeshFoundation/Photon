@@ -2,6 +2,7 @@ package cases
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 )
@@ -21,15 +22,16 @@ func (cm *CaseManager) CaseFee() (err error) {
 		}
 	}()
 	// 源数据
-	var transferAmount int32
+	var transferAmount int32 = 10000
 	tokenAddress := env.Tokens[0].TokenAddress
 	tokenAddressStr := tokenAddress.String()
 	N0, N1, N2, N3 := env.Nodes[0], env.Nodes[1], env.Nodes[2], env.Nodes[3]
 	models.Logger.Println(env.CaseName + " BEGIN ====>")
 	env.StartPFS()
 	// 启动节点
-	cm.startNodesWithFee(env, N0, N1, N2, N3)
+	cm.startNodes(env, N0.PFS(), N1.PFS(), N2.PFS(), N3.PFS())
 
+	time.Sleep(time.Millisecond * 500) // 等待提交pfs
 	// 获取路由
 	routeInfo := N0.FindPath(N3, tokenAddress, transferAmount)
 	if len(routeInfo) != 1 {
@@ -154,6 +156,26 @@ func (cm *CaseManager) CaseFee() (err error) {
 	if !C23new.CheckPartnerBalance(C23.PartnerBalance + transferAmount) {
 		return cm.caseFailWithWrongChannelData(env.CaseName, C23new.Name)
 	}
+
+	//尝试有直接通到的转账,应该工作正常,并且手续费为0
+	routeInfo = N0.FindPath(N1, tokenAddress, transferAmount)
+	if len(routeInfo) != 1 {
+		return cm.caseFail(env.CaseName)
+	}
+	cm.logSeparatorLine("Test 7 : transfer with fee 0, should SUCCESS")
+	transferAmount = 10000
+	if routeInfo[0].Fee.Cmp(big.NewInt(0)) != 0 {
+		return cm.caseFailWithWrongChannelData(env.CaseName, "fee must be 0")
+	}
+	C01 = N0.GetChannelWith(N1, tokenAddressStr).PrintDataBeforeTransfer()
+
+	N0.SendTransWithRouteInfo(N1, tokenAddressStr, transferAmount, routeInfo)
+	C01new = N0.GetChannelWith(N1, tokenAddressStr).PrintDataAfterTransfer()
+
+	if !C01new.CheckPartnerBalance(C01.PartnerBalance + transferAmount) {
+		return cm.caseFailWithWrongChannelData(env.CaseName, C01new.Name)
+	}
+
 	models.Logger.Println(env.CaseName + " END ====> SUCCESS")
 	return
 }

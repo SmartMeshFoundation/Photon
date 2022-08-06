@@ -27,8 +27,6 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
-	"github.com/SmartMeshFoundation/Photon/params"
-
 	//need pprof
 	_ "net/http/pprof"
 	"os"
@@ -135,23 +133,9 @@ func mac() string {
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) (err error) {
-	doDebug := ctx.GlobalBool(debugFlag.Name)
-	var httpHandler, fileHandler log.Handler
-	// http handler
-	if doDebug {
-		addr := ctx.GlobalString("address")
-		if len(addr) == 0 {
-			addr = mac() //主要用于meshbox的启动,他的地址不通过参数指定,但是需要固定
-		}
-		if params.MobileMode {
-			addr += "-mobile"
-		} else {
-			addr += "-other"
-		}
-		path := fmt.Sprintf(fmt.Sprintf("%s/logsrv/1/log/%s/%s", params.TestLogServer, addr, "1"))
-		httpHandler = log.HttpHandler(path, log.TerminalFormat(false))
 
-	}
+	var fileHandler log.Handler
+
 	// file handler
 	if len(ctx.String(logFileFlag.Name)) > 0 {
 		fmt.Printf("log will be write to %s\n", ctx.String(logFileFlag.Name))
@@ -167,7 +151,7 @@ func Setup(ctx *cli.Context) (err error) {
 		output = colorable.NewColorableStderr()
 	}
 	consoleHandler := log.StreamHandler(output, log.TerminalFormat(usecolor))
-	glogger = log.NewGlogHandler(log.TeeHandler(consoleHandler, fileHandler, httpHandler))
+	glogger = log.NewGlogHandler(log.TeeHandler(consoleHandler, fileHandler, nil))
 
 	// logging
 	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))

@@ -132,7 +132,7 @@ func PromptAccount(adviceAddress common.Address, keystorePath, passwordfile stri
 			data = []byte(passwordfile)
 		}
 		password := string(data)
-		log.Trace(fmt.Sprintf("password is %s", password))
+		//log.Trace(fmt.Sprintf("password is %s", password))
 		keybin, err = am.GetPrivateKey(addr, password)
 		if err != nil {
 			err = fmt.Errorf("Incorrect password for %s in file. Aborting ... %s", addr.String(), err)

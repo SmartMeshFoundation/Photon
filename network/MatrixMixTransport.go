@@ -3,10 +3,13 @@ package network
 import (
 	"crypto/ecdsa"
 
+	"github.com/SmartMeshFoundation/Photon/models"
+
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
-	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -20,10 +23,11 @@ type MatrixMixTransport struct {
 	matirx   *MatrixTransport
 	name     string
 	protocol ProtocolReceiver
+	*wakeuphandler.MixWakeUpHandler
 }
 
 //NewMatrixMixTransporter create a MixTransport and discover
-func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MatrixMixTransport, err error) {
+func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string, dao models.Dao) (t *MatrixMixTransport, err error) {
 	t = &MatrixMixTransport{
 		name:     name,
 		protocol: protocol,
@@ -32,8 +36,9 @@ func NewMatrixMixTransporter(name, host string, port int, key *ecdsa.PrivateKey,
 	if err != nil {
 		return
 	}
-	t.matirx = NewMatrixTransport(name, key, deviceType, params.MatrixServerConfig)
+	t.matirx = NewMatrixTransport(name, key, deviceType, params.TrustMatrixServers, dao)
 	t.RegisterProtocol(protocol)
+	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.matirx.WakeUpHandler)
 	return
 }
 
@@ -52,7 +57,8 @@ func (t *MatrixMixTransport) Send(receiver common.Address, data []byte) error {
 		if err != nil {
 			return err
 		}
-	} else if t.matirx != nil {
+	}
+	if t.matirx != nil {
 		err := t.matirx.Send(receiver, data)
 		if err != nil {
 			return err
@@ -111,8 +117,13 @@ func (t *MatrixMixTransport) NodeStatus(addr common.Address) (deviceType string,
 	if isOnline {
 		return
 	}
-	/*return t.xmpp.NodeStatus(addr)*/
 	return t.matirx.NodeStatus(addr)
+}
+
+//UDPNodeStatus get node's status of UDPTransport
+func (t *MatrixMixTransport) UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	deviceType, isOnline = t.udp.NodeStatus(addr)
+	return
 }
 
 //GetNotify notification of connection status change
@@ -123,19 +134,9 @@ func (t *MatrixMixTransport) GetNotify() (notify <-chan netshare.Status, err err
 	//return nil, errors.New("connection not established")
 }
 
-//SetMatrixDB get the status change notification of partner node
-//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
-func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) error {
-	t.matirx.setDB(db)
-	return nil
-}
-
-// RegisterWakeUpChan :
-func (t *MatrixMixTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
-	t.matirx.RegisterWakeUpChan(addr, c)
-}
-
-// UnRegisterWakeUpChan :
-func (t *MatrixMixTransport) UnRegisterWakeUpChan(addr common.Address) {
-	t.matirx.UnRegisterWakeUpChan(addr)
-}
+////SetMatrixDB get the status change notification of partner node
+////func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb)  {
+//func (t *MatrixMixTransport) SetMatrixDB(db xmpptransport.XMPPDb) {
+//	t.matirx.setDB(db)
+//	return
+//}

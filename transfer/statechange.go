@@ -57,6 +57,15 @@ type StopTransferRightNowStateChange struct {
 	ChannelIdentifier common.Hash
 }
 
+/*
+EffectiveChainStateChange 有效公链,无效公链状态切换
+*/
+type EffectiveChainStateChange struct {
+	IsEffective              bool
+	LastBlockNumber          int64
+	LastBlockNumberTimestamp int64
+}
+
 func init() {
 	gob.Register(&BlockStateChange{})
 	gob.Register(&ActionCancelTransferStateChange{})

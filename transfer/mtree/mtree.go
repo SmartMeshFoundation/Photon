@@ -11,7 +11,6 @@ import (
 
 	"io"
 
-	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -59,7 +58,7 @@ func (l *Lock) AsBytes() []byte {
 	_, err = buf.Write(utils.BigIntTo32Bytes(l.Amount))
 	_, err = buf.Write(l.LockSecretHash[:])
 	if err != nil {
-		log.Crit(fmt.Sprintf("Lock AsBytes error %s", err))
+		panic(fmt.Sprintf("Lock AsBytes error %s", err))
 	}
 	return buf.Bytes()
 }
@@ -119,7 +118,7 @@ func NewMerkleTree(leaves []*Lock) (m *Merkletree) {
 		elements[i] = utils.Sha3(buf.Bytes())
 	}
 	if err != nil {
-		log.Crit(fmt.Sprintf("NewMerkleTree err %s", err))
+		panic(fmt.Sprintf("NewMerkleTree err %s", err))
 	}
 	m = new(Merkletree)
 	m.buildMerkleTreeLayers(elements)
@@ -223,7 +222,7 @@ func (m *Merkletree) Leaves2Byets() []byte {
 		_, err = buf.Write(l.LockSecretHash[:])
 	}
 	if err != nil {
-		log.Crit(fmt.Sprintf("Leaves2Byets err %s", err))
+		panic(fmt.Sprintf("Leaves2Byets err %s", err))
 	}
 	return buf.Bytes()
 }
@@ -324,7 +323,7 @@ func Proof2Bytes(proof []common.Hash) []byte {
 	for _, h := range proof {
 		_, err := buf.Write(h[:])
 		if err != nil {
-			log.Trace(fmt.Sprintf("Proof2Bytes write err %s", err))
+			panic(fmt.Sprintf("Proof2Bytes write err %s", err))
 		}
 	}
 	return buf.Bytes()

@@ -8,7 +8,7 @@ import (
 	"github.com/asdine/storm"
 )
 
-// SaveFeePolicy :
+// SaveFeePolicy 创建/更新记录
 func (model *StormDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
 	fp.Key = models.KeyFeePolicy
 	err = model.db.Save(fp)
@@ -16,7 +16,7 @@ func (model *StormDB) SaveFeePolicy(fp *models.FeePolicy) (err error) {
 	return
 }
 
-// GetFeePolicy :
+// GetFeePolicy 查询
 func (model *StormDB) GetFeePolicy() (fp *models.FeePolicy) {
 	fp = &models.FeePolicy{}
 	err := model.db.One("Key", models.KeyFeePolicy, fp)

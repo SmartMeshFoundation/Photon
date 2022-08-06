@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"github.com/SmartMeshFoundation/Photon/params"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
@@ -9,6 +10,7 @@ import (
 
 	"fmt"
 
+	photon "github.com/SmartMeshFoundation/Photon"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -20,18 +22,51 @@ import (
 ChannelData export json data format
 */
 type ChannelData struct {
-	ChannelIdentifier   string            `json:"channel_identifier"`
-	OpenBlockNumber     int64             `json:"open_block_number"`
-	PartnerAddrses      string            `json:"partner_address"`
-	Balance             *big.Int          `json:"balance"`
-	PartnerBalance      *big.Int          `json:"partner_balance"`
-	LockedAmount        *big.Int          `json:"locked_amount"`
-	PartnerLockedAmount *big.Int          `json:"partner_locked_amount"`
-	TokenAddress        string            `json:"token_address"`
-	State               channeltype.State `json:"state"`
-	StateString         string            `json:"state_string"`
-	SettleTimeout       int               `json:"settle_timeout"`
-	RevealTimeout       int               `json:"reveal_timeout"`
+	ChannelIdentifier   string                           `json:"channel_identifier"`
+	OpenBlockNumber     int64                            `json:"open_block_number"`
+	PartnerAddrses      string                           `json:"partner_address"`
+	Balance             *big.Int                         `json:"balance"`
+	PartnerBalance      *big.Int                         `json:"partner_balance"`
+	LockedAmount        *big.Int                         `json:"locked_amount"`
+	PartnerLockedAmount *big.Int                         `json:"partner_locked_amount"`
+	TokenAddress        string                           `json:"token_address"`
+	State               channeltype.State                `json:"state"`
+	StateString         string                           `json:"state_string"`
+	DelegateState       channeltype.ChannelDelegateState `json:"delegate_state"`
+	DelegateStateString string                           `json:"delegate_state_string"`
+	SettleTimeout       int                              `json:"settle_timeout"`
+	RevealTimeout       int                              `json:"reveal_timeout"`
+	photon.GetChannelSettleBlockResponse
+}
+
+type repsNodeStatus struct {
+	DeviceType string `json:"device_type"`
+	IsOnline   bool   `json:"is_online"`
+}
+
+/*
+GetNodeStatus just for xmpp
+*/
+func GetNodeStatus(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetNodeStatus ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	nodeaddr := r.PathParam("nodeaddress")
+
+	nodeAddress, err := utils.HexToAddress(nodeaddr)
+	if err != nil {
+		log.Error(err.Error())
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		return
+	}
+	devicetype, isonline := API.GetNodeNetworkState(nodeAddress)
+	responseNodeStatus := &repsNodeStatus{
+		devicetype,
+		isonline,
+	}
+	resp = dto.NewAPIResponse(err, responseNodeStatus)
 }
 
 /*
@@ -57,11 +92,18 @@ func GetChannelList(w rest.ResponseWriter, r *rest.Request) {
 				PartnerBalance:      c.PartnerBalance(),
 				State:               c.State,
 				StateString:         c.State.String(),
+				DelegateState:       c.DelegateState,
+				DelegateStateString: c.DelegateState.String(),
 				TokenAddress:        c.TokenAddress().String(),
 				SettleTimeout:       c.SettleTimeout,
 				RevealTimeout:       c.RevealTimeout,
 				LockedAmount:        c.OurAmountLocked(),
 				PartnerLockedAmount: c.PartnerAmountLocked(),
+			}
+			if c.State == channeltype.StateClosed {
+				res := API.GetChannelSettleBlock(c.ChannelIdentifier.ChannelIdentifier)
+				d.BlockNumberNow = res.BlockNumberNow
+				d.BlockNumberChannelCanSettle = res.BlockNumberChannelCanSettle
 			}
 			datas = append(datas, d)
 		}
@@ -165,9 +207,9 @@ func Deposit(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, API.Photon.Config.RevealTimeout, req.Balance, req.NewChannel)
+	c, err := API.DepositAndOpenChannel(tokenAddr, partnerAddr, req.SettleTimeout, params.Cfg.RevealTimeout, req.Balance, req.NewChannel)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	var d *ChannelData
@@ -225,7 +267,7 @@ func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 	}
 	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 
@@ -255,7 +297,78 @@ func CloseSettleChannel(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	resp = dto.NewSuccessAPIResponse(d)
+}
+
+func prepareCooperateSettle(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> prepareCooperateSettle ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	chstr := r.PathParam("channel")
+	if len(chstr) != len(utils.EmptyHash.String()) {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	channelIdentifier := common.HexToHash(chstr)
+
+	c, err := API.PrepareForCooperativeSettle(channelIdentifier)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	d := &ChannelData{
+		ChannelIdentifier:   c.ChannelIdentifier.ChannelIdentifier.String(),
+		OpenBlockNumber:     c.ChannelIdentifier.OpenBlockNumber,
+		PartnerAddrses:      c.PartnerAddress().String(),
+		Balance:             c.OurBalance(),
+		PartnerBalance:      c.PartnerBalance(),
+		State:               c.State,
+		StateString:         c.State.String(),
+		SettleTimeout:       c.SettleTimeout,
+		TokenAddress:        c.TokenAddress().String(),
+		LockedAmount:        c.OurAmountLocked(),
+		PartnerLockedAmount: c.PartnerAmountLocked(),
+		RevealTimeout:       c.RevealTimeout,
+	}
+	resp = dto.NewSuccessAPIResponse(d)
+}
+func cancelCooperateSettle(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	var err error
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> cancelCooperateSettle ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	chstr := r.PathParam("channel")
+	if len(chstr) != len(utils.EmptyHash.String()) {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	channelIdentifier := common.HexToHash(chstr)
+
+	c, err := API.CancelPrepareForCooperativeSettle(channelIdentifier)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	d := &ChannelData{
@@ -302,7 +415,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 	}
 	c, err := API.GetChannel(channelIdentifier)
 	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+		resp = dto.NewExceptionAPIResponse(err)
 		return
 	}
 	if req.Amount != nil && req.Amount.Cmp(utils.BigInt0) > 0 { //deposit
@@ -313,7 +426,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 		}
 		c, err = API.Withdraw(c.TokenAddress(), c.PartnerAddress(), req.Amount)
 		if err != nil {
-			resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+			resp = dto.NewExceptionAPIResponse(err)
 			return
 		}
 	} else {
@@ -326,7 +439,7 @@ func withdraw(w rest.ResponseWriter, r *rest.Request) {
 			return
 		}
 		if err != nil {
-			resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
+			resp = dto.NewExceptionAPIResponse(err)
 			return
 		}
 	}
@@ -362,4 +475,17 @@ func BalanceUpdateForPFS(w rest.ResponseWriter, r *rest.Request) {
 	}
 	result, err := API.BalanceProofForPFS(channelIdentifier)
 	resp = dto.NewAPIResponse(err, result)
+}
+
+// GetChannelSettleBlock :
+func GetChannelSettleBlock(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> GetChannelSettleBlock ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	ch := r.PathParam("channel")
+	channelIdentifier := common.HexToHash(ch)
+	result := API.GetChannelSettleBlock(channelIdentifier)
+	resp = dto.NewSuccessAPIResponse(result)
 }

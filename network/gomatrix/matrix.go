@@ -127,7 +127,7 @@ func (mcli *MatrixClient) Sync() error {
 		mcli.Store.SaveFilterID(mcli.UserID, filterID)
 	}
 
-	resSync, err := mcli.SyncRequest(20000, nextBatch, filterID, false, "online")
+	resSync, err := mcli.SyncRequest(2000, nextBatch, filterID, false, "online")
 	if err != nil {
 		return err
 	}

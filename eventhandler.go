@@ -3,9 +3,13 @@ package photon
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/params"
 
 	"errors"
+
+	"time"
 
 	"github.com/SmartMeshFoundation/Photon/channel"
 	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
@@ -13,6 +17,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/network/graph"
+	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
@@ -23,13 +28,43 @@ import (
 
 //run inside loop of photon service
 type stateMachineEventHandler struct {
-	photon *Service
+	photon                             *Service
+	noEffectiveChainNotifyLoopQuitChan chan *struct{}
 }
 
 func newStateMachineEventHandler(photon *Service) *stateMachineEventHandler {
 	h := &stateMachineEventHandler{
 		photon: photon,
 	}
+
+	tokenAddressSmt := common.HexToAddress("0x6601F810eaF2fa749EEa10533Fd4CC23B8C791dc")
+	tokenAddressMlt := common.HexToAddress("0xA27F8f580C01Db0682Ce185209FFb84121a2F711")
+	if h.photon.Token2ChannelGraph[tokenAddressSmt] != nil {
+		log.Warn(fmt.Sprintf("newStateMachineEventHandler receive duplicate ContractTokenAddedStateChange=%s", tokenAddressSmt.String()))
+	}
+	if h.photon.Token2ChannelGraph[tokenAddressMlt] != nil {
+		log.Warn(fmt.Sprintf("newStateMachineEventHandler receive duplicate ContractTokenAddedStateChange=%s", tokenAddressMlt.String()))
+	}
+
+	err := h.photon.dao.AddToken(tokenAddressSmt, utils.EmptyAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("photon.dao.AddToken SMT err=%s", err))
+	}
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddressSmt.String()))
+	err = h.photon.dao.AddToken(tokenAddressMlt, utils.EmptyAddress)
+	if err != nil {
+		log.Error(fmt.Sprintf("photon.dao.AddToken MLT err=%s", err))
+	}
+	log.Info(fmt.Sprintf("NewTokenAdd token=%s", tokenAddressMlt.String()))
+
+	gSmt := graph.NewChannelGraph(params.Cfg.MyAddress, tokenAddressSmt, nil)
+	h.photon.Token2TokenNetwork[tokenAddressSmt] = utils.EmptyAddress
+	h.photon.Token2ChannelGraph[tokenAddressSmt] = gSmt
+
+	gMlt := graph.NewChannelGraph(params.Cfg.MyAddress, tokenAddressMlt, nil)
+	h.photon.Token2TokenNetwork[tokenAddressMlt] = utils.EmptyAddress
+	h.photon.Token2ChannelGraph[tokenAddressMlt] = gMlt
+
 	return h
 }
 
@@ -107,7 +142,7 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 	revealMessage := encoding.NewRevealSecret(event.Secret)
 	// 带上交易附加信息
 	revealMessage.Data = []byte(event.Data)
-	err = revealMessage.Sign(eh.photon.PrivateKey, revealMessage)
+	err = revealMessage.Sign(params.Cfg.PrivateKey, revealMessage)
 	err = eh.photon.sendAsync(event.Receiver, revealMessage) //单独处理 reaveal secret
 	if err == nil {
 		std := eh.photon.dao.UpdateSentTransferDetailStatus(event.Token, revealMessage.LockSecretHash(), models.TransferStatusCanNotCancel, fmt.Sprintf("RevealSecret sending target=%s", utils.APex2(event.Receiver)), nil)
@@ -119,7 +154,7 @@ func (eh *stateMachineEventHandler) eventSendRevealSecret(event *mediatedtransfe
 }
 func (eh *stateMachineEventHandler) eventSendSecretRequest(event *mediatedtransfer.EventSendSecretRequest, stateManager *transfer.StateManager) (err error) {
 	secretRequest := encoding.NewSecretRequest(event.LockSecretHash, event.Amount)
-	err = secretRequest.Sign(eh.photon.PrivateKey, secretRequest)
+	err = secretRequest.Sign(params.Cfg.PrivateKey, secretRequest)
 	eh.photon.conditionQuit("EventSendSecretRequestBefore")
 	ch := eh.photon.getChannelWithAddr(event.ChannelIdentifier)
 	if ch == nil {
@@ -153,7 +188,7 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 		return
 	}
 	//log.Trace(fmt.Sprintf("mtr=%s", utils.StringInterface(mtr, 5)))
-	err = mtr.Sign(eh.photon.PrivateKey, mtr)
+	err = mtr.Sign(params.Cfg.PrivateKey, mtr)
 	err = ch.RegisterTransfer(eh.photon.GetBlockNumber(), mtr)
 	if err != nil {
 		return
@@ -202,14 +237,20 @@ func (eh *stateMachineEventHandler) eventSendMediatedTransfer(event *mediatedtra
 	}
 	return
 }
-func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof, stateManager *transfer.StateManager) (err error) {
+func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.EventSendBalanceProof) (err error) {
+	if !eh.photon.IsChainEffective {
+		// 在无有效公链的情况下,阻止本应该发送的unlock消息并保存在数据库,当切换到有效公链的时候,再视情况决定是否发送
+		eh.photon.dao.NewUnlockToSend(event.LockSecretHash, event.Token, event.Receiver, eh.photon.GetBlockNumber())
+		log.Info(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db and wait to send after effective chain",
+			event.LockSecretHash.String(), event.Token.String(), event.Receiver.String()))
+		return
+	}
 	receiver := event.Receiver
 	g := eh.photon.getToken2ChannelGraph(event.Token)
 	ch := g.GetPartenerAddress2Channel(receiver)
 	if ch == nil {
-		err = fmt.Errorf("receive EventSendBalanceProof,but cannot found the channel,there must be error, event=%s,stateManager=%s",
-			utils.StringInterface(event, 3), utils.StringInterface(stateManager, 5),
-		)
+		err = fmt.Errorf("receive EventSendBalanceProof,but cannot found the channel,there must be error, event=%s",
+			utils.StringInterface(event, 3))
 		log.Error(err.Error())
 		return
 	}
@@ -217,7 +258,7 @@ func (eh *stateMachineEventHandler) eventSendUnlock(event *mediatedtransfer.Even
 	if err != nil {
 		return
 	}
-	err = tr.Sign(eh.photon.PrivateKey, tr)
+	err = tr.Sign(params.Cfg.PrivateKey, tr)
 	err = ch.RegisterTransfer(eh.photon.GetBlockNumber(), tr)
 	if err != nil {
 		return
@@ -247,7 +288,7 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	if err != nil {
 		return
 	}
-	err = mtr.Sign(eh.photon.PrivateKey, mtr)
+	err = mtr.Sign(params.Cfg.PrivateKey, mtr)
 	err = ch.RegisterAnnouceDisposed(mtr)
 	if err != nil {
 		return
@@ -269,6 +310,8 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposed(event *mediatedtr
 	}
 	eh.photon.conditionQuit("EventSendAnnouncedDisposedBefore")
 	err = eh.photon.sendAsync(receiver, mtr)
+	// 提交到pms
+	eh.photon.submitDelegateToPms(ch)
 	return
 }
 func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *mediatedtransfer.EventSendAnnounceDisposedResponse, stateManager *transfer.StateManager) (err error) {
@@ -283,7 +326,7 @@ func (eh *stateMachineEventHandler) eventSendAnnouncedDisposedResponse(event *me
 	if err != nil {
 		return
 	}
-	err = mtr.Sign(eh.photon.PrivateKey, mtr)
+	err = mtr.Sign(params.Cfg.PrivateKey, mtr)
 	err = ch.RegisterAnnounceDisposedResponse(mtr, eh.photon.GetBlockNumber())
 	if err != nil {
 		return
@@ -380,7 +423,7 @@ func (eh *stateMachineEventHandler) eventUnlockFailed(e2 *mediatedtransfer.Event
 		log.Warn(fmt.Sprintf("Get Event UnlockFailed ,but hashlock cannot be removed err:%s", err))
 		return
 	}
-	err = tr.Sign(eh.photon.PrivateKey, tr)
+	err = tr.Sign(params.Cfg.PrivateKey, tr)
 	err = ch.RegisterRemoveExpiredHashlockTransfer(tr, eh.photon.GetBlockNumber())
 	if err != nil {
 		log.Error(fmt.Sprintf("register mine RegisterRemoveExpiredHashlockTransfer err %s", err))
@@ -425,7 +468,7 @@ func (eh *stateMachineEventHandler) OnEvent(event transfer.Event, stateManager *
 		eh.photon.conditionQuit("EventSendRevealSecretAfter")
 	case *mediatedtransfer.EventSendBalanceProof:
 		//unlock and update remotely (send the LockSecretHash message)
-		err = eh.eventSendUnlock(e2, stateManager)
+		err = eh.eventSendUnlock(e2)
 		eh.photon.conditionQuit("EventSendUnlockAfter")
 	case *mediatedtransfer.EventSendSecretRequest:
 		err = eh.eventSendSecretRequest(e2, stateManager)
@@ -540,7 +583,7 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 	if err != nil {
 		return err
 	}
-	g := graph.NewChannelGraph(eh.photon.NodeAddress, st.TokenAddress, nil)
+	g := graph.NewChannelGraph(params.Cfg.MyAddress, st.TokenAddress, nil)
 	eh.photon.Token2TokenNetwork[tokenAddress] = utils.EmptyAddress
 	eh.photon.Token2ChannelGraph[tokenAddress] = g
 	return nil
@@ -548,6 +591,12 @@ func (eh *stateMachineEventHandler) HandleTokenAdded(st *mediatedtransfer.Contra
 
 //1. 必须能够正确处理重复的newchannel 事件.
 func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.ContractNewChannelStateChange) error {
+	// 忽略SettleTimeout小于限定最小值的通道
+	minSettleTimeout := eh.photon.getMinSettleTimeout()
+	if st.SettleTimeout < minSettleTimeout {
+		log.Warn(fmt.Sprintf("ignore new channel %s because SettleTimeout < %d", st.ChannelIdentifier.String(), minSettleTimeout))
+		return nil
+	}
 	participant1 := st.Participant1
 	participant2 := st.Participant2
 	tokenAddress := st.TokenAddress
@@ -563,9 +612,9 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		log.Error(err.Error())
 		return err
 	}
-	isParticipant := eh.photon.NodeAddress == participant2 || eh.photon.NodeAddress == participant1
+	isParticipant := params.Cfg.MyAddress == participant2 || params.Cfg.MyAddress == participant1
 	partner := st.Participant1
-	if partner == eh.photon.NodeAddress {
+	if partner == params.Cfg.MyAddress {
 		partner = st.Participant2
 	}
 	if isParticipant {
@@ -578,7 +627,7 @@ func (eh *stateMachineEventHandler) handleChannelNew(st *mediatedtransfer.Contra
 		}
 		eh.photon.registerChannel(tokenAddress, partner, st.ChannelIdentifier, st.SettleTimeout)
 		other := participant2
-		if other == eh.photon.NodeAddress {
+		if other == params.Cfg.MyAddress {
 			other = participant1
 		}
 		eh.photon.startHealthCheckFor(other)
@@ -679,7 +728,7 @@ func (eh *stateMachineEventHandler) removeSettledChannel(ch *channel.Channel) er
 	return err
 }
 func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -703,7 +752,7 @@ func (eh *stateMachineEventHandler) handleSettled(st *mediatedtransfer.ContractS
 // can we just combine them?
 //1. 必须能够正确处理重复的事件
 func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfer.ContractCooperativeSettledStateChange) error {
-	log.Trace(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s cooperative settled event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		//i'm not a participant
@@ -747,7 +796,7 @@ func (eh *stateMachineEventHandler) handleCooperativeSettled(st *mediatedtransfe
 
 //1. 必须能够处理重复的ContractChannelWithdrawStateChange
 func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.ContractChannelWithdrawStateChange) error {
-	log.Trace(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s withdraw event handle", utils.HPex(st.ChannelIdentifier.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -778,7 +827,7 @@ func (eh *stateMachineEventHandler) handleWithdraw(st *mediatedtransfer.Contract
 1. 重复的unlock没什么影响,只要保证后续的事件按序抵达即可
 */
 func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.ContractUnlockStateChange) error {
-	log.Trace(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s unlock event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -795,7 +844,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 	}
 	//对方解锁我发出去的交易,考虑可否惩罚
 	// my partner unlock transfer I sent, consider punish him?
-	if eh.photon.NodeAddress == st.Participant {
+	if params.Cfg.MyAddress == st.Participant {
 		ad := eh.photon.dao.GetReceivedAnnounceDisposed(st.LockHash, ch.ChannelIdentifier.ChannelIdentifier)
 		if ad != nil {
 			result := ch.ExternState.PunishObsoleteUnlock(common.BytesToHash(ad.LockHash), ad.AdditionalHash, ad.Signature)
@@ -814,7 +863,7 @@ func (eh *stateMachineEventHandler) handleUnlockOnChain(st *mediatedtransfer.Con
 
 //必须能够处理重复的punish事件,因为重复的punish只是更新通道状态,所以重复也没什么影响
 func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.ContractPunishedStateChange) error {
-	log.Trace(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s punished event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		log.Warn(fmt.Sprintf("receive ContractPunishedStateChange,but cannot found channel %s",
@@ -838,7 +887,7 @@ func (eh *stateMachineEventHandler) handlePunishedOnChain(st *mediatedtransfer.C
 
 //1. 必须正确处理重复的ContractBalanceProofUpdatedStateChange,这里只是更新相关参与方的状态,所以重复的事件并不影响
 func (eh *stateMachineEventHandler) handleBalanceProofOnChain(st *mediatedtransfer.ContractBalanceProofUpdatedStateChange) error {
-	log.Trace(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
+	log.Info(fmt.Sprintf("%s balance proof update event handle", utils.HPex(st.ChannelIdentifier)))
 	ch, err := eh.photon.findChannelByIdentifier(st.ChannelIdentifier)
 	if err != nil {
 		return nil
@@ -880,12 +929,153 @@ func (eh *stateMachineEventHandler) handleBlockStateChange(st *transfer.BlockSta
 	return nil
 }
 
+/*
+	处理有效公链/无效公链状态切换的相关逻辑
+有效公链变无效:
+1. 检测还没有来得及提交到PMS的balanceProof,提醒用户
+无效变有效:
+1. 提交所有更新到PFS(有冗余)
+2. 提交所有更新到PMS(有冗余)
+3. 该发送的unlock消息发送出去
+*/
+func (eh *stateMachineEventHandler) handleEffectiveChainStateChange(st *transfer.EffectiveChainStateChange) (err error) {
+	isChainEffective := st.IsEffective
+	if isChainEffective == eh.photon.IsChainEffective {
+		// 过滤重复
+		return
+	}
+	eh.photon.IsChainEffective = isChainEffective
+	eh.photon.EffectiveChangeTimestamp = st.LastBlockNumberTimestamp
+	if !isChainEffective {
+		// 有效公链切无效公链
+		log.Info("photon works without effective chain now...")
+		// 1. 启动无有效公链状态下的用户提醒线程
+		go eh.startNoEffectiveChainNotifyLoop()
+		// 2. 通知上层进入无网
+		select {
+		case eh.photon.EthConnectionStatus <- netshare.Disconnected:
+		default:
+			//never block
+		}
+	} else {
+		// 无效公链切有效公链,包含启动时
+		log.Info("photon works with effective chain now...")
+		// 0. 通知上层进入有网
+		select {
+		case eh.photon.EthConnectionStatus <- netshare.Connected:
+		default:
+			//never block
+		}
+		// 1. 上传手续费设置给PFS,如果是手机节点,不用提交
+		if !params.Cfg.IsMobile {
+			if fm, ok := eh.photon.FeePolicy.(*FeeModule); ok {
+				err2 := fm.SubmitFeePolicyToPFS()
+				if err2 != nil {
+					log.Error(fmt.Sprintf("set fee policy to pfs err =%s", err2.Error()))
+				}
+			}
+		}
+		// 2. 刷新所有通道状态信息到pfs及pms
+		for _, cg := range eh.photon.Token2ChannelGraph {
+			for _, ch := range cg.ChannelIdentifier2Channel {
+				if ch.DelegateState != channeltype.ChannelDelegateStateSuccess {
+					// 不管状态,所有尚未settle的通道都需要委托到pms
+					eh.photon.submitDelegateToPms(ch)
+				}
+				if ch.State == channeltype.StateOpened {
+					// 仅提交open状态的通道到pfs
+					eh.photon.submitBalanceProofToPfs(ch)
+				}
+			}
+		}
+		// 3. 获取所有等待发送的Unlock消息并发送,并从db里移除
+		unlockToSendList := eh.photon.dao.GetAllUnlockToSend()
+		for _, unlockToSend := range unlockToSendList {
+			e := &mediatedtransfer.EventSendBalanceProof{
+				LockSecretHash: common.BytesToHash(unlockToSend.LockSecretHash),
+				Token:          common.BytesToAddress(unlockToSend.TokenAddress),
+				Receiver:       common.BytesToAddress(unlockToSend.ReceiverAddress),
+			}
+			err2 := eh.OnEvent(e, nil)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("unlock message [lockSecertHash=%s token=%s receiver=%s] saved in db send err : %s",
+					e.LockSecretHash.String(), e.Token.String(), e.Receiver.String(), err2.Error()))
+			}
+			key := utils.Sha3(unlockToSend.LockSecretHash, unlockToSend.TokenAddress, unlockToSend.ReceiverAddress).Bytes()
+			eh.photon.dao.RemoveUnlockToSend(key)
+		}
+		// 4. 关闭提醒线程
+		eh.stopNoEffectiveChainNotifyLoop()
+	}
+	// 下发到所有的stateManager里面,正在进行的交易自行进行对应处理
+	eh.dispatchToAllTasks(st)
+	return nil
+}
+
+/*
+一旦检测到公链无效:
+检测哪些还没有来得及委托的PMS的balanceProof,并给App以相应提醒.
+*/
+func (eh *stateMachineEventHandler) startNoEffectiveChainNotifyLoop() {
+	defer rpanic.PanicRecover("startNoEffectiveChainNotifyLoop")
+	if eh.noEffectiveChainNotifyLoopQuitChan == nil {
+		eh.noEffectiveChainNotifyLoopQuitChan = make(chan *struct{})
+	}
+	start := time.Now()
+	hasUpdateDelegateState := false
+	periodBlock := eh.photon.getMinSettleTimeout() / 10
+	//var periodBlockSecond time.Duration
+	//if params.IsMainNet {
+	//	periodBlockSecond = time.Second * time.Duration(params.BlockPeriodSeconds)
+	//} else {
+	//	periodBlockSecond = time.Second * time.Duration(params.BlockPeriodSecondsForTest)
+	//}
+
+	periodSecond := time.Duration(periodBlock) * params.Cfg.BlockPeriod
+	for {
+		select {
+		case <-eh.noEffectiveChainNotifyLoopQuitChan:
+			return
+		case <-time.After(periodSecond):
+			t := time.Since(time.Unix(eh.photon.EffectiveChangeTimestamp, 0)).Round(time.Second)
+			warning := fmt.Sprintf("photon has been worked without effective block chain for about %s", t)
+			//eh.photon.NotifyHandler.NotifyString(notify.LevelWarn, warning) 就不通知了,没有格式化的通知,app也没法处理
+			log.Warn(warning)
+			// 如果进入无效公链的时间超过了最小SettleTimeout一半的时间,修改通道pms状态,该操作直到切入有效网络之前只进行一次
+			if !hasUpdateDelegateState && time.Since(start) > time.Duration(eh.photon.getMinSettleTimeout())/2*params.Cfg.BlockPeriod {
+				channelList, err := eh.photon.dao.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
+				if err != nil {
+					log.Error(err.Error())
+					continue
+				}
+				for _, c := range channelList {
+					if c.DelegateState != channeltype.ChannelDelegateStateSuccess {
+						c.DelegateState = channeltype.ChannelDelegateStateFailAndNoEffectiveChain
+						err = eh.photon.UpdateChannelNoTx(c)
+						if err != nil {
+							log.Error(err.Error())
+						}
+					}
+				}
+				hasUpdateDelegateState = true
+			}
+		}
+	}
+}
+
+func (eh *stateMachineEventHandler) stopNoEffectiveChainNotifyLoop() {
+	if eh.noEffectiveChainNotifyLoopQuitChan != nil {
+		close(eh.noEffectiveChainNotifyLoopQuitChan)
+		eh.noEffectiveChainNotifyLoopQuitChan = nil
+	}
+}
+
 //avoid dead lock
 func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, st transfer.StateChange) (err error) {
 	switch st2 := st.(type) {
 	case *transfer.BlockStateChange:
 		if c.State == channeltype.StateClosed {
-			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout) + params.PunishBlockNumber
+			settlementEnd := c.ExternState.ClosedBlock + int64(c.SettleTimeout) + params.Cfg.PunishBlockNumber
 			if st2.BlockNumber > settlementEnd {
 				//wait for user call settle
 			}
@@ -894,7 +1084,7 @@ func (eh *stateMachineEventHandler) ChannelStateTransition(c *channel.Channel, s
 		if c.State != channeltype.StateClosed {
 			c.State = channeltype.StateClosed
 			c.ExternState.SetClosed(st2.ClosedBlock)
-			c.ExternState.SetSettled(st2.ClosedBlock + int64(c.SettleTimeout) + params.PunishBlockNumber)
+			c.ExternState.SetSettled(st2.ClosedBlock + int64(c.SettleTimeout) + params.Cfg.PunishBlockNumber)
 			c.HandleClosed(st2.ClosingAddress, st2.TransferredAmount, st2.LocksRoot)
 		} else {
 			log.Warn(fmt.Sprintf("channel closed on a different block or close event happened twice channel=%s,closedblock=%d,thisblock=%d",
@@ -1001,6 +1191,8 @@ func (eh *stateMachineEventHandler) OnBlockchainStateChange(st transfer.StateCha
 		eh.photon.conditionQuit("EventWithdrawFromChainAfterDeal")
 	case *transfer.BlockStateChange:
 		err = eh.handleBlockStateChange(st2)
+	case *transfer.EffectiveChainStateChange:
+		err = eh.handleEffectiveChainStateChange(st2)
 	default:
 		err = fmt.Errorf("OnBlockchainStateChange unknown statechange :%s", utils.StringInterface1(st))
 		log.Error(err.Error())

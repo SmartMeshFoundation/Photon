@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
+
 	"github.com/SmartMeshFoundation/Photon/models"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 
@@ -72,6 +74,7 @@ func (s *SecretRegistryProxy) RegisterSecret(secret common.Hash) (err error) {
 func (s *SecretRegistryProxy) RegisterSecretAsync(secret common.Hash) (result *utils.AsyncResult) {
 	result = utils.NewAsyncResult()
 	go func() {
+		defer rpanic.PanicRecover("RegisterSecret")
 		err := s.RegisterSecret(secret)
 		result.Result <- err
 	}()

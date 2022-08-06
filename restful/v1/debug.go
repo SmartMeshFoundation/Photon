@@ -10,6 +10,8 @@ import (
 
 	"context"
 
+	"strconv"
+
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -39,12 +41,7 @@ func Balance(w rest.ResponseWriter, r *rest.Request) {
 		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
 		return
 	}
-	t, err := API.Photon.Chain.Token(token)
-	if err != nil {
-		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError.AppendError(err))
-		return
-	}
-	v, err := t.BalanceOf(addr)
+	v, err := API.GetTokenBalance(addr, token)
 	resp = dto.NewAPIResponse(err, v)
 }
 
@@ -164,4 +161,38 @@ func RegisterSecretOnChain(w rest.ResponseWriter, r *rest.Request) {
 	secret := common.HexToHash(secretStr)
 	err := API.RegisterSecretOnChain(secret)
 	resp = dto.NewAPIResponse(err, "ok")
+}
+
+/*
+ChangeEthRPCEndpointPort :
+*/
+func ChangeEthRPCEndpointPort(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> ChangeEthRPCEndpointPort ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	newPortStr := r.PathParam("port")
+	newPort, err := strconv.Atoi(newPortStr)
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(rerr.ErrArgumentError)
+		return
+	}
+	API.Photon.BlockChainEvents.ChangeEthRPCEndpointPort(newPort)
+	resp = dto.NewSuccessAPIResponse(nil)
+}
+
+// UploadLogFile 上传photon日志到服务器,方便开发人员查阅
+func UploadLogFile(w rest.ResponseWriter, r *rest.Request) {
+	var resp *dto.APIResponse
+	defer func() {
+		log.Trace(fmt.Sprintf("Restful Api Call ----> UploadLogFile ,err=%s", resp.ToFormatString()))
+		writejson(w, resp)
+	}()
+	err := API.UploadLogFile()
+	if err != nil {
+		resp = dto.NewExceptionAPIResponse(err)
+		return
+	}
+	resp = dto.NewSuccessAPIResponse(nil)
 }
