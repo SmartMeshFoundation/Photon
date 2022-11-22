@@ -278,7 +278,7 @@ var DefaultDevCfg = config{
 		Host:        "0.0.0.0",
 		Port:        40001,
 		NetworkMode: MixUDPMatrix,
-		XMPPServer:  "193.112.248.133:5222",
+		XMPPServer:  "transport01.smartmesh.cn:5222",
 
 		UDPMaxMessageSize: 1200,
 		EnableMDNS:        true,
@@ -357,7 +357,7 @@ var DefaultTestNetCfg = config{
 		Host:        "0.0.0.0",
 		Port:        40001,
 		NetworkMode: MixUDPMatrix,
-		XMPPServer:  "193.112.248.133:5222",
+		XMPPServer:  "transport01.smartmesh.cn:5222",
 
 		UDPMaxMessageSize: 1200,
 		EnableMDNS:        true,
@@ -436,7 +436,7 @@ var DefaultMainNetCfg = config{
 		Host:        "0.0.0.0",
 		Port:        40001,
 		NetworkMode: MixUDPMatrix,
-		XMPPServer:  "193.112.248.133:5222",
+		XMPPServer:  "transport01.smartmesh.cn:5222",
 
 		UDPMaxMessageSize: 1200,
 		EnableMDNS:        true,

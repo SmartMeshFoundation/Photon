@@ -35,6 +35,8 @@ const (
 	MixUDPXMPP
 	//MixUDPMatrix Matrix and UDP at the same time
 	MixUDPMatrix
+	//hotspot
+	HotspotNetwork
 )
 
 //ConditionQuit is for test

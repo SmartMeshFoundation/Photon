@@ -217,6 +217,10 @@ func StartMain() (*photon.API, error) {
 			Name:  "receive-transfer-report-url",
 			Usage: "photon will report receive transfers to this url",
 		},
+		cli.BoolFlag{
+			Name:  "hotspot",
+			Usage: "use wifi hotspot network, for example ,when we want to settle all channels,only for test, should not be used in production",
+		},
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Action = mainCtx
@@ -347,6 +351,11 @@ func buildTransport(bcs *rpc.BlockChainService, dao models.Dao) (transport netwo
 	*/
 	cfg := params.Cfg
 	switch cfg.NetworkMode {
+	case params.HotspotNetwork:
+		params.Cfg.EnableMDNS = true
+		policy := network.NewTokenBucket(10, 1, time.Now)
+		transport, err = network.NewUDPTransport(bcs.NodeAddress.String(), "127.0.0.1", cfg.Port, nil, policy)
+		return
 	case params.NoNetwork:
 		params.Cfg.EnableMDNS = false
 		policy := network.NewTokenBucket(10, 1, time.Now)
@@ -522,6 +531,23 @@ func config(ctx *cli.Context) (dao models.Dao, client *helper.SafeEthClient, isF
 		params.Cfg.NetworkMode = params.MixUDPXMPP
 	} else {
 		params.Cfg.NetworkMode = params.MixUDPMatrix //默认用matrix
+	}
+	if ctx.IsSet("hotspot") {
+		params.Cfg.NetworkMode = params.HotspotNetwork
+		dur, err2 := time.ParseDuration("1s")
+		if err2 != nil {
+			err = rerr.ErrArgumentError.Printf("arg debug-mdns-interval err %s", err2)
+			return
+		}
+		params.Cfg.MDNSQueryInterval = dur
+
+		dur3, err3 := time.ParseDuration("20s")
+		if err3 != nil {
+			err = rerr.ErrArgumentError.Printf("arg debug-mdns-keepalive err %s", err2)
+			return
+		}
+		params.Cfg.MDNSKeepalive = dur3
+
 	}
 	// mdns相关:
 	if ctx.IsSet("debug-mdns-interval") {
