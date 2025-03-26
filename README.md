@@ -1,24 +1,34 @@
-# Photon
-![](http://img.shields.io/travis/SmartMeshFoundation/Photon.svg)
-![](https://github.com/dognie/Photon/blob/master/docs/photon.png?raw=true)
-
-
- [Photon documentation](https://PhotonNetwork.readthedocs.io/en/latest/)
-
- Photon is an off-chain scaling solution, enabling instant, low-fee and scalable payments. It’s complementary to the Ethereum blockchain and Spectrum blockchain and works with ERC20 compatible token and ERC223 compatible token. Photon currently can works on Windows, Linux ,Android, iOS etc. Photon adds some new functions in version 1.0, such as , cooperative settlement,widraw without closing the channel,channel charging and more perfect third-party services( [Photon Monitoring](https://github.com/SmartMeshFoundation/Photon-Monitoring) and  [ Photon-Path-Finder](https://github.com/SmartMeshFoundation/Photon-Path-Finder)). In order to improve the user experience and to better fit for the mobile network, Photon adopts the  Matrix communication mechanism and supports the crash recovery and channel charging function.
+# SuperNode
+ SuperNode is an off-chain scaling solution for MetaLife.
 ## Project Status
   This project is still very much a work in progress. It can be used for testing, but it should not be used for real funds. We are doing our best to identify and fix problems, and implement missing features. Any help testing the implementation, reporting bugs, or helping with outstanding issues is very welcome.
 
-## Build
+## Build and run
 ```
-  go get github.com/SmartMeshFoundation/Photon/
-  cd $GOPATH/github.com/SmartMeshFoundation/Photon
+  go get github.com/MetaLife-Protocol/SuperNode/
+  cd $GOPATH/github.com/MetaLife-Protocol/SuperNode
   make 
-  ./build/bin/photon
+  ./build/bin/supernode
+  
+  ./supernode --datadir=./supernode-data \
+    --api-address=0.0.0.0:12001 \
+    --listen-address=127.0.0.1:12003 \
+    --address="0xf413B3187ed510b5b083AB6c5d3BCC259CeF96e9" \
+    --keystore-path ./keystore \
+    --password-file ***  \
+    --eth-rpc-endpoint ws://transport01.smartmesh.cn:33333   \
+    --debug   \
+    --verbosity 5  \
+    --registry-contract-address 0x242e0de2B118279D1479545A131a90A8f67A2512 \
+    --pub-address="0xb05Feb81fB4BF6d8B2eB5A5Ae883BAA9E7530cB7" \
+    --reward-period 10 \
+    --pub-apihost=127.0.0.1:10008 \
+    --pfs http://transport01.smartmesh.cn:7000 \
+    --xmpp 
 ```
 
 ## mobile support
-Photon can works on Android and iOS using mobile's API.  it needs [go mobile](https://github.com/golang/mobile) to build mobile library.
+SuperNode can works on Android and iOS using mobile's API.  it needs [go mobile](https://github.com/golang/mobile) to build mobile library.
 ### build Android mobile library
 ```bash
 cd mobile
