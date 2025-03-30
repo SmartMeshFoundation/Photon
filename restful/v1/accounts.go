@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SmartMeshFoundation/Photon/dto"
+	"github.com/SmartMeshFoundation/Photon/params"
 
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/utils"
@@ -15,7 +16,7 @@ import (
 Address is api of /api/1/address
 */
 func Address(w rest.ResponseWriter, r *rest.Request) {
-	writejson(w, dto.NewSuccessAPIResponse(API.Photon.NodeAddress.String()))
+	writejson(w, dto.NewSuccessAPIResponse(params.Cfg.MyAddress.String()))
 }
 
 /*

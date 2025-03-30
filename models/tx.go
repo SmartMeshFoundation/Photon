@@ -37,9 +37,13 @@ const (
 	TXInfoTypeRegisterSecret     = "RegisterSecret"
 )
 
+// FakeTXAmount 虚构tx的amount
+const FakeTXAmount = 1
+
 // TXInfo 记录已经提交到公链节点的tx信息
 type TXInfo struct {
 	TXHash            common.Hash    `json:"tx_hash"`
+	Nonce             uint64         `json:"nonce"`
 	ChannelIdentifier common.Hash    `json:"channel_identifier"` // 结合OpenBlockNumber唯一确定一个通道
 	OpenBlockNumber   int64          `json:"open_block_number"`
 	TokenAddress      common.Address `json:"token_address"`
@@ -55,7 +59,7 @@ type TXInfo struct {
 	GasUsed           uint64         `json:"gas_used"` // 消耗的gas
 }
 
-// String :
+// String for print
 func (ti *TXInfo) String() string {
 	buf, err := json.MarshalIndent(ti, "", "\t")
 	if err != nil {
@@ -64,10 +68,11 @@ func (ti *TXInfo) String() string {
 	return string(buf)
 }
 
-// ToTXInfoSerialization :
+// ToTXInfoSerialization convert
 func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 	return &TXInfoSerialization{
 		TXHash:            ti.TXHash[:],
+		Nonce:             ti.Nonce,
 		ChannelIdentifier: ti.ChannelIdentifier[:],
 		OpenBlockNumber:   ti.OpenBlockNumber,
 		TokenAddress:      ti.TokenAddress[:],
@@ -84,9 +89,10 @@ func (ti *TXInfo) ToTXInfoSerialization() *TXInfoSerialization {
 	}
 }
 
-// TXInfoSerialization :
+// TXInfoSerialization for save to db
 type TXInfoSerialization struct {
 	TXHash            []byte        `storm:"id"`
+	Nonce             uint64        `storm:"index"`
 	ChannelIdentifier []byte        `storm:"index"` // 结合OpenBlockNumber唯一确定一个通道
 	OpenBlockNumber   int64         `storm:"index"`
 	TokenAddress      []byte        `storm:"index"`
@@ -102,10 +108,11 @@ type TXInfoSerialization struct {
 	GasUsed           uint64
 }
 
-// ToTXInfo :
+// ToTXInfo convert
 func (tis *TXInfoSerialization) ToTXInfo() *TXInfo {
 	return &TXInfo{
 		TXHash:            common.BytesToHash(tis.TXHash),
+		Nonce:             tis.Nonce,
 		ChannelIdentifier: common.BytesToHash(tis.ChannelIdentifier),
 		OpenBlockNumber:   tis.OpenBlockNumber,
 		TokenAddress:      common.BytesToAddress(tis.TokenAddress),
@@ -174,6 +181,8 @@ type ChannelSettleTXParams struct {
 	P2Address        common.Address `json:"p2_address"`
 	P2TransferAmount *big.Int       `json:"p2_transfer_amount"`
 	P2LocksRoot      common.Hash    `json:"p2_locks_root"`
+	P1Balance        *big.Int       `json:"p1_balance"`
+	P2Balance        *big.Int       `json:"p2_balance"`
 }
 
 // ChannelWithDrawTXParams 通道取现的参数

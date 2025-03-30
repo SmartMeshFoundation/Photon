@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -113,18 +114,85 @@ func (m *mdnsService) pollForEntries(ctx context.Context) {
 	}
 }
 
-func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
-	log.Debug(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
+//111110xxx中前面1的个数,第一个0出现之前1的个数
+func simpleMaskLength(mask []byte) int {
+	var n int
+	for _, v := range mask {
+		if v == 0xff {
+			n += 8
+			continue
+		}
+		// found non-ff byte
+		// count 1 bits
+		for v&0x80 != 0 {
+			n++
+			v <<= 1
+		}
+		break
+	}
+	return n
+}
 
-	//if e.Info == m.myid {
-	//	//log.Debug("got our own mdns entry, skipping")
-	//	return
-	//}
+//根据对方发送过来的候选ipv4列表和我自己本地的ip进行比较,找出最匹配的那个
+//比如对方告诉我自己的ip地址是[192.168.124.13,192.168.122.1],
+//我的ip是[192.168.124.2,10.0.0.17],那么最匹配的应该就是192.168.124.13
+//这里只处理ipv4,暂不考虑ipv6
+func (m *mdnsService) getBestMatchIP(remotes []net.IP) net.IP {
+	remotes2 := make([]net.IP, len(remotes))
+	for i, r := range remotes {
+		if r.To4() == nil {
+			return net.IPv4zero
+		}
+		//先强制转换成4个自己的字节形式
+		remotes2[i] = r.To4()
+	}
+	remotes = remotes2
+	if len(remotes) <= 0 {
+		return net.IPv4zero
+	}
+
+	//本机的ipv4地址,确保长度是4个字节而不是16个字节
+	locals := m.service.IPs
+	//统计最长前缀匹配
+	maskLen := make(map[string]int) //每个ip地址最长前缀匹配
+	for _, r := range remotes {
+		//忽略非ipv4地址
+		if r.To4() == nil {
+			continue
+		}
+		max := 0
+		for _, l := range locals {
+			ipmask := make(net.IPMask, len(l))
+			for i := 0; i < len(l) && i < len(r); i++ {
+				ipmask[i] = ^(l[i] ^ r[i])
+			}
+			a := simpleMaskLength(ipmask)
+			if max < a {
+				max = a
+			}
+			//log.Trace(fmt.Sprintf("l=%s,%s,r=%s,%s,masksize=%d,mask=%s", l.String(),
+			//	hex.EncodeToString(l), r.String(), hex.EncodeToString(r), a, hex.EncodeToString(ipmask)))
+		}
+		maskLen[r.String()] = max
+	}
+	//按照最长匹配排序,
+	sort.Slice(remotes, func(i, j int) bool {
+		return maskLen[remotes[i].String()] > maskLen[remotes[j].String()]
+	})
+	return remotes[0]
+}
+func (m *mdnsService) handleEntry(e *mdns.ServiceEntry) {
+	//log.Trace(fmt.Sprintf("Handling MDNS entry: %s:%d %s", e.AddrV4, e.Port, e.Info))
+
+	if e.Info == m.myid {
+		//log.Debug("got our own mdns entry, skipping")
+		return
+	}
 
 	m.lk.Lock()
 	for _, n := range m.notifees {
 		n.HandlePeerFound(e.Info, &net.UDPAddr{
-			IP:   e.AddrV4,
+			IP:   m.getBestMatchIP(e.AddrV4),
 			Port: e.Port,
 		})
 	}

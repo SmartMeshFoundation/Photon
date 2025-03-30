@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
+
 	"fmt"
 
 	"encoding/hex"
@@ -35,7 +37,7 @@ func (p *dummyProtocol) receive(data []byte) {
 
 //MakeTestUDPTransport test only
 func MakeTestUDPTransport(name string, port int) *UDPTransport {
-	params.DefaultMDNSQueryInterval = time.Millisecond * 50
+	params.Cfg.MDNSQueryInterval = time.Millisecond * 50
 	t, err := NewUDPTransport(name, "0.0.0.0", port, nil, NewTokenBucket(10, 2, time.Now))
 	if err != nil {
 		panic(err)
@@ -49,13 +51,13 @@ func randomPort() int {
 
 //MakeTestXMPPTransport create a test xmpp transport
 func MakeTestXMPPTransport(name string, key *ecdsa.PrivateKey) *XMPPTransport {
-	return NewXMPPTransport(name, params.DefaultTestXMPPServer, key, DeviceTypeOther)
+	return NewXMPPTransport(name, params.DefaultDevCfg.XMPPServer, key, DeviceTypeOther, &codefortest.MockDb{})
 }
 
 //MakeTestMixTransport creat a test mix transport
 func MakeTestMixTransport(name string, key *ecdsa.PrivateKey) *MixTransport {
 	port := randomPort()
-	t, err := NewMixTranspoter(name, params.DefaultTestXMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther)
+	t, err := NewMixTranspoter(name, params.DefaultDevCfg.XMPPServer, "127.0.0.1", port, key, nil, NewTokenBucket(10, 2, time.Now), DeviceTypeOther, &codefortest.MockDb{})
 	if err != nil {
 		panic(err)
 	}
@@ -93,23 +95,9 @@ func (t *timeBlockNumberGetter) GetBlockNumber() int64 {
 }
 
 //MakeTestPhotonProtocol test only
-func MakeTestPhotonProtocol(name string) *PhotonProtocol {
+func MakeTestPhotonProtocol(name string) (*PhotonProtocol, *ecdsa.PrivateKey) {
 	////#nosec
 	privkey, _ := crypto.GenerateKey()
-	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
-	return rp
-}
-
-//MakeTestDiscardExpiredTransferPhotonProtocol test only
-func MakeTestDiscardExpiredTransferPhotonProtocol(name string) *PhotonProtocol {
-	//#nosec
-	privkey, _ := crypto.GenerateKey()
-	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), privkey, &testChannelStatusGetter{})
-	return rp
-}
-
-//SubscribeNeighbor subscribe neighbor's online and offline status
-func SubscribeNeighbor(p *PhotonProtocol, addr common.Address) error {
-	xt := p.Transport.(*XMPPTransport)
-	return xt.conn.SubscribeNeighbour(addr)
+	rp := NewPhotonProtocol(MakeTestXMPPTransport(name, privkey), &testChannelStatusGetter{})
+	return rp, privkey
 }

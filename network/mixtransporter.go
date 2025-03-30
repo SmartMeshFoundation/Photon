@@ -3,12 +3,15 @@ package network
 import (
 	"fmt"
 
+	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
+
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"crypto/ecdsa"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/netshare"
-	"github.com/SmartMeshFoundation/Photon/network/xmpptransport"
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -23,10 +26,11 @@ type MixTransport struct {
 	xmpp     *XMPPTransport
 	name     string
 	protocol ProtocolReceiver
+	*wakeuphandler.MixWakeUpHandler
 }
 
 //NewMixTranspoter create a MixTransport and discover
-func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string) (t *MixTransport, err error) {
+func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.PrivateKey, protocol ProtocolReceiver, policy Policier, deviceType string, dao xmpptransport.XMPPDb) (t *MixTransport, err error) {
 	t = &MixTransport{
 		name:     name,
 		protocol: protocol,
@@ -35,8 +39,9 @@ func NewMixTranspoter(name, xmppServer, host string, port int, key *ecdsa.Privat
 	if err != nil {
 		return
 	}
-	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType)
+	t.xmpp = NewXMPPTransport(name, xmppServer, key, deviceType, dao)
 	t.RegisterProtocol(protocol)
+	t.MixWakeUpHandler = wakeuphandler.NewMixWakeUpHandler(t.udp.WakeUpHandler, t.xmpp)
 	return
 }
 
@@ -116,6 +121,12 @@ func (t *MixTransport) NodeStatus(addr common.Address) (deviceType string, isOnl
 	return t.xmpp.NodeStatus(addr)
 }
 
+//UDPNodeStatus get node's status of UDPTransport
+func (t *MixTransport) UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool) {
+	deviceType, isOnline = t.udp.NodeStatus(addr)
+	return
+}
+
 //GetNotify notification of connection status change
 func (t *MixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	//if t.xmpp.conn != nil {
@@ -124,18 +135,18 @@ func (t *MixTransport) GetNotify() (notify <-chan netshare.Status, err error) {
 	//return nil, errors.New("connection not established")
 }
 
-//SubscribeNeighbor get the status change notification of partner node
-func (t *MixTransport) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
-	if t.xmpp.conn == nil {
-		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
-	}
-	return t.xmpp.conn.CollectNeighbors(db)
-}
+////SubscribeNeighbor get the status change notification of partner node
+//func (t *MixTransport) SubscribeNeighbor(db xmpptransport.XMPPDb) error {
+//	if t.xmpp.conn == nil {
+//		return fmt.Errorf("try to subscribe neighbor,but xmpp connection is disconnected")
+//	}
+//	return t.xmpp.conn.CollectNeighbors(db)
+//}
 
-// Reconnect :
+// Reconnect 重连
 func (t *MixTransport) Reconnect() {
 	if t.xmpp.conn == nil {
-		log.Error("try to subscribe neighbor,but xmpp connection is disconnected")
+		log.Error("try to reconnect,but xmpp connection is disconnected")
 		return
 	}
 	t.xmpp.conn.Reconnect()

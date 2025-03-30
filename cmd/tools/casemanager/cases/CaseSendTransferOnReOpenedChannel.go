@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kataras/go-errors"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 

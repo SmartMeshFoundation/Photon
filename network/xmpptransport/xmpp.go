@@ -4,6 +4,10 @@ import (
 	"errors"
 	"time"
 
+	"go.uber.org/atomic"
+
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
 	"sync"
 
 	"encoding/base64"
@@ -81,31 +85,30 @@ type NodeStatus struct {
 
 // XMPPConnection describes client connection to xmpp server.
 type XMPPConnection struct {
-	mutex          sync.RWMutex
 	config         *Config
 	options        xmpp.Options
 	client         *xmpp.Client
 	waitersMutex   sync.RWMutex
+	clientMutex    sync.Mutex
 	waiters        map[string]chan interface{} //message waiting for response
 	closed         chan struct{}
 	reconnect      bool
-	status         netshare.Status
+	status         *atomic.Int32
 	statusChan     chan<- netshare.Status
 	NextPasswordFn PasswordGetter
 	dataHandler    DataHandler
 	name           string
 	nodesStatus    map[string]*NodeStatus
 	db             XMPPDb
-	hasSubscribed  bool                   //是否初始化过订阅信息
 	addrMap        map[common.Address]int //addr neighbor count
+	*wakeuphandler.WakeUpHandler
 }
 
 /*
 NewConnection create Xmpp connection to signal sever
 */
-func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status) (x2 *XMPPConnection, err error) {
+func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGetter, dataHandler DataHandler, name, deviceType string, statusChan chan<- netshare.Status, dao XMPPDb) (x2 *XMPPConnection, err error) {
 	x := &XMPPConnection{
-		mutex:  sync.RWMutex{},
 		config: DefaultConfig,
 		options: xmpp.Options{
 			Host:                         ServerURL,
@@ -126,38 +129,46 @@ func NewConnection(ServerURL string, User common.Address, passwordFn PasswordGet
 		closed:         make(chan struct{}),
 		addrMap:        make(map[common.Address]int),
 		reconnect:      true,
-		status:         netshare.Disconnected,
+		status:         atomic.NewInt32(int32(netshare.Disconnected)),
 		statusChan:     statusChan,
 		NextPasswordFn: passwordFn,
 		dataHandler:    dataHandler,
-		name:           name,
+		name:           fmt.Sprintf("%s-%s", name, time.Now().Format(time.StampMilli)),
+		WakeUpHandler:  wakeuphandler.NewWakeupHandler("xmpp"),
+		db:             dao,
 	}
 	log.Trace(fmt.Sprintf("%s new xmpp user %s password %s", name, User.String(), x.options.Password))
 	x.client, err = x.options.NewClient()
 	if err != nil {
-		log.Trace(fmt.Sprintf("%s new xmpp client err %s", name, err))
+		log.Error(fmt.Sprintf("%s new xmpp client err %s", name, err))
 		return
 	}
-	x.changeStatus(netshare.Connected)
+	log.Info(fmt.Sprintf("xmpp start %s", x.name))
+	x.changeStatus(netshare.Disconnected, netshare.Connected)
+	x.registerChannelStateCallback() // 注册回调
 	go x.loop()
 	x2 = x
 	return
 }
 func (x *XMPPConnection) loop() {
 	defer rpanic.PanicRecover("xmpp")
+	// 第一次启动时订阅通道partner的在线状态
+	x.CollectNeighbors()
 	for {
 		chat, err := x.client.Recv()
-		if x.status == netshare.Closed {
-			return
-		}
 		if err != nil {
 			log.Error(fmt.Sprintf("%s receive error %s ,try to reconnect ", x.name, err))
-			err = x.client.Close()
+			err = x.client.Close() //假定重复close没有问题
 			if err != nil {
 				log.Error(fmt.Sprintf("xmpp close err %s", err))
 			}
-			x.reConnect()
-			continue
+			if x.reConnect() {
+				continue
+			} else {
+				log.Info("stop retry when xmpp closed")
+				return //已经关闭了
+			}
+
 		}
 		switch v := chat.(type) {
 		case xmpp.Chat:
@@ -170,67 +181,61 @@ func (x *XMPPConnection) loop() {
 			log.Trace(fmt.Sprintf("receive from %s message %s", utils.APex2(raddr), v.Text))
 			data, err := base64.StdEncoding.DecodeString(v.Text)
 			if err != nil {
-				log.Error(fmt.Sprintf("receive unkown message %s", utils.StringInterface(v, 3)))
+				log.Error(fmt.Sprintf("receive unkown message :\n%s", utils.StringInterface(v, 3)))
 			} else {
 				x.dataHandler.DataHandler(raddr, data)
 			}
 		case xmpp.IQ:
-			uid := v.ID
-			x.waitersMutex.Lock()
-			ch, ok := x.waiters[uid]
-			x.waitersMutex.Unlock()
-			if ok {
-				log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
-				ch <- &v
-			} else {
-				//log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
-			}
+			log.Info(fmt.Sprintf("receive unkonwn iq message :\n%s", utils.StringInterface(v, 3)))
 		case xmpp.Presence:
 			if len(v.ID) > 0 {
-				//subscribe or unsubscribe
-				uid := v.ID
-				x.waitersMutex.Lock()
-				ch, ok := x.waiters[uid]
-				x.waitersMutex.Unlock()
-				if ok {
-					log.Trace(fmt.Sprintf("%s %s received response", x.name, uid))
-					ch <- &v
-				} else {
-					log.Info(fmt.Sprintf("receive unkonwn iq message %s", utils.StringInterface(v, 3)))
-				}
+				// 订阅/取消订阅请求的应答消息,不用做处理
 			} else {
+				// 节点在线状态变更
 				var id, device string
 				ss := strings.Split(v.From, "/")
 				if len(ss) >= 2 {
 					device = ss[1]
 				}
 				id = ss[0]
+				oldBs := x.nodesStatus[id]
 				bs := &NodeStatus{
 					DeviceType: device,
 					IsOnline:   len(v.Type) == 0,
 				}
 				if bs.IsOnline && len(bs.DeviceType) == 0 {
-					log.Error(fmt.Sprintf("receive unexpected presence %s", utils.StringInterface(v, 3)))
+					log.Error(fmt.Sprintf("receive unexpected presence message :\n%s", utils.StringInterface(v, 3)))
+				}
+				if bs.IsOnline && (oldBs == nil || !oldBs.IsOnline) {
+					/*
+						上线唤醒
+					*/
+					ss := strings.Split(id, "@")
+					x.WakeUp(common.HexToAddress(ss[0]))
 				}
 				x.nodesStatus[id] = bs
-				log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
+				//log.Trace(fmt.Sprintf("node status change %s, deviceType=%s,isonline=%v", id, bs.DeviceType, bs.IsOnline))
 			}
 		default:
-			//log.Trace(fmt.Sprintf("recv %s", utils.StringInterface(v, 3)))
+			log.Trace(fmt.Sprintf("recv unknown type message :\n %s", utils.StringInterface(v, 3)))
 		}
 	}
 }
-func (x *XMPPConnection) changeStatus(newStatus netshare.Status) {
-	log.Info(fmt.Sprintf("changeStatus from %d to %d", x.status, newStatus))
-	x.status = newStatus
+func (x *XMPPConnection) changeStatus(oldStatus, newStatus netshare.Status) bool {
+	log.Info(fmt.Sprintf("xmpp changeStatus from %d to %d,name=%s", x.status.Load(), newStatus, x.name))
+	//状态切换成功
+	if !x.status.CAS(int32(oldStatus), int32(newStatus)) {
+		return false
+	}
 	select {
 	case x.statusChan <- newStatus:
 	default:
 		//never block
 	}
+	return true
 }
 
-//Reconnect :
+//Reconnect : 用户发现网络断了,强制重连
 func (x *XMPPConnection) Reconnect() {
 	err := x.client.Close()
 	if err != nil {
@@ -239,32 +244,43 @@ func (x *XMPPConnection) Reconnect() {
 	return
 }
 
-func (x *XMPPConnection) reConnect() {
-	x.changeStatus(netshare.Reconnecting)
+//返回值表示是否成功
+//不成功只有一种可能,就是系统关闭了
+func (x *XMPPConnection) reConnect() bool {
+	if !x.changeStatus(netshare.Connected, netshare.Reconnecting) {
+		return false
+	}
 	o := x.options
+	var err error
+	var client *xmpp.Client
 	for {
-		if x.status == netshare.Closed {
-			return
+		if x.status.Load() == int32(netshare.Closed) {
+			return false
 		}
 		o.Password = x.NextPasswordFn.GetPassWord()
-		client, err := o.NewClient()
+		client, err = o.NewClient()
 		if err != nil {
 			log.Error(fmt.Sprintf("%s xmpp reconnect error %s", x.name, err))
 			time.Sleep(time.Second)
 			continue
 		}
-		x.mutex.Lock()
-		x.client = client
-		x.mutex.Unlock()
 		break
 	}
-	if x.db != nil && !x.hasSubscribed {
-		err := x.CollectNeighbors(x.db)
+	x.clientMutex.Lock()
+	if x.changeStatus(netshare.Reconnecting, netshare.Connected) {
+		x.client = client
+		x.clientMutex.Unlock()
+	} else {
+		err := client.Close() //因为这个时候已经关闭了
 		if err != nil {
-			log.Error(fmt.Sprintf("collectChannelInfos err %s", err))
+			log.Error(fmt.Sprintf("close in reconnect err %s", err))
 		}
+		x.clientMutex.Unlock()
+		return false
 	}
-	x.changeStatus(netshare.Connected)
+	// 重连成功过后,订阅所有partner的在线状态
+	x.CollectNeighbors()
+	return true
 }
 func (x *XMPPConnection) sendSyncIQ(msg *xmpp.IQ) (response *xmpp.IQ, err error) {
 	uid := msg.ID
@@ -291,10 +307,8 @@ func (x *XMPPConnection) send(msg *xmpp.Chat) error {
 	case <-x.closed:
 		return errClientDisconnected
 	default:
-		x.mutex.Lock()
 		cli := x.client
-		x.mutex.Unlock()
-		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.Remote, msg.Subject, msg.Text))
+		//log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.Remote, msg.Subject, msg.Text))
 		_, err := cli.Send(*msg)
 		if err != nil {
 			return err
@@ -307,9 +321,7 @@ func (x *XMPPConnection) sendIQ(msg *xmpp.IQ) error {
 	case <-x.closed:
 		return errClientDisconnected
 	default:
-		x.mutex.Lock()
 		cli := x.client
-		x.mutex.Unlock()
 		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
 		_, err := cli.SendIQ(*msg)
 		if err != nil {
@@ -351,17 +363,14 @@ func (x *XMPPConnection) wait(ch chan interface{}) (response interface{}, err er
 
 //Close this connection
 func (x *XMPPConnection) Close() {
-	x.changeStatus(netshare.Closed)
+	x.clientMutex.Lock()
+	x.status.Store(int32(netshare.Closed)) //不关心原来是什么状态,直接关闭
 	close(x.closed)
 	err := x.client.Close()
+	x.clientMutex.Unlock()
 	if err != nil {
 		log.Error(fmt.Sprintf("close err %s", err))
 	}
-}
-
-//Connected returns true when this connection is ready for sent
-func (x *XMPPConnection) Connected() bool {
-	return x.status == netshare.Connected
 }
 
 //SendData to peer
@@ -388,12 +397,12 @@ type iqResult struct {
 //IsNodeOnline test node is online
 func (x *XMPPConnection) IsNodeOnline(addr common.Address) (deviceType string, isOnline bool, err error) {
 	id := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
-	log.Trace(fmt.Sprintf("query nodeonline %s", strings.ToLower(addr.String())))
+	defer log.Trace(fmt.Sprintf("query nodeonline on xmpp %s %v", strings.ToLower(addr.String()), isOnline))
 	ns, ok := x.nodesStatus[id]
 	if ok {
 		return ns.DeviceType, ns.IsOnline, nil
 	}
-	log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
+	//log.Info(fmt.Sprintf("try to get status of %s, but no record", utils.APex2(addr)))
 	return "", false, nil
 
 }
@@ -402,10 +411,8 @@ func (x *XMPPConnection) sendPresence(msg *xmpp.Presence) error {
 	case <-x.closed:
 		return errClientDisconnected
 	default:
-		x.mutex.Lock()
 		cli := x.client
-		x.mutex.Unlock()
-		log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
+		//log.Trace(fmt.Sprintf("%s send msg %s:%s %s", x.name, msg.From, msg.To, msg.ID))
 		_, err := cli.SendPresence(*msg)
 		if err != nil {
 			return err
@@ -438,16 +445,16 @@ func (x *XMPPConnection) sendSyncPresence(msg *xmpp.Presence) (response *xmpp.Pr
 }
 
 //SubscribeNeighbour the status change of `addr`
+// 这里修改为发送订阅消息即返回,不关心订阅成功与否,因为连接正常但订阅失败的概率较小,如果需要解决,考虑做有限次数的重试
 func (x *XMPPConnection) SubscribeNeighbour(addr common.Address) error {
 	addrName := fmt.Sprintf("%s%s", strings.ToLower(addr.String()), nameSuffix)
 	p := xmpp.Presence{
 		From: x.options.User,
 		To:   addrName,
 		Type: "subscribe",
-		ID:   utils.RandomString(10),
+		ID:   utils.RandomString(10), // 这里带上ID只是为了在loop()中区分该消息的应答消息与节点在线状态通知消息
 	}
-	_, err := x.sendSyncPresence(&p)
-	return err
+	return x.sendPresence(&p)
 }
 
 //Unsubscribe the status change of `addr`
@@ -462,10 +469,9 @@ func (x *XMPPConnection) Unsubscribe(addr common.Address) error {
 		From: x.options.User,
 		To:   addrName,
 		Type: "unsubscribe",
-		ID:   utils.RandomString(10),
+		ID:   utils.RandomString(10), // 这里带上ID只是为了在loop()中区分该消息的应答消息与节点在线状态通知消息
 	}
-	_, err := x.sendSyncPresence(&p)
-	return err
+	return x.sendPresence(&p)
 }
 
 //SubscribeNeighbors I want to know these `addrs` status change
@@ -493,28 +499,43 @@ type XMPPDb interface {
 }
 
 //CollectNeighbors subscribe status change from database
-func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
-	x.db = db
+func (x *XMPPConnection) CollectNeighbors() {
+	db := x.db
 	cs, err := db.GetChannelList(utils.EmptyAddress, utils.EmptyAddress)
 	if err != nil {
-		return err
+		log.Error(fmt.Sprintf("db GetChannelList err %s,name=%s", err.Error(), x.name))
 	}
 	for _, c := range cs {
 		if c.State == channeltype.StateOpened {
 			x.addrMap[c.PartnerAddress()]++
 		}
 	}
-	for addr := range x.addrMap {
-		err = x.SubscribeNeighbour(addr)
-		if err == nil && !db.XMPPIsAddrSubed(addr) {
-			db.XMPPMarkAddrSubed(addr)
+	/*
+	   异步,一次性订阅所有参数通道列表里的所有地址,这里没有并发问题,只是可能重复,由于不记录订阅状态,重复订阅的成本很低
+	*/
+	go func(cs []*channeltype.Serialization) {
+		defer rpanic.PanicRecover("SubscribeNeighbour")
+		for _, c := range cs {
+			err = x.SubscribeNeighbour(c.PartnerAddress())
+			if err != nil {
+				log.Error(fmt.Sprintf("Subscribe partner %s err : %s", c.PartnerAddress().String(), err.Error()))
+			}
 		}
-	}
+		log.Info(fmt.Sprintf("SubscribeNeighbour of %d channels", len(cs)))
+	}(cs)
+	return
+}
+
+/*
+	向数据库注册回调,用于在通道创建/关闭时订阅/取消订阅用户在线状态
+*/
+func (x *XMPPConnection) registerChannelStateCallback() {
+	db := x.db
 	db.RegisterNewChannelCallback(func(c *channeltype.Serialization) (remove bool) {
-		if x.status == netshare.Closed {
+		if x.status.Load() == int32(netshare.Closed) {
 			return true
 		}
-		err = x.SubscribeNeighbour(c.PartnerAddress())
+		err := x.SubscribeNeighbour(c.PartnerAddress())
 		if err != nil {
 			log.Error(fmt.Sprintf("sub %s err %s", c.PartnerAddress().String(), err))
 		} else {
@@ -523,18 +544,18 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		return false
 	})
 	db.RegisterChannelStateCallback(func(c *channeltype.Serialization) (remove bool) {
-		if x.status == netshare.Closed {
+		if x.status.Load() == int32(netshare.Closed) {
 			return true
 		}
 		return false
 	})
 	db.RegisterChannelSettleCallback(func(c *channeltype.Serialization) (remove bool) {
-		if x.status == netshare.Closed {
+		if x.status.Load() == int32(netshare.Closed) {
 			return true
 		}
 		x.addrMap[c.PartnerAddress()]--
 		if x.addrMap[c.PartnerAddress()] <= 0 {
-			err = x.Unsubscribe(c.PartnerAddress())
+			err := x.Unsubscribe(c.PartnerAddress())
 			if err != nil {
 				log.Error(fmt.Sprintf("unsub %s err %s", c.PartnerAddress().String(), err))
 				return false
@@ -543,6 +564,4 @@ func (x *XMPPConnection) CollectNeighbors(db XMPPDb) error {
 		}
 		return false
 	})
-	x.hasSubscribed = true
-	return nil
 }

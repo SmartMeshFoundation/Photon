@@ -4,8 +4,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/internal/rpanic"
 
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -36,7 +37,7 @@ type XMPPTransport struct {
 NewXMPPTransport create xmpp transporter,
 if not success ,for example cannot connect to xmpp server, will try background
 */
-func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string) (x *XMPPTransport) {
+func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType string, dao xmpptransport.XMPPDb) (x *XMPPTransport) {
 	x = &XMPPTransport{
 		quitChan:    make(chan struct{}),
 		NodeAddress: crypto.PubkeyToAddress(key.PublicKey),
@@ -45,36 +46,37 @@ func NewXMPPTransport(name, ServerURL string, key *ecdsa.PrivateKey, deviceType 
 	}
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	x.log = log.New("name", name)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	// 2019.06.10 启动时主线程不等待,优化无网情况下的启动速度
+	// 就算如果matrix连接不上,而主线程正常启动完成开始发送消息,也会被Send方法拒绝,重要消息会进入重发阶段,没有影响
 	go func() {
+		defer rpanic.PanicRecover("xmpptransport.NewConnection")
 		wait := time.Millisecond
 		var err error
-		//only wait one time
-		var first bool
+	LFOR:
 		for {
 			select {
 			case <-time.After(wait):
-				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan)
-				if !first {
-					first = true
-					wg.Done()
-				}
+				x.conn, err = xmpptransport.NewConnection(ServerURL, addr, x, x, name, deviceType, x.statusChan, dao)
 				if err != nil {
-					x.log.Error(fmt.Sprintf("cannot connect to xmpp server %s", ServerURL))
+					x.log.Error(fmt.Sprintf("cannot connect to xmpp server %s, retry in 5 seconds", ServerURL))
 					time.Sleep(time.Second * 5)
 				} else {
-					return
+					break LFOR
 				}
 			case <-x.quitChan:
 				return
 			}
 
 		}
+		//确保api.Stop发生之后,xmpp再连上这种情况
+		select {
+		case <-x.quitChan:
+			x.conn.Close()
+		default:
+			//do nothing
+		}
 
 	}()
-	//only wait for one try
-	wg.Wait()
 	return
 }
 
@@ -146,4 +148,19 @@ func (x *XMPPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 		x.log.Error(fmt.Sprintf("IsNodeOnline query %s err %s", utils.APex2(addr), err))
 	}
 	return
+}
+
+// RegisterWakeUpChan impl wakeuphandler.IWakeUpHandler 由于xmpp的节点在线状态维护在连接层,所以在这里转发下
+func (x *XMPPTransport) RegisterWakeUpChan(addr common.Address, c chan int) {
+	x.conn.RegisterWakeUpChan(addr, c)
+}
+
+// UnRegisterWakeUpChan impl wakeuphandler.IWakeUpHandler 由于xmpp的节点在线状态维护在连接层,所以在这里转发下
+func (x *XMPPTransport) UnRegisterWakeUpChan(addr common.Address) {
+	x.conn.UnRegisterWakeUpChan(addr)
+}
+
+// WakeUp impl wakeuphandler.IWakeUpHandler, shouldn't call
+func (x *XMPPTransport) WakeUp(addr common.Address) {
+	panic("wrong call")
 }

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/channel/channeltype"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
-	"github.com/SmartMeshFoundation/Photon/network/netshare"
 	"github.com/SmartMeshFoundation/Photon/utils"
 )
 
@@ -212,7 +213,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFail(env.CaseName)
 		}
 		if cm.UseMatrix {
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 3)
 		}
 	}
 	time.Sleep(6 * time.Second)
@@ -294,7 +295,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 			return cm.caseFailWithWrongChannelData(env.CaseName, fmt.Sprintf("mass transfer i=%d,err=%s", i, err.Error()))
 		}
 		if cm.UseMatrix {
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 3)
 		}
 	}
 	//等30秒,确认100笔交易成功
@@ -308,7 +309,7 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 	models.Logger.Println("step 24 ---->")
 	depositAmount = 160
 	if cm.UseMatrix {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 20)
 	}
 	err = N0.Deposit(N1.Address, tokenAddress, depositAmount)
 	if err != nil {
@@ -357,14 +358,15 @@ func (cm *CaseManager) LongCase5Nodes() (err error) {
 
 	// step 28 : N4 closes his channel with N2
 	models.Logger.Println("step 28 ---->")
-	err = cm.tryInSeconds(20, func() error {
+	err = cm.tryInSeconds(25, func() error {
 		return N4.Close(C24.ChannelIdentifier)
 	})
 	if err != nil {
 		return cm.caseFailWithWrongChannelData(env.CaseName, err.Error())
 	}
+	time.Sleep(2 * time.Second) // 等待节点接收close事件
 	C24 = N2.GetChannelWith(N4, tokenAddress)
-	if C24.State != int(netshare.Closed) {
+	if C24.State != int(channeltype.StateClosed) {
 		return cm.caseFail(env.CaseName)
 	}
 

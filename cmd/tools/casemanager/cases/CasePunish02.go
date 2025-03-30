@@ -71,7 +71,7 @@ func (cm *CaseManager) CasePunish02() (err error) {
 	N1.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N0)...)
 	N2.UpdateMeshNetworkNodes(cm.nodesExcept(env.Nodes, N1)...)
 	//N0启动以后无法和N1,N2通信
-	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil).SetNoNetwork())
+	cm.startNodes(env, N0.RestartName().SetConditionQuit(nil).NoNetwork())
 	//N0注册密码
 	err = N0.RegisterSecret(secret)
 	if err != nil {

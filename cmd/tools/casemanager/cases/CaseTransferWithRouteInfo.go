@@ -3,9 +3,11 @@ package cases
 import (
 	"math/big"
 
+	"errors"
+	"time"
+
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kataras/go-errors"
 )
 
 // CaseTransferWithRouteInfo :
@@ -29,9 +31,10 @@ func (cm *CaseManager) CaseTransferWithRouteInfo() (err error) {
 	// 0. 启动pfs
 	env.StartPFS()
 	// 1. 启动节点
-	n0.StartWithFeeAndPFS(env)
-	n1.StartWithFeeAndPFS(env)
-	n2.StartWithFeeAndPFS(env)
+	cm.startNodes(env, n0.PFS(), n1.PFS(), n2.PFS())
+	if cm.UseMatrix {
+		time.Sleep(time.Second * 5)
+	}
 	// 2. 查询n0-n2,金额=10000的path
 	transferAmount := big.NewInt(10000)
 	pfsProxy := env.GetPfsProxy(env.GetPrivateKeyByNode(n0))
@@ -46,7 +49,7 @@ func (cm *CaseManager) CaseTransferWithRouteInfo() (err error) {
 	c12 := n1.GetChannelWith(n2, tokenAddressStr).Println("before transfer")
 	n0.SendTransWithRouteInfo(n2, tokenAddressStr, int32(transferAmount.Int64()), route)
 	// 4. 余额校验
-	err = cm.tryInSeconds(5, func() error {
+	err = cm.tryInSeconds(15, func() error {
 		c01new := n0.GetChannelWith(n1, tokenAddressStr).Println("after transfer")
 		c12new := n1.GetChannelWith(n2, tokenAddressStr).Println("after transfer")
 		if !c01new.CheckEqualByPartnerNode(env) {

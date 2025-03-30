@@ -74,8 +74,10 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	for len(state.Routes.AvailableRoutes) > 0 {
 		r := state.Routes.AvailableRoutes[0]
 		state.Routes.AvailableRoutes = state.Routes.AvailableRoutes[1:]
-		//if !r.CanTransfer() /*交易发起方不应该考虑收费*/ || r.AvailableBalance().Cmp(new(big.Int).Add(state.Transfer.TargetAmount, r.Fee)) < 0 {
-		if !r.CanTransfer() || r.AvailableBalance().Cmp(state.Transfer.TargetAmount) < 0 {
+		/*
+			发起方计算的时候应该把整条路径的费用考虑进去,也就是下面新创建的LockedTransferState中的Amount
+		*/
+		if !r.CanTransfer() || r.AvailableBalance().Cmp(new(big.Int).Add(state.Transfer.TargetAmount, r.TotalFee)) < 0 {
 			state.Routes.IgnoredRoutes = append(state.Routes.IgnoredRoutes, r)
 		} else {
 			tryRoute = r
@@ -124,7 +126,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 		         The two nodes will most likely disagree on latest block, as far as
 		         the expiration goes this is no problem.
 	*/
-	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout()) - int64(params.DefaultRevealTimeout) // - revealTimeout for test
+	lockExpiration := state.BlockNumber + int64(tryRoute.SettleTimeout()) - int64(params.Cfg.RevealTimeout) // - revealTimeout for test
 	if lockExpiration > state.Transfer.Expiration && state.Transfer.Expiration != 0 {
 		lockExpiration = state.Transfer.Expiration
 	}
@@ -159,7 +161,7 @@ func tryNewRoute(state *mt.InitiatorState) *transfer.TransitionResult {
 	}
 }
 func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
-	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
+	if state.BlockNumber-params.Cfg.ForkConfirmNumber > state.Transfer.Expiration {
 		if state.Route != nil && !state.Db.IsThisLockRemoved(state.Route.ChannelIdentifier, state.OurAddress, state.Transfer.LockSecretHash) {
 			unlockFailed := &mt.EventUnlockFailed{
 				LockSecretHash:    state.Transfer.LockSecretHash,
@@ -168,7 +170,7 @@ func expiredHashLockEvents(state *mt.InitiatorState) (events []transfer.Event) {
 			}
 			transferFailed := &transfer.EventTransferSentFailed{
 				LockSecretHash: state.Transfer.LockSecretHash,
-				Reason:         "no route available",
+				Reason:         "lock expired",
 				Target:         state.Transfer.Target,
 				Token:          state.Transfer.Token,
 			}
@@ -187,7 +189,7 @@ func handleBlock(state *mt.InitiatorState, stateChange *transfer.BlockStateChang
 		state.BlockNumber = stateChange.BlockNumber
 	}
 	// 考虑到分叉攻击,延迟一定块数之后才发送remove
-	if state.BlockNumber-params.ForkConfirmNumber > state.Transfer.Expiration {
+	if state.BlockNumber-params.Cfg.ForkConfirmNumber > state.Transfer.Expiration {
 		// 超时
 		// 如果我没有发送过密码,直接发送remove expired lock,然后移除state manager
 		// 如果我已经发送过密码,那么超时说明我没有收到reveal secret 或 链上密码注册事件,此时我认为交易超时失败,可不可以发送RemoveExpiredHashlock,由通道自己决定.然后移除state manager
@@ -414,6 +416,8 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 				Secret:                         staii.Secret,
 				Db:                             staii.Db,
 				CancelByExceptionSecretRequest: false,
+				IsEffectiveChain:               true, // 仅有效公链的情况下才能进行MediatedTransfer,所以默认为true
+				EffectiveChangeTimestamp:       0,
 			}
 			return tryNewRoute(state)
 		}
@@ -479,6 +483,10 @@ func StateTransition(originalState transfer.State, st transfer.StateChange) *tra
 			it = cancelCurrentRoute(state, "partner cooperative settle channel with me")
 		case *mt.ContractChannelWithdrawStateChange:
 			it = cancelCurrentRoute(state, "partner withdraw on channel with me")
+		case *transfer.EffectiveChainStateChange:
+			state.IsEffectiveChain = st2.IsEffective
+			state.EffectiveChangeTimestamp = st2.LastBlockNumberTimestamp
+			log.Info(fmt.Sprintf("InitiatorStateManager with lockSecretHash=%s EffctiveChainState change to %v", state.LockSecretHash.String(), state.IsEffectiveChain))
 		default:
 			log.Error(fmt.Sprintf("initiator received unkown state change %s", utils.StringInterface(st, 3)))
 		}

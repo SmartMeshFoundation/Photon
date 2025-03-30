@@ -1,8 +1,13 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"time"
+
+	"github.com/SmartMeshFoundation/Photon/network/wakeuphandler"
+
+	mdns2 "github.com/whyrusleeping/mdns"
 
 	"github.com/SmartMeshFoundation/Photon/network/mdns"
 
@@ -55,8 +60,19 @@ type Transporter interface {
 	RegisterProtocol(protcol ProtocolReceiver)
 	//NodeStatus get node's status and is online right now
 	NodeStatus(addr common.Address) (deviceType string, isOnline bool)
+
+	/*
+		为了避免消息接收方不在线时不停尝试重发,添加挂起/唤醒机制
+	*/
+	wakeuphandler.IWakeUpHandler
 }
 
+//MixTranspoter support udp and others(xmpp or matrix)
+type MixTranspoter interface {
+	Transporter
+	//UDPNodeStatus status of UDPTransport
+	UDPNodeStatus(addr common.Address) (deviceType string, isOnline bool)
+}
 type dummyPolicy struct {
 }
 
@@ -129,7 +145,7 @@ restart listen when switch foreground
 */
 type UDPTransport struct {
 	protocol               ProtocolReceiver
-	conn                   *SafeUDPConnection
+	conn                   *net.UDPConn
 	UAddr                  *net.UDPAddr
 	policy                 Policier
 	stopped                bool
@@ -141,6 +157,9 @@ type UDPTransport struct {
 	log                    log.Logger
 	msrv                   mdns.Service
 	cf                     context.CancelFunc
+	monitorIP              chan struct{}
+	mdnsLock               sync.Mutex
+	*wakeuphandler.WakeUpHandler
 }
 
 //NewUDPTransport create UDPTransport,name必须是完整的地址
@@ -156,19 +175,76 @@ func NewUDPTransport(name, host string, port int, protocol ProtocolReceiver, pol
 		log:                    log.New("name", name),
 		intranetNodes:          make(map[common.Address]*net.UDPAddr),
 		intranetNodesTimestamp: make(map[common.Address]time.Time),
+		WakeUpHandler:          wakeuphandler.NewWakeupHandler("udp"),
 	}
 	//127.0.0.1 作为一个特殊地址来处理,作为不启用mdns的指示,但是127.1.0.1等其他本机ip地址都认为有效
-	if params.EnableMDNS {
+	if params.Cfg.EnableMDNS {
 		ctx, cf := context.WithCancel(context.Background())
-		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.DefaultMDNSQueryInterval)
+		t.msrv, err = mdns.NewMdnsService(ctx, port, name, params.Cfg.MDNSQueryInterval)
 		if err != nil {
+			log.Error(fmt.Sprintf("NewMdnsService err %s", err))
 			cf()
-			return
+			err = nil //无论mdns是否启动完成,都不能影响photon启动
+		} else {
+			t.cf = cf
+			t.msrv.RegisterNotifee(t)
 		}
-		t.cf = cf
-		t.msrv.RegisterNotifee(t)
+		t.monitorIP = make(chan struct{})
+		go t.monitorIPChange()
 	}
 	return
+}
+
+//考虑到手机或者盒子在使用photon的过程中可能会发生连接热点切换的问题,从而导致ip地址变化
+func (ut *UDPTransport) monitorIPChange() {
+	defer rpanic.PanicRecover("monitorIPChange")
+	var err error
+	lastip := mdns2.GetLocalIP()
+	for {
+		select {
+		case <-time.After(time.Second * 10):
+			ut.removeExpiredNodes() //先移除过期的无效的地址信息
+			newip := mdns2.GetLocalIP()
+			changeip := func() {
+				log.Info(fmt.Sprintf("dectecipchange,last=%s,now=%s", lastip, newip))
+				ut.mdnsLock.Lock()
+				defer ut.mdnsLock.Unlock()
+				if ut.msrv != nil {
+					ut.cf()
+					ut.cf = nil
+					err = ut.msrv.Close()
+					if err != nil {
+						log.Error(fmt.Sprintf("close msrv err %s", err))
+					}
+					ut.msrv = nil
+				}
+				ctx, cf := context.WithCancel(context.Background())
+				ut.msrv, err = mdns.NewMdnsService(ctx, ut.UAddr.Port, ut.name, params.Cfg.MDNSQueryInterval)
+				if err != nil {
+					log.Error(fmt.Sprintf("NewMdnsService err %s", err))
+					cf()
+					return
+				}
+				ut.cf = cf
+				ut.msrv.RegisterNotifee(ut)
+				lastip = newip
+
+			}
+			if len(lastip) != len(newip) {
+				//do changeip
+				changeip()
+				break
+			}
+			for i := 0; i < len(lastip); i++ {
+				if bytes.Compare(lastip[i], newip[i]) != 0 {
+					changeip()
+					break
+				}
+			}
+		case <-ut.monitorIP:
+			return
+		}
+	}
 }
 
 //Start udp listening
@@ -273,6 +349,7 @@ func (ut *UDPTransport) RegisterProtocol(proto ProtocolReceiver) {
 
 //Stop UDP connection
 func (ut *UDPTransport) Stop() {
+	ut.mdnsLock.Lock()
 	if ut.cf != nil {
 		ut.cf()
 	}
@@ -282,6 +359,10 @@ func (ut *UDPTransport) Stop() {
 			log.Error(fmt.Sprintf("udp transport stop err %s", err))
 		}
 	}
+	if ut.monitorIP != nil {
+		close(ut.monitorIP)
+	}
+	ut.mdnsLock.Unlock()
 	ut.stopReceiving = true
 	ut.stopped = true
 	ut.intranetNodes = make(map[common.Address]*net.UDPAddr)
@@ -308,12 +389,9 @@ func (ut *UDPTransport) NodeStatus(addr common.Address) (deviceType string, isOn
 	return DeviceTypeOther, false
 }
 
-//HandlePeerFound notification  from mdns
-func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+func (ut *UDPTransport) removeExpiredNodes() {
 	ut.lock.Lock()
 	defer ut.lock.Unlock()
-	idFound := common.HexToAddress(id)
-	alreadyFound := false
 	// 清除过期数据,即标志下线
 	now := time.Now()
 	var idsToDelete []common.Address
@@ -323,24 +401,34 @@ func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
 			// 不处理非自己发现的节点
 			continue
 		}
-		if now.Sub(saveTime) > params.DefaultMDNSKeepalive {
+		if now.Sub(saveTime) > params.Cfg.MDNSKeepalive {
 			idsToDelete = append(idsToDelete, idTemp)
-		}
-		if idTemp == idFound {
-			alreadyFound = true
 		}
 	}
 	for _, idToDelete := range idsToDelete {
+		previousIP := ut.intranetNodes[idToDelete]
 		delete(ut.intranetNodes, idToDelete)
 		delete(ut.intranetNodesTimestamp, idToDelete)
-		log.Info(fmt.Sprintf("peer UDP offline id=%s", idToDelete.String()))
+		log.Info(fmt.Sprintf("peer UDP offline id=%s,previous Ip=%s", idToDelete.String(), previousIP.String()))
 	}
+}
+
+//HandlePeerFound notification  from mdns
+func (ut *UDPTransport) HandlePeerFound(id string, addr *net.UDPAddr) {
+	ut.removeExpiredNodes()
+	ut.lock.Lock()
+	defer ut.lock.Unlock()
+	idFound := common.HexToAddress(id)
+	_, alreadyFound := ut.intranetNodes[idFound]
+
 	// 标记发现的除自己以外的节点
 	if id != ut.name {
 		if !alreadyFound {
 			log.Info(fmt.Sprintf("peer UDP found id=%s,addr=%s", id, addr))
+			// 唤醒
+			ut.WakeUp(idFound)
 		}
 		ut.intranetNodes[idFound] = addr
-		ut.intranetNodesTimestamp[idFound] = now
+		ut.intranetNodesTimestamp[idFound] = time.Now()
 	}
 }

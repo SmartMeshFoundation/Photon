@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kataras/go-errors"
+	"errors"
 
 	"github.com/SmartMeshFoundation/Photon/cmd/tools/casemanager/models"
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -55,8 +55,8 @@ func NewCaseManager(isAutoRun bool, useMatrix bool, ethEndPoint string, runSlow 
 		caseManager.MediumWaitSeconds = 50 + 160 //config for settle time
 		caseManager.HighMediumWaitSeconds = 300 + 100
 	}
-	//会通过启动参数来指定修改mdns的间隔时间 params.DefaultMDNSKeepalive修改为1秒,params.DefaultMDNSQueryInterval修改为50ms
-	caseManager.MDNSLifeTime = time.Second + time.Millisecond*50*2 //实际上是params.DefaultMDNSKeepalive + 2*params.DefaultMDNSQueryInterval
+	//会通过启动参数来指定修改mdns的间隔时间 params.DefaultMDNSKeepalive修改为1秒,params.Cfg.MDNSQueryInterval修改为50ms
+	caseManager.MDNSLifeTime = time.Second + time.Millisecond*50*2 //实际上是params.DefaultMDNSKeepalive + 2*params.Cfg.MDNSQueryInterval
 	// use reflect to load all cases
 	_, err = fmt.Println("load cases...")
 	vf := reflect.ValueOf(caseManager)
@@ -201,20 +201,6 @@ func (c *CaseManager) startNodes(env *models.TestEnv, nodes ...*models.PhotonNod
 	time.Sleep(c.MDNSLifeTime)
 }
 
-func (c *CaseManager) startNodesWithFee(env *models.TestEnv, nodes ...*models.PhotonNode) {
-	n := len(nodes)
-	wg := sync.WaitGroup{}
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func(index int) {
-			nodes[index].StartWithFeeAndPFS(env)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-	time.Sleep(time.Second)
-}
-
 type repeatReturnNilSuccessFunc func() error
 
 /*
@@ -268,4 +254,8 @@ func (c *CaseManager) nodesExcept(nodes []*models.PhotonNode, n *models.PhotonNo
 		r = append(r, n2)
 	}
 	return r
+}
+
+func (c *CaseManager) waitForPostman() {
+	time.Sleep(60 * time.Minute)
 }

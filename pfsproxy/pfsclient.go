@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SmartMeshFoundation/Photon/params"
+
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Photon/log"
@@ -17,17 +19,16 @@ import (
 	"github.com/SmartMeshFoundation/Photon/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 )
 
 // ErrNotInit :
-var ErrNotInit = errors.New("pfgClient not init")
+var ErrNotInit = rerr.ErrNotChargeFee.Append("pfgClient not init")
 
 // ErrConnect :
-var ErrConnect = errors.New("pfsClient connect to pfs error")
+var ErrConnect = rerr.ErrNotChargeFee.Append("pfsClient connect to pfs error")
 
 /*
-pfsClient :
+pfsClient client for call api of photon-pathfinding-server
 */
 type pfsClient struct {
 	host       string
@@ -35,7 +36,7 @@ type pfsClient struct {
 }
 
 /*
-NewPfsProxy :
+NewPfsProxy init
 */
 func NewPfsProxy(pfgHost string, privateKey *ecdsa.PrivateKey) (pfsProxy PfsProxy) {
 	pfsProxy = &pfsClient{
@@ -66,6 +67,9 @@ type submitBalancePayload struct {
 	BalanceSignature []byte         `json:"balance_signature"`
 	ProofSigner      common.Address `json:"proof_signer"`
 	LockAmount       *big.Int       `json:"lock_amount"`
+	// 如果启动参数中开启了ignore-mediatednode-request参数,那么该节点将不接收MediatedTransfer交易,此时需要报告给pfs,以免pfs把自己当中间节点来计算路由
+	// 该参数没必要纳入签名
+	IgnoreMediatedTransfer bool `json:"ignore_mediated_transfer"`
 }
 
 type balanceProof struct {
@@ -95,13 +99,13 @@ func (p *submitBalancePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.BalanceSignature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor submitBalancePayload err %s", err))
 	}
 	return p.BalanceSignature
 }
 
 /*
-SubmitBalance :
+SubmitBalance 向pfs提交一个通道的BalanceProof,供pfs计算路由使用
 */
 func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *big.Int, openBlockNumber int64, locksroot, channelIdentifier, additionHash common.Hash, proofSigner common.Address, signature []byte) (err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
@@ -117,29 +121,27 @@ func (pfg *pfsClient) SubmitBalance(nonce uint64, transferAmount, lockAmount *bi
 			AdditionHash:      additionHash,
 			Signature:         signature,
 		},
-		LockAmount:  lockAmount,
-		ProofSigner: proofSigner,
+		LockAmount:             lockAmount,
+		ProofSigner:            proofSigner,
+		IgnoreMediatedTransfer: params.Cfg.IgnoreMediatedNodeRequest,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String() + "/balance",
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
 	if err != nil {
-		//log.Error(req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err :%s", utils.HPex(channelIdentifier), err)
 		return ErrConnect
 	}
 	if statusCode != 200 {
-		//log.Error(req.ToString())
 		err = fmt.Errorf("PfsAPI SubmitBalance of channel %s err : http status=%d body=%s", utils.HPex(channelIdentifier), statusCode, string(body))
-		//log.Error(err.Error())
 		return
 	}
-	log.Debug(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
+	log.Info(fmt.Sprintf("PfsAPI SubmitBalance of channel %s SUCCESS", utils.HPex(channelIdentifier)))
 	return nil
 }
 
@@ -175,7 +177,7 @@ func (p *findPathPayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
+		panic(fmt.Sprintf("signDataFor FindPathPayload err %s", err))
 	}
 	return p.Signature
 }
@@ -198,7 +200,7 @@ func (fpr *FindPathResponse) GetPath() []common.Address {
 }
 
 /*
-FindPath : find path
+FindPath : 调用pfs查询一笔交易的可用路由
 */
 func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *big.Int, isInitiator bool) (resp []FindPathResponse, err error) {
 	if pfg.host == "" || pfg.privateKey == nil {
@@ -215,10 +217,10 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 		PeerFromChargeFee: !isInitiator,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/paths",
 		Method:  http.MethodPost,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -236,7 +238,9 @@ func (pfg *pfsClient) FindPath(peerFrom, peerTo, token common.Address, amount *b
 	}
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI FindPath %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	log.Trace(fmt.Sprintf("resp=%s", string(body)))
 	return
@@ -259,7 +263,7 @@ func (p *setFeePayload) sign(key *ecdsa.PrivateKey) []byte {
 	}
 	p.Signature, err = utils.SignData(key, buf.Bytes())
 	if err != nil {
-		log.Crit(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
+		panic(fmt.Sprintf("signDataFor SetFeeRatePayload err %s", err))
 	}
 	return p.Signature
 }
@@ -279,23 +283,23 @@ func (pfg *pfsClient) SetFeePolicy(fp *models.FeePolicy) (err error) {
 		return ErrNotInit
 	}
 	fp.Sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/feerate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(fp),
+		Payload: utils.Marshal(fp),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
-	log.Debug(req.ToString())
 	if err != nil {
-		log.Error(fmt.Sprintf("PfgAPI SetFeePolicy %s err :%s", req.FullURL, err))
+		log.Error(fmt.Sprintf("PfsAPI SetFeePolicy %s err :%s", req.FullURL, err))
 		return
 	}
 	if statusCode != 200 {
-		err = fmt.Errorf("PfgAPI SetFeePolicy %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
+		err = fmt.Errorf("PfsAPI SetFeePolicy %s err : http status=%d body=%s", req.FullURL, statusCode, string(body))
 		log.Error(err.Error())
 		return
 	}
+	log.Info("PfsAPI SetFeePolicy SUCCESS")
 	return nil
 }
 
@@ -311,10 +315,10 @@ func (pfg *pfsClient) SetAccountFee(feeConstant *big.Int, feePercent int64) (err
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -339,7 +343,7 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/account_rate/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -358,7 +362,9 @@ func (pfg *pfsClient) GetAccountFee() (feeConstant *big.Int, feePercent int64, e
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetAccountFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
 }
@@ -375,10 +381,10 @@ func (pfg *pfsClient) SetTokenFee(feeConstant *big.Int, feePercent int64, tokenA
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -403,7 +409,7 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/token_rate/" + tokenAddress.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -422,7 +428,9 @@ func (pfg *pfsClient) GetTokenFee(tokenAddress common.Address) (feeConstant *big
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetTokenFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
 }
@@ -439,10 +447,10 @@ func (pfg *pfsClient) SetChannelFee(feeConstant *big.Int, feePercent int64, chan
 		FeePercent:  feePercent,
 	}
 	payload.sign(pfg.privateKey)
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodPut,
-		Payload: marshal(payload),
+		Payload: utils.Marshal(payload),
 		Timeout: time.Second * 10,
 	}
 	statusCode, body, err := req.Invoke()
@@ -467,7 +475,7 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 		err = ErrNotInit
 		return
 	}
-	req := &req{
+	req := &utils.Req{
 		FullURL: pfg.host + "/pfs/1/channel_rate/" + channelIdentifier.String() + "/" + crypto.PubkeyToAddress(pfg.privateKey.PublicKey).String(),
 		Method:  http.MethodGet,
 		Timeout: time.Second * 10,
@@ -486,23 +494,9 @@ func (pfg *pfsClient) GetChannelFee(channelIdentifier common.Hash) (feeConstant 
 	var resp getFeeResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		panic(err)
+		err = rerr.ErrPFS.Append(fmt.Sprintf("PfsAPI GetChannelFee %s umarshal result error %s , body in response : %s", req.FullURL, err.Error(), string(body)))
+		log.Error(err.Error())
+		return
 	}
 	return resp.FeeConstant, resp.FeePercent, nil
-}
-
-func marshal(v interface{}) string {
-	p, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return string(p)
-}
-
-func marshalIndent(v interface{}) string {
-	p, err := json.MarshalIndent(v, "\t", "")
-	if err != nil {
-		panic(err)
-	}
-	return string(p)
 }

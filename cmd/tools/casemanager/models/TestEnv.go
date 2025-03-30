@@ -63,6 +63,7 @@ type TestEnv struct {
 	Keys                []*ecdsa.PrivateKey `json:"-"`
 	UseOldToken         bool
 	PFSMain             string // pfs可执行文件全路径
+	PMSMain             string // pms可执行文件全路径
 	UseNewAccount       bool
 	MDNSServiceTag      string
 }
@@ -86,7 +87,7 @@ func (t *logTee) Write(p []byte) (n int, err error) {
 }
 
 // NewTestEnv default contractor
-func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env *TestEnv, err error) {
+func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string, caseName ...string) (env *TestEnv, err error) {
 	bind.ReInitNonceMap()
 	c, err := config.ReadDefault(configFilePath)
 	if err != nil {
@@ -95,6 +96,9 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	}
 	env = new(TestEnv)
 	env.CaseName = c.RdString("COMMON", "case_name", "DefaultName")
+	if len(caseName) > 0 {
+		env.CaseName = caseName[0]
+	}
 	// init logger
 	logfile := "./log/" + env.CaseName + ".log"
 	logFile, err := os.Create(logfile)
@@ -114,6 +118,7 @@ func NewTestEnv(configFilePath string, useMatrix bool, ethEndPoint string) (env 
 	env.Debug = c.RdBool("COMMON", "debug", true)
 	env.UseOldToken = false
 	env.PFSMain = c.RdString("COMMON", "pfs_main", "photon-pathfinding-service")
+	env.PMSMain = c.RdString("COMMON", "pms_main", "photonmonitoring")
 	// Create an IPC based RPC connection to a remote node and an authorized transactor
 	conn, err := ethclient.Dial(env.EthRPCEndpoint)
 	if err != nil {
@@ -237,7 +242,11 @@ func transferToAccount(conn *ethclient.Client, key *ecdsa.PrivateKey, accountTo 
 	if err = conn.SendTransaction(ctx, signedTx); err != nil {
 		return fmt.Errorf("conn.SendTransaction : %v,nonce=%v,accountTo=%s,amount=%s,gasLimit=%v,gasPrice=%s", err, nonce, accountTo.Hex(), amount.String(), gasLimit, getAmount(gasPrice).String())
 	}
-	_, err = bind.WaitMined(ctx, conn, signedTx)
+	receipt, err := bind.WaitMined(ctx, conn, signedTx)
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("transferToAccount ,failed tx=%s", receipt.TxHash.String())
+		panic("transferToAccount failed")
+	}
 	return
 }
 
@@ -595,31 +604,47 @@ func loadAndBuildChannels(c *config.Config, env *TestEnv, conn *ethclient.Client
 }
 
 func creatAChannelAndDeposit(env *TestEnv, account1, account2 common.Address, key1, key2 *ecdsa.PrivateKey, amount1 *big.Int, amount2 *big.Int, settledTimeout uint64, token *Token, conn *ethclient.Client) {
-	log.Printf("createchannel between %s-%s,token=%s\n", utils.APex(account1), utils.APex(account2), utils.APex(token.TokenAddress))
+	log.Printf("createchannel between %s-%s,token = %s\n", utils.APex(account1), utils.APex(account2), utils.APex(token.TokenAddress))
 	var tx *types.Transaction
 	var err error
 	auth1 := bind.NewKeyedTransactor(key1)
 	auth2 := bind.NewKeyedTransactor(key2)
 	if amount1.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth1, common.HexToAddress(env.TokenNetworkAddress), amount1, conn)
 		tx, err = env.TokenNetwork.Deposit(auth1, token.TokenAddress, account1, account2, amount1, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
 		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account1 failed")
+		}
 	}
 	if amount2.Int64() > 0 {
+		var receipt *types.Receipt
 		approveAccountIfNeeded(token, auth2, common.HexToAddress(env.TokenNetworkAddress), amount2, conn)
 		tx, err = env.TokenNetwork.Deposit(auth2, token.TokenAddress, account2, account1, amount2, settledTimeout)
 		if err != nil {
 			panic(err)
 		}
-		_, err = bind.WaitMined(context.Background(), conn, tx)
+		receipt, err = bind.WaitMined(context.Background(), conn, tx)
 		if err != nil {
 			panic(err)
+		}
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			log.Printf("create channel for %s-%s,token=%s,failed tx=%s",
+				utils.APex2(account1), utils.APex2(account2),
+				utils.APex(token.TokenAddress), receipt.TxHash.String(),
+			)
+			panic("account2 failed")
 		}
 	}
 }
@@ -632,28 +657,51 @@ func approveAccount(token *contracts.Token, auth *bind.TransactOpts, tokenNetwor
 		log.Fatalf("Failed to Approve: %v", err)
 	}
 	ctx := context.Background()
-	_, err = bind.WaitMined(ctx, conn, tx)
+	receipt, err := bind.WaitMined(ctx, conn, tx)
 	if err != nil {
 		log.Fatalf("failed to Approve when mining :%v", err)
+	}
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		log.Printf("approveAccount for %s ,failed tx=%s",
+			utils.APex2(auth.From),
+			receipt.TxHash.String(),
+		)
+		panic("approve error")
 	}
 	log.Printf("approve account %s %d tokens to %s success\n", utils.APex(auth.From), approveAmt, utils.APex(tokenNetworkAddress))
 }
 
-var approveMap = make(map[common.Hash]int64)
+var approveMap = make(map[common.Hash]*big.Int)
 var approveMapLock = sync.Mutex{}
+var maxApprove *big.Int
 
+func init() {
+	//1<<256-1,最大的256整数
+	a := big.NewInt(1)
+	a = a.Lsh(a, 256)
+	a = a.Sub(a, big.NewInt(1))
+	maxApprove = a
+	log.Printf("maxApprove=%s\n", maxApprove)
+}
 func approveAccountIfNeeded(token *Token, auth *bind.TransactOpts, tokenNetworkAddress common.Address, amount *big.Int, conn *ethclient.Client) {
 	key := utils.Sha3(tokenNetworkAddress[:], auth.From[:], token.TokenAddress[:])
+	approveMapLock.Lock()
 	m, ok := approveMap[key]
-	if ok && m > amount.Int64() {
+	if ok && m.Cmp(amount) > 0 {
+		approveMapLock.Unlock()
 		return
 	}
+	approveMapLock.Unlock()
+	/*
+			同一个节点可能需要创建好几条通道,出于方便,我们只approve一次,保证approve的金额超过所有
+		通道需要的金额之和.
+			Approve的时候并不会实际检查该账户是否有这么多token,因此总会成功.
+			保险起见,我们总是approve一个很大很大的数值,这样保证一个testcase只approve一次.
+	*/
+	approveAccount(token.Token, auth, tokenNetworkAddress, maxApprove, conn)
 	approveMapLock.Lock()
-	defer approveMapLock.Unlock()
-	approveAccount(token.Token, auth, tokenNetworkAddress, amount, conn)
-	approveAmt := new(big.Int)
-	approveAmt = approveAmt.Mul(amount, big.NewInt(100))
-	approveMap[key] = approveAmt.Int64()
+	approveMap[key] = maxApprove
+	approveMapLock.Unlock()
 }
 
 // KillAllPhotonNodes kill all photon node
@@ -669,14 +717,19 @@ func (env *TestEnv) KillAllPhotonNodes() {
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = nil
 		pstr2 = append(pstr2, "-9")
 		pstr2 = append(pstr2, "photon-pathfinding-service")
+		ExecShell("killall", pstr2, "./log/killall.log", true)
+		pstr2 = nil
+		pstr2 = append(pstr2, "-9")
+		pstr2 = append(pstr2, "photonmonitoring")
 		ExecShell("killall", pstr2, "./log/killall.log", true)
 	}
 	Logger.Println("Kill all photon nodes SUCCESS")
 }
 
-// ClearHistoryData :
+// ClearHistoryData : 要清除phton,pfs,pms所有数据
 func (env *TestEnv) ClearHistoryData() {
 	if env.DataDir == "" {
 		return
@@ -703,16 +756,17 @@ func (env *TestEnv) ClearHistoryData() {
 		if nil == fi {
 			return err
 		}
-		if fi.IsDir() {
-			return nil
-		}
+		/*
+			if !fi.IsDir() {
+				return nil
+			}*/
 		name := fi.Name()
-		if name == ".pfsdb" {
+		if name == ".pfsdb" || name == ".pmsdb" {
 			err := os.RemoveAll(path)
 			if err != nil {
 				fmt.Println("delete dir error:", err)
 			}
-			Logger.Println("Clear pfs history data SUCCESS ")
+			Logger.Printf("Clear pfs & pms history data SUCCESS,path=%s ", name)
 		}
 		return nil
 	})
@@ -728,7 +782,7 @@ func (env *TestEnv) GetTokenByName(tokenName string) (index int, token *Token) {
 			return index, token
 		}
 	}
-	return
+	panic(fmt.Sprintf("GetTokenByName %s,not found", tokenName))
 }
 
 // GetNodeAddressByName :
@@ -738,7 +792,7 @@ func (env *TestEnv) GetNodeAddressByName(nodeName string) (index int, address co
 			return index, common.HexToAddress(node.Address)
 		}
 	}
-	return
+	panic(fmt.Sprintf("GetNodeAddressByName %s,not found", nodeName))
 }
 
 // GetNodeByAddress :
@@ -748,7 +802,7 @@ func (env *TestEnv) GetNodeByAddress(nodeAddress string) *PhotonNode {
 			return node
 		}
 	}
-	return nil
+	panic(fmt.Sprintf("GetNodeByAddress %s,not found", nodeAddress))
 }
 
 //Println print all
@@ -778,6 +832,22 @@ func (env *TestEnv) StartPFS() {
 	go ExecShell(env.PFSMain, param, logfile, true)
 	// TODO 校验启动完成
 	return
+}
+
+// StartPMS 启动本地pms节点
+func (env *TestEnv) StartPMS() {
+	logfile := fmt.Sprintf("./log/%s.log", env.CaseName+"-pms")
+	var param []string
+	param = append(param, "--eth-rpc-endpoint="+env.EthRPCEndpoint)
+	param = append(param, "--registry-contract-address="+env.TokenNetworkAddress)
+	param = append(param, "--api-port=18000")
+	param = append(param, "--verbosity=5")
+	param = append(param, "--debug")
+	param = append(param, "--address=0x3DE45fEbBD988b6E417E4Ebd2C69E42630FeFBF0")
+	param = append(param, "--keystore-path="+env.KeystorePath)
+	param = append(param, "--password-file="+env.PasswordFile)
+	param = append(param, "--datadir=.pmsdb")
+	go ExecShell(env.PMSMain, param, logfile, true)
 }
 
 // GetPfsProxy :

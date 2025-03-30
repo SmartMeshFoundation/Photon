@@ -7,7 +7,7 @@ import (
 	"github.com/SmartMeshFoundation/Photon/models"
 )
 
-//GetChainID :
+//GetChainID 查询ChainID
 func (model *StormDB) GetChainID() int64 {
 	var chainID int64
 	err := model.db.Get(models.BucketChainID, models.KeyChainID, &chainID)
@@ -17,7 +17,7 @@ func (model *StormDB) GetChainID() int64 {
 	return chainID
 }
 
-//SaveChainID :
+//SaveChainID 保存/更新数据库中的ChainID
 func (model *StormDB) SaveChainID(chainID int64) {
 	err := model.db.Set(models.BucketChainID, models.KeyChainID, chainID)
 	if err != nil {

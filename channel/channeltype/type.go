@@ -58,11 +58,13 @@ type Serialization struct {
 	OurKnownSecrets        []*KnownSecret
 	PartnerKnownSecrets    []*KnownSecret
 	State                  State
+	DelegateState          ChannelDelegateState
 	OurContractBalance     *big.Int
 	PartnerContractBalance *big.Int
 	ClosedBlock            int64
 	SettledBlock           int64
 	SettleTimeout          int
+	UpdateAt               int64 // 保存最后一次更新的时间戳
 }
 
 //NewEmptySerialization contstructs empty serialization to avoid panic
@@ -235,18 +237,20 @@ func (s *Serialization) MinExpiration(blockNumber int64) int64 {
 
 //ChannelDataDetail for user api
 type ChannelDataDetail struct {
-	ChannelIdentifier   string   `json:"channel_identifier"`
-	OpenBlockNumber     int64    `json:"open_block_number"`
-	PartnerAddress      string   `json:"partner_address"`
-	Balance             *big.Int `json:"balance"`
-	PartnerBalance      *big.Int `json:"partner_balance"`
-	LockedAmount        *big.Int `json:"locked_amount"`
-	PartnerLockedAmount *big.Int `json:"partner_locked_amount"`
-	TokenAddress        string   `json:"token_address"`
-	State               State    `json:"state"`
-	StateString         string   `json:"state_string"`
-	SettleTimeout       int      `json:"settle_timeout"`
-	RevealTimeout       int      `json:"reveal_timeout"`
+	ChannelIdentifier   string               `json:"channel_identifier"`
+	OpenBlockNumber     int64                `json:"open_block_number"`
+	PartnerAddress      string               `json:"partner_address"`
+	Balance             *big.Int             `json:"balance"`
+	PartnerBalance      *big.Int             `json:"partner_balance"`
+	LockedAmount        *big.Int             `json:"locked_amount"`
+	PartnerLockedAmount *big.Int             `json:"partner_locked_amount"`
+	TokenAddress        string               `json:"token_address"`
+	State               State                `json:"state"`
+	StateString         string               `json:"state_string"`
+	DelegateState       ChannelDelegateState `json:"delegate_state"`
+	DelegateStateString string               `json:"delegate_state_string"`
+	SettleTimeout       int                  `json:"settle_timeout"`
+	RevealTimeout       int                  `json:"reveal_timeout"`
 
 	/*
 		extended
@@ -274,6 +278,8 @@ func ChannelSerialization2ChannelDataDetail(c *Serialization) *ChannelDataDetail
 		PartnerBalance:            c.PartnerBalance(),
 		State:                     c.State,
 		StateString:               c.State.String(),
+		DelegateState:             c.DelegateState,
+		DelegateStateString:       c.DelegateState.String(),
 		SettleTimeout:             c.SettleTimeout,
 		RevealTimeout:             c.RevealTimeout,
 		TokenAddress:              c.TokenAddress().String(),

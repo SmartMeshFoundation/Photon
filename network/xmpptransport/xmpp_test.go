@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/SmartMeshFoundation/Photon/codefortest"
+
 	"github.com/mattn/go-xmpp"
 
 	"crypto/ecdsa"
@@ -54,6 +56,7 @@ func TestSubscribe(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	db := &codefortest.MockDb{}
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
 	key2, _ := crypto.GenerateKey()
@@ -62,7 +65,7 @@ func TestSubscribe(t *testing.T) {
 	log.Trace(fmt.Sprintf("addr1=%s,addr2=%s,addr3=%s\n", addr1.String(), addr2.String(), addr3.String()))
 	x1handler := newTestDataHandler("x1")
 	x2handler := newTestDataHandler("x2")
-	x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10))
+	x1, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10), db)
 	if err != nil {
 		t.Error(err)
 		return
@@ -81,7 +84,7 @@ func TestSubscribe(t *testing.T) {
 		return
 	}
 	log.Trace("client2 will login")
-	x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
+	x2, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10), db)
 	if err != nil {
 		t.Error(err)
 		return
@@ -102,7 +105,7 @@ func TestSubscribe(t *testing.T) {
 		return
 	}
 	log.Trace("client3 will login")
-	x3, err := NewConnection(params.DefaultXMPPServer, addr3, &testPasswordGeter{key3}, nil, "client3", TypeOtherDevice, make(chan netshare.Status, 10))
+	x3, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr3, &testPasswordGeter{key3}, nil, "client3", TypeOtherDevice, make(chan netshare.Status, 10), db)
 	if err != nil {
 		t.Error(err)
 		return
@@ -116,7 +119,7 @@ func TestSubscribe(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 100)
 	log.Trace("client2 will relogin")
-	x2, err = NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
+	x2, err = NewConnection(params.DefaultDevCfg.XMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10), db)
 	if err != nil {
 		t.Error(err)
 		return
@@ -129,11 +132,12 @@ func BenchmarkNewXmpp(b *testing.B) {
 	if testing.Short() {
 		return
 	}
+	db := &codefortest.MockDb{}
 	b.N = 10
 	for i := 0; i < b.N; i++ {
 		key1, _ := crypto.GenerateKey()
 		addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10))
+		x1, err := NewConnection("139.199.6.114:5222", addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10), db)
 		if err != nil {
 			return
 		}
@@ -154,9 +158,10 @@ func TestSend(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	db := &codefortest.MockDb{}
 	key1, _ := crypto.GenerateKey()
 	addr1 := crypto.PubkeyToAddress(key1.PublicKey)
-	x1, err := NewConnection(params.DefaultTestXMPPServer, addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10))
+	x1, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr1, &testPasswordGeter{key1}, newTestDataHandler("x1"), "client1", TypeOtherDevice, make(chan netshare.Status, 10), db)
 	if err != nil {
 
 		return
@@ -186,13 +191,13 @@ func TestXMPPConnection_SendData(t *testing.T) {
 	//log.Trace(fmt.Sprintf("addr1=%s,addr2=%s\n", addr1.String(), addr2.String()))
 	//x1handler := newTestDataHandler("x1")
 	//x2handler := newTestDataHandler("x2")
-	//x1, err := NewConnection(params.DefaultXMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10))
+	//x1, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr1, &testPasswordGeter{key1}, x1handler, "client1", TypeMobile, make(chan netshare.Status, 10))
 	//if err != nil {
 	//	t.Error(err)
 	//	return
 	//}
 	//log.Trace("client2 will login")
-	//x2, err := NewConnection(params.DefaultXMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
+	//x2, err := NewConnection(params.DefaultDevCfg.XMPPServer, addr2, &testPasswordGeter{key2}, x2handler, "client2", TypeOtherDevice, make(chan netshare.Status, 10))
 	//if err != nil {
 	//	t.Error(err)
 	//	return

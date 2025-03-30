@@ -1,7 +1,15 @@
 package photon
 
 import (
+	"encoding/hex"
 	"fmt"
+
+	"github.com/SmartMeshFoundation/Photon/params"
+
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/target"
+
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/initiator"
+	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer/mediator"
 
 	"math/big"
 
@@ -14,7 +22,6 @@ import (
 	"github.com/SmartMeshFoundation/Photon/encoding"
 	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/models"
-	"github.com/SmartMeshFoundation/Photon/notify"
 	"github.com/SmartMeshFoundation/Photon/rerr"
 	"github.com/SmartMeshFoundation/Photon/transfer"
 	"github.com/SmartMeshFoundation/Photon/transfer/mediatedtransfer"
@@ -99,7 +106,7 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 				errorCode = rerr.ErrUnknown.ErrorCode
 				errorMsg = err.Error()
 			}
-			msg := encoding.NewErrorCooperativeSettleResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			msg := encoding.NewErrorCooperativeSettleResponseAndSign(m2, params.Cfg.PrivateKey, errorCode, errorMsg)
 			err2 := mh.photon.sendAsync(m2.Sender, msg)
 			if err2 != nil {
 				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
@@ -119,7 +126,7 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 				errorCode = rerr.ErrUnknown.ErrorCode
 				errorMsg = err.Error()
 			}
-			msg := encoding.NewErrorWithdrawResponseAndSign(m2, mh.photon.PrivateKey, errorCode, errorMsg)
+			msg := encoding.NewErrorWithdrawResponseAndSign(m2, params.Cfg.PrivateKey, errorCode, errorMsg)
 			err2 := mh.photon.sendAsync(m2.Sender, msg)
 			if err2 != nil {
 				log.Error(fmt.Sprintf("send message %s, to %s ,err %s", msg, msg.Sender, err2))
@@ -127,6 +134,8 @@ func (mh *photonMessageHandler) onMessage(msg encoding.SignedMessager, hash comm
 		}
 	case *encoding.WithdrawResponse:
 		err = mh.messageWithdrawResponse(m2)
+	case *encoding.ErrorNotify:
+		err = mh.messageErrorNotify(m2)
 	default:
 		log.Error(fmt.Sprintf("photonMessageHandler unknown msg:%s", utils.StringInterface1(msg)))
 		return fmt.Errorf("unhandled message cmdid:%d", msg.Cmd())
@@ -164,6 +173,10 @@ func (mh *photonMessageHandler) messageRevealSecret(msg *encoding.RevealSecret) 
 		mh.photon.dao.UpdateSentTransferDetailStatusMessage(c.TokenAddress, msg.LockSecretHash(), fmt.Sprintf("receive RevealSecret, from=%s", utils.APex2(msg.Sender)))
 	}
 	mh.photon.StateMachineEventHandler.dispatchBySecretHash(msg.LockSecretHash(), stateChange)
+	// 提交注册密码委托
+	for _, c := range channels {
+		mh.photon.submitDelegateToPms(c)
+	}
 	return nil
 }
 
@@ -256,8 +269,9 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
 	smkey := utils.Sha3(lockSecretHash[:], ch.TokenAddress[:])
 	mh.balanceProof(msg, smkey)
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
-	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	// submit balance proof to pathfinder and pms
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash(), ch)
 	return nil
@@ -276,6 +290,10 @@ func (mh *photonMessageHandler) messageUnlock(msg *encoding.UnLock) error {
  *	Reasonable to update channel and store ACK.
  */
 func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encoding.RemoveExpiredHashlockTransfer) error {
+	// 当节点处于无效公链状态时,拒绝接收所有remove消息
+	if !mh.photon.IsChainEffective {
+		return fmt.Errorf("received  RemoveExpiredHashlockTransfer when photon works without effective chain")
+	}
 	ch, err := mh.photon.findChannelByIdentifier(msg.ChannelIdentifier)
 	if err != nil {
 		return fmt.Errorf("received  RemoveExpiredHashlockTransfer ,but relate channel cannot found %s", utils.StringInterface(msg, 7))
@@ -296,7 +314,8 @@ func (mh *photonMessageHandler) messageRemoveExpiredHashlockTransfer(msg *encodi
 	}
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
@@ -341,7 +360,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposed(msg *encoding.AnnounceDi
 		log.Error(fmt.Sprintf("unkonwn channel %s", msg.ChannelIdentifier.String()))
 		return nil
 	}
-	if !graph.HasChannel(mh.photon.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(params.Cfg.MyAddress, msg.Sender) {
 		log.Error(fmt.Sprintf("direct transfer from node without an existing channel: %s", msg.Sender))
 		return nil
 	}
@@ -406,7 +425,7 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	if graph == nil {
 		return fmt.Errorf("unkonwn channel %s", msg.ChannelIdentifier.String())
 	}
-	if !graph.HasChannel(mh.photon.NodeAddress, msg.Sender) {
+	if !graph.HasChannel(params.Cfg.MyAddress, msg.Sender) {
 		err = fmt.Errorf("direct transfer from node without an existing channel: %s", msg.Sender)
 		return
 	}
@@ -430,7 +449,8 @@ func (mh *photonMessageHandler) messageAnnounceDisposedResponse(msg *encoding.An
 	// Just store channel state.
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	// 清空Token2LockSecretHash2Channels
 	mh.photon.removeToken2LockSecretHash2channel(msg.LockSecretHash, ch)
 	return nil
@@ -473,6 +493,7 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
 		log.Error(fmt.Sprintf("RegisterTransfer error %s\n", msg))
+		mh.processRegisterTransferError(err, msg)
 		return err
 	}
 	receiveSuccess := &transfer.EventTransferReceivedSuccess{
@@ -484,7 +505,8 @@ func (mh *photonMessageHandler) messageDirectTransfer(msg *encoding.DirectTransf
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	err = mh.photon.StateMachineEventHandler.OnEvent(receiveSuccess, nil)
 	// submit balance proof to pathfinder
-	go mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	return err
 }
 
@@ -529,7 +551,7 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		return fmt.Errorf("receive mediated transfer,it's secret is zero")
 	}
 	token := mh.photon.getTokenForChannelIdentifier(msg.ChannelIdentifier)
-	if mh.photon.Config.IgnoreMediatedNodeRequest && msg.Target != mh.photon.NodeAddress {
+	if params.Cfg.IgnoreMediatedNodeRequest && msg.Target != params.Cfg.MyAddress {
 		//todo what about return a AnnounceDisposed Message ?
 		/*
 			需要考虑恶意攻击的情况,比如发送一个我已经知道密码,但是尚未 unlock 的锁
@@ -537,8 +559,9 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 		// We need to consider cases with potential attack risks, such as sending a lock that I know the secret but not yet unlock.
 		return fmt.Errorf("ignored mh mediated transfer, because i don't want to route ")
 	}
-	if mh.photon.Config.IsMeshNetwork {
-		return fmt.Errorf("deny any mediated transfer when there is no internet connection")
+	// 当没有有效公链的时候,不接收MediatedTransfer
+	if !mh.photon.IsChainEffective {
+		return rerr.ErrNotAllowMediatedTransfer
 	}
 	if _, ok := mh.blockedTokens[token]; ok {
 		return rerr.ErrTransferUnwanted
@@ -556,39 +579,45 @@ func (mh *photonMessageHandler) messageMediatedTransfer(msg *encoding.MediatedTr
 	}
 	err := ch.RegisterTransfer(mh.photon.GetBlockNumber(), msg)
 	if err != nil {
+		mh.processRegisterTransferError(err, msg)
 		return err
 	}
-	// only for test
-	dataForDebug := &struct {
-		SearchKey           string
-		TokenNetworkAddress string
-		PartnerAddress      string
-		TransferAmount      int64
-		Expiration          int64
-		Amount              int64
-		LockSecretHash      string
-		MerkleProof         []common.Hash
-		Signature           string
-	}{
-		SearchKey:           "dataForDebug",
-		TokenNetworkAddress: mh.photon.Config.RegistryAddress.String(),
-		PartnerAddress:      msg.Sender.String(),
-		TransferAmount:      msg.TransferAmount.Int64(),
-		Expiration:          msg.Expiration,
-		Amount:              msg.PaymentAmount.Int64(),
-		LockSecretHash:      msg.LockSecretHash.String(),
-		MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
-		Signature:           common.Bytes2Hex(msg.Signature),
+	if false {
+		// only for test
+		dataForDebug := &struct {
+			SearchKey           string
+			TokenNetworkAddress string
+			PartnerAddress      string
+			TransferAmount      int64
+			Expiration          int64
+			Amount              int64
+			LockSecretHash      string
+			MerkleProof         []common.Hash
+			Signature           string
+		}{
+			SearchKey:           "dataForDebug",
+			TokenNetworkAddress: params.Cfg.RegistryAddress.String(),
+			PartnerAddress:      msg.Sender.String(),
+			TransferAmount:      msg.TransferAmount.Int64(),
+			Expiration:          msg.Expiration,
+			Amount:              msg.PaymentAmount.Int64(),
+			LockSecretHash:      msg.LockSecretHash.String(),
+			MerkleProof:         channel.ComputeProofForLock(msg.GetLock(), ch.PartnerState.Tree).MerkleProof,
+			Signature:           common.Bytes2Hex(msg.Signature),
+		}
+		var buf []byte
+		buf, err = json.MarshalIndent(dataForDebug, "", "\t")
+		log.Trace(string(buf))
 	}
-
-	buf, err := json.MarshalIndent(dataForDebug, "", "\t")
-	log.Trace(string(buf))
 	//mh.UpdateChannelAndSaveAck(ch, msg.Tag())
-	if msg.Target == mh.photon.NodeAddress {
+	if msg.Target == params.Cfg.MyAddress {
 		mh.photon.targetMediatedTransfer(msg, ch)
 	} else {
 		mh.photon.mediateMediatedTransfer(msg, ch)
 	}
+	// 不管我是中间节点还是目标节点,都应该提交到pms及pfs
+	mh.photon.submitBalanceProofToPfs(ch)
+	mh.photon.submitDelegateToPms(ch)
 	/*
 		start  taker's tokenswap ,only if receive a valid mediated transfer
 	*/
@@ -660,7 +689,7 @@ func (mh *photonMessageHandler) messageSettleRequest(msg *encoding.SettleRequest
 	//	}()
 	//	return nil
 	//}
-	err = settleResponse.Sign(mh.photon.PrivateKey, settleResponse)
+	err = settleResponse.Sign(params.Cfg.PrivateKey, settleResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for settle response err %s", err))
 	}
@@ -700,8 +729,8 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
 		// 失败的SettleResponse
 		notifyString := fmt.Sprintf("Cooperate settle request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
+		mh.photon.NotifyHandler.NotifyCooperateSettleRefused(ch.ChannelIdentifier.ChannelIdentifier, &rerr.StandardError{ErrorCode: msg.ErrorCode, ErrorMsg: msg.ErrorMsg})
+		log.Error(notifyString)
 		return nil
 	}
 	err := ch.RegisterCooperativeSettleResponse(msg)
@@ -712,10 +741,14 @@ func (mh *photonMessageHandler) messageSettleResponse(msg *encoding.SettleRespon
 	mh.photon.UpdateChannelAndSaveAck(ch, msg.Tag())
 	result := ch.CooperativeSettleChannel(msg)
 	go func() {
-		err = <-result.Result
-		if err != nil {
-			log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
-			mh.photon.NotifyHandler.NotifyString(notify.LevelWarn, fmt.Sprintf("CooperateSettle通道失败,建议强制close/settle通道,ChannelIdentifier=%s", msg.ChannelIdentifier.String()))
+		select {
+		case <-mh.photon.quitChan:
+			return
+		case err = <-result.Result: //合约长期执行,可能会内存得不到释放
+			if err != nil {
+				log.Error(fmt.Sprintf("CooperativeSettleChannel %s failed, so we can only close/settle this channel, err = %s", utils.HPex(msg.ChannelIdentifier), err.Error()))
+				mh.photon.NotifyHandler.NotifyCooperateSettleFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+			}
 		}
 	}()
 	return nil
@@ -763,7 +796,7 @@ func (mh *photonMessageHandler) messageWithdrawRequest(msg *encoding.WithdrawReq
 	//	}()
 	//	return nil
 	//}
-	err = withdrawResponse.Sign(mh.photon.PrivateKey, withdrawResponse)
+	err = withdrawResponse.Sign(params.Cfg.PrivateKey, withdrawResponse)
 	if err != nil {
 		panic(fmt.Sprintf("sign message for withdraw response err %s", err))
 	}
@@ -791,8 +824,11 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	if msg.ErrorCode != rerr.ErrSuccess.ErrorCode {
 		// 失败的WithdrawResponse
 		notifyString := fmt.Sprintf("Withdraw request on channel %s has been rejected by partner,errorCode=%d errorMsg=%s", msg.ChannelIdentifier.String(), msg.ErrorCode, msg.ErrorMsg)
-		mh.photon.NotifyHandler.NotifyString(notify.InfoTypeString, notifyString)
-		log.Trace(notifyString)
+		mh.photon.NotifyHandler.NotifyWithdrawRefused(ch.ChannelIdentifier.ChannelIdentifier, &rerr.StandardError{
+			ErrorCode: msg.ErrorCode,
+			ErrorMsg:  msg.ErrorMsg,
+		})
+		log.Error(notifyString)
 		return nil
 	}
 	/*
@@ -809,10 +845,92 @@ func (mh *photonMessageHandler) messageWithdrawResponse(msg *encoding.WithdrawRe
 	// If crash happens, or register fails, we should revert to close/settle mode.
 	result := ch.Withdraw(msg)
 	go func() {
-		err = <-result.Result
-		if err != nil {
-			log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
+		select {
+		case <-mh.photon.quitChan:
+			return
+		case err = <-result.Result:
+			if err != nil {
+				log.Error(fmt.Sprintf("Withdraw %s failed, so we can only close/settle this channel", msg.ChannelIdentifier.String()))
+				mh.photon.NotifyHandler.NotifyWithdrawFailed(ch.ChannelIdentifier.ChannelIdentifier, err)
+			}
 		}
 	}()
 	return nil
+}
+
+/*
+收到来自对方的错误通知:
+目前只有一种错误就是数据库不一致,InvalidNonce,
+发生场景:A发MediatedTransfer给B,这时候B检测到A,B数据库不一致,导致nonce错误,这时候B需要通知A此种错误
+这种错误处理的原则就是:只是通知App,其他处理逻辑不变,因为我无法判断对方所谓的不一致是真是假
+只是从改善用户体验的角度来做这个事.
+*/
+func (mh *photonMessageHandler) messageErrorNotify(msg *encoding.ErrorNotify) error {
+	log.Error(fmt.Sprintf("messageErrorNotify msg=%s", msg))
+	if msg.ErrorNotifyType != encoding.InvalidNonceErrorNotify {
+		log.Error(fmt.Sprintf("unkown ErrorNotifyType %d", msg.ErrorNotifyType))
+		return nil
+	}
+	switch msg.ErrorNotifyType {
+	case encoding.InvalidNonceErrorNotify:
+		if len(msg.RelatedData) <= 0 {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify's RelatedData cannot be nil"))
+			return nil
+		}
+		msg2 := encoding.MessageMap[int(msg.RelatedData[0])]
+		if msg2 == nil {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify's ErrorMessage must be MediatedTransfer or DirectTransfer"))
+			return nil
+		}
+		err := msg2.UnPack(msg.RelatedData)
+		if err != nil {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify decode msg2 err=%s,msg=%s", err, hex.Dump(msg.RelatedData)))
+		}
+		if msg3, ok := msg2.(*encoding.DirectTransfer); ok {
+			ch := mh.photon.getChannelWithAddr(msg3.ChannelIdentifier)
+			if ch == nil {
+				log.Error(fmt.Sprintf("InvalidNonceErrorNotify's type is DirectTransfer,but channel not found,msg3=%s", msg3))
+				return nil
+			}
+			mh.photon.NotifyHandler.NotifyInconsistentDatabase(msg3.ChannelIdentifier, ch.PartnerState.Address)
+			return nil
+		} else if msg3, ok := msg2.(*encoding.MediatedTransfer); ok {
+			for _, mgr := range mh.photon.Transfer2StateManager {
+				//todo 这个未必是高效的方式,因为同时进行的 transfer 可能很多,会比较慢.
+				if mgr.Identifier == msg3.LockSecretHash { //todo consider token swap
+					switch mgr.Name {
+					case initiator.NameInitiatorTransition:
+						mh.photon.NotifyHandler.NotifyInconsistentDatabase(msg3.ChannelIdentifier, msg3.Target)
+					case mediator.NameMediatorTransition:
+						log.Warn(fmt.Sprintf("receive InvalidNonceErrorNotify  as mediated node from %s,msg=%s", utils.APex2(msg.Sender), msg3))
+					case target.NameTargetTransition:
+						log.Error(fmt.Sprintf("receive InvalidNonceErrorNotify,but i'm target,msg=%s", msg3))
+					}
+					break
+				}
+			}
+		} else {
+			log.Error(fmt.Sprintf("InvalidNonceErrorNotify ,but message type is not mediatedTransfer and direct transfer"))
+		}
+	}
+	return nil
+}
+
+func (mh *photonMessageHandler) processRegisterTransferError(err error, msg encoding.SignedMessager) {
+	log.Error(fmt.Sprintf("RegisterTransfer err %s", err))
+	if inErr, ok := err.(rerr.StandardError); ok {
+		if inErr.ErrorCode == rerr.ErrInvalidNonce.ErrorCode {
+			//专门处理InvalidNonce这个错误,只是发送消息,但是这个消息本身还是不应该给Ack
+			data := msg.Pack()
+			em := encoding.NewErrorNotify(encoding.InvalidNonceErrorNotify, data)
+			err2 := em.Sign(params.Cfg.PrivateKey, em)
+			if err2 != nil {
+				panic(fmt.Sprintf("sign message error %s", err2))
+			}
+			err2 = mh.photon.sendAsync(msg.GetSender(), em)
+			if err2 != nil {
+				log.Error(fmt.Sprintf("send message to %s, err %s", utils.APex2(msg.GetSender()), err2))
+			}
+		}
+	}
 }

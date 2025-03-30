@@ -27,6 +27,7 @@ var big10 = big.NewInt(10)
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 func assert(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
 	return assert2.EqualValues(t, expected, actual, msgAndArgs...)
@@ -41,11 +42,12 @@ func TestTypConversion(t *testing.T) {
 
 func makeInitStateChange(fromTransfer *mediatedtransfer.LockedTransferState, fromRoute *route.State, routes []*route.State, ourAddress common.Address) *mediatedtransfer.ActionInitMediatorStateChange {
 	return &mediatedtransfer.ActionInitMediatorStateChange{
-		OurAddress:  ourAddress,
-		FromTranfer: fromTransfer,
-		Routes:      route.NewRoutesState(routes),
-		FromRoute:   fromRoute,
-		BlockNumber: 1,
+		OurAddress:       ourAddress,
+		FromTranfer:      fromTransfer,
+		Routes:           route.NewRoutesState(routes),
+		FromRoute:        fromRoute,
+		BlockNumber:      1,
+		IsEffectiveChain: true,
 	}
 }
 func makeTransferPair(payer, payee, initiator, target common.Address, amount *big.Int, expiration int64, secret common.Hash, revealTimeout int) *mediatedtransfer.MediationPairState {
@@ -280,24 +282,27 @@ func TestNextRouteAmount(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, x.Div(amount, big.NewInt(2)), 0, revealTimeout, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, amount, 0, revealTimeout, 0, utils.NewRandomHash()),
 	}
+	fnNextPaymentAmount := func(r *route.State) *big.Int {
+		return amount
+	}
 	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, revealTimeout, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route1, routes[0])
 	assert(t, routesState.AvailableRoutes, routes[1:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route2, routes[1])
 	assert(t, routesState.AvailableRoutes, routes[2:])
 	assert(t, len(routesState.IgnoredRoutes), 0)
 
-	route3, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route3, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route3, routes[3])
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, []*route.State{routes[2]})
 
-	route4, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route4, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route4 == nil, true)
 
 }
@@ -314,13 +319,16 @@ func TestNextRouteRevealTimeout(t *testing.T) {
 		utest.MakeRoute(utest.HOP3, balance, 0, timeoutBlocks/2, 0, utils.NewRandomHash()),
 		utest.MakeRoute(utest.HOP4, balance, 0, timeoutBlocks, 0, utils.NewRandomHash()),
 	}
+	fnNextPaymentAmount := func(r *route.State) *big.Int {
+		return amount
+	}
 	fromRoute := utest.MakeRoute(utest.HOP6, amount, 0, 10, 0, utils.NewRandomHash())
 	routesState := route.NewRoutesState(routes)
-	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route1, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route1, routes[2])
 	assert(t, routesState.AvailableRoutes, routes[3:])
 	assert(t, routesState.IgnoredRoutes, routes[0:2])
-	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, amount, utils.BigInt0)
+	route2, _ := nextRoute(fromRoute, routesState, timeoutBlocks, utils.BigInt0, fnNextPaymentAmount)
 	assert(t, route2 == nil, true)
 	assert(t, len(routesState.AvailableRoutes), 0)
 	assert(t, routesState.IgnoredRoutes, append(routes[0:2], routes[3]))
@@ -394,7 +402,7 @@ func TestSetExpiredPairs(t *testing.T) {
 	//dge case for the payee lock expiration
 	assert(t, pair.PayeeState, mediatedtransfer.StatePayeePending)
 	assert(t, pair.PayerState, mediatedtransfer.StatePayerPending)
-	setExpiredPairs(pairs, payeeExpirationBlock+1+params.ForkConfirmNumber)
+	setExpiredPairs(pairs, payeeExpirationBlock+1+params.Cfg.ForkConfirmNumber)
 	assert(t, pair.PayeeState, mediatedtransfer.StatePayeeExpired)
 	//assert(t, pair.PayerState, mediatedtransfer.StatePayerPending) payer状态不确定,取决于ForkConfirmNumber和reveal timeout的关系
 	// edge case for the payer lock expiration
@@ -418,7 +426,7 @@ func TestEventsForRefund(t *testing.T) {
 	refundRoute := utest.MakeRoute(initiator, amount, utest.UnitSettleTimeout, revealTimeout, 0, utils.NewRandomHash())
 	refundTransfer := utest.MakeTransfer(amount, initiator, target, expiration, utils.EmptyHash, utils.EmptyHash, utest.UnitTokenAddress)
 
-	refundEvents := eventsForRefund(refundRoute, refundTransfer, rerr.ErrNoAvailabeRoute)
+	refundEvents := eventsForRefund(refundRoute, refundTransfer, rerr.ErrNoAvailabeRoute, true)
 	ev, ok := refundEvents[0].(*mediatedtransfer.EventSendAnnounceDisposed)
 	assert(t, ok, true)
 	assert(t, ev.Expiration < blockNumber+int64(timeoutBlocks), true)
@@ -717,10 +725,11 @@ func TestMediateTransfer(t *testing.T) {
 	var routes = []*route.State{utest.MakeRoute(utest.HOP2, utest.UnitTransferAmount, utest.UnitSettleTimeout, utest.UnitRevealTimeout, 0, utils.NewRandomHash())}
 	routesState := route.NewRoutesState(routes)
 	state := &mediatedtransfer.MediatorState{
-		OurAddress:  utest.ADDR,
-		Routes:      routesState,
-		BlockNumber: blockNumber,
-		Hashlock:    utest.UnitHashLock,
+		OurAddress:       utest.ADDR,
+		Routes:           routesState,
+		BlockNumber:      blockNumber,
+		Hashlock:         utest.UnitHashLock,
+		IsEffectiveChain: true,
 	}
 	payerroute, payertransfer := utest.MakeFrom(amount, utest.HOP6, expiration, utils.NewRandomAddress(), utils.EmptyHash)
 	it := mediateTransfer(state, payerroute, payertransfer)

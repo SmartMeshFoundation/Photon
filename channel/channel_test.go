@@ -25,6 +25,7 @@ import (
 
 func init() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, utils.MyStreamHandler(os.Stderr)))
+	params.InitForUnitTest()
 }
 
 var big10 = big.NewInt(10)
@@ -774,7 +775,7 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		t.Error("cannot remove not expired hashlock")
 		return
 	}
-	_, _, locksroot, err := testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, expiration+params.ForkConfirmNumber+1, true)
+	_, _, locksroot, err := testChannel.PartnerState.TryRemoveHashLock(rmtr.LockSecretHash, expiration+params.Cfg.ForkConfirmNumber+1, true)
 	if err != nil {
 		t.Errorf("can remove a expired hashlock err=%s", err)
 		return
@@ -793,18 +794,18 @@ func TestRemoveExpiredHashlock(t *testing.T) {
 		t.Error("can not register")
 		return
 	}
-	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner, expiration+params.ForkConfirmNumber)
+	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromPartner, expiration+params.Cfg.ForkConfirmNumber)
 	if err != nil {
 		t.Error("must be  removed ", err)
 		return
 	}
-	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, expiration+params.ForkConfirmNumber)
+	removeTransferFromMe, err := testChannel.CreateRemoveExpiredHashLockTransfer(smtr.LockSecretHash, expiration+params.Cfg.ForkConfirmNumber)
 	if err != nil {
 		t.Error("must be removed for a expired hashlock®")
 		return
 	}
 	removeTransferFromMe.Sign(privkey1, removeTransferFromMe)
-	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe, expiration+params.ForkConfirmNumber)
+	err = testChannel.RegisterRemoveExpiredHashlockTransfer(removeTransferFromMe, expiration+params.Cfg.ForkConfirmNumber)
 	if err != nil {
 		t.Errorf(" err register mine remove transfer %s", err)
 		return

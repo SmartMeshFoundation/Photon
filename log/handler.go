@@ -104,7 +104,7 @@ func HttpHandler(path string, fmtr Format) Handler {
 func TeeHandler(fastHandler, slowHandler1 Handler, slowHandler2 Handler) Handler {
 	return FuncHandler(func(r *Record) error {
 		if slowHandler1 != nil {
-			go slowHandler1.Log(r)
+			slowHandler1.Log(r)
 		}
 		if slowHandler2 != nil {
 			go slowHandler2.Log(r)

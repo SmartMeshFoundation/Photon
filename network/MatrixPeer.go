@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/SmartMeshFoundation/Photon/utils"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Photon/network/gomatrix"
 	"github.com/ethereum/go-ethereum/common"
+	"sync"
 )
 
 type peerStatus int
@@ -43,50 +43,26 @@ type MatrixPeer struct {
 	rooms                map[string]bool //roomID exists?
 	status               peerStatus
 	deviceType           string
-	hasChannelWith       bool
-	removeChan           chan<- common.Address
-	quitChan             chan struct{}
 	receiveMessage       chan struct{}
 	channelCount         int // 我与此节点总共有多少条通道
+	candidateLock        sync.RWMutex
 }
 
 //NewMatrixPeer create matrix user
-func NewMatrixPeer(address common.Address, hasChannel bool, removeChan chan<- common.Address) *MatrixPeer {
+func NewMatrixPeer(address common.Address) *MatrixPeer {
 	u := &MatrixPeer{
 		address:              address,
-		hasChannelWith:       hasChannel,
 		rooms:                make(map[string]bool),
 		candidateUsers:       make(map[string]*gomatrix.UserInfo),
 		candidateUsersStatus: make(map[string]peerStatus),
-		removeChan:           removeChan,
-		quitChan:             make(chan struct{}),
 		channelCount:         1,
-	}
-	if !u.hasChannelWith {
-		go u.loop()
 	}
 	return u
 }
-func (peer *MatrixPeer) stop() {
-	close(peer.quitChan)
-}
-func (peer *MatrixPeer) loop() {
-	for {
-		select {
-		case <-peer.quitChan:
-			return
-		case <-peer.receiveMessage:
-			continue
-		/*
-			dont receive any message in ten minutes,this peer should be removed.
-		*/
-		case <-time.After(time.Minute * 10):
-			peer.removeChan <- peer.address
-		}
-	}
-}
 
 func (peer *MatrixPeer) isValidUserID(userID string) bool {
+	peer.candidateLock.RLock()
+	defer peer.candidateLock.RUnlock()
 	for _, u := range peer.candidateUsers {
 		if u.UserID == userID {
 			return true
@@ -99,6 +75,8 @@ func (peer *MatrixPeer) isValidUserID(userID string) bool {
 make sure that `users` are already joined in the default message room
 */
 func (peer *MatrixPeer) updateUsers(users []*gomatrix.UserInfo) {
+	peer.candidateLock.Lock()
+	defer peer.candidateLock.Unlock()
 	for _, lu := range users {
 		peer.candidateUsers[lu.UserID] = lu
 	}
@@ -113,16 +91,18 @@ func (peer *MatrixPeer) addRoom(roomID string) {
 }
 
 /*
-if one of the `candidateUsers` is online, status is online
-if one of the `candidateUsers` is offline,status is offline
-if all of the `candidateUsers` is UNAVAILABLE,status is unkown
+1. if one of the `candidateUsers` is online, status is online ,otherwise
+2. if one of the `candidateUsers` is offline,status is offline
+3. then if all of the `candidateUsers` is UNAVAILABLE,status is unkown
 */
 func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
+	peer.candidateLock.Lock()
 	peer.candidateUsers[userID] = &gomatrix.UserInfo{
 		DisplayName: "",
 		AvatarURL:   "",
 		UserID:      userID,
 	}
+	peer.candidateLock.Unlock()
 	var status peerStatus
 	switch presence {
 	case ONLINE:
@@ -132,14 +112,16 @@ func (peer *MatrixPeer) setStatus(userID string, presence string) bool {
 	case UNAVAILABLE:
 		status = peerStatusUnkown
 	}
-	status = peerStatusOnline
-	peer.candidateUsersStatus[userID] = status
+	peer.candidateLock.RLock()
 	user := peer.candidateUsers[userID]
+	peer.candidateLock.RUnlock()
 	if user == nil {
 		log.Error(fmt.Sprintf("peer %s ,userid %s set status %s ,but i don't kown this userid. MatrixPeer=%s",
 			utils.APex2(peer.address), userID, status, utils.StringInterface(peer, 7)))
 		return false
 	}
+	peer.candidateLock.RLock()
+	defer peer.candidateLock.RUnlock()
 	peer.candidateUsersStatus[userID] = status
 	for _, s := range peer.candidateUsersStatus {
 		if s > status {

@@ -34,7 +34,7 @@ var TestPrivKey *ecdsa.PrivateKey
 type FakeTXINfoDao struct{}
 
 // NewPendingTXInfo :
-func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams, isFake ...bool) (txInfo *models.TXInfo, err error) {
 	return
 }
 

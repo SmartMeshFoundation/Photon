@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/SmartMeshFoundation/Photon/log"
 	"github.com/SmartMeshFoundation/Photon/network/helper"
 
 	"os"
@@ -23,7 +22,7 @@ import (
 type FakeTXINfoDao struct{}
 
 // NewPendingTXInfo :
-func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams) (txInfo *models.TXInfo, err error) {
+func (dao *FakeTXINfoDao) NewPendingTXInfo(tx *types.Transaction, txType models.TXInfoType, channelIdentifier common.Hash, openBlockNumber int64, txParams models.TXParams, isFake ...bool) (txInfo *models.TXInfo, err error) {
 	return
 }
 
@@ -45,11 +44,11 @@ func (dao *FakeTXINfoDao) GetTXInfoList(channelIdentifier common.Hash, openBlock
 func newTestBlockChainService() *rpc.BlockChainService {
 	conn, err := helper.NewSafeClient(rpc.TestRPCEndpoint)
 	if err != nil {
-		log.Crit(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
+		panic(fmt.Sprintf("Failed to connect to the Ethereum client: %s", err))
 	}
 	privkey, _ := utils.MakePrivateKeyAddress()
 	if err != nil {
-		log.Crit("Failed to create authorized transactor: ", err)
+		panic(fmt.Sprintf("Failed to create authorized transactor: %s", err))
 	}
 	bcs, err := rpc.NewBlockChainService(privkey, rpc.PrivateRopstenRegistryAddress, conn, notify.NewNotifyHandler(), &FakeTXINfoDao{})
 	if err != nil {

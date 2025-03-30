@@ -104,6 +104,7 @@ func init() {
 	CanDealUnlock[StatePrepareForWithdraw] = true
 }
 
+// String for read
 func (s State) String() string {
 	switch s {
 	case StateInValid:
